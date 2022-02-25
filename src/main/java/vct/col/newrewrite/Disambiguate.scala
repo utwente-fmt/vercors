@@ -6,6 +6,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.Unreachable
+import viper.silicon.state.terms.SetDifference
 
 case object Disambiguate extends RewriterBuilder
 
@@ -15,13 +16,20 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
     e match {
       case op @ AmbiguousMult(left, right) =>
         if(op.isProcessOp) ProcessSeq(dispatch(left), dispatch(right))
+        else if(op.isSetOp) SetIntersection(dispatch(left), dispatch(right))
+        else if(op.isBagOp) BagLargestCommon(dispatch(left), dispatch(right))
         else Mult(dispatch(left), dispatch(right))
       case op @ AmbiguousPlus(left, right) =>
         if(op.isProcessOp) ProcessChoice(dispatch(left), dispatch(right))
         else if(op.isPointerOp) PointerAdd(dispatch(left), dispatch(right))(op.blame)
         else if(op.isSeqOp) Concat(dispatch(left), dispatch(right))
-        else if(op.isSetOp) ???
+        else if(op.isSetOp) SetUnion(dispatch(left), dispatch(right))
+        else if(op.isBagOp) BagAdd(dispatch(left), dispatch(right))
         else Plus(dispatch(left), dispatch(right))
+      case op @ AmbiguousMinus(left, right) =>
+        if(op.isSetOp) SetMinus(dispatch(left), dispatch(right))
+        else if(op.isBagOp) BagMinus(dispatch(left), dispatch(right))
+        else Minus(dispatch(left), dispatch(right))
       case op @ AmbiguousOr(left, right) =>
         if(op.isProcessOp) ProcessPar(dispatch(left), dispatch(right))
         else Or(dispatch(left), dispatch(right))
@@ -49,6 +57,23 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isBagOp) BagMemberCount(dispatch(x), dispatch(xs))
         else if(op.isSeqOp) SeqMember(dispatch(x), dispatch(xs))
         else throw Unreachable("AmbiguousMember must query a map, set, bag, or seq because of the type check.")
+      case cmp: AmbiguousOrderOp[Pre] =>
+        if(cmp.isBagOp) cmp match {
+          case AmbiguousGreater(left, right) => SubBag(dispatch(right), dispatch(left))
+          case AmbiguousLess(left, right) => SubBag(dispatch(left), dispatch(right))
+          case AmbiguousGreaterEq(left, right) => SubBagEq(dispatch(right), dispatch(left))
+          case AmbiguousLessEq(left, right) => SubBagEq(dispatch(left), dispatch(right))
+        } else if(cmp.isSetOp) cmp match {
+          case AmbiguousGreater(left, right) => SubSet(dispatch(right), dispatch(left))
+          case AmbiguousLess(left, right) => SubSet(dispatch(left), dispatch(right))
+          case AmbiguousGreaterEq(left, right) => SubSetEq(dispatch(right), dispatch(left))
+          case AmbiguousLessEq(left, right) => SubSetEq(dispatch(left), dispatch(right))
+        } else cmp match {
+          case AmbiguousGreater(left, right) => Greater(dispatch(left), dispatch(right))
+          case AmbiguousLess(left, right) => Less(dispatch(left), dispatch(right))
+          case AmbiguousGreaterEq(left, right) => GreaterEq(dispatch(left), dispatch(right))
+          case AmbiguousLessEq(left, right) => LessEq(dispatch(left), dispatch(right))
+        }
       case other => rewriteDefault(other)
     }
   }

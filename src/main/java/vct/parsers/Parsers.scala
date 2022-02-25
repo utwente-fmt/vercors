@@ -1,8 +1,6 @@
 package vct.parsers
 
-import vct.col.ast.GlobalDeclaration
 import vct.result.VerificationResult.UserError
-import vct.silver.ColSilverParser
 
 import java.nio.file.Path
 
@@ -18,7 +16,7 @@ object Parsers {
     case "java" => ColJavaParser(topLevelSpecs=false)
     case "jspec" => ColJavaParser(topLevelSpecs=true)
     case "pvl" => ColPVLParser()
-    case "sil" | "vpr" => new ColSilverParser()
+    case "sil" | "vpr" => ColSilverParser()
     case other => throw UnknownFileExtension(other)
   }
 

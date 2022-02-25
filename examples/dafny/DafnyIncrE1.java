@@ -15,7 +15,7 @@ class Incr {
 
   /*@
     requires true;
-    ensures y == \old(y)+1;
+    ensures [/expect perm]y[/end] == \old(y)+1;
   @*/
   public void incry(){
     y = y + 1;

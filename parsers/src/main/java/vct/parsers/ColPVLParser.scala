@@ -10,13 +10,13 @@ case class ColPVLParser() extends Parser {
     try {
       val lexer = new LangPVLLexer(stream)
       val tokens = new CommonTokenStream(lexer)
-      val errors = expectedErrors(tokens, LangPVLLexer.EXPECTED_ERROR_CHANNEL, LangPVLLexer.VAL_EXPECT_ERROR_OPEN, LangPVLLexer.VAL_EXPECT_ERROR_CLOSE)
+      val errors = expectedErrors(tokens, LangPVLLexer.EXPECTED_ERROR_CHANNEL, LangPVLLexer.VAL_EXPECT_ERROR_OPEN, LangPVLLexer.VAL_EXPECT_ERROR_CLOSE, originProvider, blameProvider)
       val parser = new PVLParser(tokens)
       val ec = errorCounter(parser, lexer, originProvider)
 
       val tree = parser.program()
       val decls = PVLToCol[G](originProvider, blameProvider, errors).convert(tree)
-      ParseResult(decls, Nil)
+      ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>
         throw ParseMatchError(m.getMessage())

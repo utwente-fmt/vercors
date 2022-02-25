@@ -1,28 +1,45 @@
 package vct.col.origin
 
+import vct.col.origin.Origin.{BOLD_HR, HR}
 import vct.col.util.ExpectedError
 
 import java.nio.file.Path
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
+case object Origin {
+  val BOLD_HR = "======================================\n"
+  val HR      = "--------------------------------------\n"
+
+  def messagesInContext(messages: Seq[(Origin, String)]): String =
+    messages.zipWithIndex.map {
+      case ((origin, message), idx) =>
+        origin.context.strip() + "\n" + HR + s"[${idx+1}/${messages.size}] $message\n"
+    }.mkString(BOLD_HR, HR, BOLD_HR)
+}
+
 trait Origin extends Blame[VerificationFailure] {
   def preferredName: String
-  def messageInContext(message: String): String
+  def context: String
+
+  def messageInContext(message: String): String =
+    context match {
+      case "" => message
+      case context =>
+        BOLD_HR + context.strip() + "\n" + HR + message + "\n" + BOLD_HR
+    }
 
   override def blame(error: VerificationFailure): Unit = {
-    println(messageInContext(error.toString))
+    println(error.toString)
   }
 }
 
 case object DiagnosticOrigin extends Origin {
   override def preferredName: String = "unknown"
-  override def messageInContext(message: String): String = message
+  override def context: String = ""
 }
 
 object InputOrigin {
-  val BOLD_HR = "======================================\n"
-  val HR      = "--------------------------------------\n"
   val CONTEXT = 2
   val LINE_NUMBER_WIDTH = 5
 
@@ -158,14 +175,9 @@ case class FileOrigin(path: Path,
                       startLineIdx: Int, startColIdx: Int,
                       endLineIdx: Int, endColIdx: Int)
   extends InputOrigin {
-  override def messageInContext(message: String): String =
-    InputOrigin.BOLD_HR +
-      f" At $path:${startLineIdx+1}:${startColIdx+1}:\n" +
-      InputOrigin.HR +
-      InputOrigin.contextLines(path, startLineIdx, endLineIdx, Some((startColIdx, endColIdx))) +
-      InputOrigin.HR +
-      " " + message + "\n" +
-      InputOrigin.BOLD_HR
+  override def context: String =
+      f" At $path:${startLineIdx+1}:${startColIdx+1}:\n" + Origin.HR +
+      InputOrigin.contextLines(path, startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
 }
 
 case class InterpretedOrigin(interpretedPath: Path,
@@ -174,22 +186,15 @@ case class InterpretedOrigin(interpretedPath: Path,
                              originalPath: Path,
                              originalStartLineIdx: Int, originalEndLineIdx: Int)
   extends InputOrigin {
-  override def messageInContext(message: String): String = {
-    InputOrigin.BOLD_HR +
-      f" At $originalPath:${originalStartLineIdx+1}:\n" +
-      InputOrigin.HR +
-      InputOrigin.contextLines(originalPath, originalStartLineIdx, originalEndLineIdx, cols=None) +
-      InputOrigin.HR +
-      f" Interpreted at $interpretedPath:${startLineIdx+1}:${startColIdx+1} as:\n" +
-      InputOrigin.HR +
-      InputOrigin.contextLines(interpretedPath, startLineIdx, endLineIdx, Some((startColIdx, endColIdx))) +
-      InputOrigin.HR +
-      " " + message + "\n" +
-      InputOrigin.BOLD_HR
+  override def context: String = {
+    f" At $originalPath:${originalStartLineIdx+1}:\n" + Origin.HR +
+      InputOrigin.contextLines(originalPath, originalStartLineIdx, originalEndLineIdx, cols=None) + Origin.HR +
+      f" Interpreted at $interpretedPath:${startLineIdx+1}:${startColIdx+1} as:\n" + Origin.HR +
+      InputOrigin.contextLines(interpretedPath, startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
   }
 }
 
 case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
   override def preferredName: String = name
-  override def messageInContext(message: String): String = inner.messageInContext(message)
+  override def context: String = inner.context
 }

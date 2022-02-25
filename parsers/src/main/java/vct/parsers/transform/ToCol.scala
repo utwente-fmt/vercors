@@ -1,17 +1,19 @@
 package vct.parsers.transform
 
-import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.util.AstBuildHelpers.tt
 import vct.col.util.{AstBuildHelpers, ExpectedError}
 import vct.parsers.ParseError
 
 import scala.annotation.nowarn
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: mutable.Map[(Int, Int), String]) {
+abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: Seq[(Token, Token, ExpectedError)]) {
   class ContractCollector[G1]() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
@@ -42,8 +44,12 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     }
 
     def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {
-      if(requires.nonEmpty) IterationContract(AstBuildHelpers.foldStar(consume(requires)), AstBuildHelpers.foldStar(consume(ensures)))(blame(blameNode))
-      else LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))(blame(blameNode))
+      if(loop_invariant.nonEmpty) LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))(blame(blameNode))
+      else if(requires.nonEmpty || ensures.nonEmpty || context_everywhere.nonEmpty) IterationContract(
+        AstBuildHelpers.foldStar(consume(requires)),
+        AstBuildHelpers.foldStar(consume(ensures)),
+        AstBuildHelpers.foldAnd(consume(context_everywhere)))(blame(blameNode))
+      else LoopInvariant(tt[G1])(blame(blameNode))
     }
 
     def nodes: Seq[ParserRuleContext] = Seq(
@@ -71,12 +77,13 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
   implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
 
   def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
-    errors.keys.find { case (from, to) => node.start.getTokenIndex >= from && node.stop.getTokenIndex <= to } match {
-      case Some(key) =>
-        val code = errors.remove(key).get
-        ExpectedError(code, blameProvider(node))
-      case None =>
-        blameProvider(node)
+    errors.foldLeft(blameProvider(node)) {
+      case (currentBlame, (from, to, expectedError)) =>
+        if(node.start.getTokenIndex >= from.getTokenIndex && node.stop.getTokenIndex <= to.getTokenIndex) {
+          FilterExpectedErrorBlame(currentBlame, expectedError)
+        } else {
+          currentBlame
+        }
     }
 
   def convertList[Input, Append <: Input, Singleton <: Input, Element]

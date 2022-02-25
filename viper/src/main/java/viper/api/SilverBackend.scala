@@ -2,11 +2,13 @@ package viper.api
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationResult.SystemError
+import viper.silver.ast.ConsInfo
 import viper.silver.verifier.errors._
 import viper.silver.verifier._
 import viper.silver.{ast => silver}
 
 import java.io.{File, PrintWriter}
+import scala.reflect.ClassTag
 
 trait SilverBackend extends Backend {
   case class NotSupported(text: String) extends SystemError
@@ -17,12 +19,15 @@ trait SilverBackend extends Backend {
   }
 
   def createVerifier: Verifier
+  def stopVerifier(verifier: Verifier): Unit
+
+  private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
 
   private def get[T <: col.Node[_]](node: silver.Infoed): T =
-    node.info.asInstanceOf[NodeInfo[T]].node
+    info(node).node
 
   private def path(node: silver.Node): Seq[AccountedDirection] =
-    node.asInstanceOf[silver.Infoed].info.asInstanceOf[NodeInfo[_]].predicatePath.get
+    info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
   override def submit(colProgram: col.Program[_]): Unit = {
     val silverProgram = ColToSilver.transform(colProgram)
@@ -36,7 +41,9 @@ trait SilverBackend extends Backend {
       case some => throw ConsistencyErrors(some)
     }
 
-    createVerifier.verify(silverProgram) match {
+    val verifier = createVerifier
+
+    verifier.verify(silverProgram) match {
       case Success =>
       case Failure(errors) => errors.foreach {
         case err: AbstractVerificationError => err match {
@@ -129,11 +136,11 @@ trait SilverBackend extends Backend {
                 defer(otherReason)
             }
           case LoopInvariantNotPreserved(node, reason, _) =>
-            val `while` = get[col.Loop[_]](node)
-            `while`.contract.asInstanceOf[col.LoopInvariant[_]].blame.blame(blame.LoopInvariantNotMaintained(getFailure(reason), `while`))
+            val invariant = info(node).invariant.get
+            invariant.blame.blame(blame.LoopInvariantNotMaintained(getFailure(reason), invariant))
           case LoopInvariantNotEstablished(node, reason, _) =>
-            val `while` = get[col.Loop[_]](node)
-            `while`.contract.asInstanceOf[col.LoopInvariant[_]].blame.blame(blame.LoopInvariantNotEstablished(getFailure(reason), `while`))
+            val invariant = info(node).invariant.get
+            invariant.blame.blame(blame.LoopInvariantNotEstablished(getFailure(reason), invariant))
           case FunctionNotWellformed(_, reason, _) =>
             defer(reason)
           case PredicateNotWellformed(_, reason, _) =>
@@ -161,13 +168,15 @@ trait SilverBackend extends Backend {
           throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")
       }
     }
+
+    stopVerifier(verifier)
   }
 
   def getFailure(reason: ErrorReason): blame.ContractFailure = reason match {
     case reasons.AssertionFalse(expr) => blame.ContractFalse(get[col.Expr[_]](expr))
     case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](access))
     case reasons.ReceiverNotInjective(access) => blame.ReceiverNotInjective(get[col.Expr[_]](access))
-    case reasons.NegativePermission(p) => blame.NegativePermissionValue(p.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode.get) // need to fetch access
+    case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
   }
 
   def defer(reason: ErrorReason): Unit = reason match {
@@ -181,10 +190,10 @@ trait SilverBackend extends Backend {
       val old = get[col.Old[_]](expr)
       old.blame.blame(blame.LabelNotReached(old))
     case reasons.SeqIndexNegative(_, idx) =>
-      val subscript = idx.info.asInstanceOf[NodeInfo[_]].seqIndexSubscriptNode.get
+      val subscript = info(idx).seqIndexSubscriptNode.get
       subscript.blame.blame(blame.SeqBoundNegative(subscript))
     case reasons.SeqIndexExceedsLength(_, idx) =>
-      val subscript = idx.info.asInstanceOf[NodeInfo[_]].seqIndexSubscriptNode.get
+      val subscript = info(idx).seqIndexSubscriptNode.get
       subscript.blame.blame(blame.SeqBoundExceedsLength(subscript))
   }
 }

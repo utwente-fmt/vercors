@@ -16,7 +16,7 @@ case class CollectLocalDeclarations[Pre <: Generation]() extends Rewriter[Pre] {
         throw Unreachable("The frontend must not open an execution context (e.g. method body) that does not immediately contain a scope.")
       }
 
-      local.rewrite().succeedDefault(this, local)
+      local.rewrite().succeedDefault(local)
       Block(Nil)(stat.o)
     case Scope(vars, impl) =>
       val newVars = ArrayBuffer[Variable[Post]]()

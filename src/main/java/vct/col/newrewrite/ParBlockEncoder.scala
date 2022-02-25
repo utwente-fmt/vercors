@@ -17,50 +17,20 @@ case object ParBlockEncoder extends RewriterBuilder {
   }
 
   case class ParRegionImpl(region: ParRegion[_]) extends Origin {
-    override def messageInContext(message: String): String =
-      region.o.messageInContext(message)
-
-    override def preferredName: String = regionName(region)
+    override def context: String = region.o.context
+    override def preferredName: String = "do_" + regionName(region)
   }
 
   case class ParBlockCheck(block: ParBlock[_]) extends Origin {
     override def preferredName: String =
-      "check_" + block.o.preferredName
+      "check_" + regionName(block)
 
-    override def messageInContext(message: String): String =
-      block.o.messageInContext(message)
+    override def context: String = block.o.context
   }
 
   case object ParImpl extends Origin {
     override def preferredName: String = "unknown"
-    override def messageInContext(message: String): String =
-      s"[At node generated for the implementation of parallel blocks]: $message"
-  }
-
-  case class ParInvariantCannotBeExhaled(invariant: ParInvariant[_]) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit =
-      invariant.blame.blame(ParInvariantNotEstablished(error.failure, invariant))
-  }
-
-  case class ParAtomicCannotBeExhaled(atomic: ParAtomic[_]) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit =
-      atomic.blame.blame(ParInvariantNotMaintained(error.failure, atomic))
-  }
-
-  case class ParBarrierPostconditionFailed(barrier: ParBarrier[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case PostconditionFailed(_, failure, _) =>
-        barrier.blame.blame(ParBarrierInconsistent(failure, barrier))
-      case ctx: ContextEverywhereFailedInPost =>
-        PanicBlame("the generated method for a barrier proof does not include context_everywhere clauses.").blame(ctx)
-      case _: SignalsFailed | _: ExceptionNotInSignals =>
-        barrier.blame.blame(ParBarrierMayNotThrow(barrier))
-    }
-  }
-
-  case class ParBarrierExhaleFailed(barrier: ParBarrier[_]) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit =
-      barrier.blame.blame(ParBarrierNotEstablished(error.failure, barrier))
+    override def context: String = s"[At node generated for the implementation of parallel blocks]"
   }
 
   case class ParPreconditionPostconditionFailed(region: ParRegion[_]) extends Blame[PostconditionFailed] {
@@ -100,9 +70,8 @@ case object ParBlockEncoder extends RewriterBuilder {
 case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   import ParBlockEncoder._
 
-  val invariants: ScopedStack[Expr[Post]] = ScopedStack()
+  val invariants: ScopedStack[Expr[Pre]] = ScopedStack()
   val parDecls: mutable.Map[ParBlockDecl[Pre], ParBlock[Pre]] = mutable.Map()
-  val invDecls: mutable.Map[ParInvariantDecl[Pre], ParInvariant[Pre]] = mutable.Map()
 
   def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
     val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
@@ -130,16 +99,18 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     ).declareDefault(this)
   }
 
-  def requires(region: ParRegion[Pre])(implicit o: Origin): Expr[Pre] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires))
-    case ParSequential(regions) => regions.headOption.map(requires).getOrElse(tt)
-    case block: ParBlock[Pre] => quantify(block, block.requires)
+  def requires(region: ParRegion[Pre], includingInvariant: Boolean = false)(implicit o: Origin): Expr[Pre] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires(_, includingInvariant)))
+    case ParSequential(regions) => regions.headOption.map(requires(_, includingInvariant)).getOrElse(tt)
+    case block: ParBlock[Pre] =>
+      if(includingInvariant) block.context_everywhere &* quantify(block, block.requires) else quantify(block, block.requires)
   }
 
-  def ensures(region: ParRegion[Pre])(implicit o: Origin): Expr[Pre] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures))
-    case ParSequential(regions) => regions.headOption.map(ensures).getOrElse(tt)
-    case block: ParBlock[Pre] => quantify(block, block.ensures)
+  def ensures(region: ParRegion[Pre], includingInvariant: Boolean = false)(implicit o: Origin): Expr[Pre] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures(_, includingInvariant)))
+    case ParSequential(regions) => regions.lastOption.map(ensures(_, includingInvariant)).getOrElse(tt)
+    case block: ParBlock[Pre] =>
+      if(includingInvariant) block.context_everywhere &* quantify(block, block.ensures) else quantify(block, block.ensures)
   }
 
   val regionAsMethod: mutable.Map[ParRegion[Pre], (Procedure[Post], Seq[Expr[Post]])] = mutable.Map()
@@ -148,37 +119,39 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = ParImpl
     regionAsMethod.getOrElseUpdate(region, region match {
       case ParParallel(regions) =>
-        val (Seq(req, ens), vars) = Extract.extract[Pre](requires(region), ensures(region))
+        val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldAnd(invariants.toSeq))
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = UnitAccountedPredicate(dispatch(req)),
-          ensures = UnitAccountedPredicate(dispatch(ens)),
+          requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
+          ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
       case ParSequential(regions) =>
-        val (Seq(req, ens), vars) = Extract.extract[Pre](requires(region), ensures(region))
+        val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldAnd(invariants.toSeq))
 
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = UnitAccountedPredicate(dispatch(req)),
-          ensures = UnitAccountedPredicate(dispatch(ens)),
+          requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
+          ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
         )(ParRegionImpl(region))
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
       case block: ParBlock[Pre] =>
-        val (Seq(req, ens), vars) = Extract.extract[Pre](requires(block), ensures(block))
+        invariants.having(block.context_everywhere) {
+          val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(block), ensures(block), foldAnd(invariants.toSeq))
 
-        val result = procedure[Post](
-          blame = AbstractApplicable,
-          args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
-          requires = UnitAccountedPredicate(dispatch(req)),
-          ensures = UnitAccountedPredicate(dispatch(ens)),
-        )(ParRegionImpl(region))
-        result.declareDefault(this)
-        (result, vars.values.map(dispatch).toSeq)
+          val result = procedure[Post](
+            blame = AbstractApplicable,
+            args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
+            requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
+            ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
+          )(ParRegionImpl(region))
+          result.declareDefault(this)
+          (result, vars.values.map(dispatch).toSeq)
+        }
     })
   }
 
@@ -191,73 +164,64 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = region.o
       regions.zip(regions.tail).foreach {
         case (left, right) =>
-          proveImplies(ParPreconditionPostconditionFailed(right), dispatch(ensures(left)), dispatch(requires(right)))
+          proveImplies(
+            ParPreconditionPostconditionFailed(right),
+            freshSuccessionScope { dispatch(ensures(left, includingInvariant = true)) },
+            freshSuccessionScope { dispatch(requires(right, includingInvariant = true)) }
+          )
       }
-    case block @ ParBlock(decl, iters, req, ens, content) =>
+      regions.foreach(emitChecks)
+    case block @ ParBlock(decl, iters, ctx, req, ens, content) =>
       // For blocks we generate a separate check, by checking the contract for an indeterminate iteration
       parDecls(decl) = block
       decl.drop()
       implicit val o: Origin = region.o
-      val extract = Extract[Post]()
+      val extract = Extract[Pre]()
 
       val ranges = iters.map {
         case IterVariable(v, from, to) =>
-          val extractDummy = new Variable(dispatch(v.t))(v.o)
-          successionMap(v) = extractDummy
-          dispatch(from) <= dispatch(v.get) && dispatch(v.get) < dispatch(to)
+          v.drop()
+          from <= v.get && v.get < to
       }.map(extract.extract)
 
-      val requires = extract.extract(dispatch(req))
-      val ensures = extract.extract(dispatch(ens))
+      val requires = extract.extract(req)
+      val ensures = extract.extract(ens)
+      val context = extract.extract(ctx)
+      val invariant = extract.extract(foldAnd(invariants.toSeq))
 
-      val body = extract.extract(dispatch(content))
+      val body = extract.extract(content)
 
       val vars = extract.finish()
 
-      procedure(
-        blame = ParPostconditionImplementationFailure(block),
-        args = vars.keys.toSeq,
-        requires = UnitAccountedPredicate(AstBuildHelpers.foldStar(ranges) &* requires),
-        ensures = UnitAccountedPredicate(ensures),
-        body = Some(body),
-      )(ParBlockCheck(block))
+      val args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) }
+
+//      println(s"At ${decl.o.preferredName}:")
+//      println(s"    - requires = $requires")
+//      println(s"    - ensures = $ensures")
+//      println(s"    - invariant = $invariant")
+//      println(s"    - ranges = ${foldAnd(ranges)}")
+//      println(s"    - context = $context")
+//      println()
+
+      val invariantHere = invariant &* context &* foldAnd(ranges)
+
+      invariants.having(context &* foldAnd(ranges)) {
+        procedure(
+          blame = ParPostconditionImplementationFailure(block),
+          args = args,
+          requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(invariantHere) } &* dispatch(requires)),
+          ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(invariantHere) } &* dispatch(ensures)),
+          body = Some(dispatch(body)),
+        )(ParBlockCheck(block)).declareDefault(this)
+      }
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case parInv @ ParInvariant(decl, inv, content) =>
-      implicit val o: Origin = inv.o
-      invDecls(decl) = parInv
-      decl.drop()
-      Block(Seq(
-        Exhale(dispatch(inv))(ParInvariantCannotBeExhaled(parInv)),
-        dispatch(content),
-        Inhale(dispatch(inv)),
-      ))
-
-    case atomic @ ParAtomic(inv, content) =>
-      implicit val o: Origin = atomic.o
-      Block(Seq(
-        Block(inv.map(ref => Inhale[Post](dispatch(invDecls(ref.decl).inv)))),
-        dispatch(content),
-        Block(inv.map(ref => Exhale[Post](dispatch(invDecls(ref.decl).inv))(ParAtomicCannotBeExhaled(atomic)))),
-      ))
-
     case parRegion @ ParStatement(impl) =>
       implicit val o: Origin = parRegion.o
       val (proc, args) = getRegionMethod(impl)
       emitChecks(impl)
-      Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil)(NoContext(ParPreconditionPreconditionFailed(impl))))
-
-    case parBarrier @ ParBarrier(blockRef, invs, requires, ensures, content) =>
-      implicit val o: Origin = parBarrier.o
-      val block = parDecls(blockRef.decl)
-      // TODO: it is a type-check error to have an invariant reference be out of scope in a barrier
-      proveImplies(ParBarrierPostconditionFailed(parBarrier), dispatch(quantify(block, requires)), dispatch(quantify(block, ensures)), hint = dispatch(content))
-
-      Block(Seq(
-        Exhale(dispatch(requires))(ParBarrierExhaleFailed(parBarrier)),
-        Inhale(dispatch(ensures)),
-      ))
+      Eval(ProcedureInvocation[Post](proc.ref, args, Nil, Nil, Nil, Nil)(NoContext(ParPreconditionPreconditionFailed(impl))))
 
     case other => rewriteDefault(other)
   }

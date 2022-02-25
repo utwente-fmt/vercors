@@ -1,18 +1,23 @@
 package vct.col.newrewrite
 
+import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.coerce.CoercionUtils
-import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, NoContext, Origin, PreconditionFailed, TriggerPatternBlame}
+import vct.col.newrewrite.error.ExtraNode
+import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
 
 case object EncodeArrayValues extends RewriterBuilder {
   case class ValuesFunctionOrigin(preferredName: String = "unknown") extends Origin {
-    override def messageInContext(message: String): String =
-      s"[At node generated for \\values]: $message"
+    override def context: String = "[At node generated for \\values]"
+  }
+
+  case class ArrayCreationOrigin(preferredName: String = "unknown") extends Origin {
+    override def context: String = "[At node generated for array creation]"
   }
 
   case class ArrayValuesPreconditionFailed(values: Values[_]) extends Blame[PreconditionFailed] {
@@ -30,12 +35,20 @@ case object EncodeArrayValues extends RewriterBuilder {
       case other => throw Unreachable(s"Invalid postcondition path sequence: $other")
     }
   }
+
+  case class WrongDefaultElementArrayType(t: Type[_]) extends UserError {
+    override def code: String = "wrongArrElement"
+    override def text: String =
+      s"It is not possible to initialize an array of which the elements are of type `$t` to default values."
+  }
 }
 
 case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   import EncodeArrayValues._
 
   val valuesFunctions: mutable.Map[Type[Pre], Function[Post]] = mutable.Map()
+
+  val arrayCreationMethods: mutable.Map[(Type[Pre], Int, Int), Procedure[Post]] = mutable.Map()
 
   def makeFunctionFor(arrayType: TArray[Pre]): Function[Post] = {
     implicit val o: Origin = ValuesFunctionOrigin()
@@ -47,7 +60,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     val from = Local[Post](from_var.ref)
     val to = Local[Post](to_var.ref)
 
-    withResult((result: Result[Post]) => function[Post](
+    val f = withResult((result: Result[Post]) => function[Post](
       blame = AbstractApplicable,
       returnType = TSeq(dispatch(arrayType.element)),
       args = Seq(arr_var, from_var, to_var),
@@ -61,25 +74,111 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
         )))))),
       ensures = UnitAccountedPredicate(
-        Size(result) === to - from &&
+        (Size(result) === to - from) &&
         forall(TInt(),
-          i => (const(0) <= i && i < to - from) ==> SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex),
+          i => (const(0) <= i && i < to - from) ==> (SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex)),
           i => Seq(Seq(SeqSubscript(result, i)(TriggerPatternBlame)))
         ) &* forall(TInt(),
-          i => (from <= i && i < to) ==> ArraySubscript(arr, i)(FramedArrIndex) === SeqSubscript(result, i - from)(FramedSeqIndex),
+          i => (from <= i && i < to) ==> (ArraySubscript(arr, i)(FramedArrIndex) === SeqSubscript(result, i - from)(FramedSeqIndex)),
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
       )
     ))
+    f.declareDefault(this)
+    f
+  }
+
+  def makeCreationMethodFor(elementType: Type[Pre], definedDims: Int, undefinedDims: Int): Procedure[Post] = {
+    implicit val o: Origin = ArrayCreationOrigin()
+
+    val dimArgs = (0 until definedDims).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"dim$i")))
+
+    // ar != null
+    // ar.length == dim0
+    // forall ar[i] :: Perm(ar[i], write)
+    //
+    // forall ar[i] :: ar[i] != null
+    // forall ar[i] :: ar[i].length == dim1
+    // forall ar[i][j] :: Perm(ar[i][j], write)
+    //
+    // forall ar[i][j] :: ar[i][j] == null
+
+    val p = withResult((result: Result[Post]) => {
+      val forall = (count: Int, assn: Expr[Post] => Expr[Post]) => {
+        val bindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"i$i")))
+        val access = (0 until count).foldLeft[Expr[Post]](result)((e, i) => ArraySubscript(e, bindings(i).get)(FramedArrIndex))
+        val cond = foldAnd[Post](bindings.zip(dimArgs).map { case (i, dim) => const(0) <= i.get && i.get < dim.get })
+
+        if(count == 0) assn(result)
+        else Starall[Post](bindings, Seq(Seq(access)), cond ==> assn(access))
+      }
+
+      val ensures = foldStar((0 until definedDims).map(count =>
+        forall(count, access => access !== Null()) &*
+          forall(count, access => Length(access)(FramedArrLength) === dimArgs(count).get) &*
+          forall(count + 1, access => Perm(access, WritePerm()))
+      ))
+
+      val undefinedValue: Expr[Post] = FuncTools.repeat[Type[Pre]](TArray(_), undefinedDims, elementType) match {
+        case t: TUnion[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TVar[Pre] => throw WrongDefaultElementArrayType(t)
+        case TArray(_) => Null()
+        case TPointer(_) => Null()
+        case TSeq(element) => LiteralSeq(dispatch(element), Nil)
+        case TSet(element) => LiteralSet(dispatch(element), Nil)
+        case TBag(element) => LiteralBag(dispatch(element), Nil)
+        case TOption(_) => OptNone()
+        case t: TTuple[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TEither[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TMatrix[Pre] => throw WrongDefaultElementArrayType(t)
+        case TMap(key, value) => LiteralMap(dispatch(key), dispatch(value), Nil)
+        case t: TAny[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TNothing[Pre] => throw WrongDefaultElementArrayType(t)
+        case TVoid() => Void()
+        case TNull() => Null()
+        case TBool() => ff
+        case t: TResource[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TChar[Pre] => throw WrongDefaultElementArrayType(t)
+        case TString() => Null()
+        case TRef() => Null()
+        case TProcess() => EmptyProcess()
+        case TInt() => const(0)
+        case t: TBoundedInt[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TFloat[Pre] => throw WrongDefaultElementArrayType(t)
+        case TRational() => const(0)
+        case t: TFraction[Pre] => throw WrongDefaultElementArrayType(t)
+        case TZFraction() => const(0)
+        case t: TModel[Pre] => throw WrongDefaultElementArrayType(t)
+        case TClass(_) => Null()
+        case t: TAxiomatic[Pre] => throw WrongDefaultElementArrayType(t)
+        case t: TType[Pre] => throw WrongDefaultElementArrayType(t)
+        case _: TNotAValue[Pre] => throw ExtraNode
+        case _: CType[Pre] => throw ExtraNode
+        case _: JavaType[Pre] => throw ExtraNode
+        case _: PVLType[Pre] => throw ExtraNode
+      }
+
+      procedure(
+        blame = AbstractApplicable,
+        returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
+        args = dimArgs,
+        ensures = UnitAccountedPredicate(ensures &* forall(definedDims, access => access === undefinedValue))
+      )(ArrayCreationOrigin("make_array"))
+    })
+    p.declareDefault(this)
+    p
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
-    implicit val o: Origin = ValuesFunctionOrigin()
+    implicit val o: Origin = e.o
     e match {
       case values @ Values(arr, from, to) =>
         val arrayType = CoercionUtils.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
-        FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
+        FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil, Nil, Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
+      case NewArray(element, dims, moreDims) =>
+        val method = arrayCreationMethods.getOrElseUpdate((element, dims.size, moreDims), makeCreationMethodFor(element, dims.size, moreDims))
+        ProcedureInvocation[Post](method.ref, dims.map(dispatch), Nil, Nil, Nil, Nil)(PanicBlame("Array creation requires nothing."))
       case other => rewriteDefault(other)
     }
   }

@@ -10,13 +10,13 @@ case class ColIParser() extends Parser {
     try {
       val lexer = new LangCLexer(stream)
       val tokens = new CommonTokenStream(lexer)
-      val errors = expectedErrors(tokens, LangCLexer.EXPECTED_ERROR_CHANNEL, LangCLexer.VAL_EXPECT_ERROR_OPEN, LangCLexer.VAL_EXPECT_ERROR_CLOSE)
+      val errors = expectedErrors(tokens, LangCLexer.EXPECTED_ERROR_CHANNEL, LangCLexer.VAL_EXPECT_ERROR_OPEN, LangCLexer.VAL_EXPECT_ERROR_CLOSE, originProvider, blameProvider)
       val parser = new CParser(tokens)
       val ec = errorCounter(parser, lexer, originProvider)
       val tree = parser.compilationUnit()
       ec.report()
       val decls = CToCol[G](originProvider, blameProvider, errors).convert(tree)
-      ParseResult(decls, Nil)
+      ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>
         throw ParseMatchError(m.getMessage())

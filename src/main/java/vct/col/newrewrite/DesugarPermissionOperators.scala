@@ -14,13 +14,13 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
     e match {
       case PointsTo(loc1, perm1, value1) =>
         val (loc, perm, value) = (dispatch(loc1), dispatch(perm1), dispatch(value1))
-        Perm(loc, perm) &* loc === value
+        Perm(loc, perm) &* (loc === value)
       case ValidArray(arr1, len1) =>
         val (arr, len) = (dispatch(arr1), dispatch(len1))
-        arr !== Null() && Length(arr)(FramedArrLength) === len
+        (arr !== Null()) && (Length(arr)(FramedArrLength) === len)
       case ValidMatrix(mat1, dim01, dim11) =>
         val (mat, dim0, dim1) = (dispatch(mat1), dispatch(dim01), dispatch(dim11))
-        mat !== Null() && Length(mat)(FramedArrLength) === dim0 &*
+        (mat !== Null()) && (Length(mat)(FramedArrLength) === dim0) &*
           starall(TInt(), row =>
             (const(0) <= row && row < dim0) ==>
               arrayPerm(mat, row, ReadPerm())

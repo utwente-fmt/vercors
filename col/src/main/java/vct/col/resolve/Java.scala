@@ -13,8 +13,7 @@ import scala.collection.mutable
 
 case object Java {
   case class JavaSystemOrigin(preferredName: String) extends Origin {
-    override def messageInContext(message: String): String =
-      s"At: [Class loaded from JRE with reflection]\n$message"
+    override def context: String = s"At: [Class loaded from JRE with reflection]"
   }
 
   private implicit val o: Origin = DiagnosticOrigin
@@ -257,4 +256,19 @@ case object Java {
       case ref: RefModelProcess[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelAction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
+
+  def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[JavaConstructorTarget[G]] = t match {
+    case JavaTClass(Ref(cls), _) =>
+      val definedConstructor = cls.decls.collectFirst {
+        case cons: JavaConstructor[G] if Util.compat(args, cons.parameters) => RefJavaConstructor(cons)
+      }
+
+      args match {
+        case Nil => definedConstructor.orElse(Some(ImplicitDefaultJavaConstructor()))
+        case _ => definedConstructor
+      }
+    case TModel(Ref(model)) if args.isEmpty =>
+      Some(RefModel(model))
+    case _ => None
+  }
 }

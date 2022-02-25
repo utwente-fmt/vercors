@@ -2,15 +2,18 @@ package vct.col.util
 
 import vct.col.origin._
 
-case class ExpectedError(errorCode: String, innerBlame: Blame[VerificationFailure]) extends Blame[VerificationFailure] {
-  var tripped: Boolean = false
+case class ExpectedError(errorCode: String, errorRegion: Origin, blame: Blame[ExpectedErrorFailure]) {
+  var tripped: Option[VerificationFailure] = None
 
-  def trip(): Unit = {
-    if(tripped) innerBlame.blame(ExpectedErrorTrippedTwice(this))
-    else tripped = true
-  }
+  def trip(failure: VerificationFailure): Unit =
+    tripped match {
+      case None => tripped = Some(failure)
+      case Some(leftFailure) =>
+        blame.blame(ExpectedErrorTrippedTwice(this, leftFailure, failure))
+    }
 
-  override def blame(error: VerificationFailure): Unit =
-    if(error.code == errorCode) trip()
-    else innerBlame.blame(error)
+  def signalDone(): Unit =
+    if(tripped.isEmpty) {
+      blame.blame(ExpectedErrorNotTripped(this))
+    }
 }

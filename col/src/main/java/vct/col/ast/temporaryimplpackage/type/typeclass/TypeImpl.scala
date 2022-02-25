@@ -24,14 +24,13 @@ trait TypeImpl[G] { this: Type[G] =>
   def asTuple: Option[TTuple[G]] = CoercionUtils.getAnyTupleCoercion(this).map(_._2)
   def asMatrix: Option[TMatrix[G]] = CoercionUtils.getAnyMatrixCoercion(this).map(_._2)
   def asModel: Option[TModel[G]] = CoercionUtils.getAnyModelCoercion(this).map(_._2)
-  def asClass: Option[TClass[G]] = CoercionUtils.getAnyClassCoercion(this).map(_._2)
+  def asClass: Option[Type[G]] = CoercionUtils.getAnyClassCoercion(this).map(_._2)
   def asEither: Option[TEither[G]] = CoercionUtils.getAnyEitherCoercion(this).map(_._2)
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
     case object Particularize extends NonLatchingRewriter[G, G] {
-      override def succ[DPost <: Declaration[G]](decl: Declaration[G])(implicit tag: ClassTag[DPost]): Ref[G, DPost] =
-        decl.asInstanceOf[DPost].ref
+      override def lookupSuccessor: Declaration[G] => Option[Declaration[G]] = Some(_)
 
       override def dispatch(t: Type[G]): Type[G] = t match {
         case TVar(Ref(v)) => substitutions(v)

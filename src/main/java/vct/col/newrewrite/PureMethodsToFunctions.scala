@@ -11,8 +11,7 @@ import vct.result.VerificationResult.UserError
 case object PureMethodsToFunctions extends RewriterBuilder {
   case object PureMethodOrigin extends Origin {
     override def preferredName: String = "unknown"
-    override def messageInContext(message: String): String =
-      s"[At node generated for pure method]: $message"
+    override def context: String = "[At node generated for pure method]"
   }
 
   case class MethodCannotIntoFunction(explanation: String) extends UserError {
@@ -57,7 +56,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(proc.contract),
           inline = proc.inline
-        )(proc.blame)(proc.o).succeedDefault(this, proc)
+        )(proc.blame)(proc.o).succeedDefault(proc)
       case method: InstanceMethod[Pre] if method.pure =>
         if(method.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
         if(method.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
@@ -69,19 +68,23 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(method.contract),
           inline = method.inline,
-        )(method.blame)(method.o).succeedDefault(this, method)
+        )(method.blame)(method.o).succeedDefault(method)
       case other => rewriteDefault(other)
     }
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case inv @ ProcedureInvocation(Ref(proc), args, outArgs, typeArgs) =>
+    case inv @ ProcedureInvocation(Ref(proc), args, outArgs, typeArgs, givenMap, yields) =>
       if(proc.pure)
-        FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
+        FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch),
+          givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+          yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
-    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       if(method.pure)
-        InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch))(inv.blame)(e.o)
+        InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch),
+          givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+          yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
     case other => rewriteDefault(other)
   }

@@ -124,7 +124,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
     case p @ ProcessApply(process, args) => MethodInvocation[Post](
         AmbiguousThis()(p.o),
         processSuccessors.ref(process.decl),
-        args.map(dispatch(_)), Nil, Nil,
+        args.map(dispatch(_)), Nil, Nil, Nil, Nil,
       )(null)(p.o)
 
     case modelDeref: ModelDeref[Pre] =>

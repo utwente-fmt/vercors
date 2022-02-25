@@ -1,5 +1,6 @@
 package viper.api
 import hre.config.Configuration
+import viper.silicon.logger.SymbExLogger
 import viper.silver.plugin.PluginAwareReporter
 import viper.silver.verifier.Verifier
 
@@ -27,5 +28,10 @@ case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends Silver
     silicon.parseCommandLine(siliconConfig)
     silicon.start()
     silicon
+  }
+
+  override def stopVerifier(verifier: Verifier): Unit = {
+    verifier.stop()
+    SymbExLogger.reset()
   }
 }

@@ -4,5 +4,8 @@ import vct.col.ast.ADTDeclaration
 import vct.col.rewrite.ScopeContext
 
 trait ADTDeclarationImpl[G] { this: ADTDeclaration[G] =>
-  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): Unit = scope.adtScopes.top += this
+  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): this.type = {
+    scope.adtScopes.top += this
+    this
+  }
 }

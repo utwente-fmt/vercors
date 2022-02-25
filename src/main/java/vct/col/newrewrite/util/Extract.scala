@@ -12,8 +12,7 @@ import scala.collection.mutable
 case object Extract {
   case class ExtractOrigin(name: String) extends Origin {
     override def preferredName: String = name
-    override def messageInContext(message: String): String =
-      s"At: [extracted expression]\n$message"
+    override def context: String = "[At extracted expression]"
   }
 
   def extract[G](nodes: Expr[G]*): (Seq[Expr[G]], Map[Variable[G], Expr[G]]) = {

@@ -1,7 +1,7 @@
 package vct.parsers.transform
 
 import hre.util.FuncTools
-import org.antlr.v4.runtime.ParserRuleContext
+import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.antlr4.generated.JavaParser._
 import vct.antlr4.generated.JavaParserPatterns._
@@ -9,15 +9,15 @@ import vct.col.{ast => col}
 import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
-import vct.col.ref.UnresolvedRef
+import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.Java
-import vct.col.util.AstBuildHelpers
+import vct.col.util.{AstBuildHelpers, ExpectedError}
 
 import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: mutable.Map[(Int, Int), String])
+case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
@@ -281,7 +281,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case None => Nil
         case Some(otherwise) => Seq((BooleanValue(true), convert(otherwise)))
       }))
-    case Statement3(contract1, label, _, _, control, _, contract2, body) =>
+    case Statement3(contract1, labels, _, _, control, _, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
         control match {
           case ForControl0(foreach) => ??(foreach)
@@ -296,18 +296,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         }
       })
 
-      label match {
-        case None => loop
-        case Some(label) => Label(convert(label), loop)
+      labels.foldLeft[Statement[G]](loop) {
+        case (stat, label) => Label(convert(label), stat)(origin(label))
       }
-    case Statement4(contract1, label, _, cond, contract2, body) =>
+    case Statement4(contract1, labels, _, cond, contract2, body) =>
       val loop = withContract(contract1, contract2, c => {
         Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(stat), convert(body)))
       })
 
-      label match {
-        case None => loop
-        case Some(label) => Label(convert(label), loop)
+      labels.foldLeft[Statement[G]](loop) {
+        case (stat, label) => Label(convert(label), stat)(origin(label))
       }
     case Statement5(_, _, _, _, _) => ??(stat)
     case Statement6(_, attempt, grab, eventually) =>
@@ -513,7 +511,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         blame(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
     case JavaNew(given, _, creator, yields) =>
-      convert(creator)
+      convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
     case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
     case JavaPostfixIncDec(inner, postOp) =>
       val target = convert(inner)
@@ -555,10 +553,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case ShiftOp2(_, _) => BitShr(convert(left), convert(right))
     }
     case JavaRel(left, comp, right) => comp match {
-      case RelOp0("<=") => LessEq(convert(left), convert(right))
-      case RelOp0(">=") => GreaterEq(convert(left), convert(right))
-      case RelOp0(">") => Greater(convert(left), convert(right))
-      case RelOp0("<") => Less(convert(left), convert(right))
+      case RelOp0("<=") => AmbiguousLessEq(convert(left), convert(right))
+      case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
+      case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
+      case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
       case RelOp1(valOp) => convert(valOp, convert(left), convert(right))
     }
     case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
@@ -607,19 +605,19 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blame(invocation))
   }
 
-  def convert(implicit expr: CreatorContext): Expr[G] = expr match {
+  def convert(implicit expr: CreatorContext, givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = expr match {
     case Creator0(typeArgs, name, creator) =>
-      convert(creator, convert(typeArgs), convert(name))
+      convert(creator, convert(typeArgs), convert(name), givenArgs, yields)
     case Creator1(name, creator) => creator match {
       case CreatorRest0(array) => convert(array, convert(name))
-      case CreatorRest1(cls) => convert(cls, Nil, convert(name))
+      case CreatorRest1(cls) => convert(cls, Nil, convert(name), givenArgs, yields)
     }
   }
 
-  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G]): Expr[G] = creator match {
+  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = creator match {
     case ClassCreatorRest0(args, impl) =>
       failIfDefined(impl, "Anonymous classes are not supported")
-      JavaNewClass(convert(args), ts, name)(blame(creator))
+      JavaNewClass(convert(args), ts, name, givenArgs, yields)(blame(creator))
   }
 
   def convert(implicit creator: ArrayCreatorRestContext, name: Type[G]): Expr[G] = creator match {
@@ -845,36 +843,36 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValThen0(_, stat) => convert(stat)
   }
 
-  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(String, Expr[G])] = given match {
+  def convertEmbedGiven(implicit given: Option[ValEmbedGivenContext]): Seq[(Ref[G, Variable[G]], Expr[G])] = given match {
     case None => Nil
     case Some(ValEmbedGiven0(_, inner, _)) => convertGiven(inner)
     case Some(ValEmbedGiven1(inner)) => convertGiven(Some(inner))
   }
 
-  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(String, Expr[G])] = given match {
+  def convertGiven(implicit given: Option[ValGivenContext]): Seq[(Ref[G, Variable[G]], Expr[G])] = given match {
     case None => Nil
     case Some(ValGiven0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValGivenMappingsContext): Seq[(String, Expr[G])] = mappings match {
-    case ValGivenMappings0(arg, _, v) => Seq((convert(arg), convert(v)))
-    case ValGivenMappings1(arg, _, v, _, more) => (convert(arg), convert(v)) +: convert(more)
+  def convert(implicit mappings: ValGivenMappingsContext): Seq[(Ref[G, Variable[G]], Expr[G])] = mappings match {
+    case ValGivenMappings0(arg, _, v) => Seq((new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)))
+    case ValGivenMappings1(arg, _, v, _, more) => (new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)) +: convert(more)
   }
 
-  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], String)] = given match {
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
     case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
   }
 
-  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], String)] = given match {
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], String)] = mappings match {
-    case ValYieldsMappings0(target, _, res) => Seq((convert(target), convert(res)))
-    case ValYieldsMappings1(target, _, res, _, more) => (convert(target), convert(res)) +: convert(more)
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
+    case ValYieldsMappings1(target, _, res, _, more) => (new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr[G]] = exprs match {
@@ -1114,14 +1112,17 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   // valsetcompselectors
-  // valMapPairs
+  def convert(implicit exprs: ValMapPairsContext): Seq[(Expr[G], Expr[G])] = exprs match {
+    case ValMapPairs0(k, _, v) => Seq((convert(k), convert(v)))
+    case ValMapPairs1(k, _, v, _, tail) => (convert(k), convert(v)) +: convert(tail)
+  }
 
   def convert(implicit e: ValPrimaryCollectionConstructorContext): Expr[G] = e match {
     case ValTypedLiteralSeq(_, _, t, _, _, exprs, _) => LiteralSeq(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValTypedLiteralSet(_, _, t, _, _, exprs, _) => LiteralSet(convert(t), exprs.map(convert(_)).getOrElse(Nil))
     case ValSetComprehension(_, _, t, _, _, value, _, selectors, _, something, _) => ??(e)
     case ValTypedLiteralBag(_, _, t, _, _, exprs, _) => LiteralBag(convert(t), exprs.map(convert(_)).getOrElse(Nil))
-    case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => ??(e)
+    case ValTypedLiteralMap(_, _, key, _, value, _, _, pairs, _) => LiteralMap(convert(key), convert(value), pairs.map(convert(_)).getOrElse(Nil))
     case ValTypedTuple(_, _, t1, _, t2, _, _, v1, _, v2, _) =>
       LiteralTuple(Seq(convert(t1), convert(t2)), Seq(convert(v1), convert(v2)))
     case ValLiteralSeq(_, exprs, _) => UntypedLiteralSeq(convert(exprs))
@@ -1203,9 +1204,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
-    case ValAny(_) => Any()
+    case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))
+    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))

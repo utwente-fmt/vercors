@@ -1,6 +1,6 @@
 package vct.col.rewrite
 
-import hre.util.ScopedStack
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.SuccessionMap
@@ -11,14 +11,16 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 class ScopeContext[Pre, Post] {
-
   import ScopeContext._
 
-  protected val successionMap: SuccessionMap[Declaration[Pre], Declaration[Post]] = SuccessionMap()
+  protected val successionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Post]]] = ScopedStack()
+  successionMap.push(SuccessionMap())
 
   // The default action for declarations is to be succeeded by a similar declaration, for example a copy.
   def succeed(predecessor: Declaration[Pre], successor: Declaration[Post]): Unit =
-    successionMap(predecessor) = successor
+    successionMap.top(predecessor) = successor
+
+  def freshSuccessionScope[T](f: => T): T = successionMap.having(SuccessionMap())(f)
 
   val globalScopes: ScopedStack[ArrayBuffer[GlobalDeclaration[Post]]] = ScopedStack()
   val classScopes: ScopedStack[ArrayBuffer[ClassDeclaration[Post]]] = ScopedStack()
@@ -49,18 +51,26 @@ class ScopeContext[Pre, Post] {
     result.head
   }
 
+  def lookupSuccessor: Declaration[Pre] => Option[Declaration[Post]] = {
+    val frozenSuccessionMap = successionMap.toSeq
+    (decl: Declaration[Pre]) =>
+      FuncTools.firstOption[SuccessionMap[Declaration[Pre], Declaration[Post]], Declaration[Post]](frozenSuccessionMap, _.get(decl))
+  }
+
   def succ[DPost <: Declaration[Post]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
     succ(ref.decl)
 
-  def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
-    successionMap.ref(decl)
+  def succ[DPost <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] = {
+    val fetcher = lookupSuccessor
+    new LazyRef[Post, DPost](fetcher(decl).get)
+  }
 
   def transmutePostRef
     [Decl[_] <: Declaration[_], DPre <: Declaration[Pre], DPost <: Declaration[Post]]
     (ref: Ref[Post, DPost])
     (implicit w1: DPost <:< Decl[Post], w2: Decl[Pre] <:< DPre, tag: ClassTag[DPre])
     : Ref[Pre, DPre] = {
-    successionMap((ref.decl : Declaration[Post]).asInstanceOf[Declaration[Pre]]) = ref.decl
+    successionMap.top((ref.decl : Declaration[Post]).asInstanceOf[Declaration[Pre]]) = ref.decl
     Ref.transmute[Post, Pre, Decl, DPost, DPre](ref)
   }
 }

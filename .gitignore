@@ -51,3 +51,7 @@ cabal.project.local
 cabal.project.local~
 .HTF/
 .ghc.environment.*
+
+# Python files
+*.pyc
+__pycache__

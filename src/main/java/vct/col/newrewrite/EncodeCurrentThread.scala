@@ -10,8 +10,7 @@ import vct.result.VerificationResult.UserError
 case object EncodeCurrentThread extends RewriterBuilder {
   case object CurrentThreadIdOrigin extends Origin {
     override def preferredName: String = "tid"
-    override def messageInContext(message: String): String =
-      s"[At generated variable for the current thread ID]: $message"
+    override def context: String = "[At generated variable for the current thread ID]"
   }
 
   abstract class MisplacedCurrentThreadReference extends UserError {
@@ -36,7 +35,10 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
 
   def wantsThreadLocal(app: Applicable[Pre]): Boolean = app match {
     case predicate: AbstractPredicate[Pre] => predicate.threadLocal
-    case _: ContractApplicable[Pre] => true
+    case func: AbstractFunction[Pre] => func.threadLocal
+
+    case _: AbstractMethod[Pre] => true
+
     case _: ADTFunction[Pre] => false
     case _: ModelProcess[Pre] => false
     case _: ModelAction[Pre] => false
@@ -50,7 +52,7 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
           app.rewrite(args = collectInScope(variableScopes) {
             currentThreadVar.declareDefault(this)
             app.args.foreach(dispatch)
-          }).succeedDefault(this, app)
+          }).succeedDefault(app)
         }
       } else {
         rewriteDefault(app)

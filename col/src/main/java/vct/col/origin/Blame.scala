@@ -5,56 +5,82 @@ import vct.col.util.ExpectedError
 import vct.col.ast._
 import vct.result.VerificationResult.SystemError
 
-sealed trait ContractFailure
+sealed trait ContractFailure {
+  def node: Node[_]
+}
+
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
-  override def toString: String = s"it may be false"
+  override def toString: String = "this expression may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
-  override def toString: String = s"there might not be enough permission to exhale this amount"
+  override def toString: String = "there might not be enough permission to exhale this amount"
 }
 case class ReceiverNotInjective(node: Expr[_]) extends ContractFailure {
-  override def toString: String = s"the location in this permission predicate may not be injective with regards to the quantified variables"
+  override def toString: String = "the location in this permission predicate may not be injective with regards to the quantified variables"
 }
 case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
-  override def toString: String = s"the amount of permission in this permission predicate may be negative"
+  override def toString: String = "the amount of permission in this permission predicate may be negative"
 }
 
 trait VerificationFailure {
   def code: String
+  def text: String
+
+  override def toString: String = text + "\n"
 }
 
-case class ExpectedErrorTrippedTwice(err: ExpectedError) extends VerificationFailure {
-  override def toString: String = s"The expected error with code ${err.errorCode} occurred multiple times."
+trait NodeVerificationFailure extends VerificationFailure {
+  def node: Node[_]
+
+  override def toString: String = node.o.messageInContext(text)
+}
+
+trait WithContractFailure extends NodeVerificationFailure {
+  def failure: ContractFailure
+
+  override def toString: String =
+    Origin.messagesInContext(Seq(
+      (node.o, text + " ..."),
+      (failure.node.o, "... " + failure.toString),
+    ))
+}
+
+sealed trait ExpectedErrorFailure extends VerificationFailure {
+  def err: ExpectedError
+}
+
+case class ExpectedErrorTrippedTwice(err: ExpectedError, left: VerificationFailure, right: VerificationFailure) extends ExpectedErrorFailure {
+  override def text: String = {
+    err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times.")
+  }
+
   override def code: String = "trippedTwice"
 }
 
-case class ExpectedErrorNotTripped(err: ExpectedError) extends VerificationFailure {
-  override def toString: String = s"The expected error with code ${err.errorCode} was not encountered."
+case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFailure {
+  override def text: String =
+    err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered.")
   override def code: String = "notTripped"
 }
 
-case class InternalError(description: String) extends VerificationFailure {
-  override def toString: String = s"An internal error occurred: $description."
-  override def code: String = "internal"
-}
-case class AssignFailed(assign: SilverFieldAssign[_]) extends VerificationFailure {
-  override def toString: String = s"Insufficient permission to assign to field."
+case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
+  override def text: String = "Insufficient permission to assign to field."
   override def code: String = "failed"
 }
-case class AssertFailed(failure: ContractFailure, assertion: Assert[_]) extends VerificationFailure {
-  override def toString: String = s"Assertion may not hold, since $failure."
+case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithContractFailure {
+  override def text: String = "Assertion may not hold, since"
   override def code: String = "failed"
 }
-case class ExhaleFailed(failure: ContractFailure, exhale: Exhale[_]) extends VerificationFailure {
-  override def toString: String = s"Exhale may fail, since $failure."
+case class ExhaleFailed(failure: ContractFailure, node: Exhale[_]) extends WithContractFailure {
+  override def text: String = "Exhale may fail, since"
   override def code: String = "failed"
 }
-case class UnfoldFailed(failure: ContractFailure, unfold: Unfold[_]) extends VerificationFailure {
-  override def toString: String = s"Unfold may fail, since $failure."
+case class UnfoldFailed(failure: ContractFailure, node: Unfold[_]) extends WithContractFailure {
+  override def text: String = "Unfold may fail, since"
   override def code: String = "failed"
 }
-case class FoldFailed(failure: ContractFailure, fold: Fold[_]) extends VerificationFailure {
-  override def toString: String = s"Fold may fail, since $failure"
+case class FoldFailed(failure: ContractFailure, node: Fold[_]) extends WithContractFailure {
+  override def text: String = "Fold may fail, since"
   override def code: String = "failed"
 }
 
@@ -62,165 +88,171 @@ sealed trait AccountedDirection
 case object FailLeft extends AccountedDirection
 case object FailRight extends AccountedDirection
 
-sealed trait FrontendInvocationError extends VerificationFailure
-sealed trait InvocationFailure extends FrontendInvocationError
-case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invocation: InvokingNode[_]) extends InvocationFailure {
-  override def toString: String = s"Precondition may not hold, since $failure."
+sealed trait FrontendInvocationError extends NodeVerificationFailure
+sealed trait InstanceInvocationFailure extends FrontendInvocationError
+case class InstanceNull(node: InvokingNode[_]) extends InstanceInvocationFailure {
+  override def code: String = "null"
+  override def text: String = "The object for this invocation may be null."
+}
+
+sealed trait InvocationFailure extends InstanceInvocationFailure with WithContractFailure
+case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: InvokingNode[_]) extends InvocationFailure {
+  override def text: String = "Precondition may not hold, since"
   override def code: String = "preFailed"
 }
-case class ContextEverywhereFailedInPre(failure: ContractFailure, invocation: InvokingNode[_]) extends InvocationFailure {
-  override def toString: String = s"Context may not hold in precondition, since $failure."
+case class ContextEverywhereFailedInPre(failure: ContractFailure, node: InvokingNode[_]) extends InvocationFailure {
+  override def text: String = "Context may not hold in precondition, since"
   override def code: String = "contextPreFailed"
 }
 
 sealed trait CallableFailure extends ConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, invokable: ContractApplicable[_]) extends ContractedFailure {
-  override def toString: String = s"Postcondition may not hold, since $failure."
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure {
+  override def text: String = "Postcondition may not hold, since"
   override def code: String = "postFailed"
 }
-case class ContextEverywhereFailedInPost(failure: ContractFailure, invokable: ContractApplicable[_]) extends ContractedFailure {
-  override def toString: String = s"Context may not hold in postcondition, since $failure."
+case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure {
+  override def text: String = "Context may not hold in postcondition, since"
   override def code: String = "contextPostFailed"
 }
-case class SignalsFailed(failure: ContractFailure, invokable: AbstractMethod[_]) extends CallableFailure {
-  override def toString: String = s"Signals clause may not hold, since $failure."
+case class SignalsFailed(failure: ContractFailure, node: AbstractMethod[_]) extends CallableFailure {
+  override def text: String = "Signals clause may not hold, since"
   override def code: String = "signals"
 }
-case class ExceptionNotInSignals(failure: ContractFailure, invokable: AbstractMethod[_]) extends CallableFailure {
-  override def toString: String = s"Method may throw exception not included in signals clauses."
+case class ExceptionNotInSignals(failure: ContractFailure, node: AbstractMethod[_]) extends CallableFailure {
+  override def text: String = "Method may throw exception not included in signals clauses."
   override def code: String = "extraExc"
 }
-sealed trait LoopInvariantFailure extends VerificationFailure
-case class LoopInvariantNotEstablished(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
-  override def toString: String = s"This invariant may not be established, since $failure."
+sealed trait LoopInvariantFailure extends WithContractFailure
+case class LoopInvariantNotEstablished(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure {
+  override def text: String = "This invariant may not be established, since"
   override def code: String = "notEstablished"
 }
-case class LoopInvariantNotMaintained(failure: ContractFailure, loop: Loop[_]) extends LoopInvariantFailure {
-  override def toString: String = s"This invariant may not be maintained, since $failure."
+case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure {
+  override def text: String = "This invariant may not be maintained, since"
   override def code: String = "notMaintained"
 }
-case class DivByZero(div: DividingExpr[_]) extends VerificationFailure {
-  override def toString: String = s"The divisor may be zero."
+case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
+  override def text: String = "The divisor may be zero."
   override def code: String = "divByZero"
 }
-sealed trait FrontendDerefError extends VerificationFailure
-sealed trait FrontendPlusError extends VerificationFailure
-sealed trait FrontendSubscriptError extends VerificationFailure
+sealed trait FrontendDerefError extends NodeVerificationFailure
+sealed trait FrontendPlusError extends NodeVerificationFailure
+sealed trait FrontendSubscriptError extends NodeVerificationFailure
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
-case class InsufficientPermission(deref: HeapDeref[_]) extends DerefInsufficientPermission {
-  override def toString: String = s"There may be insufficient permission to access this field here."
+case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission {
+  override def text: String = "There may be insufficient permission to access this field here."
   override def code: String = "perm"
 }
-case class ModelInsufficientPermission(deref: ModelDeref[_]) extends DerefInsufficientPermission {
-  override def toString: String = s"There may be insufficient permission to access this model field here."
+case class ModelInsufficientPermission(node: ModelDeref[_]) extends DerefInsufficientPermission {
+  override def text: String = "There may be insufficient permission to access this model field here."
   override def code: String = "modelPerm"
 }
-case class LabelNotReached(old: Old[_]) extends VerificationFailure {
-  override def toString: String = s"The label mentioned in this old expression may not be reached at the time the old expression is reached."
+case class LabelNotReached(node: Old[_]) extends NodeVerificationFailure {
+  override def text: String = "The label mentioned in this old expression may not be reached at the time the old expression is reached."
   override def code: String = "notReached"
 }
 sealed trait SeqBoundFailure extends FrontendSubscriptError with BuiltinError
-case class SeqBoundNegative(subscript: SeqSubscript[_]) extends SeqBoundFailure {
-  override def toString: String = s"The index in this sequence subscript may be negative."
+case class SeqBoundNegative(node: SeqSubscript[_]) extends SeqBoundFailure {
+  override def text: String = "The index in this sequence subscript may be negative."
   override def code: String = "indexNegative"
 }
-case class SeqBoundExceedsLength(subscript: SeqSubscript[_]) extends SeqBoundFailure {
-  override def toString: String = s"The index in this sequence subscript may exceed the length of the sequence."
+case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure {
+  override def text: String = "The index in this sequence subscript may exceed the length of the sequence."
   override def code: String = "indexExceedsLength"
 }
 
-case class ParInvariantNotEstablished(failure: ContractFailure, invariant: ParInvariant[_]) extends VerificationFailure {
-  override def toString: String = s"This parallel invariant may not be established, since $failure."
+case class ParInvariantNotEstablished(failure: ContractFailure, node: ParInvariant[_]) extends WithContractFailure {
+  override def text: String = "This parallel invariant may not be established, since"
   override def code: String = "notEstablished"
 }
-case class ParInvariantNotMaintained(failure: ContractFailure, atomic: ParAtomic[_]) extends VerificationFailure {
-  override def toString: String = s"The parallel invariant may not be maintained, since $failure."
+case class ParInvariantNotMaintained(failure: ContractFailure, node: ParAtomic[_]) extends WithContractFailure {
+  override def text: String = "The parallel invariant may not be maintained, since"
   override def code: String = "notMaintained"
 }
-sealed trait ParBarrierFailed extends VerificationFailure
-case class ParBarrierNotEstablished(failure: ContractFailure, barrier: ParBarrier[_]) extends ParBarrierFailed {
-  override def toString: String = s"The precondition of this barrier may not hold, since $failure."
+sealed trait ParBarrierFailed extends NodeVerificationFailure
+case class ParBarrierNotEstablished(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+  override def text: String = "The precondition of this barrier may not hold, since"
   override def code: String = "notEstablished"
 }
-case class ParBarrierInconsistent(failure: ContractFailure, barrier: ParBarrier[_]) extends ParBarrierFailed {
-  override def toString: String = s"The precondition of this barrier is not consistent with the postcondition, since this postcondition may not hold, because $failure."
+case class ParBarrierInconsistent(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+  override def text: String = "The precondition of this barrier is not consistent with the postcondition, since this postcondition may not hold, because"
   override def code: String = "inconsistent"
 }
-case class ParBarrierMayNotThrow(barrier: ParBarrier[_]) extends ParBarrierFailed {
-  override def toString: String = "The proof hint for this barrier may throw an exception."
+case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed {
+  override def text: String = "The proof hint for this barrier may throw an exception."
   override def code: String = "barrierThrows"
 }
 
-sealed trait ParBlockFailure extends VerificationFailure
-case class ParPreconditionFailed(failure: ContractFailure, region: ParRegion[_]) extends ParBlockFailure {
-  override def toString: String = s"The precondition of this parallel region may not hold, since $failure."
+sealed trait ParBlockFailure extends WithContractFailure
+case class ParPreconditionFailed(failure: ContractFailure, node: ParRegion[_]) extends ParBlockFailure {
+  override def text: String = "The precondition of this parallel region may not hold, since"
   override def code: String = "parPreFailed"
 }
-case class ParBlockPostconditionFailed(failure: ContractFailure, block: ParBlock[_]) extends ParBlockFailure {
-  override def toString: String = s"The postcondition of this parallel block may not hold, since $failure."
+case class ParBlockPostconditionFailed(failure: ContractFailure, node: ParBlock[_]) extends ParBlockFailure {
+  override def text: String = "The postcondition of this parallel block may not hold, since"
   override def code: String = "parPostFailed"
 }
-case class ParBlockMayNotThrow(failure: ContractFailure, block: ParBlock[_]) extends ParBlockFailure {
-  override def toString: String = s"The implementation of this parallel block may throw an exception."
+case class ParBlockMayNotThrow(failure: ContractFailure, node: ParBlock[_]) extends ParBlockFailure {
+  override def text: String = "The implementation of this parallel block may throw an exception."
   override def code: String = "parThrows"
 }
 
 sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
-case class OptionNone(access: OptGet[_]) extends BuiltinError {
+case class OptionNone(node: OptGet[_]) extends BuiltinError {
   override def code: String = "optNone"
-  override def toString: String = "Option may be empty."
+  override def text: String = "Option may be empty."
 }
-case class NotRight(access: GetRight[_]) extends BuiltinError {
+case class NotRight(node: GetRight[_]) extends BuiltinError {
   override def code: String = "left"
-  override def toString: String = "Either may be left."
+  override def text: String = "Either may be left."
 }
-case class NotLeft(access: GetLeft[_]) extends BuiltinError {
+case class NotLeft(node: GetLeft[_]) extends BuiltinError {
   override def code: String = "right"
-  override def toString: String = "Either may be right."
+  override def text: String = "Either may be right."
 }
-case class MapKeyError(access: MapGet[_]) extends BuiltinError with FrontendSubscriptError {
+case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscriptError {
   override def code: String = "mapKey"
-  override def toString: String = "Map may not contain this key."
+  override def text: String = "Map may not contain this key."
 }
 sealed trait ArraySubscriptError extends FrontendSubscriptError
-case class ArrayNull(arr: Expr[_]) extends ArraySubscriptError with BuiltinError {
+case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinError {
   override def code: String = "arrayNull"
-  override def toString: String = "Array may be null."
+  override def text: String = "Array may be null."
 }
-case class ArrayBounds(idx: Expr[_]) extends ArraySubscriptError {
+case class ArrayBounds(node: Expr[_]) extends ArraySubscriptError {
   override def code: String = "arrayBounds"
-  override def toString: String = "Index may be negative, or exceed the length of the array."
+  override def text: String = "Index may be negative, or exceed the length of the array."
 }
-case class ArrayInsufficientPermission(arr: Expr[_]) extends ArraySubscriptError {
+case class ArrayInsufficientPermission(node: Expr[_]) extends ArraySubscriptError {
   override def code: String = "arrayPerm"
-  override def toString: String = "There may be insufficient permission to access the array."
+  override def text: String = "There may be insufficient permission to access the array."
 }
 
-sealed trait ArrayValuesError extends VerificationFailure {
-  def values: Values[_]
-  override def toString: String = s"Array values invocation may fail, since $reason."
+sealed trait ArrayValuesError extends NodeVerificationFailure {
+  def node: Values[_]
+  override def text: String = s"Array values invocation may fail, since $reason."
   def reason: String
 }
 
-case class ArrayValuesNull(values: Values[_]) extends ArrayValuesError {
+case class ArrayValuesNull(node: Values[_]) extends ArrayValuesError {
   override def reason = "the array value may be null"
-  override def code: String = "valuesNull"
+  override def code: String = "nodeNull"
 }
-case class ArrayValuesFromNegative(values: Values[_]) extends ArrayValuesError {
+case class ArrayValuesFromNegative(node: Values[_]) extends ArrayValuesError {
   override def reason = "the start of the range may be negative"
   override def code: String = "fromNeg"
 }
-case class ArrayValuesFromToOrder(values: Values[_]) extends ArrayValuesError {
+case class ArrayValuesFromToOrder(node: Values[_]) extends ArrayValuesError {
   override def reason = "the start of the range may exceed the end of the range"
   override def code: String = "fromCrossesTo"
 }
-case class ArrayValuesToLength(values: Values[_]) extends ArrayValuesError {
+case class ArrayValuesToLength(node: Values[_]) extends ArrayValuesError {
   override def reason = "the end of the range may exceed the length of the array"
   override def code: String = "toLength"
 }
-case class ArrayValuesPerm(values: Values[_]) extends ArrayValuesError {
+case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
   override def reason = "there may be insufficient permission to access the array at the specified range"
   override def code: String = "valuesPerm"
 }
@@ -228,143 +260,123 @@ case class ArrayValuesPerm(values: Values[_]) extends ArrayValuesError {
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
 sealed trait PointerAddError extends FrontendPlusError
-case class PointerNull(pointer: Expr[_]) extends PointerDerefError with PointerAddError {
+case class PointerNull(node: Expr[_]) extends PointerDerefError with PointerAddError {
   override def code: String = "ptrNull"
-  override def toString: String = "Pointer may be null."
+  override def text: String = "Pointer may be null."
 }
-case class PointerBounds(pointer: Expr[_]) extends PointerSubscriptError with PointerAddError {
+case class PointerBounds(node: Expr[_]) extends PointerSubscriptError with PointerAddError {
   override def code: String = "ptrBlock"
-  override def toString: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
+  override def text: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
 }
-case class PointerInsufficientPermission(pointer: Expr[_]) extends PointerDerefError {
+case class PointerInsufficientPermission(node: Expr[_]) extends PointerDerefError {
   override def code: String = "ptrPerm"
-  override def toString: String = "There may be insufficient permission to dereference the pointer."
+  override def text: String = "There may be insufficient permission to dereference the pointer."
 }
 
-sealed trait UnlockFailure extends VerificationFailure
-case class UnlockInvariantFailed(unlock: Unlock[_], failure: ContractFailure) extends UnlockFailure {
+sealed trait UnlockFailure extends WithContractFailure
+case class UnlockInvariantFailed(node: Unlock[_], failure: ContractFailure) extends UnlockFailure {
   override def code: String = "invariantFailed"
-  override def toString: String = s"The lock invariant may not be exhaled here, since $failure."
+  override def text: String = "The lock invariant may not be exhaled here, since"
 }
-case class LockTokenNotHeld(unlock: Unlock[_], failure: ContractFailure) extends UnlockFailure {
+case class LockTokenNotHeld(node: Unlock[_], failure: ContractFailure) extends UnlockFailure {
   override def code: String = "heldFailed"
-  override def toString: String = s"The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since $failure."
+  override def text: String = "The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since"
 }
 
-sealed trait ConstructorFailure extends VerificationFailure
-case class CommitFailed(commit: Commit[_], failure: ContractFailure) extends ConstructorFailure {
+sealed trait ConstructorFailure extends WithContractFailure
+case class CommitFailed(node: Commit[_], failure: ContractFailure) extends ConstructorFailure {
   override def code: String = "commitFailed"
-  override def toString: String = s"Committing the defined resources to the lock invariant may not be possible here, since $failure."
+  override def text: String = "Committing the defined resources to the lock invariant may not be possible here, since"
 }
 
-case class NotifyFailed(not: Notify[_], failure: ContractFailure) extends VerificationFailure {
+case class NotifyFailed(node: Notify[_], failure: ContractFailure) extends WithContractFailure {
   override def code: String = "heldFailed"
-  override def toString: String = s"The token that indicated the lock is locked (`held(obj)`) may not be asserted here, since $failure."
+  override def text: String = "The token that indicated the lock is locked (`held(obj)`) may not be asserted here, since"
 }
 
-case class ThrowNull(t: Throw[_]) extends VerificationFailure {
+case class ThrowNull(node: Throw[_]) extends NodeVerificationFailure {
   override def code: String = "null"
-  override def toString: String = "The value thrown here may be null."
+  override def text: String = "The value thrown here may be null."
 }
 
-sealed trait UnsafeCoercion extends VerificationFailure
-case class CoerceRatZFracFailed(rat: Expr[_]) extends UnsafeCoercion {
+case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
+  override def code: String = "scaleNeg"
+  override def text: String = "The scale value here may be negative."
+}
+
+sealed trait UnsafeCoercion extends NodeVerificationFailure
+case class CoerceRatZFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratZfrac"
-  override def toString: String = "Rational may exceed the bounds of zfrac: [0, 1]"
+  override def text: String = "Rational may exceed the bounds of zfrac: [0, 1]"
 }
-case class CoerceRatFracFailed(rat: Expr[_]) extends UnsafeCoercion {
+case class CoerceRatFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratFrac"
-  override def toString: String = "Rational may exceed the bounds of frac: (0, 1]"
+  override def text: String = "Rational may exceed the bounds of frac: (0, 1]"
 }
-case class CoerceZFracFracFailed(zfrac: Expr[_]) extends UnsafeCoercion {
+case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "zfracFrac"
-  override def toString: String = "zfrac may be zero."
+  override def text: String = "zfrac may be zero."
 }
 
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }
 
+case class FilterExpectedErrorBlame(otherwise: Blame[VerificationFailure], expectedError: ExpectedError) extends Blame[VerificationFailure] {
+  override def blame(error: VerificationFailure): Unit =
+    if(error.code == expectedError.errorCode) {
+      expectedError.trip(error)
+    } else {
+      otherwise.blame(error)
+    }
+}
+
 case object BlamePathError extends SystemError {
   override def text: String = "The accounting for a pre- or postcondition is wrong: the path is empty before the layered blames are resolved, or an empty path was expected but it is not."
 }
 
-case object ImplBlameSplit {
-  def apply(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[CallableFailure]): ImplBlameSplit =
-    new ImplBlameSplit(blames, default)
+case object PostBlameSplit {
+  def apply[T >: PostconditionFailed <: VerificationFailure](blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[T]): PostBlameSplit[T] =
+    new PostBlameSplit(blames, default)
 
-  def left(left: Blame[PostconditionFailed], right: Blame[CallableFailure]): ImplBlameSplit =
-    new ImplBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
+  def left[T >: PostconditionFailed <: VerificationFailure](left: Blame[PostconditionFailed], right: Blame[T]): PostBlameSplit[T] =
+    new PostBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
 
-  def right(left: Blame[CallableFailure], right: Blame[PostconditionFailed]): ImplBlameSplit =
-    new ImplBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
+  def right[T >: PostconditionFailed <: VerificationFailure](left: Blame[T], right: Blame[PostconditionFailed]): PostBlameSplit[T] =
+    new PostBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
 }
 
-case class ImplBlameSplit(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[CallableFailure]) extends Blame[CallableFailure] {
-  override def blame(error: CallableFailure): Unit = error match {
+case class PostBlameSplit[T >: PostconditionFailed <: VerificationFailure](blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[T]) extends Blame[T] {
+  override def blame(error: T): Unit = error match {
     case PostconditionFailed(path, failure, invokable) => path match {
       case Nil => throw BlamePathError
       case FailLeft :: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
       case FailRight :: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
     }
-    case context: ContextEverywhereFailedInPost => default.blame(context)
-    case signals: SignalsFailed => default.blame(signals)
-    case signals: ExceptionNotInSignals => default.blame(signals)
+    case other => default.blame(other)
   }
 }
 
-case object ContractedBlameSplit {
-  def apply(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ContractedFailure]): ContractedBlameSplit =
-    new ContractedBlameSplit(blames, default)
+case object PreBlameSplit {
+  def apply[T >: PreconditionFailed <: VerificationFailure](blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[T]): PreBlameSplit[T] =
+    new PreBlameSplit(blames, default)
 
-  def left(left: Blame[PostconditionFailed], right: Blame[ContractedFailure]): ContractedBlameSplit =
-    new ContractedBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
+  def left[T >: PreconditionFailed <: VerificationFailure](left: Blame[PreconditionFailed], right: Blame[T]): PreBlameSplit[T] =
+    new PreBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
 
-  def right(left: Blame[ContractedFailure], right: Blame[PostconditionFailed]): ContractedBlameSplit =
-    new ContractedBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
+  def right[T >: PreconditionFailed <: VerificationFailure](left: Blame[T], right: Blame[PreconditionFailed]): PreBlameSplit[T] =
+    new PreBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
 }
 
-case class ContractedBlameSplit(blames: Map[AccountedDirection, Blame[PostconditionFailed]], default: Blame[ContractedFailure]) extends Blame[ContractedFailure] {
-  override def blame(error: ContractedFailure): Unit = error match {
-    case PostconditionFailed(path, failure, invokable) => path match {
+case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[T]) extends Blame[T] {
+  override def blame(error: T): Unit = error match {
+    case PreconditionFailed(path, failure, invokable) => path match {
       case Nil => throw BlamePathError
-      case FailLeft :: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
-      case FailRight :: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
+      case FailLeft :: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invokable))
+      case FailRight :: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invokable))
     }
-    case context: ContextEverywhereFailedInPost => default.blame(context)
+    case other => default.blame(other)
   }
-}
-
-case object InvBlameSplit {
-  def apply(blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[InvocationFailure]): InvBlameSplit =
-    new InvBlameSplit(blames, default)
-
-  def left(left: Blame[PreconditionFailed], right: Blame[InvocationFailure]): InvBlameSplit =
-    new InvBlameSplit(Map(FailLeft -> left, FailRight -> right), right)
-
-  def right(left: Blame[InvocationFailure], right: Blame[PreconditionFailed]): InvBlameSplit =
-    new InvBlameSplit(Map(FailLeft -> left, FailRight -> right), left)
-}
-
-
-case class InvBlameSplit(blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[InvocationFailure]) extends Blame[InvocationFailure] {
-  override def blame(error: InvocationFailure): Unit = error match {
-    case PreconditionFailed(path, failure, invocation) => path match {
-      case Nil => throw BlamePathError
-      case FailLeft :: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invocation))
-      case FailRight :: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invocation))
-    }
-    case context: ContextEverywhereFailedInPre => default.blame(context)
-  }
-}
-
-case class PreSplit(left: Blame[PreconditionFailed], right: Blame[PreconditionFailed]) extends Blame[PreconditionFailed] {
-  override def blame(error: PreconditionFailed): Unit =
-    error.path match {
-      case Nil => throw BlamePathError
-      case FailLeft :: tail => left.blame(PreconditionFailed(tail, error.failure, error.invocation))
-      case FailRight :: tail => right.blame(PreconditionFailed(tail, error.failure, error.invocation))
-    }
 }
 
 case class BlameUnreachable(message: String, failure: VerificationFailure) extends VerificationResult.SystemError {

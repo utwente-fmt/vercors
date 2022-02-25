@@ -23,6 +23,7 @@ public class SwapLong {
     G = tmp;
   }
 
+  /*[/expect postFailed]*/
   /*@ 
     requires Perm(F,1) ** Perm(G,1);
     ensures Perm(F,1) ** Perm(G,1);
@@ -32,6 +33,6 @@ public class SwapLong {
   {
     n();
   }
-
+  /*[/end]*/
 }
 

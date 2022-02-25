@@ -475,8 +475,8 @@ statement
     :   block
     |   ASSERT expression assertMessage? ';'
     |   'if' parExpression statement elseBlock?
-    |   valEmbedContract? loopLabel? 'for' '(' forControl ')' valEmbedContract? statement
-    |   valEmbedContract? loopLabel? 'while' parExpression valEmbedContract? statement
+    |   valEmbedContract? loopLabel* 'for' '(' forControl ')' valEmbedContract? statement
+    |   valEmbedContract? loopLabel* 'while' parExpression valEmbedContract? statement
     |   'do' statement 'while' parExpression ';'
     |   'try' block catchClause+ finallyBlock?
     |   'try' block finallyBlock

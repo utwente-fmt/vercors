@@ -24,9 +24,12 @@ case class DesugarCollectionOperators[Pre <: Generation]() extends Rewriter[Pre]
           Drop(xs, i + const(1))
         )
       case Empty(xs) => Size(dispatch(xs)) === const(0)
-      case SubSetEq(xsPre, ysPre) =>
+      case SubSet(xsPre, ysPre) =>
         val (xs, ys) = (dispatch(xsPre), dispatch(ysPre))
-        SubSet(xs, ys) || xs === ys
+        SubSetEq(xs, ys) && (xs !== ys)
+      case SubBag(xsPre, ysPre) =>
+        val (xs, ys) = (dispatch(xsPre), dispatch(ysPre))
+        SubBagEq(xs, ys) && (xs !== ys)
       case other => rewriteDefault(other)
     }
   }

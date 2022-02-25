@@ -49,25 +49,22 @@ case object Test {
 
       var dumpCount = 0
 
-      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-        if(c.files.asScala.forall(f =>
-            f.toString.endsWith(".java") ||
-              f.toString.endsWith(".c") ||
-              f.toString.endsWith(".pvl"))) {
-          tryParse(c.files.asScala.toSeq)
-          /*
-          System.gc()
-          val server = ManagementFactory.getPlatformMBeanServer
-          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
-          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
-          dumpCount += 1
-           */
-        } else {
-          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
-        }
-      })
+//      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
+//        if(c.files.asScala.forall(f => Seq("sil", "c", "java", "pvl", "cu").exists(ext => f.toString.endsWith("." + ext)))) {
+//          tryParse(c.files.asScala.toSeq)
+////          System.gc()
+////          val server = ManagementFactory.getPlatformMBeanServer
+////          val mxBean = ManagementFactory.newPlatformMXBeanProxy(server, "com.sun.management:type=HotSpotDiagnostic", classOf[HotSpotDiagnosticMXBean])
+////          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
+////          dumpCount += 1
+//        } else {
+//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+//        }
+//      })
 
-//      tryParse(Seq(Path.of("examples/arrays/array-example.pvl")))
+      val paths = Seq("examples/basic/TernaryOperator.java")
+
+      tryParse(paths.map(Paths.get(_)))
     } finally {
       println(s"Out of $files filesets, $systemErrors threw a SystemError, $crashes crashed and $errorCount errors were reported.")
       println(s"Time: ${(System.currentTimeMillis() - start)/1000.0}s")
@@ -109,8 +106,10 @@ case object Test {
       DesugarPermissionOperators, // no PointsTo, \pointer, etc.
       PinCollectionTypes, // no anonymous sequences, sets, etc.
       QuantifySubscriptAny, // no arr[*]
-      ResolveScale, // inline predicate scaling into predicate applications
       PropagateContextEverywhere, // inline context_everywhere into loop invariants
+      EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+      GivenYieldsToArgs,
+      IterationContractToParBlock,
 
       CheckProcessAlgebra,
 
@@ -120,7 +119,7 @@ case object Test {
       PureMethodsToFunctions,
 
       // Encode parallel blocks
-      IterationContractToParBlock,
+      EncodeParAtomic,
       ParBlockEncoder,
 
       // Encode exceptional behaviour (no more continue/break/return/try/throw)
@@ -140,8 +139,7 @@ case object Test {
       ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl")),
       ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
       SimplifyQuantifiedRelations,
-
-      EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
 
       // Translate internal types to domains
       ImportADT,
@@ -150,6 +148,7 @@ case object Test {
       MonomorphizeContractApplicables,
 
       // Silver compat (basically no new nodes)
+      ResolveScale,
       ExplicitADTTypeArgs,
       ForLoopToWhileLoop,
       BranchToIfElse,
@@ -170,7 +169,7 @@ case object Test {
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
           case decl: Declaration[_] =>
-            if(decl.debugRewriteState == NotProcessed && !pass.isInstanceOf[ApplyTermRewriter.BuilderForFile]) {
+            if(decl.debugRewriteState == NotProcessed && !pass.isInstanceOf[ApplyTermRewriter.BuilderForFile] && pass != InlineApplicables) {
               println(s"Dropped without notice: $decl")
               throw Exit
             }
@@ -188,9 +187,12 @@ case object Test {
       }
       Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3")).submit(program)
     }
+
+    expectedErrors.foreach(_.signalDone())
   } catch {
     case Exit =>
     case err: SystemError =>
+      val x = err
       println(err.text)
       systemErrors += 1
     case res: UserError =>

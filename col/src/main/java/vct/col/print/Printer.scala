@@ -564,9 +564,9 @@ case class Printer(out: Appendable,
         case Some(label) => statement("continue", space, name(label.decl))
         case None => statement("continue")
       }
-    case InvokeMethod(obj, ref, args, outArgs, typeArgs) =>
+    case InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
-    case InvokeProcedure(ref, args, outArgs, typeArgs) =>
+    case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
   })
 
@@ -607,7 +607,7 @@ case class Printer(out: Appendable,
         case None =>
           phrase(method, "(", commas(arguments.map(NodePhrase)), ")")
       }, 100)
-    case JavaNewClass(args, typeArgs, name) =>
+    case JavaNewClass(args, typeArgs, name, givenMap, yields) =>
       (phrase("new", space, name, "(", commas(args.map(NodePhrase)), ")"), 100)
     case JavaNewLiteralArray(baseType, dims, initializer) =>
       (phrase("new", space, baseType, "[]".repeat(dims), initializer), 100)
@@ -667,7 +667,7 @@ case class Printer(out: Appendable,
     case Wand(left, right) =>
       (phrase(bind(30, left), space, "-*", space, assoc(30, right)), 30)
     case Scale(scale, res) =>
-      ???
+      (phrase("[", scale, "]", assoc(90, res)), 90)
     case Perm(loc, perm) =>
       (phrase("Perm(", loc, ",", space, perm, ")"), 100)
     case PointsTo(loc, perm, value) =>
@@ -766,13 +766,13 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case ADTFunctionInvocation(tArgs, ref, args) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case ProcedureInvocation(ref, args, outArgs, typeArgs) =>
+    case ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case FunctionInvocation(ref, args, typeArgs) =>
+    case FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case MethodInvocation(obj, ref, args, outArgs, typeArgs) =>
+    case MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
-    case InstanceFunctionInvocation(obj, ref, args, typeArgs) =>
+    case InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case UMinus(arg) =>
       (phrase("-", assoc(90, arg)), 90)

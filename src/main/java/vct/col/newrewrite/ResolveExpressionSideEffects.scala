@@ -9,7 +9,7 @@ import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationResult.{Unreachable, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -18,14 +18,18 @@ import scala.reflect.ClassTag
 case object ResolveExpressionSideEffects extends RewriterBuilder {
   case object SideEffectOrigin extends Origin {
     override def preferredName: String = "flatten"
-    override def messageInContext(message: String): String =
-      s"[At node generated to collect side effects]: $message"
+    override def context: String = "[At node generated to collect side effects]"
   }
 
   case object ResultVar extends Origin {
     override def preferredName: String = "res"
-    override def messageInContext(message: String): String =
-      s"[At node generated to contain the result of a method]: $message"
+    override def context: String = "[At node generated to contain the result of a method]"
+  }
+
+  case class DisallowedSideEffect(effector: Expr[_]) extends UserError {
+    override def code: String = "sideEffect"
+    override def text: String =
+      effector.o.messageInContext("This expression may have side effects, but it is in a position where that is not allowed.")
   }
 }
 
@@ -44,24 +48,34 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   // 1 + 2 --> flat1 = 1; flat2 = 2; flat3 = flat1 + flat2; flat3
   // However, extractions are first stored in this map, and are only flushed to the executionContext if an actual
   // side effect occurs. If not, they are removed from the map and inlined again.
-  val currentlyExtracted: mutable.Map[Variable[Post], Expr[Post]] = mutable.Map()
+  val currentlyExtracted: mutable.Map[Variable[Post], (Seq[Expr[Post]], Expr[Post])] = mutable.Map()
+
+  // conditions may be duplicated, so they have to be duplicable for free probably? i.e. no internal declarations
+  // like let.
+  val currentConditions: ScopedStack[Expr[Post]] = ScopedStack()
 
   // When an actual side effect occurs, this flushes out the extracted pure expressions as side effects.
   def flushExtractedExpressions(): Unit = {
     currentlyExtracted.foreach {
-      case (flat, pureExpr) => executionContext.topOption match {
+      case (flat, (condition, pureExpr)) => executionContext.topOption match {
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
           flat.declareDefault(this)
           implicit val o: Origin = SideEffectOrigin
-          acceptor(assignLocal(Local(flat.ref), pureExpr))
+          acceptor(Branch(Seq((
+            foldAnd(condition),
+            assignLocal(Local(flat.ref), pureExpr),
+          ))))
       }
     }
     currentlyExtracted.clear()
   }
 
-  def effect(stat: Statement[Post]): Unit =
-    executionContext.top(stat)
+  def effect(stat: Statement[Post]): Unit = {
+    flushExtractedExpressions()
+    implicit val o: Origin = SideEffectOrigin
+    executionContext.top(Branch(Seq((foldAnd(currentConditions.toSeq), stat))))
+  }
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
@@ -73,7 +87,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     override def dispatch(e: Expr[Post]): Expr[Post] = e match {
       case Local(Ref(v)) =>
         currentlyExtracted.remove(v) match {
-          case Some(pureExpression) =>
+          case Some((_, pureExpression)) =>
             pureExpression
           case None =>
             val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
@@ -81,7 +95,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         }
       case other => rewriteDefault(other)
     }
-
   }
 
   def evaluateOne(e: Expr[Pre]): (Seq[Variable[Post]], Seq[Statement[Post]], Expr[Post]) = {
@@ -144,13 +157,17 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     implicit val o: Origin = stat.o
     stat match {
       case Eval(e) => frame(e, Eval(_))
-      case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs) =>
+      case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         frameAll(obj +: args, {
-          case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch))(inv.blame)
+          case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
         })
-      case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs) =>
+      case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         frameAll(args, args =>
-          InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch))(inv.blame))
+          InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) =>
         frame(result, e => Block(Seq(
@@ -213,9 +230,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case continue: Continue[Pre] => rewriteDefault(continue)
       case commit: Commit[Pre] => rewriteDefault(commit)
       case par: ParStatement[Pre] => rewriteDefault(par)
+      case n: SilverNewRef[Pre] => rewriteDefault(n)
+      case assn: SilverFieldAssign[Pre] => rewriteDefault(assn)
+      case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
       case _: CStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
-      case _: SilverStatement[Pre] => throw ExtraNode
     }
   }
 
@@ -229,7 +248,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
             res.declareDefault(this)
             method.outArgs.foreach(dispatch)
           },
-        ).succeedDefault(this, method)
+        ).succeedDefault(method)
       }
     case other => rewriteDefault(other)
   }
@@ -240,6 +259,9 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   def dispatchPure(e: Expr[Pre]): Expr[Post] = e match {
     case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
+    case _: PreAssignExpression[Pre] | _: PostAssignExpression[Pre] | _: With[Pre] | _: Then[Pre] |
+         _: MethodInvocation[Pre] | _: ProcedureInvocation[Pre] =>
+      throw DisallowedSideEffect(e)
     case other => rewriteDefault(other)
   }
 
@@ -256,7 +278,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   def stored(e: Expr[Post], t: Type[Pre]): Local[Post] = {
     val v = new Variable[Post](dispatch(t))(SideEffectOrigin)
-    currentlyExtracted(v) = e
+    currentlyExtracted(v) = (currentConditions.toSeq, e)
     Local[Post](v.ref)(SideEffectOrigin)
   }
 
@@ -278,52 +300,72 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       val postV = (v : Variable[Pre]).asInstanceOf[Variable[Post]]
       Local[Post](postV.ref)(e.o)
     case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
+
+    // ## Nodes that induce an implicit evaluation condition: ##
+    case Select(cond, whenTrue, whenFalse) =>
+      val cond1 = dispatchImpure(cond)
+      val whenTrue1 = currentConditions.having(cond1) { dispatchImpure(whenTrue) }
+      val whenFalse1 = currentConditions.having(Not(cond1)(e.o)) { dispatchImpure(whenFalse) }
+      stored(ReInliner().dispatch(Select(cond1, whenTrue1, whenFalse1)(e.o)), e.t)
+    case Implies(left, right) =>
+      val left1 = dispatchImpure(left)
+      val right1 = currentConditions.having(left1) { dispatchImpure(right) }
+      stored(ReInliner().dispatch(Implies(left1, right1)(e.o)), e.t)
+    case And(left, right) =>
+      val left1 = dispatchImpure(left)
+      val right1 = currentConditions.having(left1) { dispatchImpure(right) }
+      stored(ReInliner().dispatch(And(left1, right1)(e.o)), e.t)
+    // Star ????
+    case Or(left, right) =>
+      val left1 = dispatchImpure(left)
+      val right1 = currentConditions.having(Not(left1)(e.o)) { dispatchImpure(right) }
+      stored(ReInliner().dispatch(Or(left1, right1)(e.o)), e.t)
+
+    // ## Nodes that induce side effects: ##
     case ass @ PreAssignExpression(oldTarget, oldValue) =>
       // target and value could be inline, if it were not for the fact that we need value to return it (since value
       // may have a more specific type than the target type)
       val target = assignTarget(oldTarget)
       val value = notInlined(oldValue)
-      flushExtractedExpressions()
       effect(Assign(target, value)(ass.blame)(e.o))
       stored(value, oldValue.t)
     case ass @ PostAssignExpression(oldTarget, value) =>
       val target = assignTarget(oldTarget)
       val cachedTarget = stored(target, oldTarget.t)
-      flushExtractedExpressions()
       effect(Assign(target, inlined(value))(ass.blame)(e.o))
       stored(cachedTarget, oldTarget.t)
     case With(pre, value) =>
-      flushExtractedExpressions()
       effect(dispatch(pre))
       dispatchImpure(value)
     case Then(oldValue, post) =>
       val value = notInlined(oldValue)
-      flushExtractedExpressions()
       effect(dispatch(post))
       stored(value, oldValue.t)
-    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs) =>
+    case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.declareDefault(this)
-      currentlyExtracted(res) = res.get(ResultVar)
+      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
       effect(InvokeMethod[Post](
         obj = inlined(obj),
         ref = succ(method),
         args = args.map(inlined),
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
-        typeArgs = typeArgs.map(dispatch)
+        typeArgs = typeArgs.map(dispatch),
+        givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+        yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
-      Local[Post](res.ref)(ResultVar)
-    case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs) =>
+      stored(res.get(SideEffectOrigin), method.returnType)
+    case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.declareDefault(this)
-      currentlyExtracted(res) = res.get(ResultVar)
+      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
       effect(InvokeProcedure[Post](
         ref = succ(method),
         args = args.map(inlined),
         outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
         typeArgs = typeArgs.map(dispatch),
+        givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
+        yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(inv.blame)(e.o))
-      Local[Post](res.ref)(ResultVar)
+      stored(res.get(SideEffectOrigin), method.returnType)
     case other =>
       stored(ReInliner().dispatch(rewriteDefault(other)), other.t)
   }

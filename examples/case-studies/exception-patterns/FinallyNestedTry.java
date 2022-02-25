@@ -10,7 +10,7 @@ class FinallyNestedTry {
 
     boolean randomBoolean();
     
-    //@ signals (ArithmeticException.java e) Perm(x, write) ** (x == 31 || x == 32);
+    //@ signals (ArithmeticException e) Perm(x, write) ** (x == 31 || x == 32);
     //@ signals (ArrayStoreException e) Perm(x, write) ** (x == 111 || x == 112);
     //@ context_everywhere Perm(x, write);
     //@ ensures x == 32;

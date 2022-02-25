@@ -9,9 +9,11 @@ package separate;
 
 public class Util {
 
-  
-   //@ ensures \result==x+1;
+
+    /*[/expect postFailed]*/
+    //@ ensures \result==x+1;
     public static int incr(int x){
       return x+2;
     }
+    /*[/end]*/
 }

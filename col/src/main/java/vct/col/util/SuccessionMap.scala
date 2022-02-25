@@ -64,6 +64,8 @@ case object SuccessionMap {
 }
 
 case class SuccessionMap[K, V <: Declaration[_]]() {
+  private val collapsedStorage: mutable.HashMap[K, V] = mutable.HashMap()
+
   private val storages: ArrayBuffer[mutable.HashMap[K, V]] = ArrayBuffer()
   private val localStorage: ThreadLocal[mutable.HashMap[K, V]] =
     ThreadLocal.withInitial(() => storages.synchronized {
@@ -72,10 +74,21 @@ case class SuccessionMap[K, V <: Declaration[_]]() {
       store
     })
 
+  // Hint to GC: move as much data as possible out of pinned ThreadLocal
+  override def finalize(): Unit = collapse()
+
   private def storage: mutable.HashMap[K, V] = localStorage.get()
 
+  private def collapse(): Unit = storages.synchronized {
+    for(storage <- storages) {
+      collapsedStorage.addAll(storage)
+      storage.clear()
+    }
+  }
+
   def get(k: K): Option[V] = storages.synchronized {
-    FuncTools.firstOption(storages.toSeq, (store: mutable.HashMap[K, V]) => store.get(k))
+    collapse()
+    collapsedStorage.get(k)
   }
 
   def apply(k: K): V = get(k).get

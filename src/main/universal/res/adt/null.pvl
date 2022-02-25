@@ -1,0 +1,5 @@
+adt `t_null` {
+  pure `t_null` v_null();
+
+  axiom (\forall `t_null` v; true; {:v_null():} == v);
+}
