@@ -65,7 +65,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier[G] = modifier match {
-    case ClassOrInterfaceModifier0(annotation) => ??(annotation)
+    case ClassOrInterfaceModifier0(annotation) => convert(annotation)
     case ClassOrInterfaceModifier1(name) => name match {
       case "public" => JavaPublic()
       case "protected" => JavaProtected()
@@ -75,6 +75,12 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "final" => JavaFinal()
       case "strictfp" => JavaStrictFP()
     }
+  }
+
+  def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
+    case Annotation0("@", name, Some(AnnotationArgs0("(", Some(x), ")"))) => JavaAnnotation(name, Seq())
+    case Annotation0("@", name, None) => JavaAnnotation(name, Seq())
+    case x => ??(x)
   }
 
   def convert(implicit modifier: VariableModifierContext): JavaModifier[G] = modifier match {

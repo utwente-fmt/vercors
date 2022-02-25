@@ -62,7 +62,7 @@ case object Test {
 //        }
 //      })
 
-      val paths = Seq("examples/basic/TernaryOperator.java")
+      val paths = Seq("examples/basic/JavaAnnotation.java")
 
       tryParse(paths.map(Paths.get(_)))
     } finally {
