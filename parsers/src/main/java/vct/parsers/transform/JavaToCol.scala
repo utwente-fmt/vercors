@@ -78,9 +78,13 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
-    case Annotation0("@", name, Some(AnnotationArgs0("(", Some(x), ")"))) => JavaAnnotation(name, Seq())
-    case Annotation0("@", name, None) => JavaAnnotation(name, Seq())
+    // case Annotation0("@", name, Some(AnnotationArgs0("(", Some(x), ")"))) => JavaAnnotation(name, Seq())
+    case Annotation0("@", name, None) => JavaAnnotation(convert(name), Seq())
     case x => ??(x)
+  }
+
+  def convert(implicit annotationName: AnnotationNameContext): JavaNamedType[G] = annotationName match {
+    case AnnotationName0(qualifiedName) => JavaNamedType(convert(qualifiedName).names.map(part => (part, None)))
   }
 
   def convert(implicit modifier: VariableModifierContext): JavaModifier[G] = modifier match {

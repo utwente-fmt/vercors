@@ -164,7 +164,7 @@ case object Test {
     SuccessionMap.breakOnMissingPredecessor {
       var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
-//        println(s"    ${pass.getClass.getSimpleName}")
+        println(s"    ${pass.getClass.getSimpleName}")
         val oldProgram = program
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {

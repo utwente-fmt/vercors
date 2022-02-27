@@ -3,7 +3,7 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.origin._
 import vct.result.VerificationResult
-import vct.col.ast.{ApplicableContract, Block, ClassDeclaration, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, CType, ClassDeclaration, CompositeType, DeclaredType, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, PVLType, PrimitiveType, SilverType, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPointer, TType, TUnion, TVar, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
@@ -196,7 +196,23 @@ case object Java {
 
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
-      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
+      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G])) match {
+      case Some(value) =>
+        if (names == Seq("java", "lang", "Object")) {
+          value match {
+            case RefJavaClass(decl) =>
+              decl match {
+                case clazz: JavaClass[G] =>
+                  clazz.ext.asInstanceOf[JavaNamedType[G]].ref = Some(RefJavaClass(clazz))
+                case _ =>
+              }
+            case _ =>
+          }
+        }
+
+        Some(value)
+      case x => x
+    }
   }
 
   def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] =
