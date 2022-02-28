@@ -27,6 +27,7 @@ class ScopeContext[Pre, Post] {
   val adtScopes: ScopedStack[ArrayBuffer[ADTDeclaration[Post]]] = ScopedStack()
   val variableScopes: ScopedStack[ArrayBuffer[Variable[Post]]] = ScopedStack()
   val labelScopes: ScopedStack[ArrayBuffer[LabelDecl[Post]]] = ScopedStack()
+  val sendScopes: ScopedStack[ArrayBuffer[SendDecl[Post]]] = ScopedStack()
   val parBlockScopes: ScopedStack[ArrayBuffer[ParBlockDecl[Post]]] = ScopedStack()
   val parInvariantScopes: ScopedStack[ArrayBuffer[ParInvariantDecl[Post]]] = ScopedStack()
   val modelScopes: ScopedStack[ArrayBuffer[ModelDeclaration[Post]]] = ScopedStack()

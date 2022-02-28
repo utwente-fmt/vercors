@@ -23,11 +23,9 @@ void example(int a[],int b[],int c[],int len){
     {
 
     a[i]=b[i]+1;
-    S1:if (i< len-1) {
-      //@ send a != NULL ** Perm(a[i],1\2) to S2,1;
-    }
-    S2:if (i>0) {
-      //@ recv a != NULL ** Perm(a[i-1],1\2) from S1,1;
+    //@ send S, 1: a != NULL ** Perm(a[i],1\2);
+    //@ recv S;
+    if (i>0) {
       c[i]=a[i+1]+2;
     }
   }

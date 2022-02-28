@@ -35,13 +35,9 @@ void example(int a[],int b[],int c[],int len){
     ensures  i>0 ==> c[i]==i+2;
   @*/ {
     a[i]=b[i]+1;
-    /*@
-      ghost S1:if (i < len-1) {
-        send 0 <= i ** i < len ** Perm(a[i],1\2) ** a[i]==i+1 to S2,1;
-      }
-    @*/
+    //@ send S, 1: 0 <= i ** i < len ** Perm(a[i],1\2) ** a[i]==i+1;
+    //@ recv S;
     S2:if (i>0) {
-      //@ recv 0 < i ** i < len ** Perm(a[i-1],1\2) ** a[i-1]==i from S1,1;
       c[i]=a[i-1]+2;
     }
   }

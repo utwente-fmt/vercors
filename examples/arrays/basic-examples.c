@@ -110,13 +110,9 @@ void forward_drf(int a[],int b[],int c[],int N){
     ensures  (i>0 ==> Perm(a[i-1],1\2)) ** (i==N-1 ==> Perm(a[i],1\2));
   @*/ {
     a[i]=b[i]+1;
-    /*@
-      ghost S1:if (i< N-1) {
-        send a != NULL ** 0 <= i ** i < N - 1 ** Perm(a[i],1\2) to S2,1;
-      }
-    @*/
-    S2:if (i>0) {
-      //@ recv a != NULL ** 0 < i ** i < N ** Perm(a[i-1],1\2) from S1,1;
+    //@ send S, 1: a != NULL ** 0 <= i ** i < N - 1 ** Perm(a[i],1\2);
+    //@ recv S;
+    if (i>0) {
       c[i]=a[i-1]+2;
     }
   }
@@ -141,13 +137,9 @@ void forward_full(int a[],int b[],int c[],int len){
     ensures  a[i]==i+1 && b[i]==i && (i>0 ==> c[i]==i+2);
   @*/ {
     a[i]=b[i]+1;
-    /*@
-      ghost FS1:if (i< len-1) {
-        send a != NULL ** 0 <= i ** i < len - 1 ** Perm(a[i],1\2) ** a[i]==i+1 to FS2,1;
-      }
-    @*/
-    FS2:if (i>0) {
-      //@ recv a != NULL ** 0 < i ** i < len ** Perm(a[i-1],1\2) ** a[i-1]==i from FS1,1;
+    //@ send FS, 1: a != NULL ** 0 <= i ** i < len - 1 ** Perm(a[i],1\2) ** a[i]==i+1;
+    //@ recv FS;
+    if (i>0) {
       c[i]=a[i-1]+2;
     }
   }
@@ -166,16 +158,12 @@ void backward_drf(int a[],int b[],int c[],int N){
     ensures  Perm(a[i],1\2) ** Perm(a[i],1\2) ** Perm(b[i],1\2) ** Perm(c[i],write);
    @*/
     {
-    /*@
-      ghost T1:if (i>0) {
-        recv a != NULL ** 0 < i ** i < N ** Perm(a[i],1\2) from T2,1;
-      }
-    @*/
+    //@ recv T;
     a[i]=b[i]+1;
-    T2:if (i < N-1) {
+    if (i < N-1) {
       c[i]=a[i+1]+2;
-      //@ send a != NULL ** 0 <= i ** i < N - 1 ** Perm(a[i+1],1\2) to T1,1;
     }
+    //@ send T, 1: a != NULL ** 0 <= i ** i < N - 1 ** Perm(a[i+1],1\2);
   }
 }
 
@@ -206,15 +194,11 @@ void backward_full(int a[],int b[],int c[],int len){
     ensures  i < len-1 ==> c[i]==2;
    @*/
     {
-    /*@
-      ghost FT1:if (i>0) {
-        recv a != NULL ** 0 < i ** i < len ** i == (i-1)+1 ** Perm(a[i], 1\2) from FT2,1;
-      }
-    @*/
+    //@ recv FT;
     a[i]=b[i]+1;
-    FT2:if (i < len-1) {
+    if (i < len-1) {
       c[i]=a[i+1]+2;
-      //@ send a != NULL ** 0 <= i ** i < len - 1 ** Perm(a[i+1], 1\2) to FT1,1;
     }
+    //@ send FT, 1: a != NULL ** 0 <= i ** i < len - 1 ** Perm(a[i+1], 1\2);
   }
 }

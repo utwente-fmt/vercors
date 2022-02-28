@@ -26,14 +26,10 @@ void example(int a[],int b[],int c[],int len){
    @*/
     {
     a[i]=b[i]+1;
-    /*@
-      ghost S1:if (i>0) {
-        recv a!=NULL ** Perm(a[i],1\2) from S2,1;
-      }
-    @*/
-    S2:if (i < len-1) {
+    //@ recv S;
+    if (i < len-1) {
       c[i]=a[i+1]+2;
-      //@ send a!=NULL ** Perm(a[i+1],1\2) to S1,1;
     }
+    //@ send S, 1: a != NULL ** Perm(a[i+1], 1\2);
   }
 }

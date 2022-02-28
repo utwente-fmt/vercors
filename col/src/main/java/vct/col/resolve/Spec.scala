@@ -141,6 +141,11 @@ case object Spec {
       case ref @ RefLabelDecl(decl) if ref.name == name => decl
     }
 
+  def findSend[G](name: String, ctx: ReferenceResolutionContext[G]): Option[SendDecl[G]] =
+    ctx.stack.flatten.collectFirst {
+      case ref @ RefSendDecl(decl) if ref.name == name => decl
+    }
+
   def findLocal[G](name: String, ctx: ReferenceResolutionContext[G]): Option[Variable[G]] =
     ctx.stack.flatten.collectFirst {
       case ref @ RefVariable(decl) if ref.name == name => decl

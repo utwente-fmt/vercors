@@ -35,6 +35,7 @@ object ColDefs {
     "ModelDeclaration" -> q"modelScopes",
     "Variable" -> q"variableScopes",
     "LabelDecl" -> q"labelScopes",
+    "SendDecl" -> q"sendScopes",
     "ParBlockDecl" -> q"parBlockScopes",
     "ParInvariantDecl" -> q"parInvariantScopes",
     "CDeclaration" -> q"cLocalScopes",

@@ -42,13 +42,12 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
     }
   }
 
-  def assertIncrements(v: Variable[Pre], loop: Loop[Pre]): Unit =
-    loop.update match {
-      case Block(Seq(Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))))) =>
-      case Block(Seq(Eval(PostAssignExpression(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)))))) =>
-      case _ =>
-        throw InvalidLoopFormatForIterationContract(loop,
-          "we could not ascertain that the iteration variable is incremented by one each iteration")
+  def doesIncrement(v: Variable[Pre], update: Statement[Pre]): Boolean =
+    update match {
+      case Block(Seq(s)) => doesIncrement(v, s)
+      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))) => true
+      case Eval(PostAssignExpression(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)))) => true
+      case _ => false
     }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
@@ -59,7 +58,9 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
       val high = getExclusiveUpperBound(v, cond).getOrElse(throw InvalidLoopFormatForIterationContract(loop,
         "we could not derive an upper bound for the iteration variable from the condition"))
 
-      assertIncrements(v, loop)
+      if(!doesIncrement(v, update))
+        throw InvalidLoopFormatForIterationContract(loop,
+          "we could not ascertain that the iteration variable is incremented by one each iteration")
 
       val newV = collectOneInScope(variableScopes) { dispatch(v) }
 
