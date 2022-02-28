@@ -45,14 +45,27 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
-      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_))))
+      ???
+      // Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_))))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
   }
 
-  def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[ClassDeclaration[G]] = decl match {
-    case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(t, _, _)) => ???
+  def convert(implicit decl: AnnotationTypeElementDeclarationContext): ClassDeclaration[G] = decl match {
+    case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(returnType, AnnotationMethodOrConstantRest0(AnnotationMethodRest0(name, _, _, default)), _)) =>
+      val modifiers = mods.map(convert(_))
+      if (!modifiers.toSet.subsetOf(Set(JavaPublic, JavaAbstract))) {
+        fail(decl, "Only modifiers allowed on @interface members are public, abstract")
+      }
+      JavaAnnotationMethod(convert(returnType), convert(name), default.map(convert(_)))
+    case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(_, AnnotationConstantRest0(_), _)) =>
+      fail(decl, "Interface fields are currently unsupported")
     case _ => ??(decl)
+  }
+
+  def convert(implicit default: DefaultValueContext): Expr[G] = default match {
+    case DefaultValue0(_, ElementValue0(expr)) => convert(expr)
+    case DefaultValue0(_, elementValue) => ??(elementValue)
   }
 
   def convert(implicit modifier: ModifierContext): JavaModifier[G] = modifier match {

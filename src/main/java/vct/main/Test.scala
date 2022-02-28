@@ -2,14 +2,14 @@ package vct.main
 
 import com.sun.management.HotSpotDiagnosticMXBean
 import hre.config.Configuration
-import vct.col.ast.{Declaration, Program, SimplificationRule}
+import vct.col.ast.{Declaration, JavaPublic, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
 import vct.col.feature.{Feature, TypeValuesAndGenerics, WildcardReadPermission}
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
-import vct.col.origin.DiagnosticOrigin
+import vct.col.origin.{DiagnosticOrigin, FileOrigin}
 import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
