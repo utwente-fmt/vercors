@@ -250,6 +250,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         val lockInvariant = cls match {
           case clazz: JavaClass[Pre] => clazz.intrinsicLockInvariant
           case _: JavaInterface[Pre] => tt[Pre]
+          case _: JavaAnnotationInterface[Pre] => tt[Pre]
         }
 
         val instanceClass = currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {

@@ -94,9 +94,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
-    // case Annotation0("@", name, Some(AnnotationArgs0("(", Some(x), ")"))) => JavaAnnotation(name, Seq())
-    case Annotation0("@", name, None) => JavaAnnotation(convert(name), Seq())
-    case x => ??(x)
+    case Annotation0("@", name, annotationArgs) => JavaAnnotation(convert(name), annotationArgs.map(convert(_)).getOrElse(Seq()))
   }
 
   def convert(implicit annotationName: AnnotationNameContext): JavaNamedType[G] = annotationName match {
@@ -104,8 +102,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit annotationArgs: AnnotationArgsContext): Seq[(String, Expr[G])] = annotationArgs match {
-    case AnnotationArgs0(_, AnnotationArgsElems0(pairs), _ ) => convert(pairs)
-    case AnnotationArgs0(_, AnnotationArgsElems1(ElementValue0(expr)), _) => Seq(("value", convert(expr)))
+    case AnnotationArgs0(_, None, _ ) => Seq()
+    case AnnotationArgs0(_, Some(AnnotationArgsElems0(pairs)), _ ) => convert(pairs)
+    case AnnotationArgs0(_, Some(AnnotationArgsElems1(ElementValue0(expr))), _) => Seq(("value", convert(expr)))
     case _ => ??(annotationArgs)
   }
 
@@ -115,7 +114,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case _ => ???
   }
 
-  def convert()
+  def convert(implicit pair: ElementValuePairContext): (String, Expr[G]) = pair match {
+    case ElementValuePair0(name, _, ElementValue0(expr)) => (convert(name), convert(expr))
+    case x => ??(x)
+  }
 
   def convert(implicit modifier: VariableModifierContext): JavaModifier[G] = modifier match {
     case VariableModifier0(_) => JavaFinal()

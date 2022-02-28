@@ -3,7 +3,7 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.origin._
 import vct.result.VerificationResult
-import vct.col.ast.{ApplicableContract, Block, CType, ClassDeclaration, CompositeType, DeclaredType, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, PVLType, PrimitiveType, SilverType, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPointer, TType, TUnion, TVar, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, CType, ClassDeclaration, CompositeType, DeclaredType, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, PVLType, PrimitiveType, SilverType, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPointer, TType, TUnion, TVar, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
@@ -18,7 +18,7 @@ case object Java {
 
   private implicit val o: Origin = DiagnosticOrigin
   def JAVA_LANG_OBJECT[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
-  def JAVA_LANG_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Annotation", None)))
+  def JAVA_LANG_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
@@ -167,6 +167,7 @@ case object Java {
             ns.declarations match {
               case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
               case Seq(cls: JavaInterface[G]) => Some(RefJavaClass(cls))
+              case Seq(cls: JavaAnnotationInterface[G]) => Some(RefJavaClass(cls))
               case _ => ???
             }
           case None => None
