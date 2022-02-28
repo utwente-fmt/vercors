@@ -103,6 +103,20 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case AnnotationName0(qualifiedName) => JavaNamedType(convert(qualifiedName).names.map(part => (part, None)))
   }
 
+  def convert(implicit annotationArgs: AnnotationArgsContext): Seq[(String, Expr[G])] = annotationArgs match {
+    case AnnotationArgs0(_, AnnotationArgsElems0(pairs), _ ) => convert(pairs)
+    case AnnotationArgs0(_, AnnotationArgsElems1(ElementValue0(expr)), _) => Seq(("value", convert(expr)))
+    case _ => ??(annotationArgs)
+  }
+
+  def convert(implicit pairs: ElementValuePairsContext): Seq[(String, Expr[G])] = pairs match {
+    case ElementValuePairs0(pair) => Seq(convert(pair))
+    case ElementValuePairs1(more, _, pair) => convert(more) :+ convert(pair)
+    case _ => ???
+  }
+
+  def convert()
+
   def convert(implicit modifier: VariableModifierContext): JavaModifier[G] = modifier match {
     case VariableModifier0(_) => JavaFinal()
     case VariableModifier1(annotation) => ??(annotation)
