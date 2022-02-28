@@ -235,6 +235,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         ns.declarations.foreach(dispatch)
       }
 
+    case cls: JavaAnnotationInterface[Pre] =>
+      cls.drop()
+      cls.decls.foreach(_.drop())
+
     case cls: JavaClassOrInterface[Pre] =>
       implicit val o: Origin = cls.o
 
