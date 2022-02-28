@@ -44,9 +44,15 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
-    case TypeDeclaration3(_, annotation) => fail(annotation, "Annotations are note supported.")
+    case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
+      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_))))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
+  }
+
+  def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[ClassDeclaration[G]] = decl match {
+    case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(t, _, _)) => ???
+    case _ => ??(decl)
   }
 
   def convert(implicit modifier: ModifierContext): JavaModifier[G] = modifier match {
