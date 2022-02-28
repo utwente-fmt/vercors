@@ -165,6 +165,7 @@ case object Java {
             ResolveTypes.resolve(ns, ctx)
             ns.declarations match {
               case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
+              case Seq(cls: JavaInterface[G]) => Some(RefJavaClass(cls))
               case _ => ???
             }
           case None => None
@@ -196,23 +197,7 @@ case object Java {
 
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
-      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G])) match {
-      case Some(value) =>
-        if (names == Seq("java", "lang", "Object")) {
-          value match {
-            case RefJavaClass(decl) =>
-              decl match {
-                case clazz: JavaClass[G] =>
-                  clazz.ext.asInstanceOf[JavaNamedType[G]].ref = Some(RefJavaClass(clazz))
-                case _ =>
-              }
-            case _ =>
-          }
-        }
-
-        Some(value)
-      case x => x
-    }
+      .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
 
   def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] =

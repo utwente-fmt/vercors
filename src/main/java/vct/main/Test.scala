@@ -1,6 +1,7 @@
 package vct.main
 
 import com.sun.management.HotSpotDiagnosticMXBean
+import hre.config.Configuration
 import vct.col.ast.{Declaration, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
@@ -185,7 +186,7 @@ case object Test {
           println(f"  $example")
         }
       }
-      Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3")).submit(program)
+      Silicon(Map.empty, Configuration.getFileOrAbort(Paths.get("/deps/z3/4.8.6/Linux/x86_64/bin/z3")).toPath).submit(program)
     }
 
     expectedErrors.foreach(_.signalDone())
