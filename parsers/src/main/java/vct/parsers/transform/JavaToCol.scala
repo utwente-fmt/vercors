@@ -45,19 +45,19 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
-      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.map(convert(_))))
+      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.map(convert(_)).flatten))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
   }
 
-  def convert(implicit decl: AnnotationTypeElementDeclarationContext): JavaAnnotationMethod[G] = decl match {
+  def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[JavaAnnotationMethod[G]] = decl match {
     case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(returnType, AnnotationMethodOrConstantRest0(AnnotationMethodRest0(name, _, _, default)), _)) =>
       val modifiers: Set[JavaModifier[G]] = mods.map(convert(_)).toSet
       if (!modifiers.subsetOf(Set(JavaPublic()(DiagnosticOrigin), JavaAbstract()(DiagnosticOrigin)))) {
         fail(decl, "Only modifiers allowed on @interface members are public, abstract")
       }
-      new JavaAnnotationMethod(convert(returnType), convert(name), default.map(convert(_)))
-    case _ => ??(decl)
+      Some(new JavaAnnotationMethod(convert(returnType), convert(name), default.map(convert(_))))
+    case AnnotationTypeElementDeclaration1(_) => None
   }
 
   def convert(implicit default: DefaultValueContext): Expr[G] = default match {
@@ -747,6 +747,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case LangId0(id) => convert(id)
   }
 
+  def convert(implicit n: LangConstIntContext): BigInt = n match {
+    case LangConstInt0(string) => BigInt(string)
+  }
+
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
     JavaLocal(name)(blame(ctx))(origin(ctx))
 
@@ -985,10 +989,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
-    case ValSend(_, resource, _, label, _, offset, _) =>
-      Send(convert(resource), new UnresolvedRef[G, LabelDecl[G]](convert(label)), convert(offset))
-    case ValRecv(_, resource, _, label, _, offset, _) =>
-      Recv(convert(resource), new UnresolvedRef[G, LabelDecl[G]](convert(label)), convert(offset))
+    case ValSend(_, name, _, delta, _, resource, _) =>
+      Send(new SendDecl()(SourceNameOrigin(convert(name), origin(stat))), convert(delta), convert(resource))
+    case ValRecv(_, name, _) =>
+      Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
     case ValCslSubject(_, _, _) => ??(stat) // FIXME PB: csl_subject seems to be used
     case ValSpecIgnoreStart(_, _) => SpecIgnoreEnd()

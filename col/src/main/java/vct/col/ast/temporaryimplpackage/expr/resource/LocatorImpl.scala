@@ -39,7 +39,8 @@ trait LocatorImpl[G] extends ExprImpl[G] { this: Locator[G] =>
       }
 
       case _: ArraySubscript[G] => Nil
-      case sub: AmbiguousSubscript[G] if sub.isArrayOp => Nil
+      case _: PointerSubscript[G] => Nil
+      case sub: AmbiguousSubscript[G] if sub.isArrayOp || sub.isPointerOp => Nil
 
       case _ => Seq(NotAHeapLocation(this))
     })

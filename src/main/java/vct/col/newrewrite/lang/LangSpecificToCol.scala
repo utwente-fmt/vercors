@@ -334,7 +334,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         typeArgs = Nil,
         body = Some(dispatch(func.body)),
         contract = contract()(func.o),
-      )(func.blame)(func.o)
+      )(func.blame)(func.o).declareDefault(this)
 
     case decl: CGlobalDeclaration[Pre] =>
       val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => dispatch(t.t) }.getOrElse(???)
@@ -349,7 +349,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               typeArgs = Nil,
               body = None,
               contract = contract()(init.o),
-            )(AbstractApplicable)(init.o)
+            )(AbstractApplicable)(init.o).declareDefault(this)
           case None =>
             throw CGlobalStateNotSupported(init)
         }
@@ -437,7 +437,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case None =>
             val v = new Variable[Post](t)(init.o)
             cNameSuccessor(RefCDeclaration(decl, idx)) = v
-            LocalDecl(v)(init.o)
+            implicit val o: Origin = init.o
+            init.init match {
+              case Some(value) =>
+                Block(Seq(LocalDecl(v), assignLocal(v.get, dispatch(value))))
+              case None => LocalDecl(v)
+            }
         }
       })(decl.o)
 
@@ -497,6 +502,19 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         case RefModelField(decl) => ModelDeref[Post](currentThis.top, succ(decl))(local.blame)
         case RefClass(decl) => throw NotAValue(local)
         case RefField(decl) => Deref[Post](currentThis.top, succ(decl))(local.blame)
+      }
+
+    case local @ CLocal(_) =>
+      implicit val o: Origin = local.o
+
+      local.ref.get match {
+        case RefAxiomaticDataType(decl) => throw NotAValue(local)
+        case RefVariable(decl) => Local(succ(decl))
+        case RefModelField(decl) => ModelDeref[Post](currentThis.top, succ(decl))(local.blame)
+        case ref: RefCParam[Pre] => Local(cNameSuccessor.ref(ref))
+        case RefCFunctionDefinition(decl) => throw NotAValue(local)
+        case RefCGlobalDeclaration(decls, initIdx) => throw NotAValue(local)
+        case ref: RefCDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
       }
 
     case deref @ JavaDeref(obj, _) =>

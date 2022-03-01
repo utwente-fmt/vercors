@@ -140,8 +140,8 @@ final case class SpecIgnoreEnd[G]()(implicit val o: Origin) extends NonExecutabl
 
 sealed trait NormallyCompletingStatement[G] extends Statement[G] with NormallyCompletingStatementImpl[G]
 final case class Assign[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with AssignImpl[G]
-final case class Send[G](resource: Expr[G], label: Ref[G, LabelDecl[G]], offset: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with SendImpl[G]
-final case class Recv[G](resource: Expr[G], label: Ref[G, LabelDecl[G]], offset: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RecvImpl[G]
+final case class Send[G](decl: SendDecl[G], delta: BigInt, res: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with SendImpl[G]
+final case class Recv[G](ref: Ref[G, SendDecl[G]])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RecvImpl[G]
 sealed trait SwitchCase[G] extends NormallyCompletingStatement[G] with SwitchCaseImpl[G]
 final case class DefaultCase[G]()(implicit val o: Origin) extends SwitchCase[G] with DefaultCaseImpl[G]
 final case class Case[G](pattern: Expr[G])(implicit val o: Origin) extends SwitchCase[G] with CaseImpl[G]
@@ -251,6 +251,7 @@ final class ADTFunction[G](val args: Seq[Variable[G]], val returnType: Type[G])(
 
 final class Variable[G](val t: Type[G])(implicit val o: Origin) extends Declaration[G] with VariableImpl[G]
 final class LabelDecl[G]()(implicit val o: Origin) extends Declaration[G] with LabelDeclImpl[G]
+final class SendDecl[G]()(implicit val o: Origin) extends Declaration[G] with SendDeclImpl[G]
 final class ParBlockDecl[G]()(implicit val o: Origin) extends Declaration[G] with ParBlockDeclImpl[G]
 final class ParInvariantDecl[G]()(implicit val o: Origin) extends Declaration[G] with ParInvariantDeclImpl[G]
 
@@ -664,7 +665,7 @@ final case class GpgpuGlobalBarrier[G](requires: Expr[G], ensures: Expr[G])(impl
 final case class GpgpuAtomic[G](impl: Statement[G], before: Statement[G], after: Statement[G])(implicit val o: Origin) extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]
-final case class CLocal[G](name: String)(implicit val o: Origin) extends CExpr[G] with CLocalImpl[G] {
+final case class CLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CExpr[G] with CLocalImpl[G] {
   var ref: Option[CNameTarget[G]] = None
 }
 final case class CInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends CExpr[G] with CInvocationImpl[G] {

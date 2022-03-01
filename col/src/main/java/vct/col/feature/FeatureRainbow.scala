@@ -272,6 +272,7 @@ class FeatureRainbow[G] {
     case node: ParStatement[G] => ParallelRegion
     case node: Send[G] => SendRecv
     case node: Recv[G] => SendRecv
+    case node: SendDecl[G] => SendRecv
     case node: DefaultCase[G] => SwitchStatement
     case node: Case[G] => SwitchStatement
     case node: Label[G] => node.stat match {
