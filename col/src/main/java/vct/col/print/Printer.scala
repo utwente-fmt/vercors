@@ -38,7 +38,7 @@ sealed trait PrinterState {
 case class InLine(lastWasSpace: Boolean, specDepth: Int, banNewlinesDepth: Int, indent: Int) extends PrinterState {
   override def say(text: String)(implicit printer: Printer): PrinterState = {
     printer.out.append(text)
-    InLine(text.lastOption == Some(' '), specDepth, banNewlinesDepth, indent)
+    InLine(text.last == ' ', specDepth, banNewlinesDepth, indent)
   }
 
   override def space()(implicit printer: Printer): PrinterState = {
