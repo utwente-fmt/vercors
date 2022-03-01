@@ -21,4 +21,13 @@ class C {
     void p() {
         @MyAnnotation int x;
     }
+
+    void xx(@MyAnnotation int param) {
+
+    }
+
+    //@ requires ma != null ** ma instanceof MyAnnotation;
+    int x(MyAnnotation ma) {
+       return ma.foo();
+    }
 }

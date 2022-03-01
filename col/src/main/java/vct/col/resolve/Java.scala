@@ -231,6 +231,7 @@ case object Java {
   def findMethodInClass[G](cls: JavaClassOrInterface[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
     cls.decls.flatMap(Referrable.from).collectFirst {
       case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefJavaAnnotationMethod[G] if ref.name == method && args.length == 0 => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref

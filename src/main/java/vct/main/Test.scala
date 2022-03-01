@@ -179,6 +179,10 @@ case object Test {
         assert(program.declarations.nonEmpty)
         printErrors(program.check)
         program = PrettifyBlocks().dispatch(program)
+
+//        if (pass.getClass.getSimpleName.contains("LangSpecific")) {
+//          println(program)
+//        }
       }
       for((feature, examples) <- Feature.examples(program).filter { case (feature, _) => !Set[Feature](TypeValuesAndGenerics, WildcardReadPermission).contains(feature) }) {
         println(f"$feature:")

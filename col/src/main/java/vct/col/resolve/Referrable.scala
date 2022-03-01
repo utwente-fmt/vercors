@@ -76,6 +76,7 @@ sealed trait Referrable[G] {
     case RefJavaLocalDeclaration(decls, idx) => decls.decls(idx)._1
     case RefJavaConstructor(decl) => decl.name
     case RefJavaMethod(decl) => decl.name
+    case RefJavaAnnotationMethod(decl) => decl.name
     case RefInstanceFunction(decl) => Referrable.originName(decl)
     case RefInstanceMethod(decl) => Referrable.originName(decl)
     case RefInstancePredicate(decl) => Referrable.originName(decl)

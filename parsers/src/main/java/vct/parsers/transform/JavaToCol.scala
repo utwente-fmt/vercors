@@ -121,7 +121,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit modifier: VariableModifierContext): JavaModifier[G] = modifier match {
     case VariableModifier0(_) => JavaFinal()
-    case VariableModifier1(annotation) => ??(annotation)
+    case VariableModifier1(annotation) => convert(annotation)
   }
 
   def convert(implicit args: TypeParametersContext): Seq[Variable[G]] = args match {

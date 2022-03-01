@@ -47,6 +47,11 @@ case object LangSpecificToCol extends RewriterBuilder {
     override def context: String = method.o.context
   }
 
+  case class JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]) extends Origin {
+    override def preferredName: String = method.name
+    override def context: String = method.o.context
+  }
+
   case class JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name
     override def context: String = cls.o.context
@@ -215,6 +220,14 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               method.signals.map(t => SignalsClause(new Variable(dispatch(t)), tt)),
           ),
         )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+      case method: JavaAnnotationMethod[Pre] =>
+        new InstanceMethod(
+          returnType = dispatch(method.returnType),
+          args = Nil,
+          outArgs = Nil, typeArgs = Nil,
+          body = None,
+          contract = contract()
+        )(PanicBlame("Verification of annotation method cannot fail"))(JavaAnnotationMethodOrigin(method)).succeedDefault(method)
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
       case other => dispatch(other)
@@ -234,10 +247,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         // Do not enter a scope, so classes of the namespace are declared to the program.
         ns.declarations.foreach(dispatch)
       }
-
-    case cls: JavaAnnotationInterface[Pre] =>
-      cls.drop()
-      cls.decls.foreach(_.drop())
 
     case cls: JavaClassOrInterface[Pre] =>
       implicit val o: Origin = cls.o
@@ -563,6 +572,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
               yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
             )(inv.blame)
           }
+        case RefJavaAnnotationMethod(decl) =>
+          MethodInvocation[Post](
+            obj = obj.map(dispatch).getOrElse(currentThis.top),
+            ref = succ(decl),
+            args = Nil, outArgs = Nil, Nil, Nil, Nil
+          )(inv.blame)
         case BuiltinInstanceMethod(f) =>
           dispatch(f(obj.get)(args))
       }
