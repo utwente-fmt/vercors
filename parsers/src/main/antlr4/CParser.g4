@@ -8,6 +8,7 @@ import LangCParser, SpecParser;
 
 langExpr: expression;
 langId: clangIdentifier;
+langConstInt: Constant;
 langType: typeSpecifier;
 langStatement: blockItem;
 langStatic: EOF EOF;

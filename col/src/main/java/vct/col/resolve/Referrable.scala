@@ -31,6 +31,7 @@ case object Referrable {
     case decl: InstanceField[G] => RefField(decl)
     case decl: Variable[G] => RefVariable(decl)
     case decl: LabelDecl[G] => RefLabelDecl(decl)
+    case decl: SendDecl[G] => RefSendDecl(decl)
     case decl: ParBlockDecl[G] => RefParBlockDecl(decl)
     case decl: ParInvariantDecl[G] => RefParInvariantDecl(decl)
     case decl: ADTAxiom[G] => RefADTAxiom(decl)
@@ -83,6 +84,7 @@ sealed trait Referrable[G] {
     case RefField(decl) => Referrable.originName(decl)
     case RefVariable(decl) => Referrable.originName(decl)
     case RefLabelDecl(decl) => Referrable.originName(decl)
+    case RefSendDecl(decl) => Referrable.originName(decl)
     case RefParBlockDecl(decl) => Referrable.originNameOrEmpty(decl)
     case RefParInvariantDecl(decl) => Referrable.originNameOrEmpty(decl)
     case RefADTAxiom(decl) => Referrable.originName(decl)
@@ -154,6 +156,7 @@ case class RefInstancePredicate[G](decl: InstancePredicate[G]) extends Referrabl
 case class RefField[G](decl: InstanceField[G]) extends Referrable[G] with PVLNameTarget[G] with PVLDerefTarget[G]
 case class RefVariable[G](decl: Variable[G]) extends Referrable[G] with SpecNameTarget[G] with SpecTypeNameTarget[G]
 case class RefLabelDecl[G](decl: LabelDecl[G]) extends Referrable[G]
+case class RefSendDecl[G](decl: SendDecl[G]) extends Referrable[G]
 case class RefParBlockDecl[G](decl: ParBlockDecl[G]) extends Referrable[G]
 case class RefParInvariantDecl[G](decl: ParInvariantDecl[G]) extends Referrable[G]
 case class RefADTAxiom[G](decl: ADTAxiom[G]) extends Referrable[G]

@@ -489,6 +489,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case LangId0(id) => convert(id)
   }
 
+  def convert(implicit n: LangConstIntContext): BigInt = n match {
+    case LangConstInt0(string) => BigInt(string)
+  }
+
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
     PVLLocal(name)(blame(ctx))(origin(ctx))
 
@@ -727,10 +731,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
-    case ValSend(_, resource, _, label, _, offset, _) =>
-      Send(convert(resource), new UnresolvedRef[G, LabelDecl[G]](convert(label)), convert(offset))
-    case ValRecv(_, resource, _, label, _, offset, _) =>
-      Recv(convert(resource), new UnresolvedRef[G, LabelDecl[G]](convert(label)), convert(offset))
+    case ValSend(_, name, _, delta, _, resource, _) =>
+      Send(new SendDecl()(SourceNameOrigin(convert(name), origin(stat))), convert(delta), convert(resource))
+    case ValRecv(_, name, _) =>
+      Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
     case ValCslSubject(_, _, _) => ??(stat) // FIXME PB: csl_subject seems to be used
     case ValSpecIgnoreStart(_, _) => SpecIgnoreEnd()

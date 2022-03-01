@@ -4,6 +4,7 @@ import LangPVLParser, SpecParser;
 
 langExpr: expr;
 langId: identifier;
+langConstInt: NUMBER;
 langType: type;
 langStatement: statement;
 langStatic: 'static';

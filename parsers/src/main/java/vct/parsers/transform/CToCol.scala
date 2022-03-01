@@ -461,8 +461,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PrimaryExpression0(inner) => convert(inner)
     case PrimaryExpression1(name) => name match {
       case ClangIdentifier0(specInSpec) => convert(specInSpec)
-      case ClangIdentifier1(name) => CLocal(name)
-      case ClangIdentifier2(_) => CLocal(convert(name))
+      case ClangIdentifier1(name) => CLocal(name)(blame(expr))
+      case ClangIdentifier2(_) => CLocal(convert(name))(blame(expr))
     }
     case PrimaryExpression2(const) => IntegerValue(Integer.parseInt(const))
     case PrimaryExpression3(_) => ??(expr)
@@ -509,8 +509,12 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case LangId0(id) => convert(id)
   }
 
+  def convert(implicit n: LangConstIntContext): BigInt = n match {
+    case LangConstInt0(string) => BigInt(string)
+  }
+
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CLocal(name)(origin(ctx))
+    CLocal(name)(blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)
@@ -753,10 +757,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValRefute(_, assn, _) => Refute(convert(assn))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
-    case ValSend(_, resource, _, label, _, offset, _) =>
-      Send(convert(resource), new UnresolvedRef[G, LabelDecl[G]](convert(label)), convert(offset))
-    case ValRecv(_, resource, _, label, _, offset, _) =>
-      Recv(convert(resource), new UnresolvedRef[G, LabelDecl[G]](convert(label)), convert(offset))
+    case ValSend(_, name, _, delta, _, resource, _) =>
+      Send(new SendDecl()(SourceNameOrigin(convert(name), origin(stat))), convert(delta), convert(resource))
+    case ValRecv(_, name, _) =>
+      Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
     case ValCslSubject(_, _, _) => ??(stat) // FIXME PB: csl_subject seems to be used
     case ValSpecIgnoreStart(_, _) => SpecIgnoreEnd()

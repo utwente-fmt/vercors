@@ -73,8 +73,8 @@ valStatement
  | 'refute' langExpr ';' # valRefute
  | 'witness' langExpr ';' # valWitness
  | 'ghost' langStatement # valGhost
- | 'send' langExpr 'to' langId ',' langExpr ';' # valSend
- | 'recv' langExpr 'from' langId ',' langExpr ';' # valRecv
+ | 'send' langId ',' langConstInt ':' langExpr ';' # valSend
+ | 'recv' langId ';' # valRecv
  | 'transfer' langExpr ';' # valTransfer
  | 'csl_subject' langExpr ';' # valCslSubject
  | 'spec_ignore' '}' # valSpecIgnoreStart

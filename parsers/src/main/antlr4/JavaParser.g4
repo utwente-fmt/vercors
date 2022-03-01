@@ -8,6 +8,7 @@ import LangJavaParser, SpecParser;
 
 langExpr: expression;
 langId: javaIdentifier;
+langConstInt: IntegerLiteral;
 langType: type;
 langStatement: blockStatement;
 langStatic: 'static';

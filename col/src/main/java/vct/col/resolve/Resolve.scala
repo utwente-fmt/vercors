@@ -89,8 +89,9 @@ case object ResolveReferences {
     case other => other.subnodes.flatMap(scanScope)
   }
 
-  def scanLabels[G](node: Node[G]): Seq[LabelDecl[G]] = node.transSubnodes.collect {
+  def scanLabels[G](node: Node[G]): Seq[Declaration[G]] = node.transSubnodes.collect {
     case decl: LabelDecl[G] => decl
+    case decl: SendDecl[G] => decl
   }
 
   def scanBlocks[G](node: ParRegion[G]): Seq[ParBlock[G]] = node match {
@@ -257,16 +258,15 @@ case object ResolveReferences {
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
     case goto @ Goto(lbl) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
-    case send @ Send(_, lbl, _) =>
-      lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, send)))
-    case recv @ Recv(_, lbl, _) =>
-      lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, recv)))
     case brk @ Break(Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, brk)))
     case cont @ Continue(Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, cont)))
     case old @ Old(_, Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, old)))
+
+    case recv @ Recv(ref) =>
+      ref.tryResolve(name => Spec.findSend(name, ctx).getOrElse(throw NoSuchNameError("send statement", name, recv)))
 
     case res @ AmbiguousResult() =>
       res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))

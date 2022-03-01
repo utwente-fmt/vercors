@@ -50,8 +50,11 @@ case object Test {
 
       var dumpCount = 0
 
+//      val exts = Seq("sil", "c", "java", "pvl", "cu")
+      val exts = Seq("cu")
+
 //      CommandLineTesting.getCases.values.filter(_.tools.contains("silicon")).toSeq.sortBy(_.files.asScala.toSeq.head).foreach(c => {
-//        if(c.files.asScala.forall(f => Seq("sil", "c", "java", "pvl", "cu").exists(ext => f.toString.endsWith("." + ext)))) {
+//        if(c.files.asScala.forall(f => exts.exists(ext => f.toString.endsWith("." + ext)))) {
 //          tryParse(c.files.asScala.toSeq)
 ////          System.gc()
 ////          val server = ManagementFactory.getPlatformMBeanServer
@@ -59,11 +62,11 @@ case object Test {
 ////          mxBean.dumpHeap(s"/home/pieter/vercors/tmp/heapdump-$dumpCount.hprof", true)
 ////          dumpCount += 1
 //        } else {
-//          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
+////          println(s"Skipping: ${c.files.asScala.mkString(", ")}")
 //        }
 //      })
 
-      val paths = Seq("examples/basic/JavaAnnotation.java")
+      val paths = Seq("examples/arrays/basic-examples.c")
 
       tryParse(paths.map(Paths.get(_)))
     } finally {
@@ -107,10 +110,10 @@ case object Test {
       DesugarPermissionOperators, // no PointsTo, \pointer, etc.
       PinCollectionTypes, // no anonymous sequences, sets, etc.
       QuantifySubscriptAny, // no arr[*]
+      IterationContractToParBlock,
       PropagateContextEverywhere, // inline context_everywhere into loop invariants
       EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
       GivenYieldsToArgs,
-      IterationContractToParBlock,
 
       CheckProcessAlgebra,
 
@@ -120,6 +123,7 @@ case object Test {
       PureMethodsToFunctions,
 
       // Encode parallel blocks
+      EncodeSendRecv,
       EncodeParAtomic,
       ParBlockEncoder,
 
@@ -165,7 +169,7 @@ case object Test {
     SuccessionMap.breakOnMissingPredecessor {
       var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
-        println(s"    ${pass.getClass.getSimpleName}")
+        println(s"    ${pass.getClass.getSimpleName} (${program.declarations.size} decls in)")
         val oldProgram = program
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
