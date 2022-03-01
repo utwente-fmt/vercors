@@ -152,6 +152,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
     // 3. the body of the constructor
 
     val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
+      // TODO: When makeJavaClass is called in statics context, default constructor is overwritten with statics constructor
       javaDefaultConstructor(currentJavaClass.top) = new JavaConstructor(
         modifiers = Nil,
         name = prefName,
@@ -219,6 +220,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
             signals = method.contract.signals.map(dispatch) ++
               method.signals.map(t => SignalsClause(new Variable(dispatch(t)), tt)),
           ),
+          pure = method.modifiers.exists({ case JavaPure() => true; case _ => false })
         )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
       case method: JavaAnnotationMethod[Pre] =>
         new InstanceMethod(
@@ -278,6 +280,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
         if(staticDecls.nonEmpty) {
           val staticsClass = new Class[Post](collectInScope(classScopes) {
             currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
+              // TODO: currentJavaClass also needs to be overwritten here, otherwise makeJavaClass will overwrite the default constructor with the default statics constructor
               makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls))
             }
           }, Nil, tt)(JavaStaticsClassOrigin(cls))
@@ -730,9 +733,15 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
-    case JavaStringLiteral(data, stringClass_) =>
-      val stringClass = stringClass_.asInstanceOf[JavaNamedType].ref.get;
-      ???
+    case l @ JavaStringLiteral(data, _) =>
+      val stringClass: JavaClass[Pre] = l.get
+      val stringOfSeq: JavaMethod[Pre] = l.get.decls(1).asInstanceOf[JavaMethod[Pre]]
+      implicit val o = DiagnosticOrigin
+      val data = LiteralSeq[Post](TInt(), Seq(const(86), const(69), const(82), const(67), const(79), const(82), const(83)))
+      methodInvocation[Post](
+        PanicBlame("String literal construction cannot fail"),
+        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
+        succ(stringOfSeq), args = Seq(data))
 
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {

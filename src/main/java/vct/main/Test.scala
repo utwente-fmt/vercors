@@ -95,7 +95,7 @@ case object Test {
     val errors = ResolveReferences.resolve(typedProgram)
     printErrors(errors)
 
-    println(typedProgram)
+    // println(typedProgram)
 
     val passes: Seq[RewriterBuilder] = Seq(
       // Language-specific nodes -> COL (because of fragile references)
@@ -202,16 +202,16 @@ case object Test {
     expectedErrors.foreach(_.signalDone())
   } catch {
     case Exit =>
-      Exit.printStackTrace()
+//      Exit.printStackTrace()
     case err: SystemError =>
       val x = err
       println(err.text)
       systemErrors += 1
-      err.printStackTrace()
+//      err.printStackTrace()
     case res: UserError =>
       errorCount += 1
       println(res.text)
-      res.printStackTrace()
+//      res.printStackTrace()
     case e: Throwable =>
       e.printStackTrace()
       crashes += 1

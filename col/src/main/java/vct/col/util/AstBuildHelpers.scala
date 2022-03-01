@@ -2,6 +2,7 @@ package vct.col.util
 
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.ast.temporaryimplpackage.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 
@@ -246,6 +247,26 @@ object AstBuildHelpers {
     new Function(returnType, args, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
       inline)(blame)
+
+  def functionInvocation[G]
+                        (blame: Blame[InvocationFailure],
+                         ref: Ref[G, Function[G]],
+                         args: Seq[Expr[G]] = Nil,
+                         typeArgs: Seq[Type[G]] = Nil,
+                         givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                         yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): FunctionInvocation[G] =
+    FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
+
+  def methodInvocation[G]
+                      (blame: Blame[InstanceInvocationFailure],
+                       obj: Expr[G],
+                       ref: Ref[G, InstanceMethod[G]],
+                       args: Seq[Expr[G]] = Nil,
+                       outArgs: Seq[Ref[G, Variable[G]]] = Nil,
+                       typeArgs: Seq[Type[G]] = Nil,
+                       givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                       yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
+    MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
   case object GeneratedQuantifier extends Origin {
     override def preferredName: String = "i"
