@@ -2,8 +2,7 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.result.VerificationResult
-import vct.col.ast.{ApplicableContract, Block, ClassDeclaration, Expr, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TAny, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 import vct.col.util.AstBuildHelpers._
@@ -18,6 +17,7 @@ case object Java {
 
   private implicit val o: Origin = DiagnosticOrigin
   def JAVA_LANG_OBJECT[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
+  def JAVA_LANG_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
@@ -165,6 +165,8 @@ case object Java {
             ResolveTypes.resolve(ns, ctx)
             ns.declarations match {
               case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
+              case Seq(cls: JavaInterface[G]) => Some(RefJavaClass(cls))
+              case Seq(cls: JavaAnnotationInterface[G]) => Some(RefJavaClass(cls))
               case _ => ???
             }
           case None => None
@@ -228,6 +230,7 @@ case object Java {
   def findMethodInClass[G](cls: JavaClassOrInterface[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
     cls.decls.flatMap(Referrable.from).collectFirst {
       case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefJavaAnnotationMethod[G] if ref.name == method && args.length == 0 => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref

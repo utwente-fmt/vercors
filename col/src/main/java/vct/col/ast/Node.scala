@@ -699,6 +699,7 @@ final case class JavaNative[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaSynchronized[G]()(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
 final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaTransientImpl[G]
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
+final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G]
 
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
@@ -709,12 +710,14 @@ final class JavaNamespace[G](val pkg: Option[JavaName[G]], val imports: Seq[Java
 sealed abstract class JavaClassOrInterface[G] extends JavaGlobalDeclaration[G] with Declarator[G] with JavaClassOrInterfaceImpl[G]
 final class JavaClass[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val intrinsicLockInvariant: Expr[G], val ext: Type[G], val imp: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaClassImpl[G]
 final class JavaInterface[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val ext: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaInterfaceImpl[G]
+final class JavaAnnotationInterface[G](val name: String, val modifiers: Seq[JavaModifier[G]], val ext: Type[G], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaAnnotationInterfaceImpl[G]
 
 sealed trait JavaClassDeclaration[G] extends ClassDeclaration[G] with JavaClassDeclarationImpl[G]
 final class JavaSharedInitialization[G](val isStatic: Boolean, val initialization: Statement[G])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaSharedInitializationImpl[G]
 final class JavaFields[G](val modifiers: Seq[JavaModifier[G]], val t: Type[G], val decls: Seq[(String, Int, Option[Expr[G]])])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaFieldsImpl[G]
 final class JavaConstructor[G](val modifiers: Seq[JavaModifier[G]], val name: String, val parameters: Seq[Variable[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Statement[G], val contract: ApplicableContract[G])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaConstructorImpl[G]
 final class JavaMethod[G](val modifiers: Seq[JavaModifier[G]], val returnType: Type[G], val dims: Int, val name: String, val parameters: Seq[Variable[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaMethodImpl[G]
+final class JavaAnnotationMethod[G](val returnType: Type[G], val name: String, val default: Option[Expr[G]])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaAnnotationMethodImpl[G]
 
 final class JavaLocalDeclaration[G](val modifiers: Seq[JavaModifier[G]], val t: Type[G], val decls: Seq[(String, Int, Option[Expr[G]])])(implicit val o: Origin) extends Declaration[G] with JavaLocalDeclarationImpl[G]
 
