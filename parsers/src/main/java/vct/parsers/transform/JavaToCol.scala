@@ -696,7 +696,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Literal0(i) => const(Integer.parseInt(i))
     case Literal1(_) => ??(expr)
     case Literal2(_) => ??(expr)
-    case Literal3(data) => JavaStringLiteral(data.substring(1, data.length - 1))
+    case Literal3(data) => JavaStringLiteral(data.substring(1, data.length - 1), Java.JAVA_LANG_STRING)
     case Literal4(value) => value match {
       case "true" => tt
       case "false" => ff

@@ -730,6 +730,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
+    case JavaStringLiteral(data, stringClass_) =>
+      val stringClass = stringClass_.asInstanceOf[JavaNamedType].ref.get;
+      ???
+
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {
         case None => throw IncompleteTypeArgs(inv)

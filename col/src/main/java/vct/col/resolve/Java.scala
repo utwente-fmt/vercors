@@ -197,9 +197,11 @@ case object Java {
       case moreNames => Seq(moreNames)
     }
 
-    FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
+    val x = FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
+    println("Importing: " + x)
+    x
   }
 
   def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] =

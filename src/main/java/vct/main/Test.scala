@@ -95,6 +95,8 @@ case object Test {
     val errors = ResolveReferences.resolve(typedProgram)
     printErrors(errors)
 
+    println(typedProgram)
+
     val passes: Seq[RewriterBuilder] = Seq(
       // Language-specific nodes -> COL (because of fragile references)
       LangSpecificToCol,
