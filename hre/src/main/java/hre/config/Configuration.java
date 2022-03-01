@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -148,7 +149,11 @@ public class Configuration {
         }
     }
 
-    private static File getFileOrAbort(String file) {
+    public static File getFileOrAbort(Path p) {
+        return getFileOrAbort(p.toString());
+    }
+
+    public static File getFileOrAbort(String file) {
         File javaFile = getFile(file);
 
         if(javaFile == null) {

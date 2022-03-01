@@ -44,9 +44,25 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
-    case TypeDeclaration3(_, annotation) => fail(annotation, "Annotations are note supported.")
+    case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
+      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_)).flatten))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
+  }
+
+  def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[JavaAnnotationMethod[G]] = decl match {
+    case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(returnType, AnnotationMethodOrConstantRest0(AnnotationMethodRest0(name, _, _, default)), _)) =>
+      val modifiers: Set[JavaModifier[G]] = mods.map(convert(_)).toSet
+      if (!modifiers.subsetOf(Set(JavaPublic()(DiagnosticOrigin), JavaAbstract()(DiagnosticOrigin)))) {
+        fail(decl, "Only modifiers allowed on @interface members are public, abstract")
+      }
+      Some(new JavaAnnotationMethod(convert(returnType), convert(name), default.map(convert(_))))
+    case AnnotationTypeElementDeclaration1(_) => None
+  }
+
+  def convert(implicit default: DefaultValueContext): Expr[G] = default match {
+    case DefaultValue0(_, ElementValue0(expr)) => convert(expr)
+    case DefaultValue0(_, elementValue) => ??(elementValue)
   }
 
   def convert(implicit modifier: ModifierContext): JavaModifier[G] = modifier match {
@@ -65,7 +81,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier[G] = modifier match {
-    case ClassOrInterfaceModifier0(annotation) => ??(annotation)
+    case ClassOrInterfaceModifier0(annotation) => convert(annotation)
     case ClassOrInterfaceModifier1(name) => name match {
       case "public" => JavaPublic()
       case "protected" => JavaProtected()
@@ -77,9 +93,35 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     }
   }
 
+  def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
+    case Annotation0(_, name, annotationArgs) => JavaAnnotation(convert(name), annotationArgs.map(convert(_)).getOrElse(Seq()))
+  }
+
+  def convert(implicit annotationName: AnnotationNameContext): JavaNamedType[G] = annotationName match {
+    case AnnotationName0(qualifiedName) => JavaNamedType(convert(qualifiedName).names.map(part => (part, None)))
+  }
+
+  def convert(implicit annotationArgs: AnnotationArgsContext): Seq[(String, Expr[G])] = annotationArgs match {
+    case AnnotationArgs0(_, None, _ ) => Seq()
+    case AnnotationArgs0(_, Some(AnnotationArgsElems0(pairs)), _ ) => convert(pairs)
+    case AnnotationArgs0(_, Some(AnnotationArgsElems1(ElementValue0(expr))), _) => Seq(("value", convert(expr)))
+    case _ => ??(annotationArgs)
+  }
+
+  def convert(implicit pairs: ElementValuePairsContext): Seq[(String, Expr[G])] = pairs match {
+    case ElementValuePairs0(pair) => Seq(convert(pair))
+    case ElementValuePairs1(more, _, pair) => convert(more) :+ convert(pair)
+    case _ => ???
+  }
+
+  def convert(implicit pair: ElementValuePairContext): (String, Expr[G]) = pair match {
+    case ElementValuePair0(name, _, ElementValue0(expr)) => (convert(name), convert(expr))
+    case x => ??(x)
+  }
+
   def convert(implicit modifier: VariableModifierContext): JavaModifier[G] = modifier match {
     case VariableModifier0(_) => JavaFinal()
-    case VariableModifier1(annotation) => ??(annotation)
+    case VariableModifier1(annotation) => convert(annotation)
   }
 
   def convert(implicit args: TypeParametersContext): Seq[Variable[G]] = args match {

@@ -1,14 +1,15 @@
 package vct.main
 
 import com.sun.management.HotSpotDiagnosticMXBean
-import vct.col.ast.{Declaration, Program, SimplificationRule}
+import hre.config.Configuration
+import vct.col.ast.{Declaration, JavaPublic, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
 import vct.col.feature.{Feature, TypeValuesAndGenerics, WildcardReadPermission}
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
-import vct.col.origin.DiagnosticOrigin
+import vct.col.origin.{DiagnosticOrigin, FileOrigin}
 import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
@@ -41,6 +42,11 @@ case object Test {
 //      for(f <- new File("examples/arrays/array-example.pvl").listFiles()) {
 //        tryParse(Seq(f.toPath))
 //      }
+
+      if (args.nonEmpty) {
+        tryParse(args.map(Paths.get(_)))
+        return
+      }
 
       var dumpCount = 0
 
@@ -177,6 +183,10 @@ case object Test {
         assert(program.declarations.nonEmpty)
         printErrors(program.check)
         program = PrettifyBlocks().dispatch(program)
+
+//        if (pass.getClass.getSimpleName.contains("LangSpecific")) {
+//          println(program)
+//        }
       }
       for((feature, examples) <- Feature.examples(program).filter { case (feature, _) => !Set[Feature](TypeValuesAndGenerics, WildcardReadPermission).contains(feature) }) {
         println(f"$feature:")
@@ -184,7 +194,7 @@ case object Test {
           println(f"  $example")
         }
       }
-      Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3")).submit(program)
+      Silicon(Map.empty, Configuration.getFileOrAbort(Paths.get("/deps/z3/4.8.6/Linux/x86_64/bin/z3")).toPath).submit(program)
     }
 
     expectedErrors.foreach(_.signalDone())
