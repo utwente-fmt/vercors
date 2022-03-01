@@ -45,7 +45,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
-      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_))))
+      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.map(convert(_))))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
   }
@@ -696,7 +696,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Literal0(i) => const(Integer.parseInt(i))
     case Literal1(_) => ??(expr)
     case Literal2(_) => ??(expr)
-    case Literal3(_) => ??(expr)
+    case Literal3(data) => JavaStringLiteral(data.substring(1, data.length - 1))
     case Literal4(value) => value match {
       case "true" => tt
       case "false" => ff

@@ -180,9 +180,9 @@ case object Test {
         printErrors(program.check)
         program = PrettifyBlocks().dispatch(program)
 
-//        if (pass.getClass.getSimpleName.contains("LangSpecific")) {
-//          println(program)
-//        }
+        if (pass.getClass.getSimpleName.contains("LangSpecific")) {
+          println(program)
+        }
       }
       for((feature, examples) <- Feature.examples(program).filter { case (feature, _) => !Set[Feature](TypeValuesAndGenerics, WildcardReadPermission).contains(feature) }) {
         println(f"$feature:")
@@ -196,13 +196,16 @@ case object Test {
     expectedErrors.foreach(_.signalDone())
   } catch {
     case Exit =>
+      Exit.printStackTrace()
     case err: SystemError =>
       val x = err
       println(err.text)
       systemErrors += 1
+      err.printStackTrace()
     case res: UserError =>
       errorCount += 1
       println(res.text)
+      res.printStackTrace()
     case e: Throwable =>
       e.printStackTrace()
       crashes += 1
