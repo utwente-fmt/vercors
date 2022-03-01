@@ -45,19 +45,19 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
-      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_))))
+      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_)).flatten))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
   }
 
-  def convert(implicit decl: AnnotationTypeElementDeclarationContext): JavaAnnotationMethod[G] = decl match {
+  def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[JavaAnnotationMethod[G]] = decl match {
     case AnnotationTypeElementDeclaration0(mods, AnnotationTypeElementRest0(returnType, AnnotationMethodOrConstantRest0(AnnotationMethodRest0(name, _, _, default)), _)) =>
       val modifiers: Set[JavaModifier[G]] = mods.map(convert(_)).toSet
       if (!modifiers.subsetOf(Set(JavaPublic()(DiagnosticOrigin), JavaAbstract()(DiagnosticOrigin)))) {
         fail(decl, "Only modifiers allowed on @interface members are public, abstract")
       }
-      new JavaAnnotationMethod(convert(returnType), convert(name), default.map(convert(_)))
-    case _ => ??(decl)
+      Some(new JavaAnnotationMethod(convert(returnType), convert(name), default.map(convert(_))))
+    case AnnotationTypeElementDeclaration1(_) => None
   }
 
   def convert(implicit default: DefaultValueContext): Expr[G] = default match {
