@@ -66,7 +66,7 @@ case object Test {
 //        }
 //      })
 
-      val paths = Seq("examples/arrays/basic-examples.c")
+      val paths = Seq("examples/basic/JavaAnnotation.java")
 
       tryParse(paths.map(Paths.get(_)))
     } finally {
