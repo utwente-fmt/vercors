@@ -6,8 +6,10 @@ import java.lang.Deprecated;
     boolean bar() default true;
 }
 
-@MyAnnotation
+@MyAnnotation(xxx) // RR: This should preferably not typecheck, but this is currently difficult to accomodate.
 class C {
+    int xxx;
+
     @Deprecated
     void m() { }
 
