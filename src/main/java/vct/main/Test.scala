@@ -1,7 +1,7 @@
 package vct.main
 
 import com.sun.management.HotSpotDiagnosticMXBean
-import vct.col.ast.{Declaration, Program, SimplificationRule}
+import vct.col.ast.{Declaration, PermPointer, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
 import vct.col.feature.{Feature, TypeValuesAndGenerics, WildcardReadPermission}
@@ -163,7 +163,8 @@ case object Test {
     SuccessionMap.breakOnMissingPredecessor {
       var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
-        println(s"    ${pass.getClass.getSimpleName} (${program.declarations.size} decls in)")
+        val havePointerPerm = program.transSubnodes.collectFirst { case _: PermPointer[_] => () }.nonEmpty
+        println(s"    ${pass.getClass.getSimpleName} (${program.declarations.size} decls in, permPointer=$havePointerPerm)")
         val oldProgram = program
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {

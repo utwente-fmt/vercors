@@ -95,6 +95,7 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test",
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+    libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.1",
 
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.

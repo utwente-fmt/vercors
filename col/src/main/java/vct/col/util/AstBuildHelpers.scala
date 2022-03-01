@@ -199,6 +199,9 @@ object AstBuildHelpers {
   def const[G](i: Int)(implicit o: Origin): IntegerValue[G] =
     IntegerValue(i)
 
+  def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] =
+    IntegerValue(i)
+
   def contract[G]
               (requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),

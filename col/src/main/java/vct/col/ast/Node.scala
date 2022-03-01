@@ -140,7 +140,7 @@ final case class SpecIgnoreEnd[G]()(implicit val o: Origin) extends NonExecutabl
 
 sealed trait NormallyCompletingStatement[G] extends Statement[G] with NormallyCompletingStatementImpl[G]
 final case class Assign[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with AssignImpl[G]
-final case class Send[G](decl: SendDecl[G], delta: BigInt, res: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with SendImpl[G]
+final case class Send[G](decl: SendDecl[G], delta: BigInt, res: Expr[G])(val blame: Blame[SendFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with SendImpl[G]
 final case class Recv[G](ref: Ref[G, SendDecl[G]])(implicit val o: Origin) extends NormallyCompletingStatement[G] with RecvImpl[G]
 sealed trait SwitchCase[G] extends NormallyCompletingStatement[G] with SwitchCaseImpl[G]
 final case class DefaultCase[G]()(implicit val o: Origin) extends SwitchCase[G] with DefaultCaseImpl[G]

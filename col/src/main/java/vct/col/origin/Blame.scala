@@ -83,6 +83,10 @@ case class FoldFailed(failure: ContractFailure, node: Fold[_]) extends WithContr
   override def text: String = "Fold may fail, since"
   override def code: String = "failed"
 }
+case class SendFailed(failure: ContractFailure, node: Send[_]) extends WithContractFailure {
+  override def text: String = "Send may fail, since"
+  override def code: String = "failed"
+}
 
 sealed trait AccountedDirection
 case object FailLeft extends AccountedDirection
