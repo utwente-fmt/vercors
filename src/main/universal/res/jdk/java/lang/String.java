@@ -6,15 +6,13 @@ public class String {
     /*@
     ghost
     ensures \result != null ** \result.data() == data;
+    ensures (\forall seq<int> otherData; true; (otherData == data) == (\result == of(otherData)));
     pure static String of(seq<int> data);
     */
 
     /*@
     ghost
-    ensures
-    (\forall String p; p != null;
-    (\forall String q; q != null;
-        (p.intern() == q.intern()) == (p.data() == q.data())));
+    ensures \result == of(data());
     pure String intern();
     */
 }

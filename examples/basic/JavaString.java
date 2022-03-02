@@ -9,6 +9,7 @@ class JavaString {
     void g() {
         "xuz";
         assert "abc" == "abc";
+        //@ assert "abc".data()[0] != "xyz".data()[0]; // ???
         assert "abc" != "xyz";
     }
 

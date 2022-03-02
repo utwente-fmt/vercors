@@ -737,7 +737,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
       val stringClass: JavaClass[Pre] = l.get
       val stringOfSeq: JavaMethod[Pre] = l.get.decls(1).asInstanceOf[JavaMethod[Pre]]
       implicit val o = DiagnosticOrigin
-      val data = LiteralSeq[Post](TInt(), Seq(const(86), const(69), const(82), const(67), const(79), const(82), const(83)))
+      val data = LiteralSeq[Post](TInt(), l.data.map((c: Char) => const(c.toInt)))
       methodInvocation[Post](
         PanicBlame("String literal construction cannot fail"),
         functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
