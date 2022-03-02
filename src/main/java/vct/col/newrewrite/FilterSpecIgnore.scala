@@ -7,7 +7,10 @@ import RewriteHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.UserError
 
-case object FilterSpecIgnore extends RewriterBuilder
+case object FilterSpecIgnore extends RewriterBuilder {
+  override def key: String = "specIgnore"
+  override def desc: String = "Remove elements that are ignored with spec_ignore."
+}
 
 case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {

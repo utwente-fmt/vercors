@@ -7,6 +7,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 case object EvaluationTargetDummy extends RewriterBuilder {
+  override def key: String = "evaluationTarget"
+  override def desc: String = "Make a target to assign to for evaluations that contain no side effects, but must be well-formed regardless."
+
   case object EvaluationOrigin extends Origin {
     override def preferredName: String = "evaluationDummy"
     override def context: String = s"[At variable generated for an evaluation]"

@@ -7,7 +7,10 @@ import vct.result.VerificationResult.Unreachable
 
 import scala.collection.mutable.ArrayBuffer
 
-case object CollectLocalDeclarations extends RewriterBuilder
+case object CollectLocalDeclarations extends RewriterBuilder {
+  override def key: String = "collectLocalDecls"
+  override def desc: String = "Collect declaration statements into a scope."
+}
 
 case class CollectLocalDeclarations[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {

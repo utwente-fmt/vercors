@@ -188,7 +188,7 @@ case object Test {
           println(f"  $example")
         }
       }
-      Silicon(Map.empty, Configuration.getFileOrAbort(Paths.get("/deps/z3/4.8.6/Linux/x86_64/bin/z3")).toPath).submit(program)
+      Silicon(Map.empty, Configuration.getFileOrAbort(Paths.get("/src/main/universal/res/deps/unix/z3/bin/z3")).toPath).submit(program)
     }
 
     expectedErrors.foreach(_.signalDone())

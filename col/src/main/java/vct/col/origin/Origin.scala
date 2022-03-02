@@ -1,5 +1,6 @@
 package vct.col.origin
 
+import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import vct.col.util.ExpectedError
 
@@ -30,7 +31,7 @@ trait Origin extends Blame[VerificationFailure] {
     }
 
   override def blame(error: VerificationFailure): Unit = {
-    println(error.toString)
+    Logger("vct").error(error.toString)
   }
 }
 

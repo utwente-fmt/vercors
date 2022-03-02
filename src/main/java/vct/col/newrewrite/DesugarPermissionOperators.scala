@@ -6,7 +6,10 @@ import RewriteBuilders._
 import vct.col.origin.{FramedArrIndex, FramedArrLength, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
-case object DesugarPermissionOperators extends RewriterBuilder
+case object DesugarPermissionOperators extends RewriterBuilder {
+  override def key: String = "desugarPerm"
+  override def desc: String = "Desugar assorted syntactic sugar for permission predicates."
+}
 
 case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {

@@ -11,7 +11,10 @@ case class ImplicitLabelOrigin(inner: Origin) extends Origin {
   override def context: String = inner.context
 }
 
-case object SpecifyImplicitLabels extends RewriterBuilder
+case object SpecifyImplicitLabels extends RewriterBuilder {
+  override def key: String = "implicitLabels"
+  override def desc: String = "Give loops and switches a label if it needs one for a break or continue statement."
+}
 
 case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
   val labelStack = new ScopedStack[LabelDecl[Post]]()

@@ -16,7 +16,10 @@ case class ContinueToBreakOrigin(labelDeclOrigin: Origin) extends Origin {
   override def context: String = labelDeclOrigin.context
 }
 
-case object ContinueToBreak extends RewriterBuilder
+case object ContinueToBreak extends RewriterBuilder {
+  override def key: String = "continueToBreak"
+  override def desc: String = "Encode continue as a break statement."
+}
 
 case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
   val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl[Pre], LabelDecl[Post]]()

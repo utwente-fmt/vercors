@@ -1,5 +1,6 @@
 package vct.main
 
+import hre.progress.Progress
 import vct.col.ast.{GlobalDeclaration, Program}
 import vct.col.check.CheckError
 import vct.col.newrewrite._
@@ -10,8 +11,10 @@ import vct.col.resolve.{Java, ResolutionError, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.java.JavaLibraryLoader
 import vct.main.Vercors.FileSpanningOrigin
-import vct.options.Options
+import vct.options.{Options, PathOrStd}
 import vct.parsers.{ParseResult, Parsers}
+import vct.result.VerificationResult
+import vct.result.VerificationResult.Ok
 import viper.api.Silicon
 
 import java.nio.file.{Path, Paths}
@@ -23,8 +26,31 @@ case object Vercors {
     override def preferredName: String = "unknown"
     override def context: String = "[At node that spans multiple files]"
   }
+}
 
-  val passes: Seq[RewriterBuilder] = Seq(
+case class Vercors(options: Options) {
+  def parse[G](paths: Seq[Path]): ParseResult[G] =
+    ParseResult.reduce(Progress.iterable(paths, (p: Path) => p.toString).map(Parsers.parse[G]).toSeq)
+
+  def resolve[G <: Generation](parse: Seq[GlobalDeclaration[G]]): Either[Seq[CheckError], Program[_ <: Generation]] = {
+    implicit val o: Origin = FileSpanningOrigin
+
+    val parsedProgram = Program(parse, Some(Java.JAVA_LANG_OBJECT[G]))(FileSpanningOrigin)
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(FileSpanningOrigin)
+    val typedProgram = LangTypesToCol().dispatch(joinedProgram)
+    ResolveReferences.resolve(typedProgram) match {
+      case Nil =>
+        val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
+        resolvedProgram.check match {
+          case Nil => Right(resolvedProgram)
+          case some => Left(some)
+        }
+      case some => Left(some)
+    }
+  }
+
+  def passes: Seq[RewriterBuilder] = Seq(
     // Language-specific nodes -> COL (because of fragile references)
     LangSpecificToCol,
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
@@ -68,13 +94,9 @@ case object Vercors {
     // No more classes
     ConstantifyFinalFields,
     ClassToRef,
-
-    // Simplify pure expressions (no more new complex expressions)
-    ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl")),
-    ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
+  ) ++ options.simplifyPaths.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p) } ++ Seq(
     SimplifyQuantifiedRelations,
-    ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
-
+  ) ++ options.simplifyPathsAfterRelations.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p) } ++ Seq(
     // Translate internal types to domains
     ImportADT,
 
@@ -94,42 +116,31 @@ case object Vercors {
     // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
     PinSilverNodes,
   )
-}
 
-case class Vercors(options: Options) {
-  def parse[G](paths: Seq[Path]): ParseResult[G] =
-    ParseResult.reduce(paths.map(Parsers.parse))
+  def go(): VerificationResult = try {
+    Progress.stages(Seq(
+      ("Parsing", 4),
+      ("Translation", 3),
+      ("Verification", 10),
+    )) {
+      val ParseResult(decls, expectedErrors) = parse(options.inputs)
+      Progress.nextPhase()
 
-  def resolve[G <: Generation](parse: Seq[GlobalDeclaration[G]]): Either[Seq[CheckError], Program[_ <: Generation]] = {
-    implicit val o: Origin = FileSpanningOrigin
+      var program = resolve(decls).getOrElse(???)
 
-    val parsedProgram = Program(parse, Some(Java.JAVA_LANG_OBJECT[G]))(FileSpanningOrigin)
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
-    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(FileSpanningOrigin)
-    val typedProgram = LangTypesToCol().dispatch(joinedProgram)
-    ResolveReferences.resolve(typedProgram) match {
-      case Nil =>
-        val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
-        resolvedProgram.check match {
-          case Nil => Right(resolvedProgram)
-          case some => Left(some)
-        }
-      case some => Left(some)
+      for (pass <- Progress.iterable(passes, (pass: RewriterBuilder) => pass.key)) {
+        program = pass().dispatch(program)
+        program = PrettifyBlocks().dispatch(program)
+      }
+
+      Progress.nextPhase()
+      Silicon(Map.empty, options.z3Path).submit(program)
+
+      expectedErrors.foreach(_.signalDone())
+
+      Ok
     }
-  }
-
-  def go(): Unit = {
-    val ParseResult(decls, expectedErrors) = parse(options.inputs)
-
-    var program = resolve(decls).getOrElse(???)
-
-    for(pass <- Vercors.passes) {
-      program = pass().dispatch(program)
-      program = PrettifyBlocks().dispatch(program)
-    }
-
-    Silicon(Map.empty, options.z3Path).submit(program)
-
-    expectedErrors.foreach(_.signalDone())
+  } catch {
+    case res: VerificationResult => res
   }
 }

@@ -9,6 +9,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.UserError
 
 case object IterationContractToParBlock extends RewriterBuilder {
+  override def key: String = "iterationContract"
+  override def desc: String = "Translate loops with an iteration-style contract to a parallel block."
+
   case object IterationContractOrigin extends Origin {
     override def preferredName: String = ???
     override def context: String = ???

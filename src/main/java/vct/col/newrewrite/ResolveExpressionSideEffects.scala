@@ -16,6 +16,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 case object ResolveExpressionSideEffects extends RewriterBuilder {
+  override def key: String = "sideEffects"
+  override def desc: String = "Discharge side effects from expression evaluation into its surrounding context."
+
   case object SideEffectOrigin extends Origin {
     override def preferredName: String = "flatten"
     override def context: String = "[At node generated to collect side effects]"

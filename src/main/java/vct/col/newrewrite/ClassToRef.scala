@@ -13,6 +13,9 @@ import RewriteHelpers._
 import scala.collection.mutable
 
 case object ClassToRef extends RewriterBuilder {
+  override def key: String = "classToRef"
+  override def desc: String = "Flatten classes into the Ref type, and encode the class type hierarchy operationally."
+
   case object TypeOfOrigin extends Origin {
     override def preferredName: String = "type"
     override def context: String =

@@ -16,6 +16,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
 case object LangSpecificToCol extends RewriterBuilder {
+  override def key: String = "langSpecific"
+  override def desc: String = "Translate language-specific constructs to a common subset of nodes."
+
   case class CGlobalStateNotSupported(example: CInit[_]) extends UserError {
     override def code: String = "notSupported"
     override def text: String =

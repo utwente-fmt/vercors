@@ -21,9 +21,13 @@ import scala.reflect.ClassTag
 case object ApplyTermRewriter {
   case class BuilderFor[Rule](ruleNodes: Seq[SimplificationRule[Rule]]) extends RewriterBuilder {
     override def apply[Pre <: Generation](): Rewriter[Pre] = ApplyTermRewriter(ruleNodes)
+    override def key: String = "simplify"
+    override def desc: String = "Apply axiomatic simplification lemmas to expressions."
   }
 
   case class BuilderForFile(path: Path) extends RewriterBuilder {
+    override def key: String = "simplify"
+    override def desc: String = s"Apply axiomatic simplification lemmas to expressions from $path."
     override def apply[Pre <: Generation](): Rewriter[Pre] = {
       val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](path)
       val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)

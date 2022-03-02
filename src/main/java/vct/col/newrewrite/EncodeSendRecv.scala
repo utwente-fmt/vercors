@@ -14,6 +14,9 @@ import vct.result.VerificationResult.UserError
 import scala.collection.mutable
 
 case object EncodeSendRecv extends RewriterBuilder {
+  override def key: String = "sendRecv"
+  override def desc: String = "Encode send/recv pairs."
+
   case class WrongSendRecvPosition(stat: Statement[_]) extends UserError {
     override def code: String = "wrongSendRecv"
     override def text: String =

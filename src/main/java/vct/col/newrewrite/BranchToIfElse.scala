@@ -5,7 +5,10 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 
-case object BranchToIfElse extends RewriterBuilder
+case object BranchToIfElse extends RewriterBuilder {
+  override def key: String = "branchToIfElse"
+  override def desc: String = "Translate a chain of if/elseif/else to strictly if/else."
+}
 
 case class BranchToIfElse[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {

@@ -18,7 +18,7 @@ trait SilverBackend extends Backend {
       "The silver AST delivered to viper is not valid:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
-  def createVerifier: Verifier
+  def createVerifier: (Verifier, EntityTrackingReporter)
   def stopVerifier(verifier: Verifier): Unit
 
   private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
@@ -41,7 +41,8 @@ trait SilverBackend extends Backend {
       case some => throw ConsistencyErrors(some)
     }
 
-    val verifier = createVerifier
+    val (verifier, entityTracker) = createVerifier
+    entityTracker.setEntities(silverProgram)
 
     verifier.verify(silverProgram) match {
       case Success =>

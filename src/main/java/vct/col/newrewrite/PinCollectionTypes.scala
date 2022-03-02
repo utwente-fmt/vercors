@@ -4,7 +4,10 @@ import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.Types
 
-case object PinCollectionTypes extends RewriterBuilder
+case object PinCollectionTypes extends RewriterBuilder {
+  override def key: String = "pinCollectionType"
+  override def desc: String = "Derive and specify the element type of collections that have an inferred type."
+}
 
 case class PinCollectionTypes[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {

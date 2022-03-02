@@ -10,6 +10,9 @@ import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
 case object ParBlockEncoder extends RewriterBuilder {
+  override def key: String = "parBlock"
+  override def desc: String = "Translate parallel blocks into methods and generate checks for them."
+
   def regionName(region: ParRegion[_]): String = region match {
     case ParParallel(regions) => "par_$" + regions.map(regionName).mkString("_") + "$"
     case ParSequential(regions) => "seq_$" + regions.map(regionName).mkString("_") + "$"

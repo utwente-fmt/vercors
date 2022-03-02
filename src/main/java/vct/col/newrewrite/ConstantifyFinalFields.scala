@@ -8,7 +8,10 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{AbstractApplicable, Origin, PanicBlame}
 import vct.col.ref.Ref
 
-case object ConstantifyFinalFields extends RewriterBuilder
+case object ConstantifyFinalFields extends RewriterBuilder {
+  override def key: String = "constantFinalFields"
+  override def desc: String = "Encode final fields with functions, so that they are not on the heap."
+}
 
 case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()

@@ -15,6 +15,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 case object EncodeBreakReturn extends RewriterBuilder {
+  override def key: String = "breakReturn"
+  override def desc: String = "Encode break and return with goto or with exceptions."
+
   case class PostLabeledStatementOrigin(label: LabelDecl[_]) extends Origin {
     override def preferredName: String = "break_" + label.o.preferredName
     override def context: String = "[At node generated to jump past a statement]"

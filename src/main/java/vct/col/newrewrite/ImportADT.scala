@@ -22,6 +22,9 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object ImportADT extends RewriterBuilder {
+  override def key: String = "adt"
+  override def desc: String = "Import types into vercors that are defined externally, usually via an axiomatic datatype."
+
   private def typeText(t: Type[_]): String = t match {
     case _: TNotAValue[_] => throw ExtraNode
     case TVoid() => "void"

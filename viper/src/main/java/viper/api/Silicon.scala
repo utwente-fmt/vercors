@@ -9,8 +9,9 @@ import scala.annotation.nowarn
 
 @nowarn("any") // due to be removed
 case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends SilverBackend {
-  override def createVerifier: Verifier = {
-    val silicon = new viper.silicon.Silicon(PluginAwareReporter(HREViperReporter()), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
+  override def createVerifier: (Verifier, EntityTrackingReporter) = {
+    val reporter = EntityTrackingReporter()
+    val silicon = new viper.silicon.Silicon(reporter)
 
     val z3Config = '"' + z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ") + '"'
 
@@ -27,7 +28,7 @@ case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends Silver
 
     silicon.parseCommandLine(siliconConfig)
     silicon.start()
-    silicon
+    (silicon, reporter)
   }
 
   override def stopVerifier(verifier: Verifier): Unit = {

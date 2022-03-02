@@ -96,6 +96,8 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
     libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.1",
+    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
 
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
@@ -140,6 +142,7 @@ lazy val vercors: Project = (project in file("."))
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
@@ -150,11 +153,15 @@ lazy val vercors: Project = (project in file("."))
       // Copy the resources not in the jar and add them to the classpath.
       ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
 
+    Universal / packageBin / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
+    Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
+    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"res/$path") },
+
     scriptClasspath := scriptClasspath.value :+ "../res",
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),
-    Compile / mainClass := Some("vct.main.Main"),
+    Compile / mainClass := Some("vct.main.RealMain"),
 
     // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
     Universal / javaOptions ++= Seq (

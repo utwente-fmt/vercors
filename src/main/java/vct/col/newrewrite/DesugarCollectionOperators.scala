@@ -6,7 +6,10 @@ import RewriteHelpers._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
-case object DesugarCollectionOperators extends RewriterBuilder
+case object DesugarCollectionOperators extends RewriterBuilder {
+  override def key: String = "desugarCollections"
+  override def desc: String = "Desugar various operators related to collections."
+}
 
 case class DesugarCollectionOperators[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {

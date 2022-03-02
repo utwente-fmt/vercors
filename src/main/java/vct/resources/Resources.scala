@@ -1,5 +1,6 @@
 package vct.resources
 
+import hre.platform.Platform
 import vct.result.VerificationResult.SystemError
 
 import java.io.File
@@ -21,12 +22,24 @@ case object Resources {
   }
 
   def getSimplificationPath(name: String): Path =
-    getResource(s"/config/$name.pvl")
+    getResource(s"/simplify/$name.pvl")
 
   def getAdtPath: Path = getResource("/adt")
-  def getCIncludePath: Path = getResource("/include")
+  def getCIncludePath: Path = getResource("/c")
   def getJrePath: Path = getResource("/jdk")
-  def getZ3Path: Path = getResource("/jdk")
-  def getBoogiePath: Path = getResource("/jdk")
   def getCcPath: Path = Paths.get("clang")
+
+  def getPlatformDep(tail: String): Path = Platform.getCurrent match {
+    case Platform.Windows => getResource(s"/win/$tail")
+    case Platform.Unix => getResource(s"/unix/$tail")
+    case Platform.Mac => getResource(s"/darwin/$tail")
+  }
+
+  def getPlatformBinary(tail: String): Path = Platform.getCurrent match {
+    case Platform.Windows => getPlatformDep(tail + ".exe")
+    case _ => getPlatformDep(tail)
+  }
+
+  def getZ3Path: Path = getPlatformBinary("z3/bin/z3")
+  def getBoogiePath: Path = getPlatformBinary("boogie/Boogie")
 }

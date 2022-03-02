@@ -9,6 +9,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
 case object PureMethodsToFunctions extends RewriterBuilder {
+  override def key: String = "pureMethods"
+  override def desc: String = "Compile methods marked as pure into functions."
+
   case object PureMethodOrigin extends Origin {
     override def preferredName: String = "unknown"
     override def context: String = "[At node generated for pure method]"

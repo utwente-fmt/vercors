@@ -12,6 +12,9 @@ import vct.result.VerificationResult.{Unreachable, UserError}
 import scala.reflect.ClassTag
 
 case object InlineApplicables extends RewriterBuilder {
+  override def key: String = "inline"
+  override def desc: String = "Inline applicables into their usage sites for applicables marked inline."
+
   case class CyclicInline(applications: Seq[Apply[_]]) extends UserError {
     override def code: String = "cyclicInline"
     override def text: String = ""

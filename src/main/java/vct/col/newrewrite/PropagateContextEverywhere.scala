@@ -9,6 +9,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
 case object PropagateContextEverywhere extends RewriterBuilder {
+  override def key: String = "propagateContext"
+  override def desc: String = "Propagate context_everywhere declarations into loop invariants and parallel block contracts."
+
   case class ContextEverywherePreconditionFailed(inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
       inv.blame.blame(ContextEverywhereFailedInPre(error.failure, inv))

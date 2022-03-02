@@ -8,7 +8,10 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.Unreachable
 import viper.silicon.state.terms.SetDifference
 
-case object Disambiguate extends RewriterBuilder
+case object Disambiguate extends RewriterBuilder {
+  override def key: String = "disambiguate"
+  override def desc: String = "Translate ambiguous operators into concrete operators."
+}
 
 case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
