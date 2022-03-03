@@ -1,107 +1,25 @@
 package vct.main
 
-import java.io._
-import java.time.Instant
-import java.util
-import hre.ast.FileOrigin
-import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
-import hre.lang.HREExitException
-import hre.lang.System._
-import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.ProgramUnit
-import vct.experiments.learn.SpecialCountVisitor
-import vct.logging.PassReport
-import vct.silver.ErrorDisplayVisitor
-import hre.io.ForbiddenPrintStream
-import hre.util.Notifier
-import vct.col.features.{Feature, RainbowVisitor}
-import vct.main.Passes.BY_KEY
-import vct.test.CommandLineTesting
+import hre.config.ConfigurationNonStatic
+import hre.lang.SystemNonStatic
+import vct.main.options.CommandLineOptionsParser
+import vct.main.passes.PassesGenerator
 
-import scala.jdk.CollectionConverters._
-import java.nio.file.Paths
+import java.io.File
 
 object Main {
-  var counters = new util.HashMap[String, SpecialCountVisitor]
-
-  def main(args: Array[String]): Unit = System.exit(new Main().run(args))
-}
-
-class Main {
-  private var report: PassReport = null
-  private var tk: TimeKeeper = null
-
-  private val version = new BooleanSetting(false)
-  private val help_passes = new BooleanSetting(false)
-  private val logLevel = new ChoiceSetting(Array("silent", "abort", "result", "warning", "info", "progress", "debug", "all"), "info")
-  private val debugFilters = new CollectSetting
-  private val show_before = new StringListSetting
-  private val show_after = new StringListSetting
-  private val debugBefore = new CollectSetting
-  private val debugAfter = new CollectSetting
-  private val show_file = new StringSetting(null)
-  private val notifySetting = new BooleanSetting(false)
-
-  private val pass_list = new StringListSetting
-  private val pass_list_option = pass_list.getAppendOption("add to the custom list of compilation passes")
-  private val stopAfter = new StringListSetting
-  private val stopBeforeBackend = new BooleanSetting(false)
-  private val stopAfterTypecheck = new BooleanSetting(false)
-  private val strictInternalConditions = new BooleanSetting(false)
-  private var inputPaths = Array.empty[String]
-
-  private val silver = new StringSetting("silver")
-
-  private val check_defined = new BooleanSetting(false)
-  private val check_axioms = new BooleanSetting(false)
-  private val check_history = new BooleanSetting(false)
-  private val separate_checks = new BooleanSetting(false)
-  private val global_with_field = new BooleanSetting(false)
-  private val no_context = new BooleanSetting(false)
-  private val gui_context = new BooleanSetting(false)
-  private val sat_check = new BooleanSetting(true)
-  private val abruptTerminationViaExceptions = new BooleanSetting(false)
-  private val trigger_generation = new IntegerSetting(0)
-  private val learn = new BooleanSetting(false)
-
-  private def parseOptions(args: Array[String]) = {
-    val clops = new OptionParser
-    clops.add(clops.getHelpOption, Char.box('h'), "help")
-    clops.add(version.getEnable("Output the current version and exit"), "version")
-    clops.add(logLevel.getSetOption("Set the logging level"), "verbosity")
-    clops.add(logLevel.getExplicitOption("progress", "Show progress through the passes"), "progress", Char.box('v'))
-    clops.add(logLevel.getExplicitOption("silent", "Never output anything"), "silent", Char.box('q'))
-    clops.add(debugFilters.getAddOption("Add a class to debug, or specify a line with Class:lineno"), "debug")
-    clops.add(silver.getAssign("select Silver backend (silicon/carbon)"), "silver")
-    clops.add(silver.getAssign("select Silicon backend", "silicon"), "silicon")
-    clops.add(silver.getAssign("select Carbon backend", "carbon"), "carbon")
-    clops.add(check_defined.getEnable("Check if the process-algebraic specification itself satisfies its contract."), "check-defined")
-    clops.add(check_axioms.getEnable("Check if defined processes satisfy their contracts."), "check-axioms")
-    clops.add(check_history.getEnable("Check if the program correctly implements the process-algebraic specification."), "check-history")
-    clops.add(separate_checks.getEnable("validate classes separately"), "separate")
-    clops.add(help_passes.getEnable("print help on available passes"), "help-passes")
-    clops.add(pass_list_option, "passes")
-    clops.add(show_before.getAppendOption("Show source code before given passes"), "show-before")
-    clops.add(show_after.getAppendOption("Show source code after given passes"), "show-after")
-    clops.add(show_file.getAssign("redirect show output to files instead of stdout"), "save-show")
-    clops.add(debugBefore.getAddOption("Dump the COL AST before a pass is run"), "debug-before")
-    clops.add(debugAfter.getAddOption("Dump the COL AST after a pass is run"), "debug-after")
-    clops.add(notifySetting.getEnable("Send a system notification upon completion"), "notify")
-    clops.add(stopAfter.getAppendOption("Stop after given passes"), "stop-after")
-    clops.add(stopBeforeBackend.getEnable("Only do parsing, typechecking, and AST transformations. Do not do verification with the backend."), "stop-before-backend")
-    clops.add(stopAfterTypecheck.getEnable("Only do parsing and typechecking. Do not apply AST transformations, nor verification with the backend."), "stop-after-typecheck")
-    clops.add(strictInternalConditions.getEnable("Enable strict internal checks for AST conditions (expert option)"), "strict-internal")
-    clops.add(global_with_field.getEnable("Encode global access with a field rather than a parameter. (expert option)"), "global-with-field")
-    clops.add(no_context.getEnable("disable printing the context of errors"), "no-context")
-    clops.add(gui_context.getEnable("enable the gui extension of the context"), "gui")
-    clops.add(sat_check.getDisable("Disable checking if method pre-conditions are satisfiable"), "disable-sat")
-    clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions")
-    clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers")
-    clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
-    CommandLineTesting.addOptions(clops)
-    Configuration.add_options(clops)
-    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
+  def main(args: Array[String]): Unit = {
+    val loggingSetup = new LoggingSetup
+    val passesExecutioner = new PassesExecutioner
+    val passesGenerator = new PassesGenerator
+    val fileParser = new FileParser
+    val optionsParser = new CommandLineOptionsParser
+    val system = new SystemNonStatic
+    val configuration = new ConfigurationNonStatic
+    val program = new Program(loggingSetup,passesExecutioner,passesGenerator,fileParser,optionsParser,system,configuration)
+    System.exit(program.run(args))
   }
+<<<<<<< HEAD
 
   private def setupLogging(): Unit = {
     import hre.lang.System.LogLevel
@@ -545,3 +463,6 @@ class Main {
     exit
   }
 }
+=======
+}
+>>>>>>> issue-678-scalatest

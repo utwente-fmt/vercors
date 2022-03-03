@@ -1,0 +1,46 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases RelaxedPrefix
+
+class Relaxed {
+	
+	context_everywhere a != null;
+	context_everywhere pat != null;
+	context_everywhere (\forall* int k; 0 <= k && k < pat.length; Value(pat[k]));
+	context_everywhere (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
+	requires pat.length <= a.length;
+	boolean isRelaxedPrefix(int[] pat, int[] a) {
+		int splitpoint = 0; // ghost
+		int shift = 0;
+		int i = 0;
+		
+		loop_invariant 0 <= i && i <= pat.length;
+		loop_invariant 0 <= i && i <= a.length + 1;
+		loop_invariant 0 <= splitpoint && splitpoint <= pat.length;
+		loop_invariant pat.length <= a.length;
+		
+		loop_invariant i == 0 ==> shift == 0;
+		loop_invariant shift == 0 || shift == 1;
+		loop_invariant shift == 0 ==> splitpoint == 0;
+		loop_invariant shift == 1 ==> i > 0;
+		loop_invariant shift == 1 ==> 0 <= splitpoint;
+		loop_invariant shift == 1 ==> splitpoint < i;
+		
+		loop_invariant (\forall int k; 0 <= k && k < splitpoint; a[k] == pat[k]);
+		loop_invariant shift == 0 ==> (\forall int k; 0 <= k && k < i; a[k] == pat[k]);
+		loop_invariant shift == 1 ==> (\forall int k; splitpoint < k && k < i; a[k-1] == pat[k]);
+		while (i < pat.length) {
+			if (pat[i] != a[i - shift]) {
+				if (shift == 0) {
+					splitpoint = i;
+					shift = 1;
+				}
+				else {
+					return false;
+				}
+			}
+			i = i + 1;
+		}
+		
+		return true;
+	}
+}

@@ -1,0 +1,33 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case ParallelVectorAdd2
+// suite puptol rise4fun
+// tools silicon
+
+/*
+ * Handwritten translation of the for simd loop.
+ */
+class parvec {
+
+  context_everywhere M > 0 && N > 0;
+  context_everywhere a!=null ** a.length==M*N;
+  context_everywhere b!=null ** b.length==M*N;
+  context_everywhere c!=null ** c.length==M*N;
+  context (\forall* int i; 0 <= i && i < M*N ; Perm(a[i],1));
+  context (\forall* int i; 0 <= i && i < M*N ; Perm(b[i],1\2));
+  context (\forall* int i; 0 <= i && i < M*N ; Perm(c[i],1\2));
+  ensures (\forall  int i; 0 <= i && i < M*N ; a[i]==b[i]+c[i]);
+  void main(int M,int N,int[] a,int[] b, int[] c) {
+    par(int k=0..M)
+      context (\forall* int i; k*N <= i && i < (k+1)*N ; Perm(a[i],1));
+      context (\forall* int i; k*N <= i && i < (k+1)*N ; Perm(b[i],1\2));
+      context (\forall* int i; k*N <= i && i < (k+1)*N ; Perm(c[i],1\2));
+      ensures (\forall  int i; k*N <= i && i < (k+1)*N ; a[i]==b[i]+c[i]);
+    {
+      assert k < M && M > 0 && N > 0;
+      assume (k+1)*N <= M*N;
+      vec(int j=k*N..(k+1)*N){
+        a[j]=b[j]+c[j];
+      }
+    }
+  }
+}

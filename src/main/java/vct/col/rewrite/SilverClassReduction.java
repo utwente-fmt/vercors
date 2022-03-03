@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import hre.util.FileHelper;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.IntegerValue;
@@ -16,7 +17,6 @@ import vct.col.ast.stmt.decl.*;
 import vct.col.ast.util.*;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.*;
-import hre.config.Configuration;
 
 /**
  * This rewriter converts a program with classes into
@@ -766,7 +766,7 @@ public class SilverClassReduction extends AbstractRewriter {
     }
     if (options || floats || arrays || fractions || maps || tuple){
       String preludeFile = source().hasLanguageFlag(ProgramUnit.LanguageFlag.SeparateArrayLocations) ? "prelude.sil" : "prelude_C.sil";
-      File file = Configuration.getConfigFile(preludeFile);
+      File file = FileHelper.getConfigFile(preludeFile);
       ProgramUnit prelude = /*Parsers.getParser("sil").parse(file)*/ null;
       for(ASTNode n:prelude){
         if (n instanceof AxiomaticDataType){

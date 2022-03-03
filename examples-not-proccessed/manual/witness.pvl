@@ -1,0 +1,37 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases WitnessExample
+//:: tools chalice
+//:: verdict Pass
+//:: option --explicit
+// Witnesses are less needed in Silver: predicates may have arguments.
+// Witnesses still should be used with magic wands.
+class counter {
+  int val;
+
+  resource state(frac p)=Perm(val,p);
+  
+  given frac p;
+  requires req:state(p);
+  int get()=val;
+  
+  ensures  res:state(100) ** get(p:100,req:res)==v;
+  counter(int v){
+    val=v;
+    fold res:state(100);
+    // the following should be provable, but is not because
+    // the gnerated code for the preceeding fold does not prove this.
+    assume get(p:100,req:res)==v;
+  }
+
+  void main(){
+    counter c1;
+    counter c2;
+    witness st1:state(1);
+    witness st2:state(1);
+    c1=new counter(37) then { st1=res; };
+    assert c1.get(p:100,req:st1)==37;
+    c2=new counter(12) then { st2=res; };
+    assert c1.get(p:100,req:st1)==37;
+    assert c2.get(p:100,req:st2)==12;
+  }
+}

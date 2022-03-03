@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Hashtable;
 
+import hre.lang.LogLevel;
 import vct.col.ast.expr.Dereference;
 import vct.col.ast.expr.MethodInvokation;
 import vct.col.ast.expr.NameExpression;
@@ -261,7 +262,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
 
 
   private ASTNode normalize_body(ASTNode m_body) {
-    PrintWriter out = hre.lang.System.getLogLevelErrorWriter(hre.lang.System.LogLevel.Debug);
+    PrintWriter out = hre.lang.System.getLogLevelErrorWriter(LogLevel.Debug);
 
     out.print("normalize input: ");
     Configuration.getDiagSyntax().print(out,m_body);
@@ -300,7 +301,7 @@ public class CheckProcessAlgebra extends AbstractRewriter {
     This fails if there is recursion between processes on the left hand side of a parallel composition.
      */
 
-    PrintWriter out = hre.lang.System.getLogLevelErrorWriter(hre.lang.System.LogLevel.Debug);
+    PrintWriter out = hre.lang.System.getLogLevelErrorWriter(LogLevel.Debug);
     out.print("expanding: ");
     Configuration.getDiagSyntax().print(out,m_body);
     out.println();

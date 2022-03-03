@@ -1,5 +1,6 @@
 package hre.util
 
+import hre.{config, util}
 import hre.config.Configuration
 
 import java.io.{ByteArrayInputStream, File}
@@ -10,10 +11,10 @@ import java.nio.file.{Files, Paths}
 import java.util.regex.Pattern
 
 object Notifier {
-  def notify(title: String, message: String): Boolean = Configuration.getOS() match {
-    case Configuration.OS.WINDOWS => notifyWindows10(title, message)
-    case Configuration.OS.MAC => notifyMacOS(title, message)
-    case Configuration.OS.UNIX => notifyLibnotify(title, message)
+  def notify(title: String, message: String): Boolean = FileHelper.getOS match {
+    case OS.WINDOWS => notifyWindows10(title, message)
+    case util.OS.MAC => notifyMacOS(title, message)
+    case util.OS.UNIX => notifyLibnotify(title, message)
     case _ => false
   }
 

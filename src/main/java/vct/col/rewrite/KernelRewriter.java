@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 
 import hre.config.Configuration;
+import hre.lang.LogLevel;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
@@ -130,7 +131,7 @@ public class KernelRewriter extends AbstractRewriter {
 
   public void visit(ParallelBarrier pb){
     Integer no=barrier_map.get(pb);
-    if (Configuration.auto_barrier.get()){
+    if (Configuration.currentConfiguration().auto_barrier().get()){
       currentBlock.add(create_barrier_call(no.intValue()));
       //Disabled these hints because old in barrier refers to before barrier... 
     } else {
@@ -211,7 +212,7 @@ public class KernelRewriter extends AbstractRewriter {
       ArrayList<ASTNode> constraint=new ArrayList<ASTNode>();
       kernel_main_invariant.add(create.expression(StandardOperator.LTE,create.constant(0),create.local_name("tid")));
       kernel_main_invariant.add(create.expression(StandardOperator.LT,create.local_name("tid"),create.local_name("tcount")));
-      if (Configuration.assume_single_group.get()){
+      if (Configuration.currentConfiguration().assume_single_group().get()){
         kernel_main_invariant.add(create.expression(StandardOperator.EQ,create.local_name("tid"),create.local_name("lid")));
         kernel_main_invariant.add(create.expression(StandardOperator.EQ,create.local_name("tcount"),create.local_name("gsize")));
         kernel_main_invariant.add(create.expression(StandardOperator.EQ,create.local_name("gid"),create.constant(0)));
@@ -390,7 +391,7 @@ public class KernelRewriter extends AbstractRewriter {
         for(DeclarationStatement d:private_decls){
           barrier_decls.add(copy_rw.rewrite(d));
         }
-        if (Configuration.auto_barrier.get()){
+        if (Configuration.currentConfiguration().auto_barrier().get()){
           // auto barrier uses this method, while manual barrier uses in/ex-hale.
           res.add_dynamic(create.method_decl(
               create.primitive_type(PrimitiveSort.Integer),
@@ -404,7 +405,7 @@ public class KernelRewriter extends AbstractRewriter {
           ContractBuilder resource_cb;
           
           ASTNode min;
-          if (Configuration.assume_single_group.get()){
+          if (Configuration.currentConfiguration().assume_single_group().get()){
             min=create.local_name("gsize");
           } else {
             min=create.expression(StandardOperator.Mult,create.local_name("gsize"),
@@ -415,7 +416,7 @@ public class KernelRewriter extends AbstractRewriter {
             );
           }
           ASTNode guard;
-          if (Configuration.assume_single_group.get()){
+          if (Configuration.currentConfiguration().assume_single_group().get()){
             guard=create.expression(StandardOperator.Member,create.local_name("tid"),
                 create.expression(StandardOperator.RangeSeq,create.constant(0),min));
           }
@@ -430,7 +431,7 @@ public class KernelRewriter extends AbstractRewriter {
               create.expression(StandardOperator.RangeSeq,create.constant(0),create.local_name("gsize")));
           resource_cb=new ContractBuilder();
           resource_cb.requires(create.fold(StandardOperator.Star, group_inv));
-          if (Configuration.auto_barrier.get()){        
+          if (Configuration.currentConfiguration().auto_barrier().get()){
             for(ASTNode claim:resources.get(0)){
               if (ASTUtils.find_name(claim,"lid")){
                 resource_cb.requires(create.starall(
@@ -497,7 +498,7 @@ public class KernelRewriter extends AbstractRewriter {
           for(DeclarationStatement d:private_decls){
             resource_decls.add(copy_rw.rewrite(d));
           }
-          if (Configuration.enable_resource_check.get()){
+          if (Configuration.currentConfiguration().enable_resource_check().get()){
             res.add_dynamic(create.method_decl(
               create.primitive_type(PrimitiveSort.Void),
               resource_cb.getContract(),
@@ -527,7 +528,7 @@ public class KernelRewriter extends AbstractRewriter {
 
           ASTNode min;
           ASTNode low;
-          if (Configuration.assume_single_group.get()){
+          if (Configuration.currentConfiguration().assume_single_group().get()){
             low=create.constant(0);
             min=create.local_name("gsize");
           } else {
@@ -568,10 +569,10 @@ public class KernelRewriter extends AbstractRewriter {
           }
           if (barrier_pre.get(i)!=null) for(ASTNode claim:barrier_pre.get(i)){
               if (!claim.getType().isBoolean()){
-                if (Configuration.auto_barrier.get()){
+                if (Configuration.currentConfiguration().auto_barrier().get()){
                   Fail("%s: resource in requires clause while using auto barriers.",claim.getOrigin());
                 }
-                PrintWriter outputWriter = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info);
+                PrintWriter outputWriter = hre.lang.System.getLogLevelOutputWriter(LogLevel.Info);
                 outputWriter.print("skipping:");
                 vct.col.ast.util.Configuration.getDiagSyntax().print(outputWriter, claim);
                 outputWriter.print("%n");
@@ -599,7 +600,7 @@ public class KernelRewriter extends AbstractRewriter {
           cb.ensures(create.fold(StandardOperator.Star,constraint));
           if (resources.get(i)!=null) cb.ensures(create.fold(StandardOperator.Star, resources.get(i)));
           if (barrier_post.get(i)!=null) cb.ensures(create.fold(StandardOperator.Star, barrier_post.get(i)));
-          if(Configuration.enable_post_check.get()){
+          if(Configuration.currentConfiguration().enable_post_check().get()){
             res.add_dynamic(create.method_decl(
               create.primitive_type(PrimitiveSort.Void),
               cb.getContract(),
@@ -634,7 +635,7 @@ public class KernelRewriter extends AbstractRewriter {
     for(ASTNode inv:kernel_main_invariant){
       res.appendInvariant(copy_rw.rewrite(inv));
     }
-    if (Configuration.auto_barrier.get()){
+    if (Configuration.currentConfiguration().auto_barrier().get()){
       ASTNode inv1=create.constant(false);
       Set<Integer> preds=new HashSet<Integer>();
       find_predecessors(preds,s.getBody());

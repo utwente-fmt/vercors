@@ -36,7 +36,7 @@ case class Vercors(options: Options) {
     implicit val o: Origin = FileSpanningOrigin
 
     val parsedProgram = Program(parse, Some(Java.JAVA_LANG_OBJECT[G]))(FileSpanningOrigin)
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(options.jrePath)))
     val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(FileSpanningOrigin)
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram) match {
@@ -98,7 +98,7 @@ case class Vercors(options: Options) {
     SimplifyQuantifiedRelations,
   ) ++ options.simplifyPathsAfterRelations.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p) } ++ Seq(
     // Translate internal types to domains
-    ImportADT,
+    ImportADT.withArg(adt => options.adtPath.resolve(adt + ".pvl")),
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,

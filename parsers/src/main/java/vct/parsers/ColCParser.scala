@@ -1,5 +1,6 @@
 package vct.parsers
 import hre.config.Configuration
+import hre.util.FileHelper
 import org.antlr.v4.runtime.CharStream
 import vct.col.ast.GlobalDeclaration
 import vct.parsers.transform.{BlameProvider, OriginProvider}
@@ -12,14 +13,14 @@ import scala.jdk.CollectionConverters._
 case class ColCParser() extends Parser {
   def interpret(localInclude: Seq[Path], input: String, output: String): Process = {
     // TODO PB: this is not great, should really parse it or so.
-    var command = Configuration.cpp_command.get().split(' ').toSeq
+    var command = Configuration.currentConfiguration.cpp_command.get().split(' ').toSeq
 
     command ++= Seq("-nostdinc", "-nocudainc", "-nocudalib", "--cuda-host-only")
-    command ++= Seq("-isystem", Configuration.getCIncludePath.getAbsolutePath)
+    command ++= Seq("-isystem", FileHelper.getCIncludePath.getAbsolutePath)
 
     command ++= localInclude.map("-I" + _.toAbsolutePath)
-    command ++= Configuration.cpp_include_path.asScala.map("-I" + _)
-    command ++= Configuration.cpp_defines.asScala.map("-D" + _)
+    command ++= Configuration.currentConfiguration.cpp_include_path.asScala.map("-I" + _)
+    command ++= Configuration.currentConfiguration.cpp_defines.asScala.map("-D" + _)
     command ++= Seq("-o", output)
     command :+= input
 

@@ -1,6 +1,7 @@
 package vct.main
 
 import hre.config.Configuration
+import hre.util.FileHelper
 import vct.col.ast.{Declaration, PermPointer, Program}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
@@ -82,7 +83,7 @@ case object Test {
     println(paths.mkString(", "))
     val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
     val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+    val extraDecls = ResolveTypes.resolve(parsedProgram, None)
     val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
     val typedProgram = LangTypesToCol().dispatch(untypedProgram)
     val errors = ResolveReferences.resolve(typedProgram)
@@ -140,7 +141,7 @@ case object Test {
       ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
 
       // Translate internal types to domains
-      ImportADT,
+      ImportADT.withArg(null),
 
       ExtractInlineQuantifierPatterns,
       MonomorphizeContractApplicables,
@@ -188,7 +189,7 @@ case object Test {
           println(f"  $example")
         }
       }
-      Silicon(Map.empty, Configuration.getFileOrAbort(Paths.get("/src/main/universal/res/deps/unix/z3/bin/z3")).toPath).submit(program)
+      Silicon(Map.empty, FileHelper.getFileOrAbort("/unix/z3/bin/z3").toPath).submit(program)
     }
 
     expectedErrors.foreach(_.signalDone())

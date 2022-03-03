@@ -1,14 +1,10 @@
 import NativePackagerHelper._
-import sys.process._
 import java.io.File.pathSeparator
-import java.nio.file.{Files, Path, Paths}
-import java.net.URL
-import java.util.Comparator
 import sbt.internal._
 
 
-ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / fork := true
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
@@ -72,11 +68,14 @@ ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
 
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
+lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
+lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
 
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
   .settings(
+    fork := true,
     name := "Vercors",
     organization := "University of Twente",
     version := "1.4.0-SNAPSHOT",
@@ -125,6 +124,18 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
+    Runtime / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
+
+    Test / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
+
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
@@ -143,10 +154,16 @@ lazy val vercors: Project = (project in file("."))
     the classpath. That way the resources are not packed into the jar. */
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
+    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
+    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
     Compile / doc / sources := Seq(),
+
+    Test / parallelExecution := false,
 
     Universal / mappings ++= Seq(file("README.md") -> "README.md")
       ++ directory("examples")
@@ -166,7 +183,17 @@ lazy val vercors: Project = (project in file("."))
     // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
     Universal / javaOptions ++= Seq (
       // Needed because vercors needs a pretty big stack for some files with deep expressions.
-      "-J-Xss128m"
+      "-J-Xss128M"
+    ),
+
+    Runtime / javaOptions ++= Seq (
+      // Needed because vercors needs a pretty big stack for some files with deep expressions.
+      "-Xss256M"
+    ),
+
+    Test / javaOptions ++= Seq (
+      // Needed because vercors needs a pretty big stack for some files with deep expressions.
+      "-Xss256M"
     ),
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
@@ -179,10 +206,26 @@ lazy val vercors: Project = (project in file("."))
   )
 
 Global / printMainClasspath := {
-    val paths = (vercors / Compile / fullClasspath).value
-    val joinedPaths = paths
-        .map(_.data)
-        .mkString(pathSeparator)
-    println(joinedPaths)
+  val paths = (Compile / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
+}
+
+Global / printTestClasspath := {
+  val paths = (Test / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
+}
+
+Global / printRuntimeClasspath := {
+  val paths = (Runtime / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
 }
 

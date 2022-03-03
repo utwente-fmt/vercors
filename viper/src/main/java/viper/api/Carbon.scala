@@ -1,5 +1,6 @@
 package viper.api
 import hre.config.Configuration
+import hre.util.FileHelper
 import viper.silver.verifier.Verifier
 
 object Carbon extends SilverBackend {
@@ -8,8 +9,8 @@ object Carbon extends SilverBackend {
     val carbon = viper.carbon.CarbonVerifier(reporter)
 
     carbon.parseCommandLine(Seq(
-      "--z3Exe", Configuration.getZ3Path.getAbsolutePath,
-      "--boogieExe", Configuration.getBoogiePath.getAbsolutePath,
+      "--z3Exe", FileHelper.getZ3Path.getAbsolutePath,
+      "--boogieExe", FileHelper.getBoogiePath.getAbsolutePath,
       "-"
     ))
 

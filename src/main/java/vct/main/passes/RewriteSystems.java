@@ -1,9 +1,10 @@
-package vct.main;
+package vct.main.passes;
 
 import java.io.File;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import hre.util.FileHelper;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.JavaResolver;
 import vct.col.rewrite.RewriteSystem;
@@ -12,13 +13,15 @@ import hre.config.Configuration;
 import vct.parsers.Parsers;
 
 public class RewriteSystems {
+  //To ensure this class can not be instantiated.
+  private RewriteSystems(){}
 
-  static Map<File,ProgramUnit> systems=new ConcurrentHashMap<File,ProgramUnit>();
+  static Map<File,ProgramUnit> systems= new ConcurrentHashMap<>();
   
   public static RewriteSystem getRewriteSystem(String name){
     File f=new File(name+".jspec");
     if (!f.exists()){
-      f=Configuration.getConfigFile(name + ".jspec");
+      f= FileHelper.getConfigFile(name + ".jspec");
     }
     ProgramUnit unit=systems.get(f);
     if (unit==null) synchronized(systems){

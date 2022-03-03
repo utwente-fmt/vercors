@@ -14,14 +14,16 @@ import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.{ResolveReferences, ResolveTypes}
-import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
+import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.col.util.AstBuildHelpers._
+import vct.main.Vercors
 import vct.result.VerificationResult.UserError
 
+import java.nio.file.Path
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-case object ImportADT extends RewriterBuilder {
+case object ImportADT extends RewriterBuilderArg[String => Path] {
   override def key: String = "adt"
   override def desc: String = "Import types into vercors that are defined externally, usually via an axiomatic datatype."
 
@@ -150,12 +152,12 @@ case object ImportADT extends RewriterBuilder {
   }
 }
 
-case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
+case class ImportADT[Pre <: Generation](getAdtPath: String => Path) extends CoercingRewriter[Pre] {
   val arrayField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
   val pointerField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
 
   private def parse(name: String): Seq[GlobalDeclaration[Post]] = {
-    val decls = Parsers.parse[InitialGeneration](Configuration.getAdtFile(s"$name.pvl").toPath).decls
+    val decls = Parsers.parse[InitialGeneration](getAdtPath(name)).decls
     val moreDecls = ResolveTypes.resolve(Program(decls, None)(DiagnosticOrigin)(DiagnosticOrigin))
     val typedProgram = LangTypesToCol().dispatch(Program(decls ++ moreDecls, None)(DiagnosticOrigin)(DiagnosticOrigin))
     val errors = ResolveReferences.resolve(typedProgram)

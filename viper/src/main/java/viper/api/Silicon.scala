@@ -20,7 +20,7 @@ case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends Silver
       "--z3ConfigArgs", z3Config,
     )
 
-    if(Configuration.debugBackend.get()) {
+    if(Configuration.currentConfiguration.debugBackend.get()) {
       siliconConfig ++= Seq("--logLevel", "ALL")
     }
 

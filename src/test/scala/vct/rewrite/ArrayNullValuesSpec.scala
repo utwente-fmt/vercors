@@ -1,5 +1,7 @@
 package vct.rewrite
 
+import hre.lang.System.setCurrentSystem
+import hre.lang.SystemNonStatic
 import vct.col.ast.`type`.{ASTReserved, PrimitiveSort}
 import vct.col.ast.expr.StandardOperator
 import vct.col.ast.generic.ASTNode
@@ -29,6 +31,9 @@ class ArrayNullValuesSpec extends RewriteSpec(new ArrayNullValues(null), before=
   def NONE = create reserved_name ASTReserved.OptionNone
   def CASTED_NONE_INT_ARRAY = create expression(StandardOperator.Cast, OPT_INT_ARRAY_TYPE, NONE)
   def CASTED_NONE_SEQ_ARRAY = create expression(StandardOperator.Cast, OPT_SEQ_ARRAY_TYPE, NONE)
+
+  val system = new SystemNonStatic
+  setCurrentSystem(system)
 
   "The ArrayNullValues pass" should "not rewrite arbitrary null values" in {
     // The desired behaviour is that the type check pass strips the garbage assigned type, so the pass does not rewrite

@@ -30,8 +30,8 @@ case object ApplyTermRewriter {
     override def desc: String = s"Apply axiomatic simplification lemmas to expressions from $path."
     override def apply[Pre <: Generation](): Rewriter[Pre] = {
       val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](path)
-      val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
-      val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+      val parsedProgram = Program(decls, None)(DiagnosticOrigin)(DiagnosticOrigin)
+      val extraDecls = ResolveTypes.resolve(parsedProgram, None)
       val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
       val typedProgram = LangTypesToCol().dispatch(untypedProgram)
       val errors = ResolveReferences.resolve(typedProgram)
