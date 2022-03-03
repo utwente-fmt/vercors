@@ -33,8 +33,7 @@ case object Progress {
       if(wantPrettyProgress)
         up + clearLine + up + clearLine
       else {
-//        "\r" + " ".repeat(MAX_BORING_WIDTH) + "\r"
-        "\n"
+        "\r" + " ".repeat(MAX_BORING_WIDTH) + "\r"
       }
     } else ""
 

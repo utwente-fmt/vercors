@@ -1,20 +1,25 @@
 package integration.helper
 
+import ch.qos.logback.classic.{Level, Logger}
 import hre.config.ConfigurationNonStatic
 import hre.lang.{ISystem, LogLevel}
 import hre.util.Verdict
 import org.scalatest.Assertions.{assert, assertResult, fail}
 import org.scalatest.Checkpoints.Checkpoint
 import org.scalatest.exceptions.TestFailedException
-import vct.main.{FileParser, PassesExecutioner, Program}
+import org.slf4j.LoggerFactory
+import vct.main.{FileParser, PassesExecutioner, Program, Vercors}
 import vct.main.options.CommandLineOptionsParser
 import vct.main.passes.PassesGenerator
+import vct.options.{Backend, Mode, Options}
+import vct.result.VerificationResult
 
+import java.nio.file.Paths
 import java.util
 import scala.jdk.javaapi.CollectionConverters.asJavaCollection
 
 object IntegrationTestHelper {
-
+  /*
   def test(configuration: IntegrationTestConfiguration): Unit ={
     val checkPoint = new Checkpoint
     val system = createSystem(configuration,checkPoint)
@@ -25,6 +30,31 @@ object IntegrationTestHelper {
     val exitCode = program.run(arguments)
 
     checkEndConditions(configuration,exitCode,system,checkPoint,streamListener)
+  }
+  */
+
+  def test(configuration: IntegrationTestConfiguration): Unit = {
+    LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
+
+    val options = Options().copy(
+      inputs = configuration.files.map(Paths.get(_)),
+      mode = if(configuration.toolVeymont) Mode.VeyMont else Mode.Verify,
+      skipBackend = configuration.stopBeforeBackend,
+    )
+
+    if(configuration.toolSilicon) checkResult(options.copy(backend = Backend.Silicon), configuration.verdict)
+    if(configuration.toolCarbon) checkResult(options.copy(backend = Backend.Carbon), configuration.verdict)
+  }
+
+  def checkResult(options: Options, verdict: Verdict): Unit = {
+    Vercors(options).go() match {
+      case error: VerificationResult.UserError =>
+        assert(verdict == Verdict.Error)
+      case error: VerificationResult.SystemError =>
+        fail(error)
+      case VerificationResult.Ok =>
+        assert(verdict == Verdict.Pass || verdict == Verdict.Fail)
+    }
   }
 
   def createSystem(configuration: IntegrationTestConfiguration,cp: Checkpoint): SystemListener ={
