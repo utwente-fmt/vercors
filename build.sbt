@@ -78,7 +78,7 @@ lazy val vercors: Project = (project in file("."))
     fork := true,
     name := "Vercors",
     organization := "University of Twente",
-    version := "1.4.0-SNAPSHOT",
+    version := "2.0.0-alpha.1",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -172,7 +172,7 @@ lazy val vercors: Project = (project in file("."))
 
     Universal / packageBin / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
     Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
-    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"res/$path") },
+    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/vercors/res/$path") },
 
     scriptClasspath := scriptClasspath.value :+ "../res",
 

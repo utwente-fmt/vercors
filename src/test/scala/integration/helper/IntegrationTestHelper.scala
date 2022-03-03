@@ -36,7 +36,7 @@ object IntegrationTestHelper {
   def test(configuration: IntegrationTestConfiguration): Unit = {
     LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
 
-    val options = Options().copy(
+    val options = Options(
       inputs = configuration.files.map(Paths.get(_)),
       mode = if(configuration.toolVeymont) Mode.VeyMont else Mode.Verify,
       skipBackend = configuration.stopBeforeBackend,
