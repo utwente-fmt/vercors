@@ -14,9 +14,14 @@ class ProgressAwareLogbackLayout extends LayoutBase[ILoggingEvent] {
 
   override def doLayout(event: ILoggingEvent): String =
     Progress.undoProgressMessage +
-      s"[${event.getLevel}] " +
-      event.getFormattedMessage +
-      CoreConstants.LINE_SEPARATOR +
+      (if(event.getFormattedMessage.contains('\n')) {
+        event.getFormattedMessage.strip +
+          CoreConstants.LINE_SEPARATOR
+      } else {
+        s"[${event.getLevel}] " +
+          event.getFormattedMessage +
+          CoreConstants.LINE_SEPARATOR
+      }) +
       tpc.convert(event) +
       Progress.progressMessage
 }

@@ -81,7 +81,7 @@ case object Test {
   def tryParse(paths: Seq[Path]): Unit = try {
     files += 1
     println(paths.mkString(", "))
-    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
+    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration](_, null)))
     val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
     val extraDecls = ResolveTypes.resolve(parsedProgram, None)
     val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
@@ -135,10 +135,10 @@ case object Test {
       ClassToRef,
 
       // Simplify pure expressions (no more new complex expressions)
-      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl")),
-      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl"), null),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"), null),
       SimplifyQuantifiedRelations,
-      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"), null),
 
       // Translate internal types to domains
       ImportADT.withArg(null),

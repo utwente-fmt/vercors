@@ -121,7 +121,7 @@ case object Progress {
     result
   }
 
-  def dynamicMessages(count: Int, initialMessage: String): Unit ={
+  def dynamicMessages(count: Int, initialMessage: String): Unit = {
     frames :+= LazyFrame(count, initialMessage)
   }
 

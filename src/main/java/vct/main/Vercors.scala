@@ -28,15 +28,15 @@ case object Vercors {
   }
 }
 
-case class Vercors(options: Options) {
-  def parse[G](paths: Seq[Path]): ParseResult[G] =
-    ParseResult.reduce(Progress.iterable(paths, (p: Path) => p.toString).map(Parsers.parse[G]).toSeq)
+case class Vercors(options: Options) extends ImportADTImporter {
+  def parse[G](paths: Path*): ParseResult[G] =
+    ParseResult.reduce(Progress.iterable(paths, (p: Path) => p.toString).map(Parsers.parse[G](_, this)).toSeq)
 
-  def resolve[G <: Generation](parse: Seq[GlobalDeclaration[G]]): Either[Seq[CheckError], Program[_ <: Generation]] = {
+  def resolve[G <: Generation](parse: Seq[GlobalDeclaration[G]], withJava: Boolean): Either[Seq[CheckError], Program[_ <: Generation]] = {
     implicit val o: Origin = FileSpanningOrigin
 
-    val parsedProgram = Program(parse, Some(Java.JAVA_LANG_OBJECT[G]))(FileSpanningOrigin)
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(options.jrePath)))
+    val parsedProgram = Program(parse, if(withJava) Some(Java.JAVA_LANG_OBJECT[G]) else None)(FileSpanningOrigin)
+    val extraDecls = ResolveTypes.resolve(parsedProgram, if(withJava) Some(JavaLibraryLoader(options.jrePath, this)) else None)
     val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(FileSpanningOrigin)
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram) match {
@@ -94,11 +94,11 @@ case class Vercors(options: Options) {
     // No more classes
     ConstantifyFinalFields,
     ClassToRef,
-  ) ++ options.simplifyPaths.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p) } ++ Seq(
+  ) ++ options.simplifyPaths.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p, this) } ++ Seq(
     SimplifyQuantifiedRelations,
-  ) ++ options.simplifyPathsAfterRelations.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p) } ++ Seq(
+  ) ++ options.simplifyPathsAfterRelations.map { case PathOrStd.Path(p) => ApplyTermRewriter.BuilderForFile(p, this) } ++ Seq(
     // Translate internal types to domains
-    ImportADT.withArg(adt => options.adtPath.resolve(adt + ".pvl")),
+    ImportADT.withArg(this),
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
@@ -123,10 +123,10 @@ case class Vercors(options: Options) {
       ("Translation", 3),
       ("Verification", 10),
     )) {
-      val ParseResult(decls, expectedErrors) = parse(options.inputs)
+      val ParseResult(decls, expectedErrors) = parse(options.inputs : _*)
       Progress.nextPhase()
 
-      var program = resolve(decls).getOrElse(???)
+      var program = resolve(decls, withJava = true).getOrElse(???)
 
       for (pass <- Progress.iterable(passes, (pass: RewriterBuilder) => pass.key)) {
         program = pass().dispatch(program)
@@ -143,4 +143,8 @@ case class Vercors(options: Options) {
   } catch {
     case res: VerificationResult => res
   }
+
+  override def loadAdt[G](adtName: String): Either[Seq[CheckError], Program[G]] =
+    resolve(parse(options.adtPath.resolve(adtName + ".pvl")).decls, withJava = false).map(program =>
+      Disambiguate().dispatch(program).asInstanceOf[Program[G]])
 }

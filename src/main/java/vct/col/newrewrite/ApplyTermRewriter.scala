@@ -1,5 +1,6 @@
 package vct.col.newrewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
@@ -10,6 +11,7 @@ import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite._
 import vct.java.JavaLibraryLoader
 import vct.main.Test.printErrors
+import vct.main.Vercors
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{Unreachable, UserError}
 
@@ -25,11 +27,11 @@ case object ApplyTermRewriter {
     override def desc: String = "Apply axiomatic simplification lemmas to expressions."
   }
 
-  case class BuilderForFile(path: Path) extends RewriterBuilder {
+  case class BuilderForFile(path: Path, vercors: Vercors) extends RewriterBuilder {
     override def key: String = "simplify"
     override def desc: String = s"Apply axiomatic simplification lemmas to expressions from $path."
     override def apply[Pre <: Generation](): Rewriter[Pre] = {
-      val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](path)
+      val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](path, vercors)
       val parsedProgram = Program(decls, None)(DiagnosticOrigin)(DiagnosticOrigin)
       val extraDecls = ResolveTypes.resolve(parsedProgram, None)
       val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
@@ -44,7 +46,7 @@ case object ApplyTermRewriter {
   }
 }
 
-case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[SimplificationRule[Rule]]) extends Rewriter[Pre] {
+case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[SimplificationRule[Rule]]) extends Rewriter[Pre] with LazyLogging {
   case class MalformedSimplificationRule(body: Expr[_]) extends UserError {
     override def code: String = "malformedSimpRule"
     override def text: String =
@@ -59,6 +61,11 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
       case other => throw MalformedSimplificationRule(other)
     }
   }
+
+  val ruleMap: Map[java.lang.Class[_], Seq[(Seq[Variable[Rule]], Expr[Rule], Expr[Rule], Origin)]] =
+    rules.groupBy {
+      case (_, pattern, _, _) => pattern.getClass
+    }
 
   def consumeForalls(node: Expr[Rule]): (Seq[Variable[Rule]], Expr[Rule]) = node match {
     case Forall(bindings, _, body) =>
@@ -96,6 +103,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
   }
 
   def apply(rule: (Seq[Variable[Rule]], Expr[Rule], Expr[Rule], Origin), subject: Expr[Pre]): Option[Expr[Pre]] = {
+    incApply()
     implicit val o: Origin = DiagnosticOrigin
     val (free, pattern, subtitute, ruleOrigin) = rule
 
@@ -246,11 +254,12 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
       }
     }
 
+    incSuccess()
     Some(result)
   }
 
   def applyOnce(expr: Expr[Pre]): Option[Expr[Pre]] =
-    FuncTools.firstOption(rules, apply(_, expr))
+    FuncTools.firstOption(ruleMap.getOrElse(expr.getClass, Nil), apply(_, expr))
 
   @tailrec
   final def applyExhaustively(expr: Expr[Pre]): Expr[Pre] =
@@ -273,6 +282,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
         case Some(simplifiedYetAgain) =>
           // The simplification of the child nodes caused the parent node to be simplified again, so we need to
           // recurse into the structure once again.
+          logger.debug(s"Complicated simplification: simplified node $simplifiedBottomUp was simplified yet again to $simplifiedYetAgain")
           dispatch(simplifiedYetAgain)
         case None => simplifiedBottomUp
       }
@@ -282,11 +292,29 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
   }
 
   val simplificationDone: ScopedStack[Unit] = ScopedStack()
+  var countApply: Int = 0
+  var countSuccess: Int = 0
+  var currentExpr: Expr[Pre] = _
+
+  def incApply(): Unit = {
+    countApply += 1
+
+    if(countApply % 10000 == 0) {
+      logger.debug(s"Applied $countApply rules ($countSuccess successfully) to expression $currentExpr")
+    }
+  }
+
+  def incSuccess(): Unit = {
+    countSuccess += 1
+  }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
       val debugHeader = false
+      countApply = 0
+      countSuccess = 0
+      currentExpr = e
 
       if(debugHeader) {
         println()
