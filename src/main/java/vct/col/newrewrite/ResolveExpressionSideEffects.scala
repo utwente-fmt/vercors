@@ -53,6 +53,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   // side effect occurs. If not, they are removed from the map and inlined again.
   val currentlyExtracted: mutable.Map[Variable[Post], (Seq[Expr[Post]], Expr[Post])] = mutable.Map()
 
+  val flushedExtracted: mutable.Set[Variable[Post]] = mutable.Set()
+
   // conditions may be duplicated, so they have to be duplicable for free probably? i.e. no internal declarations
   // like let.
   val currentConditions: ScopedStack[Expr[Post]] = ScopedStack()
@@ -64,6 +66,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
           flat.declareDefault(this)
+          flushedExtracted += flat
           implicit val o: Origin = SideEffectOrigin
           acceptor(Branch(Seq((
             foldAnd(condition),
@@ -93,8 +96,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           case Some((_, pureExpression)) =>
             pureExpression
           case None =>
-            val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
-            Local[Post](ResolveExpressionSideEffects.this.succ(preV))(e.o)
+            if(flushedExtracted.contains(v)) {
+              Local[Post](v.ref)(e.o)
+            } else {
+              val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
+              Local[Post](ResolveExpressionSideEffects.this.succ(preV))(e.o)
+            }
         }
       case other => rewriteDefault(other)
     }

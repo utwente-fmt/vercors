@@ -30,7 +30,7 @@ case object Vercors {
 
 case class Vercors(options: Options) extends ImportADTImporter {
   def parse[G](paths: Path*): ParseResult[G] =
-    ParseResult.reduce(Progress.iterable(paths, (p: Path) => p.toString).map(Parsers.parse[G](_, this)).toSeq)
+    ParseResult.reduce(Progress.map(paths, (p: Path) => p.toString)(Parsers.parse[G](_, this)).toSeq)
 
   def resolve[G <: Generation](parse: Seq[GlobalDeclaration[G]], withJava: Boolean): Either[Seq[CheckError], Program[_ <: Generation]] = {
     implicit val o: Origin = FileSpanningOrigin
@@ -128,10 +128,10 @@ case class Vercors(options: Options) extends ImportADTImporter {
 
       var program = resolve(decls, withJava = true).getOrElse(???)
 
-      for (pass <- Progress.iterable(passes, (pass: RewriterBuilder) => pass.key)) {
+      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key)(pass => {
         program = pass().dispatch(program)
         program = PrettifyBlocks().dispatch(program)
-      }
+      })
 
       Progress.nextPhase()
       Silicon(Map.empty, options.z3Path).submit(program)

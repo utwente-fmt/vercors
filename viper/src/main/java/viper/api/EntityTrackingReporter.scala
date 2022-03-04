@@ -19,13 +19,13 @@ case class EntityTrackingReporter() extends Reporter {
     )
   }
 
-  def setEntities(program: Program): Unit = {
+  def withEntities[T](program: Program)(f: => T): T = {
     todo.clear()
     todo ++= program.functions
     todo ++= program.predicates
     todo ++= program.methods
 
-    Progress.dynamicMessages(todo.size, todoMessages)
+    Progress.dynamicMessages(todo.size, todoMessages)(f)
   }
 
   private def update(): Unit = {

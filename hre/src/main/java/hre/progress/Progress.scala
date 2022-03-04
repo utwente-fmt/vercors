@@ -60,8 +60,7 @@ case object Progress {
   }
 
   def framesText: String =
-    if(frames.isEmpty) "Done"
-    else frames.map(frame => {
+    frames.map(frame => {
       val idx = frame.position + 1
       val count = frame.count
       val desc = frame.currentMessage
@@ -84,7 +83,11 @@ case object Progress {
 
   def update(): Unit = {
     System.out.print(undoProgressMessage)
-    System.out.print(progressMessage)
+    if(frames.isEmpty) {
+      firstLogLine = true
+    } else {
+      System.out.print(progressMessage)
+    }
   }
 
   case class Phase(description: String, weight: Int)
@@ -113,52 +116,50 @@ case object Progress {
 
   private var frames: Seq[Frame] = Nil
 
-  def stages[T](stages: Seq[(String, Int)])(f: => T): T = {
-    frames :+= ConcreteFrame(stages.map { case (desc, weight) => Phase(desc, weight) })
+  private def withFrame[T](frame: Frame)(f: => T): T = {
+    frames :+= frame
     update()
-    val result = f
-    frames = frames.init
-    result
+    try {
+      f
+    } finally {
+      frames = frames.init
+      if(frames.isEmpty) update()
+    }
   }
 
-  def dynamicMessages(count: Int, initialMessage: String): Unit = {
-    frames :+= LazyFrame(count, initialMessage)
-  }
+  def stages[T](stages: Seq[(String, Int)])(f: => T): T =
+    withFrame(ConcreteFrame(stages.map { case (desc, weight) => Phase(desc, weight) }))(f)
 
-  def iterable[T](xs: Iterable[T], desc: T => String): Iterator[T] = {
-    val phases = xs.map(x => Phase(desc(x), 1))
-    frames :+= ConcreteFrame(phases.toSeq)
-    frames.last.position = -1
+  def dynamicMessages[T](count: Int, initialMessage: String)(f: => T): T =
+    withFrame(LazyFrame(count, initialMessage))(f)
 
-    case class Iter() extends Iterator[T] {
-      private val inner = xs.iterator
+  def seqStages[T, S](xs: Iterable[T], desc: T => String)(f: => S): S =
+    withFrame(ConcreteFrame(xs.map(x => Phase(desc(x), 1)).toSeq))(f)
 
-      override def hasNext: Boolean = {
-        if(!inner.hasNext) {
-          frames = frames.init
-        }
-        inner.hasNext
-      }
-
-      override def next(): T = {
+  def foreach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit =
+    seqStages(xs, desc) {
+      xs.foreach(x => {
+        f(x)
         nextPhase()
-        inner.next()
-      }
+      })
     }
 
-    Iter()
-  }
+  def map[T, S](xs: Iterable[T], desc: T => String)(f: T => S): Iterable[S] =
+    seqStages(xs, desc) {
+      xs.map(x => {
+        val result = f(x)
+        nextPhase()
+        result
+      })
+    }
 
   def nextPhase(nextMessage: String = ""): Unit = {
     frames.last.position += 1
 
     frames.last match {
-      case frame: ConcreteFrame =>
+      case _: ConcreteFrame =>
       case frame: LazyFrame =>
         frame.currentMessage = nextMessage
-        if(frame.position == frame.count) {
-          frames = frames.init
-        }
     }
 
     update()

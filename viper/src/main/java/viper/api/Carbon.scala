@@ -1,10 +1,11 @@
 package viper.api
 import hre.config.Configuration
 import hre.util.FileHelper
+import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
 
 object Carbon extends SilverBackend {
-  override def createVerifier: (Verifier, EntityTrackingReporter) = {
+  override def createVerifier(reporter: Reporter): viper.carbon.CarbonVerifier = {
     val reporter = EntityTrackingReporter()
     val carbon = viper.carbon.CarbonVerifier(reporter)
 
@@ -15,7 +16,7 @@ object Carbon extends SilverBackend {
     ))
 
     carbon.start()
-    (carbon, reporter)
+    carbon
   }
 
   override def stopVerifier(verifier: Verifier): Unit = {
