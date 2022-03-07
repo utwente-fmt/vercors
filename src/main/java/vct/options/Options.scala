@@ -36,12 +36,36 @@ case object Options {
 
     implicit val readPath: scopt.Read[Path] = scopt.Read.reads(Paths.get(_))
 
+    implicit val readVerbosity: scopt.Read[Verbosity] =
+      scopt.Read.reads {
+        case "off" => Verbosity.Off
+        case "error" => Verbosity.Error
+        case "warning" => Verbosity.Warning
+        case "info" => Verbosity.Info
+        case "debug" => Verbosity.Debug
+        case "trace" => Verbosity.Trace
+        case "all" => Verbosity.All
+      }
+
     OParser.sequence(
       programName(BuildInfo.name),
       head(BuildInfo.name, BuildInfo.version),
 
       help("help").abbr("h").text("Prints this usage text"),
-      version("version").abbr("v").text("Prints version and build information"),
+      version("version").text("Prints version and build information"),
+      opt[Unit]("help-passes")
+        .action((_, c) => c.copy(mode = Mode.HelpVerifyPasses))
+        .text("Lists the pass keys available for options that take a pass key."),
+      opt[Unit]("quiet").abbr("q")
+        .action((_, c) => c.copy(logLevels = c.logLevels :+ ("vct", Verbosity.Error)))
+        .text("Instruct VerCors to only log errors."),
+      opt[Unit]("verbose").abbr("v")
+        .action((_, c) => c.copy(logLevels = c.logLevels :+ ("vct", Verbosity.Debug)))
+        .text("Instruct VerCors to output debug information"),
+
+      opt[(String, Verbosity)]("dev-log-verbosity").unbounded().hidden().keyValueName("<loggerKey>", "<verbosity>")
+        .action((tup, c) => c.copy(logLevels = c.logLevels :+ tup))
+        .text("Set the log level for a custom logger key"),
 
       note(""),
       note("Verification Mode"),
@@ -56,7 +80,7 @@ case object Options {
         .action((backendFile, c) => c.copy(backendFile = backendFile))
         .text("In addition to verification, output the resulting AST for the backend to a file"),
       opt[Unit]("backend-debug")
-        .action((_, c) => c.copy(backendDebug = true))
+        .action((_, c) => c.copy(logLevels = c.logLevels :+ ("viper", Verbosity.Debug)))
         .text("Instruct the backend to print as much debugging information as possible"),
 
       opt[(String, PathOrStd)]("output-after-pass").unbounded().keyValueName("<pass>", "<path>")
@@ -157,8 +181,11 @@ case object Options {
             .text("Tailor the logging output for a CI run")
         ),
 
+      note(""),
+      note(""),
       arg[Path]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
+        .text("List of input files to process")
     )
   }
 
@@ -170,11 +197,14 @@ case class Options
 (
   mode: Mode = Mode.Verify,
   inputs: Seq[Path] = Nil,
+  logLevels: Seq[(String, Verbosity)] = Seq(
+    ("vct", Verbosity.Info),
+    ("viper", Verbosity.Off),
+  ),
 
   // Verify Options
   backend: Backend = Backend.Silicon,
   backendFile: Option[PathOrStd] = None,
-  backendDebug: Boolean = false,
 
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,

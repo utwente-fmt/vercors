@@ -55,6 +55,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   val flushedExtracted: mutable.Set[Variable[Post]] = mutable.Set()
 
+  val regularLocal: mutable.Set[Variable[Post]] = mutable.Set()
+
   // conditions may be duplicated, so they have to be duplicable for free probably? i.e. no internal declarations
   // like let.
   val currentConditions: ScopedStack[Expr[Post]] = ScopedStack()
@@ -68,10 +70,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           flat.declareDefault(this)
           flushedExtracted += flat
           implicit val o: Origin = SideEffectOrigin
-          acceptor(Branch(Seq((
-            foldAnd(condition),
-            assignLocal(Local(flat.ref), pureExpr),
-          ))))
+          acceptor(condition match {
+            case Nil => assignLocal(Local(flat.ref), pureExpr)
+            case conditions => Branch(Seq((
+              foldAnd(conditions),
+              assignLocal(Local(flat.ref), pureExpr),
+            )))
+          })
       }
     }
     currentlyExtracted.clear()
@@ -306,9 +311,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   def dispatchImpure(e: Expr[Pre]): Local[Post] = e match {
     case Local(Ref(v)) =>
-      // We do not take the successor here: ReInliner will do that.
-      val postV = (v : Variable[Pre]).asInstanceOf[Variable[Post]]
-      Local[Post](postV.ref)(e.o)
+      stored(Local[Post](succ(v))(e.o), v.t)
+
     case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
 
     // ## Nodes that induce an implicit evaluation condition: ##

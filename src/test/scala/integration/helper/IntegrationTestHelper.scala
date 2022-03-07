@@ -35,6 +35,7 @@ object IntegrationTestHelper {
 
   def test(configuration: IntegrationTestConfiguration): Unit = {
     LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
+    LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
     val options = Options(
       inputs = configuration.files.map(Paths.get(_)),
@@ -49,11 +50,11 @@ object IntegrationTestHelper {
   def checkResult(options: Options, verdict: Verdict): Unit = {
     Vercors(options).go() match {
       case error: VerificationResult.UserError =>
-        assert(verdict == Verdict.Error)
+        assert(Verdict.Error == verdict)
       case error: VerificationResult.SystemError =>
         fail(error)
       case VerificationResult.Ok =>
-        assert(verdict == Verdict.Pass || verdict == Verdict.Fail)
+        assert(Verdict.Pass == verdict || Verdict.Fail == verdict)
     }
   }
 

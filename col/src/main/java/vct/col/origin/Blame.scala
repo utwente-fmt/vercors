@@ -375,7 +375,8 @@ case object PreBlameSplit {
 case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[T]) extends Blame[T] {
   override def blame(error: T): Unit = error match {
     case PreconditionFailed(path, failure, invokable) => path match {
-      case Nil => throw BlamePathError
+      case Nil =>
+        throw BlamePathError
       case FailLeft :: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invokable))
       case FailRight :: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invokable))
     }

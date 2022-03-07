@@ -1,5 +1,6 @@
 package vct.col.newrewrite.lang
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
@@ -72,7 +73,7 @@ case object LangSpecificToCol extends RewriterBuilder {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
+case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import LangSpecificToCol._
 
   case class NotAValue(value: Expr[_]) extends UserError {
@@ -180,6 +181,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
 
     declsDefault.foreach {
       case cons: JavaConstructor[Pre] =>
+        logger.debug(s"Constructor for ${cons.o.context}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)

@@ -1,7 +1,8 @@
 package vct.main
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{GlobalDeclaration, Program}
+import vct.col.ast.{GlobalDeclaration, Procedure, Program}
 import vct.col.check.CheckError
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
@@ -10,11 +11,11 @@ import vct.col.origin.Origin
 import vct.col.resolve.{Java, ResolutionError, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.java.JavaLibraryLoader
-import vct.main.Vercors.FileSpanningOrigin
+import vct.main.Vercors.{FileSpanningOrigin, InputResolutionError}
 import vct.options.{Options, PathOrStd}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
-import vct.result.VerificationResult.Ok
+import vct.result.VerificationResult.{Ok, UserError}
 import viper.api.Silicon
 
 import java.nio.file.{Path, Paths}
@@ -26,9 +27,14 @@ case object Vercors {
     override def preferredName: String = "unknown"
     override def context: String = "[At node that spans multiple files]"
   }
+
+  case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
+    override def code: String = "resolutionError"
+    override def text: String = errors.map(_.toString).mkString("\n")
+  }
 }
 
-case class Vercors(options: Options) extends ImportADTImporter {
+case class Vercors(options: Options) extends ImportADTImporter with LazyLogging {
   def parse[G](paths: Path*): ParseResult[G] =
     ParseResult.reduce(Progress.map(paths, (p: Path) => p.toString)(Parsers.parse[G](_, this)).toSeq)
 
@@ -51,8 +57,6 @@ case class Vercors(options: Options) extends ImportADTImporter {
   }
 
   def passes: Seq[RewriterBuilder] = Seq(
-    // Language-specific nodes -> COL (because of fragile references)
-    LangSpecificToCol,
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
 
@@ -126,10 +130,28 @@ case class Vercors(options: Options) extends ImportADTImporter {
       val ParseResult(decls, expectedErrors) = parse(options.inputs : _*)
       Progress.nextPhase()
 
-      var program = resolve(decls, withJava = true).getOrElse(???)
+      var program = resolve(decls, withJava = true) match {
+        case Left(errors) => throw InputResolutionError(errors)
+        case Right(program) => program
+      }
 
       Progress.foreach(passes, (pass: RewriterBuilder) => pass.key)(pass => {
+        options.outputBeforePass.get(pass.key) match {
+          case None =>
+          case Some(PathOrStd.StdInOrOut) =>
+            println(program)
+          case Some(PathOrStd.Path(path)) => ???
+        }
+
         program = pass().dispatch(program)
+
+        options.outputAfterPass.get(pass.key) match {
+          case None =>
+          case Some(PathOrStd.StdInOrOut) =>
+            println(program)
+          case Some(PathOrStd.Path(path)) => ???
+        }
+
         program = PrettifyBlocks().dispatch(program)
       })
 
@@ -142,6 +164,14 @@ case class Vercors(options: Options) extends ImportADTImporter {
     }
   } catch {
     case res: VerificationResult => res
+  }
+
+  def helpPasses(): Unit = {
+    println("Available passes:")
+    for(pass <- passes) {
+      println(s"- ${pass.key}")
+      println(s"    ${pass.desc}")
+    }
   }
 
   override def loadAdt[G](adtName: String): Either[Seq[CheckError], Program[G]] =
