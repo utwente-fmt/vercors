@@ -5,10 +5,4 @@ import vct.col.resolve.Java
 import vct.result.VerificationResult.Unreachable
 
 trait JavaStringLiteralImpl[G] { this: JavaStringLiteral[G] =>
-  override def t: Type[G] = base
-
-  def get: JavaClass[G] = base match {
-    case base: JavaNamedType[G] => base.ref.get.asInstanceOf[JavaClass[G]]
-    case base: JavaTClass[G] => base.ref.decl.asInstanceOf[JavaClass[G]]
-  }
 }

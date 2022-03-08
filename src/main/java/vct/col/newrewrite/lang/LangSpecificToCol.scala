@@ -15,6 +15,10 @@ import scala.collection.mutable.ArrayBuffer
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
+object Decl {
+  def unapply[G, D <: Declaration[G]](ref: Ref[G, D]): Option[D] = Some(ref.decl)
+}
+
 case object LangSpecificToCol extends RewriterBuilder {
   case class CGlobalStateNotSupported(example: CInit[_]) extends UserError {
     override def code: String = "notSupported"
@@ -733,15 +737,14 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] {
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
-    case l @ JavaStringLiteral(data, _) =>
-      val stringClass: JavaClass[Pre] = l.get
-      val stringOfSeq: JavaMethod[Pre] = l.get.decls(1).asInstanceOf[JavaMethod[Pre]]
+    case JavaStringLiteral(data, JavaTClass(Decl(stringClass), _)) =>
+      val stringOfSeq: JavaMethod[Pre] = stringClass.decls(1).asInstanceOf[JavaMethod[Pre]]
       implicit val o = DiagnosticOrigin
-      val data = LiteralSeq[Post](TInt(), l.data.map((c: Char) => const(c.toInt)))
+      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
       methodInvocation[Post](
         PanicBlame("String literal construction cannot fail"),
         functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-        succ(stringOfSeq), args = Seq(data))
+        succ(stringOfSeq), args = Seq(codepointSeq))
 
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {

@@ -25,4 +25,8 @@ trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
   }
 
   override def declarations: Seq[Declaration[G]] = typeParams ++ decls
+
+  def findMethodExact(rt: Type[G], name: String, params: Seq[Type[G]]): Option[ClassDeclaration[G]] = {
+
+  }
 }
