@@ -11,6 +11,7 @@ trait LocatorImpl[G] extends ExprImpl[G] { this: Locator[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++ (loc match {
       case _: Deref[G] => Nil
+      case _: ModelDeref[G] => Nil
       case deref: JavaDeref[G] => deref.ref.get match {
         case RefModelField(_) => Nil
         case RefJavaField(_, _) => Nil

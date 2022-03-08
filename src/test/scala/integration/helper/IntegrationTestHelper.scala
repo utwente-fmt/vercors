@@ -4,7 +4,7 @@ import ch.qos.logback.classic.{Level, Logger}
 import hre.config.ConfigurationNonStatic
 import hre.lang.{ISystem, LogLevel}
 import hre.util.Verdict
-import org.scalatest.Assertions.{assert, assertResult, fail}
+import org.scalatest.Assertions.{assert, assertResult, cancel, fail}
 import org.scalatest.Checkpoints.Checkpoint
 import org.scalatest.exceptions.TestFailedException
 import org.slf4j.LoggerFactory
@@ -49,6 +49,8 @@ object IntegrationTestHelper {
 
   def checkResult(options: Options, verdict: Verdict): Unit = {
     Vercors(options).go() match {
+      case _: Vercors.TemporarilyUnsupported =>
+        cancel()
       case error: VerificationResult.UserError =>
         assert(Verdict.Error == verdict)
       case error: VerificationResult.SystemError =>
