@@ -729,6 +729,7 @@ final case class JavaNamedType[G](names: Seq[(String, Option[Seq[Type[G]]])])(im
   var ref: Option[JavaTypeNameTarget[G]] = None
 }
 final case class JavaTClass[G](ref: Ref[G, JavaClassOrInterface[G]], typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with JavaTClassImpl[G]
+final case class TJavaString[G]()(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with TJavaStringImpl[G]
 
 sealed trait JavaExpr[G] extends Expr[G] with JavaExprImpl[G]
 final case class JavaLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalImpl[G] {
@@ -748,7 +749,7 @@ final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], nam
 }
 final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
 final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
-final case class JavaStringLiteral[G](data: String, t: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaStringLiteralImpl[G]
+final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) extends JavaExpr[G] with JavaStringLiteralImpl[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

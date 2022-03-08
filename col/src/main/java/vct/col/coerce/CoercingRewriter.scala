@@ -246,6 +246,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TJavaString[Pre]())
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
@@ -525,6 +526,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
           AmbiguousPlus(int(left), int(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(javaString(left), javaString(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
@@ -705,7 +707,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
-      case str @ JavaStringLiteral(_, _) => str
+      case str @ JavaStringLiteral(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread)._1)
       case length @ Length(arr) =>

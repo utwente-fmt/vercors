@@ -38,6 +38,7 @@ case object ResolveTypes {
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit = node match {
     case javaClass @ JavaNamedType(genericNames) =>
       val names = genericNames.map(_._1)
+      // TODO: Here we need to filter out java.lang.String somehow. When we see it, we just put TJavaString().
       javaClass.ref = Some(Java.findJavaTypeName(names, ctx).getOrElse(
         throw NoSuchNameError("class", names.mkString("."), javaClass)))
     case t @ JavaTClass(ref, _) =>
@@ -61,8 +62,8 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-//    case str: JavaStringLiteral[G] =>
-//      resolveOne(str.t, ctx)
+    case _: JavaStringLiteral[G] =>
+      resolveOne(Java.JAVA_LANG_STRING, ctx)
     case _ =>
   }
 }
@@ -180,7 +181,7 @@ case object ResolveReferences {
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ JavaInvocation(obj, _, method, args, givenMap, yields) =>
       inv.ref = Some((obj match {
-        case Some(obj) => Java.findMethod(obj, method, args, inv.blame)
+        case Some(obj) => Java.findMethod(obj, method, args, inv.blame, ctx.asTypeResolutionContext)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)

@@ -742,18 +742,19 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
-    case JavaStringLiteral(data, JavaTClass(Decl(stringClass), _)) =>
-      val stringOfSeq = {
-        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
-        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
-        ms(0)
-      }
-      implicit val o = DiagnosticOrigin
-      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
-      methodInvocation[Post](
-        PanicBlame("String literal construction cannot fail"),
-        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-        succ(stringOfSeq), args = Seq(codepointSeq))
+    case JavaStringLiteral(data) =>
+      ???
+//      val stringOfSeq = {
+//        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
+//        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
+//        ms(0)
+//      }
+//      implicit val o = DiagnosticOrigin
+//      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
+//      methodInvocation[Post](
+//        PanicBlame("String literal construction cannot fail"),
+//        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
+//        succ(stringOfSeq), args = Seq(codepointSeq))
 
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {
