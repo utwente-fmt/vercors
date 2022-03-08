@@ -1,6 +1,6 @@
 package vct.parsers.transform
 
-import hre.util.FuncTools
+import hre.util.{FuncTools, ScopedStack}
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.antlr4.generated.JavaParser._
@@ -19,9 +19,15 @@ import scala.collection.mutable
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
+
+  val currentPackage: ScopedStack[Option[JavaName[G]]] = ScopedStack()
+
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
-      Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
+      val pkgName = pkg.map(convert(_))
+      currentPackage.having(pkgName) {
+        Seq(new JavaNamespace(pkgName, imports.map(convert(_)), decls.flatMap(convert(_))))
+      }
   }
 
   def convert(implicit pkg: PackageDeclarationContext): JavaName[G] = pkg match {
@@ -35,17 +41,17 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit decl: TypeDeclarationContext): Seq[GlobalDeclaration[G]] = decl match {
     case TypeDeclaration0(mods, ClassDeclaration0(contract, _, name, args, ext, imp, ClassBody0(_, decls, _))) =>
       withContract(contract, contract => {
-        Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
+        Seq(new JavaClass(currentPackage.top, convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
           imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
       })
     case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
-      Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
+      Seq(new JavaInterface(currentPackage.top, convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
-      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.map(convert(_)).flatten))
+      Seq(new JavaAnnotationInterface(currentPackage.top, convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.map(convert(_)).flatten))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
   }

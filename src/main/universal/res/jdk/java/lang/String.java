@@ -13,7 +13,7 @@ public class String {
 
     ghost
     ensures \result != null ** \result instanceof String;
-    pure static final String `operator+`(String a, String b);
+    pure static final String operatorPlus(String a, String b);
     */
 
     //@ ensures \result == of(data());
