@@ -5,7 +5,8 @@ public class String {
 
     /*@
     ghost
-    ensures \result != null ** \result.data() == data;
+    // TODO: Should not have to use instanceof in postcondition here
+    ensures \result != null ** \result instanceof String ** \result.data() == data;
     ensures (\forall seq<int> otherData; true; (otherData == data) == (\result == of(otherData)));
     pure static String of(seq<int> data);
     */

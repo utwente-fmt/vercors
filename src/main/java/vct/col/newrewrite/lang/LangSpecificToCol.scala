@@ -9,7 +9,7 @@ import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.{Unreachable, UserError}
+import vct.result.VerificationResult.{SystemError, Unreachable, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -742,8 +742,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
-    case JavaStringLiteral(data, JavaTClass(Decl(stringClass), _)) =>
-      val stringOfSeq: JavaMethod[Pre] = stringClass.decls(1).asInstanceOf[JavaMethod[Pre]]
+    case JavaStringLiteral(data, stringType @ JavaTClass(Decl(stringClass), _)) =>
+      val stringOfSeq = {
+        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
+        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
+        ms(0)
+      }
       implicit val o = DiagnosticOrigin
       val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
       methodInvocation[Post](
