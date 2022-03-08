@@ -1,27 +1,30 @@
 package vct.col.newrewrite
 
-import hre.config.Configuration
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
-import vct.col.newrewrite.error.{ExcludedByPassOrder, ExtraNode}
-import vct.parsers.Parsers
-import RewriteHelpers._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
-import vct.col.coerce.{CoercingRewriter, CoercionUtils}
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.coerce.CoercingRewriter
+import vct.col.newrewrite.ImportADT.{InvalidImportedAdt, ArrayField, PointerField, OptionNonePreconditionFailed, MapKeyErrorPreconditionFailed, ArrayNullPreconditionFailed, ArrayBoundsPreconditionFailed, ArrayFieldInsufficientPermission, PointerNullPreconditionFailed, PointerBoundsPreconditionFailed, PointerFieldInsufficientPermission, RatZFracPreconditionFailed, RatFracPreconditionFailed, ZFracFracPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed}
+import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{ResolveReferences, ResolveTypes}
-import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
+import vct.col.rewrite.{Generation, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-case object ImportADT extends RewriterBuilder {
+trait ImportADTImporter {
+  def loadAdt[G](name: String): Either[Seq[CheckError], Program[G]]
+}
+
+case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
+  override def key: String = "adt"
+  override def desc: String = "Import types into vercors that are defined externally, usually via an axiomatic datatype."
+
   private def typeText(t: Type[_]): String = t match {
     case _: TNotAValue[_] => throw ExtraNode
     case TVoid() => "void"
@@ -147,19 +150,15 @@ case object ImportADT extends RewriterBuilder {
   }
 }
 
-case class ImportADT[Pre <: Generation]() extends CoercingRewriter[Pre] {
+case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends CoercingRewriter[Pre] {
   val arrayField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
   val pointerField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
 
   private def parse(name: String): Seq[GlobalDeclaration[Post]] = {
-    val decls = Parsers.parse[InitialGeneration](Configuration.getAdtFile(s"$name.pvl").toPath).decls
-    val moreDecls = ResolveTypes.resolve(Program(decls, None)(DiagnosticOrigin)(DiagnosticOrigin))
-    val typedProgram = LangTypesToCol().dispatch(Program(decls ++ moreDecls, None)(DiagnosticOrigin)(DiagnosticOrigin))
-    val errors = ResolveReferences.resolve(typedProgram)
-    if(errors.nonEmpty) throw InvalidImportedAdt(errors)
-    val regularProgram = LangSpecificToCol().dispatch(typedProgram)
-    val unambiguousProgram = Disambiguate().dispatch(regularProgram)
-    val program = unambiguousProgram.asInstanceOf[Program[Pre]]
+    val program = importer.loadAdt[Pre](name) match {
+      case Left(errors) => throw InvalidImportedAdt(errors)
+      case Right(program) => program
+    }
     program.declarations.foreach(dispatch)
     program.declarations.map(lookupSuccessor(_).get.asInstanceOf[GlobalDeclaration[Post]])
   }

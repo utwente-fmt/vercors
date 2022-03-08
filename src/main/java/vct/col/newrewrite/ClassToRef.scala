@@ -13,6 +13,9 @@ import RewriteHelpers._
 import scala.collection.mutable
 
 case object ClassToRef extends RewriterBuilder {
+  override def key: String = "classToRef"
+  override def desc: String = "Flatten classes into the Ref type, and encode the class type hierarchy operationally."
+
   case object TypeOfOrigin extends Origin {
     override def preferredName: String = "type"
     override def context: String =
@@ -118,7 +121,15 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               contract = function.contract.rewrite(
                 requires = SplitAccountedPredicate(
                   left = UnitAccountedPredicate(thisVar.get !== Null()),
-                  right = dispatch(function.contract.requires),
+                  right = SplitAccountedPredicate(
+                    left = UnitAccountedPredicate(
+                      FunctionInvocation[Post](instanceOf.ref(()), Seq(
+                        FunctionInvocation[Post](typeOf.ref(()), Seq(thisVar.get), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")),
+                        const(typeNumber(cls)),
+                      ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing."))
+                    ),
+                    right = dispatch(function.contract.requires),
+                  ),
                 )
               ),
               inline = function.inline,

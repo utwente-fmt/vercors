@@ -1,5 +1,6 @@
 package viper.api
 
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import hre.lang.System.{DebugException, Output}
 import viper.silver.reporter._
 
@@ -53,7 +54,9 @@ case class HREViperReporter(name: String = "hre_reporter", timeInfo: Boolean = t
       case CopyrightReport(text) =>
         Output( text )
 
-      case EntitySuccessMessage(_, _, _, _) =>    // FIXME Currently, we only print overall verification results to STDOUT.
+      case msg @ EntitySuccessMessage(_, _, _, _) =>
+        val logger = Logger("henk")
+        logger.info(s"${msg.concerning.name} ${msg.concerning.getClass.getSimpleName}")
       case EntityFailureMessage(_, _, _, _, _) => // FIXME Currently, we only print overall verification results to STDOUT.
       case ConfigurationConfirmation(_) =>     // TODO  use for progress reporting
         //Output( s"Configuration confirmation: $text" )

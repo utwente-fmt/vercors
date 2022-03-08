@@ -20,7 +20,7 @@ case class Substitute[G](subs: Map[Expr[G], Expr[G]],
   }
 
   override def dispatch(e: Expr[G]): Expr[G] = e match {
-    case expr if subs.contains(expr) => dispatch(subs(expr))
+    case expr if subs.contains(expr) => subs(expr)
     case other => rewriteDefault(other)
   }
 

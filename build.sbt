@@ -1,14 +1,10 @@
 import NativePackagerHelper._
-import sys.process._
 import java.io.File.pathSeparator
-import java.nio.file.{Files, Path, Paths}
-import java.net.URL
-import java.util.Comparator
 import sbt.internal._
 
 
-ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / fork := true
 
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
@@ -16,9 +12,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#014db3df47ef212e54dbb35ebc7decc87e1d76e6")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#16fb66e003f9d5e4fcb5a326eeed83d57fb4312d")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#a701b80ee9c6bfaee1ba8312faacec6537d6187f")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#v.22.02-release")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.22.02-release")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.22.02-release")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -72,14 +68,17 @@ ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
 
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
+lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
+lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
 
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
   .settings(
+    fork := true,
     name := "Vercors",
     organization := "University of Twente",
-    version := "1.4.0-SNAPSHOT",
+    version := "2.0.0-alpha.1",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -95,6 +94,9 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test",
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+    libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.1",
+    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
 
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
@@ -122,6 +124,18 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation"
     ),
 
+    Runtime / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
+
+    Test / javacOptions ++= Seq(
+      "-Xlint:deprecation",
+      "-Xlint:unchecked",
+      "-deprecation"
+    ),
+
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
@@ -139,26 +153,47 @@ lazy val vercors: Project = (project in file("."))
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
     Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
+    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
+    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
+    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
     Compile / doc / sources := Seq(),
+
+    Test / parallelExecution := false,
 
     Universal / mappings ++= Seq(file("README.md") -> "README.md")
       ++ directory("examples")
       // Copy the resources not in the jar and add them to the classpath.
       ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
 
+    Universal / packageBin / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
+    Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
+    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/vercors/res/$path") },
+
     scriptClasspath := scriptClasspath.value :+ "../res",
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),
-    Compile / mainClass := Some("vct.main.Main"),
+    Compile / mainClass := Some("vct.main.RealMain"),
 
     // Add options to run scripts produced by sbt-native-packager. See: https://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/customize.html#via-build-sbt
     Universal / javaOptions ++= Seq (
       // Needed because vercors needs a pretty big stack for some files with deep expressions.
-      "-J-Xss128m"
+      "-J-Xss128M"
+    ),
+
+    Runtime / javaOptions ++= Seq (
+      // Needed because vercors needs a pretty big stack for some files with deep expressions.
+      "-Xss256M"
+    ),
+
+    Test / javaOptions ++= Seq (
+      // Needed because vercors needs a pretty big stack for some files with deep expressions.
+      "-Xss256M"
     ),
 
     // Make publish-local also create a test artifact, i.e., put a jar-file into the local Ivy
@@ -171,10 +206,26 @@ lazy val vercors: Project = (project in file("."))
   )
 
 Global / printMainClasspath := {
-    val paths = (vercors / Compile / fullClasspath).value
-    val joinedPaths = paths
-        .map(_.data)
-        .mkString(pathSeparator)
-    println(joinedPaths)
+  val paths = (Compile / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
+}
+
+Global / printTestClasspath := {
+  val paths = (Test / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
+}
+
+Global / printRuntimeClasspath := {
+  val paths = (Runtime / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
 }
 

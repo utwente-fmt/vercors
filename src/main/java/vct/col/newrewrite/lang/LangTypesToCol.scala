@@ -12,6 +12,9 @@ import vct.result.VerificationResult.UserError
 import scala.reflect.ClassTag
 
 case object LangTypesToCol extends RewriterBuilder {
+  override def key: String = "langTypes"
+  override def desc: String = "Translate language-specific types (such as named types) to specific internal types."
+
   case class IncompleteTypeArgs(t: SilverPartialTAxiomatic[_]) extends UserError {
     override def code: String = "incompleteTypeArgs"
     override def text: String =

@@ -10,7 +10,10 @@ import vct.result.VerificationResult.Unreachable
 
 import scala.collection.mutable.ArrayBuffer
 
-case object PinSilverNodes extends RewriterBuilder
+case object PinSilverNodes extends RewriterBuilder {
+  override def key: String = "pinSilverNodes"
+  override def desc: String = "Disambiguate nodes into specific Silver nodes."
+}
 
 case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   def requirePredicateAccess(e: Expr[Pre]): SilverPredicateAccess[Post] = e match {

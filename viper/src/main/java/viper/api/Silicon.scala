@@ -2,6 +2,7 @@ package viper.api
 import hre.config.Configuration
 import viper.silicon.logger.SymbExLogger
 import viper.silver.plugin.PluginAwareReporter
+import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
 
 import java.nio.file.Path
@@ -9,8 +10,8 @@ import scala.annotation.nowarn
 
 @nowarn("any") // due to be removed
 case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends SilverBackend {
-  override def createVerifier: Verifier = {
-    val silicon = new viper.silicon.Silicon(PluginAwareReporter(HREViperReporter()), Seq("startedBy" -> "example", "fullCmd" -> "dummy"))
+  override def createVerifier(reporter: Reporter): viper.silicon.Silicon = {
+    val silicon = new viper.silicon.Silicon(reporter)
 
     val z3Config = '"' + z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ") + '"'
 
@@ -19,7 +20,7 @@ case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends Silver
       "--z3ConfigArgs", z3Config,
     )
 
-    if(Configuration.debugBackend.get()) {
+    if(Configuration.currentConfiguration.debugBackend.get()) {
       siliconConfig ++= Seq("--logLevel", "ALL")
     }
 

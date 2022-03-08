@@ -1,5 +1,7 @@
 package vct.parsers
 
+import vct.main.Vercors
+import vct.options.Options
 import vct.result.VerificationResult.UserError
 
 import java.nio.file.Path
@@ -10,8 +12,8 @@ object Parsers {
     override def code: String = "unknownExt"
   }
 
-  def getByExtension(extension: String): Parser = extension match {
-    case "cl" | "c" | "cu" => ColCParser()
+  def getByExtension(extension: String, vercors: Vercors): Parser = extension match {
+    case "cl" | "c" | "cu" => ColCParser(vercors.options.cIncludePath, Nil, vercors.options.cDefine)
     case "i" => ColIParser()
     case "java" => ColJavaParser(topLevelSpecs=false)
     case "jspec" => ColJavaParser(topLevelSpecs=true)
@@ -20,6 +22,6 @@ object Parsers {
     case other => throw UnknownFileExtension(other)
   }
 
-  def parse[G](path: Path): ParseResult[G] =
-    getByExtension(path.toString.split('.').last).parse(path.toFile)()
+  def parse[G](path: Path, vercors: Vercors): ParseResult[G] =
+    getByExtension(path.toString.split('.').last, vercors).parse(path.toFile)()
 }

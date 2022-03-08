@@ -9,6 +9,9 @@ import vct.col.ast.RewriteHelpers._
 import vct.result.VerificationResult.UserError
 
 case object ResolveScale extends RewriterBuilder {
+  override def key: String = "scale"
+  override def desc: String = "Inline the scale operator into resource expressions."
+
   case class WrongScale(scale: Expr[_]) extends UserError {
     override def code: String = "wrongScale"
     override def text: String =

@@ -12,6 +12,9 @@ import vct.result.VerificationResult.UserError
 import scala.collection.mutable.ArrayBuffer
 
 case object SwitchToGoto extends RewriterBuilder {
+  override def key: String = "switchToGoto"
+  override def desc: String = "Translate switch statement to a jump table."
+
   case class CaseOutsideSwitch(c: SwitchCase[_]) extends UserError {
     override def code: String = "case"
     override def text: String =

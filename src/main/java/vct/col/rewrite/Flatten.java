@@ -20,8 +20,11 @@ import hre.util.LambdaHelper;
 
 public class Flatten extends AbstractRewriter {
 
-  public Flatten(ProgramUnit source) {
+  private RewriteArrayRef rewriteArrayRef;
+
+  public Flatten(ProgramUnit source, RewriteArrayRef rewriteArrayRef) {
     super(source);
+    this.rewriteArrayRef = rewriteArrayRef;
   }
 
   /* TODO check for pure expression while copying! */
@@ -428,7 +431,7 @@ public class Flatten extends AbstractRewriter {
 
       current_block.addStatement(create.assignment(
               create.local_name(name),
-              create.invokation(null, null, RewriteArrayRef.getArrayConstructor(t, 1), constant(v.valuesLength()))
+              create.invokation(null, null, rewriteArrayRef.getArrayConstructor(t, 1), constant(v.valuesLength()))
       ));
 
       boolean derefItem = false;

@@ -15,6 +15,9 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object MonomorphizeContractApplicables extends RewriterBuilder {
+  override def key: String = "monomorphize"
+  override def desc: String = "Monomorphize generic declarations with their usages where Silver does not support generics."
+
   case class VerificationForGeneric(applicable: ContractApplicable[_]) extends Origin {
     override def preferredName: String = "verify_" + applicable.o.preferredName
     override def context: String = applicable.o.context

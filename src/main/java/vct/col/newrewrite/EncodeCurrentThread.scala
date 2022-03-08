@@ -8,6 +8,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
 case object EncodeCurrentThread extends RewriterBuilder {
+  override def key: String = "currentThread"
+  override def desc: String = "Translate \\current_thread into an explicit argument to all thread-local contexts."
+
   case object CurrentThreadIdOrigin extends Origin {
     override def preferredName: String = "tid"
     override def context: String = "[At generated variable for the current thread ID]"

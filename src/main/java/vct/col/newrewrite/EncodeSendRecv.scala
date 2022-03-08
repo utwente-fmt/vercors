@@ -4,14 +4,19 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
-import vct.col.newrewrite.EncodeSendRecv.{DuplicateRecv, WrongSendRecvPosition}
-import vct.col.origin.Origin
+import vct.col.newrewrite.EncodeSendRecv.{DuplicateRecv, SendFailedExhaleFailed, WrongSendRecvPosition}
+import vct.col.newrewrite.util.Substitute
+import vct.col.origin.{Blame, ExhaleFailed, Origin, SendFailed}
 import vct.col.ref.Ref
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
 import scala.collection.mutable
 
 case object EncodeSendRecv extends RewriterBuilder {
+  override def key: String = "sendRecv"
+  override def desc: String = "Encode send/recv pairs."
+
   case class WrongSendRecvPosition(stat: Statement[_]) extends UserError {
     override def code: String = "wrongSendRecv"
     override def text: String =
@@ -32,6 +37,11 @@ case object EncodeSendRecv extends RewriterBuilder {
         (right.o, "... and here."),
       ))
   }
+
+  case class SendFailedExhaleFailed(send: Send[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit =
+      send.blame.blame(SendFailed(error.failure, send))
+  }
 }
 
 case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
@@ -39,7 +49,10 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
   val recvOfDecl: mutable.Map[SendDecl[Pre], Recv[Pre]] = mutable.Map()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    program.transSubnodes.foreach { case send: Send[Pre] => sendOfDecl(send.decl) = send; case _ => }
+    program.transSubnodes.foreach {
+      case send: Send[Pre] => sendOfDecl(send.decl) = send
+      case _ =>
+    }
     program.rewrite()
   }
 
@@ -48,11 +61,14 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case block: Block[Pre] => rewriteDefault(block)
+    case scope: Scope[Pre] => rewriteDefault(scope)
     case label: Label[Pre] => rewriteDefault(label)
 
-    case Send(_, _, res) =>
-      if(allowSendRecv.top.isEmpty) throw WrongSendRecvPosition(stat)
-      else Exhale(freshSuccessionScope { dispatch(res) })(???)(stat.o)
+    case send @ Send(decl, _, res) =>
+      decl.drop()
+      if(allowSendRecv.top.isEmpty)
+        throw WrongSendRecvPosition(stat)
+      else Exhale(freshSuccessionScope { dispatch(res) })(SendFailedExhaleFailed(send))(stat.o)
 
     case recv @ Recv(Ref(decl)) =>
       val send = sendOfDecl(decl)
@@ -62,9 +78,16 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
         case None => recvOfDecl(decl) = recv
       }
 
-      if(allowSendRecv.top.isEmpty) throw WrongSendRecvPosition(stat)
-      else Inhale(???)(recv.o)
-
+      allowSendRecv.top match {
+        case None =>
+          throw WrongSendRecvPosition(stat)
+        case Some(v) =>
+          implicit val o: Origin = recv.o
+          val resource = Substitute(
+            Map[Expr[Pre], Expr[Pre]](v.get -> (v.get - const(send.delta))),
+          ).dispatch(send.res)
+          Inhale(freshSuccessionScope { dispatch(resource) })(stat.o)
+      }
 
     case other => allowSendRecv.having(None) { rewriteDefault(other) }
   }

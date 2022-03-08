@@ -10,6 +10,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 
 case object EncodeIntrinsicLock extends RewriterBuilder {
+  override def key: String = "intrinsicLock"
+  override def desc: String = "Encode the intrinsic lock of objects in Java/PVL."
+
   case class UnlockInvariantFoldFailed(unlock: Unlock[_]) extends Blame[FoldFailed] {
     override def blame(error: FoldFailed): Unit =
       unlock.blame.blame(UnlockInvariantFailed(unlock, error.failure))

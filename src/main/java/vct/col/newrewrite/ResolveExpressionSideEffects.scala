@@ -16,6 +16,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 case object ResolveExpressionSideEffects extends RewriterBuilder {
+  override def key: String = "sideEffects"
+  override def desc: String = "Discharge side effects from expression evaluation into its surrounding context."
+
   case object SideEffectOrigin extends Origin {
     override def preferredName: String = "flatten"
     override def context: String = "[At node generated to collect side effects]"
@@ -48,7 +51,9 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   // 1 + 2 --> flat1 = 1; flat2 = 2; flat3 = flat1 + flat2; flat3
   // However, extractions are first stored in this map, and are only flushed to the executionContext if an actual
   // side effect occurs. If not, they are removed from the map and inlined again.
-  val currentlyExtracted: mutable.Map[Variable[Post], (Seq[Expr[Post]], Expr[Post])] = mutable.Map()
+  val currentlyExtracted: mutable.LinkedHashMap[Variable[Post], (Seq[Expr[Post]], Expr[Post])] = mutable.LinkedHashMap()
+
+  val flushedExtracted: mutable.Set[Variable[Post]] = mutable.Set()
 
   // conditions may be duplicated, so they have to be duplicable for free probably? i.e. no internal declarations
   // like let.
@@ -56,25 +61,38 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   // When an actual side effect occurs, this flushes out the extracted pure expressions as side effects.
   def flushExtractedExpressions(): Unit = {
-    currentlyExtracted.foreach {
-      case (flat, (condition, pureExpr)) => executionContext.topOption match {
+    val allExtracted = currentlyExtracted.toSeq
+    currentlyExtracted.clear()
+
+    for((flat, _) <- allExtracted) {
+      flushedExtracted += flat
+    }
+
+    for((flat, (conditions, pureExpr)) <- allExtracted) {
+      executionContext.topOption match {
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
           flat.declareDefault(this)
           implicit val o: Origin = SideEffectOrigin
-          acceptor(Branch(Seq((
-            foldAnd(condition),
-            assignLocal(Local(flat.ref), pureExpr),
-          ))))
+          val condition = ReInliner().dispatch(foldAnd(conditions))
+          val action = assignLocal[Post](Local(flat.ref), pureExpr)
+          acceptor(condition match {
+            case BooleanValue(true) => action
+            case condition =>
+              Branch(Seq((condition, action)))
+          })
       }
     }
-    currentlyExtracted.clear()
   }
 
   def effect(stat: Statement[Post]): Unit = {
     flushExtractedExpressions()
     implicit val o: Origin = SideEffectOrigin
-    executionContext.top(Branch(Seq((foldAnd(currentConditions.toSeq), stat))))
+    val condition = ReInliner().dispatch(foldAnd(currentConditions.toSeq))
+    executionContext.top(condition match {
+      case BooleanValue(true) => stat
+      case condition => Branch(Seq((condition, stat)))
+    })
   }
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
@@ -90,8 +108,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           case Some((_, pureExpression)) =>
             pureExpression
           case None =>
-            val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
-            Local[Post](ResolveExpressionSideEffects.this.succ(preV))(e.o)
+            if(flushedExtracted.contains(v)) {
+              Local[Post](v.ref)(e.o)
+            } else {
+              val preV = (v: Variable[Post]).asInstanceOf[Variable[Pre]]
+              Local[Post](ResolveExpressionSideEffects.this.succ(preV))(e.o)
+            }
         }
       case other => rewriteDefault(other)
     }
@@ -297,8 +319,9 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   def dispatchImpure(e: Expr[Pre]): Local[Post] = e match {
     case Local(Ref(v)) =>
       // We do not take the successor here: ReInliner will do that.
-      val postV = (v : Variable[Pre]).asInstanceOf[Variable[Post]]
+      val postV = (v: Variable[Pre]).asInstanceOf[Variable[Post]]
       Local[Post](postV.ref)(e.o)
+
     case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
 
     // ## Nodes that induce an implicit evaluation condition: ##

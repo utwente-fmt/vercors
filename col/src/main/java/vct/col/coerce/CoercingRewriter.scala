@@ -1106,7 +1106,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Refute(assn) => Refute(res(assn))
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
       case Scope(locals, body) => Scope(locals, body)
-      case Send(decl, offset, resource) => Send(decl, offset, res(resource))
+      case send @ Send(decl, offset, resource) => Send(decl, offset, res(resource))(send.blame)
       case ass @ SilverFieldAssign(obj, field, value) => SilverFieldAssign(ref(obj), field, coerce(value, field.decl.t))(ass.blame)
       case SilverLocalAssign(v, value) => SilverLocalAssign(v, coerce(value, v.decl.t))
       case SilverNewRef(v, fields) => SilverNewRef(v, fields)

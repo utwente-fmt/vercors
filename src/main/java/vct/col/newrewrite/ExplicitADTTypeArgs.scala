@@ -12,6 +12,9 @@ import vct.result.VerificationResult.UserError
 import scala.collection.mutable
 
 case object ExplicitADTTypeArgs extends RewriterBuilder {
+  override def key: String = "adtTypeArgs"
+  override def desc: String = "Specify explicit type arguments for function invocations in axiomatic datatypes."
+
   case class UnspecifiedADTTypeArgs(inv: ADTFunctionInvocation[_]) extends UserError {
     override def code: String = "typeArgs"
     override def text: String =

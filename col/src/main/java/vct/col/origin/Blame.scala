@@ -83,6 +83,10 @@ case class FoldFailed(failure: ContractFailure, node: Fold[_]) extends WithContr
   override def text: String = "Fold may fail, since"
   override def code: String = "failed"
 }
+case class SendFailed(failure: ContractFailure, node: Send[_]) extends WithContractFailure {
+  override def text: String = "Send may fail, since"
+  override def code: String = "failed"
+}
 
 sealed trait AccountedDirection
 case object FailLeft extends AccountedDirection
@@ -371,7 +375,8 @@ case object PreBlameSplit {
 case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](blames: Map[AccountedDirection, Blame[PreconditionFailed]], default: Blame[T]) extends Blame[T] {
   override def blame(error: T): Unit = error match {
     case PreconditionFailed(path, failure, invokable) => path match {
-      case Nil => throw BlamePathError
+      case Nil =>
+        throw BlamePathError
       case FailLeft :: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invokable))
       case FailRight :: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invokable))
     }

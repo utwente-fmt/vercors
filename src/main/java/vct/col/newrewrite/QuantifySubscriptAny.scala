@@ -8,6 +8,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.UserError
 
 case object QuantifySubscriptAny extends RewriterBuilder {
+  override def key: String = "any"
+  override def desc: String = "Quantify expressions that are automatically quantified with *."
+
   case object GeneratedQuantifierOrigin extends Origin {
     override def preferredName: String = "i"
     override def context: String = "[At node generated for auto-quantified expressions containing `*`]"

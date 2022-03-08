@@ -12,6 +12,9 @@ import vct.result.VerificationResult.{Unreachable, UserError}
 import scala.collection.mutable
 
 case object EncodeArrayValues extends RewriterBuilder {
+  override def key: String = "arrayValues"
+  override def desc: String = "Encode \\values and array creation into functions/methods."
+
   case class ValuesFunctionOrigin(preferredName: String = "unknown") extends Origin {
     override def context: String = "[At node generated for \\values]"
   }

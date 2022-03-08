@@ -7,6 +7,8 @@ import vct.col.newrewrite.ApplyTermRewriter
 import vct.col.origin.Origin
 import vct.col.rewrite.{InitialGeneration, Rewritten}
 import vct.col.util.AstBuildHelpers._
+import vct.main.Vercors
+import vct.options.Options
 
 import java.nio.file.Paths
 
@@ -17,8 +19,9 @@ case class ApplyTermRewriterSpec() extends AnyFlatSpec with should.Matchers {
   }
 
   it should "do some stuff" in {
-    val rw = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl"))[InitialGeneration]()
-    val rw2 = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"))[InitialGeneration]()
+    val vercors = Vercors(Options())
+    val rw = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl"), vercors)[InitialGeneration]()
+    val rw2 = ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"), vercors)[InitialGeneration]()
 
     implicit val o: Origin = Named("unknown")
 

@@ -13,6 +13,9 @@ import vct.result.VerificationResult.Unreachable
 import scala.collection.mutable
 
 case object EncodeTryThrowSignals extends RewriterBuilder {
+  override def key: String = "tryThrowSignals"
+  override def desc: String = "Encode try, throw and signals specifications to goto, exception out-parameters and regular postconditions."
+
   case class ThrowNullAssertFailed(t: Throw[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       t.blame.blame(ThrowNull(t))

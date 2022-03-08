@@ -1,5 +1,0 @@
-axiom starall_star {
-  (∀type<any> T, boolean cond, resource r1, resource r2;
-    (∀* T t; (cond!t) ==> (r1!t) ** (r2!t)) ==
-    ((∀* T t; (cond!t) ==> (r1!t)) ** (∀* T t; (cond!t) ==> (r2!t))))
-}

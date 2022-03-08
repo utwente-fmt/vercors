@@ -9,6 +9,9 @@ import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
 
 case object GivenYieldsToArgs extends RewriterBuilder {
+  override def key: String = "givenYields"
+  override def desc: String = "Promote given and yields parameters into inlined arguments and out-parameters."
+
   case class MissingGivenArg(inv: InvokingNode[_], missing: Variable[_]) extends UserError {
     override def code: String = "missingGiven"
     override def text: String =

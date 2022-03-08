@@ -10,7 +10,7 @@ import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
-object GenerateADTFunctions {
+class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source) {
   val getRemoveFromSeqName: mutable.Map[Type, String] = mutable.Map()
   val getSetCompName: mutable.Map[SetComprehension, String] = mutable.Map()
 
@@ -32,22 +32,20 @@ object GenerateADTFunctions {
   def getSetCompFunction(sc: SetComprehension): String = {
     getSetCompName getOrElseUpdate(sc, getUniqueName("vct_set_comprehension_" + sc.result_type.toString))
   }
-}
 
-class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source) {
   override def rewriteAll(): ProgramUnit = {
     val res = super.rewriteAll()
 
     create.enter()
     create.setOrigin(new MessageOrigin("Sequence Function: Remove"))
-    for ((t, name) <- GenerateADTFunctions.getRemoveFromSeqName) {
+    for ((t, name) <- getRemoveFromSeqName) {
       res.add(removeFromSequenceByIndex(t, name))
     }
     create.leave()
 
     create.enter()
     create.setOrigin(new MessageOrigin("Set Function: Set Comprehension"))
-    for ((sc, name) <- GenerateADTFunctions.getSetCompName) {
+    for ((sc, name) <- getSetCompName) {
       res.add(generateSetComprehensionFunction(sc, name))
     }
     create.leave()
@@ -63,7 +61,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
 
         result = create.invokation(null,
           null,
-          GenerateADTFunctions.getSetCompFunction(binding.asInstanceOf[SetComprehension]),
+          getSetCompFunction(binding.asInstanceOf[SetComprehension]),
           rewrite(args.toArray): _*);
       case _ =>
         super.visit(binding)
@@ -74,7 +72,7 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     operator.operator match {
       case StandardOperator.RemoveAt =>
         val sequenceType = operator.arg(0).getType
-        result = create.invokation(null, null, GenerateADTFunctions.getRemoveFromSeqFunction(sequenceType), rewrite(operator.args.toArray): _*)
+        result = create.invokation(null, null, getRemoveFromSeqFunction(sequenceType), rewrite(operator.args.toArray): _*)
       case _ =>
         super.visit(operator)
     }

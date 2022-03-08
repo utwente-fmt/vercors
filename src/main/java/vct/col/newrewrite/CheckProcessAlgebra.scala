@@ -12,7 +12,10 @@ import scala.collection.mutable
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
-case object CheckProcessAlgebra extends RewriterBuilder
+case object CheckProcessAlgebra extends RewriterBuilder {
+  override def key: String = "processAlgebra"
+  override def desc: String = "TODO description"
+}
 
 case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
   case class ModelPostconditionFailed(process: ModelProcess[_]) extends Blame[CallableFailure] {

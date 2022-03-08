@@ -1,30 +1,24 @@
 package vct.main
 
-import com.sun.management.HotSpotDiagnosticMXBean
 import hre.config.Configuration
-import vct.col.ast.{Declaration, JavaPublic, Program, SimplificationRule}
+import hre.util.FileHelper
+import vct.col.ast.{Declaration, PermPointer, Program}
 import vct.col.check.CheckError
 import vct.col.debug.NotProcessed
 import vct.col.feature.{Feature, TypeValuesAndGenerics, WildcardReadPermission}
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
-import vct.col.origin.{DiagnosticOrigin, FileOrigin}
+import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
-import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder, Rewritten}
+import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.SuccessionMap
 import vct.java.JavaLibraryLoader
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult.{SystemError, UserError}
-import vct.test.CommandLineTesting
 import viper.api.Silicon
-import viper.silver.ast.WildcardPerm
 
-import java.io.File
-import java.lang.management.ManagementFactory
-import scala.jdk.CollectionConverters._
 import java.nio.file.{Path, Paths}
-import javax.management.MBeanServer
 import scala.collection.parallel.CollectionConverters._
 import scala.collection.parallel.ForkJoinTasks
 
@@ -87,9 +81,9 @@ case object Test {
   def tryParse(paths: Seq[Path]): Unit = try {
     files += 1
     println(paths.mkString(", "))
-    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration]))
+    val ParseResult(decls, expectedErrors) = ParseResult.reduce(paths.map(Parsers.parse[InitialGeneration](_, null)))
     val parsedProgram = Program(decls, Some(Java.JAVA_LANG_OBJECT[InitialGeneration]))(DiagnosticOrigin)(DiagnosticOrigin)
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader))
+    val extraDecls = ResolveTypes.resolve(parsedProgram, None)
     val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
     val typedProgram = LangTypesToCol().dispatch(untypedProgram)
     val errors = ResolveReferences.resolve(typedProgram)
@@ -143,13 +137,13 @@ case object Test {
       ClassToRef,
 
       // Simplify pure expressions (no more new complex expressions)
-      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl")),
-      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/pushin.pvl"), null),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"), null),
       SimplifyQuantifiedRelations,
-      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl")),
+      ApplyTermRewriter.BuilderForFile(Paths.get("src/main/universal/res/config/simplify.pvl"), null),
 
       // Translate internal types to domains
-      ImportADT,
+      ImportADT.withArg(null),
 
       ExtractInlineQuantifierPatterns,
       MonomorphizeContractApplicables,
@@ -171,7 +165,8 @@ case object Test {
     SuccessionMap.breakOnMissingPredecessor {
       var program: Program[_ <: Generation] = typedProgram
       for(pass <- passes) {
-        println(s"    ${pass.getClass.getSimpleName} (${program.declarations.size} decls in)")
+        val havePointerPerm = program.transSubnodes.collectFirst { case _: PermPointer[_] => () }.nonEmpty
+        println(s"    ${pass.getClass.getSimpleName} (${program.declarations.size} decls in, permPointer=$havePointerPerm)")
         val oldProgram = program
         program = pass().dispatch(program)
         oldProgram.declarations.par.foreach(_.transSubnodes.foreach {
@@ -196,7 +191,7 @@ case object Test {
           println(f"  $example")
         }
       }
-      Silicon(Map.empty, Configuration.getFileOrAbort(Paths.get("/deps/z3/4.8.6/Linux/x86_64/bin/z3")).toPath).submit(program)
+      Silicon(Map.empty, FileHelper.getFileOrAbort("/unix/z3/bin/z3").toPath).submit(program)
     }
 
     expectedErrors.foreach(_.signalDone())

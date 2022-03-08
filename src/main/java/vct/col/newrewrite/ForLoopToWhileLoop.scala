@@ -6,7 +6,10 @@ import vct.col.origin.Origin
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
-case object ForLoopToWhileLoop extends RewriterBuilder
+case object ForLoopToWhileLoop extends RewriterBuilder {
+  override def key: String = "forLoop"
+  override def desc: String = "Translate for loops into while loops by putting initialization and the update before and in the loop."
+}
 
 case class ForLoopToWhileLoop[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {

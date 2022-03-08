@@ -11,6 +11,9 @@ import vct.col.util.AstBuildHelpers._
 import scala.collection.mutable
 
 case object EncodeParAtomic extends RewriterBuilder {
+  override def key: String = "parAtomic"
+  override def desc: String = "Encode parallel atomics, invariants and barriers."
+
   case class ParInvariantCannotBeExhaled(invariant: ParInvariant[_]) extends Blame[ExhaleFailed] {
     override def blame(error: ExhaleFailed): Unit =
       invariant.blame.blame(ParInvariantNotEstablished(error.failure, invariant))

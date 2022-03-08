@@ -1,0 +1,8 @@
+private/
+tmp.sil
+tmp/
+
+*~
+*.class
+*.o
+

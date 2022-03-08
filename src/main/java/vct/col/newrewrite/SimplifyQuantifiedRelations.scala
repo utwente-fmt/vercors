@@ -14,7 +14,10 @@ import vct.col.util.AstBuildHelpers
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-case object SimplifyQuantifiedRelations extends RewriterBuilder
+case object SimplifyQuantifiedRelations extends RewriterBuilder {
+  override def key: String = "simplifyQuantifiedRelations"
+  override def desc: String = "Simplify comparisons of integers that are inside a quantifier."
+}
 
 case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
   case object SimplifyQuantifiedRelationsOrigin extends Origin {
