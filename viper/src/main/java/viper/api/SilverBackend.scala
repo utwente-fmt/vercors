@@ -1,4 +1,5 @@
 package viper.api
+import com.typesafe.scalalogging.LazyLogging
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationResult.SystemError
@@ -8,12 +9,14 @@ import viper.silver.verifier.errors._
 import viper.silver.verifier._
 import viper.silver.{ast => silver}
 
-import java.io.{File, PrintWriter}
+import java.io.{File, FileOutputStream, PrintWriter}
 import scala.reflect.ClassTag
+import scala.util.Using
 
-trait SilverBackend extends Backend {
+trait SilverBackend extends Backend with LazyLogging {
   case class NotSupported(text: String) extends SystemError
   case class ViperCrashed(text: String) extends SystemError
+
   case class ConsistencyErrors(errors: Seq[ConsistencyError]) extends SystemError {
     override def text: String =
       "The silver AST delivered to viper is not valid:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
@@ -40,6 +43,29 @@ trait SilverBackend extends Backend {
     silverProgram.check match {
       case Nil =>
       case some => throw ConsistencyErrors(some)
+    }
+
+    val f = File.createTempFile("vercors-", ".sil")
+    f.deleteOnExit()
+    Using(new FileOutputStream(f)) { out =>
+      out.write(silverProgram.toString().getBytes())
+    }
+    SilverParserDummyFrontend.parse(f.toPath) match {
+      case Left(errors) =>
+        logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
+        for(error <- errors) {
+          logger.warn(error.toString)
+        }
+      case Right(reparsedProgram) =>
+        SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
+          case Nil =>
+          case diffs =>
+            logger.warn("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+            for((left, right) <- diffs) {
+              logger.warn(s" - Left: ${left.getClass.getSimpleName}: $left")
+              logger.warn(s" - Right: ${right.getClass.getSimpleName}: $right")
+            }
+        }
     }
 
     val tracker = EntityTrackingReporter()

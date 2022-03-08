@@ -300,9 +300,18 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Take(xs, count) => silver.SeqTake(exp(xs), exp(count))(info=expInfo(e))
     case col.SeqUpdate(xs, i, x) => silver.SeqUpdate(exp(xs), exp(i), exp(x))(info=expInfo(e))
     case col.Concat(xs, ys) => silver.SeqAppend(exp(xs), exp(ys))(info=expInfo(e))
+
     case col.SetMember(x, xs) => silver.AnySetContains(exp(x), exp(xs))(info=expInfo(e))
     case col.SeqMember(x, xs) => silver.SeqContains(exp(x), exp(xs))(info=expInfo(e))
     case col.BagMemberCount(x, xs) => silver.AnySetContains(exp(x), exp(xs))(info=expInfo(e))
+
+    case col.SetMinus(xs, ys) => silver.AnySetMinus(exp(xs), exp(ys))(info=expInfo(e))
+    case col.BagMinus(xs, ys) => silver.AnySetMinus(exp(xs), exp(ys))(info=expInfo(e))
+    case col.SetUnion(xs, ys) => silver.AnySetUnion(exp(xs), exp(ys))(info=expInfo(e))
+    case col.BagAdd(xs, ys) => silver.AnySetUnion(exp(xs), exp(ys))(info=expInfo(e))
+    case col.SetIntersection(xs, ys) => silver.AnySetIntersection(exp(xs), exp(ys))(info=expInfo(e))
+    case col.BagLargestCommon(xs, ys) => silver.AnySetIntersection(exp(xs), exp(ys))(info=expInfo(e))
+
     case other => ??(other)
   }
 
@@ -339,7 +348,9 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Exhale(res) => silver.Exhale(exp(res))(info=NodeInfo(s))
     case col.Assert(assn) => silver.Assert(exp(assn))(info=NodeInfo(s))
     case col.Inhale(res) => silver.Inhale(exp(res))(info=NodeInfo(s))
-    case col.Assume(assn) => silver.Assume(exp(assn))(info=NodeInfo(s))
+    case col.Assume(assn) =>
+      // PB: OK, since assn is type-checked boolean and hence equivalent.
+      silver.Inhale(exp(assn))(info=NodeInfo(s))
     case col.Fold(p: col.PredicateApply[_]) => silver.Fold(pred(p))(info=NodeInfo(s))
     case col.Unfold(p: col.PredicateApply[_]) => silver.Unfold(pred(p))(info=NodeInfo(s))
     case col.SilverNewRef(v, fs) => silver.NewStmt(silver.LocalVar(ref(v), typ(v.decl.t))(), fs.map(ref => fields(ref.decl)))(info=NodeInfo(s))

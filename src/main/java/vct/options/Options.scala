@@ -57,10 +57,10 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.HelpVerifyPasses))
         .text("Lists the pass keys available for options that take a pass key."),
       opt[Unit]("quiet").abbr("q")
-        .action((_, c) => c.copy(logLevels = c.logLevels :+ ("vct", Verbosity.Error)))
+        .action((_, c) => c.copy(logLevels = c.logLevels ++ Seq(("vct", Verbosity.Error), ("viper.api", Verbosity.Error))))
         .text("Instruct VerCors to only log errors."),
       opt[Unit]("verbose").abbr("v")
-        .action((_, c) => c.copy(logLevels = c.logLevels :+ ("vct", Verbosity.Debug)))
+        .action((_, c) => c.copy(logLevels = c.logLevels ++ Seq(("vct", Verbosity.Debug), ("viper.api", Verbosity.Debug))))
         .text("Instruct VerCors to output debug information"),
 
       opt[(String, Verbosity)]("dev-log-verbosity").unbounded().hidden().keyValueName("<loggerKey>", "<verbosity>")
@@ -95,7 +95,7 @@ case object Options {
         .text("Stop VerCors successfully before the backend is used to verify the program"),
       opt[Unit]("skip-translation")
         .action((_, c) => c.copy(skipTranslation = true))
-        .text("Stop VerCors successully immediately after the file is parsed, and do no further processing"),
+        .text("Stop VerCors successully immediately after the file is parsed and resolved, and do no further processing"),
       opt[String]("skip-translation-after").valueName("<pass>")
         .action((pass, c) => c.copy(skipTranslationAfter = Some(pass)))
         .text("Stop VerCors successfully after executing the transformation pass with the supplied key"),
@@ -200,6 +200,7 @@ case class Options
   logLevels: Seq[(String, Verbosity)] = Seq(
     ("vct", Verbosity.Info),
     ("viper", Verbosity.Off),
+    ("viper.api", Verbosity.Info),
   ),
 
   // Verify Options

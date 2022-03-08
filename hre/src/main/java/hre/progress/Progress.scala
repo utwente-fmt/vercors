@@ -9,15 +9,12 @@ case object Progress {
 
   def isTTY: Boolean = Option(System.console()).isDefined
 
-//  private val wantProgress = isTTY
-//  private val wantPrettyProgress = Platform.getCurrent match {
-//    case Platform.Windows => false
-//    case Platform.Unix => true
-//    case Platform.Mac => true
-//  }
-
-  private val wantProgress = true
-  private val wantPrettyProgress = isTTY
+  private val wantProgress = isTTY
+  private val wantPrettyProgress = Platform.getCurrent match {
+    case Platform.Windows => false
+    case Platform.Unix => true
+    case Platform.Mac => true
+  }
 
   def esc(command: Char, args: String = ""): String =
     "\u001b[" + args + command
