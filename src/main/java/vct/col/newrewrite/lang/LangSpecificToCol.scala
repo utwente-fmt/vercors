@@ -742,7 +742,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
-    case JavaStringLiteral(data, stringType @ JavaTClass(Decl(stringClass), _)) =>
+    case JavaStringLiteral(data, JavaTClass(Decl(stringClass), _)) =>
       val stringOfSeq = {
         val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
         if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")

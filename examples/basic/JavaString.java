@@ -12,6 +12,11 @@ class JavaString {
         assert "abc" == "abc";
         //@ assert "abc".data()[0] != "xyz".data()[0]; // ???
         assert "abc" != "xyz";
+
+        String s1 = "aaa";
+        String s2 = "bbb";
+        String s3 = s1 + s2;
+
         assert CONST == CONST2;
     }
 

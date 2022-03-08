@@ -1,19 +1,21 @@
 package java.lang;
 
-public class String {
-    //@ pure seq<int> data();
+// TODO: Should not have to use instanceof anywhere in this file
 
+public class String {
     /*@
+    pure seq<int> data();
+
     ghost
-    // TODO: Should not have to use instanceof in postcondition here
     ensures \result != null ** \result instanceof String ** \result.data() == data;
     ensures (\forall seq<int> otherData; true; (otherData == data) == (\result == of(otherData)));
-    pure static String of(seq<int> data);
+    pure static final String of(seq<int> data);
+
+    ghost
+    ensures \result != null ** \result instanceof String;
+    pure static final String `operator+`(String a, String b);
     */
 
-    /*@
-    ghost
-    ensures \result == of(data());
-    pure String intern();
-    */
+    //@ ensures \result == of(data());
+    public native /*@ pure */ String intern();
 }
