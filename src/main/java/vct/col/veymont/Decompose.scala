@@ -72,14 +72,16 @@ class Decompose(override val source: ProgramUnit) extends AbstractRewriter(null,
   }
 
   override def visit(m : Method) : Unit = { //assume ony pre and postconditions
-    val c = m.getContract()
     val cb = new ContractBuilder()
-    val pre = selectResourceAnnotation(c.pre_condition)
-    val post = selectResourceAnnotation(c.post_condition)
-    checkAnnotation(pre, roleNames)
-    checkAnnotation(post,roleNames)
-    cb.requires(rewrite(pre))
-    cb.ensures(rewrite(post))
+    val c = m.getContract()
+    if(c != null) {
+      val pre = selectResourceAnnotation(c.pre_condition)
+      val post = selectResourceAnnotation(c.post_condition)
+      checkAnnotation(pre, roleNames)
+      checkAnnotation(post, roleNames)
+      cb.requires(rewrite(pre))
+      cb.ensures(rewrite(post))
+    }
     if(m.getParent match {
       case c : ASTClass => c.name == channelClassName
       case _ => false

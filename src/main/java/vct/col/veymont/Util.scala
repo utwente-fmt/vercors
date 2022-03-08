@@ -36,6 +36,7 @@ object Util {
   val chanRecvdFieldName = "recvd"
   val chanValueFieldName = "exchangeValue"
   val stringType = "String"
+  val ownerShipPredicateName = "ownership"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 
@@ -128,6 +129,13 @@ object Util {
   def getBlockOrThrow(a : ASTNode, errorMessage : String) : BlockStatement = a match {
     case b : BlockStatement => b
     case _ => throw Failure(errorMessage)
+  }
+
+  def getArgPrimitiveSorts(typeNode: ASTNode) : List[PrimitiveSort] = {
+    typeNode match {
+      case p : PrimitiveType => p.sort :: p.args.flatMap(getArgPrimitiveSorts)
+      case _ => List()
+    }
   }
 
 }

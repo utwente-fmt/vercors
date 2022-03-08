@@ -938,7 +938,7 @@ object Passes {
           f = f.substring(0,f.length-5) + "Glob.java"
         else
           Fail("File name %s unexpected file for VeyMont!",f)
-        PrintVeyMontProg.print(arg,f)
+        PrintVeyMontProg.print(arg,f,false)
       }
       , introduces=Set(), permits=Feature.ALL),
     SimplePass("VeyMontDecompose", "generate local program classes from given global program",
@@ -952,7 +952,7 @@ object Passes {
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
       new GenerateForkJoinMain(_).addStartThreadClass(true)), //TODO: put this argument in VeyMont Configuration
     SimplePass("printVeyMontOutput", "print AST produced by VeyMont in PVL or Java syntax",
-      PrintVeyMontProg.print(_,Configuration.veymont_file.get())
+      PrintVeyMontProg.print(_,Configuration.veymont_file.get(),true)
       , introduces=Set(), permits=Feature.ALL),
   )
 

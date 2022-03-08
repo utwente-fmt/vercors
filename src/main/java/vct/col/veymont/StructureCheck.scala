@@ -146,12 +146,6 @@ class StructureCheck(source : ProgramUnit) {
             }
           }
         }
-        mcl.methods().asScala.find(_.name == mainMethodName) match {
-          case None => Fail("VeyMont Fail: The class '" + mainClassName + "' must have the following method: " + fixedMainMethod)
-          case Some(mainMethod) =>
-            if(!isVoidType(mainMethod.getReturnType))
-              Fail("VeyMont Fail: The return type of method '%s' has to be void!", mainMethodName)
-        }
     }
   }
 
@@ -202,14 +196,21 @@ class StructureCheck(source : ProgramUnit) {
         !isRealResource(m))
 
   private def checkMainMethod() : Unit = {
-    val mainMethod = mainClass.methods().asScala.find(_.name == mainMethodName).get
-    val b = getBlockOrThrow(mainMethod.getBody, "VeyMont Fail: expected BlockStatement for method " + mainMethodName)
-    if(b.getLength != 2)
-      fixedMainFail()
-    else {
-      checkMainBodyFirstLine(b)
-      checkMainBodySecondLine(b)
+    mainClass.methods().asScala.find(_.name == mainMethodName) match {
+      case Some(mainMethod) => {
+        if(!isVoidType(mainMethod.getReturnType))
+          Fail("VeyMont Fail: The return type of method '%s' has to be void!", mainMethodName)
+        val b = getBlockOrThrow(mainMethod.getBody, "VeyMont Fail: expected BlockStatement for method " + mainMethodName)
+        if(b.getLength != 2)
+          fixedMainFail()
+        else {
+          checkMainBodyFirstLine(b)
+          checkMainBodySecondLine(b)
+        }
+      }
+      case None => //it will be added in preprocessing
     }
+
   }
 
   private def checkMainBodyFirstLine(b : BlockStatement): Unit =
@@ -290,19 +291,15 @@ class StructureCheck(source : ProgramUnit) {
       case i: IfStatement => {
         if (i.getCount == 1 || i.getCount == 2) {
           if (checkVeyMontCondition(i.getGuard(0), roleNames)) {
-            if(checkEqualRoleExpressions(prevAssertArg,i.getGuard(0))) {
               checkMainStatement(i.getStatement(0))
               if (i.getCount == 2) checkMainStatement(i.getStatement(1))
-            } else Fail("VeyMont Fail: IfStatement needs to be preceded by an assert stating the equality of all the role expressions from the conditions! %s",i.getOrigin)
           } else Fail("VeyMont Fail: IfStatement needs to have one condition for each role! " + s.getOrigin)
         } else Fail("VeyMont Fail: one or two branches expected in IfStatement! " + s.getOrigin)
       }
       case l: LoopStatement => {
         if (l.getInitBlock == null && l.getUpdateBlock == null) { //it is a while loop
           if (checkVeyMontCondition(l.getEntryGuard, roleNames)) {
-            if(checkEqualRoleExpressions(l.getContract.invariant,l.getEntryGuard))
               checkMainStatement(l.getBody)
-            else Fail("VeyMont Fail: a while loop needs to have a loop invariant stating the equality of all the role expressions from the conditions! %s",l.getOrigin)
           } else Fail("VeyMont Fail: a while loop needs to have one condition for each role! " + s.getOrigin)
         } else Fail("VeyMont Fail: a for loop is not supported, use a while loop! " + s.getOrigin)
       }
@@ -389,25 +386,12 @@ class StructureCheck(source : ProgramUnit) {
     getRoleOrHelperClass(source).filter(c => roleClassTypes.exists(_ == c.name))
   }
 
-  private def checkEqualRoleExpressions(assert : ASTNode, condition : ASTNode) : Boolean = {
-    var expMap : Map[ASTNode,Int] = splitOnAnd(condition).map(n => (n,0)).toMap
-    for(exp <- ASTUtils.conjuncts(assert,StandardOperator.Star, StandardOperator.And).asScala) {
-      exp match {
-        case op : OperatorExpression => if(op.operator == StandardOperator.EQ && op.argslength == 2 && op.arg(0) != op.arg(1)) {
-          op.args.foreach(a =>
-            if(expMap.contains(a))
-              expMap = expMap + (a -> (expMap(a) + 1))
-          )
-        }
-        case _ => //do nothing
-      }
-    }
-    expMap.values.sum == (expMap.size - 1) * 2
-  }
-
   private def checkMainMethodsTypes = {
     checkNonRoleOrPrimitiveMethodTypes(getMainConstructor)
-    checkNonRoleOrPrimitiveMethodTypes(mainClass.methods().asScala.find(_.name == mainMethodName).get)
+    mainClass.methods().asScala.find(_.name == mainMethodName) match {
+      case Some(m) => checkNonRoleOrPrimitiveMethodTypes(m)
+      case None => //nothing to check method will be added in preprocessing
+    }
   }
 
   private def checkRoleMethodsTypes : Unit = {

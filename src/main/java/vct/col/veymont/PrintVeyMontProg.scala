@@ -8,22 +8,22 @@ import java.io.{File, FileOutputStream, IOException, PrintWriter}
 
 object PrintVeyMontProg {
 
-  def print(prog : ProgramUnit, destFileName : String) : ProgramUnit = {
+  def print(prog : ProgramUnit, destFileName : String, forkjoin : Boolean) : ProgramUnit = {
     try {
       val f = new File(destFileName);
       val b = f.createNewFile();
       if(!b) {
       Debug("File %s already exists and is now overwritten", destFileName);
-    }
+      }
       val out = new PrintWriter(new FileOutputStream(f));
-      if(destFileName.endsWith(".pvl"))
-      PVLSyntax.get().print(out,prog)
-      else if(destFileName.endsWith(".java")) {
+      if(destFileName.endsWith(".pvl")) {
+        PVLSyntax.get().print(out, prog)
+      } else if(destFileName.endsWith(".java")) {
       out.println("import java.util.concurrent.*;")
       out.println("import java.util.List;")
       out.println("import java.util.Map;")
-      JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, new JavaForkJoin(prog).rewriteAll())
-    }
+      JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, if(forkjoin) new JavaForkJoin(prog).rewriteAll() else prog)
+      }
       else Fail("VeyMont Fail: VeyMont cannot write output to file %s",destFileName)
       out.close();
     } catch {

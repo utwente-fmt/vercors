@@ -27,8 +27,8 @@ import java.nio.file.Paths
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  //def main(args: Array[String]): Unit = new Main().run(args)
-  def main(args: Array[String]): Unit = Preprocessor.main(args)
+  def main(args: Array[String]): Unit = new Main().run(args)
+  //def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 
 class Main {
@@ -214,7 +214,8 @@ class Main {
     Seq(
       BY_KEY("VeyMontStructCheck"),
       BY_KEY("VeyMontTerminationCheck"),
-    //  BY_KEY("VeyMontGlobalProgPerms"),
+      BY_KEY("VeyMontGlobalProgPerms"),
+      BY_KEY("printGlobProg"),
       BY_KEY("VeyMontDecompose"),
       BY_KEY("removeEmptyBlocks"),
       BY_KEY("VeyMontLocalProgConstr"),
