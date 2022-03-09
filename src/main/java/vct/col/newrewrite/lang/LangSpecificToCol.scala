@@ -18,10 +18,6 @@ import scala.collection.mutable.ArrayBuffer
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
-object Decl {
-  def unapply[G, D <: Declaration[G]](ref: Ref[G, D]): Option[D] = Some(ref.decl)
-}
-
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
