@@ -68,6 +68,11 @@ object Types {
       }
 
     // TODO similar stuff for JavaClass
+    // Only need to do this for TJavaString. for JavaTClass(String) this should be handled by regular java inheritance rules
+    case (TJavaString(), JavaTClass(ref, _)) if ref.decl.isSpecial(JavaLangString()) => TJavaString()
+    case (JavaTClass(ref, _), TJavaString()) if ref.decl.isSpecial(JavaLangString()) => TJavaString()
+    case (TJavaString(), JavaTClass(ref, _)) => ??? // Traverse the ref to find java.lang.object, or make it appear out of nowhere somehow
+    case (JavaTClass(ref, _), TJavaString()) => ???
 
     case (TUnion(left), TUnion(right)) => TUnion((left ++ right).distinct)
     case (TUnion(left), right) => TUnion((left :+ right).distinct)
