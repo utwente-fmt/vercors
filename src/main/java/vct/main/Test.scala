@@ -60,7 +60,7 @@ case object Test {
 //        }
 //      })
 
-      val paths = Seq("examples/basic/JavaAnnotation.java")
+      val paths = Seq("examples/arrays/basic-examples.c")
 
       tryParse(paths.map(Paths.get(_)))
     } finally {
@@ -88,8 +88,6 @@ case object Test {
     val typedProgram = LangTypesToCol().dispatch(untypedProgram)
     val errors = ResolveReferences.resolve(typedProgram)
     printErrors(errors)
-
-    // println(typedProgram)
 
     val passes: Seq[RewriterBuilder] = Seq(
       // Language-specific nodes -> COL (because of fragile references)
@@ -197,16 +195,13 @@ case object Test {
     expectedErrors.foreach(_.signalDone())
   } catch {
     case Exit =>
-//      Exit.printStackTrace()
     case err: SystemError =>
       val x = err
       println(err.text)
       systemErrors += 1
-//      err.printStackTrace()
     case res: UserError =>
       errorCount += 1
       println(res.text)
-//      res.printStackTrace()
     case e: Throwable =>
       e.printStackTrace()
       crashes += 1
