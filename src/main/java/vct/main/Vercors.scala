@@ -130,14 +130,10 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
       val ParseResult(decls, expectedErrors) = parse(options.inputs : _*)
       Progress.nextPhase()
 
-      println("Resolving")
-
       var program = resolve(decls, withJava = true) match {
         case Left(errors) => throw InputResolutionError(errors)
         case Right(program) => program
       }
-
-      println("Done")
 
       Progress.foreach(passes, (pass: RewriterBuilder) => pass.key)(pass => {
         println(pass.getClass.getSimpleName)
