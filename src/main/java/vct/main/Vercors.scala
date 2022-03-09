@@ -136,8 +136,6 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
       }
 
       Progress.foreach(passes, (pass: RewriterBuilder) => pass.key)(pass => {
-        println(pass.getClass.getSimpleName)
-
         options.outputBeforePass.get(pass.key) match {
           case None =>
           case Some(PathOrStd.StdInOrOut) =>
