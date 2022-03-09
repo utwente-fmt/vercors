@@ -11,6 +11,7 @@ adt `option`<T> {
 }
 
 requires opt != `option`<T>.`None`();
+ensures `option`<T>.some(\result) == opt;
 pure T opt_get<T>(`option`<T> opt) = `option`<T>.option_get(opt);
 
 ensures opt == `option`<T>.`None`() ==> \result == alt;

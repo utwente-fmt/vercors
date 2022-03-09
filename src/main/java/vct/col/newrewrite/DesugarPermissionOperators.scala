@@ -3,7 +3,7 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteBuilders._
-import vct.col.origin.{FramedArrIndex, FramedArrLength, Origin}
+import vct.col.origin.{FramedArrIndex, FramedArrLength, IteratedArrayInjective, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 case object DesugarPermissionOperators extends RewriterBuilder {
@@ -24,7 +24,7 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
       case ValidMatrix(mat1, dim01, dim11) =>
         val (mat, dim0, dim1) = (dispatch(mat1), dispatch(dim01), dispatch(dim11))
         (mat !== Null()) && (Length(mat)(FramedArrLength) === dim0) &*
-          starall(TInt(), row =>
+          starall(IteratedArrayInjective, TInt(), row =>
             (const(0) <= row && row < dim0) ==>
               arrayPerm(mat, row, ReadPerm())
           ) &* forall(TInt(), row =>

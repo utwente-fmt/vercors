@@ -68,6 +68,11 @@ case object ParBlockEncoder extends RewriterBuilder {
         PanicBlame("A procedure that proves an implication, of which the body is the nop statement cannot throw an exception.").blame(error)
     }
   }
+
+  case class ParBlockNotInjective(block: ParBlock[_], expr: Expr[_]) extends Blame[ReceiverNotInjective] {
+    override def blame(error: ReceiverNotInjective): Unit =
+      block.blame.blame(ParPredicateNotInjective(block, expr))
+  }
 }
 
 case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
@@ -81,7 +86,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
     block.iters.foldLeft(body)((body, iter) => {
       val v = quantVars(iter.variable)
-      Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)
+      Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)(ParBlockNotInjective(block, expr))
     })
   }
 

@@ -35,7 +35,9 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
       app.typeArgs.foreach(_.drop())
       val typeValues = app.typeArgs.map(v => dispatch(v.t.asInstanceOf[TType[Pre]].t))
       currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
-        app.rewrite(typeArgs = Nil).succeedDefault(app)
+        freshSuccessionScope {
+          app.rewrite(typeArgs = Nil).succeedDefault(app)
+        }
       }
     case other => rewriteDefault(other)
   }
@@ -46,9 +48,7 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
 
       val app = monomorphized.getOrElseUpdate(typeValues, currentSubstitutions.having(inv.ref.decl.typeArgs.zip(typeValues).toMap) {
         freshSuccessionScope {
-          val app1 = inv.ref.decl.rewrite(typeArgs = Nil)
-          app1.declareDefault(this)
-          app1
+          inv.ref.decl.rewrite(typeArgs = Nil).succeedDefault(inv.ref.decl)
         }
       })
 

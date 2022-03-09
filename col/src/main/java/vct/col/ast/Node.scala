@@ -361,7 +361,7 @@ final case class AmbiguousResult[G]()(implicit val o: Origin) extends Expr[G] wi
 
 final case class Result[G](applicable: Ref[G, ContractApplicable[G]])(implicit val o: Origin) extends Expr[G] with ResultImpl[G]
 final case class CurrentThreadId[G]()(implicit val o: Origin) extends Expr[G] with CurrentThreadIdImpl[G]
-final case class Any[G]()(val blame: Blame[ArrayNull])(implicit val o: Origin) extends Expr[G] with AnyImpl[G]
+final case class Any[G]()(val blame: Blame[AnyStarError])(implicit val o: Origin) extends Expr[G] with AnyImpl[G]
 final case class ReadPerm[G]()(implicit val o: Origin) extends Expr[G] with ReadPermImpl[G]
 final case class Values[G](arr: Expr[G], from: Expr[G], to: Expr[G])(val blame: Blame[ArrayValuesError])(implicit val o: Origin) extends Expr[G] with ValuesImpl[G]
 final case class MapEq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with MapEqImpl[G]
@@ -375,7 +375,7 @@ final case class MapRemove[G](map: Expr[G], k: Expr[G])(implicit val o: Origin) 
 
 sealed trait Binder[G] extends Expr[G] with BinderImpl[G]
 final case class Forall[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForallImpl[G]
-final case class Starall[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(implicit val o: Origin) extends Binder[G] with StarallImpl[G]
+final case class Starall[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(val blame: Blame[ReceiverNotInjective])(implicit val o: Origin) extends Binder[G] with StarallImpl[G]
 final case class Exists[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ExistsImpl[G]
 final case class Sum[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with SumImpl[G]
 final case class Product[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with ProductImpl[G]

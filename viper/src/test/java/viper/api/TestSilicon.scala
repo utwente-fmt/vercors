@@ -51,8 +51,7 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
     body=Assert[G](
       Starall(Seq(i), Seq(),
         Implies(i.get >= const(0) && i.get < Size(rs.get),
-          Perm((rs.get @@ i.get)~>int, WritePerm()))))
-      (ExpectError())
+          Perm((rs.get @@ i.get)~>int, WritePerm())))(ExpectError()))(noErrors)
   )
 
   val p = new Variable[G](TRational())

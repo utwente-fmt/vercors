@@ -2,14 +2,14 @@ package vct.main
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{GlobalDeclaration, Node, Procedure, Program}
+import vct.col.ast.{CGlobalDeclaration, GlobalDeclaration, Node, Procedure, Program}
 import vct.col.check.CheckError
 import vct.col.feature.{Feature, FeatureRainbow}
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
 import vct.col.origin.Origin
-import vct.col.resolve.{Java, ResolutionError, ResolveReferences, ResolveTypes}
+import vct.col.resolve.{C, Java, RefCGlobalDeclaration, ResolutionError, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.java.JavaLibraryLoader
 import vct.main.Vercors.{FileSpanningOrigin, InputResolutionError, TemporarilyUnsupported}
@@ -35,11 +35,11 @@ case object Vercors {
     override def text: String = errors.map(_.toString).mkString("\n")
   }
 
-  case class TemporarilyUnsupported(feature: Feature, examples: Seq[Node[_]]) extends UserError {
+  case class TemporarilyUnsupported(feature: String, examples: Seq[Node[_]]) extends UserError {
     override def code: String = "unsupported"
     override def text: String =
       examples.head.o.messageInContext(
-        s"The feature `${feature.getClass.getSimpleName.stripSuffix("$")}` is temporarily unsupported.")
+        s"The feature `$feature` is temporarily unsupported.")
   }
 }
 
@@ -139,6 +139,15 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
       val ParseResult(decls, expectedErrors) = parse(options.inputs : _*)
       Progress.nextPhase()
 
+      decls.foreach(_.transSubnodes.foreach {
+        case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
+          if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
+            throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
+          }
+        })
+        case _ =>
+      })
+
       var program = resolve(decls, withJava = true) match {
         case Left(errors) => throw InputResolutionError(errors)
         case Right(program) => program
@@ -154,7 +163,7 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
 
       feature.Feature.examples(program).foreach {
         case (feature, examples) if tempUnsupported.contains(feature) =>
-          throw TemporarilyUnsupported(feature, examples.toSeq)
+          throw TemporarilyUnsupported(feature.getClass.getSimpleName.stripSuffix("$"), examples.toSeq)
         case (_, _) =>
       }
 

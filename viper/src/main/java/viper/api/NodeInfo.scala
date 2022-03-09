@@ -1,6 +1,6 @@
 package viper.api
 
-import vct.col.ast.{Expr, LoopInvariant, Node, SeqSubscript}
+import vct.col.ast.{Expr, LoopInvariant, Node, SeqSubscript, Starall}
 import vct.col.origin.AccountedDirection
 import viper.silver.ast.Info
 
@@ -9,6 +9,7 @@ case class NodeInfo[T <: Node[_]](node: T) extends Info {
   var permissionValuePermissionNode: Option[Expr[_]] = None
   var predicatePath: Option[Seq[AccountedDirection]] = None
   var invariant: Option[LoopInvariant[_]] = None
+  var starall: Option[Starall[_]] = None
 
   override def comment: Seq[String] = Nil
   override def isCached: Boolean = false

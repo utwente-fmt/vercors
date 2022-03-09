@@ -15,9 +15,6 @@ case class ContractFalse(node: Expr[_]) extends ContractFailure {
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def toString: String = "there might not be enough permission to exhale this amount"
 }
-case class ReceiverNotInjective(node: Expr[_]) extends ContractFailure {
-  override def toString: String = "the location in this permission predicate may not be injective with regards to the quantified variables"
-}
 case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def toString: String = "the amount of permission in this permission predicate may be negative"
 }
@@ -136,6 +133,10 @@ case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvari
   override def text: String = "This invariant may not be maintained, since"
   override def code: String = "notMaintained"
 }
+case class ReceiverNotInjective(node: Starall[_]) extends NodeVerificationFailure with AnyStarError {
+  override def text: String = "The location of the permission predicate in this quantifier may not be injective with regards to the quantified variables."
+  override def code: String = "notInjective"
+}
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def text: String = "The divisor may be zero."
   override def code: String = "divByZero"
@@ -189,16 +190,26 @@ case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed {
   override def code: String = "barrierThrows"
 }
 
-sealed trait ParBlockFailure extends WithContractFailure
-case class ParPreconditionFailed(failure: ContractFailure, node: ParRegion[_]) extends ParBlockFailure {
+sealed trait ParBlockFailure extends VerificationFailure
+case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) extends ParBlockFailure {
+  override def code: String = "parNotInjective"
+  override def text: String =
+    Origin.messagesInContext(Seq(
+      (block.o, "This parallel block causes the formulas in its body to be quantified over all threads, ..."),
+      (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables."),
+    ))
+}
+
+sealed trait ParBlockContractFailure extends ParBlockFailure with WithContractFailure
+case class ParPreconditionFailed(failure: ContractFailure, node: ParRegion[_]) extends ParBlockContractFailure {
   override def text: String = "The precondition of this parallel region may not hold, since"
   override def code: String = "parPreFailed"
 }
-case class ParBlockPostconditionFailed(failure: ContractFailure, node: ParBlock[_]) extends ParBlockFailure {
+case class ParBlockPostconditionFailed(failure: ContractFailure, node: ParBlock[_]) extends ParBlockContractFailure {
   override def text: String = "The postcondition of this parallel block may not hold, since"
   override def code: String = "parPostFailed"
 }
-case class ParBlockMayNotThrow(failure: ContractFailure, node: ParBlock[_]) extends ParBlockFailure {
+case class ParBlockMayNotThrow(failure: ContractFailure, node: ParBlock[_]) extends ParBlockContractFailure {
   override def text: String = "The implementation of this parallel block may throw an exception."
   override def code: String = "parThrows"
 }
@@ -221,7 +232,8 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def text: String = "Map may not contain this key."
 }
 sealed trait ArraySubscriptError extends FrontendSubscriptError
-case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinError {
+sealed trait AnyStarError extends VerificationFailure
+case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinError with AnyStarError {
   override def code: String = "arrayNull"
   override def text: String = "Array may be null."
 }
@@ -385,7 +397,7 @@ case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](blames:
 }
 
 case class BlameUnreachable(message: String, failure: VerificationFailure) extends VerificationResult.SystemError {
-  def text: String = s"An error condition was reached, which should be statically unreachable. $message ($failure)"
+  def text: String = s"An error condition was reached, which should be statically unreachable. $message. Inner failure:\n${failure.toString.split('\n').mkString(" > ", "\n > ", "")}"
 }
 
 case class PanicBlame(message: String) extends Blame[VerificationFailure] {
@@ -395,6 +407,7 @@ case class PanicBlame(message: String) extends Blame[VerificationFailure] {
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
+object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
 object FramedArrLength extends PanicBlame("length query in `arr == null ? _ : arr.length` should always be ok.")
 object FramedMapGet extends PanicBlame("access in `∀k. k \\in m.keys ==> ...m[k]...` should always be ok.")
 object FramedGetLeft extends PanicBlame("left in `e.isLeft ? e.left : ...` should always be ok.")

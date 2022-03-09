@@ -6,7 +6,7 @@ import vct.result.VerificationResult.Unreachable
 
 trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
   protected def transSupportArrows(seen: Set[Class[G]]): Seq[(Class[G], Class[G])] =
-    if(seen.contains(this)) throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
+    if(seen.contains(this)) Nil
     else supports.map(other => (this, other.decl)) ++
       supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
 

@@ -53,7 +53,7 @@ class ScopeContext[Pre, Post] {
   }
 
   def lookupSuccessor: Declaration[Pre] => Option[Declaration[Post]] = {
-    val frozenSuccessionMap = successionMap.toSeq
+    val frozenSuccessionMap = successionMap.toSeq.reverse
     (decl: Declaration[Pre]) =>
       FuncTools.firstOption[SuccessionMap[Declaration[Pre], Declaration[Post]], Declaration[Post]](frozenSuccessionMap, _.get(decl))
   }

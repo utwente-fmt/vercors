@@ -268,7 +268,7 @@ case class SilverToCol[G](program: silver.Program) {
       case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverDeref[G](f(loc.rcv), new UnresolvedRef(loc.field.name))(DerefPerm), f(perm))
       case silver.Forall(variables, triggers, exp) =>
         if(exp.typ == silver.Bool) col.Forall(variables.map(transform), triggers.map(transform), f(exp))
-        else col.Starall(variables.map(transform), triggers.map(transform), f(exp))
+        else col.Starall(variables.map(transform), triggers.map(transform), f(exp))(blame(e))
       case silver.FractionalPerm(left, right) => col.Div(f(left), f(right))(blame(e))
       case silver.FullPerm() => col.WritePerm()
       case silver.FuncApp(funcname, args) => col.FunctionInvocation[G](new UnresolvedRef(funcname), args.map(f), Nil, Nil, Nil)(blame(e))

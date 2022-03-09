@@ -14,4 +14,6 @@ adt array {
 }
 
 requires 0 <= i && i < `array`.alen(a);
+ensures `array`.loc_inv_1(\result) == a;
+ensures `array`.loc_inv_2(\result) == i;
 pure ref aloc(array a, int i) = `array`.array_loc(a, i);

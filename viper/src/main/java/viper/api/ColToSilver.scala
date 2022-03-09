@@ -38,6 +38,7 @@ case class ColToSilver(program: col.Program[_]) {
   var names: mutable.Map[col.Declaration[_], (String, Int)] = mutable.Map()
   val currentPredicatePath: ScopedStack[Seq[AccountedDirection]] = ScopedStack()
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
+  val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -201,6 +202,7 @@ case class ColToSilver(program: col.Program[_]) {
     val result = NodeInfo(e)
     result.predicatePath = currentPredicatePath.topOption
     result.invariant = currentInvariant.topOption
+    result.starall = currentStarall.topOption
     result
   }
 
@@ -229,8 +231,10 @@ case class ColToSilver(program: col.Program[_]) {
       scoped { silver.Exists(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
     case col.Forall(bindings, triggers, body) =>
       scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
-    case col.Starall(bindings, triggers, body) =>
-      scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
+    case starall @ col.Starall(bindings, triggers, body) =>
+      scoped { currentStarall.having(starall) {
+        silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e))
+      } }
     case col.Let(binding, value, main) =>
       scoped { silver.Let(variable(binding), exp(value), exp(main))(info=expInfo(e)) }
     case col.Not(arg) => silver.Not(exp(arg))(info=expInfo(e))

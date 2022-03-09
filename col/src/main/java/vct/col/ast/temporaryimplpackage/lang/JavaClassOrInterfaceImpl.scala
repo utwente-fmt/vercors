@@ -13,15 +13,15 @@ trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
 
   def transSupportArrows(seen: Set[JavaClassOrInterface[G]]): Seq[(JavaClassOrInterface[G], JavaClassOrInterface[G])] = {
     if(seen.contains(this)) {
-      throw Unreachable("Yes, you got me, cyclical inheritance is not supported!")
-    }
+      Nil
+    } else {
+      val ts = supports.flatMap {
+        case JavaTClass(Ref(cls), _) => Seq(cls)
+        case _ => Nil
+      }
 
-    val ts = supports.flatMap {
-      case JavaTClass(Ref(cls), _) => Seq(cls)
-      case _ => Nil
+      ts.map((this, _)) ++ ts.flatMap(_.transSupportArrows(Set(this) ++ seen))
     }
-
-    ts.map((this, _)) ++ ts.flatMap(_.transSupportArrows(Set(this) ++ seen))
   }
 
   override def declarations: Seq[Declaration[G]] = typeParams ++ decls

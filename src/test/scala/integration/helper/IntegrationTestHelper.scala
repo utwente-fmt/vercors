@@ -12,6 +12,7 @@ import vct.main.{FileParser, PassesExecutioner, Program, Vercors}
 import vct.main.options.CommandLineOptionsParser
 import vct.main.passes.PassesGenerator
 import vct.options.{Backend, Mode, Options}
+import vct.parsers.ParseError
 import vct.result.VerificationResult
 
 import java.nio.file.Paths
@@ -51,6 +52,9 @@ object IntegrationTestHelper {
     Vercors(options).go() match {
       case _: Vercors.TemporarilyUnsupported =>
         cancel()
+      case err: ParseError if err.message.contains("not supported") =>
+        cancel()
+
       case error: VerificationResult.UserError =>
         assert(Verdict.Error == verdict)
       case error: VerificationResult.SystemError =>

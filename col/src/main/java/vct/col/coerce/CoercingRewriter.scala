@@ -385,7 +385,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
                 coerce(value, arg.t.particularize(adt.decl.typeArgs.zip(typeArgs).toMap))
               } catch {
                 case x: CoercionError =>
-                  println(x)
+                  println(x.text)
                   ???
               }
           })
@@ -966,8 +966,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
         Slice(seq(xs)._1, int(from), int(to))
       case Star(left, right) =>
         Star(res(left), res(right))
-      case Starall(bindings, triggers, body) =>
-        Starall(bindings, triggers, res(body))
+      case starall @ Starall(bindings, triggers, body) =>
+        Starall(bindings, triggers, res(body))(starall.blame)
       case SubBag(left, right) =>
         val (coercedLeft, leftBag) = bag(left)
         val (coercedRight, rightBag) = bag(right)
