@@ -140,7 +140,6 @@ case object Java {
 
     if(cls.isAnnotation) {
       new JavaAnnotationInterface[G](
-        pkg = Some(JavaName(cls.getPackage.getName.split('.'))),
         name = cls.getName.split('.').last,
         modifiers = Nil,
         ext = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx))(0),
@@ -148,7 +147,6 @@ case object Java {
       )(SourceNameOrigin(cls.getName.split('.').last, o))
     } else if(cls.isInterface) {
       new JavaInterface[G](
-        pkg = Some(JavaName(cls.getPackage.getName.split('.'))),
         name = cls.getName.split('.').last,
         modifiers = Nil,
         typeParams = Nil,
@@ -157,7 +155,6 @@ case object Java {
       )(SourceNameOrigin(cls.getName.split('.').last, o))
     } else {
       new JavaClass[G](
-        pkg = Some(JavaName(cls.getPackage.getName.split('.'))),
         name = cls.getName.split('.').last,
         modifiers = Nil,
         typeParams = Nil,
