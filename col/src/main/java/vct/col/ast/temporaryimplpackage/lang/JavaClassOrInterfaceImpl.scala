@@ -1,6 +1,7 @@
 package vct.col.ast.temporaryimplpackage.lang
 
-import vct.col.ast.{ClassDeclaration, Declaration, JavaAnnotationMethod, JavaClassOrInterface, JavaMethod, JavaModifier, JavaTClass, Type, Variable}
+import vct.col.ast.{ClassDeclaration, Declaration, JavaAnnotationMethod, JavaClassOrInterface, JavaMethod, JavaModifier, JavaName, JavaTClass, Type, Variable}
+import vct.col.origin.DiagnosticOrigin
 import vct.col.ref.Ref
 import vct.result.VerificationResult.Unreachable
 
@@ -39,4 +40,6 @@ trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
       case decl: Decl if matches(decl) => decl
     }
   }
+
+  def fqn: Option[JavaName[G]] = Some(JavaName(pkg.getOrElse(JavaName(Seq())(DiagnosticOrigin)).names :+ name)(DiagnosticOrigin))
 }

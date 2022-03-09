@@ -185,6 +185,14 @@ case object Java {
       case None => None
     }
 
+  def fqn[G](target: JavaTypeNameTarget[G]): Seq[String] = {
+    implicit val o = DiagnosticOrigin
+    target match {
+      case RefJavaClass(decl) => decl.pkg.getOrElse(JavaName(Seq())).names :+ decl.name
+      case _: SpecTypeNameTarget[_] => ???
+    }
+  }
+
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     val potentialFQNames: Seq[Seq[String]] = names match {
       case Seq(singleName) =>

@@ -324,6 +324,10 @@ final case class CoerceMapType[G](inner: Coercion[G], sourceBound: Type[G], targ
 final case class CoerceRatZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceRatZFracImpl[G]
 final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracFracImpl[G]
 
+final case class CoerceJavaStringClassTString[G](stringClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] {
+  override def target: Type[G] = TJavaString()
+} /* TODO: with CoerceJavaStringClassTStringImpl[G] */
+
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
 sealed abstract class Constant[G, T] extends Expr[G] with ConstantImpl[G, T]

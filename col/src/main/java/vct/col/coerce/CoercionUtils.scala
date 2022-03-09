@@ -51,6 +51,9 @@ case object CoercionUtils {
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
 
+      case (JavaTClass(source, _), TJavaString()) if source.decl.fqn.contains(JavaName(Seq("java", "lang", "String"))) => CoerceJavaStringClassTString(source)
+      case (TJavaString(), JavaTClass(target, _)) if target.decl.fqn.contains(JavaName(Seq("java", "lang", "String"))) => CoerceJavaStringClassTString(target)
+
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))

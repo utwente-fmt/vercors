@@ -4,6 +4,8 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.coerce.CoercingRewriter.Incoercible
+import vct.col.coerce.NopCoercingRewriter
 import vct.col.newrewrite.lang.LangSpecificToCol.{CGlobalStateNotSupported, JavaConstructorOrigin, JavaFieldOrigin, JavaInstanceClassOrigin, JavaLocalOrigin, JavaMethodOrigin, JavaStaticsClassOrigin, ThisVar}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
@@ -102,6 +104,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+
+  val builtinClasses: SuccessionMap[Type[Pre], JavaClass[Pre]] = SuccessionMap()
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
@@ -245,6 +249,27 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     }
   }
 
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    case class Scanner() extends Rewriter[Pre] {
+      override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+        case cls: JavaClassOrInterface[Pre] =>
+          implicit val o: Origin = cls.o
+
+          cls match {
+            case cls: JavaClass[Pre] if cls.fqn.contains(JavaName(Seq("java", "lang", "String"))) =>
+              builtinClasses(TJavaString()) = cls
+            case _ =>
+          }
+
+        case _ => super.dispatch(decl)
+      }
+    }
+    val scanner = Scanner()
+    scanner.dispatch(program)
+
+    super.dispatch(program)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
       implicit val o: Origin = model.o
@@ -261,6 +286,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case cls: JavaClassOrInterface[Pre] =>
       implicit val o: Origin = cls.o
+
+      cls match {
+        case cls: JavaClass[Pre] if cls.fqn.contains(JavaName(Seq("java", "lang", "String"))) =>
+          builtinClasses(TJavaString()) = cls
+        case _ =>
+      }
 
       currentJavaClass.having(cls) {
         val supports = cls.supports.map(dispatch).flatMap {
@@ -743,18 +774,39 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
     case JavaStringLiteral(data) =>
-      ???
-//      val stringOfSeq = {
-//        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
-//        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
-//        ms(0)
-//      }
-//      implicit val o = DiagnosticOrigin
-//      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
-//      methodInvocation[Post](
-//        PanicBlame("String literal construction cannot fail"),
-//        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-//        succ(stringOfSeq), args = Seq(codepointSeq))
+      val stringClass = builtinClasses(TJavaString())
+      val stringOfSeq = {
+        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
+        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
+        ms(0)
+      }
+      implicit val o = DiagnosticOrigin
+      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
+      methodInvocation[Post](
+        PanicBlame("String literal construction cannot fail"),
+        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
+        succ(stringOfSeq), args = Seq(codepointSeq))
+
+    case ap @ AmbiguousPlus(left, right) =>
+      try {
+        val ncr = NopCoercingRewriter[Pre]()
+        ncr.coerce(left, TJavaString())
+        ncr.coerce(right, TJavaString())
+
+        val stringClass = builtinClasses(TJavaString())
+        val operatorPlus = {
+          val ms = stringClass.findMethodByName[JavaMethod[Pre]]("operatorPlus")
+          if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.operatorPlus methods")
+          ms(0)
+        }
+        implicit val o = DiagnosticOrigin
+        methodInvocation[Post](
+          PanicBlame("String concatenation cannot fail"),
+          functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
+          succ(operatorPlus), args = Seq(dispatch(left), dispatch(right)))
+      } catch {
+        case Incoercible(_, _) => super.dispatch(ap)
+      }
 
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {

@@ -38,9 +38,8 @@ case object ResolveTypes {
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit = node match {
     case javaClass @ JavaNamedType(genericNames) =>
       val names = genericNames.map(_._1)
-      // TODO: Here we need to filter out java.lang.String somehow. When we see it, we just put TJavaString().
-      javaClass.ref = Some(Java.findJavaTypeName(names, ctx).getOrElse(
-        throw NoSuchNameError("class", names.mkString("."), javaClass)))
+      javaClass.ref = Some(Java.findJavaTypeName(names, ctx)
+        .getOrElse(throw NoSuchNameError("class", names.mkString("."), javaClass)))
     case t @ JavaTClass(ref, _) =>
       ref.tryResolve(name => ???)
     case t @ CTypedefName(name) =>
