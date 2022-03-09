@@ -63,6 +63,11 @@ case object ResolveTypes {
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case _: JavaStringLiteral[G] =>
       Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
+    case cls: JavaClass[G] =>
+      if (ctx.namespace.flatMap(_.pkg).map(_.names :+ cls.name).contains(Java.JAVA_LANG_STRING)) {
+        cls.special = Some(JavaLangString())
+      }
+
     case _ =>
   }
 }
@@ -286,11 +291,6 @@ case object ResolveReferences {
         .getOrElse(throw NoSuchNameError("field", name, act))))
       act.accessible.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
         .getOrElse(throw NoSuchNameError("field", name, act))))
-
-    case cls: JavaClass[G] =>
-      if (ctx.currentFqn.contains(Java.JAVA_LANG_STRING)) {
-        cls.special = Some(JavaLangString())
-      }
 
     case inv @ ProcessApply(ref, _) =>
       ref.tryResolve(name => ???)

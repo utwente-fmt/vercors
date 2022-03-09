@@ -1,6 +1,6 @@
 package vct.col.newrewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaClass, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, SpecialDecl, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.origin.Origin
 import vct.col.resolve.{C, RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -100,6 +100,9 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = declaration.o
       val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator)
       declaration.rewrite(specs = specs, declarator = decl).declareDefault(this)
+    case cls: JavaClass[Pre] =>
+      rewriteDefault(cls)
+      succ[JavaClass[Post]](cls).decl.special = cls.special.map(dispatch(_))
     case other => rewriteDefault(other)
   }
 }
