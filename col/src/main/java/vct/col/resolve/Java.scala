@@ -18,7 +18,9 @@ case object Java {
   private implicit val o: Origin = DiagnosticOrigin
   def JAVA_LANG_OBJECT[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
   def JAVA_LANG_ANNOTATION_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
-  def JAVA_LANG_STRING[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
+  def JAVA_LANG_STRING_TYPE[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
+  def JAVA_LANG_STRING_NAME[G]: JavaName[G] = JavaName(JAVA_LANG_STRING)
+  def JAVA_LANG_STRING: Seq[String] = Seq("java", "lang", "String")
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
@@ -184,14 +186,6 @@ case object Java {
         }
       case None => None
     }
-
-  def fqn[G](target: JavaTypeNameTarget[G]): Seq[String] = {
-    implicit val o = DiagnosticOrigin
-    target match {
-      case RefJavaClass(decl) => decl.pkg.getOrElse(JavaName(Seq())).names :+ decl.name
-      case _: SpecTypeNameTarget[_] => ???
-    }
-  }
 
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     val potentialFQNames: Seq[Seq[String]] = names match {

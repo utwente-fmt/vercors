@@ -62,7 +62,7 @@ case object ResolveTypes {
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case _: JavaStringLiteral[G] =>
-      resolveOne(Java.JAVA_LANG_STRING, ctx)
+      Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
     case _ =>
   }
 }
@@ -106,9 +106,9 @@ case object ResolveReferences {
     case ns: JavaNamespace[G] => ctx
       .replace(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface[G] => ctx
-      .replace(currentJavaClass=Some(cls))
-      .replace(currentThis=Some(RefJavaClass(cls)))
-      .declare(cls.decls)
+        .replace(currentJavaClass=Some(cls))
+        .replace(currentThis=Some(RefJavaClass(cls)))
+        .declare(cls.decls)
     case cls: Class[G] => ctx
       .replace(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
@@ -286,6 +286,11 @@ case object ResolveReferences {
         .getOrElse(throw NoSuchNameError("field", name, act))))
       act.accessible.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
         .getOrElse(throw NoSuchNameError("field", name, act))))
+
+    case cls: JavaClass[G] =>
+      if (ctx.currentFqn.contains(Java.JAVA_LANG_STRING)) {
+        cls.special = Some(JavaLangString())
+      }
 
     case inv @ ProcessApply(ref, _) =>
       ref.tryResolve(name => ???)

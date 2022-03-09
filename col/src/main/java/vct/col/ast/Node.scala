@@ -324,9 +324,8 @@ final case class CoerceMapType[G](inner: Coercion[G], sourceBound: Type[G], targ
 final case class CoerceRatZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceRatZFracImpl[G]
 final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracFracImpl[G]
 
-final case class CoerceJavaStringClassTString[G](stringClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] {
-  override def target: Type[G] = TJavaString()
-} /* TODO: with CoerceJavaStringClassTStringImpl[G] */
+final case class CoerceJavaStringClassTString[G](ref: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaStringClassTStringImpl[G]
+final case class CoerceTStringJavaStringClass[G](ref: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceTStringJavaStringClassImpl[G]
 
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
@@ -691,6 +690,9 @@ final case class JavaName[G](names: Seq[String])(implicit val o: Origin) extends
 }
 final case class JavaImport[G](isStatic: Boolean, name: JavaName[G], star: Boolean)(implicit val o: Origin) extends NodeFamily[G] with JavaImportImpl[G]
 
+sealed trait SpecialDecl[G] extends NodeFamily[G] with SpecialDeclImpl[G]
+final case class JavaLangString[G]()(implicit val o: Origin = DiagnosticOrigin) extends SpecialDecl[G] with JavaLangStringImpl[G]
+
 sealed trait JavaModifier[G] extends NodeFamily[G] with JavaModifierImpl[G]
 final case class JavaPublic[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPublicImpl[G]
 final case class JavaProtected[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaProtectedImpl[G]
@@ -711,7 +713,9 @@ final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G]
 sealed trait JavaGlobalDeclaration[G] extends GlobalDeclaration[G] with JavaGlobalDeclarationImpl[G]
 final class JavaNamespace[G](val pkg: Option[JavaName[G]], val imports: Seq[JavaImport[G]], val declarations: Seq[GlobalDeclaration[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] with Declarator[G] with JavaNamespaceImpl[G]
 
-sealed abstract class JavaClassOrInterface[G] extends JavaGlobalDeclaration[G] with Declarator[G] with JavaClassOrInterfaceImpl[G]
+sealed abstract class JavaClassOrInterface[G] extends JavaGlobalDeclaration[G] with Declarator[G] with JavaClassOrInterfaceImpl[G] {
+  var special: Option[SpecialDecl[G]] = None
+}
 final class JavaClass[G](val pkg: Option[JavaName[G]], val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val intrinsicLockInvariant: Expr[G], val ext: Type[G], val imp: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaClassImpl[G]
 final class JavaInterface[G](val pkg: Option[JavaName[G]], val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val ext: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaInterfaceImpl[G]
 final class JavaAnnotationInterface[G](val pkg: Option[JavaName[G]], val name: String, val modifiers: Seq[JavaModifier[G]], val ext: Type[G], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaAnnotationInterfaceImpl[G]

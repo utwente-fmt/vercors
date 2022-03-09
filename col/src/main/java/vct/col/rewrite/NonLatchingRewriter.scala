@@ -9,6 +9,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
   override def dispatch(t: Type[Pre]): Type[Post] = rewriteDefault(t)
   override def dispatch(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
+  override def dispatch(specialDecl: SpecialDecl[Pre]): SpecialDecl[Post] = rewriteDefault(specialDecl)
 
   override def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
   override def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Post] = rewriteDefault(node)

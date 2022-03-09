@@ -256,7 +256,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           implicit val o: Origin = cls.o
 
           cls match {
-            case cls: JavaClass[Pre] if cls.fqn.contains(JavaName(Seq("java", "lang", "String"))) =>
+            case cls: JavaClass[Pre] if cls.isSpecial(JavaLangString()) =>
               builtinClasses(TJavaString()) = cls
             case _ =>
           }
@@ -286,12 +286,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case cls: JavaClassOrInterface[Pre] =>
       implicit val o: Origin = cls.o
-
-      cls match {
-        case cls: JavaClass[Pre] if cls.fqn.contains(JavaName(Seq("java", "lang", "String"))) =>
-          builtinClasses(TJavaString()) = cls
-        case _ =>
-      }
 
       currentJavaClass.having(cls) {
         val supports = cls.supports.map(dispatch).flatMap {
