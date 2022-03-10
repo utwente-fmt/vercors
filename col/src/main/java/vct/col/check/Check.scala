@@ -44,6 +44,10 @@ sealed trait CheckError {
       res.o.messageInContext("This expression is not a (scaled) predicate application")
     case AbstractPredicate(res) =>
       res.o.messageInContext("This predicate is abstract, and hence cannot be meaningfully folded or unfolded")
+    case RedundantCatchClause(clause) =>
+      clause.o.messageInContext("This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block.")
+    case ResultOutsidePostcondition(res) =>
+      res.o.messageInContext("\\result may only occur in the postcondition.")
   }
 }
 case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
@@ -56,14 +60,23 @@ case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
 case class NotAHeapLocation(loc: Locator[_]) extends CheckError
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
+case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
+case class ResultOutsidePostcondition(res: Result[_]) extends CheckError
 
-case class CheckContext[G](scopes: Seq[Set[Declaration[G]]] = Seq(),
-                           currentApplicable: Option[Applicable[G]] = None) {
+case class CheckContext[G]
+(
+  scopes: Seq[Set[Declaration[G]]] = Seq(),
+  currentApplicable: Option[Applicable[G]] = None,
+  inPostCondition: Boolean = false,
+) {
   def withScope(decls: Set[Declaration[G]]): CheckContext[G] =
-    CheckContext(scopes :+ decls, currentApplicable)
+    copy(scopes = scopes :+ decls)
 
   def withApplicable(applicable: Applicable[G]): CheckContext[G] =
-    CheckContext(scopes, Some(applicable))
+    copy(currentApplicable = Some(applicable))
+
+  def withPostcondition: CheckContext[G] =
+    copy(inPostCondition = true)
 
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     scopes.exists(_.contains(ref.decl))

@@ -133,7 +133,7 @@ class Program {
 	ensures Perm(this.size, 1\2) ** this.size == size;
 	ensures Perm(this.maxvalue, 1\2) ** this.maxvalue == max;
 	ensures Perm(this.initialised, 1\2) ** this.initialised;
-	Program(Elect f, int size, int max) {
+	constructor(Elect f, int size, int max) {
 		this.f = f;
 		this.maxvalue = max;
 		this.size = size;
@@ -398,7 +398,7 @@ class Main {
 	ensures Perm(this.val, write) ** this.val == val;
 	ensures Perm(this.r1, write) ** this.r1 == r1;
 	ensures Perm(this.r2, write) ** this.r2 == r2;
-	Main(Program pr, int rank, int val, frac r1, frac r2) {
+	constructor(Program pr, int rank, int val, frac r1, frac r2) {
 		this.pr = pr;
 		this.rank = rank;
 		this.val = val;

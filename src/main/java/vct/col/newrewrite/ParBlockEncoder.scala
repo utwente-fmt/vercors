@@ -127,7 +127,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = ParImpl
     regionAsMethod.getOrElseUpdate(region, region match {
       case ParParallel(regions) =>
-        val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldAnd(invariants.toSeq))
+        val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldStar(invariants.toSeq))
         val result = procedure[Post](
           blame = AbstractApplicable,
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
@@ -137,7 +137,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         result.declareDefault(this)
         (result, vars.values.map(dispatch).toSeq)
       case ParSequential(regions) =>
-        val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldAnd(invariants.toSeq))
+        val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldStar(invariants.toSeq))
 
         val result = procedure[Post](
           blame = AbstractApplicable,
@@ -149,7 +149,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         (result, vars.values.map(dispatch).toSeq)
       case block: ParBlock[Pre] =>
         invariants.having(block.context_everywhere) {
-          val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(block), ensures(block), foldAnd(invariants.toSeq))
+          val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(block), ensures(block), foldStar(invariants.toSeq))
 
           val result = procedure[Post](
             blame = AbstractApplicable,
@@ -195,7 +195,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       val requires = extract.extract(req)
       val ensures = extract.extract(ens)
       val context = extract.extract(ctx)
-      val invariant = extract.extract(foldAnd(invariants.toSeq))
+      val invariant = extract.extract(foldStar(invariants.toSeq))
 
       val body = extract.extract(content)
 

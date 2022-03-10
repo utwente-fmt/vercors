@@ -226,7 +226,7 @@ class List {
 	ensures \unfolding state(write) \in next == n;
 	ensures \unfolding state(write) \in List.as_seq(next, write) == orig;
 	ensures List.as_seq(this, write) == Seq.append(v, orig);
-	List(List n, int v) {
+	constructor(List n, int v) {
 		next = n;
 		value = v;
 		fold state(write);

@@ -4,7 +4,7 @@ class Worker {
   OwickiGries store;
   
   ensures Value(store) ** store==og;
-  Worker(OwickiGries og){
+  constructor(OwickiGries og){
     store=og;
   }
   

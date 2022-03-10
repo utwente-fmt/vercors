@@ -204,7 +204,7 @@ class Generated1Tests extends AnyFlatSpec with Matchers {
   it should "error with silicon and examples/errors/type_error_1.pvl" in {
     val configuration = IntegrationTestConfiguration()
     configuration.files = Array("examples/errors/type_error_1.pvl")
-    configuration.verdict = Verdict.Error
+    configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }

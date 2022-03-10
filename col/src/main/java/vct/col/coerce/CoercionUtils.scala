@@ -160,11 +160,12 @@ case object CoercionUtils {
     case _ => None
   }
 
-  def getAnyCollectionCoercion[G](source: Type[G]): Option[(Coercion[G], SizedType[G])] = source match {
-    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyCollectionCoercion)
+  def getAnySizedCoercion[G](source: Type[G]): Option[(Coercion[G], SizedType[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySizedCoercion)
     case t: TSeq[G] => Some((CoerceIdentity(source), t))
     case t: TSet[G] => Some((CoerceIdentity(source), t))
     case t: TBag[G] => Some((CoerceIdentity(source), t))
+    case t: TMap[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 

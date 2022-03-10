@@ -49,6 +49,7 @@ CLASS: 'class';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
+CONSTRUCTOR: 'constructor';
 
 IF: 'if';
 ELSE: 'else';

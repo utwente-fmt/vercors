@@ -4,29 +4,50 @@ import vct.col.ast._
 
 import scala.collection.mutable.ArrayBuffer
 import RewriteHelpers._
+import vct.col.newrewrite.FilterSpecIgnore.{DanglingIgnoreStart, ExtraIgnoreEnd}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationResult.UserError
 
 case object FilterSpecIgnore extends RewriterBuilder {
   override def key: String = "specIgnore"
   override def desc: String = "Remove elements that are ignored with spec_ignore."
+
+  case class DanglingIgnoreStart(start: SpecIgnoreStart[_]) extends UserError {
+    override def code: String = "danglingSpecIgnore"
+    override def text: String =
+      start.o.messageInContext("This spec_ignore is not closed")
+  }
+
+  case class ExtraIgnoreEnd(end: SpecIgnoreEnd[_]) extends UserError {
+    override def code: String = "extraSpecIgnoreEnd"
+    override def text: String =
+      end.o.messageInContext("This spec_ignore was not opened")
+  }
 }
 
 case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case block@Block(statements) =>
-      var level = 0
+      var opens: Seq[SpecIgnoreStart[_]] = Nil
       val result = ArrayBuffer[Statement[Post]]()
 
       statements.foreach {
-        case SpecIgnoreStart() =>
-          level += 1
-        case SpecIgnoreEnd() =>
-          level -= 1
+        case start: SpecIgnoreStart[_] =>
+          opens :+= start
+        case end: SpecIgnoreEnd[_] =>
+          opens match {
+            case Nil => throw ExtraIgnoreEnd(end)
+            case _ => opens = opens.init
+          }
         case other =>
-          if(level == 0) {
+          if(opens.isEmpty) {
             result += rewriteDefault(other)
           }
+      }
+
+      opens match {
+        case Nil =>
+        case some => throw DanglingIgnoreStart(some.last)
       }
 
       block.rewrite(result.toSeq)

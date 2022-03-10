@@ -6,7 +6,7 @@ class Move {
 	
 	ensures Perm(i,read) ** Perm(j,read) ** Perm(token,read);
 	ensures i == mi ** j == mj ** token == mt;
-	Move(int mi, int mj, int mt) {
+	constructor(int mi, int mj, int mt) {
 		i = mi;
 		j = mj;
 		token = mt;

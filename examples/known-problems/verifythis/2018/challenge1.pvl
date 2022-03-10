@@ -87,7 +87,7 @@ class GapBuffer {
 		(\forall int i ; 0 <= i && i < l ; a[i] == contents[i]) **
 		(\forall int i ; r <= i && i < a.length; a[i] == contents[i - (r - l)]);
 	
-	GapBuffer(int[] arr, int l, int r) {
+	constructor(int[] arr, int l, int r) {
 		this.a = arr;
 		this.l = l;
 		this.r = r;

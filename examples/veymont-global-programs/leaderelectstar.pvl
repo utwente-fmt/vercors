@@ -50,7 +50,7 @@ class Main {
 	ensures a.maxVal != a.c && b.maxVal != b.c && d.maxVal != d.c && c.maxVal != c.a && c.maxVal != c.b && c.maxVal != c.d;
 	ensures a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
 	ensures c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
-	Main() {
+	constructor() {
 		a = new EndPoint(0);
 		b = new EndPoint(8);
 		c = new StarPoint(4);

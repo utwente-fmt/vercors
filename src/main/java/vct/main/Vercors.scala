@@ -2,7 +2,7 @@ package vct.main
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{CGlobalDeclaration, GlobalDeclaration, Node, Procedure, Program}
+import vct.col.ast.{AddrOf, CGlobalDeclaration, GlobalDeclaration, Node, Procedure, Program, Refute}
 import vct.col.check.CheckError
 import vct.col.feature.{Feature, FeatureRainbow}
 import vct.col.newrewrite._
@@ -12,11 +12,11 @@ import vct.col.origin.Origin
 import vct.col.resolve.{C, Java, RefCGlobalDeclaration, ResolutionError, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.java.JavaLibraryLoader
-import vct.main.Vercors.{FileSpanningOrigin, InputResolutionError, TemporarilyUnsupported}
+import vct.main.Vercors.{FileSpanningOrigin, InputResolutionError, RewriteCheckError, TemporarilyUnsupported}
 import vct.options.{Options, PathOrStd}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
-import vct.result.VerificationResult.{Ok, UserError}
+import vct.result.VerificationResult.{Ok, SystemError, UserError}
 import viper.api.Silicon
 import vct.col.feature
 
@@ -40,6 +40,11 @@ case object Vercors {
     override def text: String =
       examples.head.o.messageInContext(
         s"The feature `$feature` is temporarily unsupported.")
+  }
+
+  case class RewriteCheckError(errors: Seq[CheckError]) extends SystemError {
+    override def text: String =
+      "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 }
 
@@ -145,6 +150,8 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
             throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
           }
         })
+        case addrOf: AddrOf[_] => throw TemporarilyUnsupported("&", Seq(addrOf))
+        case ref: Refute[_] => throw TemporarilyUnsupported("Refute", Seq(ref))
         case _ =>
       })
 
@@ -176,6 +183,11 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
         }
 
         program = pass().dispatch(program)
+
+        program.check match {
+          case Nil =>
+          case some => throw RewriteCheckError(some)
+        }
 
         options.outputAfterPass.get(pass.key) match {
           case None =>

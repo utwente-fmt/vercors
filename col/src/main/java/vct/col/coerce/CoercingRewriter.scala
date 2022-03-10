@@ -19,7 +19,11 @@ case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre
 case object CoercingRewriter {
   sealed trait CoercionError extends SystemError {
     override def text: String =
-      "Internal type error: CoercionErrors must not bubble."
+      "Internal type error: CoercionErrors must not bubble. " + (this match {
+        case IncoercibleDummy => "(No alternative matched, see stack trace)"
+        case Incoercible(e, target) => s"Expression $e could not be coerced to $target"
+        case IncoercibleText(e, message) => s"Expression $e could not be coerced. $message."
+      })
   }
 
   case object IncoercibleDummy extends CoercionError
@@ -278,8 +282,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a map here, but got ${e.t}")
     }
-  def collection(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
-    CoercionUtils.getAnyCollectionCoercion(e.t) match {
+  def sized(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
+    CoercionUtils.getAnySizedCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a collection type here, but got ${e.t}")
     }
@@ -635,7 +639,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case Drop(xs, count) =>
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
-        Empty(collection(obj)._1)
+        Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
       case Eq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
@@ -776,8 +780,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case MapRemove(m, k) =>
         val (coercedMap, mapType) = map(m)
         MapRemove(coercedMap, coerce(k, mapType.key))
-      case MapSize(m) =>
-        MapSize(map(m)._1)
       case MapValueSet(m) =>
         MapValueSet(map(m)._1)
       case MatrixCompare(left, right) =>
@@ -961,7 +963,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case SilverUntypedNonemptyLiteralMap(values) =>
         SilverUntypedNonemptyLiteralMap(values)
       case Size(obj) =>
-        Size(collection(obj)._1)
+        Size(sized(obj)._1)
       case Slice(xs, from, to) =>
         Slice(seq(xs)._1, int(from), int(to))
       case Star(left, right) =>

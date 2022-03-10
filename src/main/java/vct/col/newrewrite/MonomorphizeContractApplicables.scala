@@ -27,11 +27,11 @@ case object MonomorphizeContractApplicables extends RewriterBuilder {
 case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter[Pre] {
   val currentSubstitutions: ScopedStack[Map[Variable[Pre], Type[Post]]] = ScopedStack()
 
-  val monomorphized: mutable.Map[Seq[Type[Post]], ContractApplicable[Post]] = mutable.Map()
+  val monomorphizedRef: mutable.Map[(ContractApplicable[Pre], Seq[Type[Post]]), Ref[Post, ContractApplicable[Post]]] = mutable.Map()
+  val monomorphizedImpl: mutable.Map[(ContractApplicable[Pre], Seq[Type[Post]]), ContractApplicable[Post]] = mutable.Map()
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] if app.typeArgs.nonEmpty =>
-      implicit val o: Origin = decl.o
       app.typeArgs.foreach(_.drop())
       val typeValues = app.typeArgs.map(v => dispatch(v.t.asInstanceOf[TType[Pre]].t))
       currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
@@ -46,17 +46,23 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
     case inv: Invocation[Pre] if inv.ref.decl.typeArgs.nonEmpty =>
       val typeValues = inv.typeArgs.map(dispatch)
 
-      val app = monomorphized.getOrElseUpdate(typeValues, currentSubstitutions.having(inv.ref.decl.typeArgs.zip(typeValues).toMap) {
-        freshSuccessionScope {
-          inv.ref.decl.rewrite(typeArgs = Nil).succeedDefault(inv.ref.decl)
-        }
-      })
+      val ref = monomorphizedRef.get((inv.ref.decl, typeValues)) match {
+        case Some(ref) => ref
+        case None =>
+          monomorphizedRef((inv.ref.decl, typeValues)) = new LazyRef(monomorphizedImpl((inv.ref.decl, typeValues)))
+          monomorphizedImpl((inv.ref.decl, typeValues)) = currentSubstitutions.having(inv.ref.decl.typeArgs.zip(typeValues).toMap) {
+            freshSuccessionScope {
+              inv.ref.decl.rewrite(typeArgs = Nil).succeedDefault(inv.ref.decl)
+            }
+          }
+          monomorphizedRef((inv.ref.decl, typeValues))
+      }
 
       inv match {
-        case inv: ProcedureInvocation[Pre] => inv.rewrite(ref = new DirectRef(app), typeArgs = Nil)
-        case inv: MethodInvocation[Pre] => inv.rewrite(ref = new DirectRef(app), typeArgs = Nil)
-        case inv: FunctionInvocation[Pre] => inv.rewrite(ref = new DirectRef(app), typeArgs = Nil)
-        case inv: InstanceFunctionInvocation[Pre] => inv.rewrite(ref = new DirectRef(app), typeArgs = Nil)
+        case inv: ProcedureInvocation[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, Procedure[Post]]], typeArgs = Nil)
+        case inv: MethodInvocation[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, InstanceMethod[Post]]], typeArgs = Nil)
+        case inv: FunctionInvocation[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, Function[Post]]], typeArgs = Nil)
+        case inv: InstanceFunctionInvocation[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, InstanceFunction[Post]]], typeArgs = Nil)
       }
     case other => rewriteDefault(other)
   }

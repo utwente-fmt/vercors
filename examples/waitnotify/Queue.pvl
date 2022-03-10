@@ -5,7 +5,7 @@ class Queue {
   int data;
   boolean used;
   
-  Queue(){
+  constructor(){
     data=37;
     used=false;
   }

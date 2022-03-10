@@ -33,7 +33,7 @@ class Main {
 	ensures Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
 	ensures a.i == 0 && b.i == 1;
 	ensures a.draw() && b.draw() && c.draw();
-	Main() {	
+	constructor() {
 		a = new Role(0);
 		b = new Role(1);
 		c = new Role(0);

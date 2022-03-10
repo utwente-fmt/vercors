@@ -7,7 +7,7 @@
 class Main {
 
 
-	Main(int i) {
+	constructor(int i) {
 	
 	}
 }

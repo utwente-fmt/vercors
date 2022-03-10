@@ -458,19 +458,35 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
         ADTFunctionInvocation(
           Some((mapAdt.ref, mapTypeArgs(map))), mapKeys.ref, Seq(dispatch(map))
         )
-      case MapSize(map) =>
+      case Empty(map) if map.t.asMap.isDefined =>
+        val TMap(key, value) = map.t.asMap.get
+        dispatch(map) === ADTFunctionInvocation[Post](Some((mapAdt.ref, Seq(dispatch(key), dispatch(value)))), mapEmpty.ref, Nil)
+      case Size(map) if map.t.asMap.isDefined =>
         FunctionInvocation[Post](mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_size requires nothing."))
       case access @ MapGet(map, k) =>
         FunctionInvocation[Post](mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(
           NoContext(MapKeyErrorPreconditionFailed(access)))
+      case cons @ MapCons(m, k, v) =>
+        val typeArgs = Seq(dispatch(cons.t.key), dispatch(cons.t.value))
+        ADTFunctionInvocation[Post](Some((mapAdt.ref, typeArgs)), mapCons.ref, Seq(dispatch(k), dispatch(v), dispatch(m)))
       case MapValueSet(map) =>
         FunctionInvocation[Post](mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_values requires nothing."))
       case MapItemSet(map) =>
         FunctionInvocation[Post](mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_items requires nothing."))
-      case MapEq(left, right) =>
-        FunctionInvocation[Post](mapEquals.ref, Seq(dispatch(left), dispatch(right)), ???, Nil, Nil)(PanicBlame("map_equals requires nothing."))
-      case MapDisjoint(left, right) =>
-        FunctionInvocation[Post](mapDisjoint.ref, Seq(dispatch(left), dispatch(right)), ???, Nil, Nil)(PanicBlame("map_disjoint requires nothing."))
+      case eq @ MapEq(left, right) =>
+        FunctionInvocation[Post](
+          mapEquals.ref,
+          Seq(dispatch(left), dispatch(right)),
+          Seq(dispatch(eq.commonMapType.key), dispatch(eq.commonMapType.value)),
+          Nil, Nil,
+        )(PanicBlame("map_equals requires nothing."))
+      case disj @ MapDisjoint(left, right) =>
+        FunctionInvocation[Post](
+          mapDisjoint.ref,
+          Seq(dispatch(left), dispatch(right)),
+          Seq(dispatch(disj.commonMapType.key), dispatch(disj.commonMapType.value)),
+          Nil, Nil,
+        )(PanicBlame("map_disjoint requires nothing."))
       case MapRemove(map, k) =>
         FunctionInvocation[Post](mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_remove requires nothing."))
       case sub @ ArraySubscript(arr, index) =>

@@ -5,11 +5,11 @@
 //:: tool veymont
 class Main {
 
-	Main() {
+	constructor() {
 	
 	}
 	
-	Main() {
+	constructor() {
 	
 	}
 }

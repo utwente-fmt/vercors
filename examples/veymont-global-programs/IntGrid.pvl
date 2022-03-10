@@ -26,7 +26,7 @@ class Player {
 	ensures myToken == tok;
 	ensures myToken == 0 || myToken == 1;
 	ensures Perm(turn,1) ** turn == t;
-	Player(int tok, boolean t) {
+	constructor(int tok, boolean t) {
 		c00 = -1;
 		c01 = -1;
 		c02 = -1;

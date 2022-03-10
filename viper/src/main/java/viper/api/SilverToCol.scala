@@ -282,7 +282,7 @@ case class SilverToCol[G](program: silver.Program) {
       case silver.Let(variable, exp, body) => col.Let(transform(variable), f(exp), f(body))
       case v @ silver.LocalVar(name, typ) => transform(v)
       case silver.LtCmp(left, right) => col.Less(f(left), f(right))
-      case silver.MapCardinality(base) => col.MapSize(f(base))
+      case silver.MapCardinality(base) => col.Size(f(base))
       case silver.MapContains(key, base) => col.MapMember(f(key), f(base))
       case silver.MapDomain(base) => col.MapKeySet(f(base))
       case silver.Maplet(key, value) => col.SilverUntypedNonemptyLiteralMap(Seq((f(key), f(value))))

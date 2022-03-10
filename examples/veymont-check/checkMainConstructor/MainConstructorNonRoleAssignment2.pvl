@@ -6,7 +6,7 @@
 class Main {
 
 
-	Main() {
+	constructor() {
 		int i = 5;
 	}
 

@@ -55,7 +55,6 @@ class FeatureRainbow[G] {
     case node: MapKeySet[G] => AxiomaticLibraryType
     case node: MapValueSet[G] => AxiomaticLibraryType
     case node: MapItemSet[G] => AxiomaticLibraryType
-    case node: MapSize[G] => AxiomaticLibraryType
     case node: MapRemove[G] => AxiomaticLibraryType
     case node: Forall[G] => return Nil
     case node: Starall[G] => return Nil

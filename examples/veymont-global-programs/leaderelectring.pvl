@@ -38,7 +38,7 @@ class Main {
 	ensures a.maxVal != a.left && b.maxVal != b.left && c.maxVal != c.left && d.maxVal != d.left;
 	ensures a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
 	ensures c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
-	Main() {
+	constructor() {
 		a = new Node(0);
 		b = new Node(8);
 		c = new Node(4);

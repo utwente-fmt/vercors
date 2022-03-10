@@ -618,8 +618,6 @@ case class Printer(out: Appendable,
     case SilverCurFieldPerm(obj, field) => ???
     case SilverCurPredPerm(ref, args) => ???
     case SilverIntToRat(inner) => expr(inner)
-    case MapSize(map) =>
-      (phrase("cardMap(", map, ")"), 100)
     case Sum(bindings, condition, main) =>
       (phrase("(", "\\sum", commas(bindings.map(NodePhrase)), "; ", condition, ";", main, ")"), 120)
     case Product(bindings, condition, main) =>

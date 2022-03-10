@@ -29,7 +29,7 @@ class Main {
 	ensures Perm(b.x, write) ** Perm(b.left, write);
 	ensures Perm(c.x, write) ** Perm(c.left, write);
 	ensures a.x == 0 && b.x == 8 && c.x == 4;
-	Main() {
+	constructor() {
 		a = new Role(0);
 		b = new Role(8);
 		c = new Role(4);
