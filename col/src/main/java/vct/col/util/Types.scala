@@ -68,11 +68,11 @@ object Types {
       }
 
     // TODO similar stuff for JavaClass
-    // Only need to do this for TJavaString. for JavaTClass(String) this should be handled by regular java inheritance rules
-    case (TJavaString(), JavaTClass(ref, _)) if ref.decl.isSpecial(JavaLangString()) => TJavaString()
-    case (JavaTClass(ref, _), TJavaString()) if ref.decl.isSpecial(JavaLangString()) => TJavaString()
-    case (TJavaString(), JavaTClass(ref, _)) => ??? // Traverse the ref to find java.lang.object, or make it appear out of nowhere somehow
-    case (JavaTClass(ref, _), TJavaString()) => ???
+    // Only need to do this for pinned tupes. for any JavaTClass this should be handled by regular java inheritance rules
+    case (TPinnedDecl(pin), cls: JavaTClass[G]) if cls.ref.decl.isPin(pin) => TPinnedDecl(pin)
+    case (cls: JavaTClass[G], TPinnedDecl(pin)) if cls.ref.decl.isPin(pin) => TPinnedDecl(pin)
+    case (TPinnedDecl(pin), JavaTClass(ref, _)) => ??? // Traverse the ref to find java.lang.object, or make it appear out of nowhere somehow
+    case (JavaTClass(ref, _), TPinnedDecl(pin)) => ???
 
     case (TUnion(left), TUnion(right)) => TUnion((left ++ right).distinct)
     case (TUnion(left), right) => TUnion((left :+ right).distinct)

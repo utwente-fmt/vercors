@@ -101,7 +101,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
-  val builtinClasses: SuccessionMap[Type[Pre], JavaClass[Pre]] = SuccessionMap()
+  val pinnedClasses: SuccessionMap[PinnedDecl[Pre], JavaClass[Pre]] = SuccessionMap()
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
@@ -246,22 +246,16 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    case class Scanner() extends Rewriter[Pre] {
-      override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-        case cls: JavaClassOrInterface[Pre] =>
-          implicit val o: Origin = cls.o
+    program.transSubnodes.foreach {
+      case cls: JavaClassOrInterface[Pre] =>
+        implicit val o: Origin = cls.o
 
-          cls match {
-            case cls: JavaClass[Pre] if cls.isSpecial(JavaLangString()) =>
-              builtinClasses(TJavaString()) = cls
-            case _ =>
-          }
-
-        case _ => super.dispatch(decl)
-      }
+        cls match {
+          case cls: JavaClass[Pre] if cls.pin.isDefined => pinnedClasses(cls.pin.get) = cls
+          case _ =>
+        }
+      case _ =>
     }
-    val scanner = Scanner()
-    scanner.dispatch(program)
 
     super.dispatch(program)
   }
@@ -764,7 +758,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
     case JavaStringLiteral(data) =>
-      val stringClass = builtinClasses(TJavaString())
+      val stringClass = pinnedClasses(JavaLangString())
       val stringOfSeq = {
         val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
         if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
@@ -780,14 +774,14 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case ap @ AmbiguousPlus(left, right) =>
       try {
         val ncr = NopCoercingRewriter[Pre]()
-        ncr.coerce(left, TJavaString())
-        ncr.coerce(right, TJavaString())
+        // TODO: Move to disambiguate
+        ncr.coerce(left, TPinnedDecl(JavaLangString()))
+        ncr.coerce(right, TPinnedDecl(JavaLangString()))
 
-        val stringClass = builtinClasses(TJavaString())
-        val operatorPlus = {
-          val ms = stringClass.findMethodByName[JavaMethod[Pre]]("operatorPlus")
-          if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.operatorPlus methods")
-          ms(0)
+        val stringClass = pinnedClasses(JavaLangString())
+        val operatorPlus = stringClass.findMethodByName[JavaMethod[Pre]]("operatorPlus") match {
+          case Seq(m) => m
+          case ms => throw Unreachable(s"Unexpected number (${ms.length}) of String.operatorPlus methods")
         }
         implicit val o = DiagnosticOrigin
         methodInvocation[Post](

@@ -246,7 +246,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
-  def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TJavaString[Pre]())
+  def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TPinnedDecl[Pre](JavaLangString[Pre]()))
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =

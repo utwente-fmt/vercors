@@ -324,8 +324,8 @@ final case class CoerceMapType[G](inner: Coercion[G], sourceBound: Type[G], targ
 final case class CoerceRatZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceRatZFracImpl[G]
 final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracFracImpl[G]
 
-final case class CoerceJavaStringClassTString[G](ref: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaStringClassTStringImpl[G]
-final case class CoerceTStringJavaStringClass[G](ref: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceTStringJavaStringClassImpl[G]
+final case class CoerceJavaTClassTPinnedDecl[G](cls: Type[G], pin: PinnedDecl[G])(implicit val o: Origin) extends Coercion[G] with CoerceJavaTClassTPinnedDeclImpl[G]
+final case class CoerceTPinnedDeclJavaTClass[G](pin: PinnedDecl[G], cls: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceTPinnedDeclJavaTClassImpl[G]
 
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
@@ -690,8 +690,8 @@ final case class JavaName[G](names: Seq[String])(implicit val o: Origin) extends
 }
 final case class JavaImport[G](isStatic: Boolean, name: JavaName[G], star: Boolean)(implicit val o: Origin) extends NodeFamily[G] with JavaImportImpl[G]
 
-sealed trait SpecialDecl[G] extends NodeFamily[G] with SpecialDeclImpl[G]
-final case class JavaLangString[G]()(implicit val o: Origin = DiagnosticOrigin) extends SpecialDecl[G] with JavaLangStringImpl[G]
+sealed trait PinnedDecl[G] extends NodeFamily[G] with PinnedDeclImpl[G]
+final case class JavaLangString[G]()(implicit val o: Origin = DiagnosticOrigin) extends PinnedDecl[G] with JavaLangStringImpl[G]
 
 sealed trait JavaModifier[G] extends NodeFamily[G] with JavaModifierImpl[G]
 final case class JavaPublic[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPublicImpl[G]
@@ -714,7 +714,7 @@ sealed trait JavaGlobalDeclaration[G] extends GlobalDeclaration[G] with JavaGlob
 final class JavaNamespace[G](val pkg: Option[JavaName[G]], val imports: Seq[JavaImport[G]], val declarations: Seq[GlobalDeclaration[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] with Declarator[G] with JavaNamespaceImpl[G]
 
 sealed abstract class JavaClassOrInterface[G] extends JavaGlobalDeclaration[G] with Declarator[G] with JavaClassOrInterfaceImpl[G] {
-  var special: Option[SpecialDecl[G]] = None
+  var pin: Option[PinnedDecl[G]] = None
 }
 final class JavaClass[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val intrinsicLockInvariant: Expr[G], val ext: Type[G], val imp: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaClassImpl[G]
 final class JavaInterface[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val ext: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaInterfaceImpl[G]
@@ -737,7 +737,7 @@ final case class JavaNamedType[G](names: Seq[(String, Option[Seq[Type[G]]])])(im
   var ref: Option[JavaTypeNameTarget[G]] = None
 }
 final case class JavaTClass[G](ref: Ref[G, JavaClassOrInterface[G]], typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with JavaTClassImpl[G]
-final case class TJavaString[G]()(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with TJavaStringImpl[G]
+final case class TPinnedDecl[G](pin: PinnedDecl[G])(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with TPinnedDeclImpl[G]
 
 sealed trait JavaExpr[G] extends Expr[G] with JavaExprImpl[G]
 final case class JavaLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends JavaExpr[G] with JavaLocalImpl[G] {

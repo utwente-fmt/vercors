@@ -65,7 +65,7 @@ case object ResolveTypes {
       Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
     case cls: JavaClass[G] =>
       if (ctx.namespace.flatMap(_.pkg).map(_.names :+ cls.name).contains(Java.JAVA_LANG_STRING)) {
-        cls.special = Some(JavaLangString())
+        cls.pin = Some(JavaLangString())
       }
 
     case _ =>

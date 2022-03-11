@@ -2,15 +2,20 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TArray, TBool, TChar, TFloat, TInt, TJavaString, TModel, TNotAValue, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationResult.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
 
 import java.lang.reflect.{Modifier, Parameter}
 import scala.collection.mutable
 
 case object Java {
+  case class UnexpectedJreDefinition(expectedKind: String, fullyQualifiedName: Seq[String]) extends UserError {
+    override def text: String = s"Did not get a $expectedKind when resolving $fullyQualifiedName"
+    override def code: String = "unexpectedJreDefinition"
+  }
+
   case class JavaSystemOrigin(preferredName: String) extends Origin {
     override def context: String = s"At: [Class loaded from JRE with reflection]"
   }
@@ -253,8 +258,11 @@ case object Java {
         case ref: RefModelProcess[G] if ref.name == method => ref
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
-      case TJavaString() => findJavaTypeName[G](Seq("java", "lang", "String"), ctx)
-        .flatMap(rjc => findMethodInClass[G](rjc.asInstanceOf[RefJavaClass[G]].decl, method, args))
+      case TPinnedDecl(JavaLangString()) =>
+        findJavaTypeName[G](Java.JAVA_LANG_STRING, ctx).flatMap {
+          case cls: RefJavaClass[G] => findMethodInClass[G](cls.decl, method, args)
+          case _ => throw UnexpectedJreDefinition("java class", Java.JAVA_LANG_STRING)
+        }
       case _ => None
     }).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 

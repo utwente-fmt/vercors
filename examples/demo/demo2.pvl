@@ -4,21 +4,21 @@
 //:: verdict Pass
 
 class Clear {
-
-	context_everywhere A != null;
-	context_everywhere (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
-	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
+	requires A != null;
+	// requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
+	// ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
 	void clear(int[] A) {
-		int i = 0;
+/*		int i = 0;
 		
 		loop_invariant 0 <= i && i <= A.length;
 		loop_invariant (\forall int j; 0 <= j && j < i; A[j] == 0);
 		while (i < A.length) {
 			A[i] = 0;
 			i = i + 1;
-		}
+		} */
 	}
-	
+
+/*
 	context_everywhere A != null;
 	context (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
 	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
@@ -31,5 +31,5 @@ class Clear {
 			A[tid] = 0;
 		}
 	}
-
+*/
 }
