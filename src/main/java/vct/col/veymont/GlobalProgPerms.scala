@@ -1,32 +1,23 @@
 package vct.col.veymont
 
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
-import vct.col.ast.expr.StandardOperator
+import vct.col.ast.expr.{NameExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.BlockStatement
-import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, DeclarationStatement, Method, ProgramUnit}
-import vct.col.ast.util.{AbstractRewriter, ContractBuilder}
+import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement}
+import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
 
+  private var currentClassName : String = null
+  private var currentMethodArgs : Array[DeclarationStatement] = null
 
   override def visit(c : ASTClass) : Unit = {
+    currentClassName = c.name
     if(!Util.isChannelClass(c.name)) {
-      val fieldPerms = {
-        if (c.fields().asScala.isEmpty)
-          List(create.constant(true))
-        else c.fields().asScala.map(f => create.expression(StandardOperator.Perm, create.field_name(f.name), create.fullPermission()))
-      }
-      val classFields = c.fields().asScala.filter(_.`type`.isInstanceOf[ClassType])
-      val fieldClassPerms = classFields.map(f => classFieldPerm(create.field_name(f.name)))
-      val fieldPrimitiveTypes = c.fields().asScala.map(f => (f,Util.getArgPrimitiveSorts(f.getType)))
-      val arrayPerms = fieldPrimitiveTypes.filter(_._2.contains(PrimitiveSort.Array)).map(t =>
-        create.expression(StandardOperator.Star,
-          create.expression(StandardOperator.NEQ,create.field_name(t._1.name),create.reserved_name(ASTReserved.Null)),
-          getforallArrayPerm(create.field_name(t._1.name),None,t._2.count(p => p == PrimitiveSort.Array),t._2.last == PrimitiveSort.Cell)))
-      val body = (fieldPerms ++ fieldClassPerms ++ arrayPerms).reduce((p1, p2) => create.expression(StandardOperator.Star, p1, p2))
+      val body = getFieldPerms(c.fields().asScala,true)
       val resource = create.predicate(Util.ownerShipPredicateName, body)
       resource.setFlag(ASTFlags.INLINE, true)
       if(c.name == Util.mainClassName)
@@ -35,6 +26,88 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
     }
     super.visit(c)
   }
+
+  override def visit(m : Method): Unit = {
+    currentMethodArgs = m.getArgs
+    if(Util.isChannelClass(currentClassName))
+      super.visit(m)
+    else {
+      var body = m.getBody
+      val cb = new ContractBuilder()
+      cb.requires(getMethodArgsPerms(m.getArgs))
+      if (m.kind == Method.Kind.Constructor) {
+        cb.ensures(create.invokation(null, null, Util.ownerShipPredicateName))
+      } else if (m.kind == Method.Kind.Pure) {
+        cb.requires(create.invokation(null, null, Util.ownerShipPredicateName))
+      } else if (m.kind != Method.Kind.Predicate) {
+        cb.context(create.invokation(null, null, Util.ownerShipPredicateName))
+        body match {
+          case block : BlockStatement => {
+            val newBlock = new BlockStatement()
+            for(s <- block.asScala) {
+              s match {
+                case i : IfStatement => newBlock.add(create.special(ASTSpecial.Kind.Assert,getEquivCond(i.getGuard(0))))
+                case _ => //nothing
+              }
+              newBlock.add(rewrite(s))
+            }
+            body = newBlock
+          }
+          case _ => //nothing
+        }
+
+      }
+      if (m.getReturnType match {
+        case p: PrimitiveType => p.sort != PrimitiveSort.Void && p.sort != PrimitiveSort.Resource && !StructureCheck.isAllowedPrimitive(p)
+        case _ => true
+      })
+        cb.ensures(create.invokation(create.reserved_name(ASTReserved.Result), null, Util.ownerShipPredicateName))
+      rewrite(m.getContract, cb)
+      result = create.method_kind(m.kind, m.getReturnType, cb.getContract, m.name, m.getArgs, body)
+    }
+  }
+
+  override def visit(l : LoopStatement) : Unit = {
+    val cb = new ContractBuilder()
+    cb.appendInvariant(create.expression(StandardOperator.Star,create.expression(StandardOperator.Star,
+      create.invokation(null, null, Util.ownerShipPredicateName),
+      getMethodArgsPerms(currentMethodArgs)),
+      getEquivCond(l.getEntryGuard)))
+  }
+
+  private def getEquivCond(cond : ASTNode) : ASTNode = {
+    var exp : ASTNode = create.constant(true)
+    val conds = ASTUtils.conjuncts(cond, StandardOperator.And).asScala.toArray
+    for(i <- 0 until conds.size; j <- 0 until conds.size; if i != j) {
+      exp = create.expression(StandardOperator.And, exp, create.expression(StandardOperator.EQ,conds(i),conds(j)))
+    }
+    exp
+  }
+
+  private def getMethodArgsPerms(args : Array[DeclarationStatement]) : ASTNode =
+    getFieldPerms(args.filter(_.`type` match { //select heap locations
+      case p: PrimitiveType => !StructureCheck.isAllowedPrimitive(p)
+      case _ => true
+    }), false)
+
+  private def getFieldPerms(fields : Iterable[DeclarationStatement], isField : Boolean) : ASTNode = {
+    val fieldPerms = {
+      if (fields.isEmpty)
+        List(create.constant(true))
+      else fields.map(f => create.expression(StandardOperator.Perm, createFieldOrArgName(f.name, isField), create.fullPermission()))
+    }
+    val classFields = fields.filter(_.`type`.isInstanceOf[ClassType])
+    val fieldClassPerms = classFields.map(f => classFieldPerm(createFieldOrArgName(f.name, isField)))
+    val fieldPrimitiveTypes = fields.map(f => (f,Util.getArgPrimitiveSorts(f.getType)))
+    val arrayPerms = fieldPrimitiveTypes.filter(_._2.contains(PrimitiveSort.Array)).map(t =>
+      create.expression(StandardOperator.Star,
+        create.expression(StandardOperator.NEQ,createFieldOrArgName(t._1.name,isField),create.reserved_name(ASTReserved.Null)),
+        getforallArrayPerm(createFieldOrArgName(t._1.name,isField),None,t._2.count(p => p == PrimitiveSort.Array),t._2.last == PrimitiveSort.Cell)))
+    (fieldPerms ++ fieldClassPerms ++ arrayPerms).reduce((p1, p2) => create.expression(StandardOperator.Star, p1, p2))
+  }
+
+  private def createFieldOrArgName(name : String, isField : Boolean) : NameExpression =
+    if(isField) create.field_name(name) else create.argument_name(name)
 
   private def classFieldPerm(classFieldName : ASTNode) : ASTNode =
     create.invokation(classFieldName,null,Util.ownerShipPredicateName)

@@ -22,9 +22,8 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
 
   private def getStartThreadClass(threads : Set[ASTClass],mainClass : ASTClass, forkJoin : Boolean) : ASTClass = {
     create.enter()
-    create.setOrigin(new MessageOrigin("Generated Class MainJF"))
+    create.setOrigin(new MessageOrigin("Generated Class " + Util.localMainClassName))
     val mainFJClass = create.new_class(localMainClassName,null,null)
-    val mainFJContract = mainClass.methods().asScala.find(_.name == Util.mainMethodName).get.getContract
     val threadsConstr = threads.map(_.methods().asScala.find(_.kind== Kind.Constructor).get)
     val chansVars = threadsConstr.flatMap(getConstrChanArgs).map(getChanVar).toArray
     val threadVars = threads.map(t => getThreadVar(t)).toArray
@@ -37,7 +36,7 @@ class GenerateForkJoinMain(override val source: ProgramUnit)  extends AbstractRe
     val mainFJArgs = mainClass.methods().asScala.find(_.kind == Method.Kind.Constructor).get.getArgs
     val body = create.block(new MessageOrigin("Generated block of run method in Main class"),
       chansVars ++ threadVars ++ spawnThreads:_*) //++ threadJoins
-    val mainMethod = create.method_kind(Method.Kind.Constructor,create.primitive_type(PrimitiveSort.Void),rewrite(mainFJContract),localMainMethodName,mainFJArgs,body)
+    val mainMethod = create.method_kind(Method.Kind.Constructor,create.primitive_type(PrimitiveSort.Void),null,localMainMethodName,mainFJArgs,body)
     //Array(create.class_type("InterruptedException"))
     mainFJClass.add(mainMethod)
     create.leave()
