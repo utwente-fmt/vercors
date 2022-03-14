@@ -13,6 +13,8 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
   def isIntOp: Boolean =
     CoercionUtils.getCoercion(left.t, TInt()).isDefined &&
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
+  def isStringOp: Boolean =
+    CoercionUtils.getCoercion(left.t, TString()).isDefined
 
   override def t: Type[G] =
     if(isProcessOp) TProcess()

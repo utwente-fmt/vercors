@@ -757,40 +757,40 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
-    case JavaStringLiteral(data) =>
-      val stringClass = pinnedClasses(JavaLangString())
-      val stringOfSeq = {
-        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
-        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
-        ms(0)
-      }
-      implicit val o = DiagnosticOrigin
-      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
-      methodInvocation[Post](
-        PanicBlame("String literal construction cannot fail"),
-        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-        succ(stringOfSeq), args = Seq(codepointSeq))
-
-    case ap @ AmbiguousPlus(left, right) =>
-      try {
-        val ncr = NopCoercingRewriter[Pre]()
-        // TODO: Move to disambiguate
-        ncr.coerce(left, TPinnedDecl(JavaLangString()))
-        ncr.coerce(right, TPinnedDecl(JavaLangString()))
-
-        val stringClass = pinnedClasses(JavaLangString())
-        val operatorPlus = stringClass.findMethodByName[JavaMethod[Pre]]("operatorPlus") match {
-          case Seq(m) => m
-          case ms => throw Unreachable(s"Unexpected number (${ms.length}) of String.operatorPlus methods")
-        }
-        implicit val o = DiagnosticOrigin
-        methodInvocation[Post](
-          PanicBlame("String concatenation cannot fail"),
-          functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-          succ(operatorPlus), args = Seq(dispatch(left), dispatch(right)))
-      } catch {
-        case Incoercible(_, _) => super.dispatch(ap)
-      }
+//    case JavaStringLiteral(data) =>
+//      val stringClass = pinnedClasses(JavaLangString())
+//      val stringOfSeq = {
+//        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
+//        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
+//        ms(0)
+//      }
+//      implicit val o = DiagnosticOrigin
+//      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
+//      methodInvocation[Post](
+//        PanicBlame("String literal construction cannot fail"),
+//        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
+//        succ(stringOfSeq), args = Seq(codepointSeq))
+//
+//    case ap @ AmbiguousPlus(left, right) =>
+//      try {
+//        val ncr = NopCoercingRewriter[Pre]()
+//        // TODO: Move to disambiguate
+//        ncr.coerce(left, TPinnedDecl(JavaLangString()))
+//        ncr.coerce(right, TPinnedDecl(JavaLangString()))
+//
+//        val stringClass = pinnedClasses(JavaLangString())
+//        val operatorPlus = stringClass.findMethodByName[JavaMethod[Pre]]("operatorPlus") match {
+//          case Seq(m) => m
+//          case ms => throw Unreachable(s"Unexpected number (${ms.length}) of String.operatorPlus methods")
+//        }
+//        implicit val o = DiagnosticOrigin
+//        methodInvocation[Post](
+//          PanicBlame("String concatenation cannot fail"),
+//          functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
+//          succ(operatorPlus), args = Seq(dispatch(left), dispatch(right)))
+//      } catch {
+//        case Incoercible(_, _) => super.dispatch(ap)
+//      }
 
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {
