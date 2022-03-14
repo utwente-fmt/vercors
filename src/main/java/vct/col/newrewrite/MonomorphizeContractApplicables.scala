@@ -30,33 +30,31 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
   val monomorphizedRef: mutable.Map[(ContractApplicable[Pre], Seq[Type[Post]]), Ref[Post, ContractApplicable[Post]]] = mutable.Map()
   val monomorphizedImpl: mutable.Map[(ContractApplicable[Pre], Seq[Type[Post]]), ContractApplicable[Post]] = mutable.Map()
 
+  def getOrBuild(app: ContractApplicable[Pre], typeValues: Seq[Type[Post]]): Ref[Post, ContractApplicable[Post]] =
+    monomorphizedRef.get((app, typeValues)) match {
+      case Some(ref) => ref
+      case None =>
+        monomorphizedRef((app, typeValues)) = new LazyRef(monomorphizedImpl((app, typeValues)))
+        monomorphizedImpl((app, typeValues)) = currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
+          freshSuccessionScope {
+            app.rewrite(typeArgs = Nil).succeedDefault(app)
+          }
+        }
+        monomorphizedRef((app, typeValues))
+    }
+
+
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] if app.typeArgs.nonEmpty =>
       app.typeArgs.foreach(_.drop())
-      val typeValues = app.typeArgs.map(v => dispatch(v.t.asInstanceOf[TType[Pre]].t))
-      currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
-        freshSuccessionScope {
-          app.rewrite(typeArgs = Nil).succeedDefault(app)
-        }
-      }
+      getOrBuild(app, app.typeArgs.map(v => dispatch(v.t.asInstanceOf[TType[Pre]].t)))
     case other => rewriteDefault(other)
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
     case inv: Invocation[Pre] if inv.ref.decl.typeArgs.nonEmpty =>
       val typeValues = inv.typeArgs.map(dispatch)
-
-      val ref = monomorphizedRef.get((inv.ref.decl, typeValues)) match {
-        case Some(ref) => ref
-        case None =>
-          monomorphizedRef((inv.ref.decl, typeValues)) = new LazyRef(monomorphizedImpl((inv.ref.decl, typeValues)))
-          monomorphizedImpl((inv.ref.decl, typeValues)) = currentSubstitutions.having(inv.ref.decl.typeArgs.zip(typeValues).toMap) {
-            freshSuccessionScope {
-              inv.ref.decl.rewrite(typeArgs = Nil).succeedDefault(inv.ref.decl)
-            }
-          }
-          monomorphizedRef((inv.ref.decl, typeValues))
-      }
+      val ref = getOrBuild(inv.ref.decl, typeValues)
 
       inv match {
         case inv: ProcedureInvocation[Pre] => inv.rewrite(ref = ref.asInstanceOf[Ref[Post, Procedure[Post]]], typeArgs = Nil)

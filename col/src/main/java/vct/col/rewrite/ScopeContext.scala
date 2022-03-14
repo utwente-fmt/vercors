@@ -36,11 +36,15 @@ class ScopeContext[Pre, Post] {
   val cLocalScopes: ScopedStack[ArrayBuffer[CDeclaration[Post]]] = ScopedStack()
   val cParams: ScopedStack[ArrayBuffer[CParam[Post]]] = ScopedStack()
 
-  def collectInScope[T](scope: ScopedStack[ArrayBuffer[T]])(f: => Unit): Seq[T] = {
+  def withCollectInScope[T, S](scope: ScopedStack[ArrayBuffer[T]])(f: => S): (Seq[T], S) = {
     scope.push(ArrayBuffer())
-    f
-    scope.pop().toSeq
+    val s = f
+    val ts = scope.pop().toSeq
+    (ts, s)
   }
+
+  def collectInScope[T](scope: ScopedStack[ArrayBuffer[T]])(f: => Unit): Seq[T] =
+    withCollectInScope(scope)(f)._1
 
   def collectOneInScope[T](scope: ScopedStack[ArrayBuffer[T]])(f: => Unit)(implicit tag: ClassTag[T]): T = {
     val result = collectInScope(scope)(f)

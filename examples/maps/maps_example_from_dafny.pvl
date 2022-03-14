@@ -9,13 +9,13 @@ class Maps {
 
     void main() {
         map<int,int> m = map<int,int> {2 -> 3};
-        assert 2 in keysMap(m);
-        assert !(3 in keysMap(m));
+        assert 2 in m.keys;
+        assert !(3 in m.keys);
         assert m[2] == 3;
-        assert disjointMap(m, map<int, int> {3 -> 3});
+        assert m.disjoint(map<int, int> {3 -> 3});
         assert map<int, int> {2 -> 4} == map<int, int> {2 -> 4};
-        assert equalsMap(m ++ (7, 1), m ++ (2, 3) ++ (7, 1));
-        assert equalsMap(m, m ++ (2, 3));
+        assert (m ++ (7, 1)).equals(m ++ (2, 3) ++ (7, 1));
+        assert m.equals(m ++ (2, 3));
     }
 
     void m() {
@@ -24,12 +24,12 @@ class Maps {
         assert a[b[3]] == 3;
     }
 
-    requires (\forall int i; 0 <= i && i < 100; i in keysMap(a) && i in keysMap(b) && a[i] != b[i]);
+    requires (\forall int i; 0 <= i && i < 100; i in a.keys && i in b.keys && a[i] != b[i]);
     void m2(map<int, boolean> a, map<int, boolean> b) {
         assert (\forall int i; 0 <= i  && i < 100; {:a[i]:} || {:b[i]:});
     }
 
-    requires (\forall int i; 0 <= i && i < 100; i in keysMap(a) && a[i] == i*i);
+    requires (\forall int i; 0 <= i && i < 100; i in a.keys && a[i] == i*i);
     void m3(map<int, int> a) {
         assert a[20] == 400;
     }
@@ -41,7 +41,7 @@ class Maps {
         }
     }
 
-    requires 20 in keysMap(a);
+    requires 20 in a.keys;
     void m5(map<int, int> a) {
         assert a[20] <= 0 || 0 < a[20];
     }
@@ -56,53 +56,53 @@ class Maps {
 
     void m7() {
         map<int,int> a = map<int,int> {1 -> 1, 2 -> 4, 3 -> 9};
-        assert (\forall int i; i in keysMap(a); a[i] == i*i);
-        assert !(0 in keysMap(a));
-        assert 1 in keysMap(a);
-        assert 2 in keysMap(a);
-        assert 3 in keysMap(a);
-        assert (\forall int i; i < 1 || i > 3; !(i in keysMap(a)));
+        assert (\forall int i; i in a.keys; a[i] == i*i);
+        assert !(0 in a.keys);
+        assert 1 in a.keys;
+        assert 2 in a.keys;
+        assert 3 in a.keys;
+        assert (\forall int i; i < 1 || i > 3; !(i in a.keys));
     }
 
     void m8() {
         map<int,int> a = map<int,int> {};
-        assert (\forall int i; true; !(i in keysMap(a)));
+        assert (\forall int i; true; !(i in a.keys));
         int i = 0;
         int n = 100;
 
 
         loop_invariant 0 <= i && i <= n;
-        loop_invariant (\forall int j; j in keysMap(a); a[j] == j*j);
-        loop_invariant (\forall int k; true; (0 <= k && k < i) == k in keysMap(a));
+        loop_invariant (\forall int j; j in a.keys; a[j] == j*j);
+        loop_invariant (\forall int k; true; (0 <= k && k < i) == k in a.keys);
         while (i < n) {
           a = a ++ (i, (i*i));
           i = i + 1;
         }
 
-        assert disjointMap(a, map<int, int>{-1 -> 2});
+        assert a.disjoint(map<int, int>{-1 -> 2});
         m3(a);
     }
 
     void m9() {
         map<int,int> a = map<int,int> {};
         map<int,int> b = map<int,int> {};
-        assert disjointMap(a, b);
+        assert a.disjoint(b);
 
         b = map<int,int> {2 -> 3, 4 -> 2, 5 -> -6, 6 -> 7};
-        assert disjointMap(a, b);
-        assert !disjointMap(b, map<int,int> {6 -> 3});
+        assert a.disjoint(b);
+        assert !b.disjoint(map<int,int> {6 -> 3});
     }
 
     void m10()
     {
         map<int,int> a = map<int,int> {};
         map<int,int> b = map<int,int> {};
-        assert disjointMap(a, b);
+        assert a.disjoint(b);
 
         b = map<int,int> {2 -> 3, 4 -> 2, 5 -> -6, 6 -> 7};
-        assert disjointMap(a, b);
+        assert a.disjoint(b);
 
         a = map<int,int> {3 -> 3, 1 -> 2, 9 -> -6, 8 -> 7};
-        assert disjointMap(a, b);
+        assert a.disjoint(b);
     }
 }

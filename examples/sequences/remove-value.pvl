@@ -34,7 +34,7 @@ class Edge {
 	int source;
 	int target;
 
-	Edge (int s, int t) {
+	constructor (int s, int t) {
 		source = s;
 		target = t;
 	}
