@@ -10,7 +10,7 @@ public final class IntegerChannel {
         transfering = true;
     }
 
-    public synchronized void write(int v) {
+    public synchronized void writeValue(int v) {
         while (!transfering) {
             try {
                 wait();
@@ -23,7 +23,7 @@ public final class IntegerChannel {
         notify();
     }
 
-    public synchronized int read() {
+    public synchronized int readValue() {
         while (transfering) {
             try {
                 wait();

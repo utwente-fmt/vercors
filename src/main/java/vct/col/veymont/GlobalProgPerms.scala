@@ -29,17 +29,16 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
 
   override def visit(m : Method): Unit = {
     currentMethodArgs = m.getArgs
-    if(Util.isChannelClass(currentClassName))
-      super.visit(m)
-    else {
+    if(!Util.isChannelClass(currentClassName)) {
       var body = m.getBody
       val cb = new ContractBuilder()
-      cb.requires(getMethodArgsPerms(m.getArgs))
       if (m.kind == Method.Kind.Constructor) {
+        cb.requires(getMethodArgsPerms(m.getArgs))
         cb.ensures(create.invokation(null, null, Util.ownerShipPredicateName))
       } else if (m.kind == Method.Kind.Pure) {
         cb.requires(create.invokation(null, null, Util.ownerShipPredicateName))
       } else if (m.kind != Method.Kind.Predicate) {
+        cb.requires(getMethodArgsPerms(m.getArgs))
         cb.context(create.invokation(null, null, Util.ownerShipPredicateName))
         body match {
           case block : BlockStatement => {
@@ -64,24 +63,30 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
         cb.ensures(create.invokation(create.reserved_name(ASTReserved.Result), null, Util.ownerShipPredicateName))
       rewrite(m.getContract, cb)
       result = create.method_kind(m.kind, m.getReturnType, cb.getContract, m.name, m.getArgs, body)
-    }
+    } else super.visit(m)
   }
 
   override def visit(l : LoopStatement) : Unit = {
-    val cb = new ContractBuilder()
-    cb.appendInvariant(create.expression(StandardOperator.Star,create.expression(StandardOperator.Star,
-      create.invokation(null, null, Util.ownerShipPredicateName),
-      getMethodArgsPerms(currentMethodArgs)),
-      getEquivCond(l.getEntryGuard)))
+    if(!Util.isChannelClass(currentClassName)) {
+      val cb = new ContractBuilder()
+      cb.appendInvariant(create.expression(StandardOperator.Star, create.expression(StandardOperator.Star,
+        create.invokation(null, null, Util.ownerShipPredicateName),
+        getMethodArgsPerms(currentMethodArgs)),
+        getEquivCond(l.getEntryGuard)))
+      rewrite(l.getContract, cb)
+      result = create.while_loop(l.getEntryGuard, rewrite(l.getBody), cb.getContract)
+    } else super.visit(l)
   }
 
   private def getEquivCond(cond : ASTNode) : ASTNode = {
-    var exp : ASTNode = create.constant(true)
     val conds = ASTUtils.conjuncts(cond, StandardOperator.And).asScala.toArray
-    for(i <- 0 until conds.size; j <- 0 until conds.size; if i != j) {
-      exp = create.expression(StandardOperator.And, exp, create.expression(StandardOperator.EQ,conds(i),conds(j)))
-    }
-    exp
+    if(conds.size > 1) {
+      var exp: ASTNode = create.expression(StandardOperator.EQ, conds(0), conds(1))
+      for (i <- 0 until conds.size; j <- 2 until conds.size; if i < j) {
+        exp = create.expression(StandardOperator.And, exp, create.expression(StandardOperator.EQ, conds(i), conds(j)))
+      }
+      exp
+    } else create.constant(true)
   }
 
   private def getMethodArgsPerms(args : Array[DeclarationStatement]) : ASTNode =
