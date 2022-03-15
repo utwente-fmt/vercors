@@ -5,11 +5,11 @@ package java.lang;
 ghost
 ensures \result != null ** \result instanceof String ** \result.data() == data;
 ensures (\forall string otherData; true; (otherData == data) == (\result == internString(otherData)));
-pure static final String internString(string data);
+pure String internString(string data);
 
 ghost
 ensures \result != null ** \result instanceof String;
-pure static final String concatStrings(String a, String b);
+pure String concatStrings(String a, String b);
 @*/
 
 public class String {

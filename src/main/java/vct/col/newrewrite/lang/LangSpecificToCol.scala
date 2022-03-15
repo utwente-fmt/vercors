@@ -757,6 +757,16 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
+    case l @ JavaStringLiteral(data) =>
+      val stringClass = pinnedClasses(JavaLangString())
+      val stringOfString = {
+        val ms: Seq[Function[Pre]] = ???
+        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
+        ms(0)
+      }
+      implicit val o = l.o
+      InternedString(StringLiteral(data), succ(stringOfString))
+
 //    case JavaStringLiteral(data) =>
 //      val stringClass = pinnedClasses(JavaLangString())
 //      val stringOfSeq = {

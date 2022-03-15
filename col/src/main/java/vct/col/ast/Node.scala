@@ -199,10 +199,10 @@ sealed abstract class Declaration[G] extends Node[G] with DeclarationImpl[G] {
 sealed abstract class GlobalDeclaration[G] extends Declaration[G] with GlobalDeclarationImpl[G]
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
-final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
+final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G], val pin: Option[PinnedDecl[G]] = None)(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
 final class Function[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
-               val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false)
+               val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false, val pin: Option[PinnedDecl[G]] = None)
               (val blame: Blame[ContractedFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractFunction[G] with FunctionImpl[G]
 final class Procedure[G](val returnType: Type[G],
