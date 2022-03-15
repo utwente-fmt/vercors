@@ -548,10 +548,10 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   }
 
   // PB: dumb hack alert: TVoid and Return(Void()) is (for viper) a marker to indicate that there is no return type.
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+  override def postCoerce(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] if method.returnType == TVoid[Pre]() =>
       method.rewrite(returnType = TVoid()).succeedDefault(decl)
-    case other => rewriteDefault(other)
+    case other => super.postCoerce(other)
   }
 
   override def postCoerce(stat: Statement[Pre]): Statement[Post] = stat match {

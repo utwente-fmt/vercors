@@ -17,7 +17,16 @@ case object InlineApplicables extends RewriterBuilder {
 
   case class CyclicInline(applications: Seq[Apply[_]]) extends UserError {
     override def code: String = "cyclicInline"
-    override def text: String = ""
+    override def text: String =
+      applications match {
+        case Seq(app) => app.o.messageInContext("This inline applicable refers to itself.")
+        case first :: more =>
+          Origin.messagesInContext(
+            (first.o, "This application cannot be inlined, since it requires inlining ...") +:
+              more.map(apply => (apply.o, "... this application, which requires inlining ...")) :+
+              (first.o, "... this application: a cycle.")
+          )
+      }
   }
 
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
@@ -45,8 +54,15 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
     case apply: ApplyInlineable[Pre] if apply.ref.decl.inline =>
       implicit val o: Origin = apply.o
 
-      if(inlineStack.exists(_.ref.decl == apply.ref.decl))
-        throw CyclicInline(inlineStack.toSeq)
+      // Some fanfare here to produce a nice diagnostic when the cycle of applications is large.
+      // First reverse the stack of to-be-inlined applications, since toSeq of a stack presents the head first.
+      // Next skip any declarations that are not equal to the declaration of the current apply: they are unrelated to the cycle.
+      // Finally throw if we have found an apply that has the same declaration as us, but skip that initial apply:
+      // it may not be part of the real cycle (but just the entry into it).
+      inlineStack.toSeq.reverse.dropWhile(_.ref.decl != apply.ref.decl) match {
+        case Nil => // ok
+        case some => throw CyclicInline(some.tail :+ apply)
+      }
 
       inlineStack.having(apply) {
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]

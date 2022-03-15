@@ -1,11 +1,12 @@
 package vct.col.coerce
 
+import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.Types
+import vct.col.util.{SuccessionMap, Types}
 import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable.ArrayBuffer
@@ -38,6 +39,22 @@ case object CoercingRewriter {
 
 abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   import CoercingRewriter._
+
+  val coercedSuccessionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Pre]]] = ScopedStack()
+  coercedSuccessionMap.push(SuccessionMap())
+
+  override def lookupSuccessor: Declaration[Pre] => Option[Declaration[Rewritten[Pre]]] = {
+    val frozenCoercedSuccessionMap = coercedSuccessionMap.toSeq
+    val inner = super.lookupSuccessor
+    (decl: Declaration[Pre]) =>
+      FuncTools.firstOption[SuccessionMap[Declaration[Pre], Declaration[Pre]], Declaration[Post]](frozenCoercedSuccessionMap, _.get(decl) match {
+        case None => None
+        case Some(decl: Declaration[Pre]) => inner(decl)
+      })
+  }
+
+  override def freshSuccessionScope[T](f: => T): T =
+    coercedSuccessionMap.having(SuccessionMap()) { super.freshSuccessionScope(f) }
 
   /**
     * Apply a particular coercion to an expression.
@@ -1129,8 +1146,41 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  def coerce(decl: Declaration[Pre]): Declaration[Pre] =
-    decl
+  def coerce(decl: Declaration[Pre]): Declaration[Pre] = {
+    coercedSuccessionMap.top(decl) = decl
+    return decl
+    decl match {
+      case rule: SimplificationRule[Pre] => ???
+      case dataType: AxiomaticDataType[Pre] => ???
+      case clazz: Class[Pre] => ???
+      case model: Model[Pre] => ???
+      case function: Function[Pre] => ???
+      case procedure: Procedure[Pre] => ???
+      case predicate: Predicate[Pre] => ???
+      case declaration: CAbstractGlobalDeclaration[Pre] => ???
+      case declaration: JavaGlobalDeclaration[Pre] => ???
+      case declaration: SilverDeclaration[Pre] => ???
+      case function: InstanceFunction[Pre] => ???
+      case method: InstanceMethod[Pre] => ???
+      case predicate: InstancePredicate[Pre] => ???
+      case field: InstanceField[Pre] => ???
+      case declaration: JavaClassDeclaration[Pre] => ???
+      case declaration: PVLClassDeclaration[Pre] => ???
+      case field: ModelField[Pre] => ???
+      case process: ModelProcess[Pre] => ???
+      case action: ModelAction[Pre] => ???
+      case axiom: ADTAxiom[Pre] => ???
+      case function: ADTFunction[Pre] => ???
+      case variable: Variable[Pre] => ???
+      case decl: LabelDecl[Pre] => ???
+      case decl: SendDecl[Pre] => ???
+      case decl: ParBlockDecl[Pre] => ???
+      case decl: ParInvariantDecl[Pre] => ???
+      case param: CParam[Pre] => ???
+      case declaration: CDeclaration[Pre] => ???
+      case declaration: JavaLocalDeclaration[Pre] => ???
+    }
+  }
 
   def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {
     implicit val o: Origin = region.o
