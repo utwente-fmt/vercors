@@ -1,5 +1,6 @@
 package vct.col.coerce
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.origin._
@@ -10,6 +11,7 @@ import vct.col.util.{SuccessionMap, Types}
 import vct.result.VerificationResult.{SystemError, Unreachable}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.{Failure, Success, Try}
 
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
   globalScopes.push(ArrayBuffer())
@@ -37,7 +39,7 @@ case object CoercingRewriter {
   }
 }
 
-abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
+abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import CoercingRewriter._
 
   val coercedSuccessionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Pre]]] = ScopedStack()
@@ -342,48 +344,53 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case None => throw IncoercibleText(e, s"Expected an either here, but got ${e.t}")
     }
 
-  def firstOk[T](expr: Expr[Pre], message: => String,
-                 alt1: => T = throw IncoercibleDummy,
-                 alt2: => T = throw IncoercibleDummy,
-                 alt3: => T = throw IncoercibleDummy,
-                 alt4: => T = throw IncoercibleDummy,
-                 alt5: => T = throw IncoercibleDummy,
-                 alt6: => T = throw IncoercibleDummy,
-                 alt7: => T = throw IncoercibleDummy,
-                 alt8: => T = throw IncoercibleDummy): T = {
-    try {
-      alt1
-    } catch {
-      case _: CoercionError => try {
-        alt2
+  def firstOkHelper[T](thing: Either[Seq[CoercionError], T], onError: => T): Either[Seq[CoercionError], T] =
+    thing match {
+      case Left(errs) => try {
+        Right(onError)
       } catch {
-        case _: CoercionError => try {
-          alt3
-        } catch {
-          case _: CoercionError => try {
-            alt4
-          } catch {
-            case _: CoercionError => try {
-              alt5
-            } catch {
-              case _: CoercionError => try {
-                alt6
-              } catch {
-                case _: CoercionError => try {
-                  alt7
-                } catch {
-                  case _: CoercionError => try {
-                    alt8
-                  } catch {
-                    case _: CoercionError =>
-                      throw IncoercibleText(expr, message)
-                  }
-                }
-              }
-            }
-          }
-        }
+        case err: CoercionError => Left(errs :+ err)
       }
+      case Right(value) => Right(value)
+    }
+
+  implicit class FirstOkHelper[T](res: Either[Seq[CoercionError], T]) {
+    def onCoercionError(f: => T): Either[Seq[CoercionError], T] =
+      res match {
+        case Left(errs) => try {
+          Right(f)
+        } catch {
+          case err: CoercionError => Left(errs :+ err)
+        }
+        case Right(value) => Right(value)
+      }
+  }
+
+  def firstOk[T](expr: Expr[Pre], message: => String,
+                  alt1: => T = throw IncoercibleDummy,
+                  alt2: => T = throw IncoercibleDummy,
+                  alt3: => T = throw IncoercibleDummy,
+                  alt4: => T = throw IncoercibleDummy,
+                  alt5: => T = throw IncoercibleDummy,
+                  alt6: => T = throw IncoercibleDummy,
+                  alt7: => T = throw IncoercibleDummy,
+                  alt8: => T = throw IncoercibleDummy) : T = {
+    Left(Nil)
+      .onCoercionError(alt1)
+      .onCoercionError(alt2)
+      .onCoercionError(alt3)
+      .onCoercionError(alt4)
+      .onCoercionError(alt5)
+      .onCoercionError(alt6)
+      .onCoercionError(alt7)
+      .onCoercionError(alt8)
+    match {
+      case Left(errs) =>
+        for(err <- errs) {
+          logger.debug(err.text)
+        }
+        throw IncoercibleText(expr, message)
+      case Right(value) => value
     }
   }
 
