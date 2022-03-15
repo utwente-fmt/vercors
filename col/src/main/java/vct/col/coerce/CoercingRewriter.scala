@@ -224,8 +224,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
-  override def dispatch(decl: Declaration[Pre]): Unit =
-    postCoerce(coerce(preCoerce(decl)))
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    val coercedDecl = coerce(preCoerce(decl))
+    coercedSuccessionMap.top(decl) = coercedDecl
+    postCoerce(coercedDecl)
+  }
 
   def preCoerce(region: ParRegion[Pre]): ParRegion[Pre] = region
   def postCoerce(region: ParRegion[Pre]): ParRegion[Post] = rewriteDefault(region)
@@ -1147,38 +1150,90 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def coerce(decl: Declaration[Pre]): Declaration[Pre] = {
-    coercedSuccessionMap.top(decl) = decl
-    return decl
+    implicit val o: Origin = decl.o
     decl match {
-      case rule: SimplificationRule[Pre] => ???
-      case dataType: AxiomaticDataType[Pre] => ???
-      case clazz: Class[Pre] => ???
-      case model: Model[Pre] => ???
-      case function: Function[Pre] => ???
-      case procedure: Procedure[Pre] => ???
-      case predicate: Predicate[Pre] => ???
-      case declaration: CAbstractGlobalDeclaration[Pre] => ???
-      case declaration: JavaGlobalDeclaration[Pre] => ???
-      case declaration: SilverDeclaration[Pre] => ???
-      case function: InstanceFunction[Pre] => ???
-      case method: InstanceMethod[Pre] => ???
-      case predicate: InstancePredicate[Pre] => ???
-      case field: InstanceField[Pre] => ???
-      case declaration: JavaClassDeclaration[Pre] => ???
-      case declaration: PVLClassDeclaration[Pre] => ???
-      case field: ModelField[Pre] => ???
-      case process: ModelProcess[Pre] => ???
-      case action: ModelAction[Pre] => ???
-      case axiom: ADTAxiom[Pre] => ???
-      case function: ADTFunction[Pre] => ???
-      case variable: Variable[Pre] => ???
-      case decl: LabelDecl[Pre] => ???
-      case decl: SendDecl[Pre] => ???
-      case decl: ParBlockDecl[Pre] => ???
-      case decl: ParInvariantDecl[Pre] => ???
-      case param: CParam[Pre] => ???
-      case declaration: CDeclaration[Pre] => ???
-      case declaration: JavaLocalDeclaration[Pre] => ???
+      case rule: SimplificationRule[Pre] =>
+        new SimplificationRule[Pre](bool(rule.axiom))
+      case dataType: AxiomaticDataType[Pre] =>
+        dataType
+      case clazz: Class[Pre] =>
+        new Class[Pre](clazz.declarations, clazz.supports, res(clazz.intrinsicLockInvariant))
+      case model: Model[Pre] =>
+        model
+      case function: Function[Pre] =>
+        new Function[Pre](function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
+      case procedure: Procedure[Pre] =>
+        procedure
+      case predicate: Predicate[Pre] =>
+        new Predicate[Pre](predicate.args, predicate.body.map(res), predicate.threadLocal, predicate.inline)
+      case definition: CFunctionDefinition[Pre] =>
+        definition
+      case declaration: CGlobalDeclaration[Pre] =>
+        declaration
+      case namespace: JavaNamespace[Pre] =>
+        namespace
+      case clazz: JavaClass[Pre] =>
+        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)
+      case interface: JavaInterface[Pre] =>
+        interface
+      case interface: JavaAnnotationInterface[Pre] =>
+        interface
+      case field: SilverField[Pre] =>
+        field
+      case function: InstanceFunction[Pre] =>
+        new InstanceFunction[Pre](function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
+      case method: InstanceMethod[Pre] =>
+        method
+      case predicate: InstancePredicate[Pre] =>
+        new InstancePredicate[Pre](predicate.args, predicate.body.map(res), predicate.threadLocal, predicate.inline)
+      case field: InstanceField[Pre] =>
+        field
+      case initialization: JavaSharedInitialization[Pre] =>
+        initialization
+      case fields: JavaFields[Pre] =>
+        new JavaFields[Pre](fields.modifiers, fields.t, fields.decls.map {
+          case (name, dims, None) => (name, dims, None)
+          case (name, dims, Some(v)) =>
+            (name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, fields.t))))
+        })
+      case constructor: JavaConstructor[Pre] =>
+        constructor
+      case method: JavaMethod[Pre] =>
+        method
+      case method: JavaAnnotationMethod[Pre] =>
+        method
+      case constructor: PVLConstructor[Pre] =>
+        constructor
+      case field: ModelField[Pre] =>
+        field
+      case proc: ModelProcess[Pre] =>
+        new ModelProcess[Pre](proc.args, process(proc.impl), bool(proc.requires), bool(proc.ensures), proc.modifies, proc.accessible)(proc.blame)
+      case action: ModelAction[Pre] =>
+        new ModelAction[Pre](action.args, bool(action.requires), bool(action.ensures), action.modifies, action.accessible)
+      case axiom: ADTAxiom[Pre] =>
+        new ADTAxiom[Pre](bool(axiom.axiom))
+      case function: ADTFunction[Pre] =>
+        function
+      case variable: Variable[Pre] =>
+        variable
+      case decl: LabelDecl[Pre] =>
+        decl
+      case decl: SendDecl[Pre] =>
+        decl
+      case decl: ParBlockDecl[Pre] =>
+        decl
+      case decl: ParInvariantDecl[Pre] =>
+        decl
+      case param: CParam[Pre] =>
+        param
+      case declaration: CDeclaration[Pre] =>
+        new CDeclaration[Pre](declaration.contract, res(declaration.kernelInvariant), declaration.specs, declaration.inits)
+      case declaration: JavaLocalDeclaration[Pre] =>
+        new JavaLocalDeclaration[Pre](declaration.modifiers, declaration.t, declaration.decls.map {
+          case (name, dims, None) => (name, dims, None)
+          case (name, dims, Some(v)) =>
+            (name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
+        })
     }
   }
 

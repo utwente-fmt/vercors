@@ -261,4 +261,11 @@ class BasicTests extends AnyFlatSpec with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
+  it should "allow the literal null as an implementation for a function returning a class object in examples/technical/func_null_impl_ok.pvl" in {
+    val configuration = IntegrationTestConfiguration()
+    configuration.files = Array("examples/technical/func_null_impl_ok.pvl")
+    configuration.verdict = Verdict.Pass
+    configuration.toolSilicon = true
+    IntegrationTestHelper.test(configuration)
+  }
 }
