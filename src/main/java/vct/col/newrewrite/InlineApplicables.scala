@@ -19,7 +19,7 @@ case object InlineApplicables extends RewriterBuilder {
     override def code: String = "cyclicInline"
     override def text: String =
       applications match {
-        case Seq(app) => app.o.messageInContext("This inline applicable refers to itself.")
+        case Seq(app) => app.o.messageInContext("This application cannot be inlined, since the applicable refers to itself.")
         case first :: more =>
           Origin.messagesInContext(
             (first.o, "This application cannot be inlined, since it requires inlining ...") +:
