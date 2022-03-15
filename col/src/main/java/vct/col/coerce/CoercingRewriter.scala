@@ -182,7 +182,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     case node: SignalsClause[Pre] => node
     case node: FieldFlag[Pre] => node
     case node: IterVariable[Pre] => node
-    case node: SilverPredicateAccess[Pre] => node
     case node: CDeclarator[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
     case node: CTypeQualifier[Pre] => node

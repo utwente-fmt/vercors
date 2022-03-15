@@ -377,7 +377,6 @@ class FeatureRainbow[G] {
     case node: ModelProcess[G] => Models
     case node: ModelAction[G] => Models
     case node: Model[G] => Models
-    case node: SilverPredicateAccess[G] => return Nil
     case node: SilverDeref[G] => return Nil
     case node: SilverCurFieldPerm[G] => return Nil
     case node: SilverCurPredPerm[G] => return Nil

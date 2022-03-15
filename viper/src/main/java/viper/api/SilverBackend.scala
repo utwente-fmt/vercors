@@ -162,7 +162,7 @@ trait SilverBackend extends Backend with LazyLogging {
         reason match {
           case reasons.InsufficientPermission(access) =>
             get[col.Node[_]](access) match {
-              case col.SilverPredicateAccess(_, _, _) =>
+              case col.PredicateApply(_, _, _) =>
                 val unfold = get[col.Unfold[_]](node)
                 unfold.blame.blame(blame.UnfoldFailed(getFailure(reason), unfold))
               case _ =>

@@ -16,14 +16,6 @@ case object PinSilverNodes extends RewriterBuilder {
 }
 
 case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
-  def requirePredicateAccess(e: Expr[Pre]): SilverPredicateAccess[Post] = e match {
-//    case Scale(perm, PredicateApply(Ref(pred), args)) =>
-//      SilverPredicateAccess[Post](succ(pred), args.map(dispatch), dispatch(perm))(e.o)
-//    case PredicateApply(Ref(pred), args) =>
-//      SilverPredicateAccess[Post](succ(pred), args.map(dispatch), WritePerm()(e.o))(e.o)
-    case other => throw Unreachable("Predicate access expected in position.")
-  }
-
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case assn @ Assign(target, value) => target match {
       case Local(Ref(v)) => SilverLocalAssign[Post](succ(v), dispatch(value))(stat.o)
@@ -47,10 +39,12 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case CurPerm(loc) => loc match {
-      case SilverDeref(obj, Ref(field)) => SilverCurFieldPerm[Post](dispatch(obj), succ(field))(e.o)
-      case p =>
-        val access = requirePredicateAccess(p)
-        SilverCurPredPerm(access.ref, access.args)(e.o)
+      case SilverDeref(obj, Ref(field)) =>
+        SilverCurFieldPerm[Post](dispatch(obj), succ(field))(e.o)
+      case PredicateApply(Ref(pred), args, WritePerm()) =>
+        SilverCurPredPerm[Post](succ(pred), args.map(dispatch))(e.o)
+      case _ =>
+        throw Unreachable("Invalid permission location")
     }
 
     case SeqMember(x, Range(from, to)) =>

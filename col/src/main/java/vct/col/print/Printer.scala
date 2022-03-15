@@ -1180,9 +1180,6 @@ case class Printer(out: Appendable,
   def printIterVariable(iterVariable: IterVariable[_]): Unit =
     say(iterVariable.variable, space, "=", space, iterVariable.from, space, "..", space, iterVariable.to)
 
-  def printSilverPredicateAccess(silverPredAcc: SilverPredicateAccess[_]): Unit =
-    ???
-
   def printCDeclarator(node: CDeclarator[_]): Unit = node match {
     case CPointerDeclarator(pointers, inner) =>
       say("*".repeat(pointers.size), inner)
@@ -1270,7 +1267,6 @@ case class Printer(out: Appendable,
     case node: SignalsClause[_] => printSignalsClause(node)
     case fieldFlag: FieldFlag[_] => printFieldFlag(fieldFlag)
     case iterVariable: IterVariable[_] => printIterVariable(iterVariable)
-    case silverPredAcc: SilverPredicateAccess[_] => printSilverPredicateAccess(silverPredAcc)
     case node: CDeclarator[_] => printCDeclarator(node)
     case cDeclSpec: CDeclarationSpecifier[_] => printCDeclarationSpecifier(cDeclSpec)
     case node: CTypeQualifier[_] => printCTypeQualifier(node)
