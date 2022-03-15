@@ -26,6 +26,7 @@ case object Java {
   def JAVA_LANG_STRING_TYPE[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
   def JAVA_LANG_STRING_NAME[G]: JavaName[G] = JavaName(JAVA_LANG_STRING)
   def JAVA_LANG_STRING: Seq[String] = Seq("java", "lang", "String")
+  def JAVA_LANG: Seq[String] = Seq("java", "lang")
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
@@ -182,7 +183,12 @@ case object Java {
               case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
               case Seq(cls: JavaInterface[G]) => Some(RefJavaClass(cls))
               case Seq(cls: JavaAnnotationInterface[G]) => Some(RefJavaClass(cls))
-              case _ => ???
+              case decls => decls.collect({
+                case cls: JavaClassOrInterface[G] if cls.name == name.last => cls
+              }) match {
+                case Seq(cls: JavaClassOrInterface[G]) => Some(RefJavaClass(cls))
+                case _ => None
+              }
             }
           case None => None
         }

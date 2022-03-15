@@ -4,8 +4,8 @@ package java.lang;
 /*@
 ghost
 ensures \result != null ** \result instanceof String ** \result.data() == data;
-ensures (\forall string otherData; true; (otherData == data) == (\result == internString(otherData)));
-pure String internString(string data);
+ensures (\forall string otherData; true; (otherData == data) == (\result == internToString(otherData)));
+pure String internToString(string data);
 
 ghost
 ensures \result != null ** \result instanceof String;
@@ -17,6 +17,6 @@ public class String {
     pure string data();
     */
 
-    //@ ensures \result == of(data());
+    //@ ensures \result == internToString(data());
     public native /*@ pure */ String intern();
 }

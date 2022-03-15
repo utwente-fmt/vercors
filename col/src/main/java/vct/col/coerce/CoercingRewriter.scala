@@ -188,6 +188,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
     case node: JavaImport[Pre] => node
     case node: JavaName[Pre] => node
     case node: Coercion[Pre] => node
+    case node: PinnedDecl[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -708,6 +709,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] {
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case str @ JavaStringLiteral(_) => str
+      case str @ StringLiteral(_) => str
+      case str @ InternedString(_, _) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread)._1)
       case length @ Length(arr) =>

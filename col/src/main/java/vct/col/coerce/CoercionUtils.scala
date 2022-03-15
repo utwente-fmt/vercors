@@ -53,6 +53,8 @@ case object CoercionUtils {
 
       case (cls: JavaTClass[G], TPinnedDecl(pin)) if cls.ref.decl.isPin(pin) => CoerceJavaTClassTPinnedDecl(cls, pin)
       case (TPinnedDecl(pin), cls: JavaTClass[G]) if cls.ref.decl.isPin(pin) => CoerceTPinnedDeclJavaTClass(pin, cls)
+      case (cls: TClass[G], TPinnedDecl(pin)) if cls.cls.decl.isPin(pin) => CoerceTClassTPinnedDecl(cls, pin)
+      case (TPinnedDecl(pin), cls: TClass[G]) if cls.cls.decl.isPin(pin) => CoerceTPinnedDeclTClass(pin, cls)
 
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()

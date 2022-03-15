@@ -91,7 +91,6 @@ ID: 'id';
 BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
-// STRING: 'string';
 
 NUMBER : ('0'..'9')+;
 

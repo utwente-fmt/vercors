@@ -326,6 +326,8 @@ final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G
 
 final case class CoerceJavaTClassTPinnedDecl[G](cls: Type[G], pin: PinnedDecl[G])(implicit val o: Origin) extends Coercion[G] with CoerceJavaTClassTPinnedDeclImpl[G]
 final case class CoerceTPinnedDeclJavaTClass[G](pin: PinnedDecl[G], cls: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceTPinnedDeclJavaTClassImpl[G]
+final case class CoerceTClassTPinnedDecl[G](cls: Type[G], pin: PinnedDecl[G])(implicit val o: Origin) extends Coercion[G] with CoerceTClassTPinnedDeclImpl[G]
+final case class CoerceTPinnedDeclTClass[G](pin: PinnedDecl[G], cls: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceTPinnedDeclTClassImpl[G]
 
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 

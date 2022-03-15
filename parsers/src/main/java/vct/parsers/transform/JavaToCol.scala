@@ -1137,6 +1137,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "ref" => TRef()
       case "any" => TAny()
       case "nothing" => TNothing()
+      case "string" => TString()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))

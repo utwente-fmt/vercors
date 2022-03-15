@@ -102,6 +102,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
   val pinnedClasses: SuccessionMap[PinnedDecl[Pre], JavaClass[Pre]] = SuccessionMap()
+  var concatStrings: Option[Function[Pre]] = None
+  var internToString: Option[Function[Pre]] = None
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
@@ -254,6 +256,18 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           case cls: JavaClass[Pre] if cls.pin.isDefined => pinnedClasses(cls.pin.get) = cls
           case _ =>
         }
+      case ns: JavaNamespace[Pre] =>
+        if (ns.pkg.exists(_.names == Java.JAVA_LANG)) {
+          ns.transSubnodes.foreach {
+            case f: Function[Pre] =>
+              f.o match {
+                case SourceNameOrigin("concatStrings", _) => concatStrings = Some(f)
+                case SourceNameOrigin("internToString", _) => internToString = Some(f)
+                case _ =>
+              }
+            case _ =>
+          }
+        }
       case _ =>
     }
 
@@ -295,7 +309,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         val instanceClass = currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
           new Class[Post](collectInScope(classScopes) {
             makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls))
-          }, supports, dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))
+          }, supports, dispatch(lockInvariant), pin = cls.pin.map(dispatch(_)))(JavaInstanceClassOrigin(cls))
         }
 
         instanceClass.declareDefault(this)
@@ -758,14 +772,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case JavaNewDefaultArray(t, specified, moreDims) => NewArray(dispatch(t), specified.map(dispatch), moreDims)(e.o)
 
     case l @ JavaStringLiteral(data) =>
-      val stringClass = pinnedClasses(JavaLangString())
-      val stringOfString = {
-        val ms: Seq[Function[Pre]] = ???
-        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
-        ms(0)
-      }
       implicit val o = l.o
-      InternedString(StringLiteral(data), succ(stringOfString))
+      // TODO: Better error throw
+      InternedString(StringLiteral(data), succ(internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
 
 //    case JavaStringLiteral(data) =>
 //      val stringClass = pinnedClasses(JavaLangString())
