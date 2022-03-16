@@ -256,6 +256,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           case cls: JavaClass[Pre] if cls.pin.isDefined => pinnedClasses(cls.pin.get) = cls
           case _ =>
         }
+
       case ns: JavaNamespace[Pre] =>
         if (ns.pkg.exists(_.names == Java.JAVA_LANG)) {
           ns.transSubnodes.foreach {
@@ -268,6 +269,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
             case _ =>
           }
         }
+
       case _ =>
     }
 
@@ -435,6 +437,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           cls.rewrite(decls).succeedDefault(cls)
         }
       }
+
+    case function: Function[Pre] if concatStrings.contains(function) =>
+      val x = function.rewrite(pin = Some(JavaStringConcatOperator()))
+      x.succeedDefault(function)
+      x
 
     case other => rewriteDefault(other)
   }
@@ -773,7 +780,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case l @ JavaStringLiteral(data) =>
       implicit val o = l.o
-      // TODO: Better error throw
+      // TODO (RR): Better error throw
       InternedString(StringLiteral(data), succ(internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
 
 //    case JavaStringLiteral(data) =>

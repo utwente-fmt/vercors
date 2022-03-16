@@ -470,6 +470,7 @@ class FeatureRainbow[G] {
     case node: InternedString[G] => return Nil // TODO (RR): Probably should be some feature?
     case node: StringLiteral[G] => return Nil // TODO (RR): Probably should be some feature?
     case node: JavaLangString[G] => return Nil // TODO (RR): Probably should be some feature?
+    case node: JavaStringConcatOperator[G] => return Nil
     case node: PVLNamedType[G] => return Nil
     case node: PVLLocal[G] => return Nil
     case node: PVLDeref[G] => return Nil

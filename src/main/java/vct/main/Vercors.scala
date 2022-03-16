@@ -19,6 +19,7 @@ import vct.result.VerificationResult
 import vct.result.VerificationResult.{Ok, SystemError, UserError}
 import viper.api.Silicon
 import vct.col.feature
+import vct.col.newrewrite.util.EncodeJavaLangString
 
 import java.nio.file.{Path, Paths}
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
@@ -79,6 +80,11 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
 
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
+
+    // TODO: Constant folding
+    EncodeJavaLangString, // TODO (RR): Resolve InternedString. Get rid if TPinnedDecL(JavaLangString())
+    // TODO (RR): Resolve StringLiteral to seq
+
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     PinCollectionTypes, // no anonymous sequences, sets, etc.

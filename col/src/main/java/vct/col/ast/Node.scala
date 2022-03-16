@@ -701,6 +701,8 @@ final case class JavaImport[G](isStatic: Boolean, name: JavaName[G], star: Boole
 
 sealed trait PinnedDecl[G] extends NodeFamily[G] with PinnedDeclImpl[G]
 final case class JavaLangString[G]()(implicit val o: Origin = DiagnosticOrigin) extends PinnedDecl[G] with JavaLangStringImpl[G]
+final case class JavaStringConcatOperator[G]()(implicit val o: Origin = DiagnosticOrigin) extends PinnedDecl[G] // TODO (RR): Add impl?
+
 
 sealed trait JavaModifier[G] extends NodeFamily[G] with JavaModifierImpl[G]
 final case class JavaPublic[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPublicImpl[G]
