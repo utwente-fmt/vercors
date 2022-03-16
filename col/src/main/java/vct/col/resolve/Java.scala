@@ -272,7 +272,7 @@ case object Java {
           case cls: RefJavaClass[G] => findMethodInClass[G](cls.decl, method, args)
           case _ => throw UnexpectedJreDefinition("java class", Java.JAVA_LANG_STRING)
         }
-      case TUnion(ts) => findMethodOnType(Types.leastCommonSuperType(ts), method, args)
+      case TUnion(ts) => findMethodOnType(ctx, Types.leastCommonSuperType(ts), method, args)
       case _ => None
     }
 

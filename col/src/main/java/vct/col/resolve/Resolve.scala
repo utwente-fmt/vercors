@@ -185,7 +185,7 @@ case object ResolveReferences {
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ JavaInvocation(obj, _, method, args, givenMap, yields) =>
       inv.ref = Some((obj match {
-        case Some(obj) => Java.findMethod(obj, method, args, inv.blame, ctx.asTypeResolutionContext)
+        case Some(obj) => Java.findMethod(ctx, obj, method, args, inv.blame)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)

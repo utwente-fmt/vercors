@@ -182,6 +182,8 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
           case Some(PathOrStd.Path(path)) => ???
         }
 
+        println(pass.getClass.getSimpleName)
+
         program = pass().dispatch(program)
 
         program.check match {

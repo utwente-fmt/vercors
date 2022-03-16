@@ -467,6 +467,9 @@ class FeatureRainbow[G] {
     case node: JavaNewClass[G] => return Nil
     case node: JavaNewLiteralArray[G] => return Nil
     case node: JavaNewDefaultArray[G] => return Nil
+    case node: InternedString[G] => return Nil // TODO (RR): Probably should be some feature?
+    case node: StringLiteral[G] => return Nil // TODO (RR): Probably should be some feature?
+    case node: JavaLangString[G] => return Nil // TODO (RR): Probably should be some feature?
     case node: PVLNamedType[G] => return Nil
     case node: PVLLocal[G] => return Nil
     case node: PVLDeref[G] => return Nil
