@@ -6,7 +6,7 @@ lock_invariant Perm(x,1);
 class OwickiGries {
   int x;
 
-  OwickiGries(){
+  constructor(){
     x=0;
   }
 

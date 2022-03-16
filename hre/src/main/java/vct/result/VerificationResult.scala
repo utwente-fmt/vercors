@@ -2,6 +2,8 @@ package vct.result
 
 sealed abstract class VerificationResult extends RuntimeException {
   def text: String
+
+  override def getMessage: String = text
 }
 
 object VerificationResult {

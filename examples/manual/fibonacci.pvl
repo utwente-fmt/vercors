@@ -33,7 +33,7 @@ class Fib {
   }
   
   ensures Perm(input,1) ** Perm(output,1) ** input==n;
-  Fib(int n){
+  constructor(int n){
     input = n;
   }
 }

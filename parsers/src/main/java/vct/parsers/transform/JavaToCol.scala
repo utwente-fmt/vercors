@@ -321,6 +321,22 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ElseBlock0(_, stat) => convert(stat)
   }
 
+  def convert(prefix: LoopAmalgamationContext, f: ContractCollector[G] => Statement[G], labels: Seq[LabelDecl[G]], collector: ContractCollector[G]): Statement[G] = prefix match {
+    case LoopAmalgamation0(contract, tail) =>
+      convert(contract, collector)
+      convert(tail, f, labels, collector)
+    case LoopAmalgamation1(label, tail) =>
+      convert(tail, f, labels :+ convert(label), collector)
+    case LoopAmalgamation2(_) =>
+      labels.foldRight[Statement[G]](f(collector)) {
+        case (label, stat) => Label(label, stat)(label.o)
+      }
+  }
+
+  def convert(prefix: LoopAmalgamationContext, f: ContractCollector[G] => Statement[G]): Statement[G] =
+    convert(prefix, f, Nil, new ContractCollector())
+
+
   def convert(implicit stat: StatementContext): Statement[G] = stat match {
     case Statement0(block) => convert(block)
     case Statement1(_, assn, _, _) => Assert(convert(assn))(blame(stat))
@@ -329,8 +345,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case None => Nil
         case Some(otherwise) => Seq((BooleanValue(true), convert(otherwise)))
       }))
-    case Statement3(contract1, labels, _, _, control, _, contract2, body) =>
-      val loop = withContract(contract1, contract2, c => {
+    case Statement3(prefix, _, _, control, _, contract2, body) =>
+      convert(prefix, c => {
         control match {
           case ForControl0(foreach) => ??(foreach)
           case ForControl1(init, _, cond, _, update) =>
@@ -343,18 +359,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
             ))
         }
       })
-
-      labels.foldLeft[Statement[G]](loop) {
-        case (stat, label) => Label(convert(label), stat)(origin(label))
-      }
-    case Statement4(contract1, labels, _, cond, contract2, body) =>
-      val loop = withContract(contract1, contract2, c => {
+    case Statement4(prefix, _, cond, contract2, body) =>
+      convert(prefix, c => {
         Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(stat), convert(body)))
       })
-
-      labels.foldLeft[Statement[G]](loop) {
-        case (stat, label) => Label(convert(label), stat)(origin(label))
-      }
     case Statement5(_, _, _, _, _) => ??(stat)
     case Statement6(_, attempt, grab, eventually) =>
       TryCatchFinally(convert(attempt), eventually.map(convert(_)).getOrElse(Block(Nil)), grab.map(convert(_)))
@@ -1206,14 +1214,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
       val cond = SeqMember(Local[G](variable.ref), Range(convert(from), convert(to)))
       quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))
+        case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))(blame(e))
         case "\\forall" => Forall(Seq(variable), Nil, Implies(cond, convert(body)))
         case "\\exists" => Exists(Seq(variable), Nil, col.And(cond, convert(body)))
       }
     case ValQuantifier(_, quant, t, id, _, cond, _, body, _) =>
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
       quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
+        case "\\forall*" => Starall(Seq(variable), Nil, Implies(convert(cond), convert(body)))(blame(e))
         case "\\forall" => Forall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
         case "\\exists" => Exists(Seq(variable), Nil, col.And(convert(cond), convert(body)))
       }
@@ -1221,7 +1229,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       val variables = convert(bindings)
       quant match {
         case "∀" => Forall(variables, Nil, convert(body))
-        case "∀*" => Starall(variables, Nil, convert(body))
+        case "∀*" => Starall(variables, Nil, convert(body))(blame(e))
         case "∃" => Exists(variables, Nil, convert(body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>

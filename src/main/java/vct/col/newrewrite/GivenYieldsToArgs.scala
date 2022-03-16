@@ -3,7 +3,8 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import RewriteHelpers._
-import vct.col.newrewrite.GivenYieldsToArgs.{MissingGivenArg, MissingYieldArg}
+import vct.col.newrewrite.GivenYieldsToArgs.{MissingGivenArg, YieldDummy}
+import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationResult.UserError
@@ -18,10 +19,9 @@ case object GivenYieldsToArgs extends RewriterBuilder {
       inv.o.messageInContext(s"This invocation is missing the 'given' parameter $missing")
   }
 
-  case class MissingYieldArg(inv: InvokingNode[_], missing: Variable[_]) extends UserError {
-    override def code: String = "missingYield"
-    override def text: String =
-      inv.o.messageInContext(s"This invocation is missing the 'yield' out parameter $missing")
+  case class YieldDummy(forArg: Variable[_]) extends Origin {
+    override def preferredName: String = "dummy_" + forArg.o.preferredName
+    override def context: String = "[At dummy variable for an unused out parameter]"
   }
 }
 
@@ -61,16 +61,24 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
         case None => throw MissingGivenArg(inv, givenArg)
       })
 
-      val orderedYieldTargets: Seq[Ref[Post, Variable[Post]]] = inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
-        case Some(value) => succ(value)
-        case None => throw MissingYieldArg(inv, yieldArg)
-      })
+      val (yieldDummies, orderedYieldTargets: Seq[Ref[Post, Variable[Post]]]) =
+        withCollectInScope(variableScopes) {
+          inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
+            case Some(value) => succ[Variable[Post]](value)
+            case None => new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg)).declareDefault(this).ref
+          })
+        }
 
-      inv.rewrite(
+      val newInv = inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
         outArgs = inv.outArgs.map(succ[Variable[Post]]) ++ orderedYieldTargets,
         givenMap = Nil, yields = Nil,
       )
+
+      yieldDummies match {
+        case Nil => newInv
+        case _ => ScopedExpr(yieldDummies, newInv)(e.o)
+      }
     case inv: AnyFunctionInvocation[Pre] =>
       val givenMap = inv.givenMap.map { case (givenArg, value) => (givenArg.decl, value) }.toMap
       val orderedGivenValues = inv.ref.decl.contract.givenArgs.map(givenArg => givenMap.get(givenArg) match {
@@ -93,7 +101,7 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
 
       val orderedYieldTargets: Seq[Ref[Post, Variable[Post]]] = inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
         case Some(value) => succ(value)
-        case None => throw MissingYieldArg(inv, yieldArg)
+        case None => new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg)).declareDefault(this).ref
       })
 
       inv.rewrite(

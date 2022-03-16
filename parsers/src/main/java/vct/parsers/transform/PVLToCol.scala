@@ -941,14 +941,14 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
       val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
       quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))
+        case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))(blame(e))
         case "\\forall" => Forall(Seq(variable), Nil, Implies(cond, convert(body)))
         case "\\exists" => Exists(Seq(variable), Nil, col.And(cond, convert(body)))
       }
     case ValQuantifier(_, quant, t, id, _, cond, _, body, _) =>
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
       quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
+        case "\\forall*" => Starall(Seq(variable), Nil, Implies(convert(cond), convert(body)))(blame(e))
         case "\\forall" => Forall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
         case "\\exists" => Exists(Seq(variable), Nil, col.And(convert(cond), convert(body)))
       }
@@ -956,7 +956,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val variables = convert(bindings)
       quant match {
         case "∀" => Forall(variables, Nil, convert(body))
-        case "∀*" => Starall(variables, Nil, convert(body))
+        case "∀*" => Starall(variables, Nil, convert(body))(blame(e))
         case "∃" => Exists(variables, Nil, convert(body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>

@@ -15,12 +15,12 @@ seq<int> sort(seq<int> input) {
     loop_invariant |input| == |result| + |unsorted|;
     loop_invariant (\forall int l; 0 <= l && l < |result|; result[l] in input);
     loop_invariant (\forall int l; 0 <= l && l < |unsorted|; unsorted[l] in input);
-    loop_invariant !isEmpty(unsorted) ==> (\forall int l; 0 <= l && l < |result|; result[l] >= unsorted[max(unsorted)]);
+    loop_invariant !unsorted.isEmpty ==> (\forall int l; 0 <= l && l < |result|; result[l] >= unsorted[max(unsorted)]);
     loop_invariant sorted(result);
-    while (!isEmpty(unsorted)) {
+    while (!unsorted.isEmpty) {
         int maxOfSeq = max(unsorted);
         result = unsorted[maxOfSeq] :: result;
-        unsorted = removeAt(unsorted, maxOfSeq);
+        unsorted = unsorted.removeAt(maxOfSeq);
     }
     return result;
 }
@@ -44,7 +44,7 @@ seq<int> sortInPlace(seq<int> input) {
     while (right > 0) {
         int maxOfSeq = max(res[..right]);
         right = right - 1;
-        res = this.swap(res, maxOfSeq, right);
+        res = swap(res, maxOfSeq, right);
 
     }
     return res;
@@ -73,24 +73,24 @@ ensures |\result| == |xs|;
 ensures (\forall int g; 0 <= g && g < n; \result[g] == xs[g]);
 ensures (\forall int g; n < g && g < |xs|; \result[g] == xs[g]);
 ensures \result[n] == val;
-static pure seq<int> Set(seq<int> xs, int n, int val) =
+pure seq<int> Set(seq<int> xs, int n, int val) =
     n > 0 ?
-    head(xs)::Set(tail(xs), n-1, val) :
-    val::tail(xs);
+    xs.head :: Set(xs.tail, n-1, val) :
+    val :: xs.tail;
 
-static pure boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
+pure boolean sorted(seq<int> xs) = (\forall int i ; 0 <= i && i < |xs|-1; xs[i] <= xs[i+1]);
 
 requires |xs| > 0;
 ensures 0 <= \result && \result < |xs|;
 ensures (\forall int i; 0 <= i && i < |xs|; xs[i] <= xs[\result]);
-static pure int max(seq<int> xs) = maxhelper(xs, 0);
+pure int max(seq<int> xs) = maxhelper(xs, 0);
 
 requires |xs| > 0;
 requires 0 <= j && j < |xs|;
 ensures 0 <= \result && \result < |xs|;
 ensures \result >= j;
 ensures (\forall int i; j <= i && i < |xs|; xs[i] <= xs[\result]);
-static pure int maxhelper(seq<int> xs, int j) =
+pure int maxhelper(seq<int> xs, int j) =
     j == |xs|-1 ?
         j:
         (xs[j] > xs[maxhelper(xs, j+1)] ?

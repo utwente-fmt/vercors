@@ -6,7 +6,7 @@ import vct.col.ast._
 import java.nio.file.Paths
 import vct.col.origin.DiagnosticOrigin
 
-class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/vercors/src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3"))) {
+class TestSilicon extends VerifySpec(Silicon(Map.empty, Resources.getZ3Path)) {
   vercors should "verify an empty program" in program {
     Program(Nil, None)(noErrors)
   }
@@ -50,9 +50,8 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Paths.get("/home/pieter/
     args=Seq(rs),
     body=Assert[G](
       Starall(Seq(i), Seq(),
-        Implies(i.get >= const(0) && i.get < Size(rs.get),
-          Perm((rs.get @@ i.get)~>int, WritePerm()))))
-      (ExpectError())
+        Implies(i.get >= const(0) && i.get < SilverSeqSize(rs.get),
+          Perm((rs.get @@ i.get)~>int, WritePerm())))(ExpectError()))(noErrors)
   )
 
   val p = new Variable[G](TRational())

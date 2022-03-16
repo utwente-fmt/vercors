@@ -7,7 +7,7 @@ class Main {
 
 	Role a,b;
 
-	Main() {
+	constructor() {
 		a = new Role();
 	}
 

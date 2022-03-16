@@ -277,7 +277,8 @@ object AstBuildHelpers {
   }
 
   def starall[G]
-             (t: Type[G],
+             (blame: Blame[ReceiverNotInjective],
+              t: Type[G],
               body: Local[G] => Expr[G],
               triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
              ): Starall[G] = {
@@ -288,7 +289,7 @@ object AstBuildHelpers {
       bindings = Seq(i_var),
       triggers = triggers(i),
       body = body(i),
-    )
+    )(blame)
   }
 
   def forall[G]

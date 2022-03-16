@@ -4,9 +4,10 @@
 //:: verdict Error
 
 class err {
-
- void typeerror(){
-   assert 1==true;
- }
- 
+  void typeerror(){
+    // This is no longer a type error, but simply false.
+    [/expect failed]
+    assert 1==true;
+    [/end]
+  }
 }

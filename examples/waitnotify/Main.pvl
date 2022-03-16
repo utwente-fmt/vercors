@@ -18,7 +18,7 @@ class Main {
   
   ensures Value(q1) ** q1!=null;
   ensures Value(q2) ** q2!=null;
-  Main(){
+  constructor(){
     q1=new Queue();
     q2=new Queue();
     q1.put(1);

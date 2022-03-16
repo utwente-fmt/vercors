@@ -52,6 +52,13 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
     case other => rewriteDefault(other)
   }
 
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+    case ScopedExpr(locals, body) =>
+      locals.foreach(dispatch)
+      dispatch(body)
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Rewritten[Pre]] = parRegion match {
     case block: ParBlock[Pre] =>
       block.rewrite(content = collectVariables(block.content))

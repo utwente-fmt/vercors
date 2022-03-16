@@ -92,8 +92,9 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
-    rewriter.dispatch(programInput)
-    throw new NotImplementedError()
+    assertThrows[FilterSpecIgnore.DanglingIgnoreStart] {
+      rewriter.dispatch(programInput)
+    }
   }
 
   it should "throw error with two many SpecIgnoreEnd" in {
@@ -112,16 +113,8 @@ class FilterSpecIgnoreSpec extends AnyFlatSpec with Matchers {
       programInput = SimpleProgramGenerator.generateProgramWithSingleClassAndSingleMethod(body)
     }
 
-    rewriter.dispatch(programInput)
-    throw new NotImplementedError()
-  }
-
-  it should "do some testing" in {
-    implicit val o: Origin = DiagnosticOrigin
-
-    ColHelper.assertEquals(
-      left = Plus(const(1), const(1)),
-      right = Minus(const(1), const(1))
-    )
+    assertThrows[FilterSpecIgnore.ExtraIgnoreEnd] {
+      rewriter.dispatch(programInput)
+    }
   }
 }

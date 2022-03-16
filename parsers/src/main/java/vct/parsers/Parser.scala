@@ -8,6 +8,7 @@ import vct.parsers.transform.{BlameProvider, FileOriginProvider, OriginProvider}
 import vct.result.VerificationResult.UserError
 
 import java.io.{File, FileInputStream, FileNotFoundException, InputStream}
+import java.nio.charset.{Charset, StandardCharsets}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
@@ -45,7 +46,7 @@ abstract class Parser {
   def parse[G](stream: runtime.CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G]
 
   def parse[G](stream: InputStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] =
-    parse(runtime.CharStreams.fromStream(stream), originProvider, blameProvider)
+    parse(runtime.CharStreams.fromStream(stream, StandardCharsets.UTF_8), originProvider, blameProvider)
 
   def parse[G](f: File)(originProvider: OriginProvider = FileOriginProvider(f.toPath),
                      blameProvider: BlameProvider = FileOriginProvider(f.toPath)): ParseResult[G] = {

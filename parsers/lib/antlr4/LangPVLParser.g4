@@ -16,7 +16,7 @@ field : type identifierList ';' ;
 method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
-constructor : contract identifier '(' args? ')' methodBody ;
+constructor : contract 'constructor' '(' args? ')' methodBody ;
 
 contract : valContractClause* ;
 

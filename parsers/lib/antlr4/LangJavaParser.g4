@@ -471,12 +471,18 @@ localVariableDeclaration
     :   variableModifier* type variableDeclarators
     ;
 
+loopAmalgamation
+    : valEmbedContract loopAmalgamation
+    | loopLabel loopAmalgamation
+    | /* epsilon */
+    ;
+
 statement
     :   block
     |   ASSERT expression assertMessage? ';'
     |   'if' parExpression statement elseBlock?
-    |   valEmbedContract? loopLabel* 'for' '(' forControl ')' valEmbedContract? statement
-    |   valEmbedContract? loopLabel* 'while' parExpression valEmbedContract? statement
+    |   loopAmalgamation 'for' '(' forControl ')' valEmbedContract? statement
+    |   loopAmalgamation 'while' parExpression valEmbedContract? statement
     |   'do' statement 'while' parExpression ';'
     |   'try' block catchClause+ finallyBlock?
     |   'try' block finallyBlock

@@ -30,8 +30,8 @@ pure boolean f(int[] xs);
     {
       // context_everywhere is currently the only way to state facts about xs.length in de par argument
       // See also: https://github.com/utwente-fmt/vercors/issues/521
-      context_everywhere xs != null;
       par (int tid = 0 .. xs.length)
+      context_everywhere xs != null;
       {
         atomic(inv) { }
       }

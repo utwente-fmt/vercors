@@ -10,7 +10,7 @@ class Worker {
 	requires m != null;
 	ensures Perm(main, 1) ** main != null ** main == m;
 	ensures Perm(val, 1) ** val == v;
-	Worker(Main m, int v) {
+	constructor(Main m, int v) {
 		this.main = m;
 		this.val = v;
 	}

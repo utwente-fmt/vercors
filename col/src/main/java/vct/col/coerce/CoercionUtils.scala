@@ -2,6 +2,7 @@ package vct.col.coerce
 
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.util.Types
 
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
@@ -74,6 +75,11 @@ case object CoercionUtils {
       case (source @ TClass(sourceClass), target @ TClass(targetClass))
         if source.transSupportArrows.exists { case (_, supp) => supp == targetClass.decl } =>
         CoerceSupports(sourceClass, targetClass)
+
+      case (source @ JavaTClass(sourceClass, Nil), target @ JavaTClass(targetClass, Nil))
+        if sourceClass.decl.transSupportArrows(Set.empty).exists { case (_, supp) => supp == targetClass.decl } =>
+        CoerceJavaSupports(sourceClass, targetClass)
+
 
       case (source @ TUnion(ts), target) =>
         CoerceJoinUnion(ts.map(getCoercion(_, target)).map {
@@ -159,11 +165,12 @@ case object CoercionUtils {
     case _ => None
   }
 
-  def getAnyCollectionCoercion[G](source: Type[G]): Option[(Coercion[G], SizedType[G])] = source match {
-    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyCollectionCoercion)
+  def getAnySizedCoercion[G](source: Type[G]): Option[(Coercion[G], SizedType[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySizedCoercion)
     case t: TSeq[G] => Some((CoerceIdentity(source), t))
     case t: TSet[G] => Some((CoerceIdentity(source), t))
     case t: TBag[G] => Some((CoerceIdentity(source), t))
+    case t: TMap[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
@@ -234,6 +241,17 @@ case object CoercionUtils {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyClassCoercion)
     case t: TClass[G] => Some((CoerceIdentity(source), t))
     case t: JavaTClass[G] => Some((CoerceIdentity(source), t))
+    case t: TUnion[G] =>
+      val superType = Types.leastCommonSuperType(t.types)
+      getAnyClassCoercion(superType) match {
+        case Some((coercion, target)) =>
+          val joinedCoercion = CoercionSequence(Seq(
+            CoerceJoinUnion(t.types.map(getCoercion(_, superType).get), t.types, superType),
+            coercion,
+          ))
+          Some((joinedCoercion, target))
+        case None => None
+      }
     case _ => None
   }
 }

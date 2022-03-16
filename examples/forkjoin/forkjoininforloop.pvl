@@ -46,7 +46,7 @@ class NodesThread {
 	int val;
 
 	ensures Perm(val,1);
-	NodesThread(int v) {
+	constructor(int v) {
 		val = v;
 	}
 	

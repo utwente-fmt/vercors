@@ -7,7 +7,7 @@ class Main {
 
 	Role a;
 
-	Main() {
+	constructor() {
 		a = new Role(5);
 	}
 	
@@ -27,7 +27,7 @@ class Role {
 	int[] y;
 	int x;
 	
-	Role(int v) {
+	constructor(int v) {
 		x = v;
 	}
 	

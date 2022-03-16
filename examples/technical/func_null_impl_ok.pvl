@@ -1,0 +1,5 @@
+class Test {
+
+}
+
+pure Test f() = null;

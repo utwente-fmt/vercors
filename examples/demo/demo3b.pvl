@@ -7,7 +7,7 @@ lock_invariant Perm(this.sum, 1);
 class ArraySum {
 	int sum;
 	
-	ArraySum() {
+	constructor() {
 	}
 
 	context_everywhere A != null;

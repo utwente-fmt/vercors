@@ -17,7 +17,7 @@ class Main {
 	** p1.equalGrid(p2); 
 	
 	ensures (ticTacToeAnnotations());
-	Main() {
+	constructor() {
 		p1 = new Player(0,true);
 		p2 = new Player(1,false);	
 	}

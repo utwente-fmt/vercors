@@ -123,7 +123,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case _: ClassDeclaration[_] => false // FIXME we should have a way of translating static specification-type declarations
   }
 
-  def makeJavaClass(prefName: String, decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]])(implicit o: Origin): Unit = {
+  def makeJavaClass(prefName: String, decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]], wantDefaultConstructor: Boolean)(implicit o: Origin): Unit = {
     // First, declare all the fields, so we can refer to them.
     decls.foreach {
       case fields: JavaFields[Pre] =>
@@ -161,7 +161,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     // 3. the body of the constructor
 
-    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
+    val declsDefault = if(wantDefaultConstructor && decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
       // TODO: When makeJavaClass is called in statics context, default constructor is overwritten with statics constructor
       javaDefaultConstructor(currentJavaClass.top) = new JavaConstructor(
         modifiers = Nil,
@@ -308,7 +308,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
         val instanceClass = currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
           new Class[Post](collectInScope(classScopes) {
-            makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls))
+            makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), wantDefaultConstructor = true)
           }, supports, dispatch(lockInvariant), pin = cls.pin.map(dispatch(_)))(JavaInstanceClassOrigin(cls))
         }
 
@@ -319,7 +319,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           val staticsClass = new Class[Post](collectInScope(classScopes) {
             currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
               // TODO: currentJavaClass also needs to be overwritten here, otherwise makeJavaClass will overwrite the default constructor with the default statics constructor
-              makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls))
+              makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), wantDefaultConstructor = false)
             }
           }, Nil, tt)(JavaStaticsClassOrigin(cls))
 

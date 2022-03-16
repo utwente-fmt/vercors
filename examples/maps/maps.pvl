@@ -9,42 +9,42 @@ class MapsInPVL {
 		
 		assert m1 == map<int,boolean>{1 -> true, 2 -> true, 0 -> false, 1 -> false, 1 -> true};
 		assert m1[1] && !m1[0];
-		assert !isEmpty(m1);
+		assert !m1.isEmpty;
 		assert |m1 ++ (1, false)| == 3;
-		assert getFromMap(m1, 1);
+		assert m1[1];
 		assert |m1| == 3;
-		assert getFromMap(map<int,boolean>{1 -> true, 2 -> true, 0 -> false}, 1);
+		assert map<int,boolean>{1 -> true, 2 -> true, 0 -> false}[1];
 		
-		m1 = buildMap(m1, 1, true);
-		assert !disjointMap(m1, map<int,boolean>{1 -> true});
-		assert disjointMap(m1, map<int,boolean>{3 -> false, 4 -> true});
+		m1 = m1.add(1, true);
+		assert !m1.disjoint(map<int,boolean>{1 -> true});
+		assert m1.disjoint(map<int,boolean>{3 -> false, 4 -> true});
 		
-		set<tuple<int,boolean>> items = itemsMap(m1);
+		set<tuple<int,boolean>> items = m1.items;
 		assert tuple<int,boolean>{1, true} in items;
 		
 		
 		map<int, boolean> m2 = map<int,boolean>{};
-		m2 = buildMap(m2, 1, true);
-		assert equalsMap(map<int,boolean> {1 -> true}, m2);
+		m2 = m2.add(1, true);
+		assert map<int,boolean> {1 -> true}.equals(m2);
 		
-		assert removeFromMap(map<int, boolean> {0 -> true}, 0) == map<int,boolean>{};
+		assert map<int, boolean> {0 -> true}.remove(0) == map<int,boolean>{};
 		
-		assert isEmpty(keysMap(map<int, boolean>{}));
-		assert keysMap(map<int, boolean>{123 -> false}) == {123};
-		assert valuesMap(map<int, boolean>{123 -> false}) == {false};
+		assert map<int, boolean>{}.keys.isEmpty;
+		assert map<int, boolean>{123 -> false}.keys == {123};
+		assert map<int, boolean>{123 -> false}.values == {false};
 		
-		assert valuesMap(map<int, boolean>{123 -> false, 2 -> false, 84368 -> true}) == {false, true};
-		assert keysMap(map<int, boolean>{123 -> false, 2 -> false, 84368 -> true}) == {123, 2, 84368};
+		assert map<int, boolean>{123 -> false, 2 -> false, 84368 -> true}.values == {false, true};
+		assert map<int, boolean>{123 -> false, 2 -> false, 84368 -> true}.keys == {123, 2, 84368};
 		
 		
 		map<int, boolean> m3 = map<int,boolean>{1 -> true, 2 -> true, 0 -> false};
-		map<int, boolean> m4 = removeFromMap(m3, 1);
+		map<int, boolean> m4 = m3.remove(1);
 		
 		assert m3[2];
-		assert 0 in keysMap(m4);
-		assert false in valuesMap(m4);
+		assert 0 in m4.keys;
+		assert false in m4.values;
 		assert m4[2];
-		assert true in valuesMap(m4);
-		assert removeFromMap(buildMap(map<int,boolean>{}, 0, true), 0) == map<int,boolean>{};
+		assert true in m4.values;
+		assert map<int,boolean>{}.add(0, true).remove(0) == map<int,boolean>{};
 	}
 }

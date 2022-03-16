@@ -18,7 +18,6 @@ void test(){
   assert x != y;
   assert x == None;
   assert y != None;
-  assert z == None;
 
   assert y.get == 37;
   assert x.getOrElse(21387) == 21387;

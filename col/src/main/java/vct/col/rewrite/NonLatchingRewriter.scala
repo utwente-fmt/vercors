@@ -21,8 +21,6 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(fieldFlag: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(fieldFlag)
   override def dispatch(iterVariable: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(iterVariable)
 
-  override def dispatch(silverPredAcc: SilverPredicateAccess[Pre]): SilverPredicateAccess[Post] = rewriteDefault(silverPredAcc)
-
   override def dispatch(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
   override def dispatch(cDeclSpec: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(cDeclSpec)
   override def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)

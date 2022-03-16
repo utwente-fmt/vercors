@@ -6,7 +6,7 @@ class Worker {
   
   ensures Value(this.q1) ** this.q1==q1;
   ensures Value(this.q2) ** this.q2==q2;
-  Worker(Queue q1,Queue q2){
+  constructor(Queue q1,Queue q2){
     this.q1=q1;
     this.q2=q2;
   }

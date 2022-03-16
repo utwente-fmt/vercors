@@ -10,7 +10,7 @@ class counter {
   pure int get() = unfolding state() in x;
   
   ensures state() ** get()==v;
-  counter(int v) {
+  constructor(int v) {
     x = v;
     fold state();
   }

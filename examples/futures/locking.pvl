@@ -26,7 +26,7 @@ class Lock {
 	
 	/** constructs a new lock (with associated model `m`). */
 	requires HPerm(m.flag, write);
-	Lock(MLock m) {
+	constructor(MLock m) {
 		this.m = m;
 	} 
 	

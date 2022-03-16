@@ -28,6 +28,7 @@ case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Label(decl, impl) if isBreakable(impl) =>
       val newLabel = decl.rewrite()
+      succeed(decl, newLabel)
       val newImpl = labelStack.having(newLabel) {
         rewriteDefault(impl)
       }

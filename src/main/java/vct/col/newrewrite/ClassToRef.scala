@@ -123,10 +123,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                   left = UnitAccountedPredicate(thisVar.get !== Null()),
                   right = SplitAccountedPredicate(
                     left = UnitAccountedPredicate(
-                      FunctionInvocation[Post](instanceOf.ref(()), Seq(
+                      /* FIXME FunctionInvocation[Post](instanceOf.ref(()), Seq(
                         FunctionInvocation[Post](typeOf.ref(()), Seq(thisVar.get), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")),
                         const(typeNumber(cls)),
-                      ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing."))
+                      ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing.")) */ tt[Post]
                     ),
                     right = dispatch(function.contract.requires),
                   ),
@@ -153,10 +153,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                   left = UnitAccountedPredicate(thisVar.get !== Null()),
                   right = SplitAccountedPredicate(
                     left = UnitAccountedPredicate(
-                      FunctionInvocation[Post](instanceOf.ref(()), Seq(
+                      /* FIXME FunctionInvocation[Post](instanceOf.ref(()), Seq(
                         FunctionInvocation[Post](typeOf.ref(()), Seq(thisVar.get), Nil, Nil, Nil)(PanicBlame("typeOf requires nothing.")),
                         const(typeNumber(cls)),
-                      ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing."))
+                      ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing.")) */ tt[Post]
                     ),
                     right = dispatch(method.contract.requires),
                   ),

@@ -15,7 +15,7 @@ class node {
 
   requires n!=null ==> n.state();
   ensures  state() ** contents() == (n==null ? [v] : v :: \old(n.contents()));
-  node(int v,node n){
+  constructor(int v,node n){
     val = v;
     next = n;
     fold state();

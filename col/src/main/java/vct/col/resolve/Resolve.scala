@@ -242,8 +242,6 @@ case object ResolveReferences {
       Spec.resolveYields(ctx, yields, RefFunction(ref.decl), inv)
     case inv @ PredicateApply(ref, _, _) =>
       ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
-    case inv @ SilverPredicateAccess(ref, _, _) =>
-      ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
     case inv @ SilverCurPredPerm(ref, _) =>
       ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
     case inv @ InvokeMethod(obj, ref, _, outArgs, _, givenMap, yields) =>

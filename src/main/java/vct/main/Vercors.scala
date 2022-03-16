@@ -2,21 +2,23 @@ package vct.main
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{GlobalDeclaration, Procedure, Program}
+import vct.col.ast.{AddrOf, CGlobalDeclaration, GlobalDeclaration, Node, Procedure, Program, Refute}
 import vct.col.check.CheckError
+import vct.col.feature.{Feature, FeatureRainbow}
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang._
 import vct.col.origin.Origin
-import vct.col.resolve.{Java, ResolutionError, ResolveReferences, ResolveTypes}
+import vct.col.resolve.{C, Java, RefCGlobalDeclaration, ResolutionError, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.java.JavaLibraryLoader
-import vct.main.Vercors.{FileSpanningOrigin, InputResolutionError}
+import vct.main.Vercors.{FileSpanningOrigin, InputResolutionError, RewriteCheckError, TemporarilyUnsupported}
 import vct.options.{Options, PathOrStd}
 import vct.parsers.{ParseResult, Parsers}
 import vct.result.VerificationResult
-import vct.result.VerificationResult.{Ok, UserError}
+import vct.result.VerificationResult.{Ok, SystemError, UserError}
 import viper.api.Silicon
+import vct.col.feature
 
 import java.nio.file.{Path, Paths}
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
@@ -31,6 +33,18 @@ case object Vercors {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
     override def code: String = "resolutionError"
     override def text: String = errors.map(_.toString).mkString("\n")
+  }
+
+  case class TemporarilyUnsupported(feature: String, examples: Seq[Node[_]]) extends UserError {
+    override def code: String = "unsupported"
+    override def text: String =
+      examples.head.o.messageInContext(
+        s"The feature `$feature` is temporarily unsupported.")
+  }
+
+  case class RewriteCheckError(errors: Seq[CheckError]) extends SystemError {
+    override def text: String =
+      "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 }
 
@@ -130,9 +144,34 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
       val ParseResult(decls, expectedErrors) = parse(options.inputs : _*)
       Progress.nextPhase()
 
+      decls.foreach(_.transSubnodes.foreach {
+        case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
+          if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
+            throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
+          }
+        })
+        case addrOf: AddrOf[_] => throw TemporarilyUnsupported("&", Seq(addrOf))
+        case ref: Refute[_] => throw TemporarilyUnsupported("Refute", Seq(ref))
+        case _ =>
+      })
+
       var program = resolve(decls, withJava = true) match {
         case Left(errors) => throw InputResolutionError(errors)
         case Right(program) => program
+      }
+
+      val tempUnsupported = Set[feature.Feature](
+        feature.JavaThreads,
+        feature.MatrixVector,
+        feature.NumericReductionOperator,
+        feature.MagicWand,
+        feature.Models,
+      )
+
+      feature.Feature.examples(program).foreach {
+        case (feature, examples) if tempUnsupported.contains(feature) =>
+          throw TemporarilyUnsupported(feature.getClass.getSimpleName.stripSuffix("$"), examples.toSeq)
+        case (_, _) =>
       }
 
       Progress.foreach(passes, (pass: RewriterBuilder) => pass.key)(pass => {
@@ -144,6 +183,11 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
         }
 
         program = pass().dispatch(program)
+
+        program.check match {
+          case Nil =>
+          case some => throw RewriteCheckError(some)
+        }
 
         options.outputAfterPass.get(pass.key) match {
           case None =>

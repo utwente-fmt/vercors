@@ -52,7 +52,7 @@ case class EncodeParAtomic[Pre <: Generation]() extends Rewriter[Pre] {
     val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
     block.iters.foldLeft(body)((body, iter) => {
       val v = quantVars(iter.variable)
-      Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)
+      Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)(ParBlockEncoder.ParBlockNotInjective(block, expr))
     })
   }
 

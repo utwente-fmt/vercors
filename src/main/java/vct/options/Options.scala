@@ -222,8 +222,8 @@ case class Options
   adtPath: Path = Resources.getAdtPath,
   cIncludePath: Path = Resources.getCIncludePath,
   jrePath: Path = Resources.getJrePath,
-  z3Path: Path = Resources.getZ3Path,
-  boogiePath: Path = Resources.getBoogiePath,
+  z3Path: Path = viper.api.Resources.getZ3Path,
+  boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
 
   // Verify options - hidden

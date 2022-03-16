@@ -116,7 +116,7 @@ trait SilverBackend extends Backend with LazyLogging {
             case _ =>
               defer(reason)
           }
-          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) | reasons. ReceiverNotInjective(_) =>
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
             exhale.blame.blame(blame.ExhaleFailed(getFailure(reason), exhale))
           case otherReason =>
             defer(otherReason)
@@ -136,7 +136,7 @@ trait SilverBackend extends Backend with LazyLogging {
             case _ =>
               defer(reason)
           }
-          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) | reasons.ReceiverNotInjective(_) =>
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
             assert.blame.blame(blame.AssertFailed(getFailure(reason), assert))
           case otherReason =>
             defer(otherReason)
@@ -153,7 +153,7 @@ trait SilverBackend extends Backend with LazyLogging {
             } else {
               fold.blame.blame(blame.FoldFailed(getFailure(reason), fold))
             }
-          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) | reasons.ReceiverNotInjective(_) =>
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
             fold.blame.blame(blame.FoldFailed(getFailure(reason), fold))
           case otherReason =>
             defer(otherReason)
@@ -162,7 +162,7 @@ trait SilverBackend extends Backend with LazyLogging {
         reason match {
           case reasons.InsufficientPermission(access) =>
             get[col.Node[_]](access) match {
-              case col.SilverPredicateAccess(_, _, _) =>
+              case col.PredicateApply(_, _, _) =>
                 val unfold = get[col.Unfold[_]](node)
                 unfold.blame.blame(blame.UnfoldFailed(getFailure(reason), unfold))
               case _ =>
@@ -207,7 +207,6 @@ trait SilverBackend extends Backend with LazyLogging {
   def getFailure(reason: ErrorReason): blame.ContractFailure = reason match {
     case reasons.AssertionFalse(expr) => blame.ContractFalse(get[col.Expr[_]](expr))
     case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](access))
-    case reasons.ReceiverNotInjective(access) => blame.ReceiverNotInjective(get[col.Expr[_]](access))
     case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
   }
 
@@ -218,6 +217,9 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))
+    case reasons.ReceiverNotInjective(access @ silver.LocationAccess(_)) =>
+      val starall = info(access).starall.get
+      starall.blame.blame(blame.ReceiverNotInjective(starall))
     case reasons.LabelledStateNotReached(expr) =>
       val old = get[col.Old[_]](expr)
       old.blame.blame(blame.LabelNotReached(old))

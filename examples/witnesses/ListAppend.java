@@ -22,7 +22,7 @@ final class List {
   
   /*@
   resource list(seq<int> c) = Perm(val,1) ** Perm(next,1) **
-    next==null ? c == [val] : |c| > 0 ** c.head == val ** next.list(c.tail);
+    (next==null ? c == [val] : |c| > 0) ** c.head == val ** next.list(c.tail);
   @*/
 
   /*@

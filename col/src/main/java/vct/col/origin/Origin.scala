@@ -179,6 +179,9 @@ case class FileOrigin(path: Path,
   override def context: String =
       f" At $path:${startLineIdx+1}:${startColIdx+1}:\n" + Origin.HR +
       InputOrigin.contextLines(path, startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
+
+  override def toString: String =
+    f"$path:${startLineIdx+1}:${startColIdx+1} - ${endLineIdx+1}:${endColIdx+1}"
 }
 
 case class InterpretedOrigin(interpretedPath: Path,
@@ -193,9 +196,15 @@ case class InterpretedOrigin(interpretedPath: Path,
       f" Interpreted at $interpretedPath:${startLineIdx+1}:${startColIdx+1} as:\n" + Origin.HR +
       InputOrigin.contextLines(interpretedPath, startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
   }
+
+  override def toString: String =
+    f"$interpretedPath:${startLineIdx+1}:${startColIdx+1} - ${endLineIdx+1}:${endColIdx+1} interpreted from $originalPath:${originalStartLineIdx+1} - ${originalEndLineIdx+1}"
 }
 
 case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
   override def preferredName: String = name
   override def context: String = inner.context
+
+  override def toString: String =
+    s"$name at $inner"
 }
