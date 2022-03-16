@@ -70,6 +70,7 @@ antlrTask := {
                     val exitCode = scala.sys.process.Process("java", Seq(
                         "-cp", Path.makeString(cp),
                         "org.antlr.v4.Tool",
+                        "-encoding", "utf-8",
                         "-o", target.toString,
                         "-lib", lib.toString,
                         "-package", "vct.antlr4.generated",
