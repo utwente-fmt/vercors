@@ -5,7 +5,7 @@ import vct.options.Options
 import hre.io.Readable
 import vct.col.origin.{BlameCollector, VerificationFailure}
 import vct.main.stages.Stages
-import vct.parsers.transform.ConstantBlameProvder
+import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
 
 case object Verify extends LazyLogging {
@@ -15,7 +15,7 @@ case object Verify extends LazyLogging {
 
   def verifyDefault(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
-    Stages.default(ConstantBlameProvder(collector)).run(inputs) match {
+    Stages.silicon(ConstantBlameProvider(collector)).run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }
@@ -23,7 +23,7 @@ case object Verify extends LazyLogging {
 
   def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
-    Stages.ofOptions(options, ConstantBlameProvder(collector)).run(inputs) match {
+    Stages.ofOptions(options, ConstantBlameProvider(collector)).run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }

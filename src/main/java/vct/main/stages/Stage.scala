@@ -27,7 +27,7 @@ trait ContextStage[-Input, Ctx, +Output] extends Stage[(Input, Ctx), (Output, Ct
 }
 
 case object Stages {
-  def default(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def silicon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
       .thenRun(SilverTransformation())

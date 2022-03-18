@@ -6,7 +6,7 @@ import vct.col.newrewrite.Disambiguate
 import vct.col.origin.{Blame, VerificationFailure}
 import vct.main.stages.Resolution
 import vct.parsers.ColPVLParser
-import vct.parsers.transform.{BlameProvider, ConstantBlameProvder, ReadableOriginProvider}
+import vct.parsers.transform.{BlameProvider, ConstantBlameProvider, ReadableOriginProvider}
 import vct.result.VerificationError.UserError
 
 case object Util {
@@ -22,8 +22,8 @@ case object Util {
   }
 
   def loadPVLLibraryFile[G](readable: Readable): Program[G] = {
-    val res = ColPVLParser(ReadableOriginProvider(readable), ConstantBlameProvder(LibraryFileBlame)).parse(readable)
-    val (program, _) = Resolution(ConstantBlameProvder(LibraryFileBlame), withJava = false).run(res)
+    val res = ColPVLParser(ReadableOriginProvider(readable), ConstantBlameProvider(LibraryFileBlame)).parse(readable)
+    val (program, _) = Resolution(ConstantBlameProvider(LibraryFileBlame), withJava = false).run(res)
     val unambiguousProgram: Program[_] = Disambiguate().dispatch(program)
     unambiguousProgram.asInstanceOf[Program[G]]
   }

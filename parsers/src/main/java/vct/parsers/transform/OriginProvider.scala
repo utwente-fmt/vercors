@@ -23,7 +23,7 @@ trait PositionContextProvider[T] {
 trait OriginProvider extends PositionContextProvider[Origin]
 trait BlameProvider extends PositionContextProvider[Blame[VerificationFailure]]
 
-case class ConstantBlameProvder(globalBlame: Blame[VerificationFailure]) extends BlameProvider {
+case class ConstantBlameProvider(globalBlame: Blame[VerificationFailure]) extends BlameProvider {
   override def apply(): Blame[VerificationFailure] = globalBlame
 }
 
