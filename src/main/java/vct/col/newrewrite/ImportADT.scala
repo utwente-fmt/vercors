@@ -12,13 +12,13 @@ import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 trait ImportADTImporter {
-  def loadAdt[G](name: String): Either[Seq[CheckError], Program[G]]
+  def loadAdt[G](name: String): Program[G]
 }
 
 case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
@@ -155,10 +155,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   val pointerField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
 
   private def parse(name: String): Seq[GlobalDeclaration[Post]] = {
-    val program = importer.loadAdt[Pre](name) match {
-      case Left(errors) => throw InvalidImportedAdt(errors)
-      case Right(program) => program
-    }
+    val program = importer.loadAdt[Pre](name)
     program.declarations.foreach(dispatch)
     program.declarations.map(lookupSuccessor(_).get.asInstanceOf[GlobalDeclaration[Post]])
   }

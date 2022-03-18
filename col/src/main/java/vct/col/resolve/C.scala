@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.Types
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object C {
   implicit private val o: Origin = DiagnosticOrigin

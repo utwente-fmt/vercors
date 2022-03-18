@@ -2,4 +2,4 @@
 set -e
 
 BIN=$(dirname $0)
-$BIN/run-class vct.main.RealMain $@
+$BIN/run-class vct.main.Main $@

@@ -4,7 +4,7 @@ import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.SuccessionMap
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationError.SystemError
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

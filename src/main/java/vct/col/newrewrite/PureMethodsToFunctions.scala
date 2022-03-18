@@ -6,7 +6,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object PureMethodsToFunctions extends RewriterBuilder {
   override def key: String = "pureMethods"

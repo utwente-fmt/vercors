@@ -5,12 +5,12 @@ import vct.antlr4.generated.{LangPVLLexer, PVLParser}
 import vct.col.ast.GlobalDeclaration
 import vct.parsers.transform.{BlameProvider, OriginProvider, PVLToCol}
 
-case class ColPVLParser() extends Parser {
-  override def parse[G](stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] = {
+case class ColPVLParser(override val originProvider: OriginProvider, override val blameProvider: BlameProvider) extends Parser(originProvider, blameProvider) {
+  override def parse[G](stream: CharStream): ParseResult[G] = {
     try {
       val lexer = new LangPVLLexer(stream)
       val tokens = new CommonTokenStream(lexer)
-      val errors = expectedErrors(tokens, LangPVLLexer.EXPECTED_ERROR_CHANNEL, LangPVLLexer.VAL_EXPECT_ERROR_OPEN, LangPVLLexer.VAL_EXPECT_ERROR_CLOSE, originProvider, blameProvider)
+      val errors = expectedErrors(tokens, LangPVLLexer.EXPECTED_ERROR_CHANNEL, LangPVLLexer.VAL_EXPECT_ERROR_OPEN, LangPVLLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new PVLParser(tokens)
       val ec = errorCounter(parser, lexer, originProvider)
 

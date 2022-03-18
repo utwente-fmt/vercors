@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import RewriteHelpers._
 import vct.col.newrewrite.FilterSpecIgnore.{DanglingIgnoreStart, ExtraIgnoreEnd}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object FilterSpecIgnore extends RewriterBuilder {
   override def key: String = "specIgnore"

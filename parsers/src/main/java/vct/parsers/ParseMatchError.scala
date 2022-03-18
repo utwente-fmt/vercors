@@ -1,6 +1,6 @@
 package vct.parsers
 
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationError.SystemError
 
 case class ParseMatchError(objectDescription: String) extends SystemError {
   override def text: String =

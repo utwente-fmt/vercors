@@ -3,22 +3,24 @@ package vct.main
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.LoggerFactory
+import vct.main.modes.Verify
 import vct.options.{Mode, Options, Verbosity}
-import vct.result.VerificationResult
 
-case object RealMain extends LazyLogging {
+case object Main extends LazyLogging {
+  val EXIT_CODE_SUCCESS = 0
+
   def main(args: Array[String]): Unit = try {
     Options.parse(args) match {
       case None => // usage was printed
-      case Some(options) => selectMode(options)
+      case Some(options) => System.exit(runOptions(options))
     }
   } catch {
-    case err: VerificationResult.SystemError =>
-      println(err.text)
-      err.printStackTrace()
+    case t: Throwable =>
+      logger.error(s"Unrecoverable error: ${t.getMessage}", t)
+      throw t
   }
 
-  def selectMode(options: Options): Unit = try {
+  def runOptions(options: Options): Int = {
     for((key, logLevel) <- options.logLevels) {
       LoggerFactory.getLogger(key).asInstanceOf[Logger].setLevel(logLevel match {
         case Verbosity.Off => Level.OFF
@@ -34,21 +36,12 @@ case object RealMain extends LazyLogging {
     options.mode match {
       case Mode.Verify =>
         logger.info("Starting verification")
-        Vercors(options).go() match {
-          case error: VerificationResult.UserError =>
-            logger.error(error.text)
-          case error: VerificationResult.SystemError =>
-            logger.error(error.text, error)
-          case VerificationResult.Ok =>
-            logger.info("Verifcation completed normally.")
-        }
+        Verify.runOptions(options)
       case Mode.HelpVerifyPasses =>
         Vercors(options).helpPasses()
+        EXIT_CODE_SUCCESS
       case Mode.VeyMont => ???
       case Mode.BatchTest => ???
     }
-  } catch {
-    case e: Throwable =>
-      logger.error("Fatal error", e)
   }
 }

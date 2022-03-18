@@ -11,9 +11,9 @@ import org.slf4j.LoggerFactory
 import vct.main.{FileParser, PassesExecutioner, Program, Vercors}
 import vct.main.options.CommandLineOptionsParser
 import vct.main.passes.PassesGenerator
-import vct.options.{Backend, Mode, Options}
+import vct.options.{Backend, Mode, Options, PathOrStd}
 import vct.parsers.ParseError
-import vct.result.VerificationResult
+import vct.result.VerificationError
 
 import java.nio.file.Paths
 import java.util
@@ -39,7 +39,7 @@ object IntegrationTestHelper {
     LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
     val options = Options(
-      inputs = configuration.files.map(Paths.get(_)),
+      inputs = configuration.files.map(Paths.get(_)).map(PathOrStd.Path),
       mode = if(configuration.toolVeymont) Mode.VeyMont else Mode.Verify,
       skipBackend = configuration.stopBeforeBackend,
     )
@@ -55,12 +55,10 @@ object IntegrationTestHelper {
       case err: ParseError if err.message.contains("not supported") =>
         cancel()
 
-      case error: VerificationResult.UserError =>
+      case error: VerificationError.UserError =>
         assert(Verdict.Error == verdict)
-      case error: VerificationResult.SystemError =>
+      case error: VerificationError.SystemError =>
         fail(error)
-      case VerificationResult.Ok =>
-        assert(Verdict.Pass == verdict || Verdict.Fail == verdict)
     }
   }
 

@@ -8,6 +8,9 @@ import vct.parsers.transform.BlameProvider;
 import vct.parsers.transform.OriginProvider;
 
 public class ColSilverParser extends Parser {
+    public ColSilverParser() {
+        super(null, null);
+    }
     /*@Override
     public ProgramUnit parse(InputStream stream, String name) {
         throw new NotImplementedError(
@@ -53,7 +56,7 @@ public class ColSilverParser extends Parser {
     }*/
 
     @Override
-    public ParseResult parse(CharStream stream, OriginProvider originProvider, BlameProvider blameProvider) {
+    public ParseResult parse(CharStream stream) {
         throw new NotImplementedError(); // FIXME PB: should re-implement sil -> col parsing for new col
     }
 }

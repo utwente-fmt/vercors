@@ -5,7 +5,7 @@ import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object EncodeCurrentThread extends RewriterBuilder {
   override def key: String = "currentThread"

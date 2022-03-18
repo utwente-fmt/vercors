@@ -6,7 +6,7 @@ import org.antlr.v4.runtime.{ANTLRErrorListener, RecognitionException, Recognize
 import org.antlr.v4.runtime.atn.ATNConfigSet
 import org.antlr.v4.runtime.dfa.DFA
 import vct.parsers.transform.OriginProvider
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 import java.util
 

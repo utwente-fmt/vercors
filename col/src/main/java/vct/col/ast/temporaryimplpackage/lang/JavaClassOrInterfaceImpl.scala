@@ -2,7 +2,7 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.{ClassDeclaration, Declaration, JavaClassOrInterface, JavaModifier, JavaTClass, Type, Variable}
 import vct.col.ref.Ref
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
   def name: String

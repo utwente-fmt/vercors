@@ -7,7 +7,7 @@ import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.{Unreachable, UserError}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.reflect.ClassTag
 

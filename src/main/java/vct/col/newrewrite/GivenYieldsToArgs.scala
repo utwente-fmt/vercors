@@ -7,7 +7,7 @@ import vct.col.newrewrite.GivenYieldsToArgs.{MissingGivenArg, YieldDummy}
 import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object GivenYieldsToArgs extends RewriterBuilder {
   override def key: String = "givenYields"

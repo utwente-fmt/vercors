@@ -6,7 +6,7 @@ import RewriteHelpers._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object IterationContractToParBlock extends RewriterBuilder {
   override def key: String = "iterationContract"

@@ -2,7 +2,7 @@ package viper.api
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationError.SystemError
 import viper.silver.ast.ConsInfo
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.errors._

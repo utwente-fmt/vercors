@@ -7,7 +7,7 @@ import vct.col.newrewrite.ExplicitADTTypeArgs.UnspecifiedADTTypeArgs
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 

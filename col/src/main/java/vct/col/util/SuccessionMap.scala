@@ -5,7 +5,7 @@ import vct.col.ast.Declaration
 import vct.col.debug.Succeeded
 import vct.col.ref.LazyRef
 import vct.col.util.SuccessionMap.NoSuchSuccessor
-import vct.result.VerificationResult.{SystemError, UserError}
+import vct.result.VerificationError.{SystemError, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

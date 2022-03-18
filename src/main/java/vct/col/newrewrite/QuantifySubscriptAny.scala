@@ -5,7 +5,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{FramedArrIndex, Origin, TriggerPatternBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object QuantifySubscriptAny extends RewriterBuilder {
   override def key: String = "any"

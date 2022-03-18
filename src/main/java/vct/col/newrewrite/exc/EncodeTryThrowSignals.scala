@@ -8,7 +8,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 import scala.collection.mutable
 

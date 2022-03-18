@@ -2,7 +2,7 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.{CInvocation, CStructAccess, Type}
 import vct.col.resolve.{BuiltinInstanceMethod, C, RefADTFunction, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 trait CInvocationImpl[G] { this: CInvocation[G] =>
   override def t: Type[G] = ref.get match {

@@ -1,9 +1,9 @@
 package vct.col.origin
 
-import vct.result.VerificationResult
+import vct.result.VerificationError
 import vct.col.util.ExpectedError
 import vct.col.ast._
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationError.SystemError
 
 sealed trait ContractFailure {
   def node: Node[_]
@@ -396,7 +396,7 @@ case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](blames:
   }
 }
 
-case class BlameUnreachable(message: String, failure: VerificationFailure) extends VerificationResult.SystemError {
+case class BlameUnreachable(message: String, failure: VerificationFailure) extends VerificationError.SystemError {
   def text: String = s"An error condition was reached, which should be statically unreachable. $message. Inner failure:\n${failure.toString.split('\n').mkString(" > ", "\n > ", "")}"
 }
 

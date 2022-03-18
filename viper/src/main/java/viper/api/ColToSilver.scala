@@ -8,7 +8,7 @@ import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
-import vct.result.VerificationResult.{SystemError, Unreachable}
+import vct.result.VerificationError.{SystemError, Unreachable}
 import viper.api.ColToSilver.NotSupported
 import viper.silver.ast.TypeVar
 import viper.silver.{ast => silver}

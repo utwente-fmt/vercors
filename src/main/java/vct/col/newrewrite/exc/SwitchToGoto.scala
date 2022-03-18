@@ -7,7 +7,7 @@ import hre.util.ScopedStack
 import vct.col.newrewrite.exc.SwitchToGoto.CaseOutsideSwitch
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable.ArrayBuffer
 

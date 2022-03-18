@@ -2,7 +2,7 @@ package vct.col.ast.temporaryimplpackage.declaration.global
 
 import vct.col.ast.Class
 import vct.col.ast.temporaryimplpackage.util.Declarator
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
   protected def transSupportArrows(seen: Set[Class[G]]): Seq[(Class[G], Class[G])] =

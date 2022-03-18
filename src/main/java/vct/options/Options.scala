@@ -3,6 +3,7 @@ package vct.options
 import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
+import vct.parsers.Language
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
@@ -23,7 +24,7 @@ case object Options {
       scopt.Read.reads {
         case "java" => Language.Java
         case "c" => Language.C
-        case "cuda" => Language.Cuda
+        case "i" => Language.InterpretedC
         case "pvl" => Language.PVL
         case "silver" => Language.Silver
       }
@@ -73,6 +74,9 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.Verify))
         .text("Enable verification mode: instruct VerCors to verify the given files (default)"),
 
+      opt[Language]("lang").valueName("{java|c|i|pvl|silver}")
+        .action((lang, c) => c.copy(language = Some(lang)))
+        .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
       opt[Backend]("backend").valueName("{silicon|carbon}")
         .action((backend, c) => c.copy(backend = backend))
         .text("Set the backend to verify with (default: silicon)"),
@@ -121,9 +125,12 @@ case object Options {
       opt[Path]("path-adt").valueName("<path>")
         .action((path, c) => c.copy(adtPath = path))
         .text("Use a custom directory that contains definitions for all internal types encoded as axiomatic datatypes (array, option, any, etc.)"),
-      opt[Path]("path-c-include").valueName("<path>")
+      opt[Path]("path-cc").valueName("<path>")
+        .action((path, c) => c.copy(cc = path))
+        .text("Set the C compiler to use for preprocessing"),
+      opt[Path]("path-c-system").valueName("<path>")
         .action((path, c) => c.copy(cIncludePath = path))
-        .text("Specify the -I option to the C preprocessor"),
+        .text("Set the include path for system headers (-isystem)"),
       opt[Path]("path-jre").valueName("<path>")
         .action((path, c) => c.copy(jrePath = path))
         .text("Set the directory where specified JRE files are stored"),
@@ -158,8 +165,6 @@ case object Options {
             .text("The directory from which to run all tests"),
           opt[Seq[Backend]]("test-filter-backend").valueName("<backend>,...")
             .action((backends, c) => c.copy(testFilterBackend = Some(backends))),
-          opt[Seq[Language]]("test-filter-language").valueName("{java|c|cuda|pvl|silver},...")
-            .action((langs, c) => c.copy(testFilterLanguage = Some(langs))),
           opt[Seq[String]]("test-filter-include-suite").valueName("<suite>,...")
             .action((suites, c) => c.copy(testFilterIncludeOnlySuites = Some(suites))),
           opt[Seq[String]]("test-filter-exclude-suite").valueName("<suite>,...")
@@ -183,7 +188,7 @@ case object Options {
 
       note(""),
       note(""),
-      arg[Path]("<path>...").unbounded().optional()
+      arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
         .text("List of input files to process")
     )
@@ -196,7 +201,7 @@ case object Options {
 case class Options
 (
   mode: Mode = Mode.Verify,
-  inputs: Seq[Path] = Nil,
+  inputs: Seq[PathOrStd] = Nil,
   logLevels: Seq[(String, Verbosity)] = Seq(
     ("vct", Verbosity.Info),
     ("viper", Verbosity.Off),
@@ -204,6 +209,7 @@ case class Options
   ),
 
   // Verify Options
+  language: Option[Language] = None,
   backend: Backend = Backend.Silicon,
   backendFile: Option[PathOrStd] = None,
 
@@ -220,6 +226,7 @@ case class Options
   simplifyPaths: Seq[PathOrStd] = Seq("pushin", "simplify").map(name => PathOrStd.Path(Resources.getSimplificationPath(name))),
   simplifyPathsAfterRelations: Seq[PathOrStd] = Seq("simplify").map(name => PathOrStd.Path(Resources.getSimplificationPath(name))),
   adtPath: Path = Resources.getAdtPath,
+  cc: Path = Resources.getCcPath,
   cIncludePath: Path = Resources.getCIncludePath,
   jrePath: Path = Resources.getJrePath,
   z3Path: Path = viper.api.Resources.getZ3Path,
@@ -235,7 +242,6 @@ case class Options
   // Batch test options
   testDir: Path = null, // required
   testFilterBackend: Option[Seq[Backend]] = None,
-  testFilterLanguage: Option[Seq[Language]] = None,
   testFilterIncludeOnlySuites: Option[Seq[String]] = None,
   testFilterExcludeSuites: Option[Seq[String]] = None,
   testWorkers: Int = 1,
