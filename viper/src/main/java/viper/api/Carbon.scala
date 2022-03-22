@@ -4,14 +4,16 @@ import hre.util.FileHelper
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
 
-object Carbon extends SilverBackend {
+import java.nio.file.Path
+
+case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resources.getBoogiePath) extends SilverBackend {
   override def createVerifier(reporter: Reporter): viper.carbon.CarbonVerifier = {
     val reporter = EntityTrackingReporter()
     val carbon = viper.carbon.CarbonVerifier(reporter)
 
     carbon.parseCommandLine(Seq(
-      "--z3Exe", FileHelper.getZ3Path.getAbsolutePath,
-      "--boogieExe", FileHelper.getBoogiePath.getAbsolutePath,
+      "--z3Exe", z3Path.toString,
+      "--boogieExe", boogiePath.toString,
       "-"
     ))
 

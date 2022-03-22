@@ -13,9 +13,17 @@ case object Verify extends LazyLogging {
   val EXIT_CODE_FAILURE = 1
   val EXIT_CODE_ERROR = 2
 
-  def verifyDefault(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
+  def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
     Stages.silicon(ConstantBlameProvider(collector)).run(inputs) match {
+      case Left(error) => Left(error)
+      case Right(()) => Right(collector.errs.toSeq)
+    }
+  }
+
+  def verifyWithCarbon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
+    val collector = BlameCollector()
+    Stages.carbon(ConstantBlameProvider(collector)).run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }

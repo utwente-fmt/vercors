@@ -7,7 +7,7 @@ import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError
 import hre.io.Readable
-import viper.api.Silicon
+import viper.api.{Carbon, Silicon}
 
 trait Stage[-Input, +Output] {
   def friendlyName: String
@@ -32,6 +32,14 @@ case object Stages {
       .thenRun(Resolution(blameProvider))
       .thenRun(SilverTransformation())
       .thenRun(SilverBackend(Silicon()))
+      .thenRun(ExpectedErrors())
+  }
+
+  def carbon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+    Parsing(blameProvider)
+      .thenRun(Resolution(blameProvider))
+      .thenRun(SilverTransformation())
+      .thenRun(SilverBackend(Carbon()))
       .thenRun(ExpectedErrors())
   }
 

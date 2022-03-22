@@ -13,7 +13,10 @@ case object Backend {
       z3Settings = Map.empty,
       z3Path = options.z3Path,
     ), options.backendFile)
-    case vct.options.Backend.Carbon => SilverBackend(Carbon, options.backendFile)
+    case vct.options.Backend.Carbon => SilverBackend(Carbon(
+      z3Path = options.z3Path,
+      boogiePath = options.boogiePath,
+    ), options.backendFile)
   }
 }
 
