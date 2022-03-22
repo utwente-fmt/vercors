@@ -3,18 +3,12 @@ package vct.col.newrewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.newrewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite._
-import vct.java.JavaLibraryLoader
-import vct.main.Vercors
-import vct.parsers.{ParseResult}
 import vct.result.VerificationError.{Unreachable, UserError}
 
-import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag

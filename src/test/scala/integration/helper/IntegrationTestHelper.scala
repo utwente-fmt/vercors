@@ -8,7 +8,9 @@ import org.scalatest.Assertions.{assert, assertResult, cancel, fail}
 import org.scalatest.Checkpoints.Checkpoint
 import org.scalatest.exceptions.TestFailedException
 import org.slf4j.LoggerFactory
-import vct.main.{FileParser, PassesExecutioner, Program, Vercors}
+import vct.main.Main.TemporarilyUnsupported
+import vct.main.{FileParser, PassesExecutioner, Program}
+import vct.main.modes.Verify
 import vct.main.options.CommandLineOptionsParser
 import vct.main.passes.PassesGenerator
 import vct.options.{Backend, Mode, Options, PathOrStd}
@@ -49,16 +51,17 @@ object IntegrationTestHelper {
   }
 
   def checkResult(options: Options, verdict: Verdict): Unit = {
-    Vercors(options).go() match {
-      case _: Vercors.TemporarilyUnsupported =>
+    Verify.verifyWithOptions(options, options.inputs) match {
+      case Left(_: TemporarilyUnsupported) =>
         cancel()
-      case err: ParseError if err.message.contains("not supported") =>
+      case Left(err: ParseError) if err.message.contains("not supported") =>
         cancel()
 
-      case error: VerificationError.UserError =>
+      case Left(error: VerificationError.UserError) =>
         assert(Verdict.Error == verdict)
-      case error: VerificationError.SystemError =>
+      case Left(error: VerificationError.SystemError) =>
         fail(error)
+      case Right(_) => // ok
     }
   }
 

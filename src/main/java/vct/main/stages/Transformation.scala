@@ -3,12 +3,14 @@ package vct.main.stages
 import hre.progress.Progress
 import vct.col.ast.{Program, SimplificationRule}
 import vct.col.check.CheckError
+import vct.col.feature
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang.NoSupportSelfLoop
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.ExpectedError
+import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.main.util.Util
 import vct.options.{Backend, Options, PathOrStd}
@@ -58,6 +60,20 @@ class Transformation
   override def progressWeight: Int = 10
 
   override def runWithoutContext(input: Program[_ <: Generation]): Program[_ <: Generation] = {
+    val tempUnsupported = Set[feature.Feature](
+      feature.JavaThreads,
+      feature.MatrixVector,
+      feature.NumericReductionOperator,
+      feature.MagicWand,
+      feature.Models,
+    )
+
+    feature.Feature.examples(input).foreach {
+      case (feature, examples) if tempUnsupported.contains(feature) =>
+        throw TemporarilyUnsupported(feature.getClass.getSimpleName.stripSuffix("$"), examples.toSeq)
+      case (_, _) =>
+    }
+
     var result = input
 
     Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>

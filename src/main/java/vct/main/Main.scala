@@ -3,11 +3,21 @@ package vct.main
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.LoggerFactory
+import vct.col.ast.Node
 import vct.main.modes.Verify
+import vct.main.stages.Transformation
 import vct.options.{Mode, Options, Verbosity}
+import vct.result.VerificationError.UserError
 
 case object Main extends LazyLogging {
   val EXIT_CODE_SUCCESS = 0
+
+  case class TemporarilyUnsupported(feature: String, examples: Seq[Node[_]]) extends UserError {
+    override def code: String = "unsupported"
+    override def text: String =
+      examples.head.o.messageInContext(
+        s"The feature `$feature` is temporarily unsupported.")
+  }
 
   def main(args: Array[String]): Unit = try {
     Options.parse(args) match {
@@ -38,7 +48,11 @@ case object Main extends LazyLogging {
         logger.info("Starting verification")
         Verify.runOptions(options)
       case Mode.HelpVerifyPasses =>
-        Vercors(options).helpPasses()
+        logger.info("Available passes:")
+        Transformation.ofOptions(options).passes.foreach { pass =>
+          logger.info(s" - ${pass.key}")
+          logger.info(s"    ${pass.desc}")
+        }
         EXIT_CODE_SUCCESS
       case Mode.VeyMont => ???
       case Mode.BatchTest => ???

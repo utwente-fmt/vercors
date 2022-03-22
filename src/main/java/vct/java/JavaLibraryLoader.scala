@@ -1,16 +1,13 @@
 package vct.java
 
-import hre.config.Configuration
 import hre.io.RWFile
-import hre.lang.Failure
 import vct.col.ast.JavaNamespace
 import vct.col.resolve.ExternalJavaLoader
-import vct.main.Vercors
 import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
 import vct.parsers.{ColJavaParser, FileNotFound}
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 
 case class JavaLibraryLoader(base: Path, blameProvider: BlameProvider) extends ExternalJavaLoader {
   override def load[G](name: Seq[String]): Option[JavaNamespace[G]] = try {
