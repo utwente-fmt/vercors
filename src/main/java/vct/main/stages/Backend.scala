@@ -1,5 +1,6 @@
 package vct.main.stages
 
+import hre.io.Writeable
 import vct.col.ast.Program
 import vct.col.rewrite.Generation
 import vct.col.util.ExpectedError
@@ -11,8 +12,8 @@ case object Backend {
     case vct.options.Backend.Silicon => SilverBackend(Silicon(
       z3Settings = Map.empty,
       z3Path = options.z3Path,
-    ))
-    case vct.options.Backend.Carbon => SilverBackend(Carbon)
+    ), options.backendFile)
+    case vct.options.Backend.Carbon => SilverBackend(Carbon, options.backendFile)
   }
 }
 
@@ -21,7 +22,7 @@ trait Backend extends ContextStage[Program[_ <: Generation], Seq[ExpectedError],
   override def progressWeight: Int = 5
 }
 
-case class SilverBackend(backend: viper.api.SilverBackend) extends Backend {
+case class SilverBackend(backend: viper.api.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def runWithoutContext(input: Program[_ <: Generation]): Unit =
-    backend.submit(input)
+    backend.submit(input, output)
 }

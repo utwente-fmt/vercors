@@ -1,5 +1,6 @@
 package viper.api
 import com.typesafe.scalalogging.LazyLogging
+import hre.io.Writeable
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
@@ -33,12 +34,12 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_]): Unit = {
+  override def submit(colProgram: col.Program[_], output: Option[Writeable]): Unit = {
     val silverProgram = ColToSilver.transform(colProgram)
 
-    val w = new PrintWriter(new File("tmp/output.sil"))
-    w.write(silverProgram.toString())
-    w.close()
+    output.foreach(_.write { writer =>
+      writer.write(silverProgram.toString())
+    })
 
     silverProgram.check match {
       case Nil =>

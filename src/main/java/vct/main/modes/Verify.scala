@@ -38,7 +38,7 @@ case object Verify extends LazyLogging {
         logger.info("Verification completed successfully.")
         EXIT_CODE_SUCCESS
       case Right(fails) =>
-        fails.foreach(fail => logger.error(fail.text))
+        fails.foreach(fail => logger.error(fail.toString))
         EXIT_CODE_FAILURE
     }
   }
