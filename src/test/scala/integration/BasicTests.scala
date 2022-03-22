@@ -36,33 +36,33 @@ class BasicTests extends AnyFlatSpec with Matchers {
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/ContractSatisfiableIntentional.java" in {
+  it should "pass with silicon and examples/basic/ContractUnsatisfiableIntentional.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableIntentional.java")
+    configuration.files = Array("examples/basic/ContractUnsatisfiableIntentional.java")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "pass with silicon and examples/basic/ContractSatisfiableIntentional.pvl" in {
+  it should "pass with silicon and examples/basic/ContractUnsatisfiableIntentional.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableIntentional.pvl")
+    configuration.files = Array("examples/basic/ContractUnsatisfiableIntentional.pvl")
     configuration.verdict = Verdict.Pass
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/basic/ContractSatisfiableUnintentional.java" in {
+  it should "fail with silicon and examples/basic/ContractUnsatisfiableUnintentional.java" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableUnintentional.java")
+    configuration.files = Array("examples/basic/ContractUnsatisfiableUnintentional.java")
     configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)
   }
 
-  it should "fail with silicon and examples/basic/ContractSatisfiableUnintentional.pvl" in {
+  it should "fail with silicon and examples/basic/ContractUnsatisfiableUnintentional.pvl" in {
     val configuration = IntegrationTestConfiguration()
-    configuration.files = Array("examples/basic/ContractSatisfiableUnintentional.pvl")
+    configuration.files = Array("examples/basic/ContractUnsatisfiableUnintentional.pvl")
     configuration.verdict = Verdict.Fail
     configuration.toolSilicon = true
     IntegrationTestHelper.test(configuration)

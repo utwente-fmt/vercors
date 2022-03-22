@@ -12,9 +12,11 @@ import vct.options.PathOrStd
 import vct.result.VerificationError
 import vct.result.VerificationError.UserError
 
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 class VercorsSpec extends AnyFlatSpec {
+  var coveredExamples: Seq[Path] = Nil
+
   sealed trait Verdict {
     override def toString: String = this match {
       case Pass => "pass"
@@ -29,6 +31,7 @@ class VercorsSpec extends AnyFlatSpec {
   case class Error(code: String) extends Verdict
 
   case class IncompleteVerdict(fromCode: String => Verdict)
+  case object ErrorVerdict
 
   private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: options.Backend, inputs: Seq[Readable]): Unit = {
     registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
@@ -89,10 +92,15 @@ class VercorsSpec extends AnyFlatSpec {
   class VercorsWord {
     def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict)
     def should(verdict: IncompleteVerdict): CodeVerdictPhrase = new CodeVerdictPhrase(verdict)
+    def should(verdict: ErrorVerdict.type): ErrorVerdictPhrase = new ErrorVerdictPhrase()
   }
 
   class CodeVerdictPhrase(val verdict: IncompleteVerdict) {
     def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code))
+  }
+
+  class ErrorVerdictPhrase() {
+    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), silicon)
   }
 
   class VerdictPhrase(val verdict: Verdict) {
@@ -102,8 +110,10 @@ class VercorsSpec extends AnyFlatSpec {
   class BackendPhrase(val verdict: Verdict, val backends: Seq[options.Backend]) {
     def example(path: String): Unit = examples(path)
 
-    def examples(paths: String*): Unit = {
-      val inputs = paths.map(path => PathOrStd.Path(Paths.get(s"examples/$path")))
+    def examples(examples: String*): Unit = {
+      val paths = examples.map(ex => Paths.get(s"examples/$ex"))
+      coveredExamples ++= paths
+      val inputs = paths.map(PathOrStd.Path)
 
       for(backend <- backends) {
         registerTest(verdict, s"Examples ${paths.mkString(", ")}", Seq(new Tag("exampleCase")), backend, inputs)
@@ -125,7 +135,7 @@ class VercorsSpec extends AnyFlatSpec {
   val vercors: VercorsWord = new VercorsWord
   val verify: Verdict = Pass
   val fail: IncompleteVerdict = IncompleteVerdict(Fail)
-  val error: IncompleteVerdict = IncompleteVerdict(Error)
+  val error: ErrorVerdict.type = ErrorVerdict
 
   val silicon: Seq[options.Backend] = Seq(options.Backend.Silicon)
   val carbon: Seq[options.Backend] = Seq(options.Backend.Carbon)
