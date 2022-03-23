@@ -51,7 +51,7 @@ Success!
 The final verdict is Pass
 ```
 
-**NB**: you may need to allow the dependencies of VerCors to run manually. If you get an error that z3 and/or boogie is not from a trusted developer, execute them once manually from Finder and add an exception. They are located at:
+**NB**: you may need to allow the dependencies of VerCors to run manually. If you get an error that z3 and/or boogie is not from a trusted developer, execute them once manually from Finder to add an exception ([instructions](https://support.apple.com/en-ae/guide/mac-help/mh40616/mac)). They are located at:
 
 * `res/deps/z3/4.8.6/Darwin/x86_64/bin/z3`
 * `res/deps/boogie/1.0.0.0-carbon/Darwin/Boogie`
