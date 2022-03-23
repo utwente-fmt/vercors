@@ -20,7 +20,12 @@ trait PositionContextProvider[T] {
   def apply(): T
 }
 
-trait OriginProvider extends PositionContextProvider[Origin]
+abstract class OriginProvider extends PositionContextProvider[Origin] {
+  private var _tokenStream: Option[CommonTokenStream] = None
+
+  def setTokenStream(tokenStream: CommonTokenStream): Unit = _tokenStream = Some(tokenStream)
+  def tokenStream: CommonTokenStream = _tokenStream.get
+}
 trait BlameProvider extends PositionContextProvider[Blame[VerificationFailure]]
 
 case class ConstantBlameProvider(globalBlame: Blame[VerificationFailure]) extends BlameProvider {
@@ -35,12 +40,12 @@ case class ReadableOriginProvider(readable: Readable) extends OriginProvider {
   override def apply(): Origin = FileSpanningOrigin
 }
 
-case class InterpretedFileOriginProvider(tokens: CommonTokenStream, original: OriginProvider, interpreted: Readable) extends OriginProvider {
+case class InterpretedFileOriginProvider(original: OriginProvider, interpreted: Readable) extends OriginProvider {
   private def getLineOffset(lineIdx: Int): Option[Int] = {
-    val firstTokenAtOrPastLine = (0 until tokens.size()).find(i => tokens.get(i).getLine-1 >= lineIdx).getOrElse(return None)
+    val firstTokenAtOrPastLine = (0 until tokenStream.size()).find(i => tokenStream.get(i).getLine-1 >= lineIdx).getOrElse(return None)
 
     for(tokIdx <- firstTokenAtOrPastLine to 0 by -1) {
-      val markerToken = tokens.get(tokIdx)
+      val markerToken = tokenStream.get(tokIdx)
       if(markerToken.getChannel == 2) {
         val lineDirectiveLine = Integer.parseInt(markerToken.getText.split(' ')(1))
         val tokenLine = markerToken.getLine

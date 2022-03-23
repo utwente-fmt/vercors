@@ -15,6 +15,7 @@ case class ColJavaParser(override val originProvider: OriginProvider, override v
     try {
       val lexer = new LangJavaLexer(stream)
       val tokens = new CommonTokenStream(lexer)
+      originProvider.setTokenStream(tokens)
       val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new JavaParser(tokens)
       val ec = errorCounter(parser, lexer, originProvider)

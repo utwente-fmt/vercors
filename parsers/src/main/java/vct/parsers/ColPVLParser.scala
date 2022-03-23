@@ -10,6 +10,7 @@ case class ColPVLParser(override val originProvider: OriginProvider, override va
     try {
       val lexer = new LangPVLLexer(stream)
       val tokens = new CommonTokenStream(lexer)
+      originProvider.setTokenStream(tokens)
       val errors = expectedErrors(tokens, LangPVLLexer.EXPECTED_ERROR_CHANNEL, LangPVLLexer.VAL_EXPECT_ERROR_OPEN, LangPVLLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new PVLParser(tokens)
       val ec = errorCounter(parser, lexer, originProvider)

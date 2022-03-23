@@ -3,6 +3,12 @@ package integration.`new`
 import integration.helper.VercorsSpec
 
 class BasicExamplesSpec extends VercorsSpec {
+  vercors should verify using anyBackend in "trivial inline example" pvl """
+  void test() {
+    assert 1 + 2 == 3;
+  }
+  """
+
   vercors should verify using anyBackend example "basic/AddAssignJava.java"
   vercors should error withCode "resolutionError" example "basic/ArrayAsObject.java"
   vercors should verify using anyBackend example "basic/BasicAssert.java"

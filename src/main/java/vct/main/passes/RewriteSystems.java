@@ -1,16 +1,14 @@
 package vct.main.passes;
 
-import java.io.File;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import hre.util.FileHelper;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.rewrite.JavaResolver;
 import vct.col.rewrite.RewriteSystem;
 import vct.col.util.AbstractTypeCheck;
-import hre.config.Configuration;
-import vct.parsers.Parsers;
+
+import java.io.File;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RewriteSystems {
   //To ensure this class can not be instantiated.
