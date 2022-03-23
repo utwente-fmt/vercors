@@ -2,6 +2,7 @@ package vct.parsers.transform
 
 import hre.io.Readable
 import org.antlr.v4.runtime.{CommonTokenStream, ParserRuleContext, Token}
+import vct.antlr4.generated.LangCLexer
 import vct.col.origin._
 
 trait PositionContextProvider[T] {
@@ -46,7 +47,7 @@ case class InterpretedFileOriginProvider(original: OriginProvider, interpreted: 
 
     for(tokIdx <- firstTokenAtOrPastLine to 0 by -1) {
       val markerToken = tokenStream.get(tokIdx)
-      if(markerToken.getChannel == 2) {
+      if(markerToken.getChannel == LangCLexer.LINE_DIRECTIVE_CHANNEL) {
         val lineDirectiveLine = Integer.parseInt(markerToken.getText.split(' ')(1))
         val tokenLine = markerToken.getLine
         // FIXME PB: check for off-by-one stuff

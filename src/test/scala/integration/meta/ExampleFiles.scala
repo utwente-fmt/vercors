@@ -6,6 +6,8 @@ import java.nio.file.Paths
 case object ExampleFiles {
   val EXCLUSIONS: Seq[File => Boolean] = Seq(
     _.getName == ".gitignore",
+    _.getName == "package-info.java",
+    _.getName.endsWith(".h"),
   )
 
   val FILES: Seq[File] = find(Paths.get("examples").toFile)

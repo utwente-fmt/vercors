@@ -9,7 +9,7 @@ class err {
   
   requires PointsTo(x,write,3);
   ensures  PointsTo(x,write,4);
-  err(){
+  constructor(){
     refute false;
     x=x+1;
   }
