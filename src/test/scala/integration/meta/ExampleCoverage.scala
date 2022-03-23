@@ -1,6 +1,6 @@
 package integration.meta
 
-import integration.`new`.{AbruptExamplesSpec, AlgorithmExamplesSpec, ArrayExamplesSpec, BasicExamplesSpec, CIncludeSpec, ClassesSpec, DemoSpec, JavaImportSpec, SilverDomainSpec}
+import integration.`new`.{AbruptExamplesSpec, AlgorithmExamplesSpec, ArrayExamplesSpec, BasicExamplesSpec, CIncludeSpec, ClassesSpec, CounterSpec, DemoSpec, ForkJoinSpec, GotoSpec, GpgpuSpec, JavaImportSpec, LoopDependencySpec, MapsSpec, ModelsSpec, OpenMPSpec, SilverDomainSpec}
 import integration.helper.VercorsSpec
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -16,6 +16,14 @@ class ExampleCoverage extends AnyFlatSpec {
       new DemoSpec(),
       new JavaImportSpec(),
       new SilverDomainSpec(),
+      new ForkJoinSpec(),
+      new GotoSpec(),
+      new ModelsSpec(),
+      new GpgpuSpec(),
+      new LoopDependencySpec(),
+      new CounterSpec(),
+      new MapsSpec(),
+      new OpenMPSpec(),
     )
 
     val testedFiles = specs.flatMap(_.coveredExamples).map(_.toFile).toSet
