@@ -8,4 +8,5 @@ class AlgorithmExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/algo/reach.pvl"
   vercors should verify using silicon example "concepts/algo/linkedlist.pvl"
   vercors should verify using silicon example "concepts/algo/list.pvl"
+  vercors should verify using silicon example "concepts/algo/histogram-submatrix.c"
 }

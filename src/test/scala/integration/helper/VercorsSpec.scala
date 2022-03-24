@@ -14,7 +14,7 @@ import vct.result.VerificationError.UserError
 
 import java.nio.file.{Path, Paths}
 
-class VercorsSpec extends AnyFlatSpec {
+abstract class VercorsSpec extends AnyFlatSpec {
   var coveredExamples: Seq[Path] = Nil
 
   sealed trait Verdict {
@@ -126,6 +126,20 @@ class VercorsSpec extends AnyFlatSpec {
   class DescPhrase(val verdict: Verdict, val backends: Seq[options.Backend], val desc: String) {
     def pvl(data: String): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
+      for(backend <- backends) {
+        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
+      }
+    }
+
+    def java(data: String): Unit = {
+      val inputs = Seq(LiteralReadable("test.java", data))
+      for(backend <- backends) {
+        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
+      }
+    }
+
+    def c(data: String): Unit = {
+      val inputs = Seq(LiteralReadable("test.c", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
       }
