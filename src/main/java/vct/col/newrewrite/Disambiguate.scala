@@ -5,7 +5,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 import viper.silicon.state.terms.SetDifference
 
 case object Disambiguate extends RewriterBuilder {

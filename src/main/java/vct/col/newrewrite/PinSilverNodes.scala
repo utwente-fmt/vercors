@@ -6,7 +6,7 @@ import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 import scala.collection.mutable.ArrayBuffer
 

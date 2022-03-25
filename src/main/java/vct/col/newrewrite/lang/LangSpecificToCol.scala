@@ -11,7 +11,7 @@ import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.{SystemError, Unreachable, UserError}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

@@ -9,7 +9,7 @@ import vct.col.newrewrite.util.Substitute
 import vct.col.origin.{Blame, ExhaleFailed, Origin, SendFailed}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 

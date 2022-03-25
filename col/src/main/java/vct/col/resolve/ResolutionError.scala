@@ -2,7 +2,7 @@ package vct.col.resolve
 
 import vct.col.ast._
 import vct.col.origin._
-import vct.result.VerificationResult.{SystemError, UserError}
+import vct.result.VerificationError.{SystemError, UserError}
 
 trait ResolutionError extends UserError
 

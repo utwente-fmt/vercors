@@ -2,7 +2,7 @@ package vct.resources
 
 import hre.platform.Platform
 import hre.resource.ResourceUtil.{getPlatformBinary, getResource}
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationError.SystemError
 
 import java.io.File
 import java.net.URISyntaxException

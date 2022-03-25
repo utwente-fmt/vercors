@@ -3,19 +3,12 @@ package vct.col.newrewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.newrewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite._
-import vct.java.JavaLibraryLoader
-import vct.main.Test.printErrors
-import vct.main.Vercors
-import vct.parsers.{ParseResult, Parsers}
-import vct.result.VerificationResult.{Unreachable, UserError}
+import vct.result.VerificationError.{Unreachable, UserError}
 
-import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -25,24 +18,6 @@ case object ApplyTermRewriter {
     override def apply[Pre <: Generation](): Rewriter[Pre] = ApplyTermRewriter(ruleNodes)
     override def key: String = "simplify"
     override def desc: String = "Apply axiomatic simplification lemmas to expressions."
-  }
-
-  case class BuilderForFile(path: Path, vercors: Vercors) extends RewriterBuilder {
-    override def key: String = "simplify"
-    override def desc: String = s"Apply axiomatic simplification lemmas to expressions from $path."
-    override def apply[Pre <: Generation](): Rewriter[Pre] = {
-      val ParseResult(decls, expectedErrors) = Parsers.parse[InitialGeneration](path, vercors)
-      val parsedProgram = Program(decls, None)(DiagnosticOrigin)(DiagnosticOrigin)
-      val extraDecls = ResolveTypes.resolve(parsedProgram, None)
-      val untypedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(DiagnosticOrigin)(DiagnosticOrigin)
-      val typedProgram = LangTypesToCol().dispatch(untypedProgram)
-      val errors = ResolveReferences.resolve(typedProgram)
-      printErrors(errors)
-      val normalizedProgram = LangSpecificToCol().dispatch(typedProgram)
-      val unambiguousProgram = Disambiguate().dispatch(normalizedProgram)
-      val rules = unambiguousProgram.declarations.collect { case rule: SimplificationRule[Rewritten[Rewritten[Rewritten[InitialGeneration]]]] => rule }
-      ApplyTermRewriter(rules)
-    }
   }
 }
 

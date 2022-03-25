@@ -1,16 +1,17 @@
 package viper.api
 
-import vct.col.origin.{Blame, DerefPerm, FileOrigin, Origin, SourceNameOrigin, VerificationFailure}
+import vct.col.origin.{Blame, DerefPerm, Origin, ReadableOrigin, SourceNameOrigin, VerificationFailure}
 import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers._
 import viper.silver.{ast => silver}
 import vct.col.{ast => col}
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 import viper.api.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
 import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
 import viper.silver.verifier.AbstractError
+import hre.io.{Readable, RWFile}
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 case object SilverToCol {
   case class SilverPositionOrigin(node: silver.Positioned) extends Origin {
@@ -19,7 +20,7 @@ case object SilverToCol {
       case NoPosition => "[Unknown position from silver parse tree]"
       case pos: AbstractSourcePosition =>
         val (start, end) = (pos.start, pos.end.getOrElse(pos.start))
-        FileOrigin(pos.file, start.line-1, start.column-1, end.line-1, end.column-1).context
+        ReadableOrigin(RWFile(pos.file.toFile), start.line-1, end.line-1, Some((start.column-1, end.column-1))).context
       case other => s"[Unknown silver position kind: $other]"
     }
   }
@@ -42,11 +43,20 @@ case object SilverToCol {
       })
   }
 
-  def parse[G](path: Path): col.Program[G] =
-    SilverParserDummyFrontend.parse(path) match {
+  def transform[G](diagnosticPath: Path, in: Either[Seq[AbstractError], silver.Program]): col.Program[G] =
+    in match {
       case Right(program) => SilverToCol(program).transform()
-      case Left(errors) => throw SilverFrontendParseError(path, errors)
+      case Left(errors) => throw SilverFrontendParseError(diagnosticPath, errors)
     }
+
+  def parse[G](path: Path): col.Program[G] =
+    transform(path, SilverParserDummyFrontend.parse(path))
+
+  def parse[G](input: String, diagnosticPath: Path): col.Program[G] =
+    transform(diagnosticPath, SilverParserDummyFrontend.parse(input, diagnosticPath))
+
+  def parse[G](readable: Readable): col.Program[G] =
+    transform(Paths.get(readable.fileName), SilverParserDummyFrontend.parse(readable))
 }
 
 case class SilverToCol[G](program: silver.Program) {

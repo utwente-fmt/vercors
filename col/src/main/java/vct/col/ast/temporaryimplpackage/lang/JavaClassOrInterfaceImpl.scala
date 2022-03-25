@@ -3,7 +3,7 @@ package vct.col.ast.temporaryimplpackage.lang
 import vct.col.ast.{ClassDeclaration, Declaration, JavaAnnotationMethod, JavaClassOrInterface, JavaMethod, JavaModifier, JavaName, JavaTClass, PinnedDecl, Type, Variable}
 import vct.col.origin.DiagnosticOrigin
 import vct.col.ref.Ref
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 import scala.reflect.ClassTag
 

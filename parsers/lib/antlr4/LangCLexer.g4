@@ -7,7 +7,8 @@ import SpecLexer, LangOMPLexer, LangGPGPULexer;
 }
 
 channels {
-  EXPECTED_ERROR_CHANNEL
+  EXPECTED_ERROR_CHANNEL,
+  LINE_DIRECTIVE_CHANNEL
 }
 
 VAL_INLINE: EOF EOF;
@@ -351,8 +352,7 @@ SChar
     ;
 
 LineDirective
-    :   '#' Whitespace? DecimalConstant Whitespace? StringLiteral ~[\r\n]*
-        { setChannel(2); }
+    :   '#' Whitespace? DecimalConstant Whitespace? StringLiteral ~[\r\n]* -> channel(LINE_DIRECTIVE_CHANNEL)
     ;
 
 BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};

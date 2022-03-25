@@ -8,7 +8,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{SuccessionMap, Types}
-import vct.result.VerificationResult.{SystemError, Unreachable}
+import vct.result.VerificationError.{SystemError, Unreachable}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}

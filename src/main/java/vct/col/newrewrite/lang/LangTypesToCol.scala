@@ -7,7 +7,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast.RewriteHelpers._
 import vct.col.newrewrite.lang.LangTypesToCol.IncompleteTypeArgs
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 import scala.reflect.ClassTag
 

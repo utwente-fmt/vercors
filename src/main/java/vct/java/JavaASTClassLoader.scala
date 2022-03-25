@@ -44,7 +44,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
 
   private def loadFile(basePath: Path, parts: Seq[String]): Option[ASTClass] = FILE_CACHE.getOrElseUpdate((basePath, parts), {
     try {
-      val parser = new ColJavaParser(false)
+      val parser = new ColJavaParser(null, null)
       // (path/to/src, Seq(java, lang, Object)) -> path/to/src/java/lang/Object.java
       val f = new File(parts.init.foldLeft(basePath.toFile)(new File(_, _)), parts.last + ".java")
       val pu = /* parser.parse(f) */ null

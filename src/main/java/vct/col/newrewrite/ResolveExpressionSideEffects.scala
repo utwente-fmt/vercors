@@ -9,7 +9,7 @@ import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
-import vct.result.VerificationResult.{Unreachable, UserError}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

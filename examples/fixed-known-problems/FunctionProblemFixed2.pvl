@@ -1,8 +1,0 @@
-//:: cases FunctionProblemFixed2
-//:: tools silicon
-//:: verdict Error
-
-resource p();
-
-requires p();
-pure int f()=unfolding p() in 0;

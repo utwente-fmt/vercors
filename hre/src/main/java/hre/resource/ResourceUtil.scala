@@ -1,7 +1,7 @@
 package hre.resource
 
 import hre.platform.Platform
-import vct.result.VerificationResult.SystemError
+import vct.result.VerificationError.SystemError
 
 import java.io.File
 import java.net.URISyntaxException

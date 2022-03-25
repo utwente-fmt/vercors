@@ -1,33 +1,34 @@
 package vct.parsers
 
-import hre.lang.System.Failure
+import hre.io.Readable
 import org.antlr.v4.runtime
-import org.antlr.v4.runtime.{CommonTokenStream, Token}
+import org.antlr.v4.runtime.{CharStreams, CommonTokenStream, Token}
 import vct.col.util.ExpectedError
-import vct.parsers.transform.{BlameProvider, FileOriginProvider, OriginProvider}
-import vct.result.VerificationResult.UserError
+import vct.parsers.transform.{BlameProvider, OriginProvider}
+import vct.result.VerificationError.UserError
 
-import java.io.{File, FileInputStream, FileNotFoundException, InputStream}
-import java.nio.charset.{Charset, StandardCharsets}
-import scala.collection.mutable
+import java.io.FileNotFoundException
 import scala.jdk.CollectionConverters._
 
-abstract class Parser {
+abstract class Parser(val originProvider: OriginProvider, val blameProvider: BlameProvider) {
   case class UnbalancedExpectedError(tok: Token) extends UserError {
     override def code: String = "unbalancedExpectedError"
     override def text: String = "There is no scope to close here."
   }
 
-  def expectedErrors(lexer: CommonTokenStream, channel: Int,
-                     startToken: Int, endToken: Int,
-                     originProvider: OriginProvider, blameProvider: BlameProvider): Seq[(Token, Token, ExpectedError)] = {
+  def expectedErrors(lexer: CommonTokenStream, channel: Int, startToken: Int, endToken: Int): Seq[(Token, Token, ExpectedError)] = {
     lexer.fill()
     var startStack: Seq[(String, Token)] = Nil
     var errors = Seq.empty[(Token, Token, ExpectedError)]
 
     for(token <- lexer.getTokens.asScala.filter(_.getChannel == channel)) {
       if(token.getType == startToken) {
-        val code = token.getText.replace("/*", "").replace("*/", "").replace("[/expect", "").replace("]", "").strip()
+        val code = token.getText
+          .replace("/*", "")
+          .replace("*/", "")
+          .replace("[/expect", "")
+          .replace("]", "")
+          .strip()
         startStack :+= (code, token)
       }
 
@@ -43,22 +44,6 @@ abstract class Parser {
     errors.sortBy(_._1.getTokenIndex)
   }
 
-  def parse[G](stream: runtime.CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G]
-
-  def parse[G](stream: InputStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] =
-    parse(runtime.CharStreams.fromStream(stream, StandardCharsets.UTF_8), originProvider, blameProvider)
-
-  def parse[G](f: File)(originProvider: OriginProvider = FileOriginProvider(f.toPath),
-                     blameProvider: BlameProvider = FileOriginProvider(f.toPath)): ParseResult[G] = {
-    val name = f.toString
-    try {
-      parse(new FileInputStream(f), originProvider, blameProvider)
-    } catch {
-      case _: FileNotFoundException =>
-        throw FileNotFound(f.toPath)
-    }
-  }
-
   protected def errorCounter(parser: runtime.Parser, lexer: runtime.Lexer, originProvider: OriginProvider): ThrowingErrorListener = {
     parser.removeErrorListeners()
     lexer.removeErrorListeners()
@@ -67,4 +52,15 @@ abstract class Parser {
     lexer.addErrorListener(ec)
     ec
   }
+
+  def parse[G](stream: runtime.CharStream): ParseResult[G]
+
+  def parse[G](readable: Readable): ParseResult[G] =
+    try {
+      readable.read { reader =>
+        parse(CharStreams.fromReader(reader, readable.fileName))
+      }
+    } catch {
+      case _: FileNotFoundException => throw FileNotFound(readable.fileName)
+    }
 }

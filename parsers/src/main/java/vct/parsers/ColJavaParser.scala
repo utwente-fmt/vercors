@@ -10,16 +10,15 @@ import vct.parsers.transform.{BlameProvider, JavaToCol, OriginProvider}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-case class ColJavaParser(topLevelSpecs: Boolean) extends Parser {
-  override def parse[G](stream: CharStream, originProvider: OriginProvider, blameProvider: BlameProvider): ParseResult[G] = {
+case class ColJavaParser(override val originProvider: OriginProvider, override val blameProvider: BlameProvider) extends Parser(originProvider, blameProvider) {
+  override def parse[G](stream: CharStream): ParseResult[G] = {
     try {
       val lexer = new LangJavaLexer(stream)
       val tokens = new CommonTokenStream(lexer)
-      val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE, originProvider, blameProvider)
+      originProvider.setTokenStream(tokens)
+      val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new JavaParser(tokens)
       val ec = errorCounter(parser, lexer, originProvider)
-
-      parser.specLevel = if(topLevelSpecs) 1 else 0
 
       val tree = parser.compilationUnit()
       ec.report()

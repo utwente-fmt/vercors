@@ -3,6 +3,7 @@ package vct.col.origin
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import vct.col.util.ExpectedError
+import hre.io.Readable
 
 import java.nio.file.Path
 import scala.collection.mutable.ArrayBuffer
@@ -44,13 +45,13 @@ object InputOrigin {
   val CONTEXT = 2
   val LINE_NUMBER_WIDTH = 5
 
-  def contextLines(path: Path, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): String = {
+  def contextLines(readable: Readable, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): String = {
     require(startLineIdx <= endLineIdx)
     require(startLineIdx != endLineIdx || cols.isEmpty || cols.get._1 <= cols.get._2)
 
     // The newline at the end is dropped, so replace it with two spaces as we need to be able to point to the newline character.
     // ANTLR points past the last line when pointing at an EOF immediately following a newline, hence the extra line.
-    val lines = Source.fromFile(path.toFile).getLines().map(_ + "  ").toSeq :+ " "
+    val lines = readable.readLines().map(_ + "  ") :+ " "
 
     val clamp = (line: Int) => Math.max(0, Math.min(lines.size-1, line))
     val numberedLine = (text: String, line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d  %s\n", Int.box(line+1), text.dropRight(2))
@@ -172,33 +173,62 @@ case class BlameCollector() extends Blame[VerificationFailure] {
     errs += error
 }
 
-case class FileOrigin(path: Path,
-                      startLineIdx: Int, startColIdx: Int,
-                      endLineIdx: Int, endColIdx: Int)
+case class ReadableOrigin(readable: Readable,
+                          startLineIdx: Int, endLineIdx: Int,
+                          cols: Option[(Int, Int)])
   extends InputOrigin {
-  override def context: String =
-      f" At $path:${startLineIdx+1}:${startColIdx+1}:\n" + Origin.HR +
-      InputOrigin.contextLines(path, startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
+  private def startText: String = cols match {
+    case Some((startColIdx, _)) => f"${readable.fileName}:${startLineIdx+1}:${startColIdx+1}"
+    case None => f"${readable.fileName}:${startLineIdx+1}"
+  }
 
-  override def toString: String =
-    f"$path:${startLineIdx+1}:${startColIdx+1} - ${endLineIdx+1}:${endColIdx+1}"
+  private def endText: String = cols match {
+    case Some((_, endColIdx)) => f"${endLineIdx+1}:${endColIdx+1}"
+    case None => f"${endLineIdx+1}"
+  }
+
+  override def context: String = {
+    val atLine = f" At $startText:\n"
+
+    if(readable.isRereadable) {
+      atLine + Origin.HR + InputOrigin.contextLines(readable, startLineIdx, endLineIdx, cols)
+    } else {
+      atLine
+    }
+  }
+
+  override def toString: String = f"$startText - $endText"
 }
 
-case class InterpretedOrigin(interpretedPath: Path,
-                             startLineIdx: Int, startColIdx: Int,
-                             endLineIdx: Int, endColIdx: Int,
-                             originalPath: Path,
-                             originalStartLineIdx: Int, originalEndLineIdx: Int)
+case class InterpretedOrigin(interpreted: Readable,
+                             startLineIdx: Int, endLineIdx: Int,
+                             cols: Option[(Int, Int)],
+                             original: Origin)
   extends InputOrigin {
+  private def startText: String = cols match {
+    case Some((startColIdx, _)) => f"${interpreted.fileName}:${startLineIdx+1}:${startColIdx+1}"
+    case None => f"${interpreted.fileName}:${startLineIdx+1}"
+  }
+
+  private def endText: String = cols match {
+    case Some((_, endColIdx)) => f"${endLineIdx+1}:${endColIdx+1}"
+    case None => f"${endLineIdx+1}"
+  }
+
   override def context: String = {
-    f" At $originalPath:${originalStartLineIdx+1}:\n" + Origin.HR +
-      InputOrigin.contextLines(originalPath, originalStartLineIdx, originalEndLineIdx, cols=None) + Origin.HR +
-      f" Interpreted at $interpretedPath:${startLineIdx+1}:${startColIdx+1} as:\n" + Origin.HR +
-      InputOrigin.contextLines(interpretedPath, startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
+    val interpretedAtLine = f" Interpreted at $startText as:\n"
+
+    val interpretedText = if(interpreted.isRereadable) {
+      interpretedAtLine + Origin.HR + InputOrigin.contextLines(interpreted, startLineIdx, endLineIdx, cols)
+    } else {
+      interpretedAtLine
+    }
+
+    original.context + Origin.HR + interpretedText
   }
 
   override def toString: String =
-    f"$interpretedPath:${startLineIdx+1}:${startColIdx+1} - ${endLineIdx+1}:${endColIdx+1} interpreted from $originalPath:${originalStartLineIdx+1} - ${originalEndLineIdx+1}"
+    f"$startText - $endText interpreted from $original"
 }
 
 case class SourceNameOrigin(name: String, inner: Origin) extends Origin {

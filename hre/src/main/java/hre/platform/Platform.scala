@@ -1,6 +1,6 @@
 package hre.platform
 
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 sealed trait Platform
 

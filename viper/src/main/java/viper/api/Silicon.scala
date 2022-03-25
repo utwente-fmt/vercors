@@ -9,7 +9,7 @@ import java.nio.file.Path
 import scala.annotation.nowarn
 
 @nowarn("any") // due to be removed
-case class Silicon(z3Settings: Map[String, String], z3Path: Path) extends SilverBackend {
+case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path) extends SilverBackend {
   override def createVerifier(reporter: Reporter): viper.silicon.Silicon = {
     val silicon = new viper.silicon.Silicon(reporter)
 

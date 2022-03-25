@@ -3,7 +3,7 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.RewriteHelpers._
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 import scala.collection.mutable.ArrayBuffer
 

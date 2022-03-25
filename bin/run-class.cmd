@@ -23,4 +23,4 @@ rem     over the file content (which is just a single line, so just one loop ite
 for /F "delims=" %%c in (%CPFILE%) do set CLASSPATH=%%c
 
 rem execute java with classpath from above and given arguments
-java -Xss128M -cp "%CLASSPATH%" %*
+java %MORE_JAVA_OPTS% -Xss128M -cp "%CLASSPATH%" %*

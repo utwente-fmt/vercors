@@ -1,24 +1,22 @@
 package vct.java
 
-import hre.config.Configuration
-import hre.lang.Failure
+import hre.io.RWFile
 import vct.col.ast.JavaNamespace
 import vct.col.resolve.ExternalJavaLoader
-import vct.main.Vercors
-import vct.parsers.{FileNotFound, Parsers}
+import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
+import vct.parsers.{ColJavaParser, FileNotFound}
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 
-case class JavaLibraryLoader(base: Path, vercors: Vercors) extends ExternalJavaLoader {
+case class JavaLibraryLoader(base: Path, blameProvider: BlameProvider) extends ExternalJavaLoader {
   override def load[G](name: Seq[String]): Option[JavaNamespace[G]] = try {
-    val f = base.resolve((name.init :+ name.last + ".java").mkString(File.separator))
-    Parsers.parse[G](f, vercors).decls match {
+    val f = RWFile(base.resolve((name.init :+ name.last + ".java").mkString(File.separator)).toFile)
+    ColJavaParser(ReadableOriginProvider(f), blameProvider).parse[G](f).decls match {
       case Seq(ns: JavaNamespace[G]) => Some(ns)
       case _ => None
     }
   } catch {
     case _: FileNotFound => None
-    case _: Failure => None
   }
 }

@@ -6,7 +6,7 @@ import vct.col.origin.{Blame, NoContext, Origin, PanicBlame, PreconditionFailed,
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object ResolveScale extends RewriterBuilder {
   override def key: String = "scale"

@@ -7,7 +7,7 @@ import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.{Unreachable, UserError}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 

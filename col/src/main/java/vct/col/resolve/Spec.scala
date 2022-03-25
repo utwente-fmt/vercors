@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.result.VerificationResult.UserError
+import vct.result.VerificationError.UserError
 
 case object Spec {
   def getContract[G](target: Referrable[G], blame: Node[G]): ApplicableContract[G] = target match {
