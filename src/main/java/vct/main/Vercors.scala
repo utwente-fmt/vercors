@@ -82,8 +82,8 @@ case class Vercors(options: Options) extends ImportADTImporter with LazyLogging 
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
 
     // TODO: Constant folding
-    EncodeJavaLangString, // TODO (RR): Resolve InternedString. Get rid if TPinnedDecL(JavaLangString())
-    // TODO (RR): Resolve StringLiteral to seq
+    EncodeJavaLangString, // Resolve InternedString.
+    EncodeString, // Resolve StringLiteral to seq
 
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.

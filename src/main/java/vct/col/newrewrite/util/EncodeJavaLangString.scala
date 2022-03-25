@@ -18,15 +18,9 @@ case class EncodeJavaLangString[Pre <: Generation]() extends Rewriter[Pre] {
 
   var program: Program[Pre] = null
   lazy val concatImpl: Function[Pre] = findConcatImpl()
-  def findConcatImpl(): Function[Pre] = {
-    program.transSubnodes.foreach {
-      case function: Function[Pre] if function.isPin(JavaStringConcatOperator()) =>
-        return function
-      case _ =>
-    }
-
-    throw Unreachable("???") // TODO (RR): Better error reporting
-  }
+  def findConcatImpl(): Function[Pre] = program.transSubnodes.collectFirst {
+    case function: Function[Pre] if function.isPin(JavaStringConcatOperator()) => function
+  }.getOrElse(throw Unreachable("???")) // TODO (RR): Better error reporting
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     this.program = program
