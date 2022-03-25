@@ -18,7 +18,7 @@ case object Util {
   case class LibraryFileError(error: VerificationFailure) extends UserError {
     override def code: String = "lib"
     override def text: String =
-      "A verification condition failed inside a file loaded as a library file, which is never supposed to happen. The internal error is:\n" + error.text
+      "A verification condition failed inside a file loaded as a library file, which is never supposed to happen. The internal error is:\n" + error.toString
   }
 
   def loadPVLLibraryFile[G](readable: Readable): Program[G] = {

@@ -6,6 +6,7 @@ import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
+import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
 import vct.options
 import vct.options.PathOrStd
@@ -45,47 +46,56 @@ abstract class VercorsSpec extends AnyFlatSpec {
     }
   }
 
-  private def matchVerdict(verdict: Verdict, value: Either[VerificationError, Seq[VerificationFailure]]): Unit = verdict match {
-    case Pass => value match {
-      case Left(err) =>
+  private def matchVerdict(verdict: Verdict, value: Either[VerificationError, Seq[VerificationFailure]]): Unit = {
+    value match {
+      case Left(err: TemporarilyUnsupported) =>
         println(err)
-        fail("Expected the test to pass, but it returned an error instead.")
-      case Right(Nil) => // success
-      case Right(fails) =>
-        fails.foreach(f => println(f.toString))
-        fail("Expected the test to pass, but it returned verification failures instead.")
+        cancel()
+      case _ =>
     }
-    case AnyFail => value match {
-      case Left(err) =>
-        println(err)
-        fail("Expected the test to fail, but it returned an error instead.")
-      case Right(Nil) =>
-        fail("Expected the test to fail, but it passed instead.")
-      case Right(_) => // success
-    }
-    case Fail(code) => value match {
-      case Left(err) =>
-        println(err)
-        fail("Expected the test to fail, but it returned an error instead.")
-      case Right(Nil) =>
-        fail("Expected the test to fail, but it passed instead.")
-      case Right(fails) => fails.filterNot(_.code == code) match {
-        case Nil => // success
-        case fails =>
+
+    verdict match {
+      case Pass => value match {
+        case Left(err) =>
+          println(err)
+          fail("Expected the test to pass, but it returned an error instead.")
+        case Right(Nil) => // success
+        case Right(fails) =>
           fails.foreach(f => println(f.toString))
-          fail(f"Expected the test to fail with error code $code, but got ${fails.map(_.code).mkString(", ")} instead.")
+          fail("Expected the test to pass, but it returned verification failures instead.")
       }
-    }
-    case Error(code) => value match {
-      case Left(err: UserError) if err.code == code => // success
-      case Left(err: UserError) =>
-        println(err.toString)
-        fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
-      case Left(err) =>
-        println(err.toString)
-        fail(f"Expected the test to error with code $code, but got the above error instead.")
-      case Right(_) =>
-        fail("Expected the test to error, but got a pass or fail instead.")
+      case AnyFail => value match {
+        case Left(err) =>
+          println(err)
+          fail("Expected the test to fail, but it returned an error instead.")
+        case Right(Nil) =>
+          fail("Expected the test to fail, but it passed instead.")
+        case Right(_) => // success
+      }
+      case Fail(code) => value match {
+        case Left(err) =>
+          println(err)
+          fail("Expected the test to fail, but it returned an error instead.")
+        case Right(Nil) =>
+          fail("Expected the test to fail, but it passed instead.")
+        case Right(fails) => fails.filterNot(_.code == code) match {
+          case Nil => // success
+          case fails =>
+            fails.foreach(f => println(f.toString))
+            fail(f"Expected the test to fail with error code $code, but got ${fails.map(_.code).mkString(", ")} instead.")
+        }
+      }
+      case Error(code) => value match {
+        case Left(err: UserError) if err.code == code => // success
+        case Left(err: UserError) =>
+          println(err.toString)
+          fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
+        case Left(err) =>
+          println(err.toString)
+          fail(f"Expected the test to error with code $code, but got the above error instead.")
+        case Right(_) =>
+          fail("Expected the test to error, but got a pass or fail instead.")
+      }
     }
   }
 
