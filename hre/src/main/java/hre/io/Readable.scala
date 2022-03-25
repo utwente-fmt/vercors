@@ -40,7 +40,6 @@ trait Readable {
           buf += next
         }
       }
-      println(buf.map(_.replace("\n", raw"\n")))
       buf.toSeq
     }
 }
