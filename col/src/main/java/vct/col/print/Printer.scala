@@ -600,6 +600,10 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", field), 100)
     case JavaLiteralArray(exprs) =>
       (phrase("{", commas(exprs.map(NodePhrase)), "}"), 120)
+    case JavaStringLiteral(data) =>
+      (phrase(s""""${data}""""), 100)
+    case StringLiteral(data) =>
+      (phrase(s""""${data}""""), 100)
     case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {
         case Some(obj) =>
@@ -783,6 +787,8 @@ case class Printer(out: Appendable,
     case AmbiguousPlus(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Plus(left, right) =>
+      (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
+    case JavaStringConcat(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Minus(left, right) =>
       (phrase(assoc(70, left), space, "-", space, bind(70, right)), 70)

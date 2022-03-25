@@ -19,4 +19,8 @@ public class String {
 
     //@ ensures \result == internToString(data());
     public native /*@ pure */ String intern();
+
+    /*@
+    ghost public pure boolean isEmpty();
+     @*/
 }

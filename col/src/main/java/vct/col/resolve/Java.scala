@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col.origin._
 import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
-import vct.result.VerificationResult.{Unreachable, UserError}
+import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Types
 

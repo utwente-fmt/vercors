@@ -1,11 +1,10 @@
-package vct.col.newrewrite.util
+package vct.col.newrewrite
 
 import vct.col.ast.{Expr, Function, InternedString, JavaStringConcat, JavaStringConcatOperator, Program}
+import vct.col.origin.PanicBlame
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{BlameUnreachable, PanicBlame}
 import vct.col.util.AstBuildHelpers._
-import vct.result.VerificationResult.Unreachable
+import vct.result.VerificationError.Unreachable
 
 case object EncodeJavaLangString extends RewriterBuilder {
   override def key: String = "encodeJavaLangString"
