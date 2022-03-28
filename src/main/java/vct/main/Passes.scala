@@ -10,7 +10,7 @@ import vct.col.features
 import vct.col.features.Feature
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, GlobalProgPerms, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, RemoveTaus, StructureCheck, TerminationCheck}
+import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, GlobalProgPerms, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, RemoveTaus, StructureCheck, TerminationCheck, Util}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -929,16 +929,9 @@ object Passes {
       arg => { new TerminationCheck(arg); arg}),
     SimplePass("VeyMontGlobalProgPerms","add all permissions to global program",
       new GlobalProgPerms(_).rewriteAll()),
-    SimplePass("printGlobProg", "print global program with generated permissions",
-      arg => {
-        var f = Configuration.veymont_file.get()
-        if(f.endsWith(".pvl"))
-          f = f.substring(0,f.length-4) + "Glob.pvl"
-        else if(f.endsWith(".java"))
-          f = f.substring(0,f.length-5) + "Glob.java"
-        else
-          Fail("File name %s unexpected file for VeyMont!",f)
-        PrintVeyMontProg.print(arg,f,false)
+    Pass("VeyMontPrintAnnotatedProg", "print global program with generated permissions",
+      (prog,filename) => {
+        PrintVeyMontProg.print(prog,Util.getAnnotatedFileName(filename.head),false)
       }
       , introduces=Set(), permits=Feature.ALL),
     SimplePass("VeyMontDecompose", "generate local program classes from given global program",
@@ -950,9 +943,9 @@ object Passes {
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
-      new GenerateForkJoinMain(_).addStartThreadClass(true)), //TODO: put this argument in VeyMont Configuration
-    SimplePass("printVeyMontOutput", "print AST produced by VeyMont in PVL or Java syntax",
-      PrintVeyMontProg.print(_,Configuration.veymont_file.get(),true)
+      new GenerateForkJoinMain(_).addStartThreadClass(Configuration.veymont_fork_join_threading.get())),
+    Pass("VeyMontPrintOutput", "print AST produced by VeyMont in PVL or Java syntax",
+      (prog,filename) => PrintVeyMontProg.print(prog,Util.getOutputFileName(filename.head),true)
       , introduces=Set(), permits=Feature.ALL),
   )
 

@@ -100,7 +100,9 @@ public class Configuration {
     /**
      * The option for veymont decomposition
      */
-    public static final StringSetting veymont_file =new StringSetting(null);
+    public static final String veymont_check = "veymont", veymont_decompose = "veymont-decompose";
+    public static final ChoiceSetting veymont = new ChoiceSetting(new String[]{veymont_check, veymont_decompose}, null);
+    public static final BooleanSetting veymont_fork_join_threading = new BooleanSetting(true);
 
     /**
      * Add the VCT library options to the given option parser.
@@ -123,13 +125,16 @@ public class Configuration {
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
-        clops.add(veymont_file.getAssign(
-                "VeyMont decomposes the global program from the input files into several local programs that can be executed in parallel. " +
-                        "The program from the input files has to adhere to the syntax of a 'global program'. Syntax violations result in VeyMont Fail messages. " +
-                        "The decomposition preserves the behaviour of the global program. " +
-                        "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program. " +
-                        "Also, both global programs and their decomposed local programs are deadlock-free by construction." +
-                        "For more information on VeyMont, please check the VerCors Wiki."),"veymont");
+        clops.add(veymont.getExplicitOption(Configuration.veymont_check,
+                "This VeyMont command checks whether the program from the input files is parallelisable. " +
+                        "A violations result in a VeyMont Fail message. " +
+                        "Otherwise, annotations for verification are added, and the program is verified by VerCors."),Configuration.veymont_check);
+        clops.add(veymont.getExplicitOption(Configuration.veymont_decompose,
+                "This VeyMont command decomposes a parallelisable, verified program from the input files into a file with local programs that can be executed in parallel. " +
+                        "The decomposition preserves the behaviour of the input program. " +
+                        "This implies that all functional properties proven (with VerCors) for the global program also hold for the local program."),Configuration.veymont_decompose);
+        clops.add(veymont_fork_join_threading.getAssign("Default value true will provide a decomposition with threads being forked and joined. " +
+                "Value false will provide a decomposition with threads being run via a thread pool."),"veymont-threading");
     }
 
     public static IntegerSetting profiling=new IntegerSetting(1000);
@@ -177,9 +182,7 @@ public class Configuration {
     public static final String javaChannelFile = "/include/IntegerChannel.java";
 
     public static File getVeyMontFiles()  {
-        if(veymont_file.get().endsWith(".pvl"))
-            return getFileOrAbort(pvlChannelFile);
-        else return getFileOrAbort(javaChannelFile);
+        return getFileOrAbort(javaChannelFile);
     }
 
     public static File getVercorsJREBasePath() {

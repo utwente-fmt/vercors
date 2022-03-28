@@ -99,6 +99,7 @@ class SilverImplementation[O](o:OriginFactory[O])
     //println("verifier: "+ verifier);
     //Progress("running verify");
     val res = verifier.verify(program)
+    verifier.stop()
     //Progress("finished verify");
     //println("verifier output: "+ res);
     res match {

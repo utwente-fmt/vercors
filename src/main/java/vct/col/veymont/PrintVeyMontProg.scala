@@ -8,7 +8,7 @@ import java.io.{File, FileOutputStream, IOException, PrintWriter}
 
 object PrintVeyMontProg {
 
-  def print(prog : ProgramUnit, destFileName : String, forkjoin : Boolean) : ProgramUnit = {
+  def print(prog : ProgramUnit, destFileName : String, javaForkJoin : Boolean) : ProgramUnit = {
     try {
       val f = new File(destFileName);
       val b = f.createNewFile();
@@ -22,7 +22,7 @@ object PrintVeyMontProg {
       out.println("import java.util.concurrent.*;")
       out.println("import java.util.List;")
       out.println("import java.util.Map;")
-      JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, if(forkjoin) new JavaForkJoin(prog).rewriteAll() else prog)
+      JavaSyntax.getJava(JavaDialect.JavaVerCors).print(out, if(javaForkJoin) new JavaForkJoin(prog).rewriteAll() else prog)
       }
       else Fail("VeyMont Fail: VeyMont cannot write output to file %s",destFileName)
       out.close();

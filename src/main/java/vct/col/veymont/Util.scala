@@ -37,6 +37,8 @@ object Util {
   val chanValueFieldName = "exchangeValue"
   val stringType = "String"
   val ownerShipPredicateName = "ownership"
+  private val veymontAnnotatedSuffix = "-glob.pvl"
+  private val veymontOutputSuffix = "-output.java"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 
@@ -62,7 +64,10 @@ object Util {
 
   def unArgName(arg: String): String = arg.slice(0, arg.length - 3)
 
-  def isParClassName(name : String) = name.startsWith(parClassName)
+  def isParClassName(name : String) : Boolean = name.startsWith(parClassName)
+
+  def getAnnotatedFileName(inputFileName : String) : String = inputFileName.substring(0,inputFileName.length-4) + Util.veymontAnnotatedSuffix
+  def getOutputFileName(inputFileName : String) : String = inputFileName.substring(0,inputFileName.length-veymontAnnotatedSuffix.length) + Util.veymontOutputSuffix
 
   def getChansFromBlockStatement(block: ASTNode): Set[MethodInvokation] =
     getBlockOrThrow(block,"VeyMont Fail: expected BlockStatement").getStatements.toSet[ASTNode].flatMap(s => s match {
