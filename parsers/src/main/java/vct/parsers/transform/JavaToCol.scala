@@ -1281,8 +1281,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValRead(_) => ReadPerm()
     case ValNoneOption(_) => OptNone()
     case ValEmpty(_) => EmptyProcess()
-    case ValLtid(_) => ???
-    case ValGtid(_) => ???
+    case ValLtid(_) => LocalThreadId()
+    case ValGtid(_) => GlobalThreadId()
     case ValTrue(_) => tt
     case ValFalse(_) => ff
   }

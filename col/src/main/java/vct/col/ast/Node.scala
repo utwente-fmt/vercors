@@ -361,6 +361,8 @@ final case class AmbiguousResult[G]()(implicit val o: Origin) extends Expr[G] wi
 
 final case class Result[G](applicable: Ref[G, ContractApplicable[G]])(implicit val o: Origin) extends Expr[G] with ResultImpl[G]
 final case class CurrentThreadId[G]()(implicit val o: Origin) extends Expr[G] with CurrentThreadIdImpl[G]
+final case class LocalThreadId[G]()(implicit val o: Origin) extends Expr[G] with LocalThreadIdImpl[G]
+final case class GlobalThreadId[G]()(implicit val o: Origin) extends Expr[G] with GlobalThreadIdImpl[G]
 final case class Any[G]()(val blame: Blame[AnyStarError])(implicit val o: Origin) extends Expr[G] with AnyImpl[G]
 final case class ReadPerm[G]()(implicit val o: Origin) extends Expr[G] with ReadPermImpl[G]
 final case class Values[G](arr: Expr[G], from: Expr[G], to: Expr[G])(val blame: Blame[ArrayValuesError])(implicit val o: Origin) extends Expr[G] with ValuesImpl[G]
