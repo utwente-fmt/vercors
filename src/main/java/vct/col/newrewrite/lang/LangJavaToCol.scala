@@ -381,7 +381,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def newClass(inv: JavaNewClass[Pre]): Expr[Post] = {
-    val JavaNewClass(args, typeParams, t @ JavaTClass(Ref(decl), _), givenMap, yields) = inv
+    val JavaNewClass(args, typeParams, t, givenMap, yields) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
@@ -390,7 +390,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor() =>
-        ProcedureInvocation[Post](rw.succ(javaDefaultConstructor(decl)),
+        val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
+        val succ = rw.lookupSuccessor
+        val ref = new LazyRef[Post, Procedure[Post]](succ(javaDefaultConstructor(cls)).get)
+        ProcedureInvocation[Post](ref,
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
@@ -427,7 +430,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def newDefaultArray(arr: JavaNewDefaultArray[Pre]): Expr[Post] =
-    NewArray(rw.dispatch(arr.t), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.o)
+    NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.o)
 
   def classType(t: JavaTClass[Pre]): Type[Post] =
     TClass(javaInstanceClassSuccessor.ref(t.ref.decl))
