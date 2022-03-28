@@ -4,16 +4,12 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.coerce.CoercingRewriter.Incoercible
-import vct.col.coerce.NopCoercingRewriter
-import vct.col.newrewrite.lang.LangSpecificToCol.{CGlobalStateNotSupported, JavaConstructorOrigin, JavaFieldOrigin, JavaInstanceClassOrigin, JavaLocalOrigin, JavaMethodOrigin, JavaStaticsClassOrigin, ThisVar}
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.{Unreachable, UserError}
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
@@ -123,7 +119,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case _: ClassDeclaration[_] => false // FIXME we should have a way of translating static specification-type declarations
   }
 
-  def makeJavaClass(prefName: String, decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]], wantDefaultConstructor: Boolean)(implicit o: Origin): Unit = {
+  def makeJavaClass(prefName: String, decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]], isStaticPart: Boolean)(implicit o: Origin): Unit = {
     // First, declare all the fields, so we can refer to them.
     decls.foreach {
       case fields: JavaFields[Pre] =>
@@ -161,9 +157,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     // 3. the body of the constructor
 
-    val declsDefault = if(wantDefaultConstructor && decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
-      // TODO: When makeJavaClass is called in statics context, default constructor is overwritten with statics constructor
-      javaDefaultConstructor(currentJavaClass.top) = new JavaConstructor(
+    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
+      val cons = new JavaConstructor[Pre](
         modifiers = Nil,
         name = prefName,
         parameters = Nil,
@@ -183,7 +178,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
         )
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
-      javaDefaultConstructor(currentJavaClass.top) +: decls
+      if (!isStaticPart) javaDefaultConstructor(currentJavaClass.top) = cons
+      cons +: decls
     } else decls
 
     declsDefault.foreach {
@@ -310,7 +306,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
         val instanceClass = currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
           new Class[Post](collectInScope(classScopes) {
-            makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), wantDefaultConstructor = true)
+            makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
           }, supports, dispatch(lockInvariant), pin = cls.pin.map(dispatch(_)))(JavaInstanceClassOrigin(cls))
         }
 
@@ -320,8 +316,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         if(staticDecls.nonEmpty) {
           val staticsClass = new Class[Post](collectInScope(classScopes) {
             currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
-              // TODO: currentJavaClass also needs to be overwritten here, otherwise makeJavaClass will overwrite the default constructor with the default statics constructor
-              makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), wantDefaultConstructor = false)
+              makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), isStaticPart = true)
             }
           }, Nil, tt)(JavaStaticsClassOrigin(cls))
 
@@ -782,41 +777,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       implicit val o = l.o
       // TODO (RR): Better error throw
       InternedString(StringLiteral(data), succ(internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
-
-//    case JavaStringLiteral(data) =>
-//      val stringClass = pinnedClasses(JavaLangString())
-//      val stringOfSeq = {
-//        val ms = stringClass.findMethodByName[JavaMethod[Pre]]("of")
-//        if (ms.length != 1) throw Unreachable(s"Unexpected number (${ms.length}) of String.of methods")
-//        ms(0)
-//      }
-//      implicit val o = DiagnosticOrigin
-//      val codepointSeq = LiteralSeq[Post](TInt(), data.map((c: Char) => const(c.toInt)))
-//      methodInvocation[Post](
-//        PanicBlame("String literal construction cannot fail"),
-//        functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-//        succ(stringOfSeq), args = Seq(codepointSeq))
-//
-//    case ap @ AmbiguousPlus(left, right) =>
-//      try {
-//        val ncr = NopCoercingRewriter[Pre]()
-//        // TODO: Move to disambiguate
-//        ncr.coerce(left, TPinnedDecl(JavaLangString()))
-//        ncr.coerce(right, TPinnedDecl(JavaLangString()))
-//
-//        val stringClass = pinnedClasses(JavaLangString())
-//        val operatorPlus = stringClass.findMethodByName[JavaMethod[Pre]]("operatorPlus") match {
-//          case Seq(m) => m
-//          case ms => throw Unreachable(s"Unexpected number (${ms.length}) of String.operatorPlus methods")
-//        }
-//        implicit val o = DiagnosticOrigin
-//        methodInvocation[Post](
-//          PanicBlame("String concatenation cannot fail"),
-//          functionInvocation[Post](PanicBlame("Statics function cannot fail"), javaStaticsFunctionSuccessor.ref(stringClass)),
-//          succ(operatorPlus), args = Seq(dispatch(left), dispatch(right)))
-//      } catch {
-//        case Incoercible(_, _) => super.dispatch(ap)
-//      }
 
     case inv @ SilverPartialADTFunctionInvocation(_, args, _) =>
       inv.maybeTypeArgs match {

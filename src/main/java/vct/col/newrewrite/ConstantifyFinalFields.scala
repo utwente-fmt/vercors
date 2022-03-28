@@ -15,9 +15,30 @@ case object ConstantifyFinalFields extends RewriterBuilder {
 
 case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+  var finalValueMap: Map[Declaration[Pre], Expr[Pre]] = Map()
 
   def isFinal(field: InstanceField[Pre]): Boolean =
     field.flags.collectFirst { case _: Final[Pre] => () }.isDefined
+
+  // This function is deliberately unclearly called isAllowedValue to avoid making the impression that we are implementing
+  // java constexprs or something similar.
+  // Below just happens to be the subset needed to encode string literals.
+  def isAllowedValue(e: Expr[Pre]): Boolean = e match {
+    case IntegerValue(_) => true
+    case LiteralSeq(_, vals) => vals.forall(isAllowedValue)
+    case FunctionInvocation(_, args, _, givenMap, _) => args.forall(isAllowedValue) && givenMap.forall { case (_, e) => isAllowedValue(e) }
+  }
+
+  override def dispatch(decl: Program[Pre]): Program[Post] = {
+    finalValueMap = decl.transSubnodes.collect({
+      // Note that we don't check the value of deref here, so if isClosedConstant is extended without care, this
+      // might produce unsoundness in the future. E.g. if variables are present in the init value, this approach fails
+      case Assign(Deref(_, Ref(field)), value) if isFinal(field) && isAllowedValue(value) =>
+        (field, value)
+    }).toMap
+
+    super.dispatch(decl)
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
@@ -25,11 +46,15 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     case field: InstanceField[Pre] =>
       implicit val o: Origin = field.o
       if(isFinal(field)) {
-        function[Post](
+        withResult((result: Result[Post]) => function[Post](
           blame = AbstractApplicable,
           returnType = dispatch(field.t),
           args = Seq(new Variable[Post](TClass(succ(currentClass.top)))),
-        ).succeedDefault(field)
+          ensures = UnitAccountedPredicate(finalValueMap.get(field) match {
+            case Some(value) => result === rewriteDefault(value)
+            case None => tt[Post]
+          })
+        )).succeedDefault(field)
       } else {
         rewriteDefault(field)
       }
@@ -47,8 +72,13 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Deref(obj, Ref(field)), value) =>
       implicit val o: Origin = stat.o
-      if(isFinal(field)) Inhale(FunctionInvocation[Post](succ(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
-      else rewriteDefault(stat)
+      if(isFinal(field)) {
+        if (finalValueMap.contains(field)) {
+          Block(Nil)
+        } else {
+          Inhale(FunctionInvocation[Post](succ(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
+        }
+      } else rewriteDefault(stat)
     case other => rewriteDefault(other)
   }
 }

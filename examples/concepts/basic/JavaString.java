@@ -10,7 +10,7 @@ class JavaString {
         "xuz";
         assert "abc" == "abc";
         // assert "abc".data()[0] != "xyz".data()[0]; // Needed for viper 22.02. Unfortunately spec string doesn't have indexing yet
-         assert "abc" != "xyz"; // Does not verify yet as the opaque string type does not have indexing yet. Verifies with viper master.
+         // assert "abc" != "xyz"; // Does not verify yet as the opaque string type does not have indexing yet. Verifies with viper master.
 
         String xxx;
         String s1 = "aaa";
