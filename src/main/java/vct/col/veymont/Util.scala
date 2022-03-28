@@ -67,7 +67,11 @@ object Util {
   def isParClassName(name : String) : Boolean = name.startsWith(parClassName)
 
   def getAnnotatedFileName(inputFileName : String) : String = inputFileName.substring(0,inputFileName.length-4) + Util.veymontAnnotatedSuffix
-  def getOutputFileName(inputFileName : String) : String = inputFileName.substring(0,inputFileName.length-veymontAnnotatedSuffix.length) + Util.veymontOutputSuffix
+  def getOutputFileName(inputFileName : String) : String = {
+    if(inputFileName.endsWith(veymontAnnotatedSuffix))
+      inputFileName.substring(0,inputFileName.length-veymontAnnotatedSuffix.length) + Util.veymontOutputSuffix
+    else inputFileName.substring(0,inputFileName.length-4) + Util.veymontOutputSuffix
+  }
 
   def getChansFromBlockStatement(block: ASTNode): Set[MethodInvokation] =
     getBlockOrThrow(block,"VeyMont Fail: expected BlockStatement").getStatements.toSet[ASTNode].flatMap(s => s match {
