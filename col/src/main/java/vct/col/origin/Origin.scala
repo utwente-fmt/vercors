@@ -16,7 +16,7 @@ case object Origin {
   def messagesInContext(messages: Seq[(Origin, String)]): String =
     messages.zipWithIndex.map {
       case ((origin, message), idx) =>
-        origin.context.strip() + "\n" + HR + s"[${idx+1}/${messages.size}] $message\n"
+        origin.context.replaceAll("(^[\r\n]+)|([\r\n]+$)", "") + "\n" + HR + s"[${idx+1}/${messages.size}] $message\n"
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }
 
