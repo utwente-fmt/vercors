@@ -3,24 +3,26 @@ package hre.progress
 import hre.platform.Platform
 
 case object Progress {
+  var forceProgress: Boolean = false
+
   val PROGRESS_BLOCKS = " ▏▎▍▌▋▊▉█"
   val MAX_BORING_WIDTH = 78
   val PROGRESS_BAR_WIDTH = 60
 
-  def isTTY: Boolean = Option(System.console()).isDefined
+  private def isTTY: Boolean = Option(System.console()).isDefined
 
-  private val wantProgress = isTTY
-  private val wantPrettyProgress = Platform.getCurrent match {
+  private def wantProgress: Boolean = forceProgress || isTTY
+  private def wantPrettyProgress: Boolean = isTTY && (Platform.getCurrent match {
     case Platform.Windows => false
     case Platform.Unix => true
     case Platform.Mac => true
-  }
+  })
 
-  def esc(command: Char, args: String = ""): String =
+  private def esc(command: Char, args: String = ""): String =
     "\u001b[" + args + command
 
-  def up: String = esc('A', "1")
-  def clearLine: String = esc('K')
+  private def up: String = esc('A', "1")
+  private def clearLine: String = esc('K')
 
   private var firstLogLine = true
 
@@ -65,7 +67,7 @@ case object Progress {
       s"($idx/$count) $desc"
     }).mkString(" › ")
 
-  def progressMessage: String = {
+  def progressMessage: String = if(frames.nonEmpty) {
     firstLogLine = false
 
     if(wantProgress) {
@@ -76,15 +78,14 @@ case object Progress {
         f"[${progressEstimate*100}%.1f%%] $framesText".take(MAX_BORING_WIDTH)
       }
     } else ""
+  } else {
+    firstLogLine = true
+    ""
   }
 
   def update(): Unit = {
     System.out.print(undoProgressMessage)
-    if(frames.isEmpty) {
-      firstLogLine = true
-    } else {
-      System.out.print(progressMessage)
-    }
+    System.out.print(progressMessage)
   }
 
   case class Phase(description: String, weight: Int)
