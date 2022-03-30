@@ -1,6 +1,7 @@
 package hre.io
 
 import java.io.Reader
+import java.nio.CharBuffer
 import java.util.Scanner
 import scala.collection.mutable
 
@@ -27,19 +28,35 @@ trait Readable {
 
   def readLines(): Seq[String] =
     read { reader =>
-      val scanner = new Scanner(reader)
-      // PB: Bit of a guess, but I think this is the line numbering ANTLR uses, which we want to match for origins.
-      scanner.useDelimiter("(?<!\\A)\n")
-      val buf = mutable.ArrayBuffer[String]()
-      while(scanner.hasNext) {
-        val next = scanner.next()
-        if(next.nonEmpty && next.charAt(0) == '\n') {
-          buf += ""
-          buf += next.substring(1)
-        } else {
-          buf += next
+      val result = mutable.ArrayBuffer[String]()
+
+      val buffer = Array[Char](4096)
+      var length = reader.read(buffer)
+
+      var previousPosition = 0
+      var position = 0
+
+      while(length > 0) {
+        val token = new StringBuilder
+
+        while(position < length && buffer(position) != '\n')
+          position += 1
+
+        while(length > 0 && position == length) {
+          token.append(CharBuffer.wrap(buffer, previousPosition, position - previousPosition))
+          length = reader.read(buffer)
+          previousPosition = 0
+          position = 0
+
+          while(position < length && buffer(position) != '\n')
+            position += 1
         }
+
+        token.append(CharBuffer.wrap(buffer, previousPosition, position - previousPosition))
+        result += token.toString()
+        position += 1
+        previousPosition = position
       }
-      buf.toSeq
+      result.toSeq
     }
 }
