@@ -1,4 +1,4 @@
-package vct.test.integration
+package vct.test.integration.features
 
 import vct.test.integration.helper.VercorsSpec
 
