@@ -209,6 +209,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
     case node: JavaName[Pre] => node
+    case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
   }
 
@@ -1199,9 +1200,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         initialization
       case fields: JavaFields[Pre] =>
         new JavaFields[Pre](fields.modifiers, fields.t, fields.decls.map {
-          case (name, dims, None) => (name, dims, None)
-          case (name, dims, Some(v)) =>
-            (name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, fields.t))))
+          case JavaVariableDeclaration(name, dims, None) => JavaVariableDeclaration(name, dims, None)
+          case JavaVariableDeclaration(name, dims, Some(v)) =>
+            JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, fields.t))))
         })
       case constructor: JavaConstructor[Pre] =>
         constructor
@@ -1237,9 +1238,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         new CDeclaration[Pre](declaration.contract, res(declaration.kernelInvariant), declaration.specs, declaration.inits)
       case declaration: JavaLocalDeclaration[Pre] =>
         new JavaLocalDeclaration[Pre](declaration.modifiers, declaration.t, declaration.decls.map {
-          case (name, dims, None) => (name, dims, None)
-          case (name, dims, Some(v)) =>
-            (name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
+          case JavaVariableDeclaration(name, dims, None) => JavaVariableDeclaration(name, dims, None)
+          case JavaVariableDeclaration(name, dims, Some(v)) =>
+            JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
     }
   }

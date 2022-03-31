@@ -13,7 +13,7 @@ trait JavaDerefImpl[G] { this: JavaDeref[G] =>
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case ref: RefModel[G] => Types.notAValue(ref)
     case RefVariable(v) => v.t
-    case RefJavaField(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx)._2, decls.t)
+    case RefJavaField(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
     case BuiltinField(f) => f(obj).t
   }
 }

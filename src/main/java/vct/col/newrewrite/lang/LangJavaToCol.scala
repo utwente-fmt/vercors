@@ -17,12 +17,12 @@ import scala.collection.mutable.ArrayBuffer
 
 case object LangJavaToCol {
   case class JavaFieldOrigin(fields: JavaFields[_], idx: Int) extends Origin {
-    override def preferredName: String = fields.decls(idx)._1
+    override def preferredName: String = fields.decls(idx).name
     override def context: String = fields.o.context
   }
 
   case class JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int) extends Origin {
-    override def preferredName: String = locals.decls(idx)._1
+    override def preferredName: String = locals.decls(idx).name
     override def context: String = locals.o.context
   }
 
@@ -92,7 +92,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     decls.foreach {
       case fields: JavaFields[Pre] =>
         fields.drop()
-        for(((_, dims, _), idx) <- fields.decls.zipWithIndex) {
+        for((JavaVariableDeclaration(_, dims, _), idx) <- fields.decls.zipWithIndex) {
           javaFieldsSuccessor((fields, idx)) =
             new InstanceField(
               t = FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)),
@@ -107,7 +107,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
       case fields: JavaFields[Pre] =>
-        Block(for(((_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
+        Block(for((JavaVariableDeclaration(_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
           yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), rw.dispatch(init.get),
             PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
         )
@@ -138,7 +138,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ensures = UnitAccountedPredicate(foldStar(decls.collect {
             case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
               fields.decls.indices.map(decl => {
-                val local = JavaLocal[Pre](fields.decls(decl)._1)(DerefPerm)
+                val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
                 local.ref = Some(RefJavaField[Pre](fields, decl))
                 Perm(local, WritePerm())
               })
@@ -267,7 +267,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     locals.drop()
     implicit val o: Origin = locals.o
     locals.decls.zipWithIndex.foreach {
-      case ((_, dims, _), idx) =>
+      case (JavaVariableDeclaration(_, dims, _), idx) =>
         val v = new Variable[Post](FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(locals.t)))(JavaLocalOrigin(locals, idx))
         javaLocalsSuccessor((locals, idx)) = v
         v.declareDefault(rw)
@@ -276,7 +276,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def initLocal(locals: JavaLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = locals.o
-    Block(for(((_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
+    Block(for((JavaVariableDeclaration(_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
       yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), rw.dispatch(init.get))
     )
   }
@@ -400,37 +400,23 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
   }
 
-  def newLiteralArray(arr: JavaNewLiteralArray[Pre]): Expr[Post] = {
-    val JavaNewLiteralArray(baseType, dims, initializer) = arr
-    // Recursively rewrite an array initializer as a list of assignments
-    def collectArray(es: JavaLiteralArray[Pre], dims: Int, stats: ArrayBuffer[Statement[Post]]): Expr[Post] = {
-      if (dims < 1) throw InvalidArrayInitializerNesting(es)
-
-      implicit val o: Origin = JavaInlineArrayInitializerOrigin(es.o)
-      val v = new Variable[Post](FuncTools.repeat[Type[Post]](TArray[Post](_), dims, rw.dispatch(baseType)))
-      stats += LocalDecl(v)
-      stats += assignLocal(v.get, NewArray(FuncTools.repeat[Type[Post]](TArray[Post](_), dims-1, rw.dispatch(baseType)), Seq(const(es.exprs.size)), 0))
-      es.exprs.zipWithIndex.map {
-        case (e: JavaLiteralArray[Pre], i) =>
-          stats += Assign(AmbiguousSubscript(Local[Post](v.ref), const(i))(JavaArrayInitializerBlame), collectArray(e, dims-1, stats))(
-            PanicBlame("Assignment for an explicit array initializer cannot fail."))
-        case (other, i) =>
-          stats += Assign(AmbiguousSubscript(Local[Post](v.ref), const(i))(JavaArrayInitializerBlame), rw.dispatch(other))(
-            PanicBlame("Assignment for an explicit array initializer cannot fail."))
-      }
-      Local[Post](v.ref)
-    }
-
-    val stats = ArrayBuffer[Statement[Post]]()
-    val value = collectArray(initializer match {
-      case init: JavaLiteralArray[Pre] => init
-      case _ => throw Unreachable("The top level expression of a JavaNewLiteralArray is never not a LiteralArray.")
-    }, dims, stats)
-    With(Block(stats.toSeq)(arr.o), value)(arr.o)
-  }
+  def newLiteralArray(arr: JavaNewLiteralArray[Pre]): Expr[Post] =
+    rw.dispatch(arr.initializer)
 
   def newDefaultArray(arr: JavaNewDefaultArray[Pre]): Expr[Post] =
     NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.o)
+
+  def literalArray(arr: JavaLiteralArray[Pre]): Expr[Post] = {
+    implicit val o: Origin = JavaInlineArrayInitializerOrigin(arr.o)
+    val array = new Variable[Post](rw.dispatch(arr.typeContext.get))
+    ScopedExpr[Post](Seq(array), With(Block(
+      assignLocal(array.get, NewArray(rw.dispatch(arr.typeContext.get.element), Seq(const[Post](arr.exprs.size)), 0))
+        +: arr.exprs.zipWithIndex.map {
+          case (value, index) => Assign[Post](AmbiguousSubscript(array.get, const(index))(JavaArrayInitializerBlame), rw.dispatch(value))(
+            PanicBlame("Assignment for an explicit array initializer cannot fail."))
+        }
+    ), array.get))
+  }
 
   def classType(t: JavaTClass[Pre]): Type[Post] =
     TClass(javaInstanceClassSuccessor.ref(t.ref.decl))

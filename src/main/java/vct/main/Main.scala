@@ -2,6 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
+import hre.progress.Progress
 import org.slf4j.LoggerFactory
 import vct.col.ast.Node
 import vct.main.modes.Verify
@@ -33,6 +34,8 @@ case object Main extends LazyLogging {
   }
 
   def runOptions(options: Options): Int = {
+    Progress.forceProgress = options.progress
+
     for((key, logLevel) <- options.logLevels) {
       LoggerFactory.getLogger(key).asInstanceOf[Logger].setLevel(logLevel match {
         case Verbosity.Off => Level.OFF

@@ -44,3 +44,8 @@ case class NoGivenYields(invocation: Node[_]) extends ResolutionError {
   override def code: String = "noGivenYields"
   override def text: String = invocation.o.messageInContext("This kind of application or invocation does not take parameters via given or yields.")
 }
+
+case class WrongArrayInitializer(initializer: JavaLiteralArray[_]) extends ResolutionError {
+  override def code: String = "wrongArrayInit"
+  override def text: String = initializer.o.messageInContext("This initializer does not initialize an array type.")
+}

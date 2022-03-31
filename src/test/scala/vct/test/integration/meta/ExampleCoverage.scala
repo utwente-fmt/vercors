@@ -1,7 +1,7 @@
 package vct.test.integration.meta
 
 import org.scalatest.flatspec.AnyFlatSpec
-import vct.test.integration.{AbruptExamplesSpec, AlgorithmExamplesSpec, ArrayExamplesSpec, BasicExamplesSpec, CIncludeSpec, ClassesSpec, CounterSpec, DemoSpec, ForkJoinSpec, GotoSpec, GpgpuSpec, JavaImportSpec, LoopDependencySpec, MapsSpec, ModelsSpec, OpenMPSpec, ParallelSpec, PermissionSpec, PredicatesSpec, PublicationsSpec, RefuteSpec, SequencesSpec, SetsSpec, SilverDomainSpec, SummationSpec, TechnicalAbruptSpec, TechnicalSpec, TechnicalVeymontSpec, TypeValuesSpec, VerifyThisSpec, VeymontSpec, WaitNotifySpec, WandSpec}
+import vct.test.integration.examples.{AbruptExamplesSpec, AlgorithmExamplesSpec, ArrayExamplesSpec, BasicExamplesSpec, CIncludeSpec, ClassesSpec, CounterSpec, DemoSpec, ForkJoinSpec, GotoSpec, GpgpuSpec, JavaImportSpec, LoopDependencySpec, MapsSpec, ModelsSpec, OpenMPSpec, ParallelSpec, PermissionSpec, PredicatesSpec, PublicationsSpec, RefuteSpec, SequencesSpec, SetsSpec, SilverDomainSpec, SummationSpec, TechnicalAbruptSpec, TechnicalSpec, TechnicalVeymontSpec, TypeValuesSpec, VerifyThisSpec, VeymontSpec, WaitNotifySpec, WandSpec}
 import vct.test.integration.helper.{ExampleFiles, VercorsSpec}
 
 class ExampleCoverage extends AnyFlatSpec {

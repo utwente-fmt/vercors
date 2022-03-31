@@ -109,7 +109,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: JavaNewClass[Pre] => java.newClass(inv)
     case arr: JavaNewLiteralArray[Pre] => java.newLiteralArray(arr)
     case arr: JavaNewDefaultArray[Pre] => java.newDefaultArray(arr)
-    case JavaLiteralArray(_) => ???
+    case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
 
     case local: PVLLocal[Pre] => pvl.local(local)
     case deref: PVLDeref[Pre] => pvl.deref(deref)

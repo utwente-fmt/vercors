@@ -1,5 +1,6 @@
 package vct.col.resolve
 
+import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
@@ -27,11 +28,11 @@ case object ResolveTypes {
 
   def enterContext[G](node: Node[G], ctx: TypeResolutionContext[G]): TypeResolutionContext[G] = node match {
     case Program(decls, _) =>
-      ctx.replace(stack=decls.flatMap(Referrable.from) +: ctx.stack)
+      ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
-      ctx.replace(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
+      ctx.copy(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
     case decl: Declarator[G] =>
-      ctx.replace(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
+      ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
   }
 
@@ -102,22 +103,35 @@ case object ResolveReferences {
 
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G]): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
-      .replace(currentJavaNamespace=Some(ns)).declare(ns.declarations)
+      .copy(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface[G] => ctx
-      .replace(currentJavaClass=Some(cls))
-      .replace(currentThis=Some(RefJavaClass(cls)))
+      .copy(currentJavaClass=Some(cls))
+      .copy(currentThis=Some(RefJavaClass(cls)))
       .declare(cls.decls)
     case cls: Class[G] => ctx
-      .replace(currentThis=Some(RefClass(cls)))
+      .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
     case app: ContractApplicable[G] => ctx
-      .replace(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
+      .copy(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case method: JavaMethod[G] => ctx
-      .replace(currentResult=Some(RefJavaMethod(method)))
+      .copy(currentResult=Some(RefJavaMethod(method)))
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
+    case fields: JavaFields[G] => ctx
+      .copy(currentInitializerType=Some(fields.t))
+    case locals: JavaLocalDeclaration[G] => ctx
+      .copy(currentInitializerType=Some(locals.t))
+    case decl: JavaVariableDeclaration[G] => ctx
+      .copy(currentInitializerType=ctx.currentInitializerType.map(t => FuncTools.repeat((t: Type[G]) => TArray(t), decl.moreDims, t)))
+    case arr: JavaNewLiteralArray[G] => ctx
+      .copy(currentInitializerType=Some(FuncTools.repeat((t: Type[G]) => TArray(t), arr.dims, arr.baseType)))
+    case init: JavaLiteralArray[G] => ctx
+      .copy(currentInitializerType=Some(ctx.currentInitializerType.get match {
+        case TArray(elem) => elem
+        case _ => throw WrongArrayInitializer(init)
+      }))
     case func: CFunctionDefinition[G] => ctx
-      .replace(currentResult=Some(RefCFunctionDefinition(func)))
+      .copy(currentResult=Some(RefCFunctionDefinition(func)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
@@ -128,7 +142,7 @@ case object ResolveReferences {
     case declarator: Declarator[G] => ctx
       .declare(declarator.declarations)
     case _ => ctx
-  }).replace(checkContext=node.enterCheckContext(ctx.checkContext))
+  }).copy(checkContext=node.enterCheckContext(ctx.checkContext))
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local @ CLocal(name) =>
@@ -296,6 +310,12 @@ case object ResolveReferences {
         .getOrElse(throw NoSuchNameError("block", name, barrier)))
       invs.foreach(_.tryResolve(name => Spec.findParInvariant(name, ctx)
         .getOrElse(throw NoSuchNameError("invariant", name, barrier))))
+
+    case arr @ JavaLiteralArray(_) =>
+      arr.typeContext = Some(ctx.currentInitializerType.get match {
+        case t @ TArray(_) => t
+        case _ => throw WrongArrayInitializer(arr)
+      })
 
     case _ =>
   }

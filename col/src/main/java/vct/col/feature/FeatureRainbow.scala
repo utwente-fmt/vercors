@@ -245,6 +245,7 @@ class FeatureRainbow[G] {
     case node: Assign[G] => return Nil
     case node: Block[G] => return Nil
     case node: Scope[G] => return Nil
+    case node: ScopedExpr[G] => return Nil
     case node: LoopInvariant[G] => return Nil
     case node: IterationContract[G] => LoopIterationContract
     case node: Branch[G] =>
@@ -458,6 +459,7 @@ class FeatureRainbow[G] {
     case node: JavaMethod[G] => return Nil
     case node: JavaLocalDeclaration[G] => return Nil
     case node: JavaLocalDeclarationStatement[G] => return Nil
+    case node: JavaVariableDeclaration[G] => return Nil
     case node: JavaNamedType[G] => return Nil
     case node: JavaTClass[G] => return Nil
     case node: JavaLocal[G] => return Nil
