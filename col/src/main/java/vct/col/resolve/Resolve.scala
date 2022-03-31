@@ -1,5 +1,6 @@
 package vct.col.resolve
 
+import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
@@ -116,6 +117,19 @@ case object ResolveReferences {
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
+    case fields: JavaFields[G] => ctx
+      .copy(currentInitializerType=Some(fields.t))
+    case locals: JavaLocalDeclaration[G] => ctx
+      .copy(currentInitializerType=Some(locals.t))
+    case decl: JavaVariableDeclaration[G] => ctx
+      .copy(currentInitializerType=ctx.currentInitializerType.map(t => FuncTools.repeat((t: Type[G]) => TArray(t), decl.moreDims, t)))
+    case arr: JavaNewLiteralArray[G] => ctx
+      .copy(currentInitializerType=Some(FuncTools.repeat((t: Type[G]) => TArray(t), arr.dims, arr.baseType)))
+    case init: JavaLiteralArray[G] => ctx
+      .copy(currentInitializerType=Some(ctx.currentInitializerType.get match {
+        case TArray(elem) => elem
+        case _ => throw WrongArrayInitializer(init)
+      }))
     case func: CFunctionDefinition[G] => ctx
       .copy(currentResult=Some(RefCFunctionDefinition(func)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
@@ -297,8 +311,11 @@ case object ResolveReferences {
       invs.foreach(_.tryResolve(name => Spec.findParInvariant(name, ctx)
         .getOrElse(throw NoSuchNameError("invariant", name, barrier))))
 
-    case JavaLiteralArray(_) =>
-
+    case arr @ JavaLiteralArray(_) =>
+      arr.typeContext = Some(ctx.currentInitializerType.get match {
+        case t @ TArray(_) => t
+        case _ => throw WrongArrayInitializer(arr)
+      })
 
     case _ =>
   }

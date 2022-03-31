@@ -14,8 +14,7 @@ case class ReferenceResolutionContext[G]
   currentJavaClass: Option[JavaClassOrInterface[G]] = None,
   currentThis: Option[ThisTarget[G]] = None,
   currentResult: Option[ResultTarget[G]] = None,
-  currentArrayBaseType: Option[Type[G]] = None,
-  currentArrayDimensions: Option[Int] = None,
+  currentInitializerType: Option[Type[G]] = None,
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
     TypeResolutionContext(stack, currentJavaNamespace, None, externallyLoadedElements)

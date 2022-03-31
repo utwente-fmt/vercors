@@ -2,7 +2,7 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.result.VerificationError.Unreachable
 import vct.col.util.AstBuildHelpers._
@@ -133,7 +133,7 @@ case object Java {
            (if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil) ++
            (if((field.getModifiers & Modifier.FINAL) != 0) Seq(JavaFinal[G]()) else Nil),
          t = translateRuntimeType(field.getType),
-         decls = Seq((field.getName, 0, None)),
+         decls = Seq(JavaVariableDeclaration[G](field.getName, 0, None)),
        )
     })
 
