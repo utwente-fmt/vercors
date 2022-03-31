@@ -203,10 +203,30 @@ case object Java {
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
 
-  def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] =
+  def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {
       case target: JavaNameTarget[G] if target.name == name => target
-    }
+    }.orElse(ctx.currentJavaNamespace.flatMap(ns => {
+      // First find all classes that belong to each import that we can use
+      val potentialClasses: Seq[JavaTypeNameTarget[G]] = ns.imports.collect {
+        case JavaImport(true, importName, /* star = */ false) if importName.names.last == name => importName.names.init
+        case JavaImport(true, importName, /* star = */ true) => importName.names
+      }.flatMap(findJavaTypeName(_, ctx.asTypeResolutionContext))
+
+      // From each class, get the field we are looking for
+      potentialClasses.collect({
+        case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+      }).flatten match {
+        // If we find only one, or none, then that's good
+        case Seq(field) => Some(field)
+        case Nil => None
+        // Otherwise there is ambiguity: abort
+        // Currently we do not support duplicate imports. E.g. "import static A.X; import static B.*;", given that B
+        // would also define a static X, would technically be allowed.
+        case _ => throw new Exception("Duplicate!") // TODO: Custom error
+      }
+    }))
+  }
 
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[JavaDerefTarget[G]] =
     ((obj.t match {
