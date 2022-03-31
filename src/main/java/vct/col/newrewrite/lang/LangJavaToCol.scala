@@ -212,6 +212,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
+    cls match {
+      case cls: JavaClass[Pre] =>
+        cls.decls.collect({
+          case fields: JavaFields[Pre] =>
+            javaFieldsToJavaClass(fields) = cls
+        })
+    }
+
     currentJavaClass.having(cls) {
       val supports = cls.supports.map(rw.dispatch).flatMap {
         case TClass(ref) => Seq(ref)
@@ -292,6 +300,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
           Deref[Post](
+            // TODO (RR): currentJavaClass is used here. Instead some mapping from JavaFields to JavaClass should be used. Either this can be done before dispatching on program (simple but ugly), or lazily (by setting the mapping when the class is encountered, and lazily using that mapping here) (complicated but probably more readable).
+            //  I don't know how to do the second one though...
             obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
             ref = javaFieldsSuccessor.ref((decls, idx)),
           )(local.blame)
