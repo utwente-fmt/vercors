@@ -185,6 +185,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceIntRat() => e
       case CoerceRatZFrac() => e
       case CoerceZFracFrac() => e
+
+      case CoerceJavaTClassTPinnedDecl(_, _) => e
+      case CoerceTPinnedDeclJavaTClass(_, _) => e
+      case CoerceTClassTPinnedDecl(_, _) => e
+      case CoerceTPinnedDeclTClass(_, _) => e
     }
   }
 
