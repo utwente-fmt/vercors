@@ -2,6 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
+import hre.progress.Progress
 import org.slf4j.LoggerFactory
 import vct.col.ast.Node
 import vct.main.modes.Verify
@@ -11,6 +12,8 @@ import vct.result.VerificationError.UserError
 
 case object Main extends LazyLogging {
   val EXIT_CODE_SUCCESS = 0
+  val EXIT_CODE_VERIFICATION_FAILURE = 1
+  val EXIT_CODE_ERROR = 2
 
   case class TemporarilyUnsupported(feature: String, examples: Seq[Node[_]]) extends UserError {
     override def code: String = "unsupported"
@@ -21,7 +24,7 @@ case object Main extends LazyLogging {
 
   def main(args: Array[String]): Unit = try {
     Options.parse(args) match {
-      case None => // usage was printed
+      case None => System.exit(EXIT_CODE_ERROR)
       case Some(options) => System.exit(runOptions(options))
     }
   } catch {
@@ -31,6 +34,8 @@ case object Main extends LazyLogging {
   }
 
   def runOptions(options: Options): Int = {
+    Progress.forceProgress = options.progress
+
     for((key, logLevel) <- options.logLevels) {
       LoggerFactory.getLogger(key).asInstanceOf[Logger].setLevel(logLevel match {
         case Verbosity.Off => Level.OFF

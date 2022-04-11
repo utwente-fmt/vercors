@@ -364,7 +364,7 @@ case class Printer(out: Appendable,
     say(newline)
   })
 
-  def javaDecls(decls: Seq[(String, Int, Option[Expr[_]])]): Phrase = commas(for((name, dims, init) <- decls)
+  def javaDecls(decls: Seq[JavaVariableDeclaration[_]]): Phrase = commas(for(JavaVariableDeclaration(name, dims, init) <- decls)
     yield init match {
       case Some(value) => phrase(name, "[]".repeat(dims), space, "=", space, value)
       case None => phrase(name, "[]".repeat(dims))
@@ -1075,7 +1075,7 @@ case class Printer(out: Appendable,
       )
     case fields: JavaFields[_] =>
       statement(spaced(fields.modifiers.map(NodePhrase)), space, fields.t, space, spaced(fields.decls.map {
-        case (name, dims, init) =>
+        case JavaVariableDeclaration(name, dims, init) =>
           phrase(name, "[]".repeat(dims), if(init.isEmpty) phrase() else phrase(space, "=", space, init.get))
       }))
     case cons: JavaConstructor[_] =>

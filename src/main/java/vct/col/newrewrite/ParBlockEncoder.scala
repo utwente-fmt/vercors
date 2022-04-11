@@ -1,5 +1,6 @@
 package vct.col.newrewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.newrewrite.util.{Extract, Substitute}
@@ -75,7 +76,7 @@ case object ParBlockEncoder extends RewriterBuilder {
   }
 }
 
-case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
+case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import ParBlockEncoder._
 
   val invariants: ScopedStack[Expr[Pre]] = ScopedStack()
@@ -203,13 +204,13 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
       val args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) }
 
-//      println(s"At ${decl.o.preferredName}:")
-//      println(s"    - requires = $requires")
-//      println(s"    - ensures = $ensures")
-//      println(s"    - invariant = $invariant")
-//      println(s"    - ranges = ${foldAnd(ranges)}")
-//      println(s"    - context = $context")
-//      println()
+      logger.debug(s"At ${decl.o.preferredName}:")
+      logger.debug(s"    - requires = $requires")
+      logger.debug(s"    - ensures = $ensures")
+      logger.debug(s"    - invariant = $invariant")
+      logger.debug(s"    - ranges = ${foldAnd(ranges)}")
+      logger.debug(s"    - context = $context")
+      logger.debug("")
 
       val invariantHere = invariant &* context &* foldAnd(ranges)
 

@@ -71,7 +71,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         SplitAccountedPredicate(UnitAccountedPredicate(arr !== Null()),
         SplitAccountedPredicate(UnitAccountedPredicate(const(0) <= from),
         SplitAccountedPredicate(UnitAccountedPredicate(from <= to),
-        SplitAccountedPredicate(UnitAccountedPredicate(to < Length(arr)(FramedArrLength)),
+        SplitAccountedPredicate(UnitAccountedPredicate(to <= Length(arr)(FramedArrLength)),
         UnitAccountedPredicate(starall(IteratedArrayInjective, TInt(),
           i => (from <= i && i < to) ==> Perm(ArraySubscript(arr, i)(FramedArrIndex), ReadPerm()),
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),

@@ -63,6 +63,9 @@ case object Options {
       opt[Unit]("verbose").abbr("v")
         .action((_, c) => c.copy(logLevels = c.logLevels ++ Seq(("vct", Verbosity.Debug), ("viper.api", Verbosity.Debug))))
         .text("Instruct VerCors to output debug information"),
+      opt[Unit]("progress").abbr("p")
+        .action((_, c) => c.copy(progress = true))
+        .text("Print progress information, even if stdout is not a tty."),
 
       opt[(String, Verbosity)]("dev-log-verbosity").unbounded().hidden().keyValueName("<loggerKey>", "<verbosity>")
         .action((tup, c) => c.copy(logLevels = c.logLevels :+ tup))
@@ -207,6 +210,7 @@ case class Options
     ("viper", Verbosity.Off),
     ("viper.api", Verbosity.Info),
   ),
+  progress: Boolean = false,
 
   // Verify Options
   language: Option[Language] = None,

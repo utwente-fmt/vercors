@@ -37,12 +37,30 @@ case object InlineApplicables extends RewriterBuilder {
       case other => rewriteDefault(other)
     }
   }
+
+  case class InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]) extends Origin {
+    override def preferredName: String = definition.preferredName
+    override def context: String =
+      usages.map(_.o.context).mkString(
+        start = " Inlined from:\n" + Origin.HR,
+        sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
+        end = "",
+      ) + Origin.HR +
+        " In definition:\n" + Origin.HR +
+        definition.context
+  }
 }
 
 case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
   import InlineApplicables._
 
   val inlineStack: ScopedStack[Apply[Pre]] = ScopedStack()
+
+  override def dispatch(o: Origin): Origin =
+    inlineStack.toSeq match {
+      case Nil => o
+      case some => InlinedOrigin(o, some.reverse)
+    }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: InlineableApplicable[Pre] if app.inline =>
