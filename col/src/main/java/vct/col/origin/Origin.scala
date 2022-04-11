@@ -16,7 +16,7 @@ case object Origin {
   def messagesInContext(messages: Seq[(Origin, String)]): String =
     messages.zipWithIndex.map {
       case ((origin, message), idx) =>
-        origin.context.strip() + "\n" + HR + s"[${idx+1}/${messages.size}] $message\n"
+        origin.context.replaceAll("(^[\r\n]+)|([\r\n]+$)", "") + "\n" + HR + s"[${idx+1}/${messages.size}] $message\n"
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }
 
@@ -45,15 +45,13 @@ object InputOrigin {
   val CONTEXT = 2
   val LINE_NUMBER_WIDTH = 5
 
-  def contextLines(readable: Readable, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): String = {
-    require(startLineIdx <= endLineIdx)
-    require(startLineIdx != endLineIdx || cols.isEmpty || cols.get._1 <= cols.get._2)
-
+  def contextLines(readable: Readable, unsafeStartLineIdx: Int, unsafeEndLineIdx: Int, unsafeCols: Option[(Int, Int)]): String = {
     // The newline at the end is dropped, so replace it with two spaces as we need to be able to point to the newline character.
     // ANTLR points past the last line when pointing at an EOF immediately following a newline, hence the extra line.
     val lines = readable.readLines().map(_ + "  ") :+ " "
 
     val clamp = (line: Int) => Math.max(0, Math.min(lines.size-1, line))
+    val clampCol = (line: Int, col: Int) => Math.max(0, Math.min(lines(line).length-1, col))
     val numberedLine = (text: String, line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d  %s\n", Int.box(line+1), text.dropRight(2))
     val replacementDash = (c: Char) => c match {
       case '\t' => "\t" // perhaps derive the tab width from terminal information at some point
@@ -63,6 +61,15 @@ object InputOrigin {
       case '\t' => "\t"
       case _ => " "
     }
+
+    val startLineIdx = clamp(unsafeStartLineIdx)
+    val endLineIdx = clamp(unsafeEndLineIdx)
+    val cols = unsafeCols.map {
+      case (startColIdx, endColIdx) => (clampCol(startLineIdx, startColIdx), clampCol(endLineIdx, endColIdx))
+    }
+
+    require(startLineIdx <= endLineIdx)
+    require(startLineIdx != endLineIdx || cols.isEmpty || cols.get._1 <= cols.get._2)
 
     val firstLineIdx = clamp(startLineIdx - CONTEXT)
     val startContextEnd = clamp(startLineIdx + CONTEXT) + 1

@@ -214,24 +214,24 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case InterfaceMemberDeclaration6(enum) => fail(enum, "Enums are not supported.")
   }
 
-  def convert(implicit decls: VariableDeclaratorsContext): Seq[(String, Int, Option[Expr[G]])] = decls match {
+  def convert(implicit decls: VariableDeclaratorsContext): Seq[JavaVariableDeclaration[G]] = decls match {
     case VariableDeclarators0(decl) => Seq(convert(decl))
     case VariableDeclarators1(decl, _, decls) => convert(decl) +: convert(decls)
   }
 
-  def convert(implicit decl: VariableDeclaratorContext): (String, Int, Option[Expr[G]]) = decl match {
+  def convert(implicit decl: VariableDeclaratorContext): JavaVariableDeclaration[G] = decl match {
     case VariableDeclarator0(VariableDeclaratorId0(name, dims), init) =>
-      (convert(name), dims.map(convert(_)).getOrElse(0), init.map(convert(_)))
+      JavaVariableDeclaration(convert(name), dims.map(convert(_)).getOrElse(0), init.map(convert(_)))
   }
 
-  def convert(implicit decls: ConstantDeclaratorListContext): Seq[(String, Int, Option[Expr[G]])] = decls match {
+  def convert(implicit decls: ConstantDeclaratorListContext): Seq[JavaVariableDeclaration[G]] = decls match {
     case ConstantDeclaratorList0(decl) => Seq(convert(decl))
     case ConstantDeclaratorList1(decl, _, decls) => convert(decl) +: convert(decls)
   }
 
-  def convert(implicit decl: ConstantDeclaratorContext): (String, Int, Option[Expr[G]]) = decl match {
+  def convert(implicit decl: ConstantDeclaratorContext): JavaVariableDeclaration[G] = decl match {
     case ConstantDeclarator0(name, dims, _, init) =>
-      (convert(name), dims.map(convert(_)).getOrElse(0), Some(convert(init)))
+      JavaVariableDeclaration(convert(name), dims.map(convert(_)).getOrElse(0), Some(convert(init)))
   }
 
   def convert(implicit params: FormalParametersContext): Seq[Variable[G]] = params match {
@@ -1288,8 +1288,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValRead(_) => ReadPerm()
     case ValNoneOption(_) => OptNone()
     case ValEmpty(_) => EmptyProcess()
-    case ValLtid(_) => ???
-    case ValGtid(_) => ???
+    case ValLtid(_) => LocalThreadId()
+    case ValGtid(_) => GlobalThreadId()
     case ValTrue(_) => tt
     case ValFalse(_) => ff
   }
