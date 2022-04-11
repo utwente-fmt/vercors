@@ -1,7 +1,7 @@
 package vct.col.ast.temporaryimplpackage.lang
 
-import vct.col.ast.{JavaClass, JavaFields, JavaStatic, Type}
-import vct.col.resolve.RefJavaField
+import vct.col.ast.{JavaClass, JavaFields, JavaMethod, Type}
+import vct.col.resolve.{RefJavaField, RefJavaMethod}
 
 trait JavaClassImpl[G] { this: JavaClass[G] =>
   override def supports: Seq[Type[G]] = ext +: imp
@@ -21,4 +21,8 @@ trait JavaClassImpl[G] { this: JavaClass[G] =>
   def getClassField(name: String): Option[RefJavaField[G]] = getFieldRef(name).collect({
     case r @ RefJavaField(decls, idx) if decls.isStatic => r
   })
+
+  def getMethods(name: String): Seq[RefJavaMethod[G]] = decls.collect {
+    case m: JavaMethod[G] if m.name == name => RefJavaMethod(m)
+  }
 }
