@@ -49,3 +49,8 @@ case class WrongArrayInitializer(initializer: JavaLiteralArray[_]) extends Resol
   override def code: String = "wrongArrayInit"
   override def text: String = initializer.o.messageInContext("This initializer does not initialize an array type.")
 }
+
+case class OverlappingJavaImports[G](ns: JavaNamespace[G], kind: String, importedName: String) extends ResolutionError {
+  override def code: String = "overlappingJavaImports"
+  override def text: String = ns.o.messageInContext(s"The $kind name $importedName is provided by multiple imports in this namespace")
+}
