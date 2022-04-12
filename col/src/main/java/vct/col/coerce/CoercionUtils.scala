@@ -52,10 +52,10 @@ case object CoercionUtils {
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
 
-      case (cls: JavaTClass[G], TPinnedDecl(pin)) if cls.ref.decl.isPin(pin) => CoerceJavaTClassTPinnedDecl(cls, pin)
-      case (TPinnedDecl(pin), cls: JavaTClass[G]) if cls.ref.decl.isPin(pin) => CoerceTPinnedDeclJavaTClass(pin, cls)
-      case (cls: TClass[G], TPinnedDecl(pin)) if cls.cls.decl.isPin(pin) => CoerceTClassTPinnedDecl(cls, pin)
-      case (TPinnedDecl(pin), cls: TClass[G]) if cls.cls.decl.isPin(pin) => CoerceTPinnedDeclTClass(pin, cls)
+      case (cls: JavaTClass[G], TPinnedDecl(pin, typeArgs)) if cls.ref.decl.isPin(pin) && cls.typeArgs == typeArgs => CoerceJavaTClassTPinnedDecl(cls, pin)
+      case (TPinnedDecl(pin, typeArgs), cls: JavaTClass[G]) if cls.ref.decl.isPin(pin) && cls.typeArgs == typeArgs => CoerceTPinnedDeclJavaTClass(pin, cls)
+      case (cls: TClass[G], TPinnedDecl(pin, Nil)) if cls.cls.decl.isPin(pin) => CoerceTClassTPinnedDecl(cls, pin)
+      case (TPinnedDecl(pin, Nil), cls: TClass[G]) if cls.cls.decl.isPin(pin) => CoerceTPinnedDeclTClass(pin, cls)
 
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()

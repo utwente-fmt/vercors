@@ -279,7 +279,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
-  def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TPinnedDecl[Pre](JavaLangString[Pre]()))
+  def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TPinnedDecl[Pre](JavaLangString[Pre](), Nil))
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
@@ -741,6 +741,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         IsLeft(either(e)._1)
       case IsRight(e) =>
         IsRight(either(e)._1)
+      case lit @ JavaClassLiteral(t) => lit
       case deref @ JavaDeref(obj, field) => e
       case inv @ JavaInvocation(obj, typeParams, method, arguments, givenArgs, yields) => e
       case JavaLiteralArray(exprs) =>

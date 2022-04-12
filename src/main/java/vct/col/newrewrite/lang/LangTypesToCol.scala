@@ -37,7 +37,10 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         t.ref.get match {
           case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
           case RefModel(decl) => TModel[Post](succ(decl))
-          case RefJavaClass(decl) => JavaTClass[Post](succ(decl), Nil /* TODO */)
+          case RefJavaClass(decl) =>
+            assert(t.names.init.map(_._2).forall((x: Option[Seq[Type[Pre]]]) => x.isEmpty))
+            val x = JavaTClass[Post](succ(decl), t.names.last._2.getOrElse(Nil).map(dispatch))
+            x
           case RefVariable(v) => TVar[Post](succ(v))
         }
       case t @ PVLNamedType(_, typeArgs) =>
