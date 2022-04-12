@@ -224,10 +224,30 @@ case object Java {
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
 
-  def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] =
+  def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {
       case target: JavaNameTarget[G] if target.name == name => target
-    }
+    }.orElse(ctx.currentJavaNamespace.flatMap(ns => {
+      // First find all classes that belong to each import that we can use
+      val potentialClasses: Seq[JavaTypeNameTarget[G]] = ns.imports.collect {
+        case JavaImport(true, importName, /* star = */ false) if importName.names.last == name => importName.names.init
+        case JavaImport(true, importName, /* star = */ true) => importName.names
+      }.flatMap(findJavaTypeName(_, ctx.asTypeResolutionContext))
+
+      // From each class, get the field we are looking for
+      potentialClasses.collect({
+        case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+      }).flatten match {
+        // If we find only one, or none, then that's good
+        case Seq(field) => Some(field)
+        case Nil => None
+        // Otherwise there is ambiguity: abort
+        // Currently we do not support duplicate imports. E.g. "import static A.X; import static B.*;", given that B
+        // would also define a static X, would technically be allowed.
+        case _ => throw OverlappingJavaImports(ns, "field", name)
+      }
+    }))
+  }
 
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[JavaDerefTarget[G]] =
     ((obj.t match {
@@ -279,8 +299,8 @@ case object Java {
   def findMethod[G](ctx: ReferenceResolutionContext[G], obj: Expr[G], method: String, args: Seq[Expr[G]], blame: Blame[BuiltinError]): Option[JavaInvocationTarget[G]] =
     findMethodOnType(ctx, obj.t, method, args).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
-  def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
-    ctx.stack.flatten.collectFirst {
+  def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] = {
+    val selectMatchingSignature: PartialFunction[Referrable[G], JavaInvocationTarget[G]] = {
       case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
@@ -292,6 +312,28 @@ case object Java {
       case ref: RefModelProcess[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelAction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
+
+    ctx.stack.flatten.collectFirst(selectMatchingSignature).orElse(ctx.currentJavaNamespace.flatMap(ns => {
+      // First find all classes that belong to each import that we can use
+      val potentialClasses: Seq[JavaTypeNameTarget[G]] = ns.imports.collect {
+        case JavaImport(true, importName, /* star = */ false) if importName.names.last == method => importName.names.init
+        case JavaImport(true, importName, /* star = */ true) => importName.names
+      }.flatMap(findJavaTypeName(_, ctx.asTypeResolutionContext))
+
+      // From each class, get the method we are looking for
+      potentialClasses.collect({
+        case RefJavaClass(cls: JavaClass[G]) => cls.getMethods(method)
+      }) match {
+        // If we find only one set of methods, or no sets at all, then that's good.
+        // Just pick the one that matches the signature we're looking for
+        case Seq(methods) => methods.collectFirst(selectMatchingSignature)
+        case Nil => None
+        // If there where multiple classes that had matching definitions, then we error out,
+        // because untangling that is not yet supported
+        case _ => throw OverlappingJavaImports(ns, "method", method)
+      }
+    }))
+  }
 
   def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[JavaConstructorTarget[G]] = t match {
     case JavaTClass(Ref(cls), _) =>

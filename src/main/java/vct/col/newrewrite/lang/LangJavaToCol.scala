@@ -11,9 +11,9 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.result.VerificationError.{UserError}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
 
 case object LangJavaToCol {
   case class JavaFieldOrigin(fields: JavaFields[_], idx: Int) extends Origin {
@@ -51,6 +51,11 @@ case object LangJavaToCol {
     override def context: String = cls.o.context
   }
 
+  case class JavaStaticsClassSingletonOrigin(cls: JavaClassOrInterface[_]) extends Origin {
+    override def preferredName: String = cls.name + "StaticsSingleton"
+    override def context: String = cls.o.context
+  }
+
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
     override def context: String = inner.context
@@ -76,6 +81,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
 
   val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface[Pre], JavaConstructor[Pre]] = SuccessionMap()
+
+  val javaFieldsToJavaClass: mutable.Map[JavaFields[Pre], JavaClass[Pre]] = mutable.Map()
 
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
@@ -214,6 +221,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
+    cls match {
+      case cls: JavaClass[Pre] =>
+        cls.decls.collect({
+          case fields: JavaFields[Pre] =>
+            javaFieldsToJavaClass(fields) = cls
+        })
+    }
+
     currentJavaClass.having(cls) {
       val supports = cls.supports.map(rw.dispatch).flatMap {
         case TClass(ref) => Seq(ref)
@@ -249,7 +264,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val t = TClass[Post](staticsClass.ref)
         val singleton = withResult((res: Result[Post]) =>
           function(AbstractApplicable, returnType = t,
-            ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t)))))
+            ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls)))
         singleton.declareDefault(rw)
         javaStaticsClassSuccessor(cls) = staticsClass
         javaStaticsFunctionSuccessor(cls) = singleton
@@ -293,8 +308,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaClass(decl) => throw NotAValue(local)
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
+          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaFieldsToJavaClass(decls)))
           Deref[Post](
-            obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
+            obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
             ref = javaFieldsSuccessor.ref((decls, idx)),
           )(local.blame)
         } else {
