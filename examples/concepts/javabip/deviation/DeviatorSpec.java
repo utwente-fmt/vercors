@@ -5,10 +5,10 @@ import org.javabip.api.PortType;
 
 import static org.javabip.spec.deviation.Constants.*;
 
-@Ports({
-        @Port(name = QUERY_DATA, type = PortType.enforceable),
+// Ports({
+        @Port(name = QUERY_DATA, type = PortType.enforceable)
         @Port(name = CALCULATE_STD, type = PortType.enforceable)
-})
+// })
 
 @ComponentType(initial = INIT, name = DEVIATOR)
 public class DeviatorSpec {

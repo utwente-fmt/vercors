@@ -11,7 +11,7 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.result.VerificationError.{UserError}
+import vct.result.VerificationError.{UserError, Unreachable}
 
 import scala.collection.mutable
 
@@ -227,6 +227,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           case fields: JavaFields[Pre] =>
             javaFieldsToJavaClass(fields) = cls
         })
+      case _ =>
     }
 
     currentJavaClass.having(cls) {

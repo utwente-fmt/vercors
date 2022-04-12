@@ -10,11 +10,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.javabip.spec.deviation.Constants.*;
 import static election.Constants.SENT;
 
-@Ports({
-        @Port(name = GENERATE, type = PortType.enforceable),
-        @Port(name = SEND_DATA, type = PortType.enforceable),
+//Ports({
+        @Port(name = GENERATE, type = PortType.enforceable)
+        @Port(name = SEND_DATA, type = PortType.enforceable)
         @Port(name = RESET, type = PortType.enforceable)
-})
+//})
 
 @ComponentType(initial = INIT, name = GENERATOR)
 public class GeneratorSpec {

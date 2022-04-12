@@ -33,7 +33,7 @@ import java.lang.annotation.RetentionPolicy;
  * 
  * @author Alina Zolotukhina
  */
-@Retention(RetentionPolicy.RUNTIME)
+// Retention(RetentionPolicy.RUNTIME)
 public @interface Data {
 
 	/**
