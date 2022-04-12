@@ -223,7 +223,7 @@ case object Java {
         // Otherwise there is ambiguity: abort
         // Currently we do not support duplicate imports. E.g. "import static A.X; import static B.*;", given that B
         // would also define a static X, would technically be allowed.
-        case _ => throw new Exception("Duplicate!") // TODO: Custom error
+        case _ => throw OverlappingJavaImports(ns, "field", name)
       }
     }))
   }
@@ -304,7 +304,7 @@ case object Java {
         case Nil => None
         // If there where multiple classes that had matching definitions, then we error out,
         // because untangling that is not yet supported
-        case _ => throw new Exception("Duplicate")
+        case _ => throw OverlappingJavaImports(ns, "method", method)
       }
     }))
   }
