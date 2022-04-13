@@ -16,7 +16,7 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
   def isStringOp: Boolean =
     CoercionUtils.getCoercion(left.t, TString()).isDefined
   def isJavaLangStringOp: Boolean =
-    CoercionUtils.getCoercion(left.t, TPinnedDecl(JavaLangString())).isDefined
+    CoercionUtils.getCoercion(left.t, TPinnedDecl(JavaLangString(), Nil)).isDefined
 
 
   override def t: Type[G] =
@@ -25,6 +25,6 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
     else if(isPointerOp) left.t
     else if(isIntOp) TInt()
     else if(isStringOp) TString()
-    else if(isJavaLangStringOp) TPinnedDecl(JavaLangString())
+    else if(isJavaLangStringOp) TPinnedDecl(JavaLangString(), Nil)
     else TRational()
 }

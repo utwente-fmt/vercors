@@ -487,6 +487,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit t: TypeArgumentContext): Type[G] = t match {
     case TypeArgument0(t) => convert(t)
+    case TypeArgument1("?", None) => Wildcard()
     case other: TypeArgument1Context => ??(other)
   }
 
@@ -701,7 +702,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(None, Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
-    case Primary6(_, _, _) => ??(expr)
+    case Primary6(t, ".", "class") => JavaClassLiteral(convert(t))
     case Primary7(_, _, _) => ??(expr)
     case _: Primary8Context => ??(expr)
   }

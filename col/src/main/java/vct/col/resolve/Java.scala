@@ -27,6 +27,7 @@ case object Java {
   def JAVA_LANG_ANNOTATION_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
   def JAVA_LANG_STRING_TYPE[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
   def JAVA_LANG_STRING_NAME[G]: JavaName[G] = JavaName(JAVA_LANG_STRING)
+  def JAVA_LANG_CLASS: Seq[String] = Seq("java", "lang", "Class")
   def JAVA_LANG_STRING: Seq[String] = Seq("java", "lang", "String")
   def JAVA_LANG: Seq[String] = Seq("java", "lang")
 
@@ -287,7 +288,7 @@ case object Java {
         case ref: RefModelProcess[G] if ref.name == method => ref
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
-      case TPinnedDecl(JavaLangString()) =>
+      case TPinnedDecl(JavaLangString(), Nil) =>
         findJavaTypeName[G](Java.JAVA_LANG_STRING, ctx.asTypeResolutionContext).flatMap {
           case cls: RefJavaClass[G] => findMethodInClass[G](cls.decl, method, args)
           case _ => throw UnexpectedJreDefinition("java class", Java.JAVA_LANG_STRING)
@@ -323,7 +324,7 @@ case object Java {
       // From each class, get the method we are looking for
       potentialClasses.collect({
         case RefJavaClass(cls: JavaClass[G]) => cls.getMethods(method)
-      }) match {
+      }).filter(_.nonEmpty) match { // Discard any classes that have no matches
         // If we find only one set of methods, or no sets at all, then that's good.
         // Just pick the one that matches the signature we're looking for
         case Seq(methods) => methods.collectFirst(selectMatchingSignature)

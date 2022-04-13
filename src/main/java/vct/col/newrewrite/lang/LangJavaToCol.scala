@@ -82,7 +82,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface[Pre], JavaConstructor[Pre]] = SuccessionMap()
 
-  val javaFieldsToJavaClass: mutable.Map[JavaFields[Pre], JavaClass[Pre]] = mutable.Map()
+  val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
 
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
@@ -221,14 +221,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
-    cls match {
-      case cls: JavaClass[Pre] =>
-        cls.decls.collect({
-          case fields: JavaFields[Pre] =>
-            javaFieldsToJavaClass(fields) = cls
-        })
-      case _ =>
-    }
+    cls.decls.collect({
+      case decl: JavaClassDeclaration[Pre] =>
+        javaClassDeclToJavaClass(decl) = cls
+    })
 
     currentJavaClass.having(cls) {
       val supports = cls.supports.map(rw.dispatch).flatMap {
@@ -309,7 +305,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaClass(decl) => throw NotAValue(local)
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
-          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaFieldsToJavaClass(decls)))
+          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decls)))
           Deref[Post](
             obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
             ref = javaFieldsSuccessor.ref((decls, idx)),
@@ -372,8 +368,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
       case RefJavaMethod(decl) =>
         if(decl.modifiers.contains(JavaStatic[Pre]())) {
+          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decl)))
           MethodInvocation[Post](
-            obj = FunctionInvocation[Post](javaStaticsFunctionSuccessor.ref(currentJavaClass.top), Nil, Nil, Nil, Nil)(inv.blame),
+            obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(inv.blame),
             ref = rw.succ(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
