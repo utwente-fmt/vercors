@@ -324,7 +324,7 @@ case object Java {
       // From each class, get the method we are looking for
       potentialClasses.collect({
         case RefJavaClass(cls: JavaClass[G]) => cls.getMethods(method)
-      }) match {
+      }).filter(_.nonEmpty) match { // Discard any classes that have no matches
         // If we find only one set of methods, or no sets at all, then that's good.
         // Just pick the one that matches the signature we're looking for
         case Seq(methods) => methods.collectFirst(selectMatchingSignature)

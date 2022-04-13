@@ -71,6 +71,12 @@ case object ResolveTypes {
       } else if (fqn.contains(Java.JAVA_LANG_CLASS)) {
         cls.pin = Some(JavaLangClass())
       }
+    case imp @ JavaImport(true, name, /* star = */ false) =>
+      Java.findJavaTypeName(name.names.init, ctx)
+        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+    case imp @ JavaImport(true, name, /* star = */ true) =>
+      Java.findJavaTypeName(name.names, ctx)
+        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
 
     case _ =>
   }
