@@ -5,20 +5,22 @@ import org.javabip.api.PortType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+//import java.util.concurrent.ThreadLocalRandom;
+import static java.util.concurrent.ThreadLocalRandom.current;
 
 import static org.javabip.spec.deviation.Constants.*;
-import static election.Constants.SENT;
+// import static election.Constants.SENT; // Was missing from deviation.Constants?
 
 //Ports({
-        @Port(name = GENERATE, type = PortType.enforceable)
-        @Port(name = SEND_DATA, type = PortType.enforceable)
-        @Port(name = RESET, type = PortType.enforceable)
+        @Port(name = GENERATE)//, type = PortType.enforceable)
+        @Port(name = SEND_DATA)//, type = PortType.enforceable)
+        @Port(name = RESET)//, type = PortType.enforceable)
 //})
 
 @ComponentType(initial = INIT, name = GENERATOR)
 public class GeneratorSpec {
-    private List<Integer> data = new ArrayList<>();
+    //private List<Integer> data = new ArrayList<>();
+    private int[] data = null;
     //List<Integer> data = Collections.synchronizedList(d);
     private int min = 0;
     private int max = 1000;
@@ -26,26 +28,29 @@ public class GeneratorSpec {
 
     @Transition(name = GENERATE, source = INIT, target = GENERATED)
     public void generate() {
+        data = new int[size];
         for (int i=0; i<size; i++){
-            data.add(ThreadLocalRandom.current().nextInt(min, max + 1));
+            data[i] = current().nextInt(min, max + 1);
+//             data.add(ThreadLocalRandom.current().nextInt(min, max + 1));
         }
-        System.out.println("GENERATOR: DATA GENERATED");
+//        System.out.println("GENERATOR: DATA GENERATED");
     }
 
     @Transition(name = SEND_DATA, source = GENERATED, target = SENT)
     public void send() {
-        System.out.println("GENERATOR: DATA SENT");
+//        System.out.println("GENERATOR: DATA SENT");
     }
 
     @Transition(name = RESET, source = SENT, target = INIT)
     public void reset() throws InterruptedException {
         //System.out.println("Inside reset" + data);
-        data.clear();
+//        data.clear();
+        data = null;
     }
 
 
     @Data(name = OUTGOING_DATA)
-    public List<Integer> getData() {
+    public int[] getData() {
         return data;
     }
 }

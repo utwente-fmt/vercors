@@ -22,6 +22,7 @@ public class Constants {
 
     public static final String INIT = "init";
     public static final String GENERATED = "generated";
+    public static final String SENT = "sent";
     public static final String CALCULATED = "calculated";
     public static final String WORK = "working";
     public static final String RCV = "received";

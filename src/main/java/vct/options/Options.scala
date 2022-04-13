@@ -48,6 +48,17 @@ case object Options {
         case "all" => Verbosity.All
       }
 
+    def parseSep(sep: String)(s: String): (String, String) =
+      s.split(sep).toSeq match {
+        case Seq(a, b) => (a, b)
+      }
+
+    def parseLink(s: String): ((String, String), (String, String)) =
+      parseSep(":")(s) match {
+        case (l, r) =>
+          (parseSep("\\.")(l), parseSep("\\.")(r))
+      }
+
     OParser.sequence(
       programName(BuildInfo.name),
       head(BuildInfo.name, BuildInfo.version),
@@ -146,6 +157,16 @@ case object Options {
       opt[Path]("path-c-preprocessor").valueName("<path>")
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
+
+      // TODO (RR): Factor these out into JavaBIP mode?
+      opt[String]("synchron").valueName("<class>.<portName>:<class>.<portName>")
+        .action((s, c) => c.copy(synchrons = c.synchrons :+ parseLink(s)))
+        .text("Indicate synchron to verify")
+        .unbounded(),
+      opt[String]("data").valueName("<class>.<dataName>:<class>.<dataName>")
+        .action((s, c) => c.copy(datas = c.datas :+ parseLink(s)))
+        .text("Indicate data to verify")
+        .unbounded(),
 
       note(""),
       note("VeyMont Mode"),
@@ -253,4 +274,8 @@ case class Options
   testFailingFirst: Boolean = false,
   testGenerateFailingRunConfigs: Boolean = false,
   testCIOutput: Boolean = false,
+
+  // JavaBIP options
+  synchrons: Seq[((String, String), (String, String))] = Seq(),
+  datas: Seq[((String, String), (String, String))] = Seq(),
 )
