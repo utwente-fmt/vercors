@@ -4,9 +4,10 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
+import vct.col.ast.temporaryimplpackage.statement.composite.LoopImpl.IterationContractData
 import vct.col.newrewrite.EncodeSendRecv.{DuplicateRecv, SendFailedExhaleFailed, WrongSendRecvPosition}
 import vct.col.newrewrite.util.Substitute
-import vct.col.origin.{Blame, ExhaleFailed, Origin, SendFailed}
+import vct.col.origin.{Blame, DiagnosticOrigin, ExhaleFailed, Origin, SendFailed}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -63,6 +64,13 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
     case block: Block[Pre] => rewriteDefault(block)
     case scope: Scope[Pre] => rewriteDefault(scope)
     case label: Label[Pre] => rewriteDefault(label)
+
+    case loop @ Loop(_, _, _, IterationContract(_, _, _), _) =>
+      loop.getIterationContractData(DiagnosticOrigin) match {
+        case Left(err) => throw err
+        case Right(IterationContractData(v, _, _)) =>
+          allowSendRecv.having(Some(v)) { rewriteDefault(loop) }
+      }
 
     case send @ Send(decl, _, res) =>
       decl.drop()

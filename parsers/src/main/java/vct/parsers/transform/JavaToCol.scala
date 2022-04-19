@@ -341,6 +341,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }))
     case Statement3(prefix, _, _, control, _, contract2, body) =>
       convert(prefix, c => {
+        contract2.foreach(contract => convert(contract, c))
         control match {
           case ForControl0(foreach) => ??(foreach)
           case ForControl1(init, _, cond, _, update) =>
@@ -355,6 +356,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       })
     case Statement4(prefix, _, cond, contract2, body) =>
       convert(prefix, c => {
+        contract2.foreach(contract => convert(contract, c))
         Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(stat), convert(body)))
       })
     case Statement5(_, _, _, _, _) => ??(stat)

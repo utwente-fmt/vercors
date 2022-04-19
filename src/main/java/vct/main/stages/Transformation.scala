@@ -1,7 +1,8 @@
 package vct.main.stages
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{Program, SimplificationRule}
+import vct.col.ast.{IterationContract, Program, SimplificationRule}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite._
@@ -55,7 +56,7 @@ class Transformation
   val onBeforePassKey: Seq[(String, Program[_ <: Generation] => Unit)],
   val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)],
   val passes: Seq[RewriterBuilder]
-) extends ContextStage[Program[_ <: Generation], Seq[ExpectedError], Program[_ <: Generation]] {
+) extends ContextStage[Program[_ <: Generation], Seq[ExpectedError], Program[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
 
@@ -82,6 +83,8 @@ class Transformation
       }
 
       result = pass().dispatch(result)
+
+      logger.debug(s"${pass.key}: ${result.transSubnodes.collect { case _: IterationContract[_] => () }.size}")
 
       result.check match {
         case Nil => // ok
