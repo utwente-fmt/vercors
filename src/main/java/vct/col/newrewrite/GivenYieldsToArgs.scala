@@ -21,7 +21,9 @@ case object GivenYieldsToArgs extends RewriterBuilder {
 
   case class YieldDummy(forArg: Variable[_]) extends Origin {
     override def preferredName: String = "dummy_" + forArg.o.preferredName
+    override def shortPosition: String = "generated"
     override def context: String = "[At dummy variable for an unused out parameter]"
+    override def inlineContext: String = "[Dummy variable for an unused out parameter]"
   }
 }
 

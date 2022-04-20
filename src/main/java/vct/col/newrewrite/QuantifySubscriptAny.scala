@@ -13,7 +13,9 @@ case object QuantifySubscriptAny extends RewriterBuilder {
 
   case object GeneratedQuantifierOrigin extends Origin {
     override def preferredName: String = "i"
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated for auto-quantified expressions containing `*`]"
+    override def inlineContext: String = "[* index]"
   }
 
   case class InvalidAnyPosition(any: Any[_]) extends UserError {

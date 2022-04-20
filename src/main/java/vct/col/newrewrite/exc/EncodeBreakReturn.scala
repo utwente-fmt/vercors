@@ -20,32 +20,44 @@ case object EncodeBreakReturn extends RewriterBuilder {
 
   case class PostLabeledStatementOrigin(label: LabelDecl[_]) extends Origin {
     override def preferredName: String = "break_" + label.o.preferredName
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated to jump past a statement]"
+    override def inlineContext: String = "[After] " + label.o.inlineContext
   }
 
   case object ReturnClass extends Origin {
     override def preferredName: String = "Return"
+    override def shortPosition: String = "generated"
     override def context: String = "[At class generated to encode return with an exception]"
+    override def inlineContext: String = "[Return value exception class]"
   }
 
   case object ReturnField extends Origin {
     override def preferredName: String = "value"
+    override def shortPosition: String = "generated"
     override def context: String = "[At field generated to encode return with an exception]"
+    override def inlineContext: String = "[Return value exception class field]"
   }
 
   case object ReturnTarget extends Origin {
     override def preferredName: String = "end"
+    override def shortPosition: String = "generated"
     override def context: String = "[At label generated for the end of the method]"
+    override def inlineContext: String = "[End of method]"
   }
 
   case object ReturnVariable extends Origin {
     override def preferredName: String = "return"
+    override def shortPosition: String = "generated"
     override def context: String = "[At variable generated for the result of the method]"
+    override def inlineContext: String = "[Return value]"
   }
 
   case object BreakException extends Origin {
     override def preferredName: String = "Break"
+    override def shortPosition: String = "generated"
     override def context: String = "[At exception class generated to break on a label or loop]"
+    override def inlineContext: String = "[Break exception class]"
   }
 }
 

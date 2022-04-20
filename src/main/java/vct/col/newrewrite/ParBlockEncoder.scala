@@ -21,20 +21,26 @@ case object ParBlockEncoder extends RewriterBuilder {
   }
 
   case class ParRegionImpl(region: ParRegion[_]) extends Origin {
-    override def context: String = region.o.context
     override def preferredName: String = "do_" + regionName(region)
+    override def shortPosition: String = region.o.shortPosition
+    override def context: String = region.o.context
+    override def inlineContext: String = region.o.inlineContext
   }
 
   case class ParBlockCheck(block: ParBlock[_]) extends Origin {
     override def preferredName: String =
       "check_" + regionName(block)
 
+    override def shortPosition: String = block.o.shortPosition
     override def context: String = block.o.context
+    override def inlineContext: String = block.o.inlineContext
   }
 
   case object ParImpl extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = "generated"
     override def context: String = s"[At node generated for the implementation of parallel blocks]"
+    override def inlineContext: String = s"[Implementation of parallel block]"
   }
 
   case class ParPreconditionPostconditionFailed(region: ParRegion[_]) extends Blame[PostconditionFailed] {
@@ -53,10 +59,10 @@ case object ParBlockEncoder extends RewriterBuilder {
         block.blame.blame(ParBlockPostconditionFailed(failure, block))
       case ctx: ContextEverywhereFailedInPost =>
         PanicBlame("the generated method for a parallel block thread does not include context_everywhere clauses.").blame(ctx)
-      case SignalsFailed(failure, _) =>
-        block.blame.blame(ParBlockMayNotThrow(failure, block))
-      case ExceptionNotInSignals(failure, _) =>
-        block.blame.blame(ParBlockMayNotThrow(failure, block))
+      case SignalsFailed(_, _) =>
+        block.blame.blame(ParBlockMayNotThrow(block))
+      case ExceptionNotInSignals(_) =>
+        block.blame.blame(ParBlockMayNotThrow(block))
     }
   }
 

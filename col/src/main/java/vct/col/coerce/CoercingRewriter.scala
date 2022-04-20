@@ -35,7 +35,9 @@ case object CoercingRewriter {
 
   case class CoercionOrigin(of: Expr[_]) extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = of.o.shortPosition
     override def context: String = of.o.context
+    override def inlineContext: String = of.o.inlineContext
   }
 }
 

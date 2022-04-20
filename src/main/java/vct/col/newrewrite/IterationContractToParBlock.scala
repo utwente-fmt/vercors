@@ -15,7 +15,9 @@ case object IterationContractToParBlock extends RewriterBuilder {
 
   case object IterationContractOrigin extends Origin {
     override def preferredName: String = ???
+    override def shortPosition: String = "generated"
     override def context: String = ???
+    override def inlineContext: String = ???
   }
 }
 

@@ -18,14 +18,16 @@ case object ClassToRef extends RewriterBuilder {
 
   case object TypeOfOrigin extends Origin {
     override def preferredName: String = "type"
-    override def context: String =
-      "[At function type]"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At function type]"
+    override def inlineContext: String = "[Function type]"
   }
 
   case object InstanceOfOrigin extends Origin {
     override def preferredName: String = "subtype"
-    override def context: String =
-      "[At function subtype]"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At function subtype]"
+    override def inlineContext: String = "[Function subtype]"
   }
 
   case class InstanceNullPreconditionFailed(inner: Blame[InstanceNull], inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
@@ -39,8 +41,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   case object This extends Origin {
     override def preferredName: String = "this"
-    override def context: String =
-      "[At generated parameter for 'this']"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At generated parameter for 'this']"
+    override def inlineContext: String = "this"
   }
 
   val fieldSucc: SuccessionMap[Field[Pre], SilverField[Post]] = SuccessionMap()

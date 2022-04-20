@@ -76,12 +76,16 @@ case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
 
   case class ArrayField(t: Type[_]) extends Origin {
     override def preferredName: String = typeText(t)
+    override def shortPosition: String = "generated"
     override def context: String = s"[At field generated for array location of type $t]"
+    override def inlineContext: String = s"[Field generated for array location of type $t]"
   }
 
   case class PointerField(t: Type[_]) extends Origin {
     override def preferredName: String = typeText(t)
+    override def shortPosition: String = "generated"
     override def context: String = s"[At field generated for pointer location of type $t]"
+    override def inlineContext: String = s"[Field generated for pointer location of type $t]"
   }
 
   case class OptionNonePreconditionFailed(access: OptGet[_]) extends Blame[PreconditionFailed] {

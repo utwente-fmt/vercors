@@ -18,47 +18,65 @@ import scala.collection.mutable
 case object LangJavaToCol {
   case class JavaFieldOrigin(fields: JavaFields[_], idx: Int) extends Origin {
     override def preferredName: String = fields.decls(idx).name
+    override def shortPosition: String = fields.decls(idx).o.shortPosition
     override def context: String = fields.o.context
+    override def inlineContext: String = fields.decls(idx).o.inlineContext
   }
 
   case class JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int) extends Origin {
     override def preferredName: String = locals.decls(idx).name
+    override def shortPosition: String = locals.decls(idx).o.shortPosition
     override def context: String = locals.o.context
+    override def inlineContext: String = locals.decls(idx).o.inlineContext
   }
 
   case class JavaConstructorOrigin(cons: JavaConstructor[_]) extends Origin {
     override def preferredName: String = cons.name
+    override def shortPosition: String = cons.o.shortPosition
     override def context: String = cons.o.context
+    override def inlineContext: String = cons.o.inlineContext
   }
 
   case class JavaMethodOrigin(method: JavaMethod[_]) extends Origin {
     override def preferredName: String = method.name
+    override def shortPosition: String = method.o.shortPosition
     override def context: String = method.o.context
+    override def inlineContext: String = method.o.inlineContext
   }
 
   case class JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]) extends Origin {
     override def preferredName: String = method.name
+    override def shortPosition: String = method.o.shortPosition
     override def context: String = method.o.context
+    override def inlineContext: String = method.o.inlineContext
   }
 
   case class JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name
+    override def shortPosition: String = cls.o.shortPosition
     override def context: String = cls.o.context
+    override def inlineContext: String = cls.o.inlineContext
   }
 
   case class JavaStaticsClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name + "Statics"
+    override def shortPosition: String = cls.o.shortPosition
     override def context: String = cls.o.context
+    override def inlineContext: String = cls.o.inlineContext
   }
 
   case class JavaStaticsClassSingletonOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name + "StaticsSingleton"
+    override def shortPosition: String = cls.o.shortPosition
     override def context: String = cls.o.context
+    override def inlineContext: String = cls.o.inlineContext
   }
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
+    override def shortPosition: String = inner.shortPosition
     override def context: String = inner.context
+    override def inlineContext: String = inner.inlineContext
   }
 
   case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray[_]) extends UserError {

@@ -3,7 +3,7 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
 import hre.io.Readable
-import vct.col.origin.{BlameCollector, VerificationFailure}
+import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
@@ -43,7 +43,8 @@ case object Verify extends LazyLogging {
         logger.info("Verification completed successfully.")
         EXIT_CODE_SUCCESS
       case Right(fails) =>
-        fails.foreach(fail => logger.error(fail.toString))
+        if(fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
+        else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
         EXIT_CODE_VERIFICATION_FAILURE
     }
   }

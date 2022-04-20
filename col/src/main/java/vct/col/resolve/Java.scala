@@ -14,7 +14,9 @@ import scala.collection.mutable
 
 case object Java {
   case class JavaSystemOrigin(preferredName: String) extends Origin {
+    override def shortPosition: String = "reflection"
     override def context: String = s"At: [Class loaded from JRE with reflection]"
+    override def inlineContext: String = "[Class loaded from JRE with reflection]"
   }
 
   private implicit val o: Origin = DiagnosticOrigin

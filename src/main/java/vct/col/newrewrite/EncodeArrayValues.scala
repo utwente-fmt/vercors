@@ -16,11 +16,15 @@ case object EncodeArrayValues extends RewriterBuilder {
   override def desc: String = "Encode \\values and array creation into functions/methods."
 
   case class ValuesFunctionOrigin(preferredName: String = "unknown") extends Origin {
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated for \\values]"
+    override def inlineContext: String = "[Node generated for \\values]"
   }
 
   case class ArrayCreationOrigin(preferredName: String = "unknown") extends Origin {
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated for array creation]"
+    override def inlineContext: String = "[Node generated for array creation]"
   }
 
   case class ArrayValuesPreconditionFailed(values: Values[_]) extends Blame[PreconditionFailed] {

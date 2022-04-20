@@ -1,6 +1,6 @@
 package viper.api
 
-import vct.col.origin.{Blame, DerefPerm, Origin, ReadableOrigin, SourceNameOrigin, VerificationFailure}
+import vct.col.origin.{Blame, DerefPerm, InputOrigin, Origin, ReadableOrigin, SourceNameOrigin, VerificationFailure}
 import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers._
 import viper.silver.{ast => silver}
@@ -9,13 +9,17 @@ import vct.result.VerificationError.UserError
 import viper.api.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
 import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
 import viper.silver.verifier.AbstractError
-import hre.io.{Readable, RWFile}
+import hre.io.{RWFile, Readable}
 
 import java.nio.file.{Path, Paths}
 
 case object SilverToCol {
   case class SilverPositionOrigin(node: silver.Positioned) extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = node.pos match {
+      case pos: AbstractSourcePosition => s"${pos.start.line}:${pos.start.column}"
+      case _ => "unknown"
+    }
     override def context: String = node.pos match {
       case NoPosition => "[Unknown position from silver parse tree]"
       case pos: AbstractSourcePosition =>
@@ -23,6 +27,7 @@ case object SilverToCol {
         ReadableOrigin(RWFile(pos.file.toFile), start.line-1, end.line-1, Some((start.column-1, end.column-1))).context
       case other => s"[Unknown silver position kind: $other]"
     }
+    override def inlineContext: String = InputOrigin.compressInlineText(node.toString)
   }
 
   case class SilverNodeNotSupported(node: silver.Node) extends UserError {

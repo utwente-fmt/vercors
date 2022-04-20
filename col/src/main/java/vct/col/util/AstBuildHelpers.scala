@@ -190,7 +190,9 @@ object AstBuildHelpers {
 
   private case class ConstOrigin(value: scala.Any) extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = "generated"
     override def context: String = s"[At generated constant `$value`]"
+    override def inlineContext: String = value.toString
   }
 
   def tt[G]: BooleanValue[G] = BooleanValue(true)(ConstOrigin(true))
@@ -252,7 +254,9 @@ object AstBuildHelpers {
 
   case object GeneratedQuantifier extends Origin {
     override def preferredName: String = "i"
+    override def shortPosition: String = "generated"
     override def context: String = "[At generated quantifier]"
+    override def inlineContext: String = "[Generated quantifier]"
   }
 
   def starall[G]

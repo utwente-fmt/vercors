@@ -14,7 +14,9 @@ case object PureMethodsToFunctions extends RewriterBuilder {
 
   case object PureMethodOrigin extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated for pure method]"
+    override def inlineContext: String = "[Node generated for pure method]"
   }
 
   case class MethodCannotIntoFunction(explanation: String) extends UserError {

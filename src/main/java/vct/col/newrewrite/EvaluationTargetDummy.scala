@@ -12,7 +12,9 @@ case object EvaluationTargetDummy extends RewriterBuilder {
 
   case object EvaluationOrigin extends Origin {
     override def preferredName: String = "evaluationDummy"
+    override def shortPosition: String = "generated"
     override def context: String = s"[At variable generated for an evaluation]"
+    override def inlineContext: String = "[Variable generated for an evaluation]"
   }
 }
 

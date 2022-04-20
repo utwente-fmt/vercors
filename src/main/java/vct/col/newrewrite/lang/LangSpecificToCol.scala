@@ -15,7 +15,9 @@ case object LangSpecificToCol extends RewriterBuilder {
 
   case object ThisVar extends Origin {
     override def preferredName: String = "this"
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated to store the this value for constructors]"
+    override def inlineContext: String = "this"
   }
 
   case class NotAValue(value: Expr[_]) extends UserError {

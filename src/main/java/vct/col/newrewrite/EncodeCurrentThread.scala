@@ -13,7 +13,9 @@ case object EncodeCurrentThread extends RewriterBuilder {
 
   case object CurrentThreadIdOrigin extends Origin {
     override def preferredName: String = "tid"
+    override def shortPosition: String = "generated"
     override def context: String = "[At generated variable for the current thread ID]"
+    override def inlineContext: String = "\\current_thread"
   }
 
   abstract class MisplacedCurrentThreadReference extends UserError {

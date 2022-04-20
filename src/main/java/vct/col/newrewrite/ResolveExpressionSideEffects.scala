@@ -21,12 +21,16 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
 
   case object SideEffectOrigin extends Origin {
     override def preferredName: String = "flatten"
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated to collect side effects]"
+    override def inlineContext: String = "[Extracted expression]"
   }
 
   case object ResultVar extends Origin {
     override def preferredName: String = "res"
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated to contain the result of a method]"
+    override def inlineContext: String = "[Method return value]"
   }
 
   case class DisallowedSideEffect(effector: Expr[_]) extends UserError {

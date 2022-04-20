@@ -6,40 +6,100 @@ import vct.col.ast._
 import vct.result.VerificationError.SystemError
 
 sealed trait ContractFailure {
+  def code: String
   def node: Node[_]
+  def descCompletion: String
+  def inlineDescCompletion: String
 }
 
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
-  override def toString: String = "this expression may be false"
+  override def code: String = "false"
+  override def descCompletion: String = "this expression may be false"
+  override def inlineDescCompletion: String = s"${node.o.inlineContext} may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
-  override def toString: String = "there might not be enough permission to exhale this amount"
+  override def code: String = "perm"
+  override def descCompletion: String = "there might not be enough permission to exhale this amount"
+  override def inlineDescCompletion: String = s"there might be insufficient permission for `${node.o.inlineContext}`"
 }
 case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
-  override def toString: String = "the amount of permission in this permission predicate may be negative"
+  override def code: String = "negativePermValue"
+  override def descCompletion: String = "the amount of permission in this permission predicate may be negative"
+  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be a negative permission amount"
 }
 
 trait VerificationFailure {
   def code: String
-  def text: String
 
-  override def toString: String = text + "\n"
+  def position: String
+
+  def desc: String
+  def inlineDesc: String
+
+  def asTableEntry: TableEntry = TableEntry(position, code, inlineDesc)
+
+  override def toString: String = desc + "\n"
 }
+
+object TableEntry {
+  def render(entries: Seq[TableEntry]): String = {
+    val posWidth = entries.map(_.position.length).max.max("At".length)
+    val codeWidth = entries.map(_.code.length).max.max("Code".length)
+    val descWidth = entries.map(_.desc.length).max.max("Description".length)
+
+    val result = new StringBuilder
+
+    result.append("At").append(" ".repeat(posWidth - "At".length)).append(" ")
+    result.append("Code").append(" ".repeat(codeWidth - "Code".length)).append(" ")
+    result.append("Description").append(" ".repeat(descWidth - "Description".length)).append("\n")
+
+    result.append("-" * posWidth).append(" ")
+    result.append("-" * codeWidth).append(" ")
+    result.append("-" * descWidth).append("\n")
+
+    for(entry <- entries) {
+      result.append(entry.position).append(" " * (posWidth - entry.position.length)).append(" ")
+      result.append(entry.code).append(" " * (codeWidth - entry.code.length)).append(" ")
+      result.append(entry.desc).append("\n")
+    }
+
+    result.toString()
+  }
+}
+
+case class TableEntry(position: String, code: String, desc: String)
 
 trait NodeVerificationFailure extends VerificationFailure {
   def node: Node[_]
 
-  override def toString: String = node.o.messageInContext(text)
+  def descInContext: String
+  def inlineDescWithSource(source: String): String
+
+  override def position: String = node.o.shortPosition
+  override def desc: String = node.o.messageInContext(descInContext)
+  override def inlineDesc: String = inlineDescWithSource(node.o.inlineContext)
 }
 
-trait WithContractFailure extends NodeVerificationFailure {
+trait WithContractFailure extends VerificationFailure {
+  def node: Node[_]
   def failure: ContractFailure
 
-  override def toString: String =
+  def baseCode: String
+  def descInContext: String
+  def inlineDescWithSource(node: String, failure: String): String
+
+  override def position: String = node.o.shortPosition
+
+  override def code: String = s"$baseCode:${failure.code}"
+
+  override def desc: String =
     Origin.messagesInContext(Seq(
-      (node.o, text + " ..."),
+      (node.o, descInContext + " ..."),
       (failure.node.o, "... " + failure.toString),
     ))
+
+  override def inlineDesc: String =
+    inlineDescWithSource(node.o.inlineContext, failure.inlineDescCompletion)
 }
 
 sealed trait ExpectedErrorFailure extends VerificationFailure {
@@ -47,291 +107,346 @@ sealed trait ExpectedErrorFailure extends VerificationFailure {
 }
 
 case class ExpectedErrorTrippedTwice(err: ExpectedError, left: VerificationFailure, right: VerificationFailure) extends ExpectedErrorFailure {
-  override def text: String = {
-    err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times.")
-  }
-
   override def code: String = "trippedTwice"
+  override def position: String = err.errorRegion.shortPosition
+  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times.")
+  override def inlineDesc: String = s"The expected error with code `${err.errorCode}` occurred multiple times."
 }
 
 case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFailure {
-  override def text: String =
-    err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered.")
   override def code: String = "notTripped"
+  override def position: String = err.errorRegion.shortPosition
+  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered.")
+  override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
 case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
-  override def text: String = "Insufficient permission to assign to field."
-  override def code: String = "failed"
+  override def code: String = "assignFieldFailed"
+  override def descInContext: String = "Insufficient permission to assign to field."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
 }
 case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithContractFailure {
-  override def text: String = "Assertion may not hold, since"
-  override def code: String = "failed"
+  override def baseCode: String = "assertFailed"
+  override def descInContext: String = "Assertion may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Assertion `$node` may fail, since $failure."
 }
 case class ExhaleFailed(failure: ContractFailure, node: Exhale[_]) extends WithContractFailure {
-  override def text: String = "Exhale may fail, since"
-  override def code: String = "failed"
+  override def baseCode: String = "exhaleFailed"
+  override def descInContext: String = "Exhale may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
 case class UnfoldFailed(failure: ContractFailure, node: Unfold[_]) extends WithContractFailure {
-  override def text: String = "Unfold may fail, since"
-  override def code: String = "failed"
+  override def baseCode: String = "unfoldFailed"
+  override def descInContext: String = "Unfold may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
 case class FoldFailed(failure: ContractFailure, node: Fold[_]) extends WithContractFailure {
-  override def text: String = "Fold may fail, since"
-  override def code: String = "failed"
+  override def baseCode: String = "foldFailed"
+  override def descInContext: String = "Fold may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
 case class SendFailed(failure: ContractFailure, node: Send[_]) extends WithContractFailure {
-  override def text: String = "Send may fail, since"
-  override def code: String = "failed"
+  override def baseCode: String = "sendFailed"
+  override def descInContext: String = "Send may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
 
 sealed trait AccountedDirection
 case object FailLeft extends AccountedDirection
 case object FailRight extends AccountedDirection
 
-sealed trait FrontendInvocationError extends NodeVerificationFailure
+sealed trait FrontendInvocationError extends VerificationFailure
 sealed trait InstanceInvocationFailure extends FrontendInvocationError
-case class InstanceNull(node: InvokingNode[_]) extends InstanceInvocationFailure {
-  override def code: String = "null"
-  override def text: String = "The object for this invocation may be null."
+case class InstanceNull(node: InvokingNode[_]) extends InstanceInvocationFailure with NodeVerificationFailure {
+  override def code: String = "invocationObjectNull"
+  override def descInContext: String = "The object for this invocation may be null."
+  override def inlineDescWithSource(source: String): String = s"The object in the invocation `$source` may be null"
 }
 
-sealed trait InvocationFailure extends InstanceInvocationFailure with WithContractFailure
-case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: InvokingNode[_]) extends InvocationFailure {
-  override def text: String = "Precondition may not hold, since"
-  override def code: String = "preFailed"
+sealed trait InvocationFailure extends InstanceInvocationFailure
+case class PreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: InvokingNode[_]) extends InvocationFailure with WithContractFailure {
+  override def baseCode: String = "preFailed"
+  override def descInContext: String = "Precondition may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
 }
-case class ContextEverywhereFailedInPre(failure: ContractFailure, node: InvokingNode[_]) extends InvocationFailure {
-  override def text: String = "Context may not hold in precondition, since"
-  override def code: String = "contextPreFailed"
+case class ContextEverywhereFailedInPre(failure: ContractFailure, node: InvokingNode[_]) extends InvocationFailure with WithContractFailure {
+  override def baseCode: String = "contextPreFailed"
+  override def descInContext: String = "Context may not hold in precondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 
 sealed trait CallableFailure extends ConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure {
-  override def text: String = "Postcondition may not hold, since"
-  override def code: String = "postFailed"
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+  override def baseCode: String = "postFailed"
+  override def descInContext: String = "Postcondition may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
 }
-case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure {
-  override def text: String = "Context may not hold in postcondition, since"
-  override def code: String = "contextPostFailed"
+case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+  override def baseCode: String = "contextPostFailed"
+  override def descInContext: String = "Context may not hold in postcondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the postcondition, since $failure."
 }
-case class SignalsFailed(failure: ContractFailure, node: AbstractMethod[_]) extends CallableFailure {
-  override def text: String = "Signals clause may not hold, since"
-  override def code: String = "signals"
+case class SignalsFailed(failure: ContractFailure, node: AbstractMethod[_]) extends CallableFailure with WithContractFailure {
+  override def baseCode: String = "signalsFailed"
+  override def descInContext: String = "Signals clause may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Signals clause of `$node` may not hold, since $failure."
 }
-case class ExceptionNotInSignals(failure: ContractFailure, node: AbstractMethod[_]) extends CallableFailure {
-  override def text: String = "Method may throw exception not included in signals clauses."
+case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailure with NodeVerificationFailure {
   override def code: String = "extraExc"
+  override def descInContext: String = "Method may throw exception not included in signals clauses."
+  override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-sealed trait LoopInvariantFailure extends WithContractFailure
-case class LoopInvariantNotEstablished(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure {
-  override def text: String = "This invariant may not be established, since"
-  override def code: String = "notEstablished"
+sealed trait LoopInvariantFailure extends VerificationFailure
+case class LoopInvariantNotEstablished(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure with WithContractFailure {
+  override def baseCode: String = "invariantNotEstablished"
+  override def descInContext: String = "This invariant may not be established, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Invariant of `$node` may not be established, since $failure."
 }
-case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure {
-  override def text: String = "This invariant may not be maintained, since"
-  override def code: String = "notMaintained"
+case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure with WithContractFailure {
+  override def baseCode: String = "notMaintained"
+  override def descInContext: String = "This invariant may not be maintained, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Invariant of `$node` may not be maintained, since $failure."
 }
 case class ReceiverNotInjective(node: Starall[_]) extends NodeVerificationFailure with AnyStarError {
-  override def text: String = "The location of the permission predicate in this quantifier may not be injective with regards to the quantified variables."
   override def code: String = "notInjective"
+  override def descInContext: String = "The location of the permission predicate in this quantifier may not be unique with regards to the quantified variables."
+  override def inlineDescWithSource(source: String): String = s"The location of the permission predicate in `$source` may not be unique with regards to the quantified variables."
 }
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
-  override def text: String = "The divisor may be zero."
   override def code: String = "divByZero"
+  override def descInContext: String = "The divisor may be zero."
+  override def inlineDescWithSource(source: String): String = s"The divisor in `$source` may be zero."
 }
-sealed trait FrontendDerefError extends NodeVerificationFailure
-sealed trait FrontendPlusError extends NodeVerificationFailure
-sealed trait FrontendSubscriptError extends NodeVerificationFailure
+sealed trait FrontendDerefError extends VerificationFailure
+sealed trait FrontendPlusError extends VerificationFailure
+sealed trait FrontendSubscriptError extends VerificationFailure
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
-case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission {
-  override def text: String = "There may be insufficient permission to access this field here."
+case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"
+  override def descInContext: String = "There may be insufficient permission to access this field here."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
-case class ModelInsufficientPermission(node: ModelDeref[_]) extends DerefInsufficientPermission {
-  override def text: String = "There may be insufficient permission to access this model field here."
+case class ModelInsufficientPermission(node: ModelDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "modelPerm"
+  override def descInContext: String = "There may be insufficient permission to access this model field here."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 case class LabelNotReached(node: Old[_]) extends NodeVerificationFailure {
-  override def text: String = "The label mentioned in this old expression may not be reached at the time the old expression is reached."
   override def code: String = "notReached"
+  override def descInContext: String = "The label mentioned in this old expression may not have been reached at the time the old expression is evaluated."
+  override def inlineDescWithSource(source: String): String = s"The label in `$source` may not have been reached at the time the old expression is evaluated."
 }
 sealed trait SeqBoundFailure extends FrontendSubscriptError with BuiltinError
-case class SeqBoundNegative(node: SeqSubscript[_]) extends SeqBoundFailure {
-  override def text: String = "The index in this sequence subscript may be negative."
+case class SeqBoundNegative(node: SeqSubscript[_]) extends SeqBoundFailure with NodeVerificationFailure {
   override def code: String = "indexNegative"
+  override def descInContext: String = "The index in this sequence subscript may be negative."
+  override def inlineDescWithSource(source: String): String = s"The index in `$source` may be negative."
 }
-case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure {
-  override def text: String = "The index in this sequence subscript may exceed the length of the sequence."
+case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure with NodeVerificationFailure {
   override def code: String = "indexExceedsLength"
+  override def descInContext: String = "The index in this sequence subscript may exceed the length of the sequence."
+  override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the sequence."
 }
 
 case class ParInvariantNotEstablished(failure: ContractFailure, node: ParInvariant[_]) extends WithContractFailure {
-  override def text: String = "This parallel invariant may not be established, since"
-  override def code: String = "notEstablished"
+  override def baseCode: String = "notEstablished"
+  override def descInContext: String = "This parallel invariant may not be established, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not be established, since $failure."
 }
 case class ParInvariantNotMaintained(failure: ContractFailure, node: ParAtomic[_]) extends WithContractFailure {
-  override def text: String = "The parallel invariant may not be maintained, since"
-  override def code: String = "notMaintained"
+  override def baseCode: String = "notMaintained"
+  override def descInContext: String = "The parallel invariant may not be maintained, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not be maintained, since $failure."
 }
-sealed trait ParBarrierFailed extends NodeVerificationFailure
+sealed trait ParBarrierFailed extends VerificationFailure
 case class ParBarrierNotEstablished(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
-  override def text: String = "The precondition of this barrier may not hold, since"
-  override def code: String = "notEstablished"
+  override def baseCode: String = "notEstablished"
+  override def descInContext: String = "The precondition of this barrier may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` may not hold, since $failure."
 }
 case class ParBarrierInconsistent(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
-  override def text: String = "The precondition of this barrier is not consistent with the postcondition, since this postcondition may not hold, because"
-  override def code: String = "inconsistent"
+  override def baseCode: String = "inconsistent"
+  override def descInContext: String = "The precondition of this barrier is not consistent with the postcondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` is not consistent with its postcondition, since $failure."
 }
-case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed {
-  override def text: String = "The proof hint for this barrier may throw an exception."
+case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed with NodeVerificationFailure {
   override def code: String = "barrierThrows"
+  override def descInContext: String = "The proof hint for this barrier may throw an exception."
+  override def inlineDescWithSource(source: String): String = s"The proof hint of `$source` may throw an exception."
 }
 
 sealed trait ParBlockFailure extends VerificationFailure
 case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) extends ParBlockFailure {
   override def code: String = "parNotInjective"
-  override def text: String =
+  override def position: String = predicate.o.shortPosition
+  override def desc: String =
     Origin.messagesInContext(Seq(
       (block.o, "This parallel block causes the formulas in its body to be quantified over all threads, ..."),
       (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables."),
     ))
+
+  override def inlineDesc: String =
+    s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
 }
 
-sealed trait ParBlockContractFailure extends ParBlockFailure with WithContractFailure
-case class ParPreconditionFailed(failure: ContractFailure, node: ParRegion[_]) extends ParBlockContractFailure {
-  override def text: String = "The precondition of this parallel region may not hold, since"
-  override def code: String = "parPreFailed"
+sealed trait ParBlockContractFailure extends ParBlockFailure
+case class ParPreconditionFailed(failure: ContractFailure, node: ParRegion[_]) extends ParBlockContractFailure with WithContractFailure {
+  override def baseCode: String = "parPreFailed"
+  override def descInContext: String = "The precondition of this parallel region may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` may not hold, since $failure."
 }
-case class ParBlockPostconditionFailed(failure: ContractFailure, node: ParBlock[_]) extends ParBlockContractFailure {
-  override def text: String = "The postcondition of this parallel block may not hold, since"
-  override def code: String = "parPostFailed"
+case class ParBlockPostconditionFailed(failure: ContractFailure, node: ParBlock[_]) extends ParBlockContractFailure with WithContractFailure {
+  override def baseCode: String = "parPostFailed"
+  override def descInContext: String = "The postcondition of this parallel block may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The postcondition of `$node` may not hold, since $failure."
 }
-case class ParBlockMayNotThrow(failure: ContractFailure, node: ParBlock[_]) extends ParBlockContractFailure {
-  override def text: String = "The implementation of this parallel block may throw an exception."
+case class ParBlockMayNotThrow(node: ParBlock[_]) extends ParBlockContractFailure with NodeVerificationFailure {
   override def code: String = "parThrows"
+  override def descInContext: String = s"The body of this parallel block may throw an exception."
+  override def inlineDescWithSource(source: String): String = s"The body of `$source` may throw an exception."
 }
 
 sealed trait BuiltinError extends FrontendDerefError with FrontendInvocationError
-case class OptionNone(node: OptGet[_]) extends BuiltinError {
+case class OptionNone(node: OptGet[_]) extends BuiltinError with NodeVerificationFailure {
   override def code: String = "optNone"
-  override def text: String = "Option may be empty."
+  override def descInContext: String = "Option may be empty."
+  override def inlineDescWithSource(source: String): String = s"Option in `$source` may be empty."
 }
-case class NotRight(node: GetRight[_]) extends BuiltinError {
+case class NotRight(node: GetRight[_]) extends BuiltinError with NodeVerificationFailure {
   override def code: String = "left"
-  override def text: String = "Either may be left."
+  override def descInContext: String = "Either may be left."
+  override def inlineDescWithSource(source: String): String = s"Either in `$source` may be left."
 }
-case class NotLeft(node: GetLeft[_]) extends BuiltinError {
+case class NotLeft(node: GetLeft[_]) extends BuiltinError with NodeVerificationFailure {
   override def code: String = "right"
-  override def text: String = "Either may be right."
+  override def descInContext: String = "Either may be right."
+  override def inlineDescWithSource(source: String): String = s"Either in `$source` may be right."
 }
-case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscriptError {
+case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscriptError with NodeVerificationFailure {
   override def code: String = "mapKey"
-  override def text: String = "Map may not contain this key."
+  override def descInContext: String = "Map may not contain this key."
+  override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait AnyStarError extends VerificationFailure
-case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinError with AnyStarError {
+case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinError with AnyStarError with NodeVerificationFailure {
   override def code: String = "arrayNull"
-  override def text: String = "Array may be null."
+  override def descInContext: String = "Array may be null."
+  override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
 }
-case class ArrayBounds(node: Expr[_]) extends ArraySubscriptError {
+case class ArrayBounds(node: Expr[_]) extends ArraySubscriptError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
-  override def text: String = "Index may be negative, or exceed the length of the array."
+  override def descInContext: String = "Index may be negative, or exceed the length of the array."
+  override def inlineDescWithSource(source: String): String = s"Index `$source` may be negative, or exceed the length of the array."
 }
-case class ArrayInsufficientPermission(node: Expr[_]) extends ArraySubscriptError {
+case class ArrayInsufficientPermission(node: Expr[_]) extends ArraySubscriptError with NodeVerificationFailure {
   override def code: String = "arrayPerm"
-  override def text: String = "There may be insufficient permission to access the array."
+  override def descInContext: String = "There may be insufficient permission to access the array."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
 sealed trait ArrayValuesError extends NodeVerificationFailure {
   def node: Values[_]
-  override def text: String = s"Array values invocation may fail, since $reason."
+  override def descInContext: String = s"Array values invocation may fail, since $reason."
+  override def inlineDescWithSource(source: String): String = s"`$source` may fail, since $reason."
   def reason: String
 }
 
 case class ArrayValuesNull(node: Values[_]) extends ArrayValuesError {
+  override def code: String = "arrayNull"
   override def reason = "the array value may be null"
-  override def code: String = "nodeNull"
 }
 case class ArrayValuesFromNegative(node: Values[_]) extends ArrayValuesError {
-  override def reason = "the start of the range may be negative"
   override def code: String = "fromNeg"
+  override def reason = "the start of the range may be negative"
 }
 case class ArrayValuesFromToOrder(node: Values[_]) extends ArrayValuesError {
-  override def reason = "the start of the range may exceed the end of the range"
   override def code: String = "fromCrossesTo"
+  override def reason = "the start of the range may exceed the end of the range"
 }
 case class ArrayValuesToLength(node: Values[_]) extends ArrayValuesError {
-  override def reason = "the end of the range may exceed the length of the array"
   override def code: String = "toLength"
+  override def reason = "the end of the range may exceed the length of the array"
 }
 case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
-  override def reason = "there may be insufficient permission to access the array at the specified range"
   override def code: String = "valuesPerm"
+  override def reason = "there may be insufficient permission to access the array at the specified range"
 }
 
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
 sealed trait PointerAddError extends FrontendPlusError
-case class PointerNull(node: Expr[_]) extends PointerDerefError with PointerAddError {
+case class PointerNull(node: Expr[_]) extends PointerDerefError with PointerAddError with NodeVerificationFailure {
   override def code: String = "ptrNull"
-  override def text: String = "Pointer may be null."
+  override def descInContext: String = "Pointer may be null."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."
 }
-case class PointerBounds(node: Expr[_]) extends PointerSubscriptError with PointerAddError {
+case class PointerBounds(node: Expr[_]) extends PointerSubscriptError with PointerAddError with NodeVerificationFailure {
   override def code: String = "ptrBlock"
-  override def text: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
+  override def descInContext: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
+  override def inlineDescWithSource(source: String): String = s"The offset in `$source` may be outside the bounds of the allocated memory area that the pointer is in."
 }
-case class PointerInsufficientPermission(node: Expr[_]) extends PointerDerefError {
+case class PointerInsufficientPermission(node: Expr[_]) extends PointerDerefError with NodeVerificationFailure {
   override def code: String = "ptrPerm"
-  override def text: String = "There may be insufficient permission to dereference the pointer."
+  override def descInContext: String = "There may be insufficient permission to dereference the pointer."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to dereference `$source`."
 }
 
-sealed trait UnlockFailure extends WithContractFailure
-case class UnlockInvariantFailed(node: Unlock[_], failure: ContractFailure) extends UnlockFailure {
-  override def code: String = "invariantFailed"
-  override def text: String = "The lock invariant may not be exhaled here, since"
+sealed trait UnlockFailure extends VerificationFailure
+case class UnlockInvariantFailed(node: Unlock[_], failure: ContractFailure) extends UnlockFailure with WithContractFailure {
+  override def baseCode: String = "invariantFailed"
+  override def descInContext: String = "The lock invariant may not be exhaled here, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
-case class LockTokenNotHeld(node: Unlock[_], failure: ContractFailure) extends UnlockFailure {
-  override def code: String = "heldFailed"
-  override def text: String = "The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since"
+case class LockTokenNotHeld(node: Unlock[_], failure: ContractFailure) extends UnlockFailure with WithContractFailure {
+  override def baseCode: String = "heldFailed"
+  override def descInContext: String = "The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since the `held` resource may not be exhaled here, since $failure."
 }
 
-sealed trait ConstructorFailure extends WithContractFailure
-case class CommitFailed(node: Commit[_], failure: ContractFailure) extends ConstructorFailure {
-  override def code: String = "commitFailed"
-  override def text: String = "Committing the defined resources to the lock invariant may not be possible here, since"
+sealed trait ConstructorFailure extends VerificationFailure
+case class CommitFailed(node: Commit[_], failure: ContractFailure) extends ConstructorFailure with WithContractFailure {
+  override def baseCode: String = "commitFailed"
+  override def descInContext: String = "Committing the defined resources to the lock invariant may not be possible here, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not commit the defined resources to the lock invariant, since $failure."
 }
 
 case class NotifyFailed(node: Notify[_], failure: ContractFailure) extends WithContractFailure {
-  override def code: String = "heldFailed"
-  override def text: String = "The token that indicated the lock is locked (`held(obj)`) may not be asserted here, since"
+  override def baseCode: String = "heldFailed"
+  override def descInContext: String = "The token that indicated the lock is locked (`held(obj)`) may not be asserted here, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"`$node` may fail, since the token that indicated the lock is locked (`held(obj)`) may not be asserted here, since $failure."
 }
 
 case class ThrowNull(node: Throw[_]) extends NodeVerificationFailure {
   override def code: String = "null"
-  override def text: String = "The value thrown here may be null."
+  override def descInContext: String = "The value thrown here may be null."
+  override def inlineDescWithSource(source: String): String = s"`$source` may throw null."
 }
 
 case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
   override def code: String = "scaleNeg"
-  override def text: String = "The scale value here may be negative."
+  override def descInContext: String = "The scale value here may be negative."
+  override def inlineDescWithSource(source: String): String = s"The scale in `$source` may be negative."
 }
 
 sealed trait UnsafeCoercion extends NodeVerificationFailure
 case class CoerceRatZFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratZfrac"
-  override def text: String = "Rational may exceed the bounds of zfrac: [0, 1]"
+  override def descInContext: String = "Rational may exceed the bounds of zfrac: [0, 1]"
+  override def inlineDescWithSource(source: String): String = s"`$source` may exceed the bounds of zfrac: [0, 1]."
 }
 case class CoerceRatFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratFrac"
-  override def text: String = "Rational may exceed the bounds of frac: (0, 1]"
+  override def descInContext: String = "Rational may exceed the bounds of frac: (0, 1]"
+  override def inlineDescWithSource(source: String): String = s"`$source` may exceed the bounds of frac: (0, 1]."
 }
 case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "zfracFrac"
-  override def text: String = "zfrac may be zero."
+  override def descInContext: String = "zfrac may be zero."
+  override def inlineDescWithSource(source: String): String = s"`$source` may be zero."
 }
 
 trait Blame[-T <: VerificationFailure] {

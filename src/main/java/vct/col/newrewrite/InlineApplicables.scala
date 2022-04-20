@@ -40,6 +40,7 @@ case object InlineApplicables extends RewriterBuilder {
 
   case class InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]) extends Origin {
     override def preferredName: String = definition.preferredName
+    override def shortPosition: String = usages.head.o.shortPosition
     override def context: String =
       usages.map(_.o.context).mkString(
         start = " Inlined from:\n" + Origin.HR,
@@ -48,6 +49,8 @@ case object InlineApplicables extends RewriterBuilder {
       ) + Origin.HR +
         " In definition:\n" + Origin.HR +
         definition.context
+
+    override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
   }
 }
 

@@ -23,37 +23,49 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
 
   case object ExcVar extends Origin {
     override def preferredName: String = "exc"
+    override def shortPosition: String = "generated"
     override def context: String = "[At variable generated to contain thrown exception]"
+    override def inlineContext: String = "[Current exception]"
   }
 
   case object CurrentlyHandling extends Origin {
     override def preferredName: String = "currently_handling_exc"
+    override def shortPosition: String = "generated"
     override def context: String = "[At variable generated to remember exception currently being handled]"
+    override def inlineContext: String = "[Exception currently being handled]"
   }
 
   case object ReturnPoint extends Origin {
     override def preferredName: String = "bubble"
+    override def shortPosition: String = "generated"
     override def context: String = "[At label generated to bubble an exception]"
+    override def inlineContext: String = "[Exception bubble label]"
   }
 
   case object CatchLabel extends Origin {
     override def preferredName: String = "catches"
+    override def shortPosition: String = "generated"
     override def context: String = "[At label generated for catch blocks]"
+    override def inlineContext: String = "[Catch label]"
   }
 
   case object FinallyLabel extends Origin {
     override def preferredName: String = "finally"
+    override def shortPosition: String = "generated"
     override def context: String = "[At label generated for finally]"
+    override def inlineContext: String = "[Finally label]"
   }
 
   case object ExcBeforeLoop extends Origin {
     override def preferredName: String = "excBeforeLoop"
+    override def shortPosition: String = "generated"
     override def context: String = "[At variable generated to contain exc before loop]"
+    override def inlineContext: String = "[Exception before loop]"
   }
 
   case class SignalsClosedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {
     override def blame(error: PostconditionFailed): Unit =
-      method.blame.blame(ExceptionNotInSignals(error.failure, method))
+      method.blame.blame(ExceptionNotInSignals(method))
   }
 
   case class SignalsFailedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {

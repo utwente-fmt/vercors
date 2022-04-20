@@ -19,7 +19,9 @@ case object ResolveScale extends RewriterBuilder {
   }
 
   case class CheckScale(preferredName: String = "") extends Origin {
+    override def shortPosition: String = "generated"
     override def context: String = "[At function generated to check that scale values are non-negative]"
+    override def inlineContext: String = "[Function generated to check that scale values are non-negative]"
   }
 
   case class ScaleNegativePreconditionFailed(scale: Scale[_]) extends Blame[PreconditionFailed] {
