@@ -14,14 +14,33 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object ApplyTermRewriter {
-  case class BuilderFor[Rule](ruleNodes: Seq[SimplificationRule[Rule]]) extends RewriterBuilder {
-    override def apply[Pre <: Generation](): Rewriter[Pre] = ApplyTermRewriter(ruleNodes)
+  case class BuilderFor[Rule]
+  (
+    ruleNodes: Seq[SimplificationRule[Rule]],
+    debugIn: Seq[String],
+    debugMatch: Boolean,
+    debugMatchShort: Boolean,
+    debugNoMatch: Boolean,
+    debugFilterInputKind: Option[String],
+    debugFilterRule: Option[String],
+  ) extends RewriterBuilder {
+    override def apply[Pre <: Generation](): Rewriter[Pre] =
+      ApplyTermRewriter(ruleNodes, debugIn, debugMatch, debugMatchShort, debugNoMatch, debugFilterInputKind, debugFilterRule)
     override def key: String = "simplify"
     override def desc: String = "Apply axiomatic simplification lemmas to expressions."
   }
 }
 
-case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[SimplificationRule[Rule]]) extends Rewriter[Pre] with LazyLogging {
+case class ApplyTermRewriter[Rule, Pre <: Generation]
+(
+  ruleNodes: Seq[SimplificationRule[Rule]],
+  debugIn: Seq[String],
+  debugMatch: Boolean,
+  debugMatchShort: Boolean,
+  debugNoMatch: Boolean,
+  debugFilterInputKind: Option[String],
+  debugFilterRule: Option[String],
+) extends Rewriter[Pre] with LazyLogging {
   case class MalformedSimplificationRule(body: Expr[_]) extends UserError {
     override def code: String = "malformedSimpRule"
     override def text: String =
@@ -41,6 +60,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
     rules.groupBy {
       case (_, pattern, _, _) => pattern.getClass
     }
+
+  val debugNameStack: ScopedStack[String] = ScopedStack()
 
   def consumeForalls(node: Expr[Rule]): (Seq[Variable[Rule]], Expr[Rule]) = node match {
     case Forall(bindings, _, body) =>
@@ -82,10 +103,10 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
     implicit val o: Origin = DiagnosticOrigin
     val (free, pattern, subtitute, ruleOrigin) = rule
 
-    val debugNoMatch = false
-    val debugMatch = false
-    val debugMatchShort = false
-    val debugRawDifferences = false
+    val debugFilter =
+      debugFilterRule.map(_ == ruleOrigin.preferredName).getOrElse(true) &&
+        debugFilterInputKind.map(_ == subject.getClass.getSimpleName).getOrElse(true) &&
+        (debugIn.isEmpty || debugIn.exists(name => debugNameStack.exists(_ == name)))
 
     val inst = mutable.Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])]()
     val typeInst = mutable.Map[Variable[Rule], Type[Pre]]()
@@ -97,8 +118,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
       typeInst.get(left) match {
         case Some(replacement) =>
           val matches = replacement == right
-          if(debugNoMatch && !matches)
-            println(s"$debugHeader earlier `$left` matched `$replacement`, but now it must match `$right`")
+          if(debugNoMatch && debugFilter && !matches)
+            logger.debug(s"$debugHeader earlier `$left` matched `$replacement`, but now it must match `$right`")
 
           matches
         case None =>
@@ -106,8 +127,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
           val leftUpperBound = left.t.asInstanceOf[TType[Rule]].t
           val matches = leftUpperBound.superTypeOf(right.asInstanceOf[Type[Rule]])
 
-          if(debugNoMatch && !matches) {
-            println(s"$debugHeader the type-level variable `$left` matched `$right`, but " +
+          if(debugNoMatch && debugFilter && !matches) {
+            logger.debug(s"$debugHeader the type-level variable `$left` matched `$right`, but " +
               s"the upper bound of `$left` (`$leftUpperBound`) is not a supertype of $right.")
           }
 
@@ -120,8 +141,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
         case Some((replacement, _)) =>
           val matches = replacement == right
 
-          if(debugNoMatch && !matches)
-            println(s"$debugHeader earlier `$debugLeft` matched `$replacement`, but now it must match `$right`")
+          if(debugNoMatch && debugFilter && !matches)
+            logger.debug(s"$debugHeader earlier `$debugLeft` matched `$replacement`, but now it must match `$right`")
 
           matches
         case None =>
@@ -134,8 +155,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
           val extraBindingDeps = freeRightOfBindings -- declaredAllowedBindings
 
           if(extraBindingDeps.nonEmpty) {
-            if(debugNoMatch)
-              println(s"$debugHeader `$debugLeft` matches `$right`, but it is dependent on bindings within the pattern that are not declared as such: ${extraBindingDeps.map(v => Local[Pre](v.ref).toString).mkString(", ")}.")
+            if(debugNoMatch && debugFilter)
+              logger.debug(s"$debugHeader `$debugLeft` matches `$right`, but it is dependent on bindings within the pattern that are not declared as such: ${extraBindingDeps.map(v => Local[Pre](v.ref).toString).mkString(", ")}.")
 
             return false
           }
@@ -143,25 +164,15 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
           inst(left) = (right, leftBindings.map(bindingInst))
           val matches = left.t.superTypeOf(right.t.asInstanceOf[Type[Rule]])
 
-          if(debugNoMatch && !matches)
-            println(s"$debugHeader `$debugLeft` (typed `${left.t}`) matched `$right` (typed `${right.t}`), " +
+          if(debugNoMatch && debugFilter && !matches)
+            logger.debug(s"$debugHeader `$debugLeft` (typed `${left.t}`) matched `$right` (typed `${right.t}`), " +
               s"but `${right.t}` is not a subtype of `${left.t}`")
 
           matches
       }
     }
 
-    val diffs: Iterable[Comparator.Difference[Rule, Pre]] =
-      if(debugRawDifferences) {
-        val computedDiffs = Comparator.compare(pattern, subject).toIndexedSeq
-        println(s"Raw diffs: $computedDiffs")
-        computedDiffs
-      } else {
-        // lazy; exits comparison on first irreconcilable difference.
-        Comparator.compare(pattern, subject)
-      }
-
-    diffs.foreach {
+    Comparator.compare(pattern, subject).foreach {
       case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
       case Comparator.MatchingDeclaration(_, _) =>
@@ -193,39 +204,39 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
         if(!declareTypeInst(v, right)) return None
 
       case Comparator.StructuralDifference(left, right) =>
-        if(debugNoMatch)
-          println(s"$debugHeader $left cannot be matched to $right.")
+        if(debugNoMatch && debugFilter)
+          logger.debug(s"$debugHeader $left cannot be matched to $right.")
         return None
     }
 
     val result = ApplyRule(inst.toMap, typeInst.toMap, subject.o).dispatch(subtitute)
 
-    if(debugMatch) {
+    if(debugMatch && debugFilter) {
       if(debugMatchShort) {
-        println(subject)
-        println(s" ~> $result")
+        logger.debug(subject.toString)
+        logger.debug(s" ~> $result")
       } else {
-        println(s"Expression:       $subject")
-        println(s"Matches:          $pattern")
+        logger.debug(s"Expression:       $subject")
+        logger.debug(s"Matches:          $pattern")
         if (inst.nonEmpty) {
-          println("With bindings:")
+          logger.debug("With bindings:")
           inst.toSeq.sortBy { case (k, _) => k.o.preferredName }.foreach {
             case (rule, (binding, over)) =>
               if (over.isEmpty)
-                println(s"  $rule = $binding")
+                logger.debug(s"  $rule = $binding")
               else
-                println(s"  $rule = ($binding) parametric over ${over.mkString(", ")}")
+                logger.debug(s"  $rule = ($binding) parametric over ${over.mkString(", ")}")
           }
         }
         if (typeInst.nonEmpty) {
-          println("With type bindings:")
+          logger.debug("With type bindings:")
           typeInst.foreach {
-            case (rule, binding) => println(s"  $rule = $binding")
+            case (rule, binding) => logger.debug(s"  $rule = $binding")
           }
         }
-        println(s"Applied to:       $subtitute")
-        println(s"Result:           $result")
-        println()
+        logger.debug(s"Applied to:       $subtitute")
+        logger.debug(s"Result:           $result")
+        logger.debug("")
       }
     }
 
@@ -286,22 +297,14 @@ case class ApplyTermRewriter[Rule, Pre <: Generation](ruleNodes: Seq[Simplificat
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      val debugHeader = false
       countApply = 0
       countSuccess = 0
       currentExpr = e
+      dispatch(ApplyRecursively().dispatch(e))
+    }
 
-      if(debugHeader) {
-        println()
-        println(s"== Simplifying $e ==")
-      }
-
-      val out = ApplyRecursively().dispatch(e)
-
-      if(debugHeader) {
-        println(s"== Out: $out ==")
-      }
-
-      dispatch(out)
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    debugNameStack.having(decl.o.preferredName) {
+      rewriteDefault(decl)
     }
 }

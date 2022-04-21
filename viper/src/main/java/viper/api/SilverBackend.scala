@@ -61,10 +61,10 @@ trait SilverBackend extends Backend with LazyLogging {
         SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
           case Nil =>
           case diffs =>
-            logger.warn("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+            logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
             for((left, right) <- diffs) {
-              logger.warn(s" - Left: ${left.getClass.getSimpleName}: $left")
-              logger.warn(s" - Right: ${right.getClass.getSimpleName}: $right")
+              logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+              logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
             }
         }
     }

@@ -33,10 +33,18 @@ object Transformation {
       })
     }
 
-  private def simplifierFor(path: PathOrStd): RewriterBuilder =
-    ApplyTermRewriter.BuilderFor(Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
-      case rule: SimplificationRule[InitialGeneration] => rule
-    })
+  def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
+    ApplyTermRewriter.BuilderFor(
+      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
+        case rule: SimplificationRule[InitialGeneration] => rule
+      },
+      debugIn = options.devSimplifyDebugIn,
+      debugMatch = options.devSimplifyDebugMatch,
+      debugNoMatch = options.devSimplifyDebugNoMatch,
+      debugMatchShort = options.devSimplifyDebugMatchShort,
+      debugFilterInputKind = options.devSimplifyDebugFilterInputKind,
+      debugFilterRule = options.devSimplifyDebugFilterRule,
+    )
 
   def ofOptions(options: Options): Transformation =
     options.backend match {
@@ -45,8 +53,8 @@ object Transformation {
           adtImporter = PathAdtImporter(options.adtPath),
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
-          simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor),
-          simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor),
+          simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
+          simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
         )
     }
 }
@@ -107,8 +115,8 @@ case class SilverTransformation
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
   override val onBeforePassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
   override val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
-  simplifyBeforeRelations: Seq[RewriterBuilder] = Nil,
-  simplifyAfterRelations: Seq[RewriterBuilder] = Nil,
+  simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
+  simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,

@@ -114,6 +114,25 @@ case object Options {
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
 
+      opt[String]("dev-simplify-debug-in").unbounded().hidden().valueName("<declaration>")
+        .action((decl, c) => c.copy(devSimplifyDebugIn = c.devSimplifyDebugIn :+ decl))
+        .text("Debug simplifications below a declaration preferredName (recommended to inspect --output-before-pass simplify=-)"),
+      opt[Unit]("dev-simplify-debug-match").hidden()
+        .action((_, c) => c.copy(devSimplifyDebugMatch = true))
+        .text("Debug matched expressions in simplifications"),
+      opt[Unit]("dev-simplify-debug-match-long").hidden()
+        .action((_, c) => c.copy(devSimplifyDebugMatchShort = false))
+        .text("Use long form to print matched expressions in sipmlifications"),
+      opt[Unit]("dev-simplify-debug-no-match").hidden()
+        .action((_, c) => c.copy(devSimplifyDebugNoMatch = true))
+        .text("Debug expressions that do not match in simplifications"),
+      opt[String]("dev-simplify-debug-filter-input-kind").hidden()
+        .action((kind, c) => c.copy(devSimplifyDebugFilterInputKind = Some(kind)))
+        .text("Debug only expressions of a certain kind by simple class name"),
+      opt[String]("dev-simplify-debug-filter-rule").hidden()
+        .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
+        .text("Debug only applications of a particular rule, by name"),
+
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
         .text("Pass -D options to the C preprocessor"),
@@ -239,6 +258,12 @@ case class Options
 
   // Verify options - hidden
   devAbruptExc: Boolean = false,
+  devSimplifyDebugIn: Seq[String] = Nil,
+  devSimplifyDebugMatch: Boolean = false,
+  devSimplifyDebugMatchShort: Boolean = true,
+  devSimplifyDebugNoMatch: Boolean = false,
+  devSimplifyDebugFilterInputKind: Option[String] = None,
+  devSimplifyDebugFilterRule: Option[String] = None,
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required

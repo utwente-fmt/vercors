@@ -12,7 +12,9 @@ import vct.result.VerificationError
 case object Verify extends LazyLogging {
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
-    Stages.silicon(ConstantBlameProvider(collector)).run(inputs) match {
+    val stages = Stages.silicon(ConstantBlameProvider(collector))
+    logger.debug(stages.toString)
+    stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }
@@ -20,7 +22,9 @@ case object Verify extends LazyLogging {
 
   def verifyWithCarbon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
-    Stages.carbon(ConstantBlameProvider(collector)).run(inputs) match {
+    val stages = Stages.carbon(ConstantBlameProvider(collector))
+    logger.debug(stages.toString)
+    stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }
@@ -28,7 +32,9 @@ case object Verify extends LazyLogging {
 
   def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
-    Stages.ofOptions(options, ConstantBlameProvider(collector)).run(inputs) match {
+    val stages = Stages.ofOptions(options, ConstantBlameProvider(collector))
+    logger.debug(stages.toString)
+    stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }
