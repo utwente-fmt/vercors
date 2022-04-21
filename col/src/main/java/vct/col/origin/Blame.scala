@@ -95,7 +95,7 @@ trait WithContractFailure extends VerificationFailure {
   override def desc: String =
     Origin.messagesInContext(Seq(
       (node.o, descInContext + " ..."),
-      (failure.node.o, "... " + failure.toString),
+      (failure.node.o, "... " + failure.descCompletion),
     ))
 
   override def inlineDesc: String =
