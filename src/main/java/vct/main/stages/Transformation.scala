@@ -117,12 +117,17 @@ case class SilverTransformation
   override val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  focusNames: Seq[String] = Seq("yy"),
+  ignoreNames: Seq[String] = Nil,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
 
     // Delete stuff that may be declared unsupported at a later stage
     FilterSpecIgnore,
+
+    // Tag targets to be minimized so they can be recognized and focused later
+    TagMinimizationTargets.withArg((focusNames, ignoreNames)),
 
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
@@ -167,6 +172,8 @@ case class SilverTransformation
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
+
+    Minimize,
 
     // Silver compat (basically no new nodes)
     ResolveScale,
