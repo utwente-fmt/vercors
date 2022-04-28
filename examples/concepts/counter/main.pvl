@@ -10,7 +10,9 @@ class Main {
     c.incr();
     assert c.x==17;
     c.incr();
+    /*[/expect assertFailed:false]*/
     assert c.x==17;
+    /*[/end]*/
   }
 }
 //end(all)
