@@ -2,6 +2,7 @@ package vct.options
 
 import scopt.OParser
 import scopt.Read._
+import vct.col.newrewrite.Minimize
 import vct.main.BuildInfo
 import vct.parsers.Language
 import vct.resources.Resources
@@ -46,6 +47,15 @@ case object Options {
         case "debug" => Verbosity.Debug
         case "trace" => Verbosity.Trace
         case "all" => Verbosity.All
+      }
+
+    implicit val readMinimizeTarget: scopt.Read[MinimizeTarget] =
+      scopt.Read.reads(MinimizeTarget.parse).map({ case Some(x) => x }) // TODO (RR): Can this be done without the map?
+
+    implicit val readMinimizeMode: scopt.Read[MinimizeMode] =
+      scopt.Read.reads {
+        case "focus" => MinimizeMode.Focus
+        case "ignore" => MinimizeMode.Ignore
       }
 
     OParser.sequence(
@@ -109,6 +119,10 @@ case object Options {
       opt[String]("skip-pass").unbounded().valueName("<pass>")
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
+
+      opt[(MinimizeTarget, MinimizeMode)]("minimize" /* TODO (RR): British or american? */).unbounded().keyValueName("<fullyQualifiedName>,<methodOrFunction>", "focus|ignore")
+        .action((tup, c) => c.copy(minimizeTargets = c.minimizeTargets + (tup._1 -> tup._2)))
+        .text("Ignore entities that are not needed to verify the method or function from the AST. Fully qualified name is package.Class for static entities, only the package for top level entities, or empty for top-level unpackaged entities."),
 
       opt[Unit]("dev-abrupt-exc").hidden()
         .action((_, c) => c.copy(devAbruptExc = true))
@@ -243,6 +257,8 @@ case class Options
   skipTranslation: Boolean = false,
   skipTranslationAfter: Option[String] = None,
   skipPass: Set[String] = Set.empty,
+
+  minimizeTargets: Map[MinimizeTarget, MinimizeMode] = Map().empty,
 
   cDefine: Map[String, String] = Map.empty,
 

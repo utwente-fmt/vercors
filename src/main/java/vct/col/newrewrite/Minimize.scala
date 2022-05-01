@@ -12,6 +12,8 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.result.VerificationError.{SystemError, Unreachable}
 
+import scala.collection.mutable
+
 case object Minimize extends RewriterBuilder {
   override def key: String = "minimize"
   override def desc: String = "Minimize AST based on indicated minimization targets"
@@ -23,14 +25,6 @@ case object Minimize extends RewriterBuilder {
     override def shortPosition: String = f.o.shortPosition
   }
 
-  case class GenericMinimizeTarget(`class`: Seq[String], name: String, mode: MinimizeMode)
-
-  sealed abstract class MinimizeMode()
-  object MinimizeMode {
-    final case object Focus extends MinimizeMode
-    final case object Ignore extends MinimizeMode
-  }
-
   def isFocus[G](decl: Declaration[G]) = decl.o.isInstanceOf[TagMinimizationTargets.FocusTarget]
 
   def computeFocus[G](p: Program[G]): Seq[Declaration[G]] =
@@ -39,9 +33,9 @@ case object Minimize extends RewriterBuilder {
   def makeOthersAbstract[Pre <: Generation](p: Program[Pre], doNotChange: Seq[Declaration[Pre]]): Program[Rewritten[Pre]] =
     AbstractMaker(doNotChange).dispatch(p)
 
-  def removeUnused[Pre <: Generation](p: Program[Pre], used: Seq[Declaration[Pre]]): (Program[Rewritten[Pre]], Int) = {
+  def removeUnused[Pre <: Generation](p: Program[Pre], used: Seq[Declaration[Pre]]): (Program[Rewritten[Pre]], Seq[Declaration[Pre]]) = {
     val ru = RemoveUnused(used)
-    (ru.dispatch(p), ru.numDropped)
+    (ru.dispatch(p), ru.dropped.toSeq)
   }
 
   // Get all predicate usages, method usages, field usages
@@ -72,14 +66,14 @@ case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]])
 }
 
 case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]]) extends Rewriter[Pre] with LazyLogging {
-  var numDropped = 0
+  var dropped: mutable.Set[Declaration[Pre]] = mutable.Set()
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case _: Procedure[Pre] | _: Function[Pre] | _: Predicate[Pre] | _: Field[Pre] if !used.contains(decl) =>
         logger.debug(s"Dropping: ${decl.o.preferredName}, ${decl.o.getClass.getSimpleName}")
         decl.drop()
-        numDropped += 1
+        dropped.add(decl)
       case _ => rewriteDefault(decl)
     }
   }
@@ -89,17 +83,13 @@ case class Minimize[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     val focusTargets = computeFocus(p)
     var program: Program[Post] = makeOthersAbstract(p, focusTargets)
-    var changeHappened = true
-    var totalDropped = 0
+    var dropped: Seq[Declaration[Post]] = Nil
 
-    while (changeHappened) {
-      val (programNew, numDropped) = removeUnused(program, getUsedDecls(program) ++ computeFocus(program))
+    do {
+      val (programNew, droppedNew) = removeUnused(program, getUsedDecls(program) ++ computeFocus(program))
       program = programNew.asInstanceOf[Program[Post]]
-      changeHappened = numDropped > 0
-      totalDropped += numDropped
-    }
-
-    logger.debug(s"Number of declarations dropped: $totalDropped")
+      dropped = droppedNew
+    } while (dropped.nonEmpty)
 
     program
   }
