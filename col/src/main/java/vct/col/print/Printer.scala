@@ -907,6 +907,8 @@ case class Printer(out: Appendable,
     case Then(value, post) => ???
     case FunctionOf(v, vars) =>
       (phrase("(", name(v.decl), "!", commas(vars.map(ref => name(ref.decl))), ")"), 100)
+    case x =>
+      (statement(s"missing ${x.getClass.getSimpleName}"), 100)
   }
 
   def printType(t: Type[_]): Unit = say(t match {
@@ -1010,7 +1012,8 @@ case class Printer(out: Appendable,
     case rule: SimplificationRule[_] =>
       statement("axiom", space, name(rule), space, "{", newline, indent(rule.axiom), "}")
     case dataType: AxiomaticDataType[_] =>
-      ???
+//      ???
+      statement("missing adt")
     case function: Function[_] =>
       phrase(
         doubleline,
@@ -1142,6 +1145,8 @@ case class Printer(out: Appendable,
       ???
     case field: ModelField[_] =>
       ???
+    case x =>
+      statement(s"missing ${x.getClass.getSimpleName}")
   })
 
   def printApplicableContract(node: ApplicableContract[_]): Unit =

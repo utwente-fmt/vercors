@@ -10,17 +10,25 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
-import vct.result.VerificationError.Unreachable
+import vct.result.VerificationError.{SystemError, Unreachable}
 
 case object Minimize extends RewriterBuilder {
-  override def key: String = "tagMinimizationTargets"
-  override def desc: String = "Tags nodes that are targets for minimization"
+  override def key: String = "minimize"
+  override def desc: String = "Minimize AST based on indicated minimization targets"
 
   case class AbstractedFunctionOrigin[G](f: Function[G]) extends Origin {
     override def preferredName: String = "result"
     override def context: String = f.o.context
     override def inlineContext: String = f.o.inlineContext
     override def shortPosition: String = f.o.shortPosition
+  }
+
+  case class GenericMinimizeTarget(`class`: Seq[String], name: String, mode: MinimizeMode)
+
+  sealed abstract class MinimizeMode()
+  object MinimizeMode {
+    final case object Focus extends MinimizeMode
+    final case object Ignore extends MinimizeMode
   }
 
   def isFocus[G](decl: Declaration[G]) = decl.o.isInstanceOf[TagMinimizationTargets.FocusTarget]
@@ -36,15 +44,14 @@ case object Minimize extends RewriterBuilder {
     (ru.dispatch(p), ru.numDropped)
   }
 
-  def getUsedDecls[G](p: Program[G]): Seq[Declaration[G]] =
+  // Get all predicate usages, method usages, field usages
+  def getUsedDecls[G](p: Program[G]): Seq[Declaration[G]] = {
     p.transSubnodes.collect {
-      case ip: InvokeProcedure[G] => ip.ref.decl
-      // TODO (RR): Why 2?
-      case pi: ProcedureInvocation[G] => pi.ref.decl
-      case fi: FunctionInvocation[G] => fi.ref.decl
-      case pa: PredicateApply[G] => pa.ref.decl
+      case in: InvokingNode[G] => in.ref.decl
+      case app: Apply[G] => app.ref.decl
       case Deref(_, r) => r.decl
     }
+  }
 }
 
 case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]]) extends Rewriter[Pre] {
@@ -57,8 +64,8 @@ case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]])
         withResult((result: Result[Post]) => {
           val resultEqualsBody: Eq[Post] = result === dispatch(f.body.get)
           val ensures = SplitAccountedPredicate(dispatch(f.contract.ensures), UnitAccountedPredicate(resultEqualsBody))
-          f.rewrite(contract = f.contract.rewrite(ensures = ensures))
-        }).succeedDefault(f)
+          f.rewrite(contract = f.contract.rewrite(ensures = ensures), body = None).succeedDefault(f)
+        })
       case d => super.dispatch(d)
     }
   }
