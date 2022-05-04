@@ -285,6 +285,43 @@ def output_php(path, blocks, cases, version):
         outputfile=path)
 
 
+def convert_block_jinja(block, cases):
+    if block['t'] == 'CodeBlock' and '_case_label' in block:
+        initial_data = repr(block['c'][1])
+        case = cases[block['_case_label']]
+        data = repr(case.render())
+
+        invocation = f'verification_editor({data}, languages, initial_language={repr(case.language)}, start_hidden=True, initial_hidden_code={initial_data})'
+
+        return {
+            't': 'RawBlock',
+            'c': [
+                'html',
+                '{{ ' + invocation + ' }}',
+            ]
+        }
+    else:
+        return block
+
+
+def output_jinja(path, blocks, cases, version):
+    blocks = [{
+        't': 'RawBlock',
+        'c': [
+            'html',
+            "{% from 'verification_editor.html' import verification_editor %}",
+        ]
+    }] + [convert_block_jinja(block, cases) for block in blocks]
+
+    wiki_text = json.dumps({
+        'blocks': blocks,
+        'pandoc-api-version': version,
+        'meta': {},
+    })
+
+    pypandoc.convert_text(wiki_text, "html", format="json", outputfile=path)
+
+
 def get_html(elements):
     result = ""
 
@@ -293,8 +330,10 @@ def get_html(elements):
             result += element['c']
         elif element['t'] == 'Space':
             result += ' '
+        elif element['t'] == 'Code':
+            result += '<code>' + element['c'][1] + '</code>'
         else:
-            assert False, element['t']
+            assert False, f"Unrecognized element type for HTML header: {element['t']} in block {element}"
 
     return result
 
@@ -422,6 +461,7 @@ if __name__ == "__main__":
     parser = optparse.OptionParser()
     parser.add_option('-i', '--input', dest='source_path', help='directory where the wiki is stored', metavar='FILE')
     parser.add_option('-w', '--php', dest='php_path', help='write wiki to php file for the website', metavar='FILE')
+    parser.add_option('-j', '--jinja', dest='jinja_path', help='write wiki to jinja template for the website', metavar='FILE')
     parser.add_option('-m', '--menu', dest='menu_path', help='extract a menu for the website', metavar='FILE')
     parser.add_option('-p', '--pdf', dest='pdf_path', help='write wiki to a latex-typeset pdf', metavar='FILE')
     parser.add_option('--html', dest='html_path', help='write wiki to an html file', metavar='FILE')
@@ -430,7 +470,7 @@ if __name__ == "__main__":
 
     options, args = parser.parse_args()
 
-    if not any([options.php_path, options.menu_path, options.pdf_path, options.html_path]) and not options.cases_path:
+    if not any([options.php_path, options.jinja_path, options.menu_path, options.pdf_path, options.html_path, options.cases_path]):
         parser.error("No output type: please set one or more of the output paths. (try --help)")
 
     if options.source_path:
@@ -452,6 +492,10 @@ if __name__ == "__main__":
     if options.php_path:
         print("Creating PHP...")
         output_php(options.php_path, blocks, cases, pandoc_version)
+
+    if options.jinja_path:
+        print("Creating jinja template...")
+        output_jinja(options.jinja_path, blocks, cases, pandoc_version)
 
     if options.menu_path:
         print("Creating menu...")
