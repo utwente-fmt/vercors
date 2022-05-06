@@ -11,7 +11,9 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.result.VerificationError.{UserError}
+import vct.col.newrewrite.Minimize.MinimizeOrigin
+import vct.options.MinimizeName
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
@@ -207,6 +209,13 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
         ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
+        val pkgPrefix: Seq[String] = namespace.topOption.flatMap(_.pkg.map(_.names)).getOrElse(Seq())
+        val minimizeName = MinimizeName(pkgPrefix ++ Seq(currentJavaClass.top.name, method.name))
+        val innerO = JavaMethodOrigin(method)
+        val methodO = rw.minimizeNames.get(minimizeName)
+          .map(mode => MinimizeOrigin(innerO, mode))
+          .getOrElse(innerO)
+
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
           args = rw.collectInScope(rw.variableScopes) { method.parameters.foreach(rw.dispatch) },
@@ -219,7 +228,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             signals = method.contract.signals.map(rw.dispatch) ++
               method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
           ),
-        )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+        )(method.blame)(methodO).succeedDefault(method)
       case method: JavaAnnotationMethod[Pre] =>
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),

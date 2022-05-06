@@ -126,9 +126,6 @@ case class SilverTransformation
     // Delete stuff that may be declared unsupported at a later stage
     FilterSpecIgnore,
 
-    // Tag targets to be minimized so they can be recognized and focused later
-    TagMinimizationTargets.withArg((focusNames, ignoreNames)),
-
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     CollectLocalDeclarations, // all decls in Scope

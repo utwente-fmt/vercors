@@ -10,6 +10,7 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
+import vct.options.MinimizeMode
 import vct.result.VerificationError.{SystemError, Unreachable}
 
 import scala.collection.mutable
@@ -25,7 +26,20 @@ case object Minimize extends RewriterBuilder {
     override def shortPosition: String = f.o.shortPosition
   }
 
-  def isFocus[G](decl: Declaration[G]) = decl.o.isInstanceOf[TagMinimizationTargets.FocusTarget]
+  // Currently the minimization system piggybacks on the origin system.
+  // In the future, the minimization targets could be a first-class property of the Program type
+  // Similar to how the rootObject is a property of Program, except for the fact that we want to get rid of that...
+  case class MinimizeOrigin(o: Origin, mode: MinimizeMode) extends Origin {
+    override def preferredName: String = o.preferredName
+    override def shortPosition: String = o.shortPosition
+    override def context: String = o.context
+    override def inlineContext: String = o.inlineContext
+  }
+
+  def isFocus[G](decl: Declaration[G]) = decl.o match {
+    case MinimizeOrigin(_, MinimizeMode.Focus) => true
+    case _ => false
+  }
 
   def computeFocus[G](p: Program[G]): Seq[Declaration[G]] =
     p.transSubnodes.collect({case decl: Declaration[G] => decl}).filter(isFocus)

@@ -4,12 +4,14 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.newrewrite.Minimize.MinimizeOrigin
 import vct.col.origin._
 import vct.col.resolve._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
+import vct.options.{MinimizeMode, MinimizeName}
 import vct.result.VerificationError.UserError
 
-case object LangSpecificToCol extends RewriterBuilder {
+case object LangSpecificToCol extends RewriterBuilderArg[Map[MinimizeName, MinimizeMode]] {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -26,7 +28,7 @@ case object LangSpecificToCol extends RewriterBuilder {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation](minimizeNames: Map[MinimizeName, MinimizeMode]) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
@@ -62,6 +64,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
           cls.rewrite(decls).succeedDefault(cls)
         }
+      }
+
+    case m: InstanceMethod[Pre] =>
+      val minimizeName = MinimizeName(Seq(currentClass.top.o.preferredName, m.o.preferredName))
+      minimizeNames.get(minimizeName) match {
+        case Some(mode) => m.rewrite(o = MinimizeOrigin(m.o, mode))
+        case _ => m.rewrite()
       }
 
     case other => rewriteDefault(other)
