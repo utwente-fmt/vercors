@@ -25,4 +25,6 @@ case class ScopedStack[T]() {
       stack.pop()
     }
   }
+
+  def saving[R](x: T)(f: => R): T = having(x) { f; x }
 }
