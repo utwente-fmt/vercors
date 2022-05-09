@@ -17,6 +17,7 @@ object ColDefs {
     q"import vct.col.ref.Ref",
     q"import vct.col.resolve.Referrable",
     q"import vct.col.rewrite.ScopeContext",
+    q"import vct.col.util.ExpectedError",
   )
 
   /**

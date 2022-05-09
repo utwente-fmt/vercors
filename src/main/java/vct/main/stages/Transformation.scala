@@ -2,12 +2,13 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{IterationContract, Program, SimplificationRule}
+import vct.col.ast.{IterationContract, Program, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang.NoSupportSelfLoop
+import vct.col.origin.FileSpanningOrigin
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.ExpectedError
@@ -26,9 +27,9 @@ object Transformation {
       "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 
-  private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Program[_ <: Generation] => Unit)] =
+  private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
     m.toSeq.map {
-      case (key, out) => (key, (program: Program[_ <: Generation]) => out.write { writer =>
+      case (key, out) => (key, (program: Verification[_ <: Generation]) => out.write { writer =>
         Printer(writer).print(program)
       })
     }
@@ -61,14 +62,14 @@ object Transformation {
 
 class Transformation
 (
-  val onBeforePassKey: Seq[(String, Program[_ <: Generation] => Unit)],
-  val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)],
+  val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
+  val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val passes: Seq[RewriterBuilder]
-) extends ContextStage[Program[_ <: Generation], Seq[ExpectedError], Program[_ <: Generation]] with LazyLogging {
+) extends Stage[VerificationContext[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
 
-  override def runWithoutContext(input: Program[_ <: Generation]): Program[_ <: Generation] = {
+  override def run(input: VerificationContext[_ <: Generation]): Verification[_ <: Generation] = {
     val tempUnsupported = Set[feature.Feature](
       feature.JavaThreads,
       feature.MatrixVector,
@@ -83,7 +84,7 @@ class Transformation
       case (_, _) =>
     }
 
-    var result = input
+    var result: Verification[_ <: Generation] = Verification(Seq(input))(FileSpanningOrigin)
 
     Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
       onBeforePassKey.foreach {
@@ -113,8 +114,8 @@ class Transformation
 case class SilverTransformation
 (
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
-  override val onBeforePassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
-  override val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
+  override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(

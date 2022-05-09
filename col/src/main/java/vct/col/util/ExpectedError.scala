@@ -2,7 +2,12 @@ package vct.col.util
 
 import vct.col.origin._
 
-case class ExpectedError(errorCode: String, errorRegion: Origin, blame: Blame[ExpectedErrorFailure]) {
+object ExpectedError {
+  def apply(errorCode: String, errorRegion: Origin, blame: Blame[ExpectedErrorFailure]): ExpectedError =
+    new ExpectedError(errorCode, errorRegion, blame)
+}
+
+class ExpectedError(val errorCode: String, val errorRegion: Origin, val blame: Blame[ExpectedErrorFailure]) {
   var tripped: Option[VerificationFailure] = None
 
   def trip(failure: VerificationFailure): Unit =

@@ -60,11 +60,14 @@ import vct.col.debug._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
+import vct.col.util.ExpectedError
 
 sealed trait Node[G] extends NodeImpl[G]
 
 sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
+final case class Verification[G](tasks: Seq[VerificationContext[G]])(implicit val o: Origin) extends NodeFamily[G] with VerificationImpl[G]
+final case class VerificationContext[G](program: Program[G], expectedErrors: Seq[ExpectedError])(implicit val o: Origin) extends NodeFamily[G] with VerificationContextImpl[G]
 final case class Program[G](declarations: Seq[GlobalDeclaration[G]], rootClass: Option[Type[G]])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
 
 sealed trait Type[G] extends NodeFamily[G] with TypeImpl[G]
