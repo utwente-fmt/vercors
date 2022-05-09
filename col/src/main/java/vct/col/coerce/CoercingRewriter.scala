@@ -660,8 +660,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         DerefPointer(pointer(p)._1)(deref.blame)
       case div @ Div(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
-          Div(int(left), int(right))(div.blame),
-          Div(int(left), rat(right))(div.blame),
+          // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
+          // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
+          // and rationals.
           Div(rat(left), int(right))(div.blame),
           Div(rat(left), rat(right))(div.blame),
         )
