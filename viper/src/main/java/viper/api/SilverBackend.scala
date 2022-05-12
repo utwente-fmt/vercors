@@ -75,7 +75,9 @@ trait SilverBackend extends Backend with LazyLogging {
     tracker.withEntities(silverProgram) {
       verifier.verify(silverProgram) match {
         case Success =>
-        case Failure(errors) => errors.foreach(processError)
+        case Failure(errors) =>
+          logger.debug(errors.toString())
+          errors.foreach(processError)
       }
     }
 
