@@ -1,5 +1,6 @@
 package vct.col.origin
 
+import com.typesafe.scalalogging.LazyLogging
 import vct.result.VerificationError
 import vct.col.util.ExpectedError
 import vct.col.ast._
@@ -432,6 +433,13 @@ case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
   override def inlineDescWithSource(source: String): String = s"The scale in `$source` may be negative."
 }
 
+case class NontrivialUnsatisfiable(node: ApplicableContract[_]) extends NodeVerificationFailure {
+  override def code: String = "unsatisfiable"
+  override def descInContext: String = "The precondition of this contract may be unsatisfiable. If this is intentional, replace it with `requires false`."
+  override def inlineDescWithSource(source: String): String =
+    s"The precondition in `$source` may be unsatisfiable."
+}
+
 sealed trait UnsafeCoercion extends NodeVerificationFailure
 case class CoerceRatZFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratZfrac"
@@ -516,7 +524,8 @@ case class BlameUnreachable(message: String, failure: VerificationFailure) exten
 }
 
 case class PanicBlame(message: String) extends Blame[VerificationFailure] {
-  override def blame(error: VerificationFailure): Unit = throw BlameUnreachable(message, error)
+  override def blame(error: VerificationFailure): Unit =
+    throw BlameUnreachable(message, error)
 }
 
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
@@ -529,6 +538,7 @@ object FramedGetLeft extends PanicBlame("left in `e.isLeft ? e.left : ...` shoul
 object FramedGetRight extends PanicBlame("right in `e.isLeft ? ... : e.right` should always be ok.")
 object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
+object TrueSatisfiable extends PanicBlame("`requires true` is always satisfiable.")
 
 object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
@@ -538,6 +548,19 @@ object ArrayPerm extends PanicBlame("Subscripting an array in a permission shoul
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")
 
 object JavaArrayInitializerBlame extends PanicBlame("The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array")
+
+object UnsafeDontCare {
+  case class Satisfiability(reason: String) extends UnsafeDontCare[NontrivialUnsatisfiable]
+}
+
+trait UnsafeDontCare[T <: VerificationFailure] extends Blame[T] with LazyLogging {
+  def reason: String
+
+  override def blame(error: T): Unit = {
+    logger.debug(s"We do not care about ${error.code} here, since $reason:")
+    logger.debug(error.toString)
+  }
+}
 
 case class NoContext(inner: Blame[PreconditionFailed]) extends Blame[InvocationFailure] {
   override def blame(error: InvocationFailure): Unit = error match {

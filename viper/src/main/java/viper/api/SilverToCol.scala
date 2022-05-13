@@ -119,7 +119,7 @@ case class SilverToCol[G](program: silver.Program) {
         requires = col.UnitAccountedPredicate(foldStar(func.pres.map(transform))(origin(func)))(origin(func)),
         ensures = col.UnitAccountedPredicate(foldStar(func.posts.map(transform))(origin(func)))(origin(func)),
         contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil,
-      )(origin(func)),
+      )(blame(func))(origin(func)),
       inline = false,
       threadLocal = false,
     )(blame(func))(origin(func))
@@ -150,7 +150,7 @@ case class SilverToCol[G](program: silver.Program) {
         requires = col.UnitAccountedPredicate(foldStar(proc.pres.map(transform))(origin(proc)))(origin(proc)),
         ensures = col.UnitAccountedPredicate(foldStar(proc.posts.map(transform))(origin(proc)))(origin(proc)),
         contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil,
-      )(origin(proc)),
+      )(blame(proc))(origin(proc)),
       inline = false,
       pure = false,
     )(blame(proc))(origin(proc))

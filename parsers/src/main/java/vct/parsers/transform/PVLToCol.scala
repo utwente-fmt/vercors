@@ -38,7 +38,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           outArgs = Nil,
           typeArgs = Nil,
           convert(body),
-          contract.consumeApplicableContract(),
+          contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
         )(blame(method))(SourceNameOrigin(convert(name), origin(method)))
@@ -72,7 +72,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           outArgs = Nil,
           typeArgs = Nil,
           convert(body),
-          contract.consumeApplicableContract(),
+          contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
         )(blame(method))(SourceNameOrigin(convert(name), origin(method)))
@@ -87,7 +87,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
     case Constructor0(contract, _, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
   }
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
@@ -783,7 +783,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(),
+            c.consumeApplicableContract(blame(decl)),
             m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
@@ -816,7 +816,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(
+            c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })

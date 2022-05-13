@@ -86,6 +86,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TSeq(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -106,6 +107,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TSet(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -125,6 +127,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TBag(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -146,6 +149,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TMap(dispatch(targetKey), dispatch(targetValue)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -191,6 +195,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   }
 
   def coerceAny(node: NodeFamily[Pre]): NodeFamily[Pre] = node match {
+    case node: Verification[Pre] => node
+    case node: VerificationContext[Pre] => node
     case node: Program[Pre] => node
     case node: Statement[Pre] => coerce(node)
     case node: Expr[Pre] => coerce(node)

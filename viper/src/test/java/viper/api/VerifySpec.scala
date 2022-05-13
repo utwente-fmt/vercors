@@ -37,6 +37,6 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
                 args: => Seq[Variable[G]] = Seq(), outArgs: => Seq[Variable[G]] = Seq(),
                 body: => Statement[G] = Block(Seq()),
                 requires: => Expr[G] = tt, ensures: => Expr[G] = tt, blame: => Blame[CallableFailure] = noErrors): Unit = {
-    decl(new Procedure(returnType, args, outArgs, Nil, Option(body), ApplicableContract(UnitAccountedPredicate(requires), UnitAccountedPredicate(ensures), tt, Seq(), Seq(), Seq()))(blame))
+    decl(new Procedure(returnType, args, outArgs, Nil, Option(body), ApplicableContract(UnitAccountedPredicate(requires), UnitAccountedPredicate(ensures), tt, Seq(), Seq(), Seq())(noErrors))(blame))
   }
 }

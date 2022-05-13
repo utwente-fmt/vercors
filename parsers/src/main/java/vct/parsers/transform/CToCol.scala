@@ -43,7 +43,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit decl: DeclarationContext): CDeclaration[G] = decl match {
     case Declaration0(maybeContract, declSpecs, maybeInits, _) =>
       withContract(maybeContract, contract =>
-        new CDeclaration[G](contract.consumeApplicableContract(), AstBuildHelpers.foldStar[G](contract.consume(contract.kernel_invariant)),
+        new CDeclaration[G](contract.consumeApplicableContract(blame(decl)), AstBuildHelpers.foldStar[G](contract.consume(contract.kernel_invariant)),
           specs=convert(declSpecs), inits=maybeInits.map(convert(_)) getOrElse Nil))
     case Declaration1(staticAssert) =>
       ??(staticAssert)
@@ -809,7 +809,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(),
+            c.consumeApplicableContract(blame(decl)),
             m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
@@ -842,7 +842,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(
+            c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })

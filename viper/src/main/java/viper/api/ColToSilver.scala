@@ -108,10 +108,11 @@ case class ColToSilver(program: col.Program[_]) {
       throw Unreachable(s"Declaration was not yet named: $decl")
     }
 
-  def pos(node: col.Node[_]): silver.VirtualPosition = {
-    // PB: the default hashCode impl is typically just the memory address of the object, but strictly speaking this is
-    // not guaranteed to be a unique identifier. Is there a better alternative?
-    silver.VirtualPosition(node.o.shortPosition + " unique_id=" + System.identityHashCode(node))
+  var uniquePosId: Int = 0
+
+  def pos(node: col.Node[_]): silver.Position = {
+    uniquePosId += 1
+    silver.VirtualPosition(s"${node.o.shortPosition} unique_id=$uniquePosId")
   }
 
   def transform(): silver.Program = {

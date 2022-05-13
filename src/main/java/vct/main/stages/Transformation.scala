@@ -136,8 +136,8 @@ case class SilverTransformation
     EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
     GivenYieldsToArgs,
 
+    CheckContractSatisfiability,
     CheckProcessAlgebra,
-
     EncodeCurrentThread,
     EncodeIntrinsicLock,
     InlineApplicables,

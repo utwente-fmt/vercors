@@ -110,7 +110,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
           Seq(),
           Seq(),
           Seq()
-        ),
+        )(???),
         false,
         false
       )(ModelPostconditionFailed(process)).declareDefault(this)

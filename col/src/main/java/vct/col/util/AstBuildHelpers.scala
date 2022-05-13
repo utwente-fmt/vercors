@@ -205,13 +205,14 @@ object AstBuildHelpers {
     IntegerValue(i)
 
   def contract[G]
-              (requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+              (blame: Blame[NontrivialUnsatisfiable],
+               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil)
               (implicit o: Origin): ApplicableContract[G] =
-    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)
+    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)(blame)
 
   def withResult[G, T <: ContractApplicable[G]](builder: Result[G] => T)(implicit o: Origin): T = {
     val box = SuccessionMap[Unit, ContractApplicable[G]]()
@@ -223,6 +224,7 @@ object AstBuildHelpers {
 
   def procedure[G]
                (blame: Blame[CallableFailure],
+                contractBlame: Blame[NontrivialUnsatisfiable],
                 returnType: Type[G] = TVoid[G](),
                 args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                 body: Option[Statement[G]] = None,
@@ -234,11 +236,12 @@ object AstBuildHelpers {
                 inline: Boolean = false, pure: Boolean = false)
                (implicit o: Origin): Procedure[G] =
     new Procedure(returnType, args, outArgs, typeArgs, body,
-      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
+      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)(contractBlame),
       inline, pure)(blame)
 
   def function[G]
               (blame: Blame[ContractedFailure],
+               contractBlame: Blame[NontrivialUnsatisfiable],
                returnType: Type[G] = TVoid(),
                args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                body: Option[Expr[G]] = None,
@@ -249,7 +252,7 @@ object AstBuildHelpers {
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
                inline: Boolean = false)(implicit o: Origin): Function[G] =
     new Function(returnType, args, typeArgs, body,
-      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs),
+      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs)(contractBlame),
       inline)(blame)
 
   case object GeneratedQuantifier extends Origin {

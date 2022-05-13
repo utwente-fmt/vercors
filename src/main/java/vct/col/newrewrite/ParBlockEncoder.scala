@@ -107,6 +107,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] with LazyL
 
     procedure[Post](
       blame = blame,
+      contractBlame = UnsafeDontCare.Satisfiability("parallel blocks are always used, so an error is reported at its usage"),
       requires = UnitAccountedPredicate(req),
       ensures = UnitAccountedPredicate(ens),
       args = bindings.keys.toSeq,
@@ -137,6 +138,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] with LazyL
         val (Seq(req, ens, inv), vars) = Extract.extract[Pre](requires(region, includingInvariant = true), ensures(region, includingInvariant = true), foldStar(invariants.toSeq))
         val result = procedure[Post](
           blame = AbstractApplicable,
+          contractBlame = UnsafeDontCare.Satisfiability("parallel blocks are always used, so an error is reported at its usage"),
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
           requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
           ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
@@ -148,6 +150,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] with LazyL
 
         val result = procedure[Post](
           blame = AbstractApplicable,
+          contractBlame = UnsafeDontCare.Satisfiability("parallel blocks are always used, so an error is reported at its usage"),
           args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
           requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
           ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
@@ -160,6 +163,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] with LazyL
 
           val result = procedure[Post](
             blame = AbstractApplicable,
+            contractBlame = UnsafeDontCare.Satisfiability("parallel blocks are always used, so an error is reported at its usage"),
             args = collectInScope(variableScopes) { vars.keys.foreach(dispatch) },
             requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* req) }),
             ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(inv &* ens) }),
@@ -223,6 +227,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] with LazyL
       invariants.having(context &* foldAnd(ranges)) {
         procedure(
           blame = ParPostconditionImplementationFailure(block),
+          contractBlame = UnsafeDontCare.Satisfiability("parallel blocks are always used, so an error is reported at its usage"),
           args = args,
           requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(invariantHere) } &* dispatch(requires)),
           ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(invariantHere) } &* dispatch(ensures)),

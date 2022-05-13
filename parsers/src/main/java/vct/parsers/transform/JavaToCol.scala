@@ -167,22 +167,22 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case MemberDeclaration0(MethodDeclaration0(returnType, name, params, dims, signals, body)) =>
       Seq(new JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil),
-        convert(body), c.consumeApplicableContract())(blame(decl)))
+        convert(body), c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case MemberDeclaration1(GenericMethodDeclaration0(typeParams, MethodDeclaration0(
       returnType, name, params, dims, signals, body))) =>
       Seq(new JavaMethod(mods, convert(returnType), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
-        convert(body), c.consumeApplicableContract())(blame(decl)))
+        convert(body), c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case MemberDeclaration2(FieldDeclaration0(t, decls, _)) =>
       // Ignore the contract collector, so that complains about being non-empty
       Seq(new JavaFields(mods, convert(t), convert(decls)))
     case MemberDeclaration3(ConstructorDeclaration0(name, params, signals, ConstructorBody0(body))) =>
       Seq(new JavaConstructor(mods, convert(name), convert(params), Nil,
-        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract())(blame(decl)))
+        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case MemberDeclaration4(GenericConstructorDeclaration0(typeParams,
       ConstructorDeclaration0(name, params, signals, ConstructorBody0(body)))) =>
       Seq(new JavaConstructor(mods, convert(name), convert(params), convert(typeParams),
-        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract())(blame(decl)))
+        signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
     case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
     case MemberDeclaration7(cls) => fail(cls, "Inner classes are not supported.")
@@ -196,12 +196,12 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case InterfaceMemberDeclaration1(InterfaceMethodDeclaration0(t, name, params, dims, signals, _)) =>
       // JLS SE 7 - 9.4
       Seq(new JavaMethod(Seq(JavaPublic[G](), JavaAbstract[G]()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
-        convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract())(blame(decl)))
+        convert(name), convert(params), Nil, signals.map(convert(_)).getOrElse(Nil), None, c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case InterfaceMemberDeclaration2(GenericInterfaceMethodDeclaration0(typeParams, InterfaceMethodDeclaration0(
       t, name, params, dims, signals, _))) =>
       Seq(new JavaMethod(Seq(JavaPublic[G](), JavaAbstract[G]()) ++ mods, convert(t), dims.map(convert(_)).getOrElse(0),
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
-        None, c.consumeApplicableContract())(blame(decl)))
+        None, c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case InterfaceMemberDeclaration3(interface) => fail(interface, "Inner interfaces are not supported.")
     case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Annotations are not supported.")
     case InterfaceMemberDeclaration5(cls) => fail(cls, "Inner classes are not supported.")
@@ -1051,7 +1051,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(),
+            c.consumeApplicableContract(blame(decl)),
             m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
@@ -1084,7 +1084,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(
+            c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })

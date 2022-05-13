@@ -62,6 +62,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     val obj = new Variable[Post](TRef())
     withResult((result: Result[Post]) => function(
       blame = AbstractApplicable,
+      contractBlame = TrueSatisfiable,
       returnType = TInt(),
       args = Seq(obj),
       ensures = UnitAccountedPredicate(
@@ -78,6 +79,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     val sup = new Variable[Post](TInt())
     function(
       blame = PanicBlame("instanceof has no postcondition."),
+      contractBlame = UnsafeDontCare.Satisfiability("that just indicates there are no types"),
       returnType = TBool(),
       args = Seq(sub, sup),
       requires = UnitAccountedPredicate(

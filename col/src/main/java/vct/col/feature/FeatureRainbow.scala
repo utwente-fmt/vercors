@@ -20,6 +20,8 @@ class FeatureRainbow[G] {
     }))
 
   def scanFlatly(node: Node[G]): Seq[Feature] = Seq(node match {
+    case node: Verification[G] => return Nil
+    case node: VerificationContext[G] => return Nil
     case node: Program[G] => return Nil
     case node: IntegerValue[G] => return Nil
     case node: BooleanValue[G] => return Nil

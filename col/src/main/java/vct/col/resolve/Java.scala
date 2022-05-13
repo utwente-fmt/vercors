@@ -111,7 +111,7 @@ case object Java {
         typeParameters = Nil,
         signals = Nil,
         body = Block(Nil),
-        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil),
+        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil)(TrueSatisfiable),
       )(SourceNameOrigin(cls.getSimpleName, o))
     })
 
@@ -125,7 +125,7 @@ case object Java {
         typeParameters = Nil,
         signals = Nil,
         body = None,
-        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil),
+        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil)(TrueSatisfiable),
       )(AbstractApplicable)(SourceNameOrigin(method.getName, o))
     })
 

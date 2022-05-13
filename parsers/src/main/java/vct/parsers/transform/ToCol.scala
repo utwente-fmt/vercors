@@ -36,11 +36,11 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
       result.toSeq
     }
 
-    def consumeApplicableContract()(implicit o: Origin): ApplicableContract[G1] = {
+    def consumeApplicableContract(blame: Blame[NontrivialUnsatisfiable])(implicit o: Origin): ApplicableContract[G1] = {
       ApplicableContract(UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(requires))),
                          UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(ensures))),
                          AstBuildHelpers.foldStar(consume(context_everywhere)),
-                         consume(signals), consume(given), consume(yields))
+                         consume(signals), consume(given), consume(yields))(blame)
     }
 
     def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {

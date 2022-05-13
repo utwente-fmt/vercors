@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.coerce.CoercionUtils
 import vct.col.newrewrite.error.ExtraNode
-import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame}
+import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -69,6 +69,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
     val f = withResult((result: Result[Post]) => function[Post](
       blame = AbstractApplicable,
+      contractBlame = PanicBlame("the function for \\values always has a satisfiable contract"),
       returnType = TSeq(dispatch(arrayType.element)),
       args = Seq(arr_var, from_var, to_var),
       requires =
@@ -187,6 +188,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
       procedure(
         blame = AbstractApplicable,
+        contractBlame = TrueSatisfiable,
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
         ensures = UnitAccountedPredicate(ensures &* forall(definedDims, access => access === undefinedValue))
