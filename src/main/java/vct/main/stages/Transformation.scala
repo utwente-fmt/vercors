@@ -93,8 +93,6 @@ class Transformation
 
       result = pass().dispatch(result)
 
-      logger.debug(s"${pass.key}: ${result.transSubnodes.collect { case _: IterationContract[_] => () }.size}")
-
       result.check match {
         case Nil => // ok
         case errors => throw TransformationCheckError(errors)

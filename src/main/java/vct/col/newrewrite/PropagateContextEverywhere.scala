@@ -109,7 +109,7 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
           }.reduce[Expr[Pre]](And(_, _))
 
           val scale = iters.map {
-            case IterVariable(_, from, to) => from - to
+            case IterVariable(_, from, to) => to - from
           }.reduce[Expr[Pre]](Mult(_, _))
 
           invariants.top.map(inv => nonEmpty ==> Scale(scale, inv)(PanicBlame("scale is framed non-negative")))

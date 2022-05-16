@@ -10,6 +10,7 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
 import vct.options
 import vct.options.PathOrStd
+import vct.parsers.ParseError
 import vct.result.VerificationError
 import vct.result.VerificationError.UserError
 
@@ -49,6 +50,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
   private def matchVerdict(verdict: Verdict, value: Either[VerificationError, Seq[VerificationFailure]]): Unit = {
     value match {
       case Left(err: TemporarilyUnsupported) =>
+        println(err)
+        cancel()
+      case Left(err: ParseError) if err.message.contains("not supported") =>
         println(err)
         cancel()
       case _ =>

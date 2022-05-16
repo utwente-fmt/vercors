@@ -31,6 +31,7 @@ case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
 
 trait VerificationFailure {
   def code: String
+  def errUrl: String = s" (https://utwente.nl/vercors#$code)"
 
   def position: String
 
@@ -77,7 +78,7 @@ trait NodeVerificationFailure extends VerificationFailure {
   def inlineDescWithSource(source: String): String
 
   override def position: String = node.o.shortPosition
-  override def desc: String = node.o.messageInContext(descInContext)
+  override def desc: String = node.o.messageInContext(descInContext + errUrl)
   override def inlineDesc: String = inlineDescWithSource(node.o.inlineContext)
 }
 
@@ -96,7 +97,7 @@ trait WithContractFailure extends VerificationFailure {
   override def desc: String =
     Origin.messagesInContext(Seq(
       (node.o, descInContext + " ..."),
-      (failure.node.o, "... " + failure.descCompletion),
+      (failure.node.o, "... " + failure.descCompletion + errUrl),
     ))
 
   override def inlineDesc: String =
@@ -110,14 +111,14 @@ sealed trait ExpectedErrorFailure extends VerificationFailure {
 case class ExpectedErrorTrippedTwice(err: ExpectedError, left: VerificationFailure, right: VerificationFailure) extends ExpectedErrorFailure {
   override def code: String = "trippedTwice"
   override def position: String = err.errorRegion.shortPosition
-  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times.")
+  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` occurred multiple times."
 }
 
 case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFailure {
   override def code: String = "notTripped"
   override def position: String = err.errorRegion.shortPosition
-  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered.")
+  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
@@ -285,7 +286,7 @@ case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) exte
   override def desc: String =
     Origin.messagesInContext(Seq(
       (block.o, "This parallel block causes the formulas in its body to be quantified over all threads, ..."),
-      (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables."),
+      (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." + errUrl),
     ))
 
   override def inlineDesc: String =
