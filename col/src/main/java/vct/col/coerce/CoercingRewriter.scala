@@ -201,6 +201,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: Statement[Pre] => coerce(node)
     case node: Expr[Pre] => coerce(node)
     case node: Type[Pre] => node
+    case node: DecreasesClause[Pre] => node
     case node: AccountedPredicate[Pre] => node
     case node: ApplicableContract[Pre] => node
     case node: LoopContract[Pre] => node

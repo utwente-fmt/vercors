@@ -552,7 +552,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValEmbedContractBlock1(clauses) => clauses.foreach(convert(_, collector))
   }
 
-  def convert(contract: ValContractClauseContext, collector: ContractCollector[G]): Unit = contract match {
+  def convert(implicit contract: ValContractClauseContext, collector: ContractCollector[G]): Unit = contract match {
     case ValContractClause0(_, ids, _) => collector.modifies ++= convert(ids).map((contract, _))
     case ValContractClause1(_, ids, _) => collector.accessible ++= convert(ids).map((contract, _))
     case ValContractClause2(_, exp, _) => collector.requires += ((contract, convert(exp)))
@@ -573,6 +573,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
       collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
+    case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
+    case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))
+  }
+
+  def convert(implicit clause: ValDecreasesMeasureContext): DecreasesClause[G] = clause match {
+    case ValDecreasesMeasure0(_) => DecreasesClauseAssume()
+    case ValDecreasesMeasure1(exps) => DecreasesClauseTuple(convert(exps))
   }
 
   def convert(mod: ValEmbedModifierContext, collector: ModifierCollector): Unit = mod match {

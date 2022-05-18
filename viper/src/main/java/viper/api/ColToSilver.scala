@@ -3,7 +3,7 @@ package viper.api
 import hre.lang.HREExitException
 import hre.lang.System.Warning
 import hre.util.ScopedStack
-import vct.col.ast.{AxiomaticDataType, PredicateApply, SplitAccountedPredicate, UnitAccountedPredicate}
+import vct.col.ast.{AxiomaticDataType, DecreasesClauseAssume, DecreasesClauseNoRecursion, DecreasesClauseTuple, PredicateApply, SplitAccountedPredicate, UnitAccountedPredicate}
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
@@ -11,6 +11,7 @@ import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
 import viper.api.ColToSilver.NotSupported
 import viper.silver.ast.TypeVar
+import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesTuple, DecreasesWildcard}
 import viper.silver.{ast => silver}
 
 import scala.collection.immutable.{ListMap, SortedMap}
@@ -135,7 +136,7 @@ case class ColToSilver(program: col.Program[_]) {
           ref(function),
           function.args.map(variable),
           typ(function.returnType),
-          pred(function.contract.requires),
+          pred(function.contract.requires) ++ function.contract.decreases.toSeq.map(decreases),
           pred(function.contract.ensures),
           function.body.map(exp),
         )(pos=pos(function), info=NodeInfo(function))
@@ -149,7 +150,7 @@ case class ColToSilver(program: col.Program[_]) {
           ref(procedure),
           procedure.args.map(variable),
           procedure.outArgs.map(variable),
-          pred(procedure.contract.requires),
+          pred(procedure.contract.requires) ++ procedure.contract.decreases.toSeq.map(decreases),
           pred(procedure.contract.ensures),
           procedure.body.map(body => silver.Seqn(Seq(block(body)), labelDecls)(pos=pos(body), info=NodeInfo(body)))
         )(pos=pos(procedure), info=NodeInfo(procedure))
@@ -177,6 +178,12 @@ case class ColToSilver(program: col.Program[_]) {
       )(pos=pos(adt), info=NodeInfo(adt))
     case other =>
       ??(other)
+  }
+
+  def decreases(clause: col.DecreasesClause[_]): DecreasesClause = clause match {
+    case DecreasesClauseAssume() => DecreasesWildcard(condition = None)(pos=pos(clause), info=NodeInfo(clause))
+    case DecreasesClauseNoRecursion() => DecreasesTuple(Nil, condition = None)(pos=pos(clause), info=NodeInfo(clause))
+    case DecreasesClauseTuple(exprs) => DecreasesTuple(exprs.map(exp), condition = None)(pos=pos(clause), info=NodeInfo(clause))
   }
 
   def variable(v: col.Variable[_]): silver.LocalVarDecl =

@@ -348,6 +348,7 @@ class FeatureRainbow[G] {
     case node: AxiomaticDataType[G] => return Nil
     case node: ADTAxiom[G] => return Nil
     case node: SignalsClause[G] => Exceptions
+    case node: DecreasesClause[G] => return Nil
     case node: ApplicableContract[G] => return Nil
     case node: SplitAccountedPredicate[G] => return Nil
     case node: UnitAccountedPredicate[G] => return Nil

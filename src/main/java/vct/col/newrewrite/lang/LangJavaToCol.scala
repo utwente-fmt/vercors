@@ -168,7 +168,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 Perm(local, WritePerm())
               })
           }.flatten)),
-          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
+          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
       javaDefaultConstructor(currentJavaClass.top) +: decls

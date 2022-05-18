@@ -41,6 +41,7 @@ import vct.col.ast.temporaryimplpackage.family.accountedpredicate._
 import vct.col.ast.temporaryimplpackage.family.catchclause._
 import vct.col.ast.temporaryimplpackage.family.coercion._
 import vct.col.ast.temporaryimplpackage.family.contract._
+import vct.col.ast.temporaryimplpackage.family.decreases._
 import vct.col.ast.temporaryimplpackage.family.fieldflag._
 import vct.col.ast.temporaryimplpackage.family.invoking._
 import vct.col.ast.temporaryimplpackage.family.itervariable._
@@ -269,8 +270,13 @@ sealed trait Field[G] extends FieldImpl[G]
 
 final case class SignalsClause[G](binding: Variable[G], assn: Expr[G])(implicit val o: Origin) extends NodeFamily[G] with SignalsClauseImpl[G]
 
+sealed trait DecreasesClause[G] extends NodeFamily[G] with DecreasesClauseImpl[G]
+final case class DecreasesClauseAssume[G]()(implicit val o: Origin) extends DecreasesClause[G] with DecreasesClauseAssumeImpl[G]
+final case class DecreasesClauseNoRecursion[G]()(implicit val o: Origin) extends DecreasesClause[G] with DecreasesClauseNoRecursionImpl[G]
+final case class DecreasesClauseTuple[G](exprs: Seq[Expr[G]])(implicit val o: Origin) extends DecreasesClause[G] with DecreasesClauseTupleImpl[G]
+
 final case class ApplicableContract[G](requires: AccountedPredicate[G], ensures: AccountedPredicate[G], contextEverywhere: Expr[G],
-                                       signals: Seq[SignalsClause[G]], givenArgs: Seq[Variable[G]], yieldsArgs: Seq[Variable[G]])
+                                       signals: Seq[SignalsClause[G]], givenArgs: Seq[Variable[G]], yieldsArgs: Seq[Variable[G]], decreases: Option[DecreasesClause[G]])
                                       (val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin) extends NodeFamily[G] with ApplicableContractImpl[G]
 
 sealed trait AccountedPredicate[G] extends NodeFamily[G] with AccountedPredicateImpl[G]

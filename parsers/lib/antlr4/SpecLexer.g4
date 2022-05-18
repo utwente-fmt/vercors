@@ -72,6 +72,7 @@ VAL_LOOP_INVARIANT: 'loop_invariant';
 VAL_KERNEL_INVARIANT: 'kernel_invariant';
 VAL_LOCK_INVARIANT: 'lock_invariant';
 VAL_SIGNALS: 'signals';
+VAL_DECREASES: 'decreases';
 
 VAL_CREATE: 'create_wand';
 VAL_QED: 'qed';

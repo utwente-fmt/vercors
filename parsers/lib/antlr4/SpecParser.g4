@@ -50,6 +50,12 @@ valContractClause
  | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
  | 'lock_invariant' langExpr ';'
+ | 'decreases' valDecreasesMeasure? ';'
+ ;
+
+valDecreasesMeasure
+ : 'assume'
+ | valExpressionList
  ;
 
 valBlock

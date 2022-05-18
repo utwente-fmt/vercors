@@ -326,6 +326,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   override def dispatch(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
       program.rewrite(declarations = collectInScope(globalScopes) {
+        parse("viper_order")
         anyFile
         program.declarations.foreach(dispatch)
       })
