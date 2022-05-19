@@ -1015,8 +1015,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit e: ValExprContext): Expr[G] = e match {
     case ValExpr0(inner) => convert(inner)
     case ValExpr1(inner) => convert(inner)
-    case ValExpr2(inner) => local(e, convertText(inner))
-    case ValExpr3(ValKeywordNonExpr0(text)) => local(e, text)
   }
 
   def convert(implicit id: ValIdentifierContext): String = id match {

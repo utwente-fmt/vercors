@@ -222,8 +222,6 @@ valPrimaryContext
 valExpr
  : {specLevel>0}? valPrimary
  | {specLevel>0}? valKeywordExpr
- | {specLevel==0}? valKeywordExpr
- | {specLevel==0}? valKeywordNonExpr
  ;
 
 valIdentifier

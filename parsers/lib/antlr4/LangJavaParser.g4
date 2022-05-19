@@ -587,8 +587,8 @@ expression
     ;
 
 expr
-    :   valExpr # javaValPrimary
-    |   annotatedPrimary # javaPrimary
+    :   annotatedPrimary # javaPrimary
+    |   valExpr # javaValPrimary
     |   expr '.' javaIdentifier # javaDeref
     |   expr '.' 'this' # javaPinnedThis
     |   expr '.' 'new' nonWildcardTypeArguments? innerCreator # javaPinnedOuterClassNew
