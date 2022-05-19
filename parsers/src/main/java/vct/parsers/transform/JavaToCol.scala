@@ -687,11 +687,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Primary1(_) => AmbiguousThis()
     case Primary2(_) => ??(expr)
     case Primary3(literal) => convert(literal)
-    case Primary4(name) => name match {
-      case JavaIdentifier0(specInSpec) => convert(specInSpec)
-      case JavaIdentifier1(name) => JavaLocal(name)(blame(expr))
-      case JavaIdentifier2(_) => JavaLocal(convert(name))(blame(expr))
-    }
+    case Primary4(name) => local(expr, convert(name))
     case Primary5(name, familyType, given, args, yields) =>
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
       col.JavaInvocation(None, Nil, convert(name), convert(args),
@@ -720,17 +716,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit id: JavaIdentifierContext): String = id match {
-    case JavaIdentifier0(specInSpec) => specInSpec match {
-      case ValIdEscape(id) => id.substring(1, id.length-1)
-      case other => fail(other,
-        f"This identifier is reserved, and cannot be declared or used in specifications. " +
-          f"You might want to escape the identifier with backticks: `${other.getText}`")
-    }
-    case JavaIdentifier1(id) => id
-    case JavaIdentifier2(specOutOfSpec) =>
-      val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z_]+")) text
-      else fail(specOutOfSpec, f"This identifier is not allowed in Java.")
+    case JavaIdentifier0(text) => text
+    case JavaIdentifier1(inner) => convert(inner)
   }
 
   def convert(implicit decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
@@ -1214,7 +1201,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
     case ValRangeQuantifier(_, quant, t, id, _, from, _, to, _, body, _) =>
       val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
-      val cond = SeqMember(Local[G](variable.ref), Range(convert(from), convert(to)))
+      val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
       quant match {
         case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))(blame(e))
         case "\\forall" => Forall(Seq(variable), Nil, Implies(cond, convert(body)))
@@ -1257,6 +1244,13 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValRunning(_, _, thread, _) => JoinToken(convert(thread))
   }
 
+  def convert(implicit e: ValPrimaryContextContext): Expr[G] = e match {
+    case ValPrimaryContext0("\\result") => AmbiguousResult()
+    case ValPrimaryContext1("\\current_thread") => CurrentThreadId()
+    case ValPrimaryContext2("\\ltid") => LocalThreadId()
+    case ValPrimaryContext3("\\gtid") => GlobalThreadId()
+  }
+
   def convert(implicit e: ValPrimaryContext): Expr[G] = e match {
     case ValPrimary0(inner) => convert(inner)
     case ValPrimary1(inner) => convert(inner)
@@ -1267,6 +1261,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
+    case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
@@ -1276,22 +1271,38 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 
-  def convert(implicit res: ValReservedContext): Expr[G] = res match {
-    case ValReserved0(name) => fail(res,
-      f"This identifier is reserved, and cannot be declared or used in specifications. " +
-        f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
-    case ValResult(_) => AmbiguousResult()
-    case ValCurrentThread(_) => CurrentThreadId()
+  def convert(implicit e: ValExprContext): Expr[G] = e match {
+    case ValExpr0(inner) => convert(inner)
+    case ValExpr1(inner) => convert(inner)
+    case ValExpr2(inner) => local(e, convertText(inner))
+    case ValExpr3(ValKeywordNonExpr0(text)) => local(e, text)
+  }
+
+  def convert(implicit id: ValIdentifierContext): String = id match {
+    case ValIdentifier0(inner) => convertText(inner)
+    case ValIdentifier1(ValKeywordNonExpr0(text)) => text
+    case ValIdentifier2(text) => text.substring(1, text.length-1)
+  }
+
+  def convertText(implicit res: ValKeywordExprContext): String = res match {
+    case ValNonePerm(_) => "none"
+    case ValWrite(_) => "write"
+    case ValRead(_) => "read"
+    case ValNoneOption(_) => "None"
+    case ValEmpty(_) => "empty"
+    case ValTrue(_) => "true"
+    case ValFalse(_) => "false"
+  }
+
+  def convert(implicit res: ValKeywordExprContext): Expr[G] = res match {
     case ValNonePerm(_) => NoPerm()
     case ValWrite(_) => WritePerm()
     case ValRead(_) => ReadPerm()
     case ValNoneOption(_) => OptNone()
     case ValEmpty(_) => EmptyProcess()
-    case ValLtid(_) => LocalThreadId()
-    case ValGtid(_) => GlobalThreadId()
     case ValTrue(_) => tt
     case ValFalse(_) => ff
   }

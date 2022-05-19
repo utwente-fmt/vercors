@@ -25,7 +25,6 @@ VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
-VAL_SIZEOF: 'sizeof';
 */
 
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.

@@ -126,7 +126,7 @@ postfixExpr
  ;
 
 unit
- : valPrimary
+ : valExpr
  | 'this'
  | 'null'
  | NUMBER
@@ -245,4 +245,4 @@ identifierList
  | identifier ',' identifierList
  ;
 
-identifier : Identifier | valReserved ;
+identifier : Identifier | LANG_ID_ESCAPE ;

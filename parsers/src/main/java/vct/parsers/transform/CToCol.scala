@@ -459,11 +459,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {
     case PrimaryExpression0(inner) => convert(inner)
-    case PrimaryExpression1(name) => name match {
-      case ClangIdentifier0(specInSpec) => convert(specInSpec)
-      case ClangIdentifier1(name) => CLocal(name)(blame(expr))
-      case ClangIdentifier2(_) => CLocal(convert(name))(blame(expr))
-    }
+    case PrimaryExpression1(inner) => local(expr, convert(inner))
     case PrimaryExpression2(const) => IntegerValue(Integer.parseInt(const))
     case PrimaryExpression3(_) => ??(expr)
     case PrimaryExpression4(_, inner, _) => convert(inner)
@@ -480,17 +476,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(id: ClangIdentifierContext): String = id match {
-    case ClangIdentifier0(specInSpec) => specInSpec match {
-      case ValIdEscape(id) => id.substring(1, id.length-1)
-      case other => fail(other,
-        f"This identifier is reserved, and cannot be declared or used in specifications. " +
-          f"You might want to escape the identifier with backticks: `${other.getText}`")
-    }
-    case ClangIdentifier1(id) => id
-    case ClangIdentifier2(specOutOfSpec) =>
-      val text = specOutOfSpec.getText
-      if(text.matches("[a-zA-Z_]+")) text
-      else fail(specOutOfSpec, f"This identifier is not allowed in C.")
+    case ClangIdentifier0(text) => text
+    case ClangIdentifier1(inner) => convert(inner)
   }
 
   def convert(expr: LangExprContext): Expr[G] = expr match {
@@ -844,7 +831,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
         withModifiers(modifiers, m => {
-          transform(new InstanceFunction[G](
+          transform(new InstanceFunction(
             convert(t),
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
@@ -1015,6 +1002,13 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValRunning(_, _, thread, _) => JoinToken(convert(thread))
   }
 
+  def convert(implicit e: ValPrimaryContextContext): Expr[G] = e match {
+    case ValPrimaryContext0("\\result") => AmbiguousResult()
+    case ValPrimaryContext1("\\current_thread") => CurrentThreadId()
+    case ValPrimaryContext2("\\ltid") => LocalThreadId()
+    case ValPrimaryContext3("\\gtid") => GlobalThreadId()
+  }
+
   def convert(implicit e: ValPrimaryContext): Expr[G] = e match {
     case ValPrimary0(inner) => convert(inner)
     case ValPrimary1(inner) => convert(inner)
@@ -1025,6 +1019,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
+    case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
@@ -1034,22 +1029,38 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 
-  def convert(implicit res: ValReservedContext): Expr[G] = res match {
-    case ValReserved0(name) => fail(res,
-      f"This identifier is reserved, and cannot be declared or used in specifications. " +
-        f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
-    case ValResult(_) => AmbiguousResult()
-    case ValCurrentThread(_) => CurrentThreadId()
+  def convert(implicit e: ValExprContext): Expr[G] = e match {
+    case ValExpr0(inner) => convert(inner)
+    case ValExpr1(inner) => convert(inner)
+    case ValExpr2(inner) => local(e, convertText(inner))
+    case ValExpr3(ValKeywordNonExpr0(text)) => local(e, text)
+  }
+
+  def convert(implicit id: ValIdentifierContext): String = id match {
+    case ValIdentifier0(inner) => convertText(inner)
+    case ValIdentifier1(ValKeywordNonExpr0(text)) => text
+    case ValIdentifier2(text) => text.substring(1, text.length-1)
+  }
+
+  def convertText(implicit res: ValKeywordExprContext): String = res match {
+    case ValNonePerm(_) => "none"
+    case ValWrite(_) => "write"
+    case ValRead(_) => "read"
+    case ValNoneOption(_) => "None"
+    case ValEmpty(_) => "empty"
+    case ValTrue(_) => "true"
+    case ValFalse(_) => "false"
+  }
+
+  def convert(implicit res: ValKeywordExprContext): Expr[G] = res match {
     case ValNonePerm(_) => NoPerm()
     case ValWrite(_) => WritePerm()
     case ValRead(_) => ReadPerm()
     case ValNoneOption(_) => OptNone()
     case ValEmpty(_) => EmptyProcess()
-    case ValLtid(_) => LocalThreadId()
-    case ValGtid(_) => GlobalThreadId()
     case ValTrue(_) => tt
     case ValFalse(_) => ff
   }

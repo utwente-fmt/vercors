@@ -587,7 +587,7 @@ expression
     ;
 
 expr
-    :   {specLevel>0}? valPrimary # javaValPrimary
+    :   valExpr # javaValPrimary
     |   annotatedPrimary # javaPrimary
     |   expr '.' javaIdentifier # javaDeref
     |   expr '.' 'this' # javaPinnedThis
@@ -757,7 +757,6 @@ arguments
     ;
 
 javaIdentifier
-    : {specLevel>0}? valReserved
-    | Identifier
-    | valReserved // allow reserved identifiers outside specification
+    : Identifier
+    | valIdentifier
     ;

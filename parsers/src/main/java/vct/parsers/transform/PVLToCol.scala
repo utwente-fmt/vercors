@@ -232,7 +232,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit2(_) => Null()
     case Unit3(n) => const(Integer.parseInt(n))
     case Unit4(_, inner, _) => convert(inner)
-    case Unit5(id, None) => convertExpr(id)
+    case Unit5(id, None) => local(id, convert(id))
     case Unit5(id, Some(Call0(typeArgs, given, args, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
@@ -453,14 +453,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit id: IdentifierContext): String = id match {
     case Identifier0(id) => id
-    case Identifier1(ValIdEscape(id)) => id.substring(1, id.length - 1)
-    case Identifier1(reserved) =>
-      fail(reserved, "This identifier is reserved and cannot be declared.")
-  }
-
-  def convertExpr(implicit id: IdentifierContext): Expr[G] = id match {
-    case Identifier0(name) => PVLLocal(name)(blame(id))
-    case Identifier1(reserved) => convert(reserved)
+    case Identifier1(id) => id.substring(1, id.length - 1)
   }
 
   def withContract[T](node: ContractContext, f: ContractCollector[G] => T): T = node match {
@@ -989,6 +982,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValRunning(_, _, thread, _) => JoinToken(convert(thread))
   }
 
+  def convert(implicit e: ValPrimaryContextContext): Expr[G] = e match {
+    case ValPrimaryContext0("\\result") => AmbiguousResult()
+    case ValPrimaryContext1("\\current_thread") => CurrentThreadId()
+    case ValPrimaryContext2("\\ltid") => LocalThreadId()
+    case ValPrimaryContext3("\\gtid") => GlobalThreadId()
+  }
+
   def convert(implicit e: ValPrimaryContext): Expr[G] = e match {
     case ValPrimary0(inner) => convert(inner)
     case ValPrimary1(inner) => convert(inner)
@@ -999,6 +999,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
+    case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
@@ -1008,22 +1009,38 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 
-  def convert(implicit res: ValReservedContext): Expr[G] = res match {
-    case ValReserved0(name) => fail(res,
-      f"This identifier is reserved, and cannot be declared or used in specifications. " +
-        f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
-    case ValResult(_) => AmbiguousResult()
-    case ValCurrentThread(_) => CurrentThreadId()
+  def convert(implicit e: ValExprContext): Expr[G] = e match {
+    case ValExpr0(inner) => convert(inner)
+    case ValExpr1(inner) => convert(inner)
+    case ValExpr2(inner) => local(e, convertText(inner))
+    case ValExpr3(ValKeywordNonExpr0(text)) => local(e, text)
+  }
+
+  def convert(implicit id: ValIdentifierContext): String = id match {
+    case ValIdentifier0(inner) => convertText(inner)
+    case ValIdentifier1(ValKeywordNonExpr0(text)) => text
+    case ValIdentifier2(text) => text.substring(1, text.length-1)
+  }
+
+  def convertText(implicit res: ValKeywordExprContext): String = res match {
+    case ValNonePerm(_) => "none"
+    case ValWrite(_) => "write"
+    case ValRead(_) => "read"
+    case ValNoneOption(_) => "None"
+    case ValEmpty(_) => "empty"
+    case ValTrue(_) => "true"
+    case ValFalse(_) => "false"
+  }
+
+  def convert(implicit res: ValKeywordExprContext): Expr[G] = res match {
     case ValNonePerm(_) => NoPerm()
     case ValWrite(_) => WritePerm()
     case ValRead(_) => ReadPerm()
     case ValNoneOption(_) => OptNone()
     case ValEmpty(_) => EmptyProcess()
-    case ValLtid(_) => LocalThreadId()
-    case ValGtid(_) => GlobalThreadId()
     case ValTrue(_) => tt
     case ValFalse(_) => ff
   }
