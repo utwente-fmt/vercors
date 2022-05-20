@@ -61,6 +61,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ClassDecl1(inner) => convert(inner)
     case ClassDecl2(inner) => Seq(convert(inner))
     case ClassDecl3(inner) => convert(inner)
+    case ClassDecl4(inner) => convert(inner)
   }
 
   def convert(implicit method: MethodContext): InstanceMethod[G] = method match {
@@ -93,6 +94,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
     case Field0(t, ids, _) =>
       convert(ids).map(name => new InstanceField[G](convert(t), Set.empty)(SourceNameOrigin(name, origin(field))))
+  }
+
+  def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
+    case RunMethod0(contract, _, maybeBody) =>
+      withContract(contract, contract =>
+        Seq(new RunMethod(convert(maybeBody), contract.consumeApplicableContract(blame(method)))(blame(method)))
+      )
   }
 
   def convert(implicit args: ArgsContext): Seq[Variable[G]] = args match {

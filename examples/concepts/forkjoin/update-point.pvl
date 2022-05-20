@@ -32,7 +32,7 @@ class Y {
 
   requires Perm(this.p,33) ** Perm(this.p.y,100);
   ensures Perm(this.p,33) ** PointsTo(this.p.y,100,\old(this.p.y)+1);
-  void run() {
+  run {
     Point q = this.p;
     q.y = q.y+1 ;
   }

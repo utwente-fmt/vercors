@@ -50,6 +50,7 @@ KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
+RUN: 'run';
 
 IF: 'if';
 ELSE: 'else';

@@ -419,7 +419,7 @@ class Main {
 	context 0 <= val && val < pr.maxvalue;
 	requires pr.f.state(r2, pr.f.Elect(rank, pr.size, val, pr.maxvalue, 0));
 	ensures pr.f.state(r2, empty);
-	void run() {
+	run {
 		int res = pr.elect given { q1 = r1, q2 = r2 } (rank, val);
 		
 		lock pr;
