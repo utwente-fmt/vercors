@@ -588,7 +588,6 @@ expression
 
 expr
     :   annotatedPrimary # javaPrimary
-    |   valExpr # javaValPrimary
     |   expr '.' javaIdentifier # javaDeref
     |   expr '.' 'this' # javaPinnedThis
     |   expr '.' 'new' nonWildcardTypeArguments? innerCreator # javaPinnedOuterClassNew
@@ -680,7 +679,8 @@ primary
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall
-	;
+    |   valExpr
+	  ;
 
 constructorCall
     :   explicitGenericInvocationSuffix

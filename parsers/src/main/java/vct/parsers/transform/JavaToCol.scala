@@ -541,7 +541,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit expr: ExprContext): Expr[G] = expr match {
-    case JavaValPrimary(inner) => convert(inner)
     case JavaPrimary(inner) => convert(inner)
     case parse.JavaDeref(obj, _, field) => col.JavaDeref(convert(obj), convert(field))(blame(expr))
     case JavaPinnedThis(innerOrOuterClass, _, _) => ??(expr)
@@ -696,6 +695,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Primary6(_, _, _) => ??(expr)
     case Primary7(_, _, _) => ??(expr)
     case _: Primary8Context => ??(expr)
+    case Primary9(inner) => convert(inner)
   }
 
   def convert(implicit expr: LiteralContext): Expr[G] = expr match {
