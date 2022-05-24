@@ -33,6 +33,7 @@ class Fib {
   }
   
   ensures Perm(input,1) ** Perm(output,1) ** input==n;
+  ensures idle(this);
   constructor(int n){
     input = n;
   }

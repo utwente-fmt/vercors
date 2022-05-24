@@ -208,7 +208,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
-      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), inv.blame))(inv.o)
+      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case fold @ Fold(inv: InstancePredicateApply[Pre]) =>
       Fold(rewriteInstancePredicateApply(inv))(fold.blame)(fold.o)
     case unfold @ Unfold(inv: InstancePredicateApply[Pre]) =>
