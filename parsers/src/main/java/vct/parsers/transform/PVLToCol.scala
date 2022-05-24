@@ -253,8 +253,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlUnlock(_, obj, _) => Unlock(convert(obj))(blame(stat))
     case PvlWait(_, obj, _) => Wait(convert(obj))(blame(stat))
     case PvlNotify(_, obj, _) => Notify(convert(obj))(blame(stat))
-    case PvlFork(_, obj, _) => Fork(convert(obj))
-    case PvlJoin(_, obj, _) => Join(convert(obj))
+    case PvlFork(_, obj, _) => Fork(convert(obj))(blame(stat))
+    case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
     case PvlIf(_, _, cond, _, body, None) =>
       Branch(Seq((convert(cond), convert(body))))

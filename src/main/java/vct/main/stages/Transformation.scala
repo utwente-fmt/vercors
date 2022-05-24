@@ -2,7 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{IterationContract, Program, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite._
@@ -71,7 +71,6 @@ class Transformation
 
   override def run(input: VerificationContext[_ <: Generation]): Verification[_ <: Generation] = {
     val tempUnsupported = Set[feature.Feature](
-      feature.JavaThreads,
       feature.MatrixVector,
       feature.NumericReductionOperator,
       feature.MagicWand,
@@ -97,6 +96,10 @@ class Transformation
         case Nil => // ok
         case errors => throw TransformationCheckError(errors)
       }
+
+      logger.debug(s"After ${pass.key}: ${result.transSubnodes.collect {
+        case _: RunMethod[_] => ()
+      }.size} run methods")
 
       onAfterPassKey.foreach {
         case (key, action) => if(pass.key == key) action(result)
@@ -138,6 +141,7 @@ case class SilverTransformation
     CheckProcessAlgebra,
     EncodeCurrentThread,
     EncodeIntrinsicLock,
+    EncodeForkJoin,
     InlineApplicables,
     PureMethodsToFunctions,
 

@@ -252,6 +252,34 @@ case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure 
   override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the sequence."
 }
 
+sealed trait ForkFailure extends VerificationFailure
+case class ForkNull(node: Fork[_]) extends ForkFailure with NodeVerificationFailure {
+  override def code: String = "forkNull"
+  override def descInContext: String = "This runnable may be null."
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may be null."
+}
+case class RunnableNotIdle(node: Fork[_]) extends ForkFailure with NodeVerificationFailure {
+  override def code: String = "running"
+  override def descInContext: String = "This runnable may not be idle. (Hint: make sure the constructor ensures idle(this))"
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may not be idle."
+}
+case class RunnablePreconditionNotEstablished(node: Fork[_], failure: ContractFailure) extends ForkFailure with WithContractFailure {
+  override def baseCode: String = "forkPre"
+  override def descInContext: String = "The precondition of the runnable may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of the runnable in `$node` may not hold, since $failure."
+}
+sealed trait JoinFailure extends VerificationFailure
+case class JoinNull(node: Join[_]) extends JoinFailure with NodeVerificationFailure {
+  override def code: String = "joinNull"
+  override def descInContext: String = "This runnable may be null."
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may be null."
+}
+case class RunnableNotRunning(node: Join[_]) extends JoinFailure with NodeVerificationFailure {
+  override def code: String = "idle"
+  override def descInContext: String = "This runnable may not be running."
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may not be running."
+}
+
 case class ParInvariantNotEstablished(failure: ContractFailure, node: ParInvariant[_]) extends WithContractFailure {
   override def baseCode: String = "notEstablished"
   override def descInContext: String = "This parallel invariant may not be established, since"

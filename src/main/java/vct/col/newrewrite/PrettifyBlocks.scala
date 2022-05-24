@@ -66,6 +66,8 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case method: RunMethod[Pre] =>
+      method.rewrite(body = method.body.map(collectVariables(_))).succeedDefault(method)
     case method: AbstractMethod[Pre] =>
       method.rewrite(body = method.body.map(collectVariables(_))).succeedDefault(method)
     case other => rewriteDefault(other)

@@ -292,6 +292,7 @@ class FeatureRainbow[G] {
     case node: Throw[G] => Exceptions
     case node: Wait[G] => WaitNotify
     case node: Notify[G] => WaitNotify
+    case node: RunMethod[G] => JavaThreads
     case node: Fork[G] => JavaThreads
     case node: Join[G] => JavaThreads
     case node: Lock[G] => IntrinsicLocks
