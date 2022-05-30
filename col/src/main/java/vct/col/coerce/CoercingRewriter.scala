@@ -726,6 +726,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Implies(bool(left), res(right))
       case FunctionOf(e, ref) =>
         FunctionOf(e, ref)
+      case IndeterminateInteger(min, max) =>
+        IndeterminateInteger(int(min), int(max))
       case InlinePattern(inner) =>
         InlinePattern(inner)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
@@ -1120,11 +1122,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
       case f @ Fold(assn) => Fold(res(assn))(f.blame)
       case f @ Fork(obj) => Fork(cls(obj)._1)(f.blame)
+      case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
       case Goto(lbl) => Goto(lbl)
       case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
       case GpgpuGlobalBarrier(requires, ensures) => GpgpuGlobalBarrier(res(requires), res(ensures))
       case GpgpuLocalBarrier(requires, ensures) => GpgpuLocalBarrier(res(requires), res(ensures))
       case Havoc(loc) => Havoc(loc)
+      case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)

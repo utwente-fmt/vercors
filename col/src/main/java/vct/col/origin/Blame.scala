@@ -152,6 +152,17 @@ case class SendFailed(failure: ContractFailure, node: Send[_]) extends WithContr
   override def descInContext: String = "Send may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
+sealed trait FramedProofFailure extends VerificationFailure
+case class FramedProofPreFailed(failure: ContractFailure, node: FramedProof[_]) extends FramedProofFailure with WithContractFailure {
+  override def baseCode: String = "framePre"
+  override def descInContext: String = "Precondition of framed statement may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may fail, since $failure."
+}
+case class FramedProofPostFailed(failure: ContractFailure, node: FramedProof[_]) extends FramedProofFailure with WithContractFailure {
+  override def baseCode: String = "framePost"
+  override def descInContext: String = "Postcondition of framed statement may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may fail, since $failure."
+}
 
 sealed trait AccountedDirection
 case object FailLeft extends AccountedDirection
@@ -305,6 +316,11 @@ case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed w
   override def code: String = "barrierThrows"
   override def descInContext: String = "The proof hint for this barrier may throw an exception."
   override def inlineDescWithSource(source: String): String = s"The proof hint of `$source` may throw an exception."
+}
+case class ParBarrierInvariantBroken(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+  override def baseCode: String = "barrierInvariant"
+  override def descInContext: String = "The barrier may not re-establish the used invariants, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not re-established the used invariants, since $failure."
 }
 
 sealed trait ParBlockFailure extends VerificationFailure

@@ -150,6 +150,9 @@ case class SilverTransformation
     EncodeParAtomic,
     ParBlockEncoder,
 
+    // Encode proof helpers
+    EncodeProofHelpers,
+
     // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SpecifyImplicitLabels,
     SwitchToGoto,

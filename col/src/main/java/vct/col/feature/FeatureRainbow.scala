@@ -250,6 +250,7 @@ class FeatureRainbow[G] {
     case node: ScopedExpr[G] => return Nil
     case node: LoopInvariant[G] => return Nil
     case node: IterationContract[G] => LoopIterationContract
+    case node: IndetBranch[G] => NonTrivialBranch
     case node: Branch[G] =>
       node.branches match {
         case Seq((_, _), (BooleanValue(true), _)) => return Nil
@@ -480,5 +481,6 @@ class FeatureRainbow[G] {
     case node: PVLNew[G] => return Nil
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
+    case node: FramedProof[G] => return Nil
   })
 }

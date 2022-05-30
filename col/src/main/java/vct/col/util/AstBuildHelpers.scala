@@ -24,6 +24,7 @@ object AstBuildHelpers {
     def <=(right: Expr[G])(implicit origin: Origin): LessEq[G] = LessEq(left, right)
     def >=(right: Expr[G])(implicit origin: Origin): GreaterEq[G] = GreaterEq(left, right)
 
+    def unary_!(implicit origin: Origin): Not[G] = Not(left)
     def &&(right: Expr[G])(implicit origin: Origin): And[G] = And(left, right)
     def ||(right: Expr[G])(implicit origin: Origin): Or[G] = Or(left, right)
     def &*(right: Expr[G])(implicit origin: Origin): Star[G] = Star(left, right)

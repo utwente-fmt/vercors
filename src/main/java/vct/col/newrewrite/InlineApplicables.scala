@@ -2,11 +2,11 @@ package vct.col.newrewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.newrewrite.util.Substitute
 import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.reflect.ClassTag

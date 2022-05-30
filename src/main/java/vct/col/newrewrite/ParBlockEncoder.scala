@@ -3,7 +3,8 @@ package vct.col.newrewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.newrewrite.util.{Extract, Substitute}
+import vct.col.newrewrite.util.Extract
+import vct.col.util.Substitute
 import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
