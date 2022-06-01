@@ -21,8 +21,13 @@ public class CalculatorSpec {
     private double mean;
     private double variance;
 
-    @Transition(name = START, source = INIT, target = WORK)
+    private int[] numbers;
+
+    @Transition(name = START, source = INIT, target = WORK, requires = "true", ensures = "true")
     public void start() {
+        mean = 3;
+        //@ assert Perm(numbers[3], write);
+        //@ assert Perm(mean, write);
         // System.out.println("CALCULATOR: READY TO WORK");
         // System.out.println("start" + LocalDateTime.now());
     }
