@@ -8,10 +8,20 @@ import vct.options.Options
 import viper.api.{Carbon, Silicon}
 
 case object Backend {
+
   def ofOptions(options: Options): Backend = options.backend match {
     case vct.options.Backend.Silicon => SilverBackend(Silicon(
-      z3Settings = Map.empty,
+      z3Settings = options.devPrintRawQuantifierStats match {
+        case Some(amount) => Map(
+          "smt.qi.profile" -> "true",
+          "smt.qi.profile_freq" -> (amount + "")
+        )
+        case None => Map.empty
+      },
       z3Path = options.z3Path,
+      // In the PR they set the threads to 0, so we also do it here (https://github.com/viperproject/silicon/pull/587)
+      numberOfParallelVerifiers = if (options.devPrintRawQuantifierStats.isDefined) { Some(1) } else { None },
+      logLevel = if (options.devPrintRawQuantifierStats.isDefined) { Some("INFO") } else { None },
     ), options.backendFile)
     case vct.options.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,

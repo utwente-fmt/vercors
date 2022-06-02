@@ -132,6 +132,9 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").hidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
+      opt[Int]("dev-print-raw-quantifier-stats").hidden()
+        .action((amount, c) => c.copy(devPrintRawQuantifierStats = Some(amount)))
+        .text("Print raw quantifier instantiation statistics from Z3, every <amount> occurrences"),
 
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
@@ -264,6 +267,7 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
+  devPrintRawQuantifierStats: Option[Int] = None,
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required
