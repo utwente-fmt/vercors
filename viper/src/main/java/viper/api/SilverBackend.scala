@@ -84,12 +84,14 @@ trait SilverBackend extends Backend with LazyLogging {
       case None => throw PluginErrors(plugins.errors)
     }
 
-    tracker.withEntities(transformedProgram) {
-      verifier.verify(transformedProgram) match {
-        case Success =>
-        case Failure(errors) =>
-          logger.debug(errors.toString())
-          errors.foreach(processError)
+    SiliconPoller(500).pollInScope {
+      tracker.withEntities(transformedProgram) {
+        verifier.verify(transformedProgram) match {
+          case Success =>
+          case Failure(errors) =>
+            logger.debug(errors.toString())
+            errors.foreach(processError)
+        }
       }
     }
 
