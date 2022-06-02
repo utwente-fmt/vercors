@@ -17,8 +17,8 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
     case i: InlinePattern[Pre] => dispatch(i.inner)
     case f: Forall[Pre] =>
-      f.rewrite()
-      /* if (f.triggers.nonEmpty) {
+      // TODO (RR): This causes an error...
+      if (f.triggers.nonEmpty) {
         rewriteDefault(f)
       } else {
         val body = dispatch(f.body)
@@ -27,7 +27,14 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
         val triggers = leftoverTriggers.map(t => Seq(dispatch(t)))
         claimedPatterns.addAll(leftoverTriggers)
         f.rewrite(body = body, triggers = triggers)
-      } */
+      }
     case other => rewriteDefault(other)
   }
 }
+
+
+/*
+forall i: .... forall j: ... {: f(i) :} {: f(j) :}
+===
+forall i: .... forall j: ... {: f(i) :}
+*/
