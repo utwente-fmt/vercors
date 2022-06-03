@@ -3,8 +3,6 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import RewriteHelpers._
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable;
 
 case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
   override def key: String = "inlineQuantifierPattern"
@@ -12,21 +10,36 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
 }
 
 case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter[Pre] {
-  val claimedPatterns: mutable.Set[InlinePattern[Pre]] = mutable.Set()
+  def someTransSubnodes[G](x: Node[G], P: Node[G] => Boolean): LazyList[Node[G]] = {
+    val tail = Subnodes.subnodes(x).to(LazyList).filter(P).flatMap(someTransSubnodes(_, P))
+    if (P(x)) {
+      x #:: tail
+    } else {
+      tail
+    }
+  }
 
-  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
+  def notForall[G](x: Node[G]): Boolean = x match {
+    case f: Forall[G] => false
+    case _ => true
+  }
+
+  def getInlineTriggers[G](e: Expr[G]): IndexedSeq[InlinePattern[G]] =
+    someTransSubnodes(e, notForall[G]).collect({ case it: InlinePattern[G] => it }).toIndexedSeq
+
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case i: InlinePattern[Pre] => dispatch(i.inner)
     case f: Forall[Pre] =>
       if (f.triggers.nonEmpty) {
         rewriteDefault(f)
       } else {
-        val body = dispatch(f.body)
-        val triggersInBody: Seq[InlinePattern[Pre]] = f.body.transSubnodes.collect({ case it: InlinePattern[Pre] => it })
-        val leftoverTriggers = triggersInBody.filter(!claimedPatterns.contains(_))
-        val triggers = leftoverTriggers.map(t => Seq(dispatch(t)))
-        claimedPatterns.addAll(leftoverTriggers)
-        val x = f.rewrite(body = body, triggers = triggers)
-        x
+        f.rewrite(triggers = getInlineTriggers(f.body).map(t => Seq(dispatch(t))))
+      }
+    case f: Starall[Pre] =>
+      if (f.triggers.nonEmpty) {
+        rewriteDefault(f)
+      } else {
+        f.rewrite(triggers = getInlineTriggers(f.body).map(t => Seq(dispatch(t))))
       }
     case other => rewriteDefault(other)
   }
