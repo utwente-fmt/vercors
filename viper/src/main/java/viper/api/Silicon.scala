@@ -9,7 +9,7 @@ import java.nio.file.Path
 import scala.annotation.nowarn
 
 @nowarn("any") // due to be removed
-case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None, logLevel: Option[String] = None) extends SilverBackend {
+case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None, logLevel: Option[String] = None, proverLogFile: Option[Path] = None) extends SilverBackend {
   override def createVerifier(reporter: Reporter): viper.silicon.Silicon = {
     val silicon = new viper.silicon.Silicon(reporter)
 
@@ -19,6 +19,11 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
       "--z3Exe", z3Path.toString,
       "--z3ConfigArgs", z3Config,
     )
+
+    proverLogFile match {
+      case Some(p) => siliconConfig ++= Seq("--z3LogFile", p.toString) // This should be changed to "proverLogFile" when updating to the new Viper version
+      case _ => siliconConfig ++= Seq("--disableTempDirectory") // Otherwise do not make a temp dir (these two options are mutually exclusive)
+    }
 
     if(Configuration.currentConfiguration.debugBackend.get()) {
       siliconConfig ++= Seq("--logLevel", "ALL")

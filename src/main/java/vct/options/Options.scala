@@ -132,9 +132,19 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").hidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
-      opt[Int]("dev-print-raw-quantifier-stats").hidden()
-        .action((amount, c) => c.copy(devPrintRawQuantifierStats = Some(amount)))
+
+      opt[Int]("dev-silicon-print-raw-quantifier-stats").hidden()
+        .action((amount, c) => c.copy(devSiliconPrintRawQuantifierStats = Some(amount)))
         .text("Print raw quantifier instantiation statistics from Z3, every <amount> occurrences"),
+      opt[Int]("dev-silicon-num-verifiers").hidden()
+        .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
+        .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+      opt[Path]("dev-silicon-z3-log-file").hidden()
+        .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
+        .text("Path for z3 to write a log file to"),
+
+      opt[Path]("dev-viper-prover-log-file").hidden()
+        .action((p, c) => c.copy(devViperProverLogFile = Some(p))),
 
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
@@ -267,7 +277,12 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
-  devPrintRawQuantifierStats: Option[Int] = None,
+
+  devSiliconPrintRawQuantifierStats: Option[Int] = None,
+  devSiliconNumVerifiers: Option[Int] = None,
+  devSiliconZ3LogFile: Option[Path] = None,
+
+  devViperProverLogFile: Option[Path] = None,
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required

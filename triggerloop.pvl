@@ -1,9 +1,6 @@
 pure int magic(int i);
 
-void m() {
-  // Our definition of `magic`, with a matching loop
-  // Note: added + 2 here because the inline trigger is thrown away?
-  // assume (\forall int i; true; magic({: magic(i) :} + 2) == magic(2 * i) + i);
+void restrictive_triggers() {
   assume (\forall int i; true; magic({: magic(i) :}) == magic(2 * i) + i);
 
   // The following should fail, because our definition says nothing

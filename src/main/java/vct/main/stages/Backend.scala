@@ -10,19 +10,32 @@ import viper.api.{Carbon, Silicon}
 case object Backend {
 
   def ofOptions(options: Options): Backend = options.backend match {
-    case vct.options.Backend.Silicon => SilverBackend(Silicon(
-      z3Settings = options.devPrintRawQuantifierStats match {
-        case Some(amount) => Map(
+    case vct.options.Backend.Silicon =>
+      val printRawQuantifier = options.devSiliconPrintRawQuantifierStats match {
+        case Some(amount) => Seq(
           "smt.qi.profile" -> "true",
           "smt.qi.profile_freq" -> (amount + "")
         )
-        case None => Map.empty
-      },
-      z3Path = options.z3Path,
-      // In the PR they set the threads to 0, so we also do it here (https://github.com/viperproject/silicon/pull/587)
-      numberOfParallelVerifiers = if (options.devPrintRawQuantifierStats.isDefined) { Some(1) } else { None },
-      logLevel = if (options.devPrintRawQuantifierStats.isDefined) { Some("INFO") } else { None },
-    ), options.backendFile)
+        case None => Seq()
+      }
+      val z3LogFile = options.devSiliconZ3LogFile match {
+        case Some(p) => Seq(
+          "trace" -> "true",
+          "proof" -> "true",
+          "trace-file-name" -> ("\"" + p.toString + "\"")
+        )
+        case None => Seq()
+      }
+      val numberOfParallelVerifiers =
+        if (options.devSiliconZ3LogFile.isDefined) { Some(1) }
+        else { options.devSiliconNumVerifiers }
+      SilverBackend(Silicon(
+        z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
+        z3Path = options.z3Path,
+        numberOfParallelVerifiers = numberOfParallelVerifiers,
+        logLevel = if (options.devSiliconPrintRawQuantifierStats.isDefined) { Some("INFO") } else { None },
+        proverLogFile = options.devViperProverLogFile,
+      ), options.backendFile)
     case vct.options.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
       boogiePath = options.boogiePath,
