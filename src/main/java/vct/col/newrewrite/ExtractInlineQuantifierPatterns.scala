@@ -1,7 +1,7 @@
 package vct.col.newrewrite
 
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import RewriteHelpers._
 
 case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
@@ -11,21 +11,26 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
 
 case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter[Pre] {
   def someTransSubnodes[G](x: Node[G], P: Node[G] => Boolean): LazyList[Node[G]] = {
-    val tail = Subnodes.subnodes(x).to(LazyList).filter(P).flatMap(someTransSubnodes(_, P))
     if (P(x)) {
-      x #:: tail
+      x #:: Subnodes.subnodes(x).to(LazyList).flatMap(someTransSubnodes(_, P))
     } else {
-      tail
+      LazyList()
     }
   }
 
   def notForall[G](x: Node[G]): Boolean = x match {
-    case f: Forall[G] => false
+    case _: Forall[G] => false
     case _ => true
   }
 
-  def getInlineTriggers[G](e: Expr[G]): IndexedSeq[InlinePattern[G]] =
-    someTransSubnodes(e, notForall[G]).collect({ case it: InlinePattern[G] => it }).toIndexedSeq
+  def refersVars[G](e: Expr[G]): LazyList[Variable[G]] =
+    e.transSubnodes.collect({ case Local(r) => r.decl })
+
+  def getInlineTriggers[G](bindings: Seq[Variable[G]], e: Expr[G]): IndexedSeq[InlinePattern[G]] =
+    someTransSubnodes(e, notForall[G]).collect({ case it: InlinePattern[G] => it })
+      // Only keep inline patterns that refer to at least _one_ quantified variable
+      .filter(ipat => refersVars(ipat).exists(bindings.contains(_)))
+      .toIndexedSeq
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case i: InlinePattern[Pre] => dispatch(i.inner)
@@ -33,13 +38,13 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       if (f.triggers.nonEmpty) {
         rewriteDefault(f)
       } else {
-        f.rewrite(triggers = getInlineTriggers(f.body).map(t => Seq(dispatch(t))))
+        f.rewrite(triggers = Seq(getInlineTriggers(f.bindings, f.body).map(t => dispatch(t))))
       }
     case f: Starall[Pre] =>
       if (f.triggers.nonEmpty) {
         rewriteDefault(f)
       } else {
-        f.rewrite(triggers = getInlineTriggers(f.body).map(t => Seq(dispatch(t))))
+        f.rewrite(triggers = Seq(getInlineTriggers(f.bindings, f.body).map(t => dispatch(t))))
       }
     case other => rewriteDefault(other)
   }
