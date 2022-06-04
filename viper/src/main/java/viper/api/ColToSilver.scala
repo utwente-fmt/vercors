@@ -10,7 +10,7 @@ import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
 import viper.api.ColToSilver.NotSupported
-import viper.silver.ast.TypeVar
+import viper.silver.ast.{TypeVar, VirtualPosition}
 import viper.silver.{ast => silver}
 
 import scala.collection.immutable.{ListMap, SortedMap}
@@ -229,8 +229,10 @@ case class ColToSilver(program: col.Program[_]) {
 
     case col.Exists(bindings, triggers, body) =>
       scoped { silver.Exists(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
-    case col.Forall(bindings, triggers, body) =>
-      scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
+    case f @ col.Forall(bindings, triggers, body) =>
+      scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(
+        pos=VirtualPosition(f.hashCode().toString), // TODO (RR): Would like something sensible here...? Or do we report a bug for "no position" not working? Prolly better
+        info=expInfo(e)) }
     case starall @ col.Starall(bindings, triggers, body) =>
       scoped { currentStarall.having(starall) {
         silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e))

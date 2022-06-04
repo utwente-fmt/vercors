@@ -26,7 +26,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
   def refersVars[G](e: Expr[G]): LazyList[Variable[G]] =
     e.transSubnodes.collect({ case Local(r) => r.decl })
 
-  def getInlineTriggers[G](bindings: Seq[Variable[G]], e: Expr[G]): IndexedSeq[InlinePattern[G]] =
+  def getInlineTriggers[G](bindings: Seq[Variable[G]], e: Expr[G]): Seq[InlinePattern[G]] =
     someTransSubnodes(e, notForall[G]).collect({ case it: InlinePattern[G] => it })
       // Only keep inline patterns that refer to at least _one_ quantified variable
       .filter(ipat => refersVars(ipat).exists(bindings.contains(_)))
@@ -38,13 +38,21 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       if (f.triggers.nonEmpty) {
         rewriteDefault(f)
       } else {
-        f.rewrite(triggers = Seq(getInlineTriggers(f.bindings, f.body).map(t => dispatch(t))))
+        val triggers = getInlineTriggers(f.bindings, f.body).map(t => dispatch(t)) match {
+          case Nil => Seq()
+          case ts => Seq(ts)
+        }
+        f.rewrite(triggers = triggers)
       }
     case f: Starall[Pre] =>
       if (f.triggers.nonEmpty) {
         rewriteDefault(f)
       } else {
-        f.rewrite(triggers = Seq(getInlineTriggers(f.bindings, f.body).map(t => dispatch(t))))
+        val triggers = getInlineTriggers(f.bindings, f.body).map(t => dispatch(t)) match {
+          case Nil => Seq()
+          case ts => Seq(ts)
+        }
+        f.rewrite(triggers = triggers)
       }
     case other => rewriteDefault(other)
   }
