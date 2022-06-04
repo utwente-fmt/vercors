@@ -141,10 +141,15 @@ case object Options {
         .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
       opt[Path]("dev-silicon-z3-log-file").hidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
-        .text("Path for z3 to write a log file to"),
+        .text("Path for z3 to write smt2 log file to"),
+
+      opt[Path]("dev-carbon-boogie-log-file").hidden()
+        .action((p, c) => c.copy(devCarbonBoogieLogFile = Some(p)))
+        .text("Path for boogie to write smt2 log file to"),
 
       opt[Path]("dev-viper-prover-log-file").hidden()
-        .action((p, c) => c.copy(devViperProverLogFile = Some(p))),
+        .action((p, c) => c.copy(devViperProverLogFile = Some(p)))
+        .text("Path for viper to write boogie or smt2 input file to, depending on selected backend"),
 
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
@@ -281,6 +286,8 @@ case class Options
   devSiliconPrintRawQuantifierStats: Option[Int] = None,
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
+
+  devCarbonBoogieLogFile: Option[Path] = None,
 
   devViperProverLogFile: Option[Path] = None,
 

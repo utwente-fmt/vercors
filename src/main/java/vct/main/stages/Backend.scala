@@ -14,7 +14,7 @@ case object Backend {
       val printRawQuantifier = options.devSiliconPrintRawQuantifierStats match {
         case Some(amount) => Seq(
           "smt.qi.profile" -> "true",
-          "smt.qi.profile_freq" -> (amount + "")
+          "smt.qi.profile_freq" -> s"$amount"
         )
         case None => Seq()
       }
@@ -36,9 +36,12 @@ case object Backend {
         logLevel = if (options.devSiliconPrintRawQuantifierStats.isDefined) { Some("INFO") } else { None },
         proverLogFile = options.devViperProverLogFile,
       ), options.backendFile)
+
     case vct.options.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
       boogiePath = options.boogiePath,
+      printFile = options.devViperProverLogFile,
+      proverLogFile = options.devCarbonBoogieLogFile,
     ), options.backendFile)
   }
 }
