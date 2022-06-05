@@ -230,12 +230,12 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Exists(bindings, triggers, body) =>
       scoped { silver.Exists(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e)) }
     case f @ col.Forall(bindings, triggers, body) =>
-      scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(
-        pos=VirtualPosition(f.hashCode().toString), // TODO (RR): Would like something sensible here...? Or do we report a bug for "no position" not working? Prolly better
-        info=expInfo(e)) }
+      // "no_position" is passed here, to prevent a space from ending up in the quantifier name
+      scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=VirtualPosition("no_position"), info=expInfo(e)) }
     case starall @ col.Starall(bindings, triggers, body) =>
       scoped { currentStarall.having(starall) {
-        silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(info=expInfo(e))
+        // "no_position" is passed here, to prevent a space from ending up in the quantifier name
+        silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=VirtualPosition("no_position"), info=expInfo(e))
       } }
     case col.Let(binding, value, main) =>
       scoped { silver.Let(variable(binding), exp(value), exp(main))(info=expInfo(e)) }
