@@ -84,14 +84,12 @@ trait SilverBackend extends Backend with LazyLogging {
       case None => throw PluginErrors(plugins.errors)
     }
 
-    SiliconPoller(100).pollInScope {
-      tracker.withEntities(transformedProgram) {
-        verifier.verify(transformedProgram) match {
-          case Success =>
-          case Failure(errors) =>
-            logger.debug(errors.toString())
-            errors.foreach(processError)
-        }
+    tracker.withEntities(transformedProgram) {
+      verifier.verify(transformedProgram) match {
+        case Success =>
+        case Failure(errors) =>
+          logger.debug(errors.toString())
+          errors.foreach(processError)
       }
     }
 
@@ -234,7 +232,7 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))
-    case reasons.ReceiverNotInjective(access @ silver.LocationAccess(_)) =>
+    case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
       val starall = info(access).starall.get
       starall.blame.blame(blame.ReceiverNotInjective(starall))
     case reasons.LabelledStateNotReached(expr) =>

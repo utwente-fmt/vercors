@@ -2,7 +2,7 @@ package viper.api
 import hre.config.Configuration
 import org.slf4j.LoggerFactory.getLogger
 import viper.silicon.logger.SymbExLogger
-import viper.silver.plugin.{PluginAwareReporter, SilverPluginManager}
+import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
 

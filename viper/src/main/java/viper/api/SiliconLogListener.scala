@@ -1,6 +1,7 @@
 package viper.api
 
 import com.typesafe.scalalogging.LazyLogging
+import vct.col.ast.Expr
 import viper.silicon.logger.records.data.DataRecord
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord, ScopingRecord}
 import viper.silicon.logger.records.structural.BranchingRecord
@@ -14,15 +15,48 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[Option[Exp]] = List()
 
-  def currentOpenScopes: Seq[(Option[Exp], Seq[DataRecord])] = {
+  def printRecords(records: mutable.Map[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
+    for(record <- records.values.toSeq.sortBy(_.id)) {
+      if(excludedBy.contains(record.id)) {
+        logger.warn(s"    [finished in branch ${excludedBy(record.id)}]: $record")
+      } else {
+        logger.warn(s"    $record")
+      }
+    }
+  }
+
+  def currentOpenScopes(symbLog: SymbLog): Seq[(Option[Exp], Seq[DataRecord])] = {
     val exclude = branchScopeCloseRecords.flatMap(_.toSeq).toSet
-    (None +: branchConditions).zip(
-      openScopeFrames.map(_.values.filterNot(r => exclude.contains(r.id)).toSeq.sortBy(_.id)))
+
+    val excludedBy = branchScopeCloseRecords.zipWithIndex.flatMap {
+      case (excluded, idx) => excluded.map(_ -> idx)
+    }.toMap
+
+    logger.warn(s"State of ${symbLog.v.name}:")
+    printRecords(openScopeFrames.last, excludedBy)
+
+    for(((records, idx), condition) <- openScopeFrames.init.zipWithIndex.zip(branchConditions).reverse) {
+      condition match {
+        case Some(cond) =>
+          logger.warn(s"  [$idx] ? $cond")
+        case None =>
+          logger.warn(s"  [$idx] ?")
+      }
+
+      printRecords(records, excludedBy)
+    }
+
+    (branchConditions :+ None)
+      .zip(openScopeFrames.map(_.values.filterNot(r => exclude.contains(r.id))
+                          .toSeq.sortBy(_.id)))
+      .reverse
   }
 
   override def appendDataRecord(symbLog: SymbLog, r: DataRecord): Unit = {
     openScopeFrames.head(r.id) = r
-    logger.warn(currentOpenScopes.toString())
+    getClass.synchronized {
+      currentOpenScopes(symbLog)
+    }
   }
 
   override def appendScopingRecord(symbLog: SymbLog, r: ScopingRecord, ignoreBranchingStack: Boolean): Unit =
@@ -33,6 +67,8 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
         } else {
           branchScopeCloseRecords.head += r.refId
         }
+
+        currentOpenScopes(symbLog)
       case _: OpenScopeRecord => // This is just done from datarecord; safe to ignore.
     }
 
@@ -52,8 +88,19 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   }
 
   override def endBranchPoint(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
-    openScopeFrames = openScopeFrames.init
-    branchScopeCloseRecords = branchScopeCloseRecords.init
-    branchConditions = branchConditions.init
+    openScopeFrames = openScopeFrames.tail
+
+    for(closeRecord <- branchScopeCloseRecords.head) {
+      for(frame <- openScopeFrames) {
+        frame.remove(closeRecord) match {
+          case Some(record) =>
+            logger.warn(s"From ${symbLog.v.name}: record deleted after end branch: ${record}")
+          case None => // ok
+        }
+      }
+    }
+
+    branchScopeCloseRecords = branchScopeCloseRecords.tail
+    branchConditions = branchConditions.tail
   }
 }
