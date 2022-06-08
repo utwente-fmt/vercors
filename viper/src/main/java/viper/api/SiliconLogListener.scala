@@ -8,12 +8,32 @@ import viper.silicon.logger.records.structural.BranchingRecord
 import viper.silicon.logger.{SymbLog, SymbLogListener}
 import viper.silver.ast.Exp
 
+import java.util.{Timer, TimerTask}
 import scala.collection.mutable
+import scala.concurrent.duration.{Duration, DurationInt}
+import scala.language.postfixOps
+
+case object SiliconLogListener {
+  val NO_PROGRESS_TIMEOUT: Duration = 10 seconds
+}
 
 case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[Option[Exp]] = List()
+
+  var timer = new Timer()
+
+  def progress(symbLog: SymbLog): Unit = {
+    timer.cancel()
+    timer = new Timer()
+    timer.schedule(new TimerTask {
+      override def run(): Unit = printDetailedState(symbLog)
+    }, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
+  }
+
+  def done(): Unit =
+    timer.cancel()
 
   def printRecords(records: mutable.Map[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
     for(record <- records.values.toSeq.sortBy(_.id)) {
@@ -25,7 +45,7 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     }
   }
 
-  def currentOpenScopes(symbLog: SymbLog): Seq[(Option[Exp], Seq[DataRecord])] = {
+  def printDetailedState(symbLog: SymbLog): Unit = {
     val exclude = branchScopeCloseRecords.flatMap(_.toSeq).toSet
 
     val excludedBy = branchScopeCloseRecords.zipWithIndex.flatMap {
@@ -45,58 +65,53 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
 
       printRecords(records, excludedBy)
     }
-
-    (branchConditions :+ None)
-      .zip(openScopeFrames.map(_.values.filterNot(r => exclude.contains(r.id))
-                          .toSeq.sortBy(_.id)))
-      .reverse
   }
 
   override def appendDataRecord(symbLog: SymbLog, r: DataRecord): Unit = {
+    progress(symbLog)
     openScopeFrames.head(r.id) = r
-    getClass.synchronized {
-      currentOpenScopes(symbLog)
-    }
   }
 
-  override def appendScopingRecord(symbLog: SymbLog, r: ScopingRecord, ignoreBranchingStack: Boolean): Unit =
+  override def appendScopingRecord(symbLog: SymbLog, r: ScopingRecord, ignoreBranchingStack: Boolean): Unit = {
+    progress(symbLog)
     r match {
       case r: CloseScopeRecord =>
+        if(r.refId == symbLog.main.id)
+          done()
+
         if(openScopeFrames.head.contains(r.refId)) {
           openScopeFrames.head.remove(r.refId)
         } else {
           branchScopeCloseRecords.head += r.refId
         }
-
-        currentOpenScopes(symbLog)
       case _: OpenScopeRecord => // This is just done from datarecord; safe to ignore.
     }
+  }
 
   override def appendBranchingRecord(symbLog: SymbLog, r: BranchingRecord): Unit = {
+    progress(symbLog)
     openScopeFrames +:= mutable.Map()
     branchScopeCloseRecords +:= mutable.Set()
     branchConditions +:= r.conditionExp
   }
 
   override def switchToNextBranch(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
+    progress(symbLog)
     openScopeFrames.head.clear()
     branchScopeCloseRecords.head.clear()
   }
 
   override def markBranchReachable(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
-    // ignore for now
+    progress(symbLog)
   }
 
   override def endBranchPoint(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
+    progress(symbLog)
     openScopeFrames = openScopeFrames.tail
 
     for(closeRecord <- branchScopeCloseRecords.head) {
       for(frame <- openScopeFrames) {
-        frame.remove(closeRecord) match {
-          case Some(record) =>
-            logger.warn(s"From ${symbLog.v.name}: record deleted after end branch: ${record}")
-          case None => // ok
-        }
+        frame.remove(closeRecord)
       }
     }
 
