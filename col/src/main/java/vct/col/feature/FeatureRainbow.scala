@@ -395,6 +395,7 @@ class FeatureRainbow[G] {
     case node: SilverSeqSize[G] => return Nil
     case node: SilverSetSize[G] => return Nil
     case node: SilverBagSize[G] => return Nil
+    case node: SilverMapSize[G] => return Nil
     case node: CPure[G] => return Nil
     case node: CInline[G] => return Nil
     case node: CTypedef[G] => return Nil

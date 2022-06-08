@@ -584,12 +584,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
-        val coercedIndex = int(index)
         firstOk(e, s"Expected collection to be a sequence, array, pointer or map, but got ${collection.t}.",
-          AmbiguousSubscript(seq(collection)._1, coercedIndex)(sub.blame),
-          AmbiguousSubscript(array(collection)._1, coercedIndex)(sub.blame),
-          AmbiguousSubscript(pointer(collection)._1, coercedIndex)(sub.blame),
-          AmbiguousSubscript(map(collection)._1, coercedIndex)(sub.blame),
+          AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(map(collection)._1, coerce(index, map(collection)._2.key))(sub.blame),
         )
       case AmbiguousThis() => e
       case And(left, right) =>
@@ -994,6 +993,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         SilverDeref(ref(obj), field)(deref.blame)
       case SilverIntToRat(perm) =>
         SilverIntToRat(int(perm))
+      case SilverMapSize(xs) =>
+        SilverMapSize(map(xs)._1)
       case SilverNull() =>
         SilverNull()
       case SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) => e

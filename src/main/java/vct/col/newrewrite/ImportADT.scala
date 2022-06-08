@@ -173,7 +173,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   private lazy val tupleFile = parse("tuple")
   private lazy val optionFile = parse("option")
   private lazy val eitherFile = parse("either")
-  private lazy val mapFile = parse("map")
+  private lazy val mapCompatFile = parse("map_compat")
   private lazy val arrayFile = parse("array")
   private lazy val pointerFile = parse("pointer")
 
@@ -227,23 +227,10 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   private lazy val eitherGetLeft = find[Function[Post]](eitherFile, "get_left")
   private lazy val eitherGetRight = find[Function[Post]](eitherFile, "get_right")
 
-  private lazy val mapAdt = find[AxiomaticDataType[Post]](mapFile, "map")
-  private lazy val mapEmpty = find[ADTFunction[Post]](mapAdt, "map_empty")
-  private lazy val mapCons = find[ADTFunction[Post]](mapAdt, "map_cons")
-  private lazy val mapKeys = find[ADTFunction[Post]](mapAdt, "map_keys")
-  private lazy val mapAxConsInvK = find[ADTFunction[Post]](mapAdt, "map_cons_inv_k")
-  private lazy val mapAxConsInvV = find[ADTFunction[Post]](mapAdt, "map_cons_inv_v")
-  private lazy val mapAxConsInvTail = find[ADTFunction[Post]](mapAdt, "map_cons_inv_tail")
-  private lazy val mapSize = find[Function[Post]](mapFile, "map_size")
-  private lazy val mapConsGetK = find[Function[Post]](mapFile, "map_cons_get_k")
-  private lazy val mapConsGetV = find[Function[Post]](mapFile, "map_cons_get_v")
-  private lazy val mapConsGetTail = find[Function[Post]](mapFile, "map_cons_get_tail")
-  private lazy val mapGet = find[Function[Post]](mapFile, "map_get")
-  private lazy val mapValues = find[Function[Post]](mapFile, "map_values")
-  private lazy val mapItems = find[Function[Post]](mapFile, "map_items")
-  private lazy val mapEquals = find[Function[Post]](mapFile, "map_equals")
-  private lazy val mapDisjoint = find[Function[Post]](mapFile, "map_disjoint")
-  private lazy val mapRemove = find[Function[Post]](mapFile, "map_remove")
+  private lazy val mapCompatAdt = find[AxiomaticDataType[Post]](mapCompatFile, "map_compat")
+  private lazy val mapItems = find[ADTFunction[Post]](mapCompatAdt, "map_items")
+  private lazy val mapDisjoint = find[ADTFunction[Post]](mapCompatAdt, "map_disjoint")
+  private lazy val mapRemove = find[ADTFunction[Post]](mapCompatAdt, "map_remove")
 
   private lazy val arrayAdt = find[AxiomaticDataType[Post]](arrayFile, "array")
   private lazy val arrayAxLoc = find[ADTFunction[Post]](arrayAdt, "array_loc")
@@ -346,7 +333,6 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
       case TTuple(Seq(t1, t2)) => TAxiomatic(tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))
       case TEither(left, right) => TAxiomatic(eitherAdt.ref, Seq(dispatch(left), dispatch(right)))
       case TOption(element) => TAxiomatic(optionAdt.ref, Seq(dispatch(element)))
-      case TMap(k, v) => TAxiomatic(mapAdt.ref, Seq(dispatch(k), dispatch(v)))
       case TArray(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(arrayAdt.ref, Nil)))
       case TPointer(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(pointerAdt.ref, Nil)))
       case other => rewriteDefault(other)
@@ -447,50 +433,24 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
           eitherIsRight.ref,
           Seq(dispatch(e)),
         )
-      case LiteralMap(k, v, values) =>
-        val typeArgs: Some[(Ref[Post, AxiomaticDataType[Post]], Seq[Type[Post]])] =
-          Some((mapAdt.ref, Seq(dispatch(k), dispatch(v))))
-
-        values.foldLeft(
-          ADTFunctionInvocation[Post](typeArgs, mapEmpty.ref, Nil)
-        )((m, pair) =>
-          ADTFunctionInvocation[Post](typeArgs, mapCons.ref, Seq(dispatch(pair._1), dispatch(pair._2), m))
-        )
-      case MapKeySet(map) =>
-        ADTFunctionInvocation(
-          Some((mapAdt.ref, mapTypeArgs(map))), mapKeys.ref, Seq(dispatch(map))
-        )
-      case Empty(map) if map.t.asMap.isDefined =>
-        val TMap(key, value) = map.t.asMap.get
-        dispatch(map) === ADTFunctionInvocation[Post](Some((mapAdt.ref, Seq(dispatch(key), dispatch(value)))), mapEmpty.ref, Nil)
-      case Size(map) if map.t.asMap.isDefined =>
-        FunctionInvocation[Post](mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_size requires nothing."))
-      case access @ MapGet(map, k) =>
-        FunctionInvocation[Post](mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(
-          NoContext(MapKeyErrorPreconditionFailed(access)))
-      case cons @ MapCons(m, k, v) =>
-        val typeArgs = Seq(dispatch(cons.t.key), dispatch(cons.t.value))
-        ADTFunctionInvocation[Post](Some((mapAdt.ref, typeArgs)), mapCons.ref, Seq(dispatch(k), dispatch(v), dispatch(m)))
-      case MapValueSet(map) =>
-        FunctionInvocation[Post](mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_values requires nothing."))
       case MapItemSet(map) =>
-        FunctionInvocation[Post](mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_items requires nothing."))
-      case eq @ MapEq(left, right) =>
-        FunctionInvocation[Post](
-          mapEquals.ref,
-          Seq(dispatch(left), dispatch(right)),
-          Seq(dispatch(eq.commonMapType.key), dispatch(eq.commonMapType.value)),
-          Nil, Nil,
-        )(PanicBlame("map_equals requires nothing."))
+        ADTFunctionInvocation[Post](
+          Some((mapCompatAdt.ref, mapTypeArgs(map))),
+          mapItems.ref,
+          Seq(dispatch(map))
+        )
       case disj @ MapDisjoint(left, right) =>
-        FunctionInvocation[Post](
+        ADTFunctionInvocation[Post](
+          Some((mapCompatAdt.ref, Seq(dispatch(disj.commonMapType.key), dispatch(disj.commonMapType.value)))),
           mapDisjoint.ref,
           Seq(dispatch(left), dispatch(right)),
-          Seq(dispatch(disj.commonMapType.key), dispatch(disj.commonMapType.value)),
-          Nil, Nil,
-        )(PanicBlame("map_disjoint requires nothing."))
+        )
       case MapRemove(map, k) =>
-        FunctionInvocation[Post](mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_remove requires nothing."))
+        ADTFunctionInvocation[Post](
+          Some((mapCompatAdt.ref, mapTypeArgs(map))),
+          mapRemove.ref,
+          Seq(dispatch(map), dispatch(k)),
+        )
       case sub @ ArraySubscript(arr, index) =>
         SilverDeref(
           obj = FunctionInvocation[Post](

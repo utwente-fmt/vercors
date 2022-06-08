@@ -800,6 +800,7 @@ final case class SilverNull[G]()(implicit val o: Origin) extends SilverExpr[G] w
 final case class SilverSeqSize[G](seq: Expr[G])(implicit val o: Origin) extends SilverExpr[G] with SilverSeqSizeImpl[G]
 final case class SilverSetSize[G](set: Expr[G])(implicit val o: Origin) extends SilverExpr[G] with SilverSetSizeImpl[G]
 final case class SilverBagSize[G](bag: Expr[G])(implicit val o: Origin) extends SilverExpr[G] with SilverBagSizeImpl[G]
+final case class SilverMapSize[G](map: Expr[G])(implicit val o: Origin) extends SilverExpr[G] with SilverMapSizeImpl[G]
 
 final case class SilverCurFieldPerm[G](obj: Expr[G], field: Ref[G, SilverField[G]])(implicit val o: Origin) extends SilverExpr[G] with SilverCurFieldPermImpl[G]
 final case class SilverCurPredPerm[G](ref: Ref[G, Predicate[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends SilverExpr[G] with SilverCurPredPermImpl[G]

@@ -200,6 +200,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.TSeq(element) => silver.SeqType(typ(element))
     case col.TSet(element) => silver.SetType(typ(element))
     case col.TBag(element) => silver.MultisetType(typ(element))
+    case col.TMap(key, value) => silver.MapType(typ(key), typ(value))
     case col.TVar(Ref(v)) => silver.TypeVar(ref(v))
     case col.TAxiomatic(Ref(adt), args) =>
       val typeArgs = adtTypeArgs(adt)
@@ -233,13 +234,16 @@ case class ColToSilver(program: col.Program[_]) {
     case col.LiteralSeq(t, Nil) => silver.EmptySeq(typ(t))(pos=pos(e), info=expInfo(e))
     case col.LiteralSet(t, Nil) => silver.EmptySet(typ(t))(pos=pos(e), info=expInfo(e))
     case col.LiteralBag(t, Nil) => silver.EmptyMultiset(typ(t))(pos=pos(e), info=expInfo(e))
+    case col.LiteralMap(k, v, Nil) => silver.EmptyMap(typ(k), typ(v))(pos=pos(e), info=expInfo(e))
     case col.LiteralSeq(_, xs) => silver.ExplicitSeq(xs.map(exp))(pos=pos(e), info=expInfo(e))
     case col.LiteralSet(_, xs) => silver.ExplicitSet(xs.map(exp))(pos=pos(e), info=expInfo(e))
     case col.LiteralBag(_, xs) => silver.ExplicitMultiset(xs.map(exp))(pos=pos(e), info=expInfo(e))
+    case col.LiteralMap(_, _, xs) => silver.ExplicitMap(xs.map { case (k, v) => silver.Maplet(exp(k), exp(v))(pos=pos(e), info=expInfo(e)) })(pos=pos(e), info=expInfo(e))
 
     case col.SilverSeqSize(obj) => silver.SeqLength(exp(obj))(pos=pos(e), info=expInfo(e))
     case col.SilverSetSize(obj) => silver.AnySetCardinality(exp(obj))(pos=pos(e), info=expInfo(e))
     case col.SilverBagSize(obj) => silver.AnySetCardinality(exp(obj))(pos=pos(e), info=expInfo(e))
+    case col.SilverMapSize(obj) => silver.MapCardinality(exp(obj))(pos=pos(e), info=expInfo(e))
 
     case col.Exists(bindings, triggers, body) =>
       scoped { silver.Exists(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e)) }
@@ -308,6 +312,8 @@ case class ColToSilver(program: col.Program[_]) {
     case col.LessEq(left, right) => silver.LeCmp(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case col.SubSetEq(left, right) => silver.AnySetSubset(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case col.SubBagEq(left, right) => silver.AnySetSubset(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case col.MapEq(left, right) => silver.EqCmp(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case col.MapDisjoint(left, right) => ???
 
     case subscript@col.SeqSubscript(seq, index) =>
       val silverIndex = exp(index)
@@ -322,6 +328,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.SetMember(x, xs) => silver.AnySetContains(exp(x), exp(xs))(pos=pos(e), info=expInfo(e))
     case col.SeqMember(x, xs) => silver.SeqContains(exp(x), exp(xs))(pos=pos(e), info=expInfo(e))
     case col.BagMemberCount(x, xs) => silver.AnySetContains(exp(x), exp(xs))(pos=pos(e), info=expInfo(e))
+    case col.MapMember(x, xs) => silver.MapContains(exp(x), exp(xs))(pos=pos(e), info=expInfo(e))
 
     case col.SetMinus(xs, ys) => silver.AnySetMinus(exp(xs), exp(ys))(pos=pos(e), info=expInfo(e))
     case col.BagMinus(xs, ys) => silver.AnySetMinus(exp(xs), exp(ys))(pos=pos(e), info=expInfo(e))
@@ -329,6 +336,13 @@ case class ColToSilver(program: col.Program[_]) {
     case col.BagAdd(xs, ys) => silver.AnySetUnion(exp(xs), exp(ys))(pos=pos(e), info=expInfo(e))
     case col.SetIntersection(xs, ys) => silver.AnySetIntersection(exp(xs), exp(ys))(pos=pos(e), info=expInfo(e))
     case col.BagLargestCommon(xs, ys) => silver.AnySetIntersection(exp(xs), exp(ys))(pos=pos(e), info=expInfo(e))
+
+    case col.MapCons(m, k, v) => silver.MapUpdate(exp(m), exp(k), exp(v))(pos=pos(e), info=expInfo(e))
+    case col.MapKeySet(m) => silver.MapDomain(exp(m))(pos=pos(e), info=expInfo(e))
+    case col.MapValueSet(m) => silver.MapRange(exp(m))(pos=pos(e), info=expInfo(e))
+    case col.MapItemSet(m) => ???
+    case col.MapRemove(m, k) => ???
+    case col.MapGet(m, k) => silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
 
     case other => ??(other)
   }
