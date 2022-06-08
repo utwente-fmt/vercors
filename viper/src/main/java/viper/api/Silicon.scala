@@ -19,7 +19,6 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     var siliconConfig = Seq(
       "--z3Exe", z3Path.toString,
       "--z3ConfigArgs", z3Config,
-      "--numberOfParallelVerifiers", "1",
       "--ideModeAdvanced",
     )
 
@@ -30,6 +29,9 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     siliconConfig :+= "-"
 
     silicon.parseCommandLine(siliconConfig)
+
+    SymbExLogger.setListenerProvider(_ => SiliconLogListener())
+
     silicon.start()
 
     val plugins = SilverPluginManager(Some(Seq(

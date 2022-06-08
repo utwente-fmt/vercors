@@ -1,17 +1,16 @@
 package viper.api
 
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import vct.col.ast.{Expr, Node, Statement}
+import vct.col.ast.{Expr, Statement}
 import viper.silicon.logger.records.SymbolicRecord
-import viper.silicon.logger.{NoopSymbLog, SymbExLogger, SymbLog}
-import viper.silicon.logger.records.data.{ConsumeRecord, ExecuteRecord, FunctionRecord, MethodRecord, PredicateRecord, ProduceRecord}
+import viper.silicon.logger.records.data.{ConsumeRecord, ExecuteRecord}
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord}
 import viper.silicon.logger.records.structural.BranchingRecord
+import viper.silicon.logger.{NoopSymbLog, SymbExLogger}
 import viper.silver.ast.{Exp, Stmt}
 
 import java.util.{Timer, TimerTask}
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 case object SiliconPoller {
   val logger: Logger = Logger[SiliconPoller]
@@ -97,29 +96,29 @@ case class SiliconPoller(interval: Long) extends LazyLogging {
     }.map(r => Exhaling(r.value))
 
   def poll(): Unit = {
-    val symbLog = SymbExLogger.currentLog()
-    if(symbLog == NoopSymbLog) return
+//    val symbLog = SymbExLogger.currentLog()
+//    if(symbLog == NoopSymbLog) return
 
-    val log = symbLog.log ++ symbLog.branchingStack.flatMap(_.getCurrentBranch.records)
+//    val log = symbLog.log ++ symbLog.branchingStack.flatMap(_.getCurrentBranch.records)
+//
+//    logger.warn("")
+//    logger.warn("=" * 80)
+//
+//    for(branch <- symbLog.branchingStack) {
+//      if(branch.getBranches.size == 2) {
+//        if(branch.getCurrentBranch == branch.getBranchInfos.head) {
+//          logger.warn(s"- On the true branch of ${branch.condition}")
+//        } else {
+//          logger.warn(s"- On the false branch of ${branch.condition}")
+//        }
+//      } else {
+//        logger.warn(s"- On branch ${branch.condition} / ${branch.getCurrentBranch}")
+//      }
+//    }
 
-    logger.warn("")
-    logger.warn("=" * 80)
-
-    for(branch <- symbLog.branchingStack) {
-      if(branch.getBranches.size == 2) {
-        if(branch.getCurrentBranch == branch.getBranchInfos.head) {
-          logger.warn(s"- On the true branch of ${branch.condition}")
-        } else {
-          logger.warn(s"- On the false branch of ${branch.condition}")
-        }
-      } else {
-        logger.warn(s"- On branch ${branch.condition} / ${branch.getCurrentBranch}")
-      }
-    }
-
-    allNonClosed(log).foreach { entry =>
-      logger.warn(s"${entry.getClass.getSimpleName}#${entry.##} $entry")
-    }
+//    allNonClosed(log).foreach { entry =>
+//      logger.warn(s"${entry.getClass.getSimpleName}#${entry.##} $entry")
+//    }
 
 //    log.main match {
 //      case record: FunctionRecord => logger.warn(s"Silicon is verifying function ${record.value.name}")
