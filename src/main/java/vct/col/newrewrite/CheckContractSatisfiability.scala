@@ -5,13 +5,13 @@ import vct.col.ast._
 import vct.col.newrewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, CheckSatOrigin}
 import vct.col.newrewrite.util.Extract
 import vct.col.origin.{Blame, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{ff, foldStar, procedure, unfoldStar}
 import vct.col.util.ExpectedError
 
 import scala.collection.mutable.ArrayBuffer
 
-case object CheckContractSatisfiability extends RewriterBuilder {
+case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
   override def key: String = "checkSat"
   override def desc: String =
     "Prove that contracts are not internally contradictory (i.e. unsatisfiable) for methods and other contract bearers, " +
@@ -34,7 +34,7 @@ case object CheckContractSatisfiability extends RewriterBuilder {
   }
 }
 
-case class CheckContractSatisfiability[Pre <: Generation]() extends Rewriter[Pre] {
+case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = true) extends Rewriter[Pre] {
   val expectedErrors: ScopedStack[ArrayBuffer[ExpectedError]] = ScopedStack[ArrayBuffer[ExpectedError]]()
 
   def splitAccountedPredicate(pred: AccountedPredicate[Pre]): Seq[Expr[Pre]] = pred match {
@@ -72,7 +72,7 @@ case class CheckContractSatisfiability[Pre <: Generation]() extends Rewriter[Pre
   }
 
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
-    checkSatisfiability(contract)
+    if(doCheck) checkSatisfiability(contract)
     rewriteDefault(contract)
   }
 }

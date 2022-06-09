@@ -56,6 +56,7 @@ object Transformation {
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
+          checkSat = options.devCheckSat,
         )
     }
 }
@@ -119,6 +120,7 @@ case class SilverTransformation
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  checkSat: Boolean = true,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
@@ -137,7 +139,7 @@ case class SilverTransformation
     EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
     GivenYieldsToArgs,
 
-    // CheckContractSatisfiability,
+    CheckContractSatisfiability.withArg(checkSat),
     CheckProcessAlgebra,
     EncodeCurrentThread,
     EncodeIntrinsicLock,
