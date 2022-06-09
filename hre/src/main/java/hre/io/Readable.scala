@@ -23,7 +23,7 @@ trait Readable {
     read { reader =>
       val scanner = new Scanner(reader)
       scanner.useDelimiter("\\A")
-      scanner.next()
+      if(scanner.hasNext()) scanner.next() else ""
     }
 
   def readLines(): Seq[String] =

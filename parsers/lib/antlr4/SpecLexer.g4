@@ -25,7 +25,6 @@ VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
-VAL_SIZEOF: 'sizeof';
 */
 
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
@@ -72,6 +71,7 @@ VAL_LOOP_INVARIANT: 'loop_invariant';
 VAL_KERNEL_INVARIANT: 'kernel_invariant';
 VAL_LOCK_INVARIANT: 'lock_invariant';
 VAL_SIGNALS: 'signals';
+VAL_DECREASES: 'decreases';
 
 VAL_CREATE: 'create_wand';
 VAL_QED: 'qed';
@@ -165,5 +165,5 @@ EMPTY_SET_OPEN: '{t:';
 EMPTY_BAG_OPEN: 'b{t:';
 ARROW_LEFT: '<-';
 
-VAL_EXPECT_ERROR_OPEN: '/*'? '[/expect ' [a-zA-Z]+ ']' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);
+VAL_EXPECT_ERROR_OPEN: '/*'? '[/expect ' [a-zA-Z:]+ ']' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);
 VAL_EXPECT_ERROR_CLOSE: '/*'? '[/end]' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);

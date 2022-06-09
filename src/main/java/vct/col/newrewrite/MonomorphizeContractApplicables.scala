@@ -3,12 +3,11 @@ package vct.col.newrewrite
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.util.Substitute
 import vct.col.origin.Origin
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.ContractApplicableBuildHelpers
-import vct.col.util.SuccessionMap
+import vct.col.util.{Substitute, SuccessionMap}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

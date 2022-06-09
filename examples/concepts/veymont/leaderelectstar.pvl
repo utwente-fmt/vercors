@@ -9,7 +9,7 @@ class EndPoint {
 	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(c, 1);
 	ensures rank == v && maxVal == v && c < v;
 	ensures Perm(n,1) ** n == 0;
-	EndPoint (int v);
+	constructor(int v);
 	
 	context Perm(maxVal, 1) ** Perm(c, 1\2) ** Perm(n,1);
 	ensures c > \old(maxVal) ? maxVal == c : maxVal == \old(maxVal);
@@ -25,7 +25,7 @@ class StarPoint {
 	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(a, 1) ** Perm(b, 1) ** Perm(d, 1);
 	ensures rank == v && maxVal == v && a < v && b < v && d < v;
 	ensures Perm(n,1) ** n == 0;
-	StarPoint (int v);
+	constructor(int v);
 	
 	context Perm(maxVal, 1) ** Perm(a, 1\2) ** Perm(b, 1\2) ** Perm(d, 1\2) ** Perm(n,1);
 	ensures maxVal == maxVal(a,b,d,\old(maxVal));

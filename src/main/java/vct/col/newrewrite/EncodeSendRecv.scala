@@ -6,10 +6,10 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.statement.composite.LoopImpl.IterationContractData
 import vct.col.newrewrite.EncodeSendRecv.{DuplicateRecv, SendFailedExhaleFailed, WrongSendRecvPosition}
-import vct.col.newrewrite.util.Substitute
 import vct.col.origin.{Blame, DiagnosticOrigin, ExhaleFailed, Origin, SendFailed}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.Substitute
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable

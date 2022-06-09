@@ -4,8 +4,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
 import vct.col.ast.RewriteHelpers._
 import vct.col.newrewrite.ParBlockEncoder.EmptyHintCannotThrow
-import vct.col.newrewrite.util.{Extract, Substitute}
-import vct.col.origin.{Blame, CallableFailure, ContextEverywhereFailedInPost, ExceptionNotInSignals, ExhaleFailed, Origin, PanicBlame, ParBarrierInconsistent, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParInvariantNotEstablished, ParInvariantNotMaintained, PostconditionFailed, SignalsFailed}
+import vct.col.newrewrite.util.Extract
+import vct.col.util.Substitute
+import vct.col.origin.{Blame, CallableFailure, ContextEverywhereFailedInPost, ExceptionNotInSignals, ExhaleFailed, Origin, PanicBlame, ParBarrierInconsistent, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParInvariantNotEstablished, ParInvariantNotMaintained, PostconditionFailed, SignalsFailed, UnsafeDontCare}
 import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
@@ -65,6 +66,7 @@ case class EncodeParAtomic[Pre <: Generation]() extends Rewriter[Pre] {
 
     procedure[Post](
       blame = blame,
+      contractBlame = UnsafeDontCare.Satisfiability("implications may acceptably have a false antecedent"),
       requires = UnitAccountedPredicate(freshSuccessionScope { dispatch(req) }),
       ensures = UnitAccountedPredicate(freshSuccessionScope { dispatch(ens) }),
       args = collectInScope(variableScopes) { bindings.foreach(dispatch) },

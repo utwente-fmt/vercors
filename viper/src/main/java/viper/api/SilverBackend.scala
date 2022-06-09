@@ -1,10 +1,12 @@
 package viper.api
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.Writeable
+import org.slf4j.LoggerFactory.getLogger
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
 import viper.silver.ast.ConsInfo
+import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.errors._
 import viper.silver.verifier._
@@ -23,7 +25,12 @@ trait SilverBackend extends Backend with LazyLogging {
       "The silver AST delivered to viper is not valid:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
-  def createVerifier(reporter: Reporter): Verifier
+  case class PluginErrors(errors: Seq[AbstractError]) extends SystemError {
+    override def text: String =
+      "An error occurred in a viper plugin, which should always be prevented:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
+  }
+
+  def createVerifier(reporter: Reporter): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
   private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
@@ -70,12 +77,19 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     val tracker = EntityTrackingReporter()
-    val verifier = createVerifier(tracker)
+    val (verifier, plugins) = createVerifier(tracker)
 
-    tracker.withEntities(silverProgram) {
-      verifier.verify(silverProgram) match {
+    val transformedProgram = plugins.beforeVerify(silverProgram) match {
+      case Some(program) => program
+      case None => throw PluginErrors(plugins.errors)
+    }
+
+    tracker.withEntities(transformedProgram) {
+      verifier.verify(transformedProgram) match {
         case Success =>
-        case Failure(errors) => errors.foreach(processError)
+        case Failure(errors) =>
+          logger.debug(errors.toString())
+          errors.foreach(processError)
       }
     }
 
@@ -218,7 +232,7 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))
-    case reasons.ReceiverNotInjective(access @ silver.LocationAccess(_)) =>
+    case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
       val starall = info(access).starall.get
       starall.blame.blame(blame.ReceiverNotInjective(starall))
     case reasons.LabelledStateNotReached(expr) =>

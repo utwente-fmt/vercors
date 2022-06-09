@@ -587,8 +587,7 @@ expression
     ;
 
 expr
-    :   {specLevel>0}? valPrimary # javaValPrimary
-    |   annotatedPrimary # javaPrimary
+    :   annotatedPrimary # javaPrimary
     |   expr '.' javaIdentifier # javaDeref
     |   expr '.' 'this' # javaPinnedThis
     |   expr '.' 'new' nonWildcardTypeArguments? innerCreator # javaPinnedOuterClassNew
@@ -680,7 +679,8 @@ primary
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall
-	;
+    |   valExpr
+	  ;
 
 constructorCall
     :   explicitGenericInvocationSuffix
@@ -757,7 +757,6 @@ arguments
     ;
 
 javaIdentifier
-    : {specLevel>0}? valReserved
-    | Identifier
-    | valReserved // allow reserved identifiers outside specification
+    : Identifier
+    | valIdentifier
     ;

@@ -12,9 +12,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#v.22.02-release")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#v.22.02-release")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#v.22.02-release")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#30396357d472af235c42875ef6cde52589dc9dcc")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#52ef88b3176f3c82d7cc4df8df165f42fb7a41f6")
+val silicon_url = uri("git:https://github.com/niomaster/silicon.git#88c2a546121902f48e2ca722f19042d1fe4202c3")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -78,7 +78,7 @@ lazy val vercors: Project = (project in file("."))
     fork := true,
     name := "Vercors",
     organization := "University of Twente",
-    version := "2.0.0-alpha.6",
+    version := "2.0.0-alpha.7",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=

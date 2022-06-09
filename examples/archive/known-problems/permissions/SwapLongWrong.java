@@ -23,7 +23,7 @@ public class SwapLong {
     G = tmp;
   }
 
-  /*[/expect postFailed]*/
+  /*[/expect postFailed:false]*/
   /*@ 
     requires Perm(F,1) ** Perm(G,1);
     ensures Perm(F,1) ** Perm(G,1);

@@ -1,6 +1,6 @@
 package vct.main.stages
 
-import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute}
+import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{FileSpanningOrigin, Origin}
@@ -40,11 +40,11 @@ case class Resolution[G <: Generation]
   withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
   minimizeNames: Map[MinimizeName, MinimizeMode] = Map()
-) extends Stage[ParseResult[G], (Program[_ <: Generation], Seq[ExpectedError])] {
+) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
 
-  override def run(in: ParseResult[G]): (Program[_ <: Generation], Seq[ExpectedError]) = {
+  override def run(in: ParseResult[G]): VerificationContext[_ <: Generation] = {
     in.decls.foreach(_.transSubnodes.foreach {
       case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
         if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
@@ -72,6 +72,6 @@ case class Resolution[G <: Generation]
       case some => throw TransformationCheckError(some)
     }
 
-    (resolvedProgram, in.expectedError)
+    VerificationContext(resolvedProgram, in.expectedErrors)
   }
 }

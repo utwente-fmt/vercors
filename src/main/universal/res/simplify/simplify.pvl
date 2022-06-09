@@ -173,10 +173,22 @@ axiom forall_indep_cond_left {
     (cond1 ==> (∀T binding; (cond2!binding) ==> (body!binding))))
 }
 
+axiom forall_indep_cond_right {
+  (∀type<any> T, boolean cond1, boolean cond2, boolean body;
+    (∀T binding; (cond1!binding) && cond2 ==> (body!binding)) ==
+    (cond2 ==> (∀T binding; (cond1!binding) ==> (body!binding))))
+}
+
 axiom starall_indep_cond_left {
   (∀type<any> T, boolean cond1, boolean cond2, resource body;
     (∀*T binding; cond1 && (cond2!binding) ==> (body!binding)) ==
     (cond1 ==> (∀*T binding; (cond2!binding) ==> (body!binding))))
+}
+
+axiom starall_indep_cond_right {
+  (∀type<any> T, boolean cond1, boolean cond2, resource body;
+    (∀*T binding; (cond1!binding) && cond2 ==> (body!binding)) ==
+    (cond2 ==> (∀*T binding; (cond1!binding) ==> (body!binding))))
 }
 
 axiom nested_forall_indep_cond {

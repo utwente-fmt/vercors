@@ -10,6 +10,7 @@ import viper.api.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
 import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
 import viper.silver.verifier.AbstractError
 import hre.io.{RWFile, Readable}
+import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesStar, DecreasesTuple, DecreasesWildcard}
 
 import java.nio.file.{Path, Paths}
 
@@ -109,20 +110,52 @@ case class SilverToCol[G](program: silver.Program) {
   def transform(field: silver.Field): col.SilverField[G] =
     new col.SilverField(transform(field.typ))(origin(field))
 
-  def transform(func: silver.Function): col.Function[G] =
+  def partitionDecreases(exps: Seq[silver.Exp]): (Seq[silver.Exp], Seq[DecreasesClause]) =
+    exps.partitionMap {
+      case decreases: DecreasesClause => Right(decreases)
+      case other => Left(other)
+    }
+
+  def partitionContract(contracted: silver.Contracted): (Seq[silver.Exp], Seq[silver.Exp], Option[DecreasesClause]) = {
+    val (pres, decreases1) = partitionDecreases(contracted.pres)
+    val (posts, decreases2) = partitionDecreases(contracted.posts)
+
+    val decreases = (decreases1 ++ decreases2) match {
+      case Nil => None
+      case x :: Nil => Some(x)
+      case _ :: x :: _ => ??(x)
+    }
+
+    (pres, posts, decreases)
+  }
+
+  def transform(clause: DecreasesClause): Option[col.DecreasesClause[G]] = clause match {
+    case DecreasesTuple(_, Some(cond)) => ??(cond)
+    case DecreasesTuple(Nil, None) => Some(col.DecreasesClauseNoRecursion()(origin(clause)))
+    case DecreasesTuple(exps, None) => Some(col.DecreasesClauseTuple(exps.map(transform))(origin(clause)))
+    case DecreasesWildcard(Some(cond)) => ??(cond)
+    case DecreasesWildcard(None) => Some(col.DecreasesClauseAssume()(origin(clause)))
+    case DecreasesStar() => None
+  }
+
+  def transform(func: silver.Function): col.Function[G] = {
+    val (pres, posts, decreases) = partitionContract(func)
+
     new col.Function(
       returnType = transform(func.typ),
       args = func.formalArgs.map(transform),
       typeArgs = Nil,
       body = func.body.map(transform),
       contract = col.ApplicableContract(
-        requires = col.UnitAccountedPredicate(foldStar(func.pres.map(transform))(origin(func)))(origin(func)),
-        ensures = col.UnitAccountedPredicate(foldStar(func.posts.map(transform))(origin(func)))(origin(func)),
+        requires = col.UnitAccountedPredicate(foldStar(pres.map(transform))(origin(func)))(origin(func)),
+        ensures = col.UnitAccountedPredicate(foldStar(posts.map(transform))(origin(func)))(origin(func)),
         contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil,
-      )(origin(func)),
+        decreases = decreases.flatMap(transform),
+      )(blame(func))(origin(func)),
       inline = false,
       threadLocal = false,
     )(blame(func))(origin(func))
+  }
 
   def transform(v: silver.AnyLocalVarDecl): col.Variable[G] = v match {
     case silver.LocalVarDecl(_, typ) =>
@@ -139,7 +172,9 @@ case class SilverToCol[G](program: silver.Program) {
       inline = false
     )(origin(pred))
 
-  def transform(proc: silver.Method): col.Procedure[G] =
+  def transform(proc: silver.Method): col.Procedure[G] = {
+    val (pres, posts, decreases) = partitionContract(proc)
+
     new col.Procedure(
       returnType = col.TVoid(),
       args = proc.formalArgs.map(transform),
@@ -147,13 +182,15 @@ case class SilverToCol[G](program: silver.Program) {
       typeArgs = Nil,
       body = proc.body.map(transform),
       contract = col.ApplicableContract(
-        requires = col.UnitAccountedPredicate(foldStar(proc.pres.map(transform))(origin(proc)))(origin(proc)),
-        ensures = col.UnitAccountedPredicate(foldStar(proc.posts.map(transform))(origin(proc)))(origin(proc)),
+        requires = col.UnitAccountedPredicate(foldStar(pres.map(transform))(origin(proc)))(origin(proc)),
+        ensures = col.UnitAccountedPredicate(foldStar(posts.map(transform))(origin(proc)))(origin(proc)),
         contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil,
-      )(origin(proc)),
+        decreases = decreases.flatMap(transform),
+      )(blame(proc))(origin(proc)),
       inline = false,
       pure = false,
     )(blame(proc))(origin(proc))
+  }
 
   def transform(s: silver.Stmt): col.Statement[G] = s match {
     case silver.NewStmt(lhs, fields) =>

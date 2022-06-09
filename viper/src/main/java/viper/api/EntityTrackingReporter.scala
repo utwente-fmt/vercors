@@ -34,10 +34,10 @@ case class EntityTrackingReporter() extends Reporter {
 
   override def report(msg: Message): Unit = this.synchronized {
     msg match {
-      case EntitySuccessMessage(_, concerning, _, _) =>
+      case EntitySuccessMessage(_, concerning, _, _) if todo.contains(concerning) =>
         todo -= concerning
         update()
-      case EntityFailureMessage(_, concerning, _, _, _) =>
+      case EntityFailureMessage(_, concerning, _, _, _) if todo.contains(concerning) =>
         todo -= concerning
         update()
       case _ =>

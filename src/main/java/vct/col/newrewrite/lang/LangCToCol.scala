@@ -3,7 +3,7 @@ package vct.col.newrewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, Origin}
+import vct.col.origin.{AbstractApplicable, Origin, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.{BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -45,7 +45,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       outArgs = Nil,
       typeArgs = Nil,
       body = Some(rw.dispatch(func.body)),
-      contract = contract()(func.o),
+      contract = contract(TrueSatisfiable)(func.o),
     )(func.blame)(func.o).declareDefault(rw)
   }
 
@@ -61,7 +61,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
             outArgs = Nil,
             typeArgs = Nil,
             body = None,
-            contract = contract()(init.o),
+            contract = contract(TrueSatisfiable)(init.o),
           )(AbstractApplicable)(init.o).declareDefault(rw)
         case None =>
           throw CGlobalStateNotSupported(init)

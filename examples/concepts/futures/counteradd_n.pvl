@@ -34,7 +34,7 @@ class Worker {
 	context Value(p) ** Value(prog) ** Value(prog.f) ** p != none;
 	requires prog.f.state(p, prog.f.decr());
 	ensures prog.f.state(p, empty);
-	void run() {
+	run {
 		lock prog;
 		action(prog.f, p, empty, prog.f.decr()) {
 			prog.f.counter = prog.f.counter - 1;

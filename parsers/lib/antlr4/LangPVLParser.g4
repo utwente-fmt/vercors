@@ -9,7 +9,7 @@ program  : programDecl* EOF ;
 programDecl : valGlobalDeclaration | declClass | method;
 
 declClass : contract 'class' identifier '{' classDecl* '}' ;
-classDecl : valClassDeclaration | constructor | method | field;
+classDecl : valClassDeclaration | constructor | method | field | runMethod;
 
 field : type identifierList ';' ;
 
@@ -17,6 +17,8 @@ method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
 constructor : contract 'constructor' '(' args? ')' methodBody ;
+
+runMethod : contract 'run' methodBody ;
 
 contract : valContractClause* ;
 
@@ -126,7 +128,7 @@ postfixExpr
  ;
 
 unit
- : valPrimary
+ : valExpr
  | 'this'
  | 'null'
  | NUMBER
@@ -245,4 +247,4 @@ identifierList
  | identifier ',' identifierList
  ;
 
-identifier : Identifier | valReserved ;
+identifier : Identifier | LANG_ID_ESCAPE ;

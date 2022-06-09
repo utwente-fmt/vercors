@@ -20,6 +20,8 @@ class FeatureRainbow[G] {
     }))
 
   def scanFlatly(node: Node[G]): Seq[Feature] = Seq(node match {
+    case node: Verification[G] => return Nil
+    case node: VerificationContext[G] => return Nil
     case node: Program[G] => return Nil
     case node: IntegerValue[G] => return Nil
     case node: BooleanValue[G] => return Nil
@@ -248,6 +250,7 @@ class FeatureRainbow[G] {
     case node: ScopedExpr[G] => return Nil
     case node: LoopInvariant[G] => return Nil
     case node: IterationContract[G] => LoopIterationContract
+    case node: IndetBranch[G] => NonTrivialBranch
     case node: Branch[G] =>
       node.branches match {
         case Seq((_, _), (BooleanValue(true), _)) => return Nil
@@ -290,6 +293,7 @@ class FeatureRainbow[G] {
     case node: Throw[G] => Exceptions
     case node: Wait[G] => WaitNotify
     case node: Notify[G] => WaitNotify
+    case node: RunMethod[G] => JavaThreads
     case node: Fork[G] => JavaThreads
     case node: Join[G] => JavaThreads
     case node: Lock[G] => IntrinsicLocks
@@ -346,6 +350,7 @@ class FeatureRainbow[G] {
     case node: AxiomaticDataType[G] => return Nil
     case node: ADTAxiom[G] => return Nil
     case node: SignalsClause[G] => Exceptions
+    case node: DecreasesClause[G] => return Nil
     case node: ApplicableContract[G] => return Nil
     case node: SplitAccountedPredicate[G] => return Nil
     case node: UnitAccountedPredicate[G] => return Nil
@@ -390,6 +395,7 @@ class FeatureRainbow[G] {
     case node: SilverSeqSize[G] => return Nil
     case node: SilverSetSize[G] => return Nil
     case node: SilverBagSize[G] => return Nil
+    case node: SilverMapSize[G] => return Nil
     case node: CPure[G] => return Nil
     case node: CInline[G] => return Nil
     case node: CTypedef[G] => return Nil
@@ -476,5 +482,6 @@ class FeatureRainbow[G] {
     case node: PVLNew[G] => return Nil
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
+    case node: FramedProof[G] => return Nil
   })
 }

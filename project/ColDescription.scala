@@ -96,7 +96,7 @@ class ColDescription {
 
     case Type.Apply(Type.Name("Ref"), List(gen, tDecl)) =>
       q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
 
     case _ =>

@@ -11,7 +11,7 @@ class err {
 
  int x;
  
-   requires x==1 ** Perm(x,1);
+   requires [/expect perm]x[/end] == 1 ** Perm(x,1);
  void frame_error(){
  }
  

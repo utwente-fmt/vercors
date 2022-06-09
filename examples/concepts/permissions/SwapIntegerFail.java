@@ -19,6 +19,7 @@ public class SwapInteger {
     G = tmp;
   }
 
+  /*[/expect postFailed:false]
   /*@
     requires Perm(F,1) ** Perm(G,1);
     ensures Perm(F,1) ** Perm(G,1);
@@ -28,6 +29,6 @@ public class SwapInteger {
   {
     n();
   }
-
+  /*[/end]*/
 }
 

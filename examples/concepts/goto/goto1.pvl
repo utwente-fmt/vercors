@@ -4,7 +4,7 @@
 //:: verdict Fail
 
 class Ref {
-   /*[/expect postFailed]*/
+   /*[/expect postFailed:false]*/
    requires n > 0;
    ensures \result > 0;
    int t1(int n){

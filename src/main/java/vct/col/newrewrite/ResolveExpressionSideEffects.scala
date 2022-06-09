@@ -45,11 +45,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   val currentResultVar: ScopedStack[Local[Post]] = ScopedStack()
 
-  // executionContext contains an acceptor of statements, if side effects in expressions currently have a logical
+  // executionContext.top contains an acceptor of statements, if side effects in expressions currently have a logical
   // place to be put.
-  val executionContext: ScopedStack[Statement[Post] => Unit] = ScopedStack()
+  val executionContext: ScopedStack[Option[Statement[Post] => Unit]] = ScopedStack()
 
-  def inPure: Boolean = executionContext.isEmpty
+  def inPure: Boolean = executionContext.isEmpty || executionContext.top.isEmpty
 
   // All expressions are in principle extracted:
   // 1 + 2 --> flat1 = 1; flat2 = 2; flat3 = flat1 + flat2; flat3
@@ -73,7 +73,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     }
 
     for((flat, (conditions, pureExpr)) <- allExtracted) {
-      executionContext.topOption match {
+      executionContext.topOption.flatten match {
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
           flat.declareDefault(this)
@@ -93,7 +93,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     flushExtractedExpressions()
     implicit val o: Origin = SideEffectOrigin
     val condition = ReInliner().dispatch(foldAnd(currentConditions.toSeq))
-    executionContext.top(condition match {
+    executionContext.top.get(condition match {
       case BooleanValue(true) => stat
       case condition => Branch(Seq((condition, stat)))
     })
@@ -127,7 +127,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     val statements = ArrayBuffer[Statement[Post]]()
     variableScopes.push(ArrayBuffer[Variable[Post]]())
 
-    val result = executionContext.having(statements.append) {
+    val result = executionContext.having(Some(statements.append)) {
       ReInliner().dispatch(dispatch(e))
     }
 
@@ -179,21 +179,24 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         }
     }
 
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = executionContext.having(None) {
     implicit val o: Origin = stat.o
     stat match {
       case Eval(e) => frame(e, Eval(_))
       case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
+        val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(obj +: args, {
-          case obj :: args => InvokeMethod[Post](obj, succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
-            givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)
+          case obj :: args => Scope(Seq(res),
+            InvokeMethod[Post](obj, succ(method), args, res.ref +: outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+              givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
+              yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
         })
       case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
-        frameAll(args, args =>
-          InvokeProcedure[Post](succ(method), args, outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+        val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
+        frameAll(args, args => Scope(Seq(res),
+          InvokeProcedure[Post](succ(method), args, res.ref +: outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
+            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) =>
         frame(result, e => Block(Seq(
@@ -240,8 +243,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case t @ Throw(obj) => frame(obj, Throw(_)(t.blame))
       case wait @ Wait(obj) => frame(obj, Wait(_)(wait.blame))
       case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
-      case Fork(obj) => frame(obj, Fork(_))
-      case Join(obj) => frame(obj, Join(_))
+      case f @ Fork(obj) => frame(obj, Fork(_)(f.blame))
+      case j @ Join(obj) => frame(obj, Join(_)(j.blame))
       case Lock(obj) => frame(obj, Lock(_))
       case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
       case fold: Fold[Pre] => rewriteDefault(fold)
@@ -259,6 +262,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case n: SilverNewRef[Pre] => rewriteDefault(n)
       case assn: SilverFieldAssign[Pre] => rewriteDefault(assn)
       case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
+      case proof: FramedProof[Pre] => rewriteDefault(proof)
       case _: CStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
     }

@@ -1280,5 +1280,10 @@ case class Printer(out: Appendable,
     case node: JavaModifier[_] => printJavaModifier(node)
     case node: JavaImport[_] => printJavaImport(node)
     case node: JavaName[_] => printJavaName(node)
+    case Verification(tasks) => tasks.foreach(print)
+    case VerificationContext(p, ees) =>
+      print(p)
+      say("some expected errors missing")
+
   }
 }

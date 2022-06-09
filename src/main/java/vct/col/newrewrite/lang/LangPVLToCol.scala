@@ -2,7 +2,7 @@ package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{PVLInvocation, _}
-import vct.col.origin.{Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -62,8 +62,8 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
             case field: InstanceField[Pre] =>
               fieldPerm[Post](result, rw.succ(field), WritePerm())
-          })), tt, Nil, Nil, Nil,
-        )
+          })), tt, Nil, Nil, Nil, None,
+        )(TrueSatisfiable)
       )(defaultBlame)).declareDefault(rw)
     }
   }

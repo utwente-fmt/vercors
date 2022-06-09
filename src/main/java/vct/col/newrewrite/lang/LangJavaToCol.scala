@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -170,8 +170,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 Perm(local, WritePerm())
               })
           }.flatten)),
-          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
-        )
+          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
+        )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
       javaDefaultConstructor(currentJavaClass.top) +: decls
     } else decls
@@ -235,7 +235,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           args = Nil,
           outArgs = Nil, typeArgs = Nil,
           body = None,
-          contract = contract()
+          contract = contract(TrueSatisfiable)
         )(PanicBlame("Verification of annotation method cannot fail"))(JavaAnnotationMethodOrigin(method)).succeedDefault(method)
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
@@ -285,7 +285,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         staticsClass.declareDefault(rw)
         val t = TClass[Post](staticsClass.ref)
         val singleton = withResult((res: Result[Post]) =>
-          function(AbstractApplicable, returnType = t,
+          function(AbstractApplicable, TrueSatisfiable, returnType = t,
             ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls)))
         singleton.declareDefault(rw)
         javaStaticsClassSuccessor(cls) = staticsClass
