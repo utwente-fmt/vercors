@@ -26,4 +26,22 @@ class JavaInitOrder extends VercorsSpec {
       Test() { x = 4; }
     }
   """
+
+  vercors should verify using anyBackend in "example with default local value" java """
+    class Test {
+      void test() {
+        int x;
+        //@ assert x == 0;
+      }
+    }
+  """
+
+  vercors should verify using anyBackend in "example with set local value" java """
+    class Test {
+      void test() {
+        int x = 3;
+        //@ assert x == 3;
+      }
+    }
+  """
 }

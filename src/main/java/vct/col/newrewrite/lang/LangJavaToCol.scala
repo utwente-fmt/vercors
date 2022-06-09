@@ -308,8 +308,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def initLocal(locals: JavaLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = locals.o
-    Block(for((JavaVariableDeclaration(_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
-      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), rw.dispatch(init.get))
+    Block(for((JavaVariableDeclaration(_, dims, init), i) <- locals.decls.zipWithIndex)
+      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), init match {
+        case Some(value) => rw.dispatch(value)
+        case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(locals.t)))
+      })
     )
   }
 
