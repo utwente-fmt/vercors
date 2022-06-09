@@ -135,7 +135,7 @@ case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]]) extends 
   var dropped: mutable.Set[Declaration[Pre]] = mutable.Set()
 
   def adtIsUsed(a: AxiomaticDataType[Pre]): Boolean =
-    used.contains(a) || a.decls.collect({ case f: ADTFunction[Pre] => f }).exists(used.contains(_))
+    used.contains(a) || a.functions.exists(used.contains(_))
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {

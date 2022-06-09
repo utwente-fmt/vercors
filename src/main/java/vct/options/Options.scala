@@ -49,9 +49,6 @@ case object Options {
         case "all" => Verbosity.All
       }
 
-    implicit val readMinimizeTarget: scopt.Read[MinimizeName] =
-      scopt.Read.reads(MinimizeName.parse)
-
     implicit val readMinimizeMode: scopt.Read[MinimizeMode] =
       scopt.Read.reads {
         case "focus" => MinimizeMode.Focus
@@ -120,8 +117,8 @@ case object Options {
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
 
-      opt[(MinimizeName, MinimizeMode)]("minimize" /* TODO (RR): British or american? */).unbounded().keyValueName("<fullyQualifiedName>", "focus|ignore")
-        .action((tup, c) => c.copy(minimizeNames = c.minimizeNames + (tup._1 -> tup._2)))
+      opt[(String, MinimizeMode)]("minimize").unbounded().keyValueName("<fullyQualifiedNameOrPrefix>", "focus|ignore")
+        .action((tup, c) => c.copy(minimizeNames = c.minimizeNames + (tup._1.split('.') -> tup._2)))
         .text("Ignore entities that are not needed to verify the method/function. Fully qualified name is package.Class.callable for static entities, package.callable for top level entities, or just callable for top-level unpackaged entities"),
 
       opt[Unit]("dev-abrupt-exc").hidden()
@@ -258,7 +255,7 @@ case class Options
   skipTranslationAfter: Option[String] = None,
   skipPass: Set[String] = Set.empty,
 
-  minimizeNames: Map[MinimizeName, MinimizeMode] = Map().empty,
+  minimizeNames: Map[Seq[String], MinimizeMode] = Map().empty,
 
   cDefine: Map[String, String] = Map.empty,
 

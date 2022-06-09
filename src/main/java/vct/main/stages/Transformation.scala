@@ -15,7 +15,7 @@ import vct.col.util.ExpectedError
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.main.util.Util
-import vct.options.{Backend, Options, PathOrStd}
+import vct.options.{Backend, MinimizeMode, Options, PathOrStd}
 import vct.parsers.PathAdtImporter
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
@@ -119,8 +119,6 @@ case class SilverTransformation
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
-  focusNames: Seq[String] = Seq("yy"),
-  ignoreNames: Seq[String] = Nil,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
