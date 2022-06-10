@@ -29,7 +29,7 @@ import java.lang.annotation.RetentionPolicy;
  * @author Alina Zolotukhina
  */
 // Retention(RetentionPolicy.RUNTIME)
-public @interface Transition {
+public /*@ bip_annotation */ @interface Transition {
 
 	/**
 	 * It returns the name of the transition.

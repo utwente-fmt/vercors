@@ -333,6 +333,10 @@ case object ResolveReferences {
         case _ => throw WrongArrayInitializer(arr)
       })
 
+    case ann @ JavaAnnotation(name, a) =>
+      val x = name
+      val y = a
+      val z = 3
     case _ =>
   }
 }

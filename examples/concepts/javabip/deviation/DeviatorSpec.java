@@ -7,10 +7,31 @@ import static org.javabip.spec.deviation.Constants.*;
 
 import static java.lang.Math.sqrt;
 
+/*
+To verify:
+-p
+examples/concepts/javabip/deviation/CalculatorSpec.java
+examples/concepts/javabip/deviation/DeviatorSpec.java
+examples/concepts/javabip/deviation/GeneratorSpec.java
+examples/concepts/javabip/deviation/Constants.java
+--synchron
+GeneratorSpec.SEND_DATA:CalculatorSpec.GET_DATA
+--synchron
+CalculatorSpec.SEND_DATA:CalculatorSpec.QUERY_DATA
+--data
+GeneratorSpec.OUTGOING_DATA:CalculatorSpec.INCOMING_DATA
+--data
+CalculatorSpec.OUTGOING_DATA_MEAN:DeviatorSpec.INCOMING_DATA_MEAN
+--data
+CalculatorSpec.OUTGOING_DATA_VARIANCE:DeviatorSpec.INCOMING_DATA_VARIANCE
+ */
+
 // Ports(
         @Port(name = QUERY_DATA)//, type = PortType.enforceable)
         @Port(name = CALCULATE_STD)//, type = PortType.enforceable)
 // })
+
+
 
 @ComponentType(initial = INIT, name = DEVIATOR)
 public class DeviatorSpec {

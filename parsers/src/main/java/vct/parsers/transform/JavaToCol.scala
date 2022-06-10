@@ -79,16 +79,22 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "transient" => JavaTransient()
       case "volatile" => JavaVolatile()
     }
-    case Modifier2(mods) => withModifiers(mods, m => {
-      if(m.consume(m.pure)) JavaPure[G]()
-      else if(m.consume(m.inline)) JavaInline[G]()
-      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
-    })
+//    case Modifier2(mods) => withModifiers(mods, m => {
+//      if(m.consume(m.pure)) JavaPure[G]()
+//      else if(m.consume(m.inline)) JavaInline[G]()
+//      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
+//    })
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier[G] = modifier match {
     case ClassOrInterfaceModifier0(annotation) => convert(annotation)
-    case ClassOrInterfaceModifier1(name) => name match {
+    case ClassOrInterfaceModifier1(mods) => withModifiers(mods, m => {
+      if (m.consume(m.pure)) JavaPure[G]()
+      else if (m.consume(m.inline)) JavaInline[G]()
+      else if (m.consume(m.bipAnnotation)) JavaBipAnnotation[G]()
+      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
+    })
+    case ClassOrInterfaceModifier2(name) => name match {
       case "public" => JavaPublic()
       case "protected" => JavaProtected()
       case "private" => JavaPrivate()
@@ -858,6 +864,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "pure" => collector.pure += mod
       case "inline" => collector.inline += mod
       case "thread_local" => collector.threadLocal += mod
+      case "bip_annotation" => collector.bipAnnotation += mod
     }
     case ValStatic(_) => collector.static += mod
   }

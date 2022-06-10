@@ -720,10 +720,16 @@ final case class JavaNative[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaSynchronized[G]()(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
 final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaTransientImpl[G]
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
-final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G]
+final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G] {
+  var data: Option[JavaAnnotationData[G]] = None
+
+  sealed trait JavaAnnotationData[G]
+  final case class BIPTransitionData[G](requires: Option[Expr[G]], ensures: Option[Expr[G]])
+}
 
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
+final case class JavaBipAnnotation[G]()(implicit val o: Origin) extends JavaModifier[G]
 
 final case class JavaVariableDeclaration[G](name: String, moreDims: Int, init: Option[Expr[G]])(implicit val o: Origin) extends NodeFamily[G] with JavaVariableDeclarationImpl[G]
 

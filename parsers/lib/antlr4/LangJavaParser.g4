@@ -70,11 +70,11 @@ modifier
         |   'transient'
         |   'volatile'
         )
-    |   valEmbedModifier
     ;
 
 classOrInterfaceModifier
     :   annotation       // class or interface
+    |   valEmbedModifier
     |   (   'public'     // class or interface
         |   'protected'  // class or interface
         |   'private'    // class or interface
