@@ -41,9 +41,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
-  // TODO (RR): How to refer to constructors? What about overridden functions? Source-level annotation seems better...?
-  val claimedMinimizeNames: mutable.Set[Seq[String]] = mutable.Set()
-
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
       implicit val o: Origin = model.o
@@ -72,14 +69,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           cls.rewrite(decls).succeedDefault(cls)
         }
       }
-
-//    case m: InstanceMethod[Pre] =>
-//      minimizePrefixNameLookup(Seq(currentClass.top.o.preferredName, m.o.preferredName)) match {
-//        case Some(minimizeName) =>
-//          claimedMinimizeNames.add(minimizeName)
-//          m.rewrite(o = MinimizeOrigin(m.o, minimizeNames(minimizeName)))
-//        case _ => m.rewrite()
-//      }
 
     case other => rewriteDefault(other)
   }

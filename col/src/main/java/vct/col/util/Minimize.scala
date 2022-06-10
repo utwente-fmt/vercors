@@ -9,9 +9,6 @@ object Minimize {
       .map(Minimize.Origin(inner, _))
       .getOrElse(inner)
 
-  // Currently the minimization system piggybacks on the origin system.
-  // To improve: the minimization targets could be a first-class property of the Program type
-  // Similar to how the rootObject is a property of Program
   case class Origin(o: origin.Origin, mode: Mode) extends origin.Origin {
     override def preferredName: String = o.preferredName
     override def shortPosition: String = o.shortPosition
