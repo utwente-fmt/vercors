@@ -3,7 +3,7 @@ package vct.col.newrewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
-import vct.col.newrewrite.lang.LangSpecificToCol.{BothFocusIgnore, NotAValue, ThisVar}
+import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.origin.{AbstractApplicable, DerefPerm, DiagnosticOrigin, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
@@ -207,11 +207,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
         ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
-        // TODO (RR): Should this be in a check method or something similar?
-        implicit val o: Origin = DiagnosticOrigin
-        if (method.modifiers.contains(JavaFocus[Pre]()) && method.modifiers.contains(JavaIgnore[Pre]())) {
-          throw BothFocusIgnore(method)
-        }
         val methodO = Minimize.mkOrigin(
           JavaMethodOrigin(method),
           method.modifiers.contains(JavaFocus[Pre]()),

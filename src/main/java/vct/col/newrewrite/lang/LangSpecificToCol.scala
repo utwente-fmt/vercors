@@ -25,11 +25,6 @@ case object LangSpecificToCol extends RewriterBuilder {
     override def code: String = "notAValue"
     override def text: String = value.o.messageInContext("Could not resolve this expression to a value.")
   }
-
-  case class BothFocusIgnore(d: Declaration[_]) extends UserError {
-    override def code: String = "bothFocusIgnore"
-    override def text: String = d.o.messageInContext("This declaration uses both focus and ignore")
-  }
 }
 
 case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {

@@ -61,7 +61,7 @@ import vct.col.debug._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
-import vct.col.util.ExpectedError
+import vct.col.util.{ExpectedError, Minimize}
 
 sealed trait Node[G] extends NodeImpl[G]
 
@@ -209,14 +209,16 @@ final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs
 final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
 final class Function[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
-               val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false)
+               val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false,
+                        val focus: Boolean = false, val ignore: Boolean = false)
               (val blame: Blame[ContractedFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractFunction[G] with FunctionImpl[G]
 final class Procedure[G](val returnType: Type[G],
                 val args: Seq[Variable[G]], val outArgs: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
                 val body: Option[Statement[G]],
                 val contract: ApplicableContract[G],
-                val inline: Boolean = false, val pure: Boolean = false)
+                val inline: Boolean = false, val pure: Boolean = false,
+                         val focus: Boolean = false, val ignore: Boolean = false)
                         (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractMethod[G] with ProcedureImpl[G]
 final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
@@ -225,14 +227,16 @@ final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
 
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
-                       val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean, val threadLocal: Boolean = false)
+                       val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean, val threadLocal: Boolean = false,
+                               val focus: Boolean = false, val ignore: Boolean = false)
                       (val blame: Blame[ContractedFailure])(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractFunction[G] with InstanceFunctionImpl[G]
 final class InstanceMethod[G](val returnType: Type[G],
                               val args: Seq[Variable[G]], val outArgs: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
                               val body: Option[Statement[G]],
                               val contract: ApplicableContract[G],
-                              val inline: Boolean = false, val pure: Boolean = false)
+                              val inline: Boolean = false, val pure: Boolean = false,
+                              val focus: Boolean = false, val ignore: Boolean = false)
                              (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractMethod[G] with InstanceMethodImpl[G]
 final class InstancePredicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],

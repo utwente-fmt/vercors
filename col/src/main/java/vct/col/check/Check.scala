@@ -62,6 +62,7 @@ case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
 case class ResultOutsidePostcondition(res: Result[_]) extends CheckError
+case class BothFocusIgnore(ca: ContractApplicable[_]) extends CheckError
 
 case class CheckContext[G]
 (
