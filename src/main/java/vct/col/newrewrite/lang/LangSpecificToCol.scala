@@ -8,11 +8,10 @@ import vct.col.newrewrite.Minimize.MinimizeOrigin
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
-import vct.options.{MinimizeMode, MinimizeName}
 import vct.result.VerificationError.UserError
 import scala.collection.mutable
 
-case object LangSpecificToCol extends RewriterBuilderArg[Map[MinimizeName, MinimizeMode]] {
+case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -29,7 +28,7 @@ case object LangSpecificToCol extends RewriterBuilderArg[Map[MinimizeName, Minim
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation](minimizeNames: Map[Seq[String], MinimizeMode]) extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
@@ -40,14 +39,6 @@ case class LangSpecificToCol[Pre <: Generation](minimizeNames: Map[Seq[String], 
 
   // TODO (RR): How to refer to constructors? What about overridden functions? Source-level annotation seems better...?
   val claimedMinimizeNames: mutable.Set[Seq[String]] = mutable.Set()
-
-  def minimizePrefixNameLookup(name: Seq[String]): Option[Seq[String]] = {
-    minimizeNames.keys.filter(n => name.endsWith(n) && !claimedMinimizeNames.contains(name)) match {
-      case Seq(minimizeName) => Some(minimizeName)
-      case Nil => None
-      case _ => throw new RuntimeException("Multiple match") /* TODO (RR): List matches here, custom error */
-    }
-  }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
@@ -78,13 +69,13 @@ case class LangSpecificToCol[Pre <: Generation](minimizeNames: Map[Seq[String], 
         }
       }
 
-    case m: InstanceMethod[Pre] =>
-      minimizePrefixNameLookup(Seq(currentClass.top.o.preferredName, m.o.preferredName)) match {
-        case Some(minimizeName) =>
-          claimedMinimizeNames.add(minimizeName)
-          m.rewrite(o = MinimizeOrigin(m.o, minimizeNames(minimizeName)))
-        case _ => m.rewrite()
-      }
+//    case m: InstanceMethod[Pre] =>
+//      minimizePrefixNameLookup(Seq(currentClass.top.o.preferredName, m.o.preferredName)) match {
+//        case Some(minimizeName) =>
+//          claimedMinimizeNames.add(minimizeName)
+//          m.rewrite(o = MinimizeOrigin(m.o, minimizeNames(minimizeName)))
+//        case _ => m.rewrite()
+//      }
 
     case other => rewriteDefault(other)
   }

@@ -12,7 +12,6 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.col.newrewrite.Minimize.MinimizeOrigin
-import vct.options.MinimizeName
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -209,12 +208,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
         ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
-        val pkgPrefix: Seq[String] = namespace.topOption.flatMap(_.pkg.map(_.names)).getOrElse(Seq())
-        val minimizeName = MinimizeName(pkgPrefix ++ Seq(currentJavaClass.top.name, method.name))
         val innerO = JavaMethodOrigin(method)
-        val methodO = rw.minimizeNames.get(minimizeName)
-          .map(mode => MinimizeOrigin(innerO, mode))
-          .getOrElse(innerO)
+        val methodO = innerO
+//          .map(mode => MinimizeOrigin(innerO, mode))
 
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),

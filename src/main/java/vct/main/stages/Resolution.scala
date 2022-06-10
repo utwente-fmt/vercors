@@ -11,7 +11,7 @@ import vct.java.JavaLibraryLoader
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
-import vct.options.{MinimizeMode, MinimizeName, Options}
+import vct.options.Options
 import vct.parsers.ParseResult
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
@@ -30,7 +30,6 @@ case object Resolution {
       blameProvider = blameProvider,
       withJava = true,
       javaLibraryPath = options.jrePath,
-      minimizeNames = options.minimizeNames
     )
 }
 
@@ -39,7 +38,6 @@ case class Resolution[G <: Generation]
   blameProvider: BlameProvider,
   withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
-  minimizeNames: Map[MinimizeName, MinimizeMode] = Map()
 ) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
@@ -66,7 +64,7 @@ case class Resolution[G <: Generation]
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-    val resolvedProgram = LangSpecificToCol.withArg(minimizeNames)().dispatch(typedProgram)
+    val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       case some => throw TransformationCheckError(some)

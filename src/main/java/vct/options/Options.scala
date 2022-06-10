@@ -117,10 +117,6 @@ case object Options {
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
 
-      opt[(String, MinimizeMode)]("minimize").unbounded().keyValueName("<fullyQualifiedNameOrPrefix>", "focus|ignore")
-        .action((tup, c) => c.copy(minimizeNames = c.minimizeNames + (tup._1.split('.') -> tup._2)))
-        .text("Ignore entities that are not needed to verify the method/function. Fully qualified name is package.Class.callable for static entities, package.callable for top level entities, or just callable for top-level unpackaged entities"),
-
       opt[Unit]("dev-abrupt-exc").hidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -254,8 +250,6 @@ case class Options
   skipTranslation: Boolean = false,
   skipTranslationAfter: Option[String] = None,
   skipPass: Set[String] = Set.empty,
-
-  minimizeNames: Map[Seq[String], MinimizeMode] = Map().empty,
 
   cDefine: Map[String, String] = Map.empty,
 
