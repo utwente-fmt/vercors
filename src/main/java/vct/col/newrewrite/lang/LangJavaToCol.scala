@@ -9,7 +9,7 @@ import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.{Minimize, SuccessionMap}
+import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.result.VerificationError.UserError
 
@@ -204,14 +204,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               signals = cons.contract.signals.map(rw.dispatch) ++
                 cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
             ) },
+            focus = cons.isFocused, ignore = cons.isIgnored
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
         ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
-        val methodO = Minimize.mkOrigin(
-          JavaMethodOrigin(method),
-          method.modifiers.contains(JavaFocus[Pre]()),
-          method.modifiers.contains(JavaIgnore[Pre]()))
-
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
           args = rw.collectInScope(rw.variableScopes) { method.parameters.foreach(rw.dispatch) },
@@ -224,7 +220,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             signals = method.contract.signals.map(rw.dispatch) ++
               method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
           ),
-        )(method.blame)(methodO).succeedDefault(method)
+          focus = method.isFocused, ignore = method.isIgnored
+        )(method.blame)(method.o).succeedDefault(method)
       case method: JavaAnnotationMethod[Pre] =>
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),

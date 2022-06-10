@@ -1184,7 +1184,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case model: Model[Pre] =>
         model
       case function: Function[Pre] =>
-        new Function[Pre](function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
+        new Function[Pre](function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal,
+          focus = function.focus, ignore = function.ignore)(function.blame) // TODO (RR): Is this way of rewriting still necessary? Can we fix this with something similar to "rewrite(x=y)" syntax?
+          // For predicate down below it also seems weird. How about procedure?
       case procedure: Procedure[Pre] =>
         procedure
       case predicate: Predicate[Pre] =>

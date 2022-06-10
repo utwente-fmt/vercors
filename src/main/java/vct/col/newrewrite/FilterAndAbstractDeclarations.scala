@@ -1,7 +1,7 @@
 package vct.col.newrewrite
 
 import vct.col.ast.{ADTDeclaration, Applicable, CDeclaration, CParam, ClassDeclaration, Declaration, GlobalDeclaration, InstanceFunction, InstanceMethod, JavaLocalDeclaration, LabelDecl, ModelDeclaration, ParBlockDecl, ParInvariantDecl, Procedure, Program, SendDecl, Variable}
-import vct.col.newrewrite.FilterAndAbstractDeclarations.{AbstractedFunctionOrigin, getUsedDecls, getWithMode, makeOthersAbstract, removeUnused}
+import vct.col.newrewrite.FilterAndAbstractDeclarations.{AbstractedFunctionOrigin, getUsedDecls, makeOthersAbstract, removeUnused}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast._
 import RewriteHelpers._
@@ -11,8 +11,6 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
-import vct.col.util.Minimize
-import vct.col.util.Minimize.Mode
 import vct.result.VerificationError.{SystemError, Unreachable}
 
 import scala.collection.mutable
@@ -27,14 +25,6 @@ case object FilterAndAbstractDeclarations extends RewriterBuilder {
     override def inlineContext: String = f.o.inlineContext
     override def shortPosition: String = f.o.shortPosition
   }
-
-  def getMode[G](decl: Declaration[G]) = decl.o match {
-    case Minimize.Origin(_, m) => Some(m)
-    case _ => None
-  }
-
-  def getWithMode[G](p: Program[G], m: Minimize.Mode): Seq[Declaration[G]] =
-    p.transSubnodes.collect({case decl: Declaration[G] => decl}).filter(getMode(_).contains(m))
 
   def makeOthersAbstract[Pre <: Generation](p: Program[Pre], focusTargets: Seq[Declaration[Pre]], ignoreTargets: Seq[Declaration[Pre]]): Program[Rewritten[Pre]] =
     AbstractMaker(focusTargets, ignoreTargets).dispatch(p)
@@ -151,9 +141,13 @@ case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]]) extends 
 }
 
 case class FilterAndAbstractDeclarations[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+  def getIgnored[G](n: Program[G]): Seq[ContractApplicable[G]] = n.transSubnodes.collect({case ca: ContractApplicable[G] if ca.ignore => ca})
+  def getFocused[G](n: Program[G]): Seq[ContractApplicable[G]] = n.transSubnodes.collect({case ca: ContractApplicable[G] if ca.focus => ca})
+
   override def dispatch(p: Program[Pre]): Program[Post] = {
-    val focusTargets = getWithMode(p, Mode.Focus)
-    val ignoreTargets = getWithMode(p, Mode.Ignore)
+    val focusTargets = getFocused(p)
+    val ignoreTargets = getIgnored(p)
+
     if (focusTargets.isEmpty && ignoreTargets.isEmpty) {
       p.rewrite()
     } else if (focusTargets.isEmpty) {
@@ -162,14 +156,14 @@ case class FilterAndAbstractDeclarations[Pre <: Generation]() extends Rewriter[P
       // but it does make the final output textually smaller, which is nice for getting to a minimal working example quickly.
       val program: Program[Pre] = makeOthersAbstract(p, focusTargets, ignoreTargets).asInstanceOf[Program[Pre]]
       val allDecls: Set[Declaration[Pre]] = program.transSubnodes.collect({ case d: Declaration[Pre] => d }).toSet
-      val keep: Set[Declaration[Pre]] = (allDecls -- getWithMode[Pre](program, Mode.Ignore).toSet) ++ getUsedDecls[Pre](program).toSet
+      val keep: Set[Declaration[Pre]] = (allDecls -- getIgnored(program).toSet) ++ getUsedDecls[Pre](program).toSet
       removeUnused(program, keep.toSeq)._1
     } else {
       var program: Program[Post] = makeOthersAbstract(p, focusTargets, ignoreTargets)
       var dropped: Seq[Declaration[Post]] = Nil
 
       do {
-        val (programNew, droppedNew) = removeUnused(program, getUsedDecls(program) ++ getWithMode(program, Mode.Focus))
+        val (programNew, droppedNew) = removeUnused(program, getUsedDecls(program) ++ getFocused(program))
         program = programNew.asInstanceOf[Program[Post]]
         dropped = droppedNew
       } while (dropped.nonEmpty)

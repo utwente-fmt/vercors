@@ -6,9 +6,8 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.resolve._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
-import scala.collection.mutable
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"

@@ -138,6 +138,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                 )
               ),
               inline = function.inline,
+              focus = function.focus,
+              ignore = function.ignore
             )(function.blame)(function.o).succeedDefault(function)
           }
         case method: InstanceMethod[Pre] =>
@@ -169,6 +171,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               ),
               inline = method.inline,
               pure = method.pure,
+              focus = method.focus,
+              ignore = method.ignore
             )(method.blame)(method.o).succeedDefault(method)
           }
         case predicate: InstancePredicate[Pre] =>

@@ -1018,7 +1018,10 @@ case class Printer(out: Appendable,
       phrase(
         doubleline,
         spec(function.contract),
-        if(function.inline) phrase("inline") else phrase(), space, "pure", space, function.returnType,
+        if(function.inline) phrase("inline", space) else phrase(),
+        if(function.focus) phrase("focus", space) else phrase(),
+        if(function.ignore) phrase("ignore", space) else phrase(),
+        "pure", space, function.returnType, space,
         name(function), "(", commas(function.args.map(NodePhrase)), ")",
         function.body match {
           case Some(body) => phrase(space, "=", newline, indent(body))
@@ -1094,6 +1097,8 @@ case class Printer(out: Appendable,
     case function: InstanceFunction[_] =>
       val header = phrase(
         function.contract,
+        if(function.focus) phrase("focus", space) else phrase(),
+        if(function.ignore) phrase("ignore", space) else phrase(),
         if(function.inline) phrase("inline", space) else phrase(),
         "pure", space, function.returnType, space, name(function), "(", commas(function.args.map(NodePhrase)), ")",
       )
@@ -1105,6 +1110,8 @@ case class Printer(out: Appendable,
     case method: InstanceMethod[_] =>
       val header = phrase(
         method.contract,
+        if(method.focus) phrase("focus", space) else phrase(),
+        if(method.ignore) phrase("ignore", space) else phrase(),
         if(method.inline) phrase("inline", space) else phrase(),
         if(method.pure) phrase("pure", space) else phrase(),
         method.returnType, space, name(method), "(", commas(method.args.map(NodePhrase)), ")",
@@ -1248,6 +1255,8 @@ case class Printer(out: Appendable,
     case JavaVolatile() => say("volatile")
     case JavaPure() => say(inlineSpec("pure"))
     case JavaInline() => say(inlineSpec("inline"))
+    case JavaFocus() => say(inlineSpec("focus"))
+    case JavaIgnore() => say(inlineSpec("ignore"))
   }
 
   def printJavaImport(node: JavaImport[_]): Unit =

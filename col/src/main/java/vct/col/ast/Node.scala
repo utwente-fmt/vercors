@@ -61,7 +61,7 @@ import vct.col.debug._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
-import vct.col.util.{ExpectedError, Minimize}
+import vct.col.util.ExpectedError
 
 sealed trait Node[G] extends NodeImpl[G]
 
