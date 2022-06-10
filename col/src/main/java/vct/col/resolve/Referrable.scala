@@ -2,6 +2,7 @@ package vct.col.resolve
 
 import vct.col.ast._
 import vct.col.origin.SourceNameOrigin
+import vct.col.util.Minimize
 
 case object Referrable {
   def from[G](decl: Declaration[G]): Seq[Referrable[G]] = Seq[Referrable[G]](decl match {
@@ -47,6 +48,7 @@ case object Referrable {
 
   def originName(decl: Declaration[_]): String = decl.o match {
     case SourceNameOrigin(name, _) => name
+    case Minimize.Origin(SourceNameOrigin(name, _), _) => name // Ew...
     case _ => throw NameLost(decl.o)
   }
 

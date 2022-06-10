@@ -7,4 +7,6 @@ class TechnicalMinimizeSpec extends VercorsSpec {
   vercors should verify using silicon example "technical/minimize/FocusMethodTransitive.java"
   vercors should verify using silicon example "technical/minimize/FocusFunction.java"
   vercors should verify using silicon example "technical/minimize/FocusFunctionTransitive.java"
+  vercors should verify using silicon example "technical/minimize/IgnoreFunction.java"
+  vercors should verify using silicon example "technical/minimize/IgnoreMethod.java"
 }

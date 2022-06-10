@@ -722,6 +722,8 @@ final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(
 
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
+final case class JavaFocus[G]()(implicit val o: Origin) extends JavaModifier[G]
+final case class JavaIgnore[G]()(implicit val o: Origin) extends JavaModifier[G]
 
 final case class JavaVariableDeclaration[G](name: String, moreDims: Int, init: Option[Expr[G]])(implicit val o: Origin) extends NodeFamily[G] with JavaVariableDeclarationImpl[G]
 

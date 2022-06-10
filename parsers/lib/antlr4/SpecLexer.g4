@@ -51,6 +51,8 @@ VAL_NOTHING: 'nothing';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
+VAL_FOCUS: 'focus';
+VAL_IGNORE: 'ignore';
 
 VAL_WITH: 'with';
 VAL_THEN: 'then';

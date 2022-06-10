@@ -15,7 +15,7 @@ import vct.col.util.ExpectedError
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.main.util.Util
-import vct.options.{Backend, MinimizeMode, Options, PathOrStd}
+import vct.options.{Backend, Options, PathOrStd}
 import vct.parsers.PathAdtImporter
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
@@ -174,7 +174,7 @@ case class SilverTransformation
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
 
-    Minimize,
+    FilterAndAbstractDeclarations,
 
     // Silver compat (basically no new nodes)
     ResolveScale,

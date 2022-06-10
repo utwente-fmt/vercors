@@ -2,7 +2,7 @@ package vct.options
 
 import scopt.OParser
 import scopt.Read._
-import vct.col.newrewrite.Minimize
+import vct.col.newrewrite.FilterAndAbstractDeclarations
 import vct.main.BuildInfo
 import vct.parsers.Language
 import vct.resources.Resources
@@ -47,12 +47,6 @@ case object Options {
         case "debug" => Verbosity.Debug
         case "trace" => Verbosity.Trace
         case "all" => Verbosity.All
-      }
-
-    implicit val readMinimizeMode: scopt.Read[MinimizeMode] =
-      scopt.Read.reads {
-        case "focus" => MinimizeMode.Focus
-        case "ignore" => MinimizeMode.Ignore
       }
 
     OParser.sequence(

@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.Minimize.MinimizeOrigin
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
@@ -25,6 +24,11 @@ case object LangSpecificToCol extends RewriterBuilder {
   case class NotAValue(value: Expr[_]) extends UserError {
     override def code: String = "notAValue"
     override def text: String = value.o.messageInContext("Could not resolve this expression to a value.")
+  }
+
+  case class BothFocusIgnore(d: Declaration[_]) extends UserError {
+    override def code: String = "bothFocusIgnore"
+    override def text: String = d.o.messageInContext("This declaration uses both focus and ignore")
   }
 }
 

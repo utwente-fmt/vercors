@@ -1,7 +1,7 @@
 package vct.col.newrewrite
 
 import vct.col.ast.{ADTDeclaration, Applicable, CDeclaration, CParam, ClassDeclaration, Declaration, GlobalDeclaration, InstanceFunction, InstanceMethod, JavaLocalDeclaration, LabelDecl, ModelDeclaration, ParBlockDecl, ParInvariantDecl, Procedure, Program, SendDecl, Variable}
-import vct.col.newrewrite.Minimize.{AbstractedFunctionOrigin, computeFocus, getUsedDecls, makeOthersAbstract, removeUnused}
+import vct.col.newrewrite.FilterAndAbstractDeclarations.{AbstractedFunctionOrigin, getUsedDecls, getWithMode, makeOthersAbstract, removeUnused}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast._
 import RewriteHelpers._
@@ -11,14 +11,15 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
-import vct.options.MinimizeMode
+import vct.col.util.Minimize
+import vct.col.util.Minimize.Mode
 import vct.result.VerificationError.{SystemError, Unreachable}
 
 import scala.collection.mutable
 
-case object Minimize extends RewriterBuilder {
-  override def key: String = "minimize"
-  override def desc: String = "Minimize AST based on indicated minimization targets"
+case object FilterAndAbstractDeclarations extends RewriterBuilder {
+  override def key: String = "filterAndAbstractDeclarations"
+  override def desc: String = "Filter and abstract declarations based on indicated minimization targets"
 
   case class AbstractedFunctionOrigin[G](f: Function[G]) extends Origin {
     override def preferredName: String = "result"
@@ -27,26 +28,16 @@ case object Minimize extends RewriterBuilder {
     override def shortPosition: String = f.o.shortPosition
   }
 
-  // Currently the minimization system piggybacks on the origin system.
-  // To improve: the minimization targets could be a first-class property of the Program type
-  // Similar to how the rootObject is a property of Program
-  case class MinimizeOrigin(o: Origin, mode: MinimizeMode) extends Origin {
-    override def preferredName: String = o.preferredName
-    override def shortPosition: String = o.shortPosition
-    override def context: String = o.context
-    override def inlineContext: String = o.inlineContext
+  def getMode[G](decl: Declaration[G]) = decl.o match {
+    case Minimize.Origin(_, m) => Some(m)
+    case _ => None
   }
 
-  def isFocus[G](decl: Declaration[G]) = decl.o match {
-    case MinimizeOrigin(_, MinimizeMode.Focus) => true
-    case _ => false
-  }
+  def getWithMode[G](p: Program[G], m: Minimize.Mode): Seq[Declaration[G]] =
+    p.transSubnodes.collect({case decl: Declaration[G] => decl}).filter(getMode(_).contains(m))
 
-  def computeFocus[G](p: Program[G]): Seq[Declaration[G]] =
-    p.transSubnodes.collect({case decl: Declaration[G] => decl}).filter(isFocus)
-
-  def makeOthersAbstract[Pre <: Generation](p: Program[Pre], doNotChange: Seq[Declaration[Pre]]): Program[Rewritten[Pre]] =
-    AbstractMaker(doNotChange).dispatch(p)
+  def makeOthersAbstract[Pre <: Generation](p: Program[Pre], focusTargets: Seq[Declaration[Pre]], ignoreTargets: Seq[Declaration[Pre]]): Program[Rewritten[Pre]] =
+    AbstractMaker(focusTargets, ignoreTargets).dispatch(p)
 
   def removeUnused[Pre <: Generation](p: Program[Pre], used: Seq[Declaration[Pre]]): (Program[Rewritten[Pre]], Seq[Declaration[Pre]]) = {
     val ru = RemoveUnused(used)
@@ -114,12 +105,18 @@ case object Minimize extends RewriterBuilder {
   }
 }
 
-case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]]) extends Rewriter[Pre] {
+case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]], ignoreTargets: Seq[Declaration[Pre]]) extends Rewriter[Pre] {
+  // If there are no focus targets, only ignored decls are abstracted
+  // If there are focus targets, abstract everything not-focused
+  // It is assumed there is no overlap between focus & ignore sets
+  def makeAbstract(decl: Declaration[Pre]): Boolean =
+    if (focusTargets.isEmpty) { ignoreTargets.contains(decl) }
+    else { !focusTargets.contains(decl) }
+
   override def dispatch(decl: Declaration[Pre]): Unit = {
-    val b = !focusTargets.contains(decl)
     decl match {
-      case p: Procedure[Pre] if b => p.rewrite(body = None).succeedDefault(p)
-      case f: Function[Pre] if b && f.body.isDefined =>
+      case p: Procedure[Pre] if makeAbstract(p) => p.rewrite(body = None).succeedDefault(p)
+      case f: Function[Pre] if makeAbstract(f) && f.body.isDefined =>
         implicit val o = AbstractedFunctionOrigin(f)
         withResult((result: Result[Post]) => {
           val resultEqualsBody: Eq[Post] = result === dispatch(f.body.get)
@@ -153,18 +150,31 @@ case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]]) extends 
   }
 }
 
-case class Minimize[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+case class FilterAndAbstractDeclarations[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   override def dispatch(p: Program[Pre]): Program[Post] = {
-    val focusTargets = computeFocus(p)
-    var program: Program[Post] = makeOthersAbstract(p, focusTargets)
-    var dropped: Seq[Declaration[Post]] = Nil
+    val focusTargets = getWithMode(p, Mode.Focus)
+    val ignoreTargets = getWithMode(p, Mode.Ignore)
+    if (focusTargets.isEmpty && ignoreTargets.isEmpty) {
+      p.rewrite()
+    } else if (focusTargets.isEmpty) {
+      // Ignored declarations are kept around if other declarations need them, and dropped if possible
+      // The difference between only abstracting and also dropping is (= should not) not observable,
+      // but it does make the final output textually smaller, which is nice for getting to a minimal working example quickly.
+      val program: Program[Pre] = makeOthersAbstract(p, focusTargets, ignoreTargets).asInstanceOf[Program[Pre]]
+      val allDecls: Set[Declaration[Pre]] = program.transSubnodes.collect({ case d: Declaration[Pre] => d }).toSet
+      val keep: Set[Declaration[Pre]] = (allDecls -- getWithMode[Pre](program, Mode.Ignore).toSet) ++ getUsedDecls[Pre](program).toSet
+      removeUnused(program, keep.toSeq)._1
+    } else {
+      var program: Program[Post] = makeOthersAbstract(p, focusTargets, ignoreTargets)
+      var dropped: Seq[Declaration[Post]] = Nil
 
-    do {
-      val (programNew, droppedNew) = removeUnused(program, getUsedDecls(program) ++ computeFocus(program))
-      program = programNew.asInstanceOf[Program[Post]]
-      dropped = droppedNew
-    } while (dropped.nonEmpty)
+      do {
+        val (programNew, droppedNew) = removeUnused(program, getUsedDecls(program) ++ getWithMode(program, Mode.Focus))
+        program = programNew.asInstanceOf[Program[Post]]
+        dropped = droppedNew
+      } while (dropped.nonEmpty)
 
-    program
+      program
+    }
   }
 }

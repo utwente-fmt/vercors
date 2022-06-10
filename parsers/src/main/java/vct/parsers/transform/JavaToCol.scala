@@ -11,7 +11,7 @@ import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.Java
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.util.{AstBuildHelpers, ExpectedError, Minimize}
 
 import scala.annotation.nowarn
 import scala.collection.mutable
@@ -76,6 +76,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Modifier2(mods) => withModifiers(mods, m => {
       if(m.consume(m.pure)) JavaPure[G]()
       else if(m.consume(m.inline)) JavaInline[G]()
+      else if(m.consume(m.focus)) JavaFocus[G]()
+      else if(m.consume(m.ignore)) JavaIgnore[G]()
       else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
     })
   }
@@ -847,6 +849,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "pure" => collector.pure += mod
       case "inline" => collector.inline += mod
       case "thread_local" => collector.threadLocal += mod
+      case "focus" => collector.focus += mod
+      case "ignore" => collector.ignore += mod
     }
     case ValStatic(_) => collector.static += mod
   }
@@ -1073,14 +1077,21 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
         withModifiers(modifiers, m => {
+          // TODO (RR): Modifier would be better, this shouldn't be handled here, not a toCol concern. But InstanceMethod does not have modifier...?
+          val minimizeMode = {
+            if (m.consume(m.focus)) { Some(Minimize.Mode.Focus) }
+            else if (m.consume(m.ignore)) { Some(Minimize.Mode.Ignore) }
+            else { None }
+          }
+          val innerO = SourceNameOrigin(convert(name), origin(decl))
+          val o = minimizeMode.map(Minimize.Origin(innerO, _)).getOrElse(innerO)
           transform(new InstanceFunction(
             convert(t),
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
             c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
-            blame(decl))(
-            SourceNameOrigin(convert(name), origin(decl))))
+            blame(decl))(o))
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)

@@ -1,8 +1,9 @@
 class FocusMethod {
-    /*@ focus */ void yy() {
+    /*@ focus */
+    void yy() {
         zz();
     }
 
-    ensures false;
+    //@ ensures false;
     void zz() { }
 }

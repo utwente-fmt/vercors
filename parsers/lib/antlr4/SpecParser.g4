@@ -274,7 +274,7 @@ valKeywordNonExpr: (
  | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_REF | VAL_RATIONAL | VAL_SEQ | VAL_SET | VAL_BAG
  | VAL_POINTER | VAL_MAP | VAL_OPTION | VAL_EITHER | VAL_TUPLE | VAL_TYPE | VAL_ANY | VAL_NOTHING
  // Annotation keywords
- | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS
+ | VAL_PURE | VAL_THREAD_LOCAL | VAL_FOCUS | VAL_IGNORE | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS
  // Declaration keywords
  | VAL_AXIOM | VAL_MODEL | VAL_ADT
  // Contract clause keywords
@@ -342,7 +342,7 @@ valDef
  ;
 
 valModifier
- : ('pure' | 'inline' | 'thread_local')
+ : ('pure' | 'inline' | 'thread_local' | 'focus' | 'ignore')
  | langStatic # valStatic
  ;
 

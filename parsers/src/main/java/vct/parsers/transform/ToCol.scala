@@ -76,6 +76,8 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     val inline: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val threadLocal: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val static: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val focus: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val ignore: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
 
     def consume(buffer: mutable.ArrayBuffer[ParserRuleContext]): Boolean = {
       val result = buffer.nonEmpty
@@ -83,7 +85,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
       result
     }
 
-    def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static).flatten
+    def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static, focus, ignore).flatten
   }
 
   implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
