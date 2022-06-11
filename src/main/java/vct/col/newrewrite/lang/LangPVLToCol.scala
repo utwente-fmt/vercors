@@ -2,14 +2,25 @@ package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{PVLInvocation, _}
-import vct.col.origin.{Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
+import vct.col.origin.{Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
+import vct.col.ast.stmt.decl.Method
+import vct.col.newrewrite.lang.LangPVLToCol.PVLSourceNameOrigin
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, RefADTFunction, RefAxiomaticDataType, RefClass, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefVariable}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
+
+case object LangPVLToCol {
+  case class PVLSourceNameOrigin(qualifiedName: String, o: Origin) extends Origin {
+    override def preferredName: String = o.preferredName
+    override def context: String = o.context
+    override def inlineContext: String = o.inlineContext
+    override def shortPosition: String = o.shortPosition
+  }
+}
 
 case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
   type Post = Rewritten[Pre]
@@ -145,4 +156,13 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
     }
   }
+
+  def rewriteMethod(m: InstanceMethod[Pre]): Unit = {
+    m.rewrite(o = PVLSourceNameOrigin(s"${rw.currentClass.top.o.preferredName}.${m.o.preferredName}", m.o)).succeedDefault(m)
+  }
+
+  def rewriteInstanceFunction(f: InstanceFunction[Pre]): Unit = {
+    f.rewrite(o = PVLSourceNameOrigin(s"${rw.currentClass.top.o.preferredName}.${f.o.preferredName}", f.o)).succeedDefault(f)
+  }
+
 }

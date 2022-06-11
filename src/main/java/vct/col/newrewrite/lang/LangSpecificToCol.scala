@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.ast.stmt.decl.Method
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -46,6 +47,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
+    case m: InstanceMethod[Pre] => pvl.rewriteMethod(m)
+    case f: InstanceFunction[Pre] => pvl.rewriteInstanceFunction(f)
 
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)

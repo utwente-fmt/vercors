@@ -30,25 +30,40 @@ case object LangJavaToCol {
     override def inlineContext: String = locals.decls(idx).o.inlineContext
   }
 
-  case class JavaConstructorOrigin(cons: JavaConstructor[_]) extends Origin {
+  case class JavaConstructorOrigin(pkg: Option[JavaNamespace[_]], c: JavaClass[_], cons: JavaConstructor[_]) extends Origin {
     override def preferredName: String = cons.name
     override def shortPosition: String = cons.o.shortPosition
     override def context: String = cons.o.context
     override def inlineContext: String = cons.o.inlineContext
+
+    def qualifiedName: String = {
+      val p = pkg.flatMap(_.pkg.map(_.names.mkString("."))).getOrElse("<defaultPkg>")
+      s"$p.${c.name}.<constructor>"
+    }
   }
 
-  case class JavaMethodOrigin(method: JavaMethod[_]) extends Origin {
+  case class JavaMethodOrigin(pkg: Option[JavaNamespace[_]], c: JavaClass[_], method: JavaMethod[_]) extends Origin {
     override def preferredName: String = method.name
     override def shortPosition: String = method.o.shortPosition
     override def context: String = method.o.context
     override def inlineContext: String = method.o.inlineContext
+
+    def qualifiedName: String = {
+      val p = pkg.flatMap(_.pkg.map(_.names.mkString("."))).getOrElse("<defaultPkg>")
+      s"$p.${c.name}.${method.name}"
+    }
   }
 
-  case class JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]) extends Origin {
+  case class JavaAnnotationMethodOrigin(pkg: Option[JavaNamespace[_]], c: JavaAnnotationInterface[_], method: JavaAnnotationMethod[_]) extends Origin {
     override def preferredName: String = method.name
     override def shortPosition: String = method.o.shortPosition
     override def context: String = method.o.context
     override def inlineContext: String = method.o.inlineContext
+
+    def qualifiedName: String = {
+      val p = pkg.flatMap(_.pkg.map(_.names.mkString("."))).getOrElse("<defaultPkg>")
+      s"$p.${c.name}.${method.name}"
+    }
   }
 
   case class JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
@@ -170,7 +185,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           }.flatten)),
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
-      )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
+      )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
+      )
       javaDefaultConstructor(currentJavaClass.top) +: decls
     } else decls
 
@@ -205,7 +221,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
             ) },
             focus = cons.isFocused, ignore = cons.isIgnored
-          )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
+          )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame)
+          )(JavaConstructorOrigin(namespace.topOption, currentJavaClass.top.asInstanceOf[JavaClass[Pre]], cons))
         ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
         new InstanceMethod(
@@ -221,7 +238,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
           ),
           focus = method.isFocused, ignore = method.isIgnored
-        )(method.blame)(method.o).succeedDefault(method)
+        )(method.blame
+        )(JavaMethodOrigin(pkg = namespace.topOption, c = currentJavaClass.top.asInstanceOf[JavaClass[Pre]], method)
+        ).succeedDefault(method)
       case method: JavaAnnotationMethod[Pre] =>
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -229,7 +248,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           outArgs = Nil, typeArgs = Nil,
           body = None,
           contract = contract(TrueSatisfiable)
-        )(PanicBlame("Verification of annotation method cannot fail"))(JavaAnnotationMethodOrigin(method)).succeedDefault(method)
+        )(PanicBlame("Verification of annotation method cannot fail")
+        )(JavaAnnotationMethodOrigin(pkg = namespace.topOption, c = currentJavaClass.top.asInstanceOf[JavaAnnotationInterface[Pre]], method)
+        ).succeedDefault(method)
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
       case other => rw.dispatch(other)

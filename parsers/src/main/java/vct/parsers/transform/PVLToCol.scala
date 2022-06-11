@@ -76,6 +76,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
+          focus = mods.consume(mods.focus),
+          ignore = mods.consume(mods.ignore)
         )(blame(method))(SourceNameOrigin(convert(name), origin(method)))
       }))
   }
@@ -593,6 +595,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       case "pure" => collector.pure += mod
       case "inline" => collector.inline += mod
       case "thread_local" => collector.threadLocal += mod
+      case "focus" => collector.focus += mod
+      case "ignore" => collector.ignore += mod
     }
     case ValStatic(_) => collector.static += mod
   }
@@ -824,7 +828,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
+            c.consumeApplicableContract(blame(decl)), m.consume(m.inline),
+            focus = m.consume(m.focus),
+            ignore = m.consume(m.ignore)
+          )(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })
