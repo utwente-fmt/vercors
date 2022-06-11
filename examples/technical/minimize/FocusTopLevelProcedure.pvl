@@ -1,0 +1,10 @@
+focus pure int g() {
+    return 4;
+}
+
+class FocusTopLevelFunction {
+    ensures false;
+    void m() {
+
+    }
+}

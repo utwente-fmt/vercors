@@ -49,7 +49,9 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           right = rw.dispatch(cons.contract.ensures),
         )
       ) },
-    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))).succeedDefault(cons)
+      focus = cons.focus, ignore = cons.ignore
+    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame)
+    )(PVLSourceNameOrigin(s"${rw.currentClass.top.o.preferredName}.constructor", cons.o))).succeedDefault(cons)
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
@@ -75,6 +77,8 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
               fieldPerm[Post](result, rw.succ(field), WritePerm())
           })), tt, Nil, Nil, Nil, None,
         )(TrueSatisfiable)
+        // No "SourceNameOrigin" because this is an implitily generated constructor, so it doesn't get an explicit name/origin
+        // This ensures it doesn't show up later in summaries, e.g. in FilterAndAbstractDeclarations
       )(defaultBlame)).declareDefault(rw)
     }
   }

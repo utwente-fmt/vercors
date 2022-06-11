@@ -16,7 +16,7 @@ field : type identifierList ';' ;
 method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
-constructor : contract 'constructor' '(' args? ')' methodBody ;
+constructor : contract valModifier* 'constructor' '(' args? ')' methodBody ;
 
 runMethod : contract 'run' methodBody ;
 

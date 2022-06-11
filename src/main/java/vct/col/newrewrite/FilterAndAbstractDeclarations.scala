@@ -184,15 +184,22 @@ case class FilterAndAbstractDeclarations[Pre <: Generation]() extends Rewriter[P
 
     def printKeeping[G](n: Node[G]): Unit = {
       val globalDecls = n.transSubnodes.collect({ case d: GlobalDeclaration[G] => d })
-      val kept = globalDecls.collect({ case ca: ContractApplicable[G] => getNiceName(ca) })
+      val niceNamesKept = globalDecls.collect({ case ca: ContractApplicable[G] => getNiceName(ca) })
         .collect({ case Some(n) => n })
+      val lessNiceNamesKept = globalDecls.collect({ case ca: ContractApplicable[G] => ca.o.preferredName })
 
-      if (kept.isEmpty) {
+      if (globalDecls.isEmpty) {
+        // If there is nothing left, need to warn
         logger.warn("No declarations left after minimization!")
-      } else {
+      } else if (niceNamesKept.nonEmpty) {
+        // If there are some nice/clear names left, report those
         logger.info("Keeping:")
-        kept.foreach({ n => logger.info(s"- $n") })
-        logger.info(s"and ${globalDecls.length - kept.length} other declarations")
+        niceNamesKept.foreach({ n => logger.info(s"- $n") })
+        logger.info(s"and ${globalDecls.length - niceNamesKept.length} other global declarations")
+      } else {
+        // Otherwise, report less nice names
+        logger.info("Keeping:")
+        lessNiceNamesKept.foreach({ n => logger.info(s"- $n") })
       }
     }
 

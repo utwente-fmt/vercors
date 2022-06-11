@@ -41,6 +41,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
+          focus = mods.consume(mods.focus), ignore = mods.consume(mods.ignore)
         )(blame(method))(SourceNameOrigin(convert(name), origin(method)))
       }))
   }
@@ -88,9 +89,11 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
-    case Constructor0(contract, _, _, args, _, body) =>
-      Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
+    case Constructor0(contract, modifiers, _, _, args, _, body) =>
+      Seq(withModifiers(modifiers, m => withContract(contract, contract =>
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body),
+          focus = m.consume(m.focus), ignore = m.consume(m.ignore)
+        )(blame(constructor)))))
   }
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
@@ -796,7 +799,9 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
             c.consumeApplicableContract(blame(decl)),
-            m.consume(m.inline))(blame(decl))(namedOrigin)
+            m.consume(m.inline),
+            focus = m.consume(m.focus), ignore = m.consume(m.ignore)
+          )(blame(decl))(namedOrigin)
         })
       ))
     case ValModel(_, name, _, decls, _) =>

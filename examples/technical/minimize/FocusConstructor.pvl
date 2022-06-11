@@ -1,0 +1,9 @@
+class FocusConstructor {
+    focus constructor() {
+
+    }
+
+    constructor(int x) {
+        assert false;
+    }
+}
