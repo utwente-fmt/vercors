@@ -161,8 +161,4 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     m.rewrite(o = PVLSourceNameOrigin(s"${rw.currentClass.top.o.preferredName}.${m.o.preferredName}", m.o)).succeedDefault(m)
   }
 
-  def rewriteInstanceFunction(f: InstanceFunction[Pre]): Unit = {
-    f.rewrite(o = PVLSourceNameOrigin(s"${rw.currentClass.top.o.preferredName}.${f.o.preferredName}", f.o)).succeedDefault(f)
-  }
-
 }

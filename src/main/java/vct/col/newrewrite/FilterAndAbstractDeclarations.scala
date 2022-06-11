@@ -1,13 +1,13 @@
 package vct.col.newrewrite
 
 import vct.col.ast.{ADTDeclaration, Applicable, CDeclaration, CParam, ClassDeclaration, Declaration, GlobalDeclaration, InstanceFunction, InstanceMethod, JavaLocalDeclaration, LabelDecl, ModelDeclaration, ParBlockDecl, ParInvariantDecl, Procedure, Program, SendDecl, Variable}
-import vct.col.newrewrite.FilterAndAbstractDeclarations.{AbstractedFunctionOrigin, filterAndAbstract, getUsedDecls, makeOthersAbstract, removeUnused}
+import vct.col.newrewrite.FilterAndAbstractDeclarations.{AbstractedFunctionOrigin, filterAndAbstract, getUsedDecls}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast._
 import RewriteHelpers._
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.newrewrite.lang.LangJavaToCol.{JavaAnnotationMethodOrigin, JavaConstructorOrigin, JavaMethodOrigin}
+import vct.col.newrewrite.lang.LangJavaToCol.{JavaAnnotationMethodOrigin, JavaConstructorOrigin, JavaInstanceFunctionOrigin, JavaMethodOrigin}
 import vct.col.newrewrite.lang.LangPVLToCol.PVLSourceNameOrigin
 import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
 import vct.col.ref.Ref
@@ -26,14 +26,6 @@ case object FilterAndAbstractDeclarations extends RewriterBuilder {
     override def context: String = f.o.context
     override def inlineContext: String = f.o.inlineContext
     override def shortPosition: String = f.o.shortPosition
-  }
-
-  def makeOthersAbstract[Pre <: Generation](p: Program[Pre], focusTargets: Seq[Declaration[Pre]], ignoreTargets: Seq[Declaration[Pre]]): Program[Rewritten[Pre]] =
-    AbstractMaker(focusTargets, ignoreTargets).dispatch(p)
-
-  def removeUnused[Pre <: Generation](p: Program[Pre], used: Seq[Declaration[Pre]]): (Program[Rewritten[Pre]], Seq[Declaration[Pre]]) = {
-    val ru = RemoveUnused(used)
-    (ru.dispatch(p), ru.dropped.toSeq, ru.notified)
   }
 
   // Get all predicate usages, method usages, field usages, adt usages, adt function usages
@@ -96,35 +88,37 @@ case object FilterAndAbstractDeclarations extends RewriterBuilder {
     }.toSeq
   }
 
-  def filterAndAbstract[G](p: Program[G], focused: Seq[ContractApplicable[G]], ignored: Seq[ContractApplicable[G]]): (Program[Rewritten[G]], Seq[Declaration[Rewritten[G]]]) =
+  def filterAndAbstract[G <: Generation](p: Program[G], focused: Seq[ContractApplicable[G]], ignored: Seq[ContractApplicable[G]]): (Program[Rewritten[G]], Seq[Declaration[_]]) =
     if (focused.isEmpty && ignored.isEmpty) {
-      p.rewrite()
+      (new Rewriter[G]().dispatch(p), Nil)
     } else if (focused.isEmpty) {
       // Ignored declarations are kept around if other declarations need them, and dropped if possible
       // The difference between only abstracting and also dropping is (= should not) not observable,
       // but it does make the final output textually smaller, which is nice for getting to a minimal working example quickly.
-      val am = AbstractMaker[G](p, focused, ignored)
-      val newProgram = am.dispatch(p)
-      val newIgnored = ignored.map(am.succ(_)).toSet
-      // TODO (RR): Get this working next, refactoring messed up  a bit
-      val allDecls = newProgram.transSubnodes.collect({ case d: Declaration[Rewritten[G]] => d }).toSet
-      val keep: Set[Declaration[G]] = (allDecls -- newIgnored) ++ getUsedDecls[G](program).toSet
-      val (programNew, dropped) = removeUnused(program, keep.toSeq)
-      (programNew, dropped)
+      val am = AbstractMaker[G](focused, ignored)
+      val program1 = am.dispatch(p)
+      val ignored1 = ignored.map(am.succ[Declaration[Rewritten[G]]](_).decl).toSet
+      val allDecls = program1.transSubnodes.collect({ case d: Declaration[Rewritten[G]] => d }).toSet
+      val used = (allDecls -- ignored1) ++ getUsedDecls(program1).toSet
+      val ru = RemoveUnused[Rewritten[G]](used.toSeq)
+      (ru.dispatch(program1).asInstanceOf[Program[Rewritten[G]]], ru.dropped.toSeq)
     } else {
-      var program: Program[Rewritten[G]] = makeOthersAbstract(p, focusTargets, ignoreTargets)
+      val am = AbstractMaker(focused, ignored)
+      var program1: Program[Rewritten[G]] = am.dispatch(p)
+      var focused1: Seq[Declaration[Rewritten[G]]] = focused.map(am.succ[Declaration[Rewritten[G]]](_).decl)
       var dropped: Seq[Declaration[Rewritten[G]]] = Nil
       var totalDropped: Seq[Declaration[_]] = Nil
 
       do {
-        val (programNew, droppedNew, notified) = removeUnused(program, getUsedDecls(program) ++ getFocused(program))
-        logger.info(s"${droppedNew.size - notified} other declarations were dropped")
-        program = programNew.asInstanceOf[Program[Rewritten[G]]]
-        dropped = droppedNew
-        totalDropped = totalDropped ++ droppedNew
+        val ru = RemoveUnused[Rewritten[G]](getUsedDecls(program1) ++ focused1)
+        val program2 = ru.dispatch(program1)
+        program1 = program2.asInstanceOf[Program[Rewritten[G]]]
+        focused1 = focused1.map(ru.succ[Declaration[Rewritten[Rewritten[G]]]](_).decl).asInstanceOf[Seq[Declaration[Rewritten[G]]]]
+        dropped = ru.dropped.toSeq
+        totalDropped ++= dropped
       } while (dropped.nonEmpty)
 
-      (program, totalDropped)
+      (program1, totalDropped)
     }
 }
 
@@ -180,6 +174,7 @@ case class FilterAndAbstractDeclarations[Pre <: Generation]() extends Rewriter[P
     case PVLSourceNameOrigin(qualifiedName, _) => Some(qualifiedName)
     case o: JavaConstructorOrigin => Some(o.qualifiedName)
     case o: JavaMethodOrigin => Some(o.qualifiedName)
+    case o: JavaInstanceFunctionOrigin => Some(o.qualifiedName)
     case o: JavaAnnotationMethodOrigin => Some(o.qualifiedName)
     case _ => None
   }
@@ -187,51 +182,33 @@ case class FilterAndAbstractDeclarations[Pre <: Generation]() extends Rewriter[P
   override def dispatch(p: Program[Pre]): Program[Post] = {
     val (program, dropped) = filterAndAbstract[Pre](p, getFocused(p), getIgnored(p))
 
-    val droppedWithNiceName = dropped.collect({ case ca: ContractApplicable[Post] => getNiceName[Post](ca) })
+    def printKeeping[G](n: Node[G]): Unit = {
+      val globalDecls = n.transSubnodes.collect({ case d: GlobalDeclaration[G] => d })
+      val kept = globalDecls.collect({ case ca: ContractApplicable[G] => getNiceName(ca) })
+        .collect({ case Some(n) => n })
+
+      if (kept.isEmpty) {
+        logger.warn("No declarations left after minimization!")
+      } else {
+        logger.info("Keeping:")
+        kept.foreach({ n => logger.info(s"- $n") })
+        logger.info(s"and ${globalDecls.length - kept.length} other declarations")
+      }
+    }
+
+    val droppedWithNiceName = dropped
+      .collect({ case ca: ContractApplicable[Post] => getNiceName[Post](ca) })
+      .collect({ case Some(n) => n })
     if (droppedWithNiceName.nonEmpty) {
       logger.info("Dropping:")
       droppedWithNiceName.foreach({ d => logger.info(s"- $d") })
       logger.info(s"and ${dropped.length - droppedWithNiceName.length} other declarations")
+      printKeeping(program)
     } else {
       logger.info(s"Dropped ${dropped.length} declarations")
+      printKeeping(program)
     }
 
     program
-
-    //        getNiceName(decl).foreach({ n =>
-    //          logger.info(s"Dropping: " + n)
-    //          notified += 1
-    //        })
-
-//    if (focusTargets.isEmpty && ignoreTargets.isEmpty) {
-//      p.rewrite()
-//    } else if (focusTargets.isEmpty) {
-//      // Ignored declarations are kept around if other declarations need them, and dropped if possible
-//      // The difference between only abstracting and also dropping is (= should not) not observable,
-//      // but it does make the final output textually smaller, which is nice for getting to a minimal working example quickly.
-//      val program: Program[Pre] = makeOthersAbstract(p, focusTargets, ignoreTargets).asInstanceOf[Program[Pre]]
-//      val allDecls: Set[Declaration[Pre]] = program.transSubnodes.collect({ case d: Declaration[Pre] => d }).toSet
-//      val keep: Set[Declaration[Pre]] = (allDecls -- getIgnored(program).toSet) ++ getUsedDecls[Pre](program).toSet
-//      val (programNew, droppedNew, notified) = removeUnused(program, keep.toSeq)
-////      logger.info(s"${droppedNew.size - notified} other declarations were dropped")
-////      programNew
-//      dropped = droppedNew
-//    } else {
-//      var program: Program[Post] = makeOthersAbstract(p, focusTargets, ignoreTargets)
-//      var dropped: Seq[Declaration[Post]] = Nil
-//      var totalDropped: Seq[Declaration[_]] = Nil
-//
-//      do {
-//        val (programNew, droppedNew, notified) = removeUnused(program, getUsedDecls(program) ++ getFocused(program))
-//        logger.info(s"${droppedNew.size - notified} other declarations were dropped")
-//        program = programNew.asInstanceOf[Program[Post]]
-//        dropped = droppedNew
-//        totalDropped = totalDropped ++ droppedNew
-//      } while (dropped.nonEmpty)
-//
-//      logger.info(s"A total number of ${totalDropped.length} declarations were dropped")
-//
-//      program
-//    }
   }
 }

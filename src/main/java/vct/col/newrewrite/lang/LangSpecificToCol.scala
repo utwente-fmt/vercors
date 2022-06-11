@@ -5,10 +5,12 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.stmt.decl.Method
+import vct.col.newrewrite.lang.LangJavaToCol.JavaInstanceFunctionOrigin
+import vct.col.newrewrite.lang.LangPVLToCol.PVLSourceNameOrigin
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -48,7 +50,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
     case m: InstanceMethod[Pre] => pvl.rewriteMethod(m)
-    case f: InstanceFunction[Pre] => pvl.rewriteInstanceFunction(f)
+    case f: InstanceFunction[Pre] if currentClass.nonEmpty =>
+      f.rewrite(o = PVLSourceNameOrigin(s"${currentClass.top.o.preferredName}.${f.o.preferredName}", f.o)).succeedDefault(f)
+    case f: InstanceFunction[Pre] if java.currentJavaClass.nonEmpty =>
+      f.rewrite(o = JavaInstanceFunctionOrigin(java.namespace.topOption, java.currentJavaClass.top, f)).succeedDefault(f)
+    case _: InstanceFunction[Pre] => throw Unreachable("Processing instance function without a class")
 
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)

@@ -30,6 +30,18 @@ case object LangJavaToCol {
     override def inlineContext: String = locals.decls(idx).o.inlineContext
   }
 
+  case class JavaImplicitConstructorOrigin(pkg: Option[JavaNamespace[_]], c: JavaClass[_]) extends Origin {
+    override def preferredName: String = c.name
+    override def shortPosition: String = c.o.shortPosition
+    override def context: String = c.o.context
+    override def inlineContext: String = c.o.inlineContext
+
+    def qualifiedName: String = {
+      val p = pkg.flatMap(_.pkg.map(_.names.mkString("."))).getOrElse("<defaultPkg>")
+      s"$p.${c.name}.<implicitConstructor>"
+    }
+  }
+
   case class JavaConstructorOrigin(pkg: Option[JavaNamespace[_]], c: JavaClass[_], cons: JavaConstructor[_]) extends Origin {
     override def preferredName: String = cons.name
     override def shortPosition: String = cons.o.shortPosition
@@ -51,6 +63,18 @@ case object LangJavaToCol {
     def qualifiedName: String = {
       val p = pkg.flatMap(_.pkg.map(_.names.mkString("."))).getOrElse("<defaultPkg>")
       s"$p.${c.name}.${method.name}"
+    }
+  }
+
+  case class JavaInstanceFunctionOrigin(pkg: Option[JavaNamespace[_]], c: JavaClassOrInterface[_], function: InstanceFunction[_]) extends Origin {
+    override def preferredName: String = function.o.preferredName
+    override def shortPosition: String = function.o.shortPosition
+    override def context: String = function.o.context
+    override def inlineContext: String = function.o.inlineContext
+
+    def qualifiedName: String = {
+      val p = pkg.flatMap(_.pkg.map(_.names.mkString("."))).getOrElse("<defaultPkg>")
+      s"$p.${c.name}.$preferredName"
     }
   }
 
@@ -186,6 +210,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
+      )(JavaImplicitConstructorOrigin(namespace.topOption, currentJavaClass.top.asInstanceOf[JavaClass[_]])
       )
       javaDefaultConstructor(currentJavaClass.top) +: decls
     } else decls
@@ -197,7 +222,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
-        withResult((result: Result[Post]) =>
+        withResult((result: Result[Post]) => {
           new Procedure(
             returnType = t,
             args = rw.collectInScope(rw.variableScopes) {
@@ -222,8 +247,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             ) },
             focus = cons.isFocused, ignore = cons.isIgnored
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame)
-          )(JavaConstructorOrigin(namespace.topOption, currentJavaClass.top.asInstanceOf[JavaClass[Pre]], cons))
-        ).succeedDefault(cons)
+          )(cons.o match {
+            case _: JavaImplicitConstructorOrigin => cons.o
+            case _ => JavaConstructorOrigin(namespace.topOption, currentJavaClass.top.asInstanceOf[JavaClass[Pre]], cons)
+          })
+        }).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
