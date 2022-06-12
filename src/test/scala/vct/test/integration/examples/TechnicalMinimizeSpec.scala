@@ -50,33 +50,28 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
     i += 1
   }
 
-  for (ca1 <- allContractApplicable) {
-    for (ca2 <- allContractApplicable) {
-      for (correctnessCa1 <- allCorrectness) {
-        for (correctnessCa2 <- allCorrectness) {
-          for (filterModeCa1 <- allFilterMode) {
-            if (correctnessCa1 == Failing && correctnessCa2 == Verifying && filterModeCa1 == Ignore) {
-              println("-----")
-              println(s"$correctnessCa1:$filterModeCa1, $correctnessCa2")
-              // Can this line below be made blocking?
-              mustVerify(new Program[G](Seq(
-                ca1(correctnessCa1, filterModeCa1),
-                ca2(correctnessCa2, Normal)
-              ), null)(PanicBlame("")))
-            }
-          }
-        }
-      }
+  /* SPEC:
+    ALL ca1 ca2: ContractApplicable; failing(ca1) && verifying(ca2) && ignored(ca1) ==> verifying(ca1 * ca2)
+    ALL ca1 ca2: ContractApplicable; failing(ca1) && failing(ca2) && ignored(ca1) ==> failing(ca1 * ca2)
+   */
+  for (
+    ca1 <- allContractApplicable;
+    ca2 <- allContractApplicable;
+    correctnessCa1 <- allCorrectness;
+    correctnessCa2 <- allCorrectness;
+    filterModeCa1 <- allFilterMode
+  ) {
+    if (correctnessCa1 == Failing && correctnessCa2 == Verifying && filterModeCa1 == Ignore) {
+      println("-----")
+      println(s"$correctnessCa1:$filterModeCa1, $correctnessCa2")
+      // Can this line below be made blocking?
+      mustVerify(new Program[G](Seq(
+        ca1(correctnessCa1, filterModeCa1),
+        ca2(correctnessCa2, Normal)
+      ), null)(PanicBlame("")))
     }
   }
-
-//  vercors should verify using anyBackend example "technical/minimize/FocusMethod.java"
 }
-
-/*
-  ALL ca1 ca2: ContractApplicable; failing(ca1) && verifying(ca2) && ignored(ca1) ==> verifying(ca1 * ca2)
-  ALL ca1 ca2: ContractApplicable; failing(ca1) && failing(ca2) && ignored(ca1) ==> failing(ca1 * ca2)
- */
 
 class TechnicalMinimizeSpec extends VercorsSpec {
   vercors should verify using anyBackend example "technical/minimize/FocusMethod.java"
