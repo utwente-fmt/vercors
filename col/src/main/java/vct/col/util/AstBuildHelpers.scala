@@ -205,6 +205,9 @@ object AstBuildHelpers {
   def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] =
     IntegerValue(i)
 
+  def const[G](b: Boolean)(implicit o: Origin): BooleanValue[G] =
+    if(b) tt else ff
+
   def contract[G]
               (blame: Blame[NontrivialUnsatisfiable],
                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
