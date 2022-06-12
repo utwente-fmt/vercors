@@ -1,32 +1,82 @@
 package vct.test.integration.examples
 
-import vct.col.ast.{Eq, Function, Program, Result, SplitAccountedPredicate, TInt, UnitAccountedPredicate}
+import vct.col.ast.{ApplicableContract, Block, Eq, Function, GlobalDeclaration, Procedure, Program, Result, SplitAccountedPredicate, TInt, TVoid, UnitAccountedPredicate}
 import vct.col.origin.{DiagnosticOrigin, PanicBlame}
 import vct.col.print.Printer
 import vct.col.rewrite.InitialGeneration
 import vct.test.integration.helper.VercorsSpec
 import vct.col.util.AstBuildHelpers._
 
-class XX extends VercorsSpec {
+class TechnicalMinimizeSpec2 extends VercorsSpec {
   type G = InitialGeneration
   implicit val o = DiagnosticOrigin
+  type GlobalDeclGen = (Correctness, FilterMode) => GlobalDeclaration[G]
 
-  def mkFn(failing: Boolean, focus: Boolean, ignore: Boolean): Function[G] =
+  sealed trait Correctness
+  case object Failing extends Correctness
+  case object Verifying extends Correctness
+
+  sealed trait FilterMode;
+  case object Focus extends FilterMode
+  case object Ignore extends FilterMode
+  case object Normal extends FilterMode
+
+  def mkContract(correctness: Correctness): ApplicableContract[G] =
+    contract(PanicBlame(""), ensures=UnitAccountedPredicate(const(if(correctness == Failing) false else true)))
+
+  def function(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
       new Function(
-        TInt(), Seq(), Seq(), Some(const[G](0)), contract(PanicBlame(""), ensures=UnitAccountedPredicate(const(!failing))),
-        focus = focus, ignore = ignore)(null)
+        TInt(), Seq(), Seq(), Some(const[G](0)),
+        contract(PanicBlame(""), ensures=UnitAccountedPredicate(const(if(correctness == Failing) false else true))),
+        focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
 
-  val p = new Program[G](
-    Seq(
-      mkFn(true, false, false),
-      mkFn(false, true, false)
-    ), null)(null)
+  def procedure(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
+    new Procedure(
+      TVoid(), Seq(), Seq(), Seq(), Some(Block[G](Seq())), mkContract(correctness),
+      focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
 
-  val sb = new java.lang.StringBuilder
-  val printer = Printer(sb, syntax = vct.col.print.PVL)
-  printer.print(p)
-  println(sb.toString)
+  val allContractApplicable: Seq[GlobalDeclGen] = Seq(function, procedure)
+  val allCorrectness = Seq(Failing, Verifying)
+  val allFilterMode = Seq(Focus, Ignore, Normal)
+
+  var i = 0
+  def mustVerify(p: Program[G]): Unit = {
+    val sb = new java.lang.StringBuilder
+    val printer = Printer(sb, syntax = vct.col.print.PVL)
+    printer.print(p)
+    val str = sb.toString
+    println(s"------- some test case $i\n$str")
+    vercors should verify using anyBackend in s"some test case $i" pvl(str)
+    i += 1
+  }
+
+  for (ca1 <- allContractApplicable) {
+    for (ca2 <- allContractApplicable) {
+      for (correctnessCa1 <- allCorrectness) {
+        for (correctnessCa2 <- allCorrectness) {
+          for (filterModeCa1 <- allFilterMode) {
+            if (correctnessCa1 == Failing && correctnessCa2 == Verifying && filterModeCa1 == Ignore) {
+              println("-----")
+              println(s"$correctnessCa1:$filterModeCa1, $correctnessCa2")
+              // Can this line below be made blocking?
+              mustVerify(new Program[G](Seq(
+                ca1(correctnessCa1, filterModeCa1),
+                ca2(correctnessCa2, Normal)
+              ), null)(PanicBlame("")))
+            }
+          }
+        }
+      }
+    }
+  }
+
+//  vercors should verify using anyBackend example "technical/minimize/FocusMethod.java"
 }
+
+/*
+  ALL ca1 ca2: ContractApplicable; failing(ca1) && verifying(ca2) && ignored(ca1) ==> verifying(ca1 * ca2)
+  ALL ca1 ca2: ContractApplicable; failing(ca1) && failing(ca2) && ignored(ca1) ==> failing(ca1 * ca2)
+ */
 
 class TechnicalMinimizeSpec extends VercorsSpec {
   vercors should verify using anyBackend example "technical/minimize/FocusMethod.java"

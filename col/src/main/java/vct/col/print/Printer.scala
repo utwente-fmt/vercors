@@ -1024,7 +1024,7 @@ case class Printer(out: Appendable,
         "pure", space, function.returnType, space,
         name(function), "(", commas(function.args.map(NodePhrase)), ")",
         function.body match {
-          case Some(body) => phrase(space, "=", newline, indent(body))
+          case Some(body) => phrase(space, "=", newline, indent(body), ";")
           case None => phrase(";")
         },
         doubleline,
@@ -1032,6 +1032,8 @@ case class Printer(out: Appendable,
     case procedure: Procedure[_] =>
       val header = phrase(
         spec(procedure.contract),
+        if(procedure.focus) phrase("focus", space) else phrase(),
+        if(procedure.ignore) phrase("ignore", space) else phrase(),
         procedure.returnType, space, name(procedure), "(", commas(procedure.args.map(NodePhrase)), ")",
       )
 
