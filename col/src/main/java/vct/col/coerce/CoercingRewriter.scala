@@ -949,6 +949,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Result(ref)
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
+      case ScaleByParBlock(ref, r) =>
+        ScaleByParBlock(ref, res(r))
       case ScopedExpr(locals, body) =>
         ScopedExpr(locals, body)
       case Select(condition, whenTrue, whenFalse) =>

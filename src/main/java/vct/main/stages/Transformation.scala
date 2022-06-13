@@ -150,7 +150,7 @@ case class SilverTransformation
     // Encode parallel blocks
     EncodeSendRecv,
     EncodeParAtomic,
-    ParBlockEncoder,
+    NewParBlockEncoder,
 
     // Encode proof helpers
     EncodeProofHelpers,

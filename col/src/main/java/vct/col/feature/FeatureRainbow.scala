@@ -269,6 +269,7 @@ class FeatureRainbow[G] {
     case node: ParBarrier[G] => ParallelRegion
     case node: IterVariable[G] => return Nil
     case node: ParBlock[G] => ParallelRegion
+    case node: ScaleByParBlock[G] => ParallelRegion
     case node: ParParallel[G] => ParallelRegion
     case node: ParRegion[G] => ParallelRegion
     case node: VecBlock[G] => ParallelRegion
