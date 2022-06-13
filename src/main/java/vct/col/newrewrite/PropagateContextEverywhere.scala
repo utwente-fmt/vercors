@@ -110,7 +110,7 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
       }
     case ParParallel(regions) =>
       implicit val o: Origin = parRegion.o
-      val scaledInvariants = invariants.top.map(inv => Scale[Pre](const[Pre](1) /: const(regions.size), inv)(
+      val scaledInvariants = invariants.top.map(inv => Scale[Pre](const[Pre](1) /:/ const(regions.size), inv)(
         PanicBlame("If used, the number of regions is strictly positive")))
 
       invariants.having(scaledInvariants) {

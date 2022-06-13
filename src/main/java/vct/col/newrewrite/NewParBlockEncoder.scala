@@ -82,18 +82,18 @@ case class NewParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     })
   }
 
-  def requires(region: ParRegion[Pre], includingInvariant: Boolean = false)(implicit o: Origin): Expr[Post] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires(_, includingInvariant)))
-    case ParSequential(regions) => regions.headOption.map(requires(_, includingInvariant)).getOrElse(tt)
+  def requires(region: ParRegion[Pre])(implicit o: Origin): Expr[Post] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires))
+    case ParSequential(regions) => regions.headOption.map(requires).getOrElse(tt)
     case block: ParBlock[Pre] =>
-      if(includingInvariant) dispatch(block.context_everywhere) &* quantify(block, block.requires) else quantify(block, block.requires)
+      quantify(block, block.context_everywhere &* block.requires)
   }
 
-  def ensures(region: ParRegion[Pre], includingInvariant: Boolean = false)(implicit o: Origin): Expr[Post] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures(_, includingInvariant)))
-    case ParSequential(regions) => regions.lastOption.map(ensures(_, includingInvariant)).getOrElse(tt)
+  def ensures(region: ParRegion[Pre])(implicit o: Origin): Expr[Post] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures))
+    case ParSequential(regions) => regions.lastOption.map(ensures).getOrElse(tt)
     case block: ParBlock[Pre] =>
-      if(includingInvariant) dispatch(block.context_everywhere) &* quantify(block, block.ensures) else quantify(block, block.ensures)
+      quantify(block, block.context_everywhere &* block.ensures)
   }
 
   def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Statement[Post] = region match {
@@ -144,9 +144,9 @@ case class NewParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       Scope(vars, Block(Seq(
         init,
         FramedProof(
-          pre = dispatch(requires),
+          pre = dispatch(context_everywhere) &* dispatch(requires),
           body = dispatch(content),
-          post = dispatch(ensures),
+          post = dispatch(context_everywhere) &* dispatch(ensures),
         )(ParBlockProofFailed(block)),
       )))
   }
@@ -180,7 +180,7 @@ case class NewParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       block.iters.foldLeft(dispatch(res)) {
         case (res, v) =>
           val scale = to(v.variable) - from(v.variable)
-          Implies(scale > const(0), Scale(const[Post](1) /: scale, res)(PanicBlame("framed positive")))
+          Implies(scale > const(0), Scale(const[Post](1) /:/ scale, res)(PanicBlame("framed positive")))
       }
     case other => rewriteDefault(other)
   }

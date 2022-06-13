@@ -24,7 +24,7 @@ object ColToSilver {
 
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
-      node.o.messageInContext("This kind of node is not supported by silver directly. Is there a rewrite missing?")
+      node.o.messageInContext(s"This kind of node (${node.getClass.getSimpleName}) is not supported by silver directly. Is there a rewrite missing?")
   }
 }
 

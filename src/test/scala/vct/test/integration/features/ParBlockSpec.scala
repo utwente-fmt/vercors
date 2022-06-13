@@ -100,4 +100,17 @@ class ParBlockSpec extends VercorsSpec {
       }
     }
   """
+
+  vercors should verify using silicon in "example showing propagation of context_everywhere" pvl """
+    class Test {
+      int x;
+      context_everywhere Perm(x, 1\2);
+      requires n > 0;
+      void test(int n) {
+        par(int i = 0 .. n) {
+          assert Perm(x, 1 \ 2 \ n);
+        }
+      }
+    }
+  """
 }
