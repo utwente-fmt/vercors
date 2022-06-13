@@ -1,5 +1,6 @@
 pure int magic(int i);
 
+/*
 void restrictive_triggers() {
   assume (\forall int i; true; magic({: magic(i) :}) == magic(2 * i) + i);
 
@@ -7,5 +8,20 @@ void restrictive_triggers() {
   // about this equality. However, if you uncomment the assertion
   // the verification will time out and give no answer because of the
   // matching loop caused by instantiating the quantifier.
+  assert magic(magic(10)) == magic(87987978) + 10;
+}
+*/
+
+void good_triggers() {
+  // Our definition of `magic`
+  assume (\forall int i; true; {: magic(magic(i)) :} == magic(2 * i) + i);
+
+  // The following verifies, as expected
+  assert magic(magic(10)) == magic(20) + 10;
+
+  // The following fails, as expected, because our definition says
+  // nothing about this equality. The verification terminates
+  // quickly because we don't have matching loops; the SMT solver
+  // quickly exhausts the available quantifier instantiations.
   assert magic(magic(10)) == magic(87987978) + 10;
 }

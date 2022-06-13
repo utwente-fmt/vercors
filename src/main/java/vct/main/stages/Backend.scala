@@ -53,12 +53,6 @@ trait Backend extends ContextStage[Program[_ <: Generation], Seq[ExpectedError],
 
 case class SilverBackend(backend: viper.api.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def runWithoutContext(input: Program[_ <: Generation]): Unit = {
-    /*TODO (RR): Need to gather all quantifier names here, and map them to origins.
-        Then when submit is done, we map as many of the quantifier info lines back to origins, print a table of that,
-        and then print a table of all the shortened names.
-
-        Except: quant info printing is silicon specific, yet this is SilverBackend!
-     */
     backend.submit(input, output)
   }
 }
