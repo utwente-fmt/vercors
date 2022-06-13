@@ -1,12 +1,18 @@
 package viper.api
 
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.core.OutputStreamAppender
 import hre.ast.OriginFactory
 import hre.config.Configuration
+import org.slf4j.LoggerFactory
 import viper.silver.plugin.PluginAwareReporter
 
+import java.io.ByteArrayOutputStream
 import java.nio.file.Path
 import java.util.Properties
 import scala.jdk.CollectionConverters._
+import scala.sys.process.processInternal.OutputStream
 
 class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) {
   override def createVerifier(z3Path: Path, z3Settings: Properties):viper.silver.verifier.Verifier = {
@@ -20,7 +26,7 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
     )
 
     if(Configuration.currentConfiguration.debugBackend.get()) {
-      siliconConfig ++= Seq("--logLevel", "ALL")
+       siliconConfig ++= Seq("--logLevel", "ALL")
     }
 
     siliconConfig :+= "-"
