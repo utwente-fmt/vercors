@@ -12,7 +12,6 @@ import java.io.ByteArrayOutputStream
 import java.nio.file.Path
 import java.util.Properties
 import scala.jdk.CollectionConverters._
-import scala.sys.process.processInternal.OutputStream
 
 class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) {
   override def createVerifier(z3Path: Path, z3Settings: Properties):viper.silver.verifier.Verifier = {
