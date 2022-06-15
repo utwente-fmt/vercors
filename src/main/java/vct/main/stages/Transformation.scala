@@ -139,7 +139,6 @@ case class SilverTransformation
     EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
     GivenYieldsToArgs,
 
-    CheckContractSatisfiability.withArg(checkSat),
     CheckProcessAlgebra,
     EncodeCurrentThread,
     EncodeIntrinsicLock,
@@ -166,6 +165,8 @@ case class SilverTransformation
     // No more classes
     ConstantifyFinalFields,
     ClassToRef,
+
+    CheckContractSatisfiability.withArg(checkSat),
   ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
   ) ++ simplifyAfterRelations ++ Seq(
