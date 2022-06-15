@@ -595,9 +595,9 @@ expr
     |   expr '.' explicitGenericInvocation # javaGenericInvocation
     |   expr '[' expr ']' # javaSubscript
     |   expr '->' javaIdentifier arguments # javaNonNullInvocation
-    |   expr '.' javaIdentifier predicateEntryType? valEmbedGiven? arguments valEmbedYields? # javaInvocation
+    |   expr '.' javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields? # javaInvocation
     |   expr postfixOp # javaValPostfix
-    |   valEmbedGiven? 'new' creator valEmbedYields? # javaNew
+    |   'new' creator valEmbedGiven? valEmbedYields? # javaNew
     |   '(' type ')' expr # javaCast
     |   expr ('++' | '--') # javaPostfixIncDec
     |   ('+'|'-'|'++'|'--') expr # javaPrefixOp
@@ -675,7 +675,7 @@ primary
     |   'super'
     |   literal
     |   javaIdentifier
-    |   javaIdentifier predicateEntryType? valEmbedGiven? arguments valEmbedYields?
+    |   javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields?
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall

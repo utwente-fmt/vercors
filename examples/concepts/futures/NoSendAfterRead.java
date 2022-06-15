@@ -98,7 +98,7 @@ class Sender {
       l.lock();
       if (l.flag){
         //@ ghost d.F.choose(1\2,d.F.nsar(),d.F.p_send()*d.F.nsar()); //skip(run)
-        d.send /*@ given { p = 1\2, P = d.F.nsar() } @*/();
+        d.send()/*@ given { p = 1\2, P = d.F.nsar() } @*/;
       }
       l.unlock();
     }
@@ -124,7 +124,7 @@ class Reader {
         //@ ghost d.F.flag=false;
       }
       //@ ghost d.F.choose(1\2,d.F.rs(),d.F.receive()*d.F.rs()); //skip(run)
-      d.receive /*@ given { p = 1\2, P = d.F.rs() } @*/();
+      d.receive()/*@ given { p = 1\2, P = d.F.rs() } @*/;
       l.unlock();
     }
   }

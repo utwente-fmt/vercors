@@ -431,7 +431,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit expr: PostfixExpressionContext): Expr[G] = expr match {
     case PostfixExpression0(inner) => convert(inner)
     case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))(blame(expr))
-    case PostfixExpression2(f, given, _, args, _, yields) =>
+    case PostfixExpression2(f, _, args, _, given, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
     case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
@@ -447,7 +447,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
     case PostfixExpression10(_, _, _, _, _, _, _) => ??(expr)
     case PostfixExpression11(_, _, _, _, _, _, _, _) => ??(expr)
-    case PostfixExpression12(GpgpuCudaKernelInvocation0(given, name, _, blocks, _, threads, _, _, args, _, yields)) =>
+    case PostfixExpression12(GpgpuCudaKernelInvocation0(name, _, blocks, _, threads, _, _, args, _, given, yields)) =>
       GpgpuCudaKernelInvocation(convert(name), convert(blocks), convert(threads), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))
   }

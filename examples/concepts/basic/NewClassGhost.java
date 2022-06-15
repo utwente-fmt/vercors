@@ -11,6 +11,6 @@ class NewClassGhost {
     }
 
     public void test() {
-        /*@ given { g = 5 } */ new NewClassGhost();
+        new NewClassGhost() /*@ given { g = 5 } */;
     }
 }

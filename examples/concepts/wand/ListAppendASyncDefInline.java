@@ -44,7 +44,7 @@ final class List {
         next=l;
     } else {
         //@ ghost seq<int> tmp = next.contents();
-        next.append_rec/*@ given { L1 = tmp, L2 = L2 } @*/(l);
+        next.append_rec(l)/*@ given { L1 = tmp, L2 = L2 } @*/;
     }
     //@ fold state();
   }

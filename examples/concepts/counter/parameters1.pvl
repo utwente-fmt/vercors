@@ -15,7 +15,7 @@ class parameters {
   void main(){
     Counter c=new Counter();
     c.x=37;
-    drop given { p = 1 } (c);
+    drop(c) given { p = 1 };
     /*[/expect assignFieldFailed]*/
     c.x=12;
     /*[/end]*/
