@@ -17,6 +17,7 @@ case object NameQuantifiers extends RewriterBuilder {
     override def context: String = o.context
     override def inlineContext: String = o.inlineContext
     override def shortPosition: String = o.shortPosition
+    override def toString: String = s"$n at $o"
   }
 }
 
