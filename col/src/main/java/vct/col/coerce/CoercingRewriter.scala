@@ -74,9 +74,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
       case CoerceMapOption(inner, _, _) =>
-        Select(Eq(e, OptNone()), OptNone(), applyCoercion(OptGet(e)(NeverNone), inner))
+        Select(Eq(e, OptNone()), OptNone(), OptSome(applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
-        Select(IsLeft(e), applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft), applyCoercion(GetRight(e)(FramedGetRight), innerRight))
+        Select(IsRight(e),
+          EitherRight(applyCoercion(GetRight(e)(FramedGetRight), innerRight)),
+          EitherLeft(applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft)),
+        )
       case CoerceMapSeq(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable[Post](TSeq(dispatch(source)))
