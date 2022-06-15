@@ -16,6 +16,7 @@ import viper.silver.verifier.Verifier
 import java.io.ByteArrayOutputStream
 import java.nio.file.Path
 import java.util
+import java.util.{Timer, TimerTask}
 import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 import scala.sys.ShutdownHookThread
@@ -44,7 +45,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   var qmap: Map[String, Expr[_]] = Map()
   var shutdownHookThread: ShutdownHookThread = null
   var reportedQuantifiers = false
-  var intermediatePrinterThread: Thread = null
+  var intermediatePrinterTimer: Timer = new Timer()
 
   override def createVerifier(reporter: Reporter): viper.silicon.Silicon = {
     val silicon = new viper.silicon.Silicon(reporter)
@@ -63,9 +64,11 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     l.setAdditive(false) // Prevent bubbling up
     l.addAppender(la)
 
-    // TODO (RR): Start thread here for intermediate printing
+    intermediatePrinterTimer.schedule(new TimerTask {
+      override def run(): Unit = shortQuantifierReport()
+    }, 10 * 1000, 10 * 1000)
 
-    shutdownHookThread = sys.addShutdownHook({
+  shutdownHookThread = sys.addShutdownHook({
       longQuantifierReport()
       reportedQuantifiers = true
     })
@@ -119,7 +122,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   case class QuantifierInstanceReport(e: Either[String, Expr[_]], instances: Int, maxGeneration: Int, maxCost: Int)
 
   def getQuantifierInstanceReports(): Seq[QuantifierInstanceReport] = {
-    la.list.asScala
+    la.getAll()
       .map(_.toString)
       .filter(_.contains("quantifier_instances"))
       .map { m =>
@@ -176,6 +179,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
     SymbExLogger.reset()
+    intermediatePrinterTimer.cancel()
 
     shutdownHookThread.remove()
     if (!reportedQuantifiers) {
