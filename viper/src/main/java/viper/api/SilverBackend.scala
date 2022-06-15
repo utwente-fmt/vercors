@@ -72,16 +72,13 @@ trait SilverBackend extends Backend with LazyLogging {
     val tracker = EntityTrackingReporter()
     val verifier = createVerifier(tracker)
 
-    try {
-      tracker.withEntities(silverProgram) {
-        verifier.verify(silverProgram) match {
-          case Success =>
-          case Failure(errors) => errors.foreach(processError)
-        }
+    tracker.withEntities(silverProgram) {
+      verifier.verify(silverProgram) match {
+        case Success =>
+        case Failure(errors) => errors.foreach(processError)
       }
-    } finally {
-      stopVerifier(verifier)
     }
+    stopVerifier(verifier)
   }
 
   def processError(error: AbstractError): Unit = error match {

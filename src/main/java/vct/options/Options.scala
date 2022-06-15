@@ -110,6 +110,10 @@ case object Options {
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
 
+      opt[Int]("silicon-print-quantifier-stats").valueName("<amount>")
+        .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
+        .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds"),
+
       opt[Unit]("dev-abrupt-exc").hidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -133,9 +137,6 @@ case object Options {
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
 
-      opt[Int]("dev-silicon-print-raw-quantifier-stats").hidden()
-        .action((amount, c) => c.copy(devSiliconPrintRawQuantifierStats = Some(amount)))
-        .text("Print raw quantifier instantiation statistics from Z3, every <amount> occurrences"),
       opt[Int]("dev-silicon-num-verifiers").hidden()
         .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
         .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
@@ -274,6 +275,8 @@ case class Options
   boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
 
+  siliconPrintQuantifierStats: Option[Int] = None,
+
   // Verify options - hidden
   devAbruptExc: Boolean = false,
   devSimplifyDebugIn: Seq[String] = Nil,
@@ -283,7 +286,6 @@ case class Options
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
 
-  devSiliconPrintRawQuantifierStats: Option[Int] = None,
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
 

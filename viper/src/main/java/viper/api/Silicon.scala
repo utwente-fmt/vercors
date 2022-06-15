@@ -1,9 +1,8 @@
 package viper.api
 
-import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.AppenderBase
-import ch.qos.logback.core.read.ListAppender
 import hre.config.Configuration
 import hre.io.Writeable
 import org.slf4j.LoggerFactory
@@ -12,13 +11,9 @@ import vct.col.origin.Origin
 import viper.silicon.logger.SymbExLogger
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
-
-import java.io.ByteArrayOutputStream
 import java.nio.file.Path
-import java.util
 import java.util.{Timer, TimerTask}
 import scala.annotation.nowarn
-import scala.jdk.CollectionConverters._
 import scala.sys.ShutdownHookThread
 import scala.collection.mutable
 
@@ -39,7 +34,8 @@ final class ConcurrentListAppender[E] extends AppenderBase[E] {
 }
 
 @nowarn("any") // due to be removed
-case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None, logLevel: Option[String] = None, proverLogFile: Option[Path] = None) extends SilverBackend {
+case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None,
+                   logLevel: Option[String] = None, proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false) extends SilverBackend {
 
   var la: ConcurrentListAppender[ILoggingEvent] = null
   var qmap: Map[String, Expr[_]] = Map()
@@ -57,21 +53,24 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
       "--z3ConfigArgs", z3Config,
     )
 
-    val l = LoggerFactory.getLogger("viper.silicon.decider.Z3ProverStdIO").asInstanceOf[Logger]
-    la = new ConcurrentListAppender[ILoggingEvent]()
-    la.setName("quantifier-instantations-appender")
-    la.start()
-    l.setAdditive(false) // Prevent bubbling up
-    l.addAppender(la)
+    if (printQuantifierStatistics) {
+      val l = LoggerFactory.getLogger("viper.silicon.decider.Z3ProverStdIO").asInstanceOf[Logger]
+      l.setLevel(Level.INFO)
+      la = new ConcurrentListAppender[ILoggingEvent]()
+      la.setName("quantifier-instantations-appender")
+      la.start()
+      l.setAdditive(false) // Prevent bubbling up
+      l.addAppender(la)
 
-    intermediatePrinterTimer.schedule(new TimerTask {
-      override def run(): Unit = shortQuantifierReport()
-    }, 10 * 1000, 10 * 1000)
+      intermediatePrinterTimer.schedule(new TimerTask {
+        override def run(): Unit = shortQuantifierReport()
+      }, 5000, 5000)
 
-  shutdownHookThread = sys.addShutdownHook({
-      longQuantifierReport()
-      reportedQuantifiers = true
-    })
+      shutdownHookThread = sys.addShutdownHook({
+        longQuantifierReport()
+        reportedQuantifiers = true
+      })
+    }
 
     proverLogFile match {
       case Some(p) => siliconConfig ++= Seq("--z3LogFile", p.toString) // This should be changed to "proverLogFile" when updating to the new Viper version
@@ -100,12 +99,13 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   }
 
   override def submit(colProgram: Program[_], output: Option[Writeable]): Unit = {
-    val allQuantifiers: Seq[Expr[_]] = colProgram.transSubnodes.collect({
-      case s: Starall[_] => s
-      case f: Forall[_] => f
-      case e: Exists[_] => e
-    })
-    qmap = allQuantifiers.map { q => (q.o.preferredName, q) } .toMap
+    if (printQuantifierStatistics) {
+      qmap = colProgram.transSubnodes.collect({
+        case s: Starall[_] => s
+        case f: Forall[_] => f
+        case e: Exists[_] => e
+      }).map { q => (q.o.preferredName, q) }.toMap
+    }
     super.submit(colProgram, output)
   }
 
@@ -142,36 +142,40 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     val reports = getQuantifierInstanceReports()
     if (reports.nonEmpty) {
       logger.info("Reporting quantifier instances statistics in descending order:")
-    }
-    for (report <- reports.sortBy(_.instances).reverse) {
-      report.e match {
-        case Right(e) =>
-          val o = e.o
-          logger.info(o.messageInContext(
-            s"instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})"))
-        case Left(n) =>
-          logger.info(
-            s"""${Origin.BOLD_HR}Backend quantifier: $n
-               |instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})
-               |${Origin.BOLD_HR}""".stripMargin
-          )
+      for (report <- reports.sortBy(_.instances).reverse) {
+        report.e match {
+          case Right(e) =>
+            val o = e.o
+            logger.info(o.messageInContext(
+              s"instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})"))
+          case Left(n) =>
+            logger.info(
+              s"""${Origin.BOLD_HR}Backend quantifier: $n
+                 |instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})
+                 |${Origin.BOLD_HR}""".stripMargin
+            )
+        }
       }
     }
   }
 
   def shortQuantifierReport(): Unit = {
     val reports = getQuantifierInstanceReports()
-
     if (reports.nonEmpty) {
-      logger.info("Reporting quantifier instances statistics in descending order:")
-    }
-    for (report <- reports.sortBy(_.instances).reverse) {
-      report.e match {
-        case Right(e) =>
-          val o = e.o
-          logger.info(s"${o.toString}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
-        case Left(n) =>
-          logger.info(s"$n: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+      logger.info("=== Quantifier instantiation statistics ===")
+      val orderedReports = reports.sortBy(_.instances).reverse
+      val cutReports = if (logger.underlying.isDebugEnabled) orderedReports else orderedReports.take(10)
+      for (report <- cutReports) {
+        report.e match {
+          case Right(e) =>
+            val o = e.o
+            logger.info(s"${o.toString}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+          case Left(n) =>
+            logger.info(s"$n: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+        }
+      }
+      if (cutReports.length < orderedReports.length) {
+        logger.info(s"Omitting ${orderedReports.length - cutReports.length} other quantifiers...")
       }
     }
   }
@@ -179,13 +183,13 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
     SymbExLogger.reset()
-    intermediatePrinterTimer.cancel()
 
-    shutdownHookThread.remove()
-    if (!reportedQuantifiers) {
-      longQuantifierReport()
-      logger.info("#####")
-      shortQuantifierReport()
+    if (printQuantifierStatistics) {
+      intermediatePrinterTimer.cancel()
+      shutdownHookThread.remove()
+      if (!reportedQuantifiers) {
+        longQuantifierReport()
+      }
     }
   }
 }

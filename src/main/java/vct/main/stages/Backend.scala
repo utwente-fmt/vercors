@@ -11,10 +11,10 @@ case object Backend {
 
   def ofOptions(options: Options): Backend = options.backend match {
     case vct.options.Backend.Silicon =>
-      val printRawQuantifier = options.devSiliconPrintRawQuantifierStats match {
-        case Some(amount) => Seq(
+      val printRawQuantifier = options.siliconPrintQuantifierStats match {
+        case Some(freq) => Seq(
           "smt.qi.profile" -> "true",
-          "smt.qi.profile_freq" -> s"$amount"
+          "smt.qi.profile_freq" -> s"$freq"
         )
         case None => Seq()
       }
@@ -33,8 +33,8 @@ case object Backend {
         z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
         z3Path = options.z3Path,
         numberOfParallelVerifiers = numberOfParallelVerifiers,
-        logLevel = if (options.devSiliconPrintRawQuantifierStats.isDefined) { Some("INFO") } else { None },
         proverLogFile = options.devViperProverLogFile,
+        printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
       ), options.backendFile)
 
     case vct.options.Backend.Carbon => SilverBackend(Carbon(
