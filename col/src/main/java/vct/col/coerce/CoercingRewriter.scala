@@ -738,6 +738,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
         InstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
+      case CoalesceInstancePredicateApply(obj, ref, args, perm) =>
+        CoalesceInstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
       case IsLeft(e) =>
         IsLeft(either(e)._1)
       case IsRight(e) =>
