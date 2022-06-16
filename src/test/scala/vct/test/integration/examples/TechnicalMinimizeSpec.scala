@@ -76,6 +76,7 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
     # If f is ok, g is failing, and you focus f, verification should succeed
     # If f is ok, g is failing, and you focus g, verification should fail
     # Final questions: 1) how to test transitivity is correctly done, how test if enough is kept around?
+    # TODO: Should minimizing be touched upon in sat check? Obligation there should be ignored/focused as well?
    */
   for (
     ca1 <- allContractApplicable;
