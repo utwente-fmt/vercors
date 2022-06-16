@@ -97,6 +97,9 @@ case object Options {
         .action((output, c) => c.copy(outputBeforePass = c.outputBeforePass ++ Map(output)))
         .text("Print the AST before a pass key"),
 
+      opt[String]("backend-option").unbounded().keyName("<option>,...")
+        .action((opt, c) => c.copy(backendFlags = c.backendFlags :+ opt))
+        .text("Provide custom flags to Viper"),
       opt[Unit]("skip-backend")
         .action((_, c) => c.copy(skipBackend = true))
         .text("Stop VerCors successfully before the backend is used to verify the program"),
@@ -239,6 +242,7 @@ case class Options
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,
 
+  backendFlags: Seq[String] = Nil,
   skipBackend: Boolean = false,
   skipTranslation: Boolean = false,
   skipTranslationAfter: Option[String] = None,

@@ -8,7 +8,7 @@ import viper.silver.verifier.Verifier
 
 import java.nio.file.Path
 
-case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resources.getBoogiePath) extends SilverBackend {
+case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resources.getBoogiePath, options: Seq[String] = Nil) extends SilverBackend {
   override def createVerifier(reporter: Reporter): (viper.carbon.CarbonVerifier, SilverPluginManager) = {
     val reporter = EntityTrackingReporter()
     val carbon = viper.carbon.CarbonVerifier(reporter)
@@ -16,6 +16,7 @@ case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resourc
     carbon.parseCommandLine(Seq(
       "--z3Exe", z3Path.toString,
       "--boogieExe", boogiePath.toString,
+    ) ++ options ++ Seq(
       "-"
     ))
 
