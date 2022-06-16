@@ -27,10 +27,22 @@ trait NodeImpl[G] { this: Node[G] =>
     }
   }
 
+  def subnodes: Seq[Node[G]] = Subnodes.subnodes(this)
+
   def transSubnodes: LazyList[Node[G]] =
     this #:: subnodes.to(LazyList).flatMap(_.transSubnodes)
 
-  def subnodes: Seq[Node[G]] = Subnodes.subnodes(this)
+  def map[T](f: PartialFunction[Node[G], T]): LazyList[T] =
+    f.lift(this) match {
+      case Some(value) => LazyList(value)
+      case None => subnodes.to(LazyList).flatMap(_.map(f))
+    }
+
+  def flatMap[T](f: PartialFunction[Node[G], Seq[T]]): LazyList[T] =
+    f.lift(this) match {
+      case Some(value) => value.to(LazyList)
+      case None => subnodes.to(LazyList).flatMap(_.flatMap(f))
+    }
 
   def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2]
                                (implicit witness: this.type <:< TNode[G])
