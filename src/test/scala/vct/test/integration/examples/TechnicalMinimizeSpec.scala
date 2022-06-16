@@ -1,6 +1,6 @@
 package vct.test.integration.examples
 
-import vct.col.ast.{ApplicableContract, Block, Eq, Function, GlobalDeclaration, Procedure, Program, Result, SplitAccountedPredicate, TInt, TVoid, UnitAccountedPredicate}
+import vct.col.ast.{ApplicableContract, Block, Class, Eq, Function, GlobalDeclaration, InstanceFunction, InstanceMethod, PVLConstructor, Procedure, Program, Result, Return, SplitAccountedPredicate, TInt, TVoid, UnitAccountedPredicate}
 import vct.col.origin.{DiagnosticOrigin, PanicBlame}
 import vct.col.print.Printer
 import vct.col.rewrite.InitialGeneration
@@ -35,7 +35,25 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
       TVoid(), Seq(), Seq(), Seq(), Some(Block[G](Seq())), mkContract(correctness),
       focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
 
-  val allContractApplicable: Seq[GlobalDeclGen] = Seq(function, procedure)
+  def instanceFunction(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
+    new Class[G](Seq(
+      new InstanceFunction[G](TInt(), Seq(), Seq(), Some(const[G](0)), mkContract(correctness),
+        focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
+    ), Seq(), tt)
+
+  def instanceMethod(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
+    new Class[G](Seq(
+      new InstanceMethod[G](TInt(), Seq(), Seq(), Seq(), Some(Return(const[G](0))), mkContract(correctness),
+        focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
+    ), Seq(), tt)
+
+  def constructor(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
+    new Class[G](Seq(
+      new PVLConstructor[G](mkContract(correctness), Seq(), Some(Return(const[G](0))),
+      focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
+    ), Seq(), tt)
+
+  val allContractApplicable: Seq[GlobalDeclGen] = Seq(function, procedure, instanceMethod, instanceFunction, constructor)
   val allCorrectness = Seq(Failing, Verifying)
   val allFilterMode = Seq(Focus, Ignore, Normal)
 
@@ -50,9 +68,14 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
     i += 1
   }
 
-  /* SPEC:
+  /* SPECS
+    # After ignoring failing contract applicables, verification should succeed
     ALL ca1 ca2: ContractApplicable; failing(ca1) && verifying(ca2) && ignored(ca1) ==> verifying(ca1 * ca2)
+    # If all contractapplicables fail, after ignoring failing contract applicables, verification should fail
     ALL ca1 ca2: ContractApplicable; failing(ca1) && failing(ca2) && ignored(ca1) ==> failing(ca1 * ca2)
+    # If f is ok, g is failing, and you focus f, verification should succeed
+    # If f is ok, g is failing, and you focus g, verification should fail
+    # Final questions: 1) how to test transitivity is correctly done, how test if enough is kept around?
    */
   for (
     ca1 <- allContractApplicable;
