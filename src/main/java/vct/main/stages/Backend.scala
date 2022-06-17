@@ -12,10 +12,12 @@ case object Backend {
     case vct.options.Backend.Silicon => SilverBackend(Silicon(
       z3Settings = Map.empty,
       z3Path = options.z3Path,
+      options = options.backendFlags,
     ), options.backendFile)
     case vct.options.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
       boogiePath = options.boogiePath,
+      options = options.backendFlags,
     ), options.backendFile)
   }
 }

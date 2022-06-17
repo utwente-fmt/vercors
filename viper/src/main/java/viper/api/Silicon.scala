@@ -10,7 +10,7 @@ import java.nio.file.Path
 import scala.annotation.nowarn
 
 @nowarn("any") // due to be removed
-case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path) extends SilverBackend {
+case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, options: Seq[String] = Nil) extends SilverBackend {
   override def createVerifier(reporter: Reporter): (viper.silicon.Silicon, SilverPluginManager) = {
     val silicon = new viper.silicon.Silicon(reporter)
 
@@ -25,6 +25,8 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     if(Configuration.currentConfiguration.debugBackend.get()) {
       siliconConfig ++= Seq("--logLevel", "ALL")
     }
+
+    siliconConfig ++= options
 
     siliconConfig :+= "-"
 
