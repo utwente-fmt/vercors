@@ -91,6 +91,16 @@ case object C {
       case target: CNameTarget[G] if target.name == name => target
     }
 
+  def findForwardDeclaration[G](declarator: CDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCGlobalDeclaration[G]] =
+    ctx.stack.flatten.collectFirst {
+      case target: RefCGlobalDeclaration[G] if target.name == nameFromDeclarator(declarator) => target
+    }
+
+  def findDefinition[G](declarator: CDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCFunctionDefinition[G]] =
+    ctx.stack.flatten.collectFirst {
+      case target: RefCFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
+    }
+
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
     obj.t match {
       case t: TNotAValue[G] => t.decl.get match {

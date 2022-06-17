@@ -7,7 +7,7 @@ import vct.col.origin.{AbstractApplicable, Origin, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.{BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.util.SuccessionMap
+import vct.col.util.{Substitute, SuccessionMap}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 
@@ -17,6 +17,15 @@ case object LangCToCol {
     override def text: String =
       example.o.messageInContext("Global variables in C are not supported.")
   }
+
+  case class CDoubleContracted(decl: CGlobalDeclaration[_], defn: CFunctionDefinition[_]) extends UserError {
+    override def code: String = "multipleContracts"
+    override def text: String =
+      Origin.messagesInContext(Seq(
+        defn.o -> "This method has a non-empty contract at its definition, ...",
+        decl.o -> "... but its forward declaration also has a contract.",
+      ))
+  }
 }
 
 case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -24,7 +33,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val cFunctionSuccessor: SuccessionMap[CInvocationTarget[Pre], Procedure[Post]] = SuccessionMap()
+  val cFunctionSuccessor: SuccessionMap[CFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
+  val cFunctionDeclSuccessor: SuccessionMap[(CGlobalDeclaration[Pre], Int), Procedure[Post]] = SuccessionMap()
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] = SuccessionMap()
 
   def rewriteParam(cParam: CParam[Pre]): Unit = {
@@ -39,7 +49,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val info = C.getDeclaratorInfo(func.declarator)
     val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
     val params = rw.collectInScope(rw.variableScopes) { info.params.get.foreach(rw.dispatch) }
-    cFunctionSuccessor(RefCFunctionDefinition(func)) = new Procedure(
+
+    val contract = func.ref match {
+      case Some(RefCGlobalDeclaration(decl, _)) if decl.decl.contract.nonEmpty =>
+        if(func.contract.nonEmpty) throw CDoubleContracted(decl, func)
+        Substitute().decl.decl.contract
+      case _ =>
+    }
+
+    val proc = new Procedure(
       returnType = returnType,
       args = params,
       outArgs = Nil,
@@ -47,6 +65,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       body = Some(rw.dispatch(func.body)),
       contract = contract(TrueSatisfiable)(func.o),
     )(func.blame)(func.o).declareDefault(rw)
+
+    cFunctionSuccessor(func) = proc
+
+    func.ref match {
+      case Some(RefCGlobalDeclaration(decl, idx)) =>
+        cFunctionDeclSuccessor((decl, idx)) = proc
+      case None => // ok
+    }
   }
 
   def rewriteGlobalDecl(decl: CGlobalDeclaration[Pre]): Unit = {
@@ -55,7 +81,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val info = C.getDeclaratorInfo(init.decl)
       info.params match {
         case Some(params) =>
-          cFunctionSuccessor(RefCGlobalDeclaration(decl, idx)) = new Procedure[Post](
+          cFunctionSuccessor((decl, idx)) = new Procedure[Post](
             returnType = t,
             args = rw.collectInScope(rw.variableScopes) { params.foreach(rw.dispatch) },
             outArgs = Nil,

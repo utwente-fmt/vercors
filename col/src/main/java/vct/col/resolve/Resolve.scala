@@ -273,6 +273,11 @@ case object ResolveReferences {
     case inv @ InstancePredicateApply(obj, ref, _, _) =>
       ref.tryResolve(name => Spec.findInstancePredicate(obj, name).getOrElse(throw NoSuchNameError("predicate", name, inv)))
 
+    case defn: CFunctionDefinition[G] =>
+      defn.ref = C.findForwardDeclaration(defn.declarator, ctx)
+    case decl: CInit[G] =>
+      decl.ref = C.findDefinition(decl.decl, ctx)
+
     case goto @ CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
     case goto @ Goto(lbl) =>
