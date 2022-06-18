@@ -12,8 +12,8 @@ public class A {
   public void main() {
     B b = new B();
 
-    b.testA/*@ given { a = 9 } @*/();
-    b.testI/*@ given { i = 9 } @*/();
+    b.testA()/*@ given { a = 9 } @*/;
+    b.testI()/*@ given { i = 9 } @*/;
   }
 }
 

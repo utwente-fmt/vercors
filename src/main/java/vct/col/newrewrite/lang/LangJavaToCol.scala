@@ -4,14 +4,14 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.result.VerificationError.{UserError}
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
@@ -132,9 +132,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
       case fields: JavaFields[Pre] =>
-        Block(for((JavaVariableDeclaration(_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
-          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), rw.dispatch(init.get),
-            PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
+        Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
+          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
+            case Some(value) => rw.dispatch(value)
+            case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)))
+          }, PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
         )
     })
 
@@ -168,8 +170,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 Perm(local, WritePerm())
               })
           }.flatten)),
-          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
-        )
+          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
+        )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
       javaDefaultConstructor(currentJavaClass.top) +: decls
     } else decls
@@ -226,7 +228,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           args = Nil,
           outArgs = Nil, typeArgs = Nil,
           body = None,
-          contract = contract()
+          contract = contract(TrueSatisfiable)
         )(PanicBlame("Verification of annotation method cannot fail"))(JavaAnnotationMethodOrigin(method)).succeedDefault(method)
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
@@ -276,7 +278,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         staticsClass.declareDefault(rw)
         val t = TClass[Post](staticsClass.ref)
         val singleton = withResult((res: Result[Post]) =>
-          function(AbstractApplicable, returnType = t,
+          function(AbstractApplicable, TrueSatisfiable, returnType = t,
             ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls)))
         singleton.declareDefault(rw)
         javaStaticsClassSuccessor(cls) = staticsClass
@@ -306,8 +308,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def initLocal(locals: JavaLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = locals.o
-    Block(for((JavaVariableDeclaration(_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
-      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), rw.dispatch(init.get))
+    Block(for((JavaVariableDeclaration(_, dims, init), i) <- locals.decls.zipWithIndex)
+      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), init match {
+        case Some(value) => rw.dispatch(value)
+        case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(locals.t)))
+      })
     )
   }
 

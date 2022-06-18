@@ -6,9 +6,11 @@ import ch.qos.logback.core.AppenderBase
 import hre.config.Configuration
 import hre.io.Writeable
 import org.slf4j.LoggerFactory
-import vct.col.ast.{Exists, Expr, Forall, Node, Program, Starall}
+import vct.col.ast.{Exists, Expr, Forall, Program, Starall}
 import vct.col.origin.Origin
 import viper.silicon.logger.SymbExLogger
+import org.slf4j.LoggerFactory.getLogger
+import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
 
@@ -37,7 +39,8 @@ final class ConcurrentListAppender[E] extends AppenderBase[E] {
 
 @nowarn("any") // due to be removed
 case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None,
-                   logLevel: Option[String] = None, proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false) extends SilverBackend {
+                   logLevel: Option[String] = None, proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false,
+                   options: Seq[String] = Nil) extends SilverBackend {
 
   var la: ConcurrentListAppender[ILoggingEvent] = null
   var qmap: Map[String, Expr[_]] = Map()
@@ -45,16 +48,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   var reportedQuantifiers = false
   var intermediatePrinterTimer: Timer = new Timer()
 
-  override def createVerifier(reporter: Reporter): viper.silicon.Silicon = {
-    val silicon = new viper.silicon.Silicon(reporter)
-
-    val z3Config = '"' + z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ") + '"'
-
-    var siliconConfig = Seq(
-      "--z3Exe", z3Path.toString,
-      "--z3ConfigArgs", z3Config,
-    )
-
+  override def createVerifier(reporter: Reporter): (viper.silicon.Silicon, SilverPluginManager) = {
     if (printQuantifierStatistics) {
       val l = LoggerFactory.getLogger("viper.silicon.decider.Z3ProverStdIO").asInstanceOf[Logger]
       l.setLevel(Level.INFO)
@@ -73,6 +67,16 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
         reportedQuantifiers = true
       })
     }
+
+    val silicon = new viper.silicon.Silicon(reporter)
+
+    val z3Config = '"' + z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ") + '"'
+
+    var siliconConfig = Seq(
+      "--z3Exe", z3Path.toString,
+      "--z3ConfigArgs", z3Config,
+      "--ideModeAdvanced",
+    )
 
     proverLogFile match {
       case Some(p) => siliconConfig ++= Seq("--z3LogFile", p.toString) // This should be changed to "proverLogFile" when updating to the new Viper version
@@ -93,11 +97,21 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
       case None =>
     }
 
+    siliconConfig ++= options
+
     siliconConfig :+= "-"
 
     silicon.parseCommandLine(siliconConfig)
+
+    SymbExLogger.setListenerProvider(_ => SiliconLogListener())
+
     silicon.start()
-    silicon
+
+    val plugins = SilverPluginManager(Some(Seq(
+      "viper.silver.plugin.standard.termination.TerminationPlugin",
+    ).mkString(":")))(silicon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], silicon.config)
+
+    (silicon, plugins)
   }
 
   override def submit(colProgram: Program[_], output: Option[Writeable]): Unit = {

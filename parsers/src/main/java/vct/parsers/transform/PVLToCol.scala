@@ -38,7 +38,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           outArgs = Nil,
           typeArgs = Nil,
           convert(body),
-          contract.consumeApplicableContract(),
+          contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
         )(blame(method))(SourceNameOrigin(convert(name), origin(method)))
@@ -61,6 +61,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ClassDecl1(inner) => convert(inner)
     case ClassDecl2(inner) => Seq(convert(inner))
     case ClassDecl3(inner) => convert(inner)
+    case ClassDecl4(inner) => convert(inner)
   }
 
   def convert(implicit method: MethodContext): InstanceMethod[G] = method match {
@@ -72,7 +73,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           outArgs = Nil,
           typeArgs = Nil,
           convert(body),
-          contract.consumeApplicableContract(),
+          contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
         )(blame(method))(SourceNameOrigin(convert(name), origin(method)))
@@ -87,12 +88,19 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit constructor: ConstructorContext): Seq[ClassDeclaration[G]] = constructor match {
     case Constructor0(contract, _, _, args, _, body) =>
       Seq(withContract(contract, contract =>
-        new PVLConstructor(contract.consumeApplicableContract(), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
+        new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
   }
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
     case Field0(t, ids, _) =>
       convert(ids).map(name => new InstanceField[G](convert(t), Set.empty)(SourceNameOrigin(name, origin(field))))
+  }
+
+  def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
+    case RunMethod0(contract, _, maybeBody) =>
+      withContract(contract, contract =>
+        Seq(new RunMethod(convert(maybeBody), contract.consumeApplicableContract(blame(method)))(blame(method)))
+      )
   }
 
   def convert(implicit args: ArgsContext): Seq[Variable[G]] = args match {
@@ -179,7 +187,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: AddExprContext): Expr[G] = expr match {
     case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AddExpr1(left, _, right) => Minus(convert(left), convert(right))
+    case AddExpr1(left, _, right) => AmbiguousMinus(convert(left), convert(right))
     case AddExpr2(inner) => convert(inner)
   }
 
@@ -210,7 +218,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
-    case NewExpr0(_, name, Call0(typeArgs, given, args, yields)) =>
+    case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
       PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
     case NewExpr2(inner) => convert(inner)
@@ -218,7 +226,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: PostfixExprContext): Expr[G] = expr match {
     case PostfixExpr0(obj, _, field, None) => PVLDeref(convert(obj), convert(field))(blame(expr))
-    case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, given, args, yields))) =>
+    case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
@@ -232,8 +240,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit2(_) => Null()
     case Unit3(n) => const(Integer.parseInt(n))
     case Unit4(_, inner, _) => convert(inner)
-    case Unit5(id, None) => convertExpr(id)
-    case Unit5(id, Some(Call0(typeArgs, given, args, yields))) =>
+    case Unit5(id, None) => local(id, convert(id))
+    case Unit5(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
     case Unit6(inner) => convert(inner)
@@ -245,8 +253,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlUnlock(_, obj, _) => Unlock(convert(obj))(blame(stat))
     case PvlWait(_, obj, _) => Wait(convert(obj))(blame(stat))
     case PvlNotify(_, obj, _) => Notify(convert(obj))(blame(stat))
-    case PvlFork(_, obj, _) => Fork(convert(obj))
-    case PvlJoin(_, obj, _) => Join(convert(obj))
+    case PvlFork(_, obj, _) => Fork(convert(obj))(blame(stat))
+    case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
     case PvlIf(_, _, cond, _, body, None) =>
       Branch(Seq((convert(cond), convert(body))))
@@ -453,14 +461,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit id: IdentifierContext): String = id match {
     case Identifier0(id) => id
-    case Identifier1(ValIdEscape(id)) => id.substring(1, id.length - 1)
-    case Identifier1(reserved) =>
-      fail(reserved, "This identifier is reserved and cannot be declared.")
-  }
-
-  def convertExpr(implicit id: IdentifierContext): Expr[G] = id match {
-    case Identifier0(name) => PVLLocal(name)(blame(id))
-    case Identifier1(reserved) => convert(reserved)
+    case Identifier1(id) => id.substring(1, id.length - 1)
   }
 
   def withContract[T](node: ContractContext, f: ContractCollector[G] => T): T = node match {
@@ -552,7 +553,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValEmbedContractBlock1(clauses) => clauses.foreach(convert(_, collector))
   }
 
-  def convert(contract: ValContractClauseContext, collector: ContractCollector[G]): Unit = contract match {
+  def convert(implicit contract: ValContractClauseContext, collector: ContractCollector[G]): Unit = contract match {
     case ValContractClause0(_, ids, _) => collector.modifies ++= convert(ids).map((contract, _))
     case ValContractClause1(_, ids, _) => collector.accessible ++= convert(ids).map((contract, _))
     case ValContractClause2(_, exp, _) => collector.requires += ((contract, convert(exp)))
@@ -573,6 +574,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(contract)))
       collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
+    case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
+    case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))
+  }
+
+  def convert(implicit clause: ValDecreasesMeasureContext): DecreasesClause[G] = clause match {
+    case ValDecreasesMeasure0(_) => DecreasesClauseAssume()
+    case ValDecreasesMeasure1(exps) => DecreasesClauseTuple(convert(exps))
   }
 
   def convert(mod: ValEmbedModifierContext, collector: ModifierCollector): Unit = mod match {
@@ -783,7 +791,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(),
+            c.consumeApplicableContract(blame(decl)),
             m.consume(m.inline))(blame(decl))(namedOrigin)
         })
       ))
@@ -816,7 +824,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(), m.consume(m.inline))(
+            c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })
@@ -982,6 +990,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValRunning(_, _, thread, _) => JoinToken(convert(thread))
   }
 
+  def convert(implicit e: ValPrimaryContextContext): Expr[G] = e match {
+    case ValPrimaryContext0("\\result") => AmbiguousResult()
+    case ValPrimaryContext1("\\current_thread") => CurrentThreadId()
+    case ValPrimaryContext2("\\ltid") => LocalThreadId()
+    case ValPrimaryContext3("\\gtid") => GlobalThreadId()
+  }
+
   def convert(implicit e: ValPrimaryContext): Expr[G] = e match {
     case ValPrimary0(inner) => convert(inner)
     case ValPrimary1(inner) => convert(inner)
@@ -992,6 +1007,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPrimary6(inner) => convert(inner)
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
+    case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
@@ -1001,22 +1017,36 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 
-  def convert(implicit res: ValReservedContext): Expr[G] = res match {
-    case ValReserved0(name) => fail(res,
-      f"This identifier is reserved, and cannot be declared or used in specifications. " +
-        f"You might want to escape the identifier with backticks: `$name`")
-    case ValIdEscape(id) => local(res, id.substring(1, id.length-1))
-    case ValResult(_) => AmbiguousResult()
-    case ValCurrentThread(_) => CurrentThreadId()
+  def convert(implicit e: ValExprContext): Expr[G] = e match {
+    case ValExpr0(inner) => convert(inner)
+    case ValExpr1(inner) => convert(inner)
+  }
+
+  def convert(implicit id: ValIdentifierContext): String = id match {
+    case ValIdentifier0(inner) => convertText(inner)
+    case ValIdentifier1(ValKeywordNonExpr0(text)) => text
+    case ValIdentifier2(text) => text.substring(1, text.length-1)
+  }
+
+  def convertText(implicit res: ValKeywordExprContext): String = res match {
+    case ValNonePerm(_) => "none"
+    case ValWrite(_) => "write"
+    case ValRead(_) => "read"
+    case ValNoneOption(_) => "None"
+    case ValEmpty(_) => "empty"
+    case ValTrue(_) => "true"
+    case ValFalse(_) => "false"
+  }
+
+  def convert(implicit res: ValKeywordExprContext): Expr[G] = res match {
     case ValNonePerm(_) => NoPerm()
     case ValWrite(_) => WritePerm()
     case ValRead(_) => ReadPerm()
     case ValNoneOption(_) => OptNone()
     case ValEmpty(_) => EmptyProcess()
-    case ValLtid(_) => LocalThreadId()
-    case ValGtid(_) => GlobalThreadId()
     case ValTrue(_) => tt
     case ValFalse(_) => ff
   }

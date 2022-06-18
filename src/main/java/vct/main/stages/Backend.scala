@@ -1,7 +1,7 @@
 package vct.main.stages
 
 import hre.io.Writeable
-import vct.col.ast.Program
+import vct.col.ast.{Program, Verification}
 import vct.col.rewrite.Generation
 import vct.col.util.ExpectedError
 import vct.options.Options
@@ -35,6 +35,7 @@ case object Backend {
         numberOfParallelVerifiers = numberOfParallelVerifiers,
         proverLogFile = options.devViperProverLogFile,
         printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
+        options = options.backendFlags,
       ), options.backendFile)
 
     case vct.options.Backend.Carbon => SilverBackend(Carbon(
@@ -42,17 +43,21 @@ case object Backend {
       boogiePath = options.boogiePath,
       printFile = options.devViperProverLogFile,
       proverLogFile = options.devCarbonBoogieLogFile,
+      options = options.backendFlags,
     ), options.backendFile)
   }
 }
 
-trait Backend extends ContextStage[Program[_ <: Generation], Seq[ExpectedError], Unit] {
+trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   override def friendlyName: String = "Verification"
   override def progressWeight: Int = 5
 }
 
 case class SilverBackend(backend: viper.api.SilverBackend, output: Option[Writeable] = None) extends Backend {
-  override def runWithoutContext(input: Program[_ <: Generation]): Unit = {
-    backend.submit(input, output)
+  override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
+    input.tasks.foreach { task =>
+      backend.submit(task.program, output)
+    }
+    input.tasks.flatMap(_.expectedErrors)
   }
 }

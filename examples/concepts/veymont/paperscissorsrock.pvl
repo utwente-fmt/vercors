@@ -10,7 +10,7 @@ class Role {
 	ensures Perm(i,1) ** Perm(x,1) ** Perm(y,1) ** Perm(z,1);
 	ensures (draw());
 	ensures i == j;
-	Role(int j);
+	constructor(int j);
 	
 	requires Perm(x,1\2) ** Perm(y,1\2) ** Perm(z,1\2);
 	pure boolean draw() = 

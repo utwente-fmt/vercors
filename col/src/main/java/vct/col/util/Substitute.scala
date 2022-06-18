@@ -1,11 +1,8 @@
-package vct.col.newrewrite.util
+package vct.col.util
 
-import vct.col.ast.{Declaration, Expr, TVar, Type, Variable}
+import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
-
-import scala.reflect.ClassTag
+import vct.col.rewrite.NonLatchingRewriter
 
 /**
  * Apply a substitution map to expressions

@@ -74,10 +74,10 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
           ).distinct, maximizing)
         case Div(left, right) =>
           extremeValue(Seq(
-            max(left) /: max(right),
-            max(left) /: min(right),
-            min(left) /: max(right),
-            min(left) /: min(right)
+            max(left) /:/ max(right),
+            max(left) /:/ min(right),
+            min(left) /:/ max(right),
+            min(left) /:/ min(right)
           ).distinct, maximizing)
         case FloorDiv(left, right) =>
           extremeValue(Seq(

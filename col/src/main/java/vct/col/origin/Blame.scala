@@ -1,5 +1,6 @@
 package vct.col.origin
 
+import com.typesafe.scalalogging.LazyLogging
 import vct.result.VerificationError
 import vct.col.util.ExpectedError
 import vct.col.ast._
@@ -30,6 +31,7 @@ case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
 
 trait VerificationFailure {
   def code: String
+  def errUrl: String = s" (https://utwente.nl/vercors#$code)"
 
   def position: String
 
@@ -76,7 +78,7 @@ trait NodeVerificationFailure extends VerificationFailure {
   def inlineDescWithSource(source: String): String
 
   override def position: String = node.o.shortPosition
-  override def desc: String = node.o.messageInContext(descInContext)
+  override def desc: String = node.o.messageInContext(descInContext + errUrl)
   override def inlineDesc: String = inlineDescWithSource(node.o.inlineContext)
 }
 
@@ -95,7 +97,7 @@ trait WithContractFailure extends VerificationFailure {
   override def desc: String =
     Origin.messagesInContext(Seq(
       (node.o, descInContext + " ..."),
-      (failure.node.o, "... " + failure.descCompletion),
+      (failure.node.o, "... " + failure.descCompletion + errUrl),
     ))
 
   override def inlineDesc: String =
@@ -109,14 +111,14 @@ sealed trait ExpectedErrorFailure extends VerificationFailure {
 case class ExpectedErrorTrippedTwice(err: ExpectedError, left: VerificationFailure, right: VerificationFailure) extends ExpectedErrorFailure {
   override def code: String = "trippedTwice"
   override def position: String = err.errorRegion.shortPosition
-  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times.")
+  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` occurred multiple times."
 }
 
 case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFailure {
   override def code: String = "notTripped"
   override def position: String = err.errorRegion.shortPosition
-  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered.")
+  override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
@@ -149,6 +151,17 @@ case class SendFailed(failure: ContractFailure, node: Send[_]) extends WithContr
   override def baseCode: String = "sendFailed"
   override def descInContext: String = "Send may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
+}
+sealed trait FramedProofFailure extends VerificationFailure
+case class FramedProofPreFailed(failure: ContractFailure, node: FramedProof[_]) extends FramedProofFailure with WithContractFailure {
+  override def baseCode: String = "framePre"
+  override def descInContext: String = "Precondition of framed statement may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may fail, since $failure."
+}
+case class FramedProofPostFailed(failure: ContractFailure, node: FramedProof[_]) extends FramedProofFailure with WithContractFailure {
+  override def baseCode: String = "framePost"
+  override def descInContext: String = "Postcondition of framed statement may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may fail, since $failure."
 }
 
 sealed trait AccountedDirection
@@ -250,6 +263,34 @@ case class SeqBoundExceedsLength(node: SeqSubscript[_]) extends SeqBoundFailure 
   override def inlineDescWithSource(source: String): String = s"The index in `$source` may exceed the length of the sequence."
 }
 
+sealed trait ForkFailure extends VerificationFailure
+case class ForkNull(node: Fork[_]) extends ForkFailure with NodeVerificationFailure {
+  override def code: String = "forkNull"
+  override def descInContext: String = "This runnable may be null."
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may be null."
+}
+case class RunnableNotIdle(node: Fork[_]) extends ForkFailure with NodeVerificationFailure {
+  override def code: String = "running"
+  override def descInContext: String = "This runnable may not be idle. (Hint: make sure the constructor ensures idle(this))"
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may not be idle."
+}
+case class RunnablePreconditionNotEstablished(node: Fork[_], failure: ContractFailure) extends ForkFailure with WithContractFailure {
+  override def baseCode: String = "forkPre"
+  override def descInContext: String = "The precondition of the runnable may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of the runnable in `$node` may not hold, since $failure."
+}
+sealed trait JoinFailure extends VerificationFailure
+case class JoinNull(node: Join[_]) extends JoinFailure with NodeVerificationFailure {
+  override def code: String = "joinNull"
+  override def descInContext: String = "This runnable may be null."
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may be null."
+}
+case class RunnableNotRunning(node: Join[_]) extends JoinFailure with NodeVerificationFailure {
+  override def code: String = "idle"
+  override def descInContext: String = "This runnable may not be running."
+  override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may not be running."
+}
+
 case class ParInvariantNotEstablished(failure: ContractFailure, node: ParInvariant[_]) extends WithContractFailure {
   override def baseCode: String = "notEstablished"
   override def descInContext: String = "This parallel invariant may not be established, since"
@@ -276,6 +317,11 @@ case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed w
   override def descInContext: String = "The proof hint for this barrier may throw an exception."
   override def inlineDescWithSource(source: String): String = s"The proof hint of `$source` may throw an exception."
 }
+case class ParBarrierInvariantBroken(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+  override def baseCode: String = "barrierInvariant"
+  override def descInContext: String = "The barrier may not re-establish the used invariants, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not re-established the used invariants, since $failure."
+}
 
 sealed trait ParBlockFailure extends VerificationFailure
 case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) extends ParBlockFailure {
@@ -284,7 +330,7 @@ case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) exte
   override def desc: String =
     Origin.messagesInContext(Seq(
       (block.o, "This parallel block causes the formulas in its body to be quantified over all threads, ..."),
-      (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables."),
+      (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." + errUrl),
     ))
 
   override def inlineDesc: String =
@@ -432,6 +478,13 @@ case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
   override def inlineDescWithSource(source: String): String = s"The scale in `$source` may be negative."
 }
 
+case class NontrivialUnsatisfiable(node: ApplicableContract[_]) extends NodeVerificationFailure {
+  override def code: String = "unsatisfiable"
+  override def descInContext: String = "The precondition of this contract may be unsatisfiable. If this is intentional, replace it with `requires false`."
+  override def inlineDescWithSource(source: String): String =
+    s"The precondition in `$source` may be unsatisfiable."
+}
+
 sealed trait UnsafeCoercion extends NodeVerificationFailure
 case class CoerceRatZFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def code: String = "ratZfrac"
@@ -516,7 +569,8 @@ case class BlameUnreachable(message: String, failure: VerificationFailure) exten
 }
 
 case class PanicBlame(message: String) extends Blame[VerificationFailure] {
-  override def blame(error: VerificationFailure): Unit = throw BlameUnreachable(message, error)
+  override def blame(error: VerificationFailure): Unit =
+    throw BlameUnreachable(message, error)
 }
 
 object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should always be ok.")
@@ -529,6 +583,7 @@ object FramedGetLeft extends PanicBlame("left in `e.isLeft ? e.left : ...` shoul
 object FramedGetRight extends PanicBlame("right in `e.isLeft ? ... : e.right` should always be ok.")
 object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
+object TrueSatisfiable extends PanicBlame("`requires true` is always satisfiable.")
 
 object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
@@ -538,6 +593,19 @@ object ArrayPerm extends PanicBlame("Subscripting an array in a permission shoul
 object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")
 
 object JavaArrayInitializerBlame extends PanicBlame("The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array")
+
+object UnsafeDontCare {
+  case class Satisfiability(reason: String) extends UnsafeDontCare[NontrivialUnsatisfiable]
+}
+
+trait UnsafeDontCare[T <: VerificationFailure] extends Blame[T] with LazyLogging {
+  def reason: String
+
+  override def blame(error: T): Unit = {
+    logger.debug(s"We do not care about ${error.code} here, since $reason:")
+    logger.debug(error.toString)
+  }
+}
 
 case class NoContext(inner: Blame[PreconditionFailed]) extends Blame[InvocationFailure] {
   override def blame(error: InvocationFailure): Unit = error match {

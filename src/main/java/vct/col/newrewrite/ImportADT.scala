@@ -173,7 +173,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   private lazy val tupleFile = parse("tuple")
   private lazy val optionFile = parse("option")
   private lazy val eitherFile = parse("either")
-  private lazy val mapFile = parse("map")
+  private lazy val mapCompatFile = parse("map_compat")
   private lazy val arrayFile = parse("array")
   private lazy val pointerFile = parse("pointer")
 
@@ -227,23 +227,10 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   private lazy val eitherGetLeft = find[Function[Post]](eitherFile, "get_left")
   private lazy val eitherGetRight = find[Function[Post]](eitherFile, "get_right")
 
-  private lazy val mapAdt = find[AxiomaticDataType[Post]](mapFile, "map")
-  private lazy val mapEmpty = find[ADTFunction[Post]](mapAdt, "map_empty")
-  private lazy val mapCons = find[ADTFunction[Post]](mapAdt, "map_cons")
-  private lazy val mapKeys = find[ADTFunction[Post]](mapAdt, "map_keys")
-  private lazy val mapAxConsInvK = find[ADTFunction[Post]](mapAdt, "map_cons_inv_k")
-  private lazy val mapAxConsInvV = find[ADTFunction[Post]](mapAdt, "map_cons_inv_v")
-  private lazy val mapAxConsInvTail = find[ADTFunction[Post]](mapAdt, "map_cons_inv_tail")
-  private lazy val mapSize = find[Function[Post]](mapFile, "map_size")
-  private lazy val mapConsGetK = find[Function[Post]](mapFile, "map_cons_get_k")
-  private lazy val mapConsGetV = find[Function[Post]](mapFile, "map_cons_get_v")
-  private lazy val mapConsGetTail = find[Function[Post]](mapFile, "map_cons_get_tail")
-  private lazy val mapGet = find[Function[Post]](mapFile, "map_get")
-  private lazy val mapValues = find[Function[Post]](mapFile, "map_values")
-  private lazy val mapItems = find[Function[Post]](mapFile, "map_items")
-  private lazy val mapEquals = find[Function[Post]](mapFile, "map_equals")
-  private lazy val mapDisjoint = find[Function[Post]](mapFile, "map_disjoint")
-  private lazy val mapRemove = find[Function[Post]](mapFile, "map_remove")
+  private lazy val mapCompatAdt = find[AxiomaticDataType[Post]](mapCompatFile, "map_compat")
+  private lazy val mapItems = find[ADTFunction[Post]](mapCompatAdt, "map_items")
+  private lazy val mapDisjoint = find[ADTFunction[Post]](mapCompatAdt, "map_disjoint")
+  private lazy val mapRemove = find[ADTFunction[Post]](mapCompatAdt, "map_remove")
 
   private lazy val arrayAdt = find[AxiomaticDataType[Post]](arrayFile, "array")
   private lazy val arrayAxLoc = find[ADTFunction[Post]](arrayAdt, "array_loc")
@@ -263,20 +250,106 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
 
   val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
 
-  private def preAdt(ref: Ref[Post, AxiomaticDataType[Post]]): Ref[Pre, AxiomaticDataType[Pre]] =
-    transmutePostRef[AxiomaticDataType, AxiomaticDataType[Pre], AxiomaticDataType[Post]](ref)
+  def optNone(t: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((optionAdt.ref, Seq(t))),
+      optionNone.ref, Nil,
+    )
 
-  private def preAdtFunc(ref: Ref[Post, ADTFunction[Post]]): Ref[Pre, ADTFunction[Pre]] =
-    transmutePostRef[ADTFunction, ADTFunction[Pre], ADTFunction[Post]](ref)
+  def optSome(e: Expr[Post], t: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((optionAdt.ref, Seq(t))),
+      optionSome.ref, Seq(e),
+    )
 
-  private def preFunc(ref: Ref[Post, Function[Post]]): Ref[Pre, Function[Pre]] =
-    transmutePostRef[Function, Function[Pre], Function[Post]](ref)
+  def optGet(e: Expr[Post], t: Type[Post], blame: Blame[PreconditionFailed])(implicit o: Origin): Expr[Post] =
+    FunctionInvocation[Post](optionGet.ref, Seq(e), Seq(t), Nil, Nil)(NoContext(blame))
+
+  def eitherIsRight(e: Expr[Post], leftType: Type[Post], rightType: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation(
+      Some((
+        eitherAdt.ref,
+        Seq(leftType, rightType)
+      )),
+      eitherIsRight.ref,
+      Seq(e),
+    )
+
+  def eitherGetLeft(e: Expr[Post], leftType: Type[Post], rightType: Type[Post], blame: Blame[PreconditionFailed])(implicit o: Origin): Expr[Post] =
+    FunctionInvocation[Post](eitherGetLeft.ref,
+      Seq(e),
+      Seq(leftType, rightType), Nil, Nil,
+    )(NoContext(blame))
+
+  def eitherGetRight(e: Expr[Post], leftType: Type[Post], rightType: Type[Post], blame: Blame[PreconditionFailed])(implicit o: Origin): Expr[Post] =
+    FunctionInvocation[Post](eitherGetRight.ref,
+      Seq(e),
+      Seq(leftType, rightType), Nil, Nil,
+    )(NoContext(blame))
+
+  def eitherLeft(e: Expr[Post], leftType: Type[Post], rightType: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((
+        eitherAdt.ref,
+        Seq(leftType, rightType),
+      )),
+      eitherLeft.ref,
+      Seq(e),
+    )
+
+  def eitherRight(e: Expr[Post], leftType: Type[Post], rightType: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((
+        eitherAdt.ref,
+        Seq(leftType, rightType),
+      )),
+      eitherRight.ref,
+      Seq(e),
+    )
+
+  def tupFst(e: Expr[Post], fstType: Type[Post], sndType: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((tupleAdt.ref, Seq(fstType, sndType))),
+      tupleFst.ref, Seq(e),
+    )
+
+  def tupSnd(e: Expr[Post], fstType: Type[Post], sndType: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((tupleAdt.ref, Seq(fstType, sndType))),
+      tupleSnd.ref, Seq(e),
+    )
+
+  def tup(fst: Expr[Post], fstType: Type[Post], snd: Expr[Post], sndType: Type[Post])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation[Post](
+      Some((tupleAdt.ref, Seq(fstType, sndType))),
+      tupleTup.ref, Seq(fst, snd),
+    )
 
   override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceNothingSomething(target) =>
       FunctionInvocation[Post](nothingAs.ref, Seq(e), Seq(dispatch(target)), Nil, Nil)(PanicBlame("coercing from nothing requires nothing."))
     case CoerceSomethingAny(source) =>
       FunctionInvocation[Post](anyFrom.ref, Seq(e), Seq(dispatch(source)), Nil, Nil)(PanicBlame("coercing to any requires nothing."))
+
+    case CoerceMapOption(inner, source, target) =>
+      Select(
+        Eq(e, optNone(dispatch(source))),
+        optNone(dispatch(target)),
+        optSome(applyCoercion(optGet(e, dispatch(source), NeverNone), inner), dispatch(target))
+      )
+    case CoerceMapEither((innerLeft, innerRight), (sourceLeft, sourceRight), (targetLeft, targetRight)) =>
+      Select(
+        eitherIsRight(e, dispatch(sourceLeft), dispatch(sourceRight)),
+        eitherRight(applyCoercion(eitherGetRight(e, dispatch(sourceLeft), dispatch(sourceRight), FramedGetRight), innerRight), dispatch(targetLeft), dispatch(targetRight)),
+        eitherLeft(applyCoercion(eitherGetLeft(e, dispatch(sourceLeft), dispatch(sourceRight), FramedGetLeft), innerRight), dispatch(targetLeft), dispatch(targetRight)),
+      )
+    case CoerceMapTuple(Seq(inner1, inner2), Seq(s1, s2), Seq(t1, t2)) =>
+      tup(
+        applyCoercion(tupFst(e, dispatch(s1), dispatch(s2)), inner1),
+        dispatch(t1),
+        applyCoercion(tupSnd(e, dispatch(s1), dispatch(s2)), inner2),
+        dispatch(t2),
+      )
 
     case CoerceNullArray(_) =>
       ADTFunctionInvocation[Post](
@@ -326,6 +399,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   override def dispatch(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
       program.rewrite(declarations = collectInScope(globalScopes) {
+        parse("viper_order")
         anyFile
         program.declarations.foreach(dispatch)
       })
@@ -345,7 +419,6 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
       case TTuple(Seq(t1, t2)) => TAxiomatic(tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))
       case TEither(left, right) => TAxiomatic(eitherAdt.ref, Seq(dispatch(left), dispatch(right)))
       case TOption(element) => TAxiomatic(optionAdt.ref, Seq(dispatch(element)))
-      case TMap(k, v) => TAxiomatic(mapAdt.ref, Seq(dispatch(k), dispatch(v)))
       case TArray(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(arrayAdt.ref, Nil)))
       case TPointer(_) => TAxiomatic(optionAdt.ref, Seq(TAxiomatic(pointerAdt.ref, Nil)))
       case other => rewriteDefault(other)
@@ -385,111 +458,54 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
       case Void() =>
         ADTFunctionInvocation(None, voidUnit.ref, Nil)
       case LiteralTuple(Seq(t1, t2), Seq(v1, v2)) =>
-        ADTFunctionInvocation(
-          Some((tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))),
-          tupleTup.ref, Seq(dispatch(v1), dispatch(v2)),
-        )
+        tup(dispatch(v1), dispatch(t1), dispatch(v2), dispatch(t2))
       case TupGet(tup, 0) =>
-        ADTFunctionInvocation(
-          Some((tupleAdt.ref, tup.t.asTuple.get.elements.map(dispatch))),
-          tupleFst.ref, Seq(dispatch(tup)),
-        )
+        val ts = tup.t.asTuple.get.elements.map(dispatch)
+        tupFst(dispatch(tup), ts(0), ts(1))
       case TupGet(tup, 1) =>
-        ADTFunctionInvocation(
-          Some((tupleAdt.ref, tup.t.asTuple.get.elements.map(dispatch))),
-          tupleSnd.ref, Seq(dispatch(tup)),
-        )
+        val ts = tup.t.asTuple.get.elements.map(dispatch)
+        tupSnd(dispatch(tup), ts(0), ts(1))
       case OptNone() =>
-        ADTFunctionInvocation(
-          Some((optionAdt.ref, Seq(TAxiomatic(nothingAdt.ref, Nil)))),
-          optionNone.ref, Nil,
-        )
+        optNone(TAxiomatic(nothingAdt.ref, Nil))
       case OptSome(element) =>
-        val newElement = dispatch(element)
-        ADTFunctionInvocation(
-          Some((optionAdt.ref, Seq(newElement.t))),
-          optionSome.ref, Seq(newElement),
-        )
+        optSome(dispatch(element), dispatch(element.t))
       case access @ OptGet(opt) =>
-        FunctionInvocation[Post](optionGet.ref, Seq(dispatch(opt)), Seq(dispatch(opt.t.asOption.get.element)), Nil, Nil)(
-          NoContext(OptionNonePreconditionFailed(access)))
+        optGet(dispatch(opt), dispatch(opt.t.asOption.get.element), OptionNonePreconditionFailed(access))
       case get @ OptGetOrElse(opt, alt) =>
         FunctionInvocation[Post](optionGetOrElse.ref,
           Seq(dispatch(opt), dispatch(alt)),
           Seq(dispatch(get.t)), Nil, Nil,
         )(PanicBlame("opt_or_else requires nothing."))
+      case EitherLeft(e) =>
+        eitherLeft(dispatch(e), dispatch(e.t), dispatch(TNothing()))
+      case EitherRight(e) =>
+        eitherRight(dispatch(e), dispatch(TNothing()), dispatch(e.t))
       case get @ GetLeft(e) =>
-        FunctionInvocation[Post](eitherGetLeft.ref,
-          Seq(dispatch(e)),
-          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)), Nil, Nil,
-        )(NoContext(NotLeftPreconditionFailed(get)))
+        eitherGetLeft(dispatch(e), dispatch(get.eitherType.left), dispatch(get.eitherType.right), NotLeftPreconditionFailed(get))
       case get @ GetRight(e) =>
-        FunctionInvocation[Post](eitherGetRight.ref,
-          Seq(dispatch(e)),
-          Seq(dispatch(get.eitherType.left), dispatch(get.eitherType.right)), Nil, Nil,
-        )(NoContext(NotRightPreconditionFailed(get)))
+        eitherGetRight(dispatch(e), dispatch(get.eitherType.left), dispatch(get.eitherType.right), NotRightPreconditionFailed(get))
       case is @ IsLeft(e) =>
-        Not(ADTFunctionInvocation(
-          Some((
-            eitherAdt.ref,
-            Seq(dispatch(is.eitherType.left), dispatch(is.eitherType.right))
-          )),
-          eitherIsRight.ref,
-          Seq(dispatch(e)),
-        ))
+        Not(eitherIsRight(dispatch(e), dispatch(is.eitherType.left), dispatch(is.eitherType.right)))
       case is @ IsRight(e) =>
-        ADTFunctionInvocation(
-          Some((
-            eitherAdt.ref,
-            Seq(dispatch(is.eitherType.left), dispatch(is.eitherType.right))
-          )),
-          eitherIsRight.ref,
-          Seq(dispatch(e)),
-        )
-      case LiteralMap(k, v, values) =>
-        val typeArgs: Some[(Ref[Post, AxiomaticDataType[Post]], Seq[Type[Post]])] =
-          Some((mapAdt.ref, Seq(dispatch(k), dispatch(v))))
-
-        values.foldLeft(
-          ADTFunctionInvocation[Post](typeArgs, mapEmpty.ref, Nil)
-        )((m, pair) =>
-          ADTFunctionInvocation[Post](typeArgs, mapCons.ref, Seq(dispatch(pair._1), dispatch(pair._2), m))
-        )
-      case MapKeySet(map) =>
-        ADTFunctionInvocation(
-          Some((mapAdt.ref, mapTypeArgs(map))), mapKeys.ref, Seq(dispatch(map))
-        )
-      case Empty(map) if map.t.asMap.isDefined =>
-        val TMap(key, value) = map.t.asMap.get
-        dispatch(map) === ADTFunctionInvocation[Post](Some((mapAdt.ref, Seq(dispatch(key), dispatch(value)))), mapEmpty.ref, Nil)
-      case Size(map) if map.t.asMap.isDefined =>
-        FunctionInvocation[Post](mapSize.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_size requires nothing."))
-      case access @ MapGet(map, k) =>
-        FunctionInvocation[Post](mapGet.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(
-          NoContext(MapKeyErrorPreconditionFailed(access)))
-      case cons @ MapCons(m, k, v) =>
-        val typeArgs = Seq(dispatch(cons.t.key), dispatch(cons.t.value))
-        ADTFunctionInvocation[Post](Some((mapAdt.ref, typeArgs)), mapCons.ref, Seq(dispatch(k), dispatch(v), dispatch(m)))
-      case MapValueSet(map) =>
-        FunctionInvocation[Post](mapValues.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_values requires nothing."))
+        eitherIsRight(dispatch(e), dispatch(is.eitherType.left), dispatch(is.eitherType.right))
       case MapItemSet(map) =>
-        FunctionInvocation[Post](mapItems.ref, Seq(dispatch(map)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_items requires nothing."))
-      case eq @ MapEq(left, right) =>
-        FunctionInvocation[Post](
-          mapEquals.ref,
-          Seq(dispatch(left), dispatch(right)),
-          Seq(dispatch(eq.commonMapType.key), dispatch(eq.commonMapType.value)),
-          Nil, Nil,
-        )(PanicBlame("map_equals requires nothing."))
+        ADTFunctionInvocation[Post](
+          Some((mapCompatAdt.ref, mapTypeArgs(map))),
+          mapItems.ref,
+          Seq(dispatch(map))
+        )
       case disj @ MapDisjoint(left, right) =>
-        FunctionInvocation[Post](
+        ADTFunctionInvocation[Post](
+          Some((mapCompatAdt.ref, Seq(dispatch(disj.commonMapType.key), dispatch(disj.commonMapType.value)))),
           mapDisjoint.ref,
           Seq(dispatch(left), dispatch(right)),
-          Seq(dispatch(disj.commonMapType.key), dispatch(disj.commonMapType.value)),
-          Nil, Nil,
-        )(PanicBlame("map_disjoint requires nothing."))
+        )
       case MapRemove(map, k) =>
-        FunctionInvocation[Post](mapRemove.ref, Seq(dispatch(map), dispatch(k)), mapTypeArgs(map), Nil, Nil)(PanicBlame("map_remove requires nothing."))
+        ADTFunctionInvocation[Post](
+          Some((mapCompatAdt.ref, mapTypeArgs(map))),
+          mapRemove.ref,
+          Seq(dispatch(map), dispatch(k)),
+        )
       case sub @ ArraySubscript(arr, index) =>
         SilverDeref(
           obj = FunctionInvocation[Post](

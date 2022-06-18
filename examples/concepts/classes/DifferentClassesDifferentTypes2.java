@@ -10,7 +10,7 @@ class DifferentClassesDifferentTypes2 {
     void foo() {
         A a = new A();
         B b = new B();
-        /*[/expect failed]*/
+        /*[/expect assertFailed:false]*/
         assert a instanceof B;
         /*[/end]*/
     }

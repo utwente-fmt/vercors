@@ -59,10 +59,10 @@ class Lock {
 		loop_invariant !b ==> m.state(p, m.Unlocked());
 		loop_invariant b ==> m.state(p, m.Locked());
 		while (!b) {
-			b = atomic_cas given {
-				P = m.Unlocked(),
-				p = p
-			} (false, true);
+			b = atomic_cas(false, true) given {
+        P = m.Unlocked(),
+        p = p
+      };
 		}
 	}
 	
@@ -72,9 +72,9 @@ class Lock {
 	requires m.state(p, m.Locked());
 	ensures m.state(p, m.Unlocked());
 	void release() {
-		atomic_set given {
-			P = m.Locked(),
-			p = p
-		} (false);
+		atomic_set(false) given {
+      P = m.Locked(),
+      p = p
+    };
 	}
 }

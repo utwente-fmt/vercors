@@ -5,7 +5,7 @@ import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{AbstractApplicable, Origin, PanicBlame}
+import vct.col.origin.{AbstractApplicable, Origin, PanicBlame, TrueSatisfiable}
 import vct.col.ref.Ref
 
 case object ConstantifyFinalFields extends RewriterBuilder {
@@ -27,6 +27,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
       if(isFinal(field)) {
         function[Post](
           blame = AbstractApplicable,
+          contractBlame = TrueSatisfiable,
           returnType = dispatch(field.t),
           args = Seq(new Variable[Post](TClass(succ(currentClass.top)))),
         ).succeedDefault(field)

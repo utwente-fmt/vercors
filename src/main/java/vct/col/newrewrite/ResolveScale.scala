@@ -38,6 +38,7 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
 
     function[Post](
       blame = PanicBlame("scale ensures nothing"),
+      contractBlame = PanicBlame("scale only requires a positive rational"),
       args = Seq(v),
       returnType = TRational(),
       body = Some(v.get),

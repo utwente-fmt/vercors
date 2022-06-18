@@ -10,7 +10,7 @@ package separate;
 public class Util {
 
 
-    /*[/expect postFailed]*/
+    /*[/expect postFailed:false]*/
     //@ ensures \result==x+1;
     public static int incr(int x){
       return x+2;

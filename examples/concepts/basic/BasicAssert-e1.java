@@ -11,7 +11,7 @@ class Ref {
   @*/
   void t1(boolean b, int d,Ref r)
   {
-    /*[/expect failed]*/
+    /*[/expect assignFieldFailed]*/
     r.test = b;
     /*[/end]*/
     //@ assert b == (r.test);

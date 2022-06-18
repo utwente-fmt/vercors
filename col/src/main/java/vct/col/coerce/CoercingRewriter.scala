@@ -74,9 +74,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
       case CoerceMapOption(inner, _, _) =>
-        Select(Eq(e, OptNone()), OptNone(), applyCoercion(OptGet(e)(NeverNone), inner))
+        Select(Eq(e, OptNone()), OptNone(), OptSome(applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
-        Select(IsLeft(e), applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft), applyCoercion(GetRight(e)(FramedGetRight), innerRight))
+        Select(IsRight(e),
+          EitherRight(applyCoercion(GetRight(e)(FramedGetRight), innerRight)),
+          EitherLeft(applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft)),
+        )
       case CoerceMapSeq(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable[Post](TSeq(dispatch(source)))
@@ -86,6 +89,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TSeq(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -106,6 +110,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TSet(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -125,6 +130,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TBag(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -146,6 +152,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
           function(
             blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
             returnType = TMap(dispatch(targetKey), dispatch(targetValue)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -191,10 +198,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   }
 
   def coerceAny(node: NodeFamily[Pre]): NodeFamily[Pre] = node match {
+    case node: Verification[Pre] => node
+    case node: VerificationContext[Pre] => node
     case node: Program[Pre] => node
     case node: Statement[Pre] => coerce(node)
     case node: Expr[Pre] => coerce(node)
     case node: Type[Pre] => node
+    case node: DecreasesClause[Pre] => node
     case node: AccountedPredicate[Pre] => node
     case node: ApplicableContract[Pre] => node
     case node: LoopContract[Pre] => node
@@ -577,12 +587,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
-        val coercedIndex = int(index)
         firstOk(e, s"Expected collection to be a sequence, array, pointer or map, but got ${collection.t}.",
-          AmbiguousSubscript(seq(collection)._1, coercedIndex)(sub.blame),
-          AmbiguousSubscript(array(collection)._1, coercedIndex)(sub.blame),
-          AmbiguousSubscript(pointer(collection)._1, coercedIndex)(sub.blame),
-          AmbiguousSubscript(map(collection)._1, coercedIndex)(sub.blame),
+          AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(map(collection)._1, coerce(index, map(collection)._2.key))(sub.blame),
         )
       case AmbiguousThis() => e
       case And(left, right) =>
@@ -660,8 +669,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         DerefPointer(pointer(p)._1)(deref.blame)
       case div @ Div(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
-          Div(int(left), int(right))(div.blame),
-          Div(int(left), rat(right))(div.blame),
+          // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
+          // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
+          // and rationals.
           Div(rat(left), int(right))(div.blame),
           Div(rat(left), rat(right))(div.blame),
         )
@@ -718,6 +728,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Implies(bool(left), res(right))
       case FunctionOf(e, ref) =>
         FunctionOf(e, ref)
+      case IndeterminateInteger(min, max) =>
+        IndeterminateInteger(int(min), int(max))
       case InlinePattern(inner) =>
         InlinePattern(inner)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
@@ -940,6 +952,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Result(ref)
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
+      case ScaleByParBlock(ref, r) =>
+        ScaleByParBlock(ref, res(r))
       case ScopedExpr(locals, body) =>
         ScopedExpr(locals, body)
       case Select(condition, whenTrue, whenFalse) =>
@@ -984,6 +998,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         SilverDeref(ref(obj), field)(deref.blame)
       case SilverIntToRat(perm) =>
         SilverIntToRat(int(perm))
+      case SilverMapSize(xs) =>
+        SilverMapSize(map(xs)._1)
       case SilverNull() =>
         SilverNull()
       case SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) => e
@@ -1111,19 +1127,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
       case f @ Fold(assn) => Fold(res(assn))(f.blame)
-      case Fork(obj) => Fork(cls(obj)._1)
+      case f @ Fork(obj) => Fork(cls(obj)._1)(f.blame)
+      case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
       case Goto(lbl) => Goto(lbl)
       case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
       case GpgpuGlobalBarrier(requires, ensures) => GpgpuGlobalBarrier(res(requires), res(ensures))
       case GpgpuLocalBarrier(requires, ensures) => GpgpuLocalBarrier(res(requires), res(ensures))
       case Havoc(loc) => Havoc(loc)
+      case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
-      case Join(obj) => Join(cls(obj)._1)
+      case j @ Join(obj) => Join(cls(obj)._1)(j.blame)
       case Label(decl, stat) => Label(decl, stat)
       case LocalDecl(local) => LocalDecl(local)
       case Lock(obj) => Lock(cls(obj)._1)
@@ -1198,6 +1216,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         new InstancePredicate[Pre](predicate.args, predicate.body.map(res), predicate.threadLocal, predicate.inline)
       case field: InstanceField[Pre] =>
         field
+      case method: RunMethod[Pre] =>
+        method
       case initialization: JavaSharedInitialization[Pre] =>
         initialization
       case fields: JavaFields[Pre] =>
