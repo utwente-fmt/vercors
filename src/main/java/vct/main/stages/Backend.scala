@@ -27,7 +27,7 @@ case object Backend {
         case None => Seq()
       }
       val numberOfParallelVerifiers =
-        if (options.devSiliconZ3LogFile.isDefined) { Some(1) }
+        if (options.devSiliconZ3LogFile.isDefined || options.siliconPrintQuantifierStats.isDefined) { Some(1) }
         else { options.devSiliconNumVerifiers }
       SilverBackend(Silicon(
         z3Settings = (printRawQuantifier ++ z3LogFile).toMap,

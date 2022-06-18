@@ -112,7 +112,7 @@ case object Options {
 
       opt[Int]("silicon-print-quantifier-stats").valueName("<amount>")
         .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
-        .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds"),
+        .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds. Implies --dev-silicon-num-verifiers 1"),
 
       opt[Unit]("dev-abrupt-exc").hidden()
         .action((_, c) => c.copy(devAbruptExc = true))
