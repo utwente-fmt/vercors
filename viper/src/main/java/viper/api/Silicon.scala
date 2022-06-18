@@ -11,11 +11,13 @@ import vct.col.origin.Origin
 import viper.silicon.logger.SymbExLogger
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
+
 import java.nio.file.Path
 import java.util.{Timer, TimerTask}
 import scala.annotation.nowarn
 import scala.sys.ShutdownHookThread
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
 final class ConcurrentListAppender[E] extends AppenderBase[E] {
   var es: mutable.ArrayBuffer[E] = new mutable.ArrayBuffer[E]()
@@ -121,17 +123,27 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
    */
   case class QuantifierInstanceReport(e: Either[String, Expr[_]], instances: Int, maxGeneration: Int, maxCost: Int)
 
+  // Parses z3 quantifier output into our own report data structure
+  // Format info: https://github.com/Z3Prover/z3/blob/z3-4.8.6/src/smt/smt_quantifier.cpp#L173-L181
   def getQuantifierInstanceReports(): Seq[QuantifierInstanceReport] = {
     la.getAll()
       .map(_.toString)
       .filter(_.contains("quantifier_instances"))
       .map { m =>
-        val msg = m.split("\\[quantifier_instances\\]")(1)
-        val chunks = msg.split(':')
-        val e = qmap.get(chunks(0).strip().replace("prog.l", ""))
-          .toRight(chunks(0).strip())
-        QuantifierInstanceReport(e, chunks(1).strip().toInt, chunks(2).strip().toInt, chunks(3).strip().toInt)
+        Try({
+          val msg = m.split("\\[quantifier_instances\\]")(1)
+          val chunks = msg.split(':')
+          val e = qmap.get(chunks(0).strip().replace("prog.l", ""))
+            .toRight(chunks(0).strip())
+          QuantifierInstanceReport(e, chunks(1).strip().toInt, chunks(2).strip().toInt, chunks(3).strip().toInt)
+        }) match {
+          case Success(value) => Some(value)
+          case Failure(exception) =>
+            logger.debug(s"Discarding Z3 quantifier statistic message: $exception")
+            None
+        }
       }
+      .collect({ case Some(x) => x })
       // Remove duplicates by only keeping the log entry with the higest number of instances
       .map(r => (r.e, r))
       .sortBy(_._2.instances)
