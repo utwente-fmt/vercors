@@ -157,8 +157,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
       for (report <- reports.sortBy(_.instances).reverse) {
         report.e match {
           case Right(e) =>
-            val o = e.o
-            logger.info(o.messageInContext(
+            logger.info(e.o.messageInContext(
               s"instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})"))
           case Left(n) =>
             logger.info(
