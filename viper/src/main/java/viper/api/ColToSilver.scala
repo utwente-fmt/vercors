@@ -19,8 +19,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object ColToSilver {
-  def transform(program: col.Program[_]): silver.Program =
-    ColToSilver(program).transform()
+  def transform(program: col.Program[_]): (silver.Program, Map[Int, col.Node[_]]) = {
+    val cts = ColToSilver(program)
+    val p = cts.transform()
+    (p, cts.nodeFromUniqueId.toMap)
+  }
 
   case class NotSupported(node: col.Node[_]) extends SystemError {
     override def text: String =
@@ -110,9 +113,11 @@ case class ColToSilver(program: col.Program[_]) {
     }
 
   var uniquePosId: Int = 0
+  val nodeFromUniqueId: mutable.Map[Int, col.Node[_]] = mutable.Map()
 
   def pos(node: col.Node[_]): silver.Position = {
     uniquePosId += 1
+    nodeFromUniqueId(uniquePosId) = node
     // Replace : with -, as the colon interferes with z3's quantifier statistics output, which uses a colon as a separator
     silver.VirtualPosition(s"${node.o.shortPosition.replace(':', '-')};unique_id=$uniquePosId")
   }

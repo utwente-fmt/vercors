@@ -6,7 +6,7 @@ import ch.qos.logback.core.AppenderBase
 import hre.config.Configuration
 import hre.io.Writeable
 import org.slf4j.LoggerFactory
-import vct.col.ast.{Exists, Expr, Forall, Program, Starall}
+import vct.col.ast.{Expr, Node}
 import vct.col.origin.Origin
 import viper.silicon.logger.SymbExLogger
 import org.slf4j.LoggerFactory.getLogger
@@ -19,7 +19,7 @@ import java.util.{Timer, TimerTask}
 import scala.annotation.nowarn
 import scala.sys.ShutdownHookThread
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
+import scala.util.matching.{Regex, UnanchoredRegex}
 
 final class ConcurrentListAppender[E] extends AppenderBase[E] {
   var es: mutable.ArrayBuffer[E] = new mutable.ArrayBuffer[E]()
@@ -43,12 +43,14 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
                    options: Seq[String] = Nil) extends SilverBackend {
 
   var la: ConcurrentListAppender[ILoggingEvent] = null
-  var qmap: Map[String, Expr[_]] = Map()
+  var nodeFromUniqueId: Map[Int, Node[_]] = Map()
   var shutdownHookThread: ShutdownHookThread = null
   var reportedQuantifiers = false
   var intermediatePrinterTimer: Timer = new Timer()
 
-  override def createVerifier(reporter: Reporter): (viper.silicon.Silicon, SilverPluginManager) = {
+  override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, Node[_]]): (viper.silicon.Silicon, SilverPluginManager) = {
+    this.nodeFromUniqueId = nodeFromUniqueId
+
     if (printQuantifierStatistics) {
       val l = LoggerFactory.getLogger("viper.silicon.decider.Z3ProverStdIO").asInstanceOf[Logger]
       l.setLevel(Level.INFO)
@@ -70,7 +72,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
 
     val silicon = new viper.silicon.Silicon(reporter)
 
-    val z3Config = '"' + z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ") + '"'
+    val z3Config = z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ")
 
     var siliconConfig = Seq(
       "--z3Exe", z3Path.toString,
@@ -114,17 +116,6 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     (silicon, plugins)
   }
 
-  override def submit(colProgram: Program[_], output: Option[Writeable]): Unit = {
-    if (printQuantifierStatistics) {
-      qmap = colProgram.transSubnodes.collect({
-        case s: Starall[_] => s
-        case f: Forall[_] => f
-        case e: Exists[_] => e
-      }).map { q => (q.o.preferredName, q) }.toMap
-    }
-    super.submit(colProgram, output)
-  }
-
   // See: https://github.com/Z3Prover/z3/issues/4522
   /* Paraphrased Nikolaj's answer:
       > Generation is associated with the number of quantifier instantiations that were used to produce a given quantifier
@@ -139,23 +130,20 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
 
   // Parses z3 quantifier output into our own report data structure
   // Format info: https://github.com/Z3Prover/z3/blob/z3-4.8.6/src/smt/smt_quantifier.cpp#L173-L181
+  val quantifierStatFormatR: UnanchoredRegex = raw"\[quantifier_instances]\s*(\S+)\s*:\s*(\S+)\s*:\s*(\S+)\s*:\s*(\S+)".r.unanchored
+  val uniqueIdR: Regex = raw".*unique_id=(\d+)".r
   def getQuantifierInstanceReports(): Seq[QuantifierInstanceReport] = {
     la.getAll()
       .map(_.toString)
-      .filter(_.contains("quantifier_instances"))
-      .map { m =>
-        Try({
-          val msg = m.split("\\[quantifier_instances\\]")(1)
-          val chunks = msg.split(':')
-          val e = qmap.get(chunks(0).strip().replace("prog.l", ""))
-            .toRight(chunks(0).strip())
-          QuantifierInstanceReport(e, chunks(1).strip().toInt, chunks(2).strip().toInt, chunks(3).strip().toInt)
-        }) match {
-          case Success(value) => Some(value)
-          case Failure(exception) =>
-            logger.debug(s"Discarding Z3 quantifier statistic message: $exception")
-            None
-        }
+      .map {
+        case quantifierStatFormatR(qid, numInstances, maxGeneration, maxCost) =>
+          val id = qid match {
+            case uniqueIdR(intId) =>
+              Right(nodeFromUniqueId(intId.toInt).asInstanceOf[Expr[_]])
+            case _ => Left(qid)
+          }
+          Some(QuantifierInstanceReport(id, numInstances.toInt, maxGeneration.toInt, maxCost.toInt))
+        case _ => None
       }
       .collect({ case Some(x) => x })
       // Remove duplicates by only keeping the log entry with the higest number of instances

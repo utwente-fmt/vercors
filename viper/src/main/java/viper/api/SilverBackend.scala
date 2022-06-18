@@ -30,7 +30,7 @@ trait SilverBackend extends Backend with LazyLogging {
       "An error occurred in a viper plugin, which should always be prevented:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
-  def createVerifier(reporter: Reporter): (Verifier, SilverPluginManager)
+  def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
   private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
@@ -42,7 +42,7 @@ trait SilverBackend extends Backend with LazyLogging {
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
   override def submit(colProgram: col.Program[_], output: Option[Writeable]): Unit = {
-    val silverProgram = ColToSilver.transform(colProgram)
+    val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     output.foreach(_.write { writer =>
       writer.write(silverProgram.toString())
@@ -77,7 +77,7 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     val tracker = EntityTrackingReporter()
-    val (verifier, plugins) = createVerifier(tracker)
+    val (verifier, plugins) = createVerifier(tracker, nodeFromUniqueId)
 
     val transformedProgram = plugins.beforeVerify(silverProgram) match {
       case Some(program) => program
