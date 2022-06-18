@@ -87,7 +87,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
 
     numberOfParallelVerifiers match {
       case Some(n) =>
-        siliconConfig ++= Seq("--numberOfParallelVerifiers", n + "")
+        siliconConfig ++= Seq("--numberOfParallelVerifiers", n.toString)
       case None =>
     }
 
