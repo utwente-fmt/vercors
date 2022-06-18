@@ -132,6 +132,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   // Format info: https://github.com/Z3Prover/z3/blob/z3-4.8.6/src/smt/smt_quantifier.cpp#L173-L181
   val quantifierStatFormatR: UnanchoredRegex = raw"\[quantifier_instances]\s*(\S+)\s*:\s*(\S+)\s*:\s*(\S+)\s*:\s*(\S+)".r.unanchored
   val uniqueIdR: Regex = raw".*unique_id=(\d+)".r
+  // TODO: Refactor this code to keep the parsed quantifier stats around, possibly only the biggest ones, and only poll for new ones.
   def getQuantifierInstanceReports(): Seq[QuantifierInstanceReport] = {
     la.getAll()
       .map(_.toString)
