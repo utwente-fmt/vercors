@@ -190,6 +190,4 @@ case class SilverTransformation
     SilverIntRatCoercion,
     // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
     PinSilverNodes,
-    // RR TODO: Can this be made optional? It's only needed when debugging quantifiers
-    NameQuantifiers
   ))
