@@ -130,18 +130,15 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   def getQuantifierInstanceReports(): Seq[QuantifierInstanceReport] = {
     la.getAll()
       .map(_.toString)
-      .map {
+      .collect {
         case quantifierStatFormatR(qid, numInstances, maxGeneration, maxCost) =>
           val id = qid match {
             case uniqueIdR(intId) =>
               Right(nodeFromUniqueId(intId.toInt).asInstanceOf[Expr[_]])
             case _ => Left(qid)
           }
-          Some(QuantifierInstanceReport(id, numInstances.toInt, maxGeneration.toInt, maxCost.toInt))
-        case x => None
+          QuantifierInstanceReport(id, numInstances.toInt, maxGeneration.toInt, maxCost.toInt)
       }
-      .collect({ case Some(x) => x })
-      // Remove duplicates by only keeping the log entry with the higest number of instances
       .map(r => (r.e, r))
       .sortBy(_._2.instances)
       .toMap.values.toSeq
