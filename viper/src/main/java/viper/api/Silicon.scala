@@ -128,11 +128,13 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
    */
   case class QuantifierInstanceReport(e: Either[String, Expr[_]], instances: Int, maxGeneration: Int, maxCost: Int)
 
+  // TODO: Refactor this code to keep the parsed quantifier stats around, possibly only the biggest ones, only poll for new ones,
+  //       and print ignored lines.
+  //       Also, integrate with SymbExLogger/SiliconLogListener, for code  reuse and to get similar presentation/behaviour.
   // Parses z3 quantifier output into our own report data structure
   // Format info: https://github.com/Z3Prover/z3/blob/z3-4.8.6/src/smt/smt_quantifier.cpp#L173-L181
   val quantifierStatFormatR: UnanchoredRegex = raw"\[quantifier_instances]\s*(\S+)\s*:\s*(\S+)\s*:\s*(\S+)\s*:\s*(\S+)".r.unanchored
   val uniqueIdR: Regex = raw".*unique_id=(\d+)".r
-  // TODO: Refactor this code to keep the parsed quantifier stats around, possibly only the biggest ones, and only poll for new ones.
   def getQuantifierInstanceReports(): Seq[QuantifierInstanceReport] = {
     la.getAll()
       .map(_.toString)
@@ -144,7 +146,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
             case _ => Left(qid)
           }
           Some(QuantifierInstanceReport(id, numInstances.toInt, maxGeneration.toInt, maxCost.toInt))
-        case _ => None
+        case x => None
       }
       .collect({ case Some(x) => x })
       // Remove duplicates by only keeping the log entry with the higest number of instances
@@ -183,7 +185,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
         report.e match {
           case Right(e) =>
             val o = e.o
-            logger.info(s"${o.toString}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+            logger.info(s"${o.shortPosition}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
           case Left(n) =>
             logger.info(s"$n: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
         }
