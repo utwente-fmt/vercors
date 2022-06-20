@@ -39,7 +39,7 @@ final class ConcurrentListAppender[E] extends AppenderBase[E] {
 
 @nowarn("any") // due to be removed
 case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None,
-                   logLevel: Option[String] = None, proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false,
+                   proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false,
                    options: Seq[String] = Nil) extends SilverBackend {
 
   var la: ConcurrentListAppender[ILoggingEvent] = null
@@ -83,14 +83,6 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     proverLogFile match {
       case Some(p) => siliconConfig ++= Seq("--z3LogFile", p.toString) // This should be changed to "proverLogFile" when updating to the new Viper version
       case _ => siliconConfig ++= Seq("--disableTempDirectory") // Otherwise do not make a temp dir (these two options are mutually exclusive)
-    }
-
-    if(Configuration.currentConfiguration.debugBackend.get()) {
-      siliconConfig ++= Seq("--logLevel", "ALL")
-    } else logLevel match {
-      case Some(level) =>
-        siliconConfig ++= Seq("--logLevel", level)
-      case _ =>
     }
 
     numberOfParallelVerifiers match {
