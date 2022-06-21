@@ -2,7 +2,17 @@ package vct.options
 
 sealed trait Verbosity
 
-case object Verbosity {
+case object Verbosity extends ReadEnum[Verbosity] {
+  override val options: Map[String, Verbosity] = Map(
+    "off" -> Off,
+    "error" -> Error,
+    "warning" -> Warning,
+    "info" -> Info,
+    "debug" -> Debug,
+    "trace" -> Trace,
+    "all" -> All,
+  )
+
   case object Off extends Verbosity
   case object Error extends Verbosity
   case object Warning extends Verbosity

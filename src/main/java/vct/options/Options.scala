@@ -1,37 +1,39 @@
 package vct.options
 
-import scopt.OParser
+import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.parsers.Language
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
+import scala.collection.mutable
+import scala.reflect.ClassTag
 
 case object Options {
   private val builder = OParser.builder[Options]
 
-  def parser(hide: Boolean): OParser[Unit, Options] = {
+  def parser(hide: Boolean = true): OParser[Unit, Options] =
+    constructParser(hide)._1
+
+  def constructParser(hide: Boolean): (OParser[Unit, Options], Map[String, ClassTag[_]]) = {
     import builder._
 
     implicit class Hideable[A, C](opt: OParser[A, C]) {
       def maybeHidden(): OParser[A, C] = if(hide) opt.hidden() else opt
     }
 
-    implicit val readBackend: scopt.Read[Backend] =
-      scopt.Read.reads {
-        case "silicon" => Backend.Silicon
-        case "carbon" => Backend.Carbon
-      }
+    val tags: mutable.Map[String, ClassTag[_]] = mutable.Map()
 
-    implicit val readLanguage: scopt.Read[Language] =
-      scopt.Read.reads {
-        case "java" => Language.Java
-        case "c" => Language.C
-        case "i" => Language.InterpretedC
-        case "pvl" => Language.PVL
-        case "silver" => Language.Silver
-      }
+    def opt[T: scopt.Read](name: String)(implicit tag: ClassTag[T]): OParser[T, Options] = {
+      val parser = builder.opt[T](name)
+      tags(parser.toList.head.name) = tag
+      parser
+    }
+
+    import Backend.read
+    implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    import Verbosity.read
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] =
       scopt.Read.reads {
@@ -41,18 +43,7 @@ case object Options {
 
     implicit val readPath: scopt.Read[Path] = scopt.Read.reads(Paths.get(_))
 
-    implicit val readVerbosity: scopt.Read[Verbosity] =
-      scopt.Read.reads {
-        case "off" => Verbosity.Off
-        case "error" => Verbosity.Error
-        case "warning" => Verbosity.Warning
-        case "info" => Verbosity.Info
-        case "debug" => Verbosity.Debug
-        case "trace" => Verbosity.Trace
-        case "all" => Verbosity.All
-      }
-
-    OParser.sequence(
+    val parser = OParser.sequence(
       programName(BuildInfo.name),
       head(BuildInfo.name, BuildInfo.version),
 
@@ -86,14 +77,14 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.Verify))
         .text("Enable verification mode: instruct VerCors to verify the given files (default)"),
 
-      opt[Language]("lang").valueName("{java|c|i|pvl|silver}")
+      opt[Language]("lang").valueName(ReadLanguage.valueName)
         .action((lang, c) => c.copy(language = Some(lang)))
         .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
-      opt[Backend]("backend").valueName("{silicon|carbon}")
+      opt[Backend]("backend").valueName(Backend.valueName)
         .action((backend, c) => c.copy(backend = backend))
         .text("Set the backend to verify with (default: silicon)"),
-      opt[Option[PathOrStd]]("backend-file").valueName("<path>")
-        .action((backendFile, c) => c.copy(backendFile = backendFile))
+      opt[PathOrStd]("backend-file").valueName("<path>")
+        .action((backendFile, c) => c.copy(backendFile = Some(backendFile)))
         .text("In addition to verification, output the resulting AST for the backend to a file"),
       opt[Unit]("backend-debug")
         .action((_, c) => c.copy(logLevels = c.logLevels :+ ("viper", Verbosity.Debug)))
@@ -248,10 +239,12 @@ case object Options {
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
         .text("List of input files to process")
     )
+
+    (parser, tags.toMap)
   }
 
   def parse(args: Array[String]): Option[Options] =
-    OParser.parse(parser(hide = true), args, Options())
+    OParser.parse(parser(), args, Options())
 }
 
 case class Options
