@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Simon Bliudze, Anastasia Mavridou, Radoslaw Szymanek and Alina Zolotukhina
- * Date: 15.10.12
+ * Author: Simon Bliudze, Anastasia Mavridou, Larisa Safina, Radoslaw Szymanek and Alina Zolotukhina
+ * Date: 23.02.22
  */
 
 package org.javabip.annotations;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+// import java.lang.annotation.Retention;
+// import java.lang.annotation.RetentionPolicy;
 
 /**
  * It annotates function with information about transition it is performing.
@@ -29,7 +29,7 @@ import java.lang.annotation.RetentionPolicy;
  * @author Alina Zolotukhina
  */
 // Retention(RetentionPolicy.RUNTIME)
-public /*@ bip_annotation */ @interface Transition {
+public /*@ bip_annotation @*/ @interface Transition {
 
 	/**
 	 * It returns the name of the transition.
@@ -58,5 +58,19 @@ public /*@ bip_annotation */ @interface Transition {
 	 * @return the guard expression of the transition.
 	 */
 	String guard() default "";
+
+	/**
+	 * pre condition that is supposed to hold before the execution of the update function
+	 * can be useful to check properties specific to a transition, which you don’t want to put in a state predicate or component invariant
+	 * @return pre condition
+	 */
+	String pre() default "";
+
+	/**
+	 * post condition that is supposed to hold after the execution of the update function
+	 * can be useful to check properties specific to a transition, which you don’t want to put in a state predicate or component invariant
+	 * @return post condition
+	 */
+	String post() default "";
 
 }

@@ -14,37 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Simon Bliudze, Anastasia Mavridou, Radoslaw Szymanek and Alina Zolotukhina
- * Date: 15.10.12
+ * Author: Simon Bliudze, Anastasia Mavridou, Larisa Safina, Radoslaw Szymanek and Alina Zolotukhina
+ * Date: 23.02.22
  */
 
-package jdk.org.javabip.annotations;
+package org.javabip.annotations;
 
 // import java.lang.annotation.Retention;
 // import java.lang.annotation.RetentionPolicy;
 
-// import org.javabip.api.PortType;
-
 /**
- * It specifies the name and the type of the port.
- * 
- * @author Alina Zolotukhina
+ * An pure annotation indicates that the method is a side-effect free heap-dependent method
  */
 // Retention(RetentionPolicy.RUNTIME)
-public /*@ bip_annotation @*/ @interface Port {
-
-	/**
-	 * It returns the name of the port.
-	 * 
-	 * @return the name of the port.
-	 */
-	String name();
-
-	/**
-	 * It specifies the type of the port. The type can be either spontaneous or enforceable.
-	 * 
-	 * @return the type of the port.
-	 */
-	// PortType type(); // TODO (RR): When enums are back, turn this on again
-
-}
+public /*@ bip_annotation @*/ @interface Pure {}

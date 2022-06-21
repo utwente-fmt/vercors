@@ -34,4 +34,6 @@ public class Constants {
     public static final String INCOMING_DATA = "incomingData";
     public static final String INCOMING_DATA_MEAN = "incomingDataMean";
     public static final String INCOMING_DATA_VARIANCE = "incomingDataVariance";
+
+    public static final String MEDIAN = "median";
 }

@@ -1,15 +1,53 @@
 package vct.col.resolve
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
+import vct.col.resolve.Resolve.{LiteralOrResolve, MalformedBipAnnotation, SpecExprParser, isBip}
+import vct.col.rewrite.InitialGeneration
+import vct.result.VerificationError.UserError
 
 case object Resolve {
-  def resolve(program: Program[_], externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[CheckError] = {
+  def resolve(program: Program[_], jp: Resolve.SpecExprParser, externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[CheckError] = {
     ResolveTypes.resolve(program, externalJavaLoader)
-    ResolveReferences.resolve(program)
+    ResolveReferences.resolve(program, jp)
+  }
+
+  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
+    override def code: String = "badBipAnnotation"
+
+    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
+  }
+
+  trait SpecExprParser {
+    // If parsing fails, throw/terminate
+    def parse[G](input: String): Expr[G]
+  }
+
+  object LiteralOrResolve {
+    def unapply[G](e: Expr[G]): Option[String] = e match {
+      case JavaStringLiteral(guardName) =>
+        Some(guardName)
+      case local @ JavaLocal(_) =>
+        local.ref match {
+          case Some(RefJavaField(decls, id)) =>
+            decls.decls(id).init match {
+              case Some(JavaStringLiteral(data)) => Some(data)
+              case _ => None
+            }
+          case _ => None
+        }
+      case _ => None
+    }
+  }
+
+  def isBip(node: Node[_], `type`: String): Boolean = node match {
+    case JavaAnnotation(JavaTClass(r, _), _) => isBip(r.decl, `type`)
+    case c: JavaClassOrInterface[_] => c.modifiers.contains(JavaBipAnnotation[InitialGeneration]()(DiagnosticOrigin)) && c.name == `type`
+    case _ => false
   }
 }
 
@@ -82,9 +120,9 @@ case object ResolveTypes {
   }
 }
 
-case object ResolveReferences {
-  def resolve[G](program: Program[G]): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G]())
+case object ResolveReferences extends LazyLogging {
+  def resolve[G](program: Program[G], jp: SpecExprParser): Seq[CheckError] = {
+    resolve(program, ReferenceResolutionContext[G](jp))
   }
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Seq[CheckError] = {
@@ -161,44 +199,44 @@ case object ResolveReferences {
   }).copy(checkContext=node.enterCheckContext(ctx.checkContext))
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
-    case local @ CLocal(name) =>
+    case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local @ JavaLocal(name) =>
+    case local@JavaLocal(name) =>
       local.ref = Some(Java.findJavaName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local @ PVLLocal(name) =>
+    case local@PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local @ Local(ref) =>
+    case local@Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local @ TVar(ref) =>
+    case local@TVar(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("type variable", name, local)))
-    case funcOf @ FunctionOf(v, vars) =>
+    case funcOf@FunctionOf(v, vars) =>
       v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf)))
       vars.foreach(v => v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf))))
-    case local @ SilverLocalAssign(ref, _) =>
+    case local@SilverLocalAssign(ref, _) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
 
-    case deref @ CStructAccess(obj, field) =>
+    case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
-    case deref @ JavaDeref(obj, field) =>
+    case deref@JavaDeref(obj, field) =>
       deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
-    case deref @ PVLDeref(obj, field) =>
+    case deref@PVLDeref(obj, field) =>
       deref.ref = Some(PVL.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
-    case deref @ Deref(obj, field) =>
+    case deref@Deref(obj, field) =>
       field.tryResolve(name => Spec.findField(obj, name).getOrElse(throw NoSuchNameError("field", name, deref)))
-    case deref @ ModelDeref(obj, field) =>
+    case deref@ModelDeref(obj, field) =>
       field.tryResolve(name => Spec.findModelField(obj, name).getOrElse(throw NoSuchNameError("field", name, deref)))
-    case deref @ SilverDeref(_, field) =>
+    case deref@SilverDeref(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
-    case deref @ SilverCurFieldPerm(_, field) =>
+    case deref@SilverCurFieldPerm(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
-    case deref @ SilverFieldAssign(_, field, _) =>
+    case deref@SilverFieldAssign(_, field, _) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
 
-    case inv @ CInvocation(obj, _, givenMap, yields) =>
+    case inv@CInvocation(obj, _, givenMap, yields) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv @ GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>
+    case inv@GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>
       val kernel = C.findCName(name, ctx).getOrElse(throw NoSuchNameError("kernel", name, inv))
       inv.ref = Some(kernel match {
         case target: CInvocationTarget[G] => target
@@ -206,37 +244,37 @@ case object ResolveReferences {
       })
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv @ JavaInvocation(obj, _, method, args, givenMap, yields) =>
+    case inv@JavaInvocation(obj, _, method, args, givenMap, yields) =>
       inv.ref = Some((obj match {
         case Some(obj) => Java.findMethod(ctx, obj, method, args, inv.blame)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv @ JavaNewClass(args, typeArgs, name, givenMap, yields) =>
+    case inv@JavaNewClass(args, typeArgs, name, givenMap, yields) =>
       inv.ref = Some(Java.findConstructor(name, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv @ PVLInvocation(None, method, args, typeArgs, givenMap, yields) =>
+    case inv@PVLInvocation(None, method, args, typeArgs, givenMap, yields) =>
       inv.ref = Some(PVL.findMethod(method, args, typeArgs, ctx).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv @ PVLInvocation(Some(obj), method, args, typeArgs, givenMap, yields) =>
+    case inv@PVLInvocation(Some(obj), method, args, typeArgs, givenMap, yields) =>
       inv.ref = Some(PVL.findInstanceMethod(obj, method, args, typeArgs, inv.blame).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv @ PVLNew(t, args, givenMap, yields) =>
+    case inv@PVLNew(t, args, givenMap, yields) =>
       inv.ref = Some(PVL.findConstructor(t, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case n @ NewObject(ref) =>
+    case n@NewObject(ref) =>
       ref.tryResolve(name => Spec.findClass(name, ctx.asTypeResolutionContext).getOrElse(throw NoSuchNameError("class", name, n)))
-    case n @ ModelNew(ref) =>
+    case n@ModelNew(ref) =>
       ref.tryResolve(name => Spec.findModel(name, ctx.asTypeResolutionContext).getOrElse(throw NoSuchNameError("model", name, n)))
-    case n @ SilverNewRef(target, fields) =>
+    case n@SilverNewRef(target, fields) =>
       target.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, n)))
       fields.foreach(_.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, n))))
-    case inv @ ADTFunctionInvocation(typeArgs, ref, args) =>
+    case inv@ADTFunctionInvocation(typeArgs, ref, args) =>
       typeArgs match {
         case Some((adt, typeArgs)) =>
           // Fully-qualified external invocation
@@ -246,59 +284,59 @@ case object ResolveReferences {
           // Non-qualified internal invocation
           ???
       }
-    case inv @ SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) =>
+    case inv@SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) =>
       inv.ref = Some(Spec.findAdtFunction(name, ctx).getOrElse(throw NoSuchNameError("function", name, inv)))
       partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findAdtTypeArg(inv.adt, name).getOrElse(throw NoSuchNameError("type variable", name, inv))))
-    case inv @ InvokeProcedure(ref, _, outArgs, _, givenMap, yields) =>
+    case inv@InvokeProcedure(ref, _, outArgs, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findProcedure(name, ctx).getOrElse(throw NoSuchNameError("procedure", name, inv)))
       outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
-    case inv @ ProcedureInvocation(ref, _, outArgs, _, givenMap, yields) =>
+    case inv@ProcedureInvocation(ref, _, outArgs, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findProcedure(name, ctx).getOrElse(throw NoSuchNameError("procedure", name, inv)))
       outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
-    case inv @ FunctionInvocation(ref, _, _, givenMap, yields) =>
+    case inv@FunctionInvocation(ref, _, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findFunction(name, ctx).getOrElse(throw NoSuchNameError("function", name, inv)))
       Spec.resolveGiven(givenMap, RefFunction(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefFunction(ref.decl), inv)
-    case inv @ PredicateApply(ref, _, _) =>
+    case inv@PredicateApply(ref, _, _) =>
       ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
-    case inv @ SilverCurPredPerm(ref, _) =>
+    case inv@SilverCurPredPerm(ref, _) =>
       ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
-    case inv @ InvokeMethod(obj, ref, _, outArgs, _, givenMap, yields) =>
+    case inv@InvokeMethod(obj, ref, _, outArgs, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findMethod(obj, name).getOrElse(throw NoSuchNameError("method", name, inv)))
       outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefInstanceMethod(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefInstanceMethod(ref.decl), inv)
-    case inv @ MethodInvocation(obj, ref, _, outArgs, _, givenMap, yields) =>
+    case inv@MethodInvocation(obj, ref, _, outArgs, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findMethod(obj, name).getOrElse(throw NoSuchNameError("method", name, inv)))
       outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefInstanceMethod(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefInstanceMethod(ref.decl), inv)
-    case inv @ InstanceFunctionInvocation(obj, ref, _, _, givenMap, yields) =>
+    case inv@InstanceFunctionInvocation(obj, ref, _, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findInstanceFunction(obj, name).getOrElse(throw NoSuchNameError("function", name, inv)))
-    case inv @ InstancePredicateApply(obj, ref, _, _) =>
+    case inv@InstancePredicateApply(obj, ref, _, _) =>
       ref.tryResolve(name => Spec.findInstancePredicate(obj, name).getOrElse(throw NoSuchNameError("predicate", name, inv)))
 
-    case goto @ CGoto(name) =>
+    case goto@CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
-    case goto @ Goto(lbl) =>
+    case goto@Goto(lbl) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
-    case brk @ Break(Some(lbl)) =>
+    case brk@Break(Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, brk)))
-    case cont @ Continue(Some(lbl)) =>
+    case cont@Continue(Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, cont)))
-    case old @ Old(_, Some(lbl)) =>
+    case old@Old(_, Some(lbl)) =>
       lbl.tryResolve(name => Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, old)))
 
-    case recv @ Recv(ref) =>
+    case recv@Recv(ref) =>
       ref.tryResolve(name => Spec.findSend(name, ctx).getOrElse(throw NoSuchNameError("send statement", name, recv)))
 
-    case res @ AmbiguousResult() =>
+    case res@AmbiguousResult() =>
       res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))
-    case diz @ AmbiguousThis() =>
+    case diz@AmbiguousThis() =>
       // PB: now obsolete?
       diz.ref = Some(ctx.currentThis.get)
 
@@ -313,30 +351,55 @@ case object ResolveReferences {
       act.accessible.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
         .getOrElse(throw NoSuchNameError("field", name, act))))
 
-    case inv @ ProcessApply(ref, _) =>
+    case inv@ProcessApply(ref, _) =>
       ref.tryResolve(name => ???)
-    case inv @ ActionApply(ref, _) =>
+    case inv@ActionApply(ref, _) =>
       ref.tryResolve(name => ???)
 
-    case atomic @ ParAtomic(invs, _) =>
+    case atomic@ParAtomic(invs, _) =>
       invs.foreach(_.tryResolve(name => Spec.findParInvariant(name, ctx)
         .getOrElse(throw NoSuchNameError("invariant", name, atomic))))
-    case barrier @ ParBarrier(block, invs, _, _, _) =>
+    case barrier@ParBarrier(block, invs, _, _, _) =>
       block.tryResolve(name => Spec.findParBlock(name, ctx)
         .getOrElse(throw NoSuchNameError("block", name, barrier)))
       invs.foreach(_.tryResolve(name => Spec.findParInvariant(name, ctx)
         .getOrElse(throw NoSuchNameError("invariant", name, barrier))))
 
-    case arr @ JavaLiteralArray(_) =>
+    case arr@JavaLiteralArray(_) =>
       arr.typeContext = Some(ctx.currentInitializerType.get match {
-        case t @ TArray(_) => t
+        case t@TArray(_) => t
         case _ => throw WrongArrayInitializer(arr)
       })
 
-    case ann @ JavaAnnotation(name, a) =>
-      val x = name
-      val y = a
-      val z = 3
+    case ann@JavaAnnotation(_, _) if isBip(ann, "Transition") =>
+      logger.info(s"BIP Transition @ ${ann.o}")
+      val guard = (ann.getArg("guard"), ann.getArg("pre"), ann.getArg("post")) match {
+        case (Some(LiteralOrResolve(guardName)), None, None) => Left(guardName)
+        case (None, requiresO, ensuresO) =>
+          def extractExpr(s: Option[Expr[_]]): String = s match {
+            case None => "true"
+            case Some(JavaStringLiteral(data)) => data
+            case Some(n) => throw MalformedBipAnnotation(n, "pre- and post-conditions must be string literals")
+          }
+
+          val requires: Expr[G] = ctx.javaParser.parse(extractExpr(requiresO))
+          val ensures: Expr[G] = ctx.javaParser.parse(extractExpr(ensuresO))
+          resolve(requires, ctx)
+          resolve(ensures, ctx)
+          Right((requires, ensures))
+        case (Some(guard), _, _) =>
+          throw MalformedBipAnnotation(guard, "Guard must trivially resolve to a string literal, OR: specifying guard & pre- & post-condition simultaneously is not supported")
+      }
+
+      (ann.getArg("name"), ann.getArg("source"), ann.getArg("target")) match {
+        case (Some(LiteralOrResolve(name)),
+        Some(LiteralOrResolve(source)),
+        Some(LiteralOrResolve(target))) =>
+          ann.data = Some(JavaAnnotationData.BipTransitionData[G](name, source, target, guard))
+        case _ =>
+          throw MalformedBipAnnotation(ann, "Name, source, target, guard, pre- or post-condition missing or malformed")
+      }
+
     case _ =>
   }
 }

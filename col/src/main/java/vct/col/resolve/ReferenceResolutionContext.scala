@@ -3,11 +3,13 @@ package vct.col.resolve
 import vct.col.ast.{Declaration, GlobalDeclaration, JavaClassOrInterface, JavaName, JavaNamespace, Type}
 import vct.col.check.CheckContext
 import vct.col.origin.DiagnosticOrigin
+import vct.col.resolve.Resolve.SpecExprParser
 
 import scala.collection.mutable
 
 case class ReferenceResolutionContext[G]
 (
+  javaParser: SpecExprParser,
   stack: Seq[Seq[Referrable[G]]] = Nil,
   externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
   checkContext: CheckContext[G] = CheckContext[G](),

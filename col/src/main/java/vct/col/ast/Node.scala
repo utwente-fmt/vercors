@@ -722,9 +722,6 @@ final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
 final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G] {
   var data: Option[JavaAnnotationData[G]] = None
-
-  sealed trait JavaAnnotationData[G]
-  final case class BIPTransitionData[G](requires: Option[Expr[G]], ensures: Option[Expr[G]])
 }
 
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]

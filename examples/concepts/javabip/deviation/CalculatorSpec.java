@@ -18,12 +18,12 @@ import static org.javabip.spec.deviation.Constants.*;
 @ComponentType(initial = INIT, name = CALCULATOR)
 public class CalculatorSpec {
 
-    private double mean;
-    private double variance;
+    private /* double */ int mean;
+    private /* double */ int variance;
 
     private int[] numbers;
 
-    @Transition(name = START, source = INIT, target = WORK, requires = "true", ensures = "true")
+    @Transition(name = START, source = INIT, target = WORK, requires = "mean == 0", ensures = "mean == 3")
     public void start() {
         mean = 3;
         //@ assert Perm(numbers[3], write);
@@ -39,6 +39,7 @@ public class CalculatorSpec {
 
 
     @Transition(name = GET_DATA, source = WORK, target = CALCULATED, guard = "MEDIAN")
+//    Transition(name = GET_DATA, source = WORK, target = CALCULATED, guard = MEDIAN)
     public void work(@Data(name = INCOMING_DATA)int[] data) {
         // System.out.println("CALCULATOR: CALCULATE DATA");
 
@@ -56,12 +57,12 @@ public class CalculatorSpec {
     }
 
     @Data(name = OUTGOING_DATA_MEAN)
-    public double getMean() {
+    public /* double */ int getMean() {
         return mean;
     }
 
     @Data(name = OUTGOING_DATA_VARIANCE)
-    public double getVariance() {
+    public /* double */ int getVariance() {
         return variance;
     }
 

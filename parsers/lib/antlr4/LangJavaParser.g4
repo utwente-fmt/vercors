@@ -74,7 +74,6 @@ modifier
 
 classOrInterfaceModifier
     :   annotation       // class or interface
-    |   valEmbedModifier
     |   (   'public'     // class or interface
         |   'protected'  // class or interface
         |   'private'    // class or interface
@@ -83,6 +82,7 @@ classOrInterfaceModifier
         |   'final'      // class only -- does not apply to interfaces
         |   'strictfp'   // class or interface
         )
+    |   valEmbedModifier
     ;
 
 variableModifier

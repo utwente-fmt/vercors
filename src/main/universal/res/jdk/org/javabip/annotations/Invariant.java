@@ -14,37 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Simon Bliudze, Anastasia Mavridou, Radoslaw Szymanek and Alina Zolotukhina
- * Date: 15.10.12
+ * Author: Simon Bliudze, Anastasia Mavridou, Larisa Safina, Radoslaw Szymanek and Alina Zolotukhina
+ * Date: 23.02.22
  */
 
-package jdk.org.javabip.annotations;
+package org.javabip.annotations;
 
 // import java.lang.annotation.Retention;
 // import java.lang.annotation.RetentionPolicy;
 
-// import org.javabip.api.PortType;
-
 /**
- * It specifies the name and the type of the port.
- * 
- * @author Alina Zolotukhina
+ * An invariant annotation, which specifies the invariant of a component
  */
 // Retention(RetentionPolicy.RUNTIME)
-public /*@ bip_annotation @*/ @interface Port {
+public /*@ bip_annotation @*/ @interface Invariant {
 
 	/**
-	 * It returns the name of the port.
-	 * 
-	 * @return the name of the port.
+	 * expr is a string containing plain Java expressions
+	 * it must hold after construction of the component, can be assumed to hold before a transition, and must hold after a transition
+	 * @return expr
 	 */
-	String name();
-
-	/**
-	 * It specifies the type of the port. The type can be either spontaneous or enforceable.
-	 * 
-	 * @return the type of the port.
-	 */
-	// PortType type(); // TODO (RR): When enums are back, turn this on again
-
+	String expr();
 }

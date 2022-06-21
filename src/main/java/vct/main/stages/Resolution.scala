@@ -1,10 +1,11 @@
 package vct.main.stages
 
-import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute}
+import org.antlr.v4.runtime.CharStreams
+import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute}
 import vct.col.check.CheckError
 import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{FileSpanningOrigin, Origin}
-import vct.col.resolve.{C, Java, ResolveReferences, ResolveTypes}
+import vct.col.resolve.{C, Java, Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
 import vct.col.util.ExpectedError
 import vct.java.JavaLibraryLoader
@@ -12,11 +13,12 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
-import vct.parsers.ParseResult
-import vct.parsers.transform.BlameProvider
+import vct.parsers.{ColJavaParser, FileNotFound, ParseResult}
+import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 
+import java.io.{FileNotFoundException, Reader}
 import java.nio.file.Path
 
 case object Resolution {
@@ -31,6 +33,37 @@ case object Resolution {
       withJava = true,
       javaLibraryPath = options.jrePath,
     )
+}
+
+case class StringReadable(data: String, fileName: String = "<unknown>") extends hre.io.Readable {
+  override def isRereadable: Boolean = true
+  override protected def getReader: Reader = new java.io.StringReader(data)
+}
+
+case class SpecExprParseError(msg: String) extends UserError {
+  override def code: String = "specExprParseError"
+
+  override def text: String = msg
+}
+
+case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecExprParser {
+  override def parse[G](input: String): Expr[G] = {
+    // TODO (RR): Make filename propagation work somehow
+    // TODO (RR): Origin provider should take into account that it is actually in input file origin, not redirect to string
+    val sr = StringReadable(input)
+    val cjp = ColJavaParser(ReadableOriginProvider(sr), blameProvider)
+    val x = try {
+        sr.read { reader =>
+          cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName))
+        }
+      } catch {
+        case _: FileNotFoundException => throw FileNotFound(sr.fileName)
+      }
+    if (x._2.nonEmpty) {
+      throw SpecExprParseError("...")
+    }
+    x._1
+  }
 }
 
 case class Resolution[G <: Generation]
@@ -60,7 +93,7 @@ case class Resolution[G <: Generation]
     val extraDecls = ResolveTypes.resolve(parsedProgram, if(withJava) Some(JavaLibraryLoader(javaLibraryPath, blameProvider)) else None)
     val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
-    ResolveReferences.resolve(typedProgram) match {
+    ResolveReferences.resolve(typedProgram, MyLocalJavaParser(blameProvider)) match {
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
