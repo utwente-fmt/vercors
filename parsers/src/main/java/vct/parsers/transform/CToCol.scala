@@ -18,11 +18,11 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   extends ToCol(originProvider, blameProvider, errors) {
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(translationUnit, _) =>
-      translationUnit.map(convert).getOrElse(Nil)
+      translationUnit.toSeq.map(convert(_))
   }
 
-  def convert(unit: TranslationUnitContext): Seq[GlobalDeclaration[G]] =
-    convertList(TranslationUnit0.unapply, TranslationUnit1.unapply)(unit).flatMap(convert(_))
+  def convert(implicit unit: TranslationUnitContext): CTranslationUnit[G] =
+    new CTranslationUnit(convertList(TranslationUnit0.unapply, TranslationUnit1.unapply)(unit).flatMap(convert(_)))
 
   def convert(implicit externalDecl: ExternalDeclarationContext): Seq[GlobalDeclaration[G]] = externalDecl match {
     case ExternalDeclaration0(funcDef) => Seq(convert(funcDef))
@@ -36,7 +36,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       case FunctionDefinition0(_, _, _, Some(declarationList), _) =>
         ??(declarationList)
       case FunctionDefinition0(maybeContract, declSpecs, declarator, None, body) =>
-        new CFunctionDefinition(convert(declSpecs), convert(declarator), convert(body))(blame(funcDef))
+        withContract(maybeContract, contract =>
+          new CFunctionDefinition(contract.consumeApplicableContract(blame(funcDef)), convert(declSpecs), convert(declarator), convert(body))(blame(funcDef)))
     }
   }
 

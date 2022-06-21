@@ -1,6 +1,6 @@
 package vct.col.ast.temporaryimplpackage.family.contract
 
-import vct.col.ast.ApplicableContract
+import vct.col.ast.{ApplicableContract, BooleanValue, UnitAccountedPredicate}
 import vct.col.ast.temporaryimplpackage.node.NodeFamilyImpl
 import vct.col.check.{CheckContext, CheckError}
 
@@ -19,4 +19,11 @@ trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] { this: ApplicableCont
           case some => some
         }
     }
+
+  def isEmpty: Boolean = this match {
+    case ApplicableContract(UnitAccountedPredicate(BooleanValue(true)), UnitAccountedPredicate(BooleanValue(true)), BooleanValue(true), Nil, Nil, Nil, None) => true
+    case _ => false
+  }
+
+  def nonEmpty: Boolean = !isEmpty
 }
