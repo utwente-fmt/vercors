@@ -437,6 +437,7 @@ class FeatureRainbow[G] {
     case node: CInit[G] => return Nil
     case node: CDeclaration[G] => return Nil
     case node: CFunctionDefinition[G] => return Nil
+    case node: CTranslationUnit[G] => return Nil
     case node: CGlobalDeclaration[G] => return Nil
     case node: CDeclarationStatement[G] => return Nil
     case node: CGoto[G] => return Nil

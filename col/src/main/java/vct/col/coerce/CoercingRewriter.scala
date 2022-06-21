@@ -1184,6 +1184,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def coerce(decl: Declaration[Pre]): Declaration[Pre] = {
     implicit val o: Origin = decl.o
     decl match {
+      case unit: CTranslationUnit[Pre] =>
+        new CTranslationUnit(unit.declarations)
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] =>

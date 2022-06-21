@@ -47,6 +47,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
 
+    case unit: CTranslationUnit[Pre] => c.rewriteUnit(unit)
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)
     case decl: CGlobalDeclaration[Pre] => c.rewriteGlobalDecl(decl)

@@ -5,6 +5,7 @@ import vct.col.origin.SourceNameOrigin
 
 case object Referrable {
   def from[G](decl: Declaration[G]): Seq[Referrable[G]] = Seq[Referrable[G]](decl match {
+    case decl: CTranslationUnit[G] => RefCTranslationUnit(decl)
     case decl: CParam[G] => RefCParam(decl)
     case decl: CFunctionDefinition[G] => RefCFunctionDefinition(decl)
     case decl: CGlobalDeclaration[G] => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
@@ -58,6 +59,7 @@ case object Referrable {
 
 sealed trait Referrable[G] {
   def name: String = this match {
+    case RefCTranslationUnit(_) => ""
     case RefCParam(decl) => C.nameFromDeclarator(decl.declarator)
     case RefCFunctionDefinition(decl) => C.nameFromDeclarator(decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
@@ -131,6 +133,7 @@ sealed trait ResultTarget[G] extends Referrable[G]
 sealed trait JavaConstructorTarget[G] extends Referrable[G]
 sealed trait PVLConstructorTarget[G] extends Referrable[G]
 
+case class RefCTranslationUnit[G](decl: CTranslationUnit[G]) extends Referrable[G]
 case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[G]
 case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCGlobalDeclaration[G](decls: CGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]

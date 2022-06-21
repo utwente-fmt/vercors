@@ -22,7 +22,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit unit: TranslationUnitContext): CTranslationUnit[G] =
-    CTranslationUnit(convertList(TranslationUnit0.unapply, TranslationUnit1.unapply)(unit).flatMap(convert(_)))
+    new CTranslationUnit(convertList(TranslationUnit0.unapply, TranslationUnit1.unapply)(unit).flatMap(convert(_)))
 
   def convert(implicit externalDecl: ExternalDeclarationContext): Seq[GlobalDeclaration[G]] = externalDecl match {
     case ExternalDeclaration0(funcDef) => Seq(convert(funcDef))
