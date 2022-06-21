@@ -13,11 +13,11 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
 }
 
 case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter[Pre] {
-  val patterns: ScopedStack[ArrayBuffer[InlinePattern[Pre]]] = ScopedStack()
+  val patterns: ScopedStack[ArrayBuffer[Expr[Pre]]] = ScopedStack()
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case i: InlinePattern[Pre] =>
-      patterns.topOption.foreach { _ += i }
+      patterns.topOption.foreach { _ += i.inner }
       dispatch(i.inner)
 
     case f: Forall[Pre] if f.triggers.isEmpty =>
