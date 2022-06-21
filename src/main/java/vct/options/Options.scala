@@ -122,6 +122,10 @@ case object Options {
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
 
+      opt[Int]("silicon-print-quantifier-stats").valueName("<amount>")
+        .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
+        .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds. Implies --dev-silicon-num-verifiers 1"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -147,6 +151,21 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").maybeHidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
+
+      opt[Int]("dev-silicon-num-verifiers").hidden()
+        .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
+        .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+      opt[Path]("dev-silicon-z3-log-file").hidden()
+        .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
+        .text("Path for z3 to write smt2 log file to"),
+
+      opt[Path]("dev-carbon-boogie-log-file").hidden()
+        .action((p, c) => c.copy(devCarbonBoogieLogFile = Some(p)))
+        .text("Path for boogie to write smt2 log file to"),
+
+      opt[Path]("dev-viper-prover-log-file").hidden()
+        .action((p, c) => c.copy(devViperProverLogFile = Some(p)))
+        .text("Path for viper to write boogie or smt2 input file to, depending on selected backend"),
 
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
@@ -275,6 +294,8 @@ case class Options
   boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
 
+  siliconPrintQuantifierStats: Option[Int] = None,
+
   // Verify options - hidden
   devAbruptExc: Boolean = false,
   devCheckSat: Boolean = true,
@@ -284,6 +305,13 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
+
+  devSiliconNumVerifiers: Option[Int] = None,
+  devSiliconZ3LogFile: Option[Path] = None,
+
+  devCarbonBoogieLogFile: Option[Path] = None,
+
+  devViperProverLogFile: Option[Path] = None,
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required
