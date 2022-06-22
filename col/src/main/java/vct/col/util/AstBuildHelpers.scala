@@ -150,6 +150,8 @@ object AstBuildHelpers {
         new RewritePredicateApply(inv).rewrite(args = args, perm = perm)
       case inv: InstancePredicateApply[Pre] =>
         new RewriteInstancePredicateApply(inv).rewrite(args = args, perm = perm)
+      case inv: CoalesceInstancePredicateApply[Pre] =>
+        new RewriteCoalesceInstancePredicateApply(inv).rewrite(args = args, perm = perm)
     }
   }
 

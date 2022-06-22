@@ -104,6 +104,7 @@ valPostfix
  : '[' '..' langExpr ']'
  | '[' langExpr '..' langExpr? ']'
  | '[' langExpr '->' langExpr ']' // C?
+ | '?.' langId '(' valExpressionList? ')'
  ;
 valWith: 'with' langStatement;
 valThen: 'then' langStatement;
