@@ -137,7 +137,7 @@ case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]],
         implicit val o = AbstractedFunctionOrigin(f)
         withResult((result: Result[Post]) => {
           val resultEqualsBody: Eq[Post] = result === dispatch(f.body.get)
-          val ensures = SplitAccountedPredicate(dispatch(f.contract.ensures), UnitAccountedPredicate(resultEqualsBody))
+          val ensures = SplitAccountedPredicate(UnitAccountedPredicate(resultEqualsBody), dispatch(f.contract.ensures))
           f.rewrite(contract = f.contract.rewrite(ensures = ensures), body = None).succeedDefault(f)
         })
       case d => super.dispatch(d)
