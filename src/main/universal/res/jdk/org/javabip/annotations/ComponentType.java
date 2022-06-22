@@ -29,7 +29,7 @@ import java.lang.annotation.RetentionPolicy;
  * @author Alina Zolotukhina
  */
 // Retention(RetentionPolicy.RUNTIME)
-public @interface ComponentType {
+public /*@ bip_annotation @*/ @interface ComponentType {
 
 	/**
 	 * It returns the name of the type of the component.

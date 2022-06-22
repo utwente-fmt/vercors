@@ -782,6 +782,10 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
+final case class JavaBipComponent[G](constructor: Ref[G, Procedure[G]], cls: GlobalDeclaration[G], invariant: Expr[G], initial: String, predicates: Map[String, Expr[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] /* with JavaBipComponent[G] */ {
+  assert(cls.isInstanceOf[Class[G]])
+}
+
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {
   var ref: Option[PVLTypeNameTarget[G]] = None

@@ -65,6 +65,14 @@ case object LangJavaToCol {
     override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
     override def code: String = "invalidNesting"
   }
+
+  def isBipComponent(jc: JavaClassOrInterface[_]): Boolean =
+    jc.modifiers
+      .collect { case ja @ JavaAnnotation(_, _) => ja.data }
+      .collect { case Some(x) => x }
+      .collect { case _: JavaAnnotationData.BipComponentType[_] => true }
+      .contains(true)
+
 }
 
 case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -247,7 +255,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         }, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch(_)))(JavaInstanceClassOrigin(cls))
       }
 
-      instanceClass.declareDefault(rw)
+      if (isBipComponent(cls)) {
+        val jbc = JavaBipComponent(instanceClass)
+      } else {
+        instanceClass.declareDefault(rw)
+      }
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {
