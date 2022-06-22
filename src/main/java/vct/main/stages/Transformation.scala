@@ -132,6 +132,7 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+    DesugarCoalescingOperators, // no .!
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]
     IterationContractToParBlock,

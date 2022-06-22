@@ -39,6 +39,20 @@ trait LocatorImpl[G] extends ExprImpl[G] { this: Locator[G] =>
       case RefField(decl) => true
       case _ => false
     }
+    case name: JavaInvocation[G] => name.ref.get match {
+      case RefInstancePredicate(_) => true
+      case _ => false
+    }
+    case name: PVLInvocation[G] => name.ref.get match {
+      case RefInstancePredicate(_) => true
+      case _ => false
+    }
+    case name: CInvocation[G] => name.ref.get match {
+      case RefInstancePredicate(_) => true
+      case _ => false
+    }
+
+    case _: ApplyAnyPredicate[G] => true
 
     case _: ArraySubscript[G] => true
     case _: PointerSubscript[G] => true
