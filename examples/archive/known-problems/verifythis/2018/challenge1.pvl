@@ -217,7 +217,7 @@ class GapBuffer {
 	ensures (\forall int i; \old(l) < i && i < |newcontents|; newcontents[i] == contents[i - 1]);
 	void insert(int x, int K) {
 		if (l == r) {
-			grow given { contents = contents } (K);
+			grow(K) given { contents = contents };
 			unfold Represents(contents);
 			a[l] = x;
 			l = l + 1;

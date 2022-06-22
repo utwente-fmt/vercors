@@ -56,6 +56,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       f.rewrite(o = JavaInstanceFunctionOrigin(java.namespace.topOption, java.currentJavaClass.top, f)).succeedDefault(f)
     case _: InstanceFunction[Pre] => throw Unreachable("Processing instance function without a class")
 
+    case unit: CTranslationUnit[Pre] => c.rewriteUnit(unit)
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)
     case decl: CGlobalDeclaration[Pre] => c.rewriteGlobalDecl(decl)

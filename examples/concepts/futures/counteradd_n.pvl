@@ -76,7 +76,7 @@ class Program {
 			// spawn `n` concurrent threads.
 			Worker t = new Worker(this, p\2);
 			fork t;
-			spawn given { p = p\2 } (n - 1);
+			spawn(n - 1) given { p = p\2 };
 			join t;
 
 			// merge the resulting process.
@@ -90,7 +90,7 @@ class Main {
 	requires threads > 0;
 	void main(int count, int threads) {
 		Program p = new Program(count, threads);
-		p.spawn given { p = 1 } (threads);
+		p.spawn(threads) given { p = 1 };
 
 		lock p;
 		p.f.destroy();

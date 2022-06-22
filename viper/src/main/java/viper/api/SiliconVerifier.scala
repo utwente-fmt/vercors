@@ -1,8 +1,12 @@
 package viper.api
 
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.core.OutputStreamAppender
 import hre.ast.OriginFactory
 import hre.config.Configuration
 
+import java.io.ByteArrayOutputStream
 import java.nio.file.Path
 import java.util.Properties
 import scala.jdk.CollectionConverters._
@@ -19,7 +23,7 @@ class SiliconVerifier[O](o:OriginFactory[O]) extends SilverImplementation[O](o) 
     )
 
     if(Configuration.currentConfiguration.debugBackend.get()) {
-      siliconConfig ++= Seq("--logLevel", "ALL")
+       siliconConfig ++= Seq("--logLevel", "ALL")
     }
 
     siliconConfig :+= "-"

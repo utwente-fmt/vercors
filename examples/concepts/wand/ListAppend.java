@@ -47,7 +47,7 @@ final class List {
       next=l;
       //@ fold list(L1+L2);
     } else {
-      next.append_rec/*@ given { L1 = L1.tail, L2 = L2 } @*/(l);
+      next.append_rec(l) /*@ given { L1 = L1.tail, L2 = L2 } @*/;
       //@ fold list([L1.head] + (L1.tail+L2));
       //@ assert |L1|>0;
       //@ assert [L1.head] + (L1.tail + L2) == L1+L2;
@@ -83,7 +83,7 @@ final class List {
     //@ loop_invariant prefix+suffix==L1;
     //@ loop_invariant l!=null ** l.list(L2);
     //@ loop_invariant cursor.list(suffix+L2) -* this.list(L1+L2);
-    while(cursor.get_next/*@ given { L = suffix } @*/() != null)
+    while(cursor.get_next()/*@ given { L = suffix } @*/ != null)
     {
         //@ ghost List tmp=cursor;
         //@ ghost seq<int> tmp_suffix = suffix;

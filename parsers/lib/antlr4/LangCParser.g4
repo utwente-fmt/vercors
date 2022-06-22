@@ -64,7 +64,7 @@ genericAssociation
 postfixExpression
     :   annotatedPrimaryExpression
     |   postfixExpression '[' expression ']'
-    |   postfixExpression valEmbedGiven? '(' argumentExpressionList? ')' valEmbedYields?
+    |   postfixExpression '(' argumentExpressionList? ')' valEmbedGiven? valEmbedYields?
     |   postfixExpression '.' clangIdentifier
     |   postfixExpression '->' clangIdentifier
     |   postfixExpression '++'

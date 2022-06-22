@@ -787,9 +787,9 @@ case class Printer(out: Appendable,
     case Minus(left, right) =>
       (phrase(assoc(70, left), space, "-", space, bind(70, right)), 70)
     case AmbiguousMult(left, right) =>
-      (phrase(assoc(80, left), space, "-", space, assoc(80, right)), 80)
+      (phrase(assoc(80, left), space, "*", space, assoc(80, right)), 80)
     case Mult(left, right) =>
-      (phrase(assoc(80, left), space, "-", space, assoc(80, right)), 80)
+      (phrase(assoc(80, left), space, "*", space, assoc(80, right)), 80)
     case Div(left, right) =>
       (phrase(assoc(80, left), space, "\\", space, bind(80, right)), 80)
     case Mod(left, right) =>

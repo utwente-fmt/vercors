@@ -74,9 +74,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
       case CoerceMapOption(inner, _, _) =>
-        Select(Eq(e, OptNone()), OptNone(), applyCoercion(OptGet(e)(NeverNone), inner))
+        Select(Eq(e, OptNone()), OptNone(), OptSome(applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
-        Select(IsLeft(e), applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft), applyCoercion(GetRight(e)(FramedGetRight), innerRight))
+        Select(IsRight(e),
+          EitherRight(applyCoercion(GetRight(e)(FramedGetRight), innerRight)),
+          EitherLeft(applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft)),
+        )
       case CoerceMapSeq(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable[Post](TSeq(dispatch(source)))
@@ -701,6 +704,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
         GetRight(either(e)._1)(get.blame)
+      case GlobalThreadId() =>
+        GlobalThreadId()
       case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
         GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
       case Greater(left, right) =>
@@ -779,6 +784,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         })
       case Local(ref) =>
         Local(ref)
+      case LocalThreadId() =>
+        LocalThreadId()
       case MapCons(m, k, v) =>
         val (coercedMap, mapType) = map(m)
         val sharedType = Types.leastCommonSuperType(mapType.value, v.t)
@@ -949,6 +956,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Result(ref)
       case s @ Scale(scale, r) =>
         Scale(rat(scale), res(r))(s.blame)
+      case ScaleByParBlock(ref, r) =>
+        ScaleByParBlock(ref, res(r))
       case ScopedExpr(locals, body) =>
         ScopedExpr(locals, body)
       case Select(condition, whenTrue, whenFalse) =>
@@ -1175,6 +1184,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def coerce(decl: Declaration[Pre]): Declaration[Pre] = {
     implicit val o: Origin = decl.o
     decl match {
+      case unit: CTranslationUnit[Pre] =>
+        new CTranslationUnit(unit.declarations)
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] =>

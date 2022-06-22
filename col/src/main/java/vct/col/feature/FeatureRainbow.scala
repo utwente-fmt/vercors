@@ -93,6 +93,7 @@ class FeatureRainbow[G] {
         else if(node.isPointerOp) Seq(Pointers)
         else Nil
       )
+    case node: AmbiguousMinus[G] => AmbiguousOperators
     case node: AmbiguousOr[G] =>
       return AmbiguousOperators +: (
         if(node.isProcessOp) Seq(Models)
@@ -185,6 +186,12 @@ class FeatureRainbow[G] {
     case node: SubSetEq[G] => SugarCollectionOperator
     case node: SubBag[G] => return Nil
     case node: SubBagEq[G] => SugarCollectionOperator
+    case node: SetIntersection[G] => return Nil
+    case node: BagLargestCommon[G] => return Nil
+    case node: SetMinus[G] => return Nil
+    case node: BagMinus[G] => return Nil
+    case node: SetUnion[G] => return Nil
+    case node: BagAdd[G] => return Nil
     case node: Permutation[G] => PermutationOperator
     case node: OptGet[G] => AxiomaticLibraryType
     case node: OptGetOrElse[G] => AxiomaticLibraryType
@@ -269,6 +276,7 @@ class FeatureRainbow[G] {
     case node: ParBarrier[G] => ParallelRegion
     case node: IterVariable[G] => return Nil
     case node: ParBlock[G] => ParallelRegion
+    case node: ScaleByParBlock[G] => ParallelRegion
     case node: ParParallel[G] => ParallelRegion
     case node: ParRegion[G] => ParallelRegion
     case node: VecBlock[G] => ParallelRegion
@@ -429,6 +437,7 @@ class FeatureRainbow[G] {
     case node: CInit[G] => return Nil
     case node: CDeclaration[G] => return Nil
     case node: CFunctionDefinition[G] => return Nil
+    case node: CTranslationUnit[G] => return Nil
     case node: CGlobalDeclaration[G] => return Nil
     case node: CDeclarationStatement[G] => return Nil
     case node: CGoto[G] => return Nil

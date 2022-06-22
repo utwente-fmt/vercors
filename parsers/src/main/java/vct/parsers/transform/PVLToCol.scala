@@ -192,7 +192,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: AddExprContext): Expr[G] = expr match {
     case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AddExpr1(left, _, right) => Minus(convert(left), convert(right))
+    case AddExpr1(left, _, right) => AmbiguousMinus(convert(left), convert(right))
     case AddExpr2(inner) => convert(inner)
   }
 
@@ -223,7 +223,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
-    case NewExpr0(_, name, Call0(typeArgs, given, args, yields)) =>
+    case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
       PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
     case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
     case NewExpr2(inner) => convert(inner)
@@ -231,7 +231,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: PostfixExprContext): Expr[G] = expr match {
     case PostfixExpr0(obj, _, field, None) => PVLDeref(convert(obj), convert(field))(blame(expr))
-    case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, given, args, yields))) =>
+    case PostfixExpr0(obj, _, field, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
@@ -246,7 +246,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit3(n) => const(Integer.parseInt(n))
     case Unit4(_, inner, _) => convert(inner)
     case Unit5(id, None) => local(id, convert(id))
-    case Unit5(id, Some(Call0(typeArgs, given, args, yields))) =>
+    case Unit5(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
     case Unit6(inner) => convert(inner)

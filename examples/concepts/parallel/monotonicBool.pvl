@@ -29,7 +29,7 @@ void lemma(boolean[] bools, int definitelyTrueIndex, int i) {
     return;
   } else {
     if (i < definitelyTrueIndex) {
-      lemma given { P = P\2 } (bools, definitelyTrueIndex, i + 1);
+      lemma(bools, definitelyTrueIndex, i + 1) given { P = P\2 };
     } else {
       assert false;
     }
@@ -69,7 +69,7 @@ class C {
           atomic(inv) {
             b = true;
             contrib[tid] = true;
-            lemma given { P = 1\(2 * (N+1)) } (contrib, tid, 0);
+            lemma(contrib, tid, 0) given { P = 1\(2 * (N+1)) };
             // Fails:
             // b = false;
             // contrib[tid] = false;

@@ -14,7 +14,7 @@ object AstBuildHelpers {
     def -(right: Expr[G])(implicit origin: Origin): Minus[G] = Minus(left, right)
     def *(right: Expr[G])(implicit origin: Origin): Mult[G] = Mult(left, right)
     def /(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): FloorDiv[G] = FloorDiv(left, right)(blame)
-    def /:(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Div[G] = Div(left, right)(blame)
+    def /:/(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Div[G] = Div(left, right)(blame)
     def %(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Mod[G] = Mod(left, right)(blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)

@@ -556,14 +556,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         Neq(convert(obj), Null()),
         col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args), Nil, Nil)(blame(expr)),
       )
-    case parse.JavaInvocation(obj, _, name, familyType, given, args, yields) =>
+    case parse.JavaInvocation(obj, _, name, familyType, args, given, yields) =>
       failIfDefined(familyType, "Predicate families not supported (for now)")
       col.JavaInvocation(
         Some(convert(obj)), Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
-    case JavaNew(given, _, creator, yields) =>
+    case JavaNew(_, creator, given, yields) =>
       convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
     case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
     case JavaPostfixIncDec(inner, postOp) =>
@@ -689,7 +689,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case Primary2(_) => ??(expr)
     case Primary3(literal) => convert(literal)
     case Primary4(name) => local(expr, convert(name))
-    case Primary5(name, familyType, given, args, yields) =>
+    case Primary5(name, familyType, args, given, yields) =>
       failIfDefined(familyType, "Predicate families are unsupported (for now)")
       col.JavaInvocation(None, Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(

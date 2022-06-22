@@ -137,7 +137,7 @@ unit
  | valGenericAdtInvocation
  ;
 
-call : typeArgs? valGiven? tuple valYields?;
+call : typeArgs? tuple valGiven? valYields?;
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;

@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.origin.{AbstractApplicable, DerefPerm, DiagnosticOrigin, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -171,9 +171,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
       case fields: JavaFields[Pre] =>
-        Block(for((JavaVariableDeclaration(_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
-          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), rw.dispatch(init.get),
-            PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
+        Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
+          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
+            case Some(value) => rw.dispatch(value)
+            case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)))
+          }, PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
         )
     })
 
@@ -357,8 +359,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def initLocal(locals: JavaLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = locals.o
-    Block(for((JavaVariableDeclaration(_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
-      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), rw.dispatch(init.get))
+    Block(for((JavaVariableDeclaration(_, dims, init), i) <- locals.decls.zipWithIndex)
+      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), init match {
+        case Some(value) => rw.dispatch(value)
+        case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(locals.t)))
+      })
     )
   }
 
