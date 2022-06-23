@@ -1,6 +1,7 @@
 package vct.col.newrewrite
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.progress.Progress
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.util.FreeVariables
@@ -297,6 +298,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
+      Progress.nextPhase(s"`$e`")
       countApply = 0
       countSuccess = 0
       currentExpr = e
@@ -307,4 +309,11 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     debugNameStack.having(decl.o.preferredName) {
       rewriteDefault(decl)
     }
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    val exprCount = program.map { case _: Expr[Pre] => () }.size
+    Progress.dynamicMessages(exprCount + 1, "...") {
+      rewriteDefault(program)
+    }
+  }
 }
