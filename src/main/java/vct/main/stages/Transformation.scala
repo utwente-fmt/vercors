@@ -98,10 +98,6 @@ class Transformation
         case errors => throw TransformationCheckError(errors)
       }
 
-      logger.debug(s"After ${pass.key}: ${result.transSubnodes.collect {
-        case _: RunMethod[_] => ()
-      }.size} run methods")
-
       onAfterPassKey.foreach {
         case (key, action) => if(pass.key == key) action(result)
       }
