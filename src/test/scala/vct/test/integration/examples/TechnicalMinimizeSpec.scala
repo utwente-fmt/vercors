@@ -1,5 +1,8 @@
 package vct.test.integration.examples
 
+import ch.qos.logback.classic.{Level, Logger}
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.LoggerFactory
 import vct.col.ast.{ApplicableContract, Block, Class, Eq, Function, GlobalDeclaration, InstanceFunction, InstanceMethod, PVLConstructor, Procedure, Program, Result, Return, SplitAccountedPredicate, TInt, TVoid, UnitAccountedPredicate}
 import vct.col.origin.{DiagnosticOrigin, PanicBlame}
 import vct.col.print.Printer
@@ -7,7 +10,7 @@ import vct.col.rewrite.InitialGeneration
 import vct.test.integration.helper.VercorsSpec
 import vct.col.util.AstBuildHelpers._
 
-class TechnicalMinimizeSpec2 extends VercorsSpec {
+class TechnicalMinimizeSpec2 extends VercorsSpec with LazyLogging {
   type G = InitialGeneration
   implicit val o = DiagnosticOrigin
   type GlobalDeclGen = (Correctness, FilterMode) => GlobalDeclaration[G]
@@ -37,7 +40,7 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
 
   def instanceFunction(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
     new Class[G](Seq(
-      new InstanceFunction[G](TInt(), Seq(), Seq(), Some(const[G](0)), mkContract(correctness),
+      new InstanceFunction[G](TInt(), Seq(), Seq(), Some(const[G](0)), mkContract(correctness), inline = false,
         focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
     ), Seq(), tt)
 
@@ -63,8 +66,20 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
     val printer = Printer(sb, syntax = vct.col.print.PVL)
     printer.print(p)
     val str = sb.toString
+
+    LoggerFactory.getLogger("vct.test").asInstanceOf[Logger].setLevel(Level.ALL)
+    logger.info(s"------- some test case $i\n$str")
+    logger.info(s"------- program:\n$str")
+    vercors should verify using silicon in s"some test case $i" pvl(str)
+    i += 1
+  }
+  def mustFail(p: Program[G]): Unit = {
+    val sb = new java.lang.StringBuilder
+    val printer = Printer(sb, syntax = vct.col.print.PVL)
+    printer.print(p)
+    val str = sb.toString
     println(s"------- some test case $i\n$str")
-    vercors should verify using anyBackend in s"some test case $i" pvl(str)
+    vercors should fail withCode "xx" using silicon in s"some test case $i" pvl(str)
     i += 1
   }
 
@@ -80,20 +95,17 @@ class TechnicalMinimizeSpec2 extends VercorsSpec {
    */
   for (
     ca1 <- allContractApplicable;
-    ca2 <- allContractApplicable;
-    correctnessCa1 <- allCorrectness;
-    correctnessCa2 <- allCorrectness;
-    filterModeCa1 <- allFilterMode
+    ca2 <- allContractApplicable
   ) {
-    if (correctnessCa1 == Failing && correctnessCa2 == Verifying && filterModeCa1 == Ignore) {
-      println("-----")
-      println(s"$correctnessCa1:$filterModeCa1, $correctnessCa2")
-      // Can this line below be made blocking?
-      mustVerify(new Program[G](Seq(
-        ca1(correctnessCa1, filterModeCa1),
-        ca2(correctnessCa2, Normal)
-      ), null)(PanicBlame("")))
-    }
+    mustVerify(new Program[G](Seq(
+      ca1(Failing, Ignore),
+      ca2(Verifying, Normal)
+    ), null)(PanicBlame("")))
+
+    mustFail(new Program[G](Seq(
+      ca1(Failing, Ignore),
+      ca2(Failing, Normal)
+    ), null)(PanicBlame("")))
   }
 }
 
