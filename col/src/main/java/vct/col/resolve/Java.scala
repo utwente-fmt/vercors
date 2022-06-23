@@ -350,4 +350,11 @@ case object Java {
       Some(RefModel(model))
     case _ => None
   }
+
+  def findJavaBipStatePredicate[G](ctx: ReferenceResolutionContext[G], state: String): JavaBipStatePredicateTarget[G] =
+    if(ctx.providedJavaBipStatePredicates.contains(state)) {
+      ctx.javaBipStatePredicates.ref(state)
+    } else {
+      ImplicitDefaultJavaBipStatePredicate()
+    }
 }

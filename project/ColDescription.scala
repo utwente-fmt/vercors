@@ -98,11 +98,7 @@ class ColDescription {
       q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
       term
-    case Type.Apply(Type.Name("Map"), List(tk, tv)) =>
-      q"$term.map((k, v) => (${rewriteDefault(q"k", tk)}, ${rewriteDefault(q"v", tv)})).toMap"
-
-    case x =>
-      val y = x
+    case _ =>
       MetaUtil.fail(
         s"Encountered an unknown type while generating default rewriters: $typ\n" +
           "Perhaps there is an 'extends Expr' or so missing?",

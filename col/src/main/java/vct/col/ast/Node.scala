@@ -60,6 +60,7 @@ import vct.col.debug._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
+import vct.col.rewrite.ScopeContext
 
 sealed trait Node[G] extends NodeImpl[G]
 
@@ -782,7 +783,13 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
-final case class JavaBipComponent[G](constructor: Ref[G, Procedure[G]], cls: GlobalDeclaration[G], invariant: Expr[G], initial: String, predicates: Map[String, Expr[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] /* with JavaBipComponent[G] */ {
+final case class JavaBipStatePredicate[G](expr: Expr[G])(implicit val o: Origin) extends Declaration[G] {
+  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): JavaBipStatePredicate.this.type = {
+    scope.javaBipStatePredicateScopes.top += this
+    this
+  }
+}
+final case class JavaBipComponent[G](constructor: Ref[G, Procedure[G]], cls: GlobalDeclaration[G], invariant: Expr[G], initial: Ref[G, JavaBipStatePredicate[G]], predicates: Seq[JavaBipStatePredicate[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] /* with JavaBipComponent[G] */ {
   assert(cls.isInstanceOf[Class[G]])
 }
 

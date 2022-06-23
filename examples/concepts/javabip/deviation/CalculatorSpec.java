@@ -15,6 +15,7 @@ import static org.javabip.spec.deviation.Constants.*;
          @Port(name = RESET)//, type = PortType.enforceable)
 // })
 
+         // TODO (RR): Discuss: need to name all states here
 @ComponentType(initial = INIT, name = CALCULATOR)
 public class CalculatorSpec {
 

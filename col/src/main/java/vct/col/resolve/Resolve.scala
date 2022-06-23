@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
-import vct.col.resolve.Resolve.{LiteralOrResolve, MalformedBipAnnotation, SpecExprParser, isBip}
+import vct.col.resolve.Resolve.{LiteralOrResolve, MalformedBipAnnotation, SpecExprParser, expectLit, getLit, isBip}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
 
@@ -27,22 +27,28 @@ case object Resolve {
     def parse[G](input: String): Expr[G]
   }
 
-  object LiteralOrResolve {
-    def unapply[G](e: Expr[G]): Option[String] = e match {
-      case JavaStringLiteral(guardName) =>
-        Some(guardName)
-      case local @ JavaLocal(_) =>
-        local.ref match {
-          case Some(RefJavaField(decls, id)) =>
-            decls.decls(id).init match {
-              case Some(JavaStringLiteral(data)) => Some(data)
-              case _ => None
-            }
-          case _ => None
-        }
-      case _ => None
-    }
+  def extractLiteral(e: Expr[_]): Option[String] = e match {
+    case JavaStringLiteral(guardName) =>
+      Some(guardName)
+    case local @ JavaLocal(_) =>
+      local.ref match {
+        case Some(RefJavaField(decls, id)) =>
+          decls.decls(id).init match {
+            case Some(JavaStringLiteral(data)) => Some(data)
+            case _ => None
+          }
+        case _ => None
+      }
+    case _ => None
   }
+
+  case class UnexpectedComplicatedExpression(e: Expr[_]) extends UserError {
+    override def code: String = "unexpectedComplicatedExpression"
+    override def text: String = e.o.messageInContext("This expression must either be a string literal or trivially resolve to one")
+  }
+
+  def getLit(e: Expr[_]): String =
+    extractLiteral(e).getOrElse(throw UnexpectedComplicatedExpression(e))
 
   def isBip(node: Node[_], `type`: String): Boolean = node match {
     case JavaAnnotation(JavaTClass(r, _), _) => isBip(r.decl, `type`)
@@ -155,6 +161,29 @@ case object ResolveReferences extends LazyLogging {
     case block: ParBlock[G] => Seq(block)
   }
 
+  def getJavaBipGuardName[G](method: JavaMethod[G]): Option[String] = {
+    method.modifiers.collectFirst {
+      case ann: JavaAnnotation[G] if isBip(ann, "Guard") => ann.get("name") match {
+        case Some(LiteralOrResolve(name)) => name
+        case None => throw MalformedBipAnnotation(ann, "Guard should have name")
+      }
+    }
+  }
+
+  def scanJavaBipGuards[G](nodes: Seq[Declaration[G]]): Map[String, JavaMethod[G]] = {
+    nodes.collect {
+      case m: JavaMethod[G] if getJavaBipGuardName(m).isDefined => (getJavaBipGuardName(m).get, m)
+    }.toMap
+  }
+
+  def scanJavaBipStatePredicates(nodes: Seq[JavaModifier[_]]): Set[String] =
+    nodes.collect {
+      case ann: JavaAnnotation[_] if isBip(ann, "StatePredicate") => ann.get("state") match {
+        case Some(LiteralOrResolve(name)) => name
+        case None => throw MalformedBipAnnotation(ann, "State predicate should have name")
+      }
+    }.toSet
+
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G]): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
       .copy(currentJavaNamespace=Some(ns)).declare(ns.declarations)
@@ -162,6 +191,8 @@ case object ResolveReferences extends LazyLogging {
       .copy(currentJavaClass=Some(cls))
       .copy(currentThis=Some(RefJavaClass(cls)))
       .declare(cls.decls)
+      .declareJavaBipGuards(scanJavaBipGuards(cls.decls))
+      .provideJavaBipStatePredicates(scanJavaBipStatePredicates(cls.modifiers))
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
@@ -373,10 +404,11 @@ case object ResolveReferences extends LazyLogging {
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Transition") =>
       logger.info(s"BIP Transition @ ${ann.o}")
-      val guard = (ann.getArg("guard"), ann.getArg("pre"), ann.getArg("post")) match {
-        // TODO (RR): This is very stringly typed. Can we maybe replace those by unique objects earlier on in the process?
-        //            Maybe if the type-importing process is aware of JavaBIP it can append some name/decl-like nodes for JavaBIP
-        case (Some(LiteralOrResolve(guardName)), None, None) => Left(guardName)
+      val guard = (ann.get("guard"), ann.get("pre"), ann.get("post")) match {
+        case (Some(guardName), None, None) => ctx.javaBipGuards.get(getLit(guardName)) match {
+          case Some(guard) => Left(guard.ref)
+          case None => throw MalformedBipAnnotation(ann, "Guard name does not exist")
+        }
         case (None, requiresO, ensuresO) =>
           def extractExpr(s: Option[Expr[_]]): String = s match {
             case None => "true"
@@ -389,53 +421,32 @@ case object ResolveReferences extends LazyLogging {
           resolve(requires, ctx)
           resolve(ensures, ctx)
           Right((requires, ensures))
-        case (Some(guard), _, _) =>
-          throw MalformedBipAnnotation(guard, "Guard must trivially resolve to a string literal, OR: specifying guard & pre- & post-condition simultaneously is not supported")
+        case (Some(_), _, _) =>
+          throw MalformedBipAnnotation(ann, "Specifying guard & pre- & post-condition simultaneously is not supported")
       }
 
-      // TODO (RR): Getting arguments like this is verbose, as most arguments are non-optional. Improve extraction
-      //            of annotation arguments to take advantage of this?
-      (ann.getArg("name"), ann.getArg("source"), ann.getArg("target")) match {
-        case (Some(LiteralOrResolve(name)),
-        Some(LiteralOrResolve(source)),
-        Some(LiteralOrResolve(target))) =>
-          ann.data = Some(JavaAnnotationData.BipTransition[G](name, source, target, guard))
-        case _ =>
-          throw MalformedBipAnnotation(ann, "Name, source, target, guard, pre- or post-condition missing or malformed")
-      }
+      val name = getLit(ann.expect("name"))
+      val source = getLit(ann.expect("source"))
+      val target = getLit(ann.expect("target"))
+      ann.data = Some(JavaAnnotationData.BipTransition[G](name, ctx.javaBipStatePredicates.ref(source), ctx.javaBipStatePredicates.ref(target), guard))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
-      ann.data = Some(JavaAnnotationData.BipInvariant(
-        ann.getArg("expr") match {
-          case Some(LiteralOrResolve(exprStr)) =>
-            val expr: Expr[G] = ctx.javaParser.parse(exprStr)
-            resolve(expr, ctx)
-            expr
-          case _ => throw MalformedBipAnnotation(ann, "Invariant expr missing or malformed")
-        }))
-
+      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
+      resolve(expr, ctx)
+      ann.data = Some(JavaAnnotationData.BipInvariant(expr))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
-      val expr = ann.getArg("expr") match {
-        case Some(LiteralOrResolve(exprStr)) =>
-          val expr: Expr[G] = ctx.javaParser.parse(exprStr)
-          resolve(expr, ctx)
-          expr
-        case _ => throw MalformedBipAnnotation(ann, "State predicate expr missing or malformed")
-      }
-
-      ann.getArg("state") match {
-        case Some(LiteralOrResolve(state)) =>
-          ann.data = Some(JavaAnnotationData.BipStatePredicate(state, expr))
-        case _ => throw MalformedBipAnnotation(ann, "State predicate name missing or malformed")
-      }
+      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
+      resolve(expr, ctx) // TODO (RR): Throwing away errors here?
+      val state = getLit(ann.expect("state"))
+      val statePredicate = JavaBipStatePredicate(expr)(SourceNameOrigin(state, ann.o))
+      ctx.javaBipStatePredicates(state) = statePredicate
+      ann.data = Some(JavaAnnotationData.BipStatePredicate(state, statePredicate))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "ComponentType") =>
-      (ann.getArg("name"), ann.getArg("initial")) match {
-        case (Some(LiteralOrResolve(name)), Some(LiteralOrResolve(initial))) =>
-          ann.data = Some(JavaAnnotationData.BipComponentType(name, initial))
-        case _ => throw MalformedBipAnnotation(ann, "Name or initial missing or malformed: must be literal or trivially resolve to constant")
-      }
+      val name = getLit(ann.expect("name"))
+      val initial = getLit(ann.expect("initial"))
+      ann.data = Some(JavaAnnotationData.BipComponentType(name, ctx.javaBipStatePredicates.ref(initial)))
 
     case _ =>
   }

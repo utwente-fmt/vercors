@@ -255,11 +255,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         }, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch(_)))(JavaInstanceClassOrigin(cls))
       }
 
-      if (isBipComponent(cls)) {
-        val jbc = JavaBipComponent(instanceClass)
-      } else {
-        instanceClass.declareDefault(rw)
-      }
+//      if (isBipComponent(cls)) {
+//        val jbc = JavaBipComponent(instanceClass)
+//      } else {
+      instanceClass.declareDefault(rw)
+//      }
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {

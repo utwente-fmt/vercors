@@ -15,6 +15,7 @@ case object PinSilverNodes extends RewriterBuilder {
   override def desc: String = "Disambiguate nodes into specific Silver nodes."
 }
 
+
 case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case assn @ Assign(target, value) => target match {

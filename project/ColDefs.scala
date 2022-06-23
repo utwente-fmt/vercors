@@ -41,6 +41,7 @@ object ColDefs {
     "CDeclaration" -> q"cLocalScopes",
     "CParam" -> q"cParams",
     "JavaLocalDeclaration" -> q"javaLocalScopes",
+    "JavaBipStatePredicate" -> q"javaBipStatePredicateScopes"
   )
 
   /**
