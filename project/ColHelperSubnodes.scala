@@ -34,40 +34,25 @@ case class ColHelperSubnodes(info: ColDescription) {
         )
     }
 
-  def subnodePattern(cls: ClassDef): Case = {
-    val subnodesByField = cls.params.map(param => subnodePatternByType(param.decltpe.get))
-
-    if(cls.mods.collectFirst{case Mod.Case() => ()}.nonEmpty) {
-      Case(
-        Pat.Extract(cls.term, cls.params.zip(subnodesByField).map {
-          case (_, None) => Pat.Wildcard()
-          case (param, Some(_)) => Pat.Var(Term.Name(param.name.value))
-        }),
-        None,
-        cls.params.zip(subnodesByField).collect {
-          case (param, Some(nodes)) => nodes(Term.Name(param.name.value))
-        } match {
-          case Seq() => q"Seq()"
-          case nonEmpty => nonEmpty.tail.foldLeft(nonEmpty.head)((left, right) => q"$left ++ $right")
-        }
-      )
-    } else {
-      Case(
-        Pat.Typed(Pat.Var(q"node"), t"${cls.typ}[G]"),
-        None,
-        cls.params.zip(subnodesByField).collect {
+  def subnodeMapping(cls: ClassDef): Term = q"""
+    classOf[${cls.typ}[_]] -> ((anyNode: Node[_]) => {
+      val node = anyNode.asInstanceOf[${cls.typ}[_]]
+      ${
+        cls.params.zip(cls.params.map(param => subnodePatternByType(param.decltpe.get))).collect {
           case (param, Some(nodes)) => nodes(Term.Select(q"node", Term.Name(param.name.value)))
         } match {
-          case Seq() => q"Seq()"
+          case Seq() => q"Nil"
           case nonEmpty => nonEmpty.tail.foldLeft(nonEmpty.head)((left, right) => q"$left ++ $right")
         }
-      )
-    }
-  }
+      }
+    })
+  """
 
   def make(): List[Stat] = List(q"""
     object Subnodes {
-      def subnodes[G](node: Node[G]): Seq[Node[G]] = ${NonemptyMatch("subnodes", q"node", info.defs.map(subnodePattern).toList)}
+      val subnodesLookupTable: Map[java.lang.Class[_], Node[_] => Seq[Node[_]]] = Map(..${info.defs.map(subnodeMapping).toList})
+
+      def subnodes[G](node: Node[G]): Seq[Node[G]] = subnodesLookupTable(node.getClass)(node).asInstanceOf[Seq[Node[G]]]
     }
   """)
 }

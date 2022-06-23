@@ -298,7 +298,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      Progress.nextPhase(s"`${e.o.inlineContext}`")
+      Progress.nextPhase(s"`$e`")
       countApply = 0
       countSuccess = 0
       currentExpr = e

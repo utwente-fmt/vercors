@@ -6,7 +6,7 @@ case object Progress {
   var forceProgress: Boolean = false
 
   val PROGRESS_BLOCKS = " ▏▎▍▌▋▊▉█"
-  val MAX_BORING_WIDTH = 78
+  val MAX_BORING_WIDTH = 300
   val PROGRESS_BAR_WIDTH = 60
 
   private def isTTY: Boolean = Option(System.console()).isDefined
