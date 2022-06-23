@@ -72,6 +72,7 @@ class FeatureRainbow[G] {
     case node: AddrOf[G] => Pointers
     case node: PredicateApply[G] => return Nil
     case node: InstancePredicateApply[G] => Classes
+    case node: CoalesceInstancePredicateApply[G] => Classes
     case node: ADTFunctionInvocation[G] => return Nil
     case node: ProcedureInvocation[G] => return Nil
     case node: InvokeProcedure[G] => return Nil
