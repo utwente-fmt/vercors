@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
-import vct.col.resolve.Resolve.{LiteralOrResolve, MalformedBipAnnotation, SpecExprParser, expectLit, getLit, isBip}
+import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
 
@@ -161,28 +161,13 @@ case object ResolveReferences extends LazyLogging {
     case block: ParBlock[G] => Seq(block)
   }
 
-  def getJavaBipGuardName[G](method: JavaMethod[G]): Option[String] = {
-    method.modifiers.collectFirst {
-      case ann: JavaAnnotation[G] if isBip(ann, "Guard") => ann.get("name") match {
-        case Some(LiteralOrResolve(name)) => name
-        case None => throw MalformedBipAnnotation(ann, "Guard should have name")
-      }
-    }
+  def scanJavaBipGuards[G](nodes: Seq[Declaration[G]]): Seq[(String, JavaMethod[G])] = nodes.collect {
+    case m: JavaMethod[G] if Java.getJavaBipGuardName(m).isDefined => (Java.getJavaBipGuardName(m).get, m)
   }
 
-  def scanJavaBipGuards[G](nodes: Seq[Declaration[G]]): Map[String, JavaMethod[G]] = {
-    nodes.collect {
-      case m: JavaMethod[G] if getJavaBipGuardName(m).isDefined => (getJavaBipGuardName(m).get, m)
-    }.toMap
+  def scanJavaBipStatePredicates[G](nodes: Seq[JavaModifier[G]]): Seq[(String, JavaAnnotation[G])] = nodes.collect {
+    case ann: JavaAnnotation[G] if isBip(ann, "StatePredicate") => (getLit(ann.expect("state")), ann)
   }
-
-  def scanJavaBipStatePredicates(nodes: Seq[JavaModifier[_]]): Set[String] =
-    nodes.collect {
-      case ann: JavaAnnotation[_] if isBip(ann, "StatePredicate") => ann.get("state") match {
-        case Some(LiteralOrResolve(name)) => name
-        case None => throw MalformedBipAnnotation(ann, "State predicate should have name")
-      }
-    }.toSet
 
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G]): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
@@ -192,7 +177,7 @@ case object ResolveReferences extends LazyLogging {
       .copy(currentThis=Some(RefJavaClass(cls)))
       .declare(cls.decls)
       .declareJavaBipGuards(scanJavaBipGuards(cls.decls))
-      .provideJavaBipStatePredicates(scanJavaBipStatePredicates(cls.modifiers))
+      .declareJavaBipStatePredicates(scanJavaBipStatePredicates(cls.modifiers))
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
@@ -406,7 +391,7 @@ case object ResolveReferences extends LazyLogging {
       logger.info(s"BIP Transition @ ${ann.o}")
       val guard = (ann.get("guard"), ann.get("pre"), ann.get("post")) match {
         case (Some(guardName), None, None) => ctx.javaBipGuards.get(getLit(guardName)) match {
-          case Some(guard) => Left(guard.ref)
+          case Some(guard) => Left(guard)
           case None => throw MalformedBipAnnotation(ann, "Guard name does not exist")
         }
         case (None, requiresO, ensuresO) =>
@@ -428,7 +413,10 @@ case object ResolveReferences extends LazyLogging {
       val name = getLit(ann.expect("name"))
       val source = getLit(ann.expect("source"))
       val target = getLit(ann.expect("target"))
-      ann.data = Some(JavaAnnotationData.BipTransition[G](name, ctx.javaBipStatePredicates.ref(source), ctx.javaBipStatePredicates.ref(target), guard))
+      ann.data = Some(JavaAnnotationData.BipTransition[G](name,
+        Java.findJavaBipStatePredicate(ctx, source),
+        Java.findJavaBipStatePredicate(ctx, target),
+        guard))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
@@ -438,15 +426,11 @@ case object ResolveReferences extends LazyLogging {
     case ann@JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
       resolve(expr, ctx) // TODO (RR): Throwing away errors here?
-      val state = getLit(ann.expect("state"))
-      val statePredicate = JavaBipStatePredicate(expr)(SourceNameOrigin(state, ann.o))
-      ctx.javaBipStatePredicates(state) = statePredicate
-      ann.data = Some(JavaAnnotationData.BipStatePredicate(state, statePredicate))
+      ann.data = Some(JavaAnnotationData.BipStatePredicate(getLit(ann.expect("state")), expr))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "ComponentType") =>
-      val name = getLit(ann.expect("name"))
-      val initial = getLit(ann.expect("initial"))
-      ann.data = Some(JavaAnnotationData.BipComponentType(name, ctx.javaBipStatePredicates.ref(initial)))
+      ann.data = Some(JavaAnnotationData.BipComponentType(getLit(ann.expect("name")),
+        Java.findJavaBipStatePredicate(ctx, getLit(ann.expect("initial")))))
 
     case _ =>
   }

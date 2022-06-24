@@ -2,8 +2,9 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
+import vct.col.resolve.Resolve.{getLit, isBip}
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Types
@@ -352,9 +353,13 @@ case object Java {
   }
 
   def findJavaBipStatePredicate[G](ctx: ReferenceResolutionContext[G], state: String): JavaBipStatePredicateTarget[G] =
-    if(ctx.providedJavaBipStatePredicates.contains(state)) {
-      ctx.javaBipStatePredicates.ref(state)
-    } else {
-      ImplicitDefaultJavaBipStatePredicate()
+     ctx.javaBipStatePredicates.get(state) match {
+      case Some(ann) => RefJavaBipStatePredicate(ann)
+      case None => ImplicitDefaultJavaBipStatePredicate(state)
+    }
+
+  def getJavaBipGuardName[G](method: JavaMethod[G]): Option[String] =
+    method.modifiers.collectFirst {
+      case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
     }
 }

@@ -20,8 +20,8 @@
 
 package org.javabip.annotations;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+// import java.lang.annotation.Retention;
+// import java.lang.annotation.RetentionPolicy;
 
 /**
  * It annotates the function with implementing a guard. The function must return a boolean value.
@@ -29,7 +29,7 @@ import java.lang.annotation.RetentionPolicy;
  * @author Alina Zolotukhina
  */
 // Retention(RetentionPolicy.RUNTIME)
-public @interface Guard {
+public /*@ bip_annotation @*/ @interface Guard {
 
 	/**
 	 * It returns the name of the guard.

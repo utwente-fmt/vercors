@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{Declaration, GlobalDeclaration, JavaBipStatePredicate, JavaClassOrInterface, JavaMethod, JavaName, JavaNamespace, Type}
+import vct.col.ast.{Declaration, GlobalDeclaration, JavaAnnotation, JavaClassOrInterface, JavaMethod, JavaName, JavaNamespace, Type}
 import vct.col.check.CheckContext
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.Resolve.SpecExprParser
@@ -20,8 +20,7 @@ case class ReferenceResolutionContext[G]
   currentThis: Option[ThisTarget[G]] = None,
   currentResult: Option[ResultTarget[G]] = None,
   currentInitializerType: Option[Type[G]] = None,
-  providedJavaBipStatePredicates: Set[String] = Set(),
-  javaBipStatePredicates: SuccessionMap[String, JavaBipStatePredicate[G]] = SuccessionMap[String, JavaBipStatePredicate[G]](),
+  javaBipStatePredicates: Map[String, JavaAnnotation[G]] = Map[String, JavaAnnotation[G]](),
   javaBipGuards: Map[String, JavaMethod[G]] = new HashMap[String, JavaMethod[G]]()
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
@@ -30,11 +29,11 @@ case class ReferenceResolutionContext[G]
   def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     copy(stack = decls.flatMap(Referrable.from) +: stack)
 
-  def provideJavaBipStatePredicates(ns: Set[String]) =
-    copy(providedJavaBipStatePredicates = ns ++ providedJavaBipStatePredicates)
+  def declareJavaBipStatePredicates(ps: Seq[(String, JavaAnnotation[G])]) =
+    copy(javaBipStatePredicates = ps.toMap ++ javaBipStatePredicates)
 
-  def declareJavaBipGuards(gs: Map[String, JavaMethod[G]]): ReferenceResolutionContext[G] =
-    copy(javaBipGuards = gs ++ javaBipGuards)
+  def declareJavaBipGuards(gs: Seq[(String, JavaMethod[G])]): ReferenceResolutionContext[G] =
+    copy(javaBipGuards = gs.toMap ++ javaBipGuards)
 
   def currentPkg: Option[JavaName[G]] = currentJavaNamespace.flatMap(_.pkg)
   def currentFqn: Option[JavaName[G]] = currentPkg.map(pkg => JavaName(pkg.names ++ currentJavaClass.map(cls => Seq(cls.name)).getOrElse(Seq()))(DiagnosticOrigin))
