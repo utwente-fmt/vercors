@@ -28,10 +28,12 @@ class TechnicalMinimizeSpec2 extends VercorsSpec with LazyLogging {
     contract(PanicBlame(""), ensures=UnitAccountedPredicate(const(if(correctness == Failing) false else true)))
 
   def function(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
-      new Function(
+    withResult[G, Function[G]]((r: Result[G]) =>
+      new Function[G](
         TInt(), Seq(), Seq(), Some(const[G](0)),
-        contract(PanicBlame(""), ensures=UnitAccountedPredicate(const(if(correctness == Failing) false else true))),
+        contract(PanicBlame(""), ensures=UnitAccountedPredicate(if(correctness == Failing) r === const(1) else const(true))),
         focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
+    )
 
   def procedure(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
     new Procedure(
@@ -40,9 +42,11 @@ class TechnicalMinimizeSpec2 extends VercorsSpec with LazyLogging {
 
   def instanceFunction(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
     new Class[G](Seq(
-      new InstanceFunction[G](TInt(), Seq(), Seq(), Some(const[G](0)), mkContract(correctness), inline = false,
-        focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
-    ), Seq(), tt)
+      withResult[G, InstanceFunction[G]] { r =>
+        new InstanceFunction[G](TInt(), Seq(), Seq(), Some(const[G](0)),
+          contract(PanicBlame(""), ensures=UnitAccountedPredicate(if(correctness == Failing) r === const(1) else const(true))),
+          inline = false, focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
+      }), Seq(), tt)
 
   def instanceMethod(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
     new Class[G](Seq(
@@ -52,7 +56,7 @@ class TechnicalMinimizeSpec2 extends VercorsSpec with LazyLogging {
 
   def constructor(correctness: Correctness, filterMode: FilterMode): GlobalDeclaration[G] =
     new Class[G](Seq(
-      new PVLConstructor[G](mkContract(correctness), Seq(), Some(Return(const[G](0))),
+      new PVLConstructor[G](mkContract(correctness), Seq(), Some(Block(Nil)),
       focus = filterMode == Focus, ignore = filterMode == Ignore)(PanicBlame(""))
     ), Seq(), tt)
 
@@ -79,7 +83,7 @@ class TechnicalMinimizeSpec2 extends VercorsSpec with LazyLogging {
     printer.print(p)
     val str = sb.toString
     println(s"------- some test case $i\n$str")
-    vercors should fail withCode "xx" using silicon in s"some test case $i" pvl(str)
+    vercors should fail withCode "postFailed:false" using silicon in s"some test case $i" pvl(str)
     i += 1
   }
 
