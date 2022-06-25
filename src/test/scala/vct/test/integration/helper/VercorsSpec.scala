@@ -1,22 +1,27 @@
 package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
+import com.typesafe.scalalogging.LazyLogging
 import hre.io.Readable
 import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
-import vct.col.origin.VerificationFailure
+import vct.col.ast.{GlobalDeclaration, Node, Verification, VerificationContext}
+import vct.col.origin.{BlameCollector, DiagnosticOrigin, VerificationFailure}
+import vct.col.print.Printer
+import vct.col.rewrite.Generation
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
 import vct.options
 import vct.options.PathOrStd
-import vct.parsers.ParseError
+import vct.parsers.transform.BlameProvider
+import vct.parsers.{ParseError, ParseResult}
 import vct.result.VerificationError
 import vct.result.VerificationError.UserError
 
 import java.nio.file.{Path, Paths}
 
-abstract class VercorsSpec extends AnyFlatSpec {
+abstract class VercorsSpec extends AnyFlatSpec with LazyLogging {
   var coveredExamples: Seq[Path] = Nil
 
   sealed trait Verdict {
@@ -43,6 +48,27 @@ abstract class VercorsSpec extends AnyFlatSpec {
       matchVerdict(verdict, backend match {
         case options.Backend.Silicon => Verify.verifyWithSilicon(inputs)
         case options.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+      })
+    }
+  }
+
+  private def registerTestAst[G <: Generation](verdict: Verdict, desc: String, tags: Seq[Tag], backend: options.Backend,
+                                               blameCollector: BlameCollector, blameProvider: BlameProvider, input: VerificationContext[G]): Unit = {
+    registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
+      logger.info(s"----- Testing dynamically generated program")
+      val sb = new java.lang.StringBuilder
+      val printer = Printer(sb, syntax = vct.col.print.PVL)
+      printer.print(input)
+      val str = sb.toString
+      logger.info(str)
+
+      LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
+      LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
+
+      matchVerdict(verdict, backend match {
+        case options.Backend.Silicon => Verify.verifyWithSiliconAst(
+          ParseResult[G](input.program.declarations, input.expectedErrors), blameCollector, blameProvider)
+        case options.Backend.Carbon => ???
       })
     }
   }
@@ -142,6 +168,12 @@ abstract class VercorsSpec extends AnyFlatSpec {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
+      }
+    }
+
+    def col[G <: Generation](collector: BlameCollector, provider: BlameProvider, program: vct.col.ast.Program[G]): Unit = {
+      for(backend <- backends) {
+        registerTestAst(verdict, desc, Seq(new Tag("literalCase")), backend, collector, provider, VerificationContext[G](program, Nil)(DiagnosticOrigin))
       }
     }
 
