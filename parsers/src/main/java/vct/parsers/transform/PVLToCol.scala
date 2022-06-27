@@ -20,7 +20,7 @@ import scala.collection.mutable
 case class PVLToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
   def convert(implicit program: ProgramContext): Seq[GlobalDeclaration[G]] = program match {
-    case Program0(decls, _) => decls.flatMap(convert(_))
+    case Program0(decls, _, _) => decls.flatMap(convert(_))
   }
 
   def convert(implicit decl: ProgramDeclContext): Seq[GlobalDeclaration[G]] = decl match {
