@@ -60,17 +60,17 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   def makeTypeOf: Function[Post] = {
     implicit val o: Origin = TypeOfOrigin
     val obj = new Variable[Post](TRef())
-    withResult((result: Result[Post]) => function(
+    function(
       blame = AbstractApplicable,
       contractBlame = TrueSatisfiable,
       returnType = TInt(),
       args = Seq(obj),
-      ensures = UnitAccountedPredicate(
+      ensures = result => UnitAccountedPredicate(
         (result >= const(0) && result <= const(typeNumberStore.size)) &&
           ((obj.get === Null()) ==> (result === const(0))) &&
           ((obj.get !== Null()) ==> (result !== const(0)))
       ),
-    ))
+    )
   }
 
   def makeInstanceOf: Function[Post] = {

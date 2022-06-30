@@ -235,16 +235,17 @@ object AstBuildHelpers {
                 args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                 body: Option[Statement[G]] = None,
                 requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                ensures: Result[G] => AccountedPredicate[G] = (r: Result[G]) => UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                 contextEverywhere: Expr[G] = tt[G],
                 signals: Seq[SignalsClause[G]] = Nil,
                 givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
                 decreases: Option[DecreasesClause[G]] = None,
-                inline: Boolean = false, pure: Boolean = false)
+                inline: Boolean = false, pure: Boolean = false,
+                ignore: Boolean = false, focus: Boolean = false)
                (implicit o: Origin): Procedure[G] =
-    new Procedure(returnType, args, outArgs, typeArgs, body,
-      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
-      inline, pure)(blame)
+    withResult((r: Result[G]) => new Procedure(returnType, args, outArgs, typeArgs, body,
+      ApplicableContract(requires, ensures(r), contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
+      inline, pure, ignore = ignore, focus = focus)(blame))
 
   def function[G]
               (blame: Blame[ContractedFailure],
@@ -253,15 +254,55 @@ object AstBuildHelpers {
                args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                body: Option[Expr[G]] = None,
                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+               ensures: Result[G] => AccountedPredicate[G] = (r: Result[G]) => UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
                decreases: Option[DecreasesClause[G]] = None,
-               inline: Boolean = false)(implicit o: Origin): Function[G] =
-    new Function(returnType, args, typeArgs, body,
-      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
-      inline)(blame)
+               inline: Boolean = false, focus: Boolean = false, ignore: Boolean = false)(implicit o: Origin): Function[G] =
+    withResult((r: Result[G]) => new Function(returnType, args, typeArgs, body,
+      ApplicableContract(requires, ensures(r), contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
+      inline, focus = focus, ignore = ignore)(blame))
+
+  def instanceFunction[G]
+                      (blame: Blame[ContractedFailure],
+                       contractBlame: Blame[NontrivialUnsatisfiable],
+                       returnType: Type[G] = TVoid(),
+                       args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
+                       body: Option[Expr[G]] = None,
+                       requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                       ensures: Result[G] => AccountedPredicate[G] = (r: Result[G]) => UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                       contextEverywhere: Expr[G] = tt[G],
+                       signals: Seq[SignalsClause[G]] = Nil,
+                       givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
+                       decreases: Option[DecreasesClause[G]] = None,
+                       inline: Boolean = false, focus: Boolean = false, ignore: Boolean = false)(implicit o: Origin): InstanceFunction[G] =
+    withResult((r: Result[G]) => new InstanceFunction(returnType, args, typeArgs, body,
+      ApplicableContract(requires, ensures(r), contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
+      inline, focus = focus, ignore = ignore)(blame))
+
+  def instanceMethod[G]
+                    (blame: Blame[CallableFailure],
+                     contractBlame: Blame[NontrivialUnsatisfiable],
+                     returnType: Type[G] = TVoid[G](),
+                     args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
+                     body: Option[Statement[G]] = None,
+                     requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                     ensures: Result[G] => AccountedPredicate[G] = (r: Result[G]) => UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                     contextEverywhere: Expr[G] = tt[G],
+                     signals: Seq[SignalsClause[G]] = Nil,
+                     givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
+                     decreases: Option[DecreasesClause[G]] = None,
+                     inline: Boolean = false, focus: Boolean = false, ignore: Boolean = false)(implicit o: Origin): InstanceMethod[G] =
+    withResult((r: Result[G]) => new InstanceMethod[G](returnType, args, outArgs, typeArgs, body,
+      ApplicableContract(requires, ensures(r), contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
+      inline, focus = focus, ignore = ignore)(blame))
+
+  def `class`[G]
+             (decls: Seq[ClassDeclaration[G]] = Nil,
+              supports: Seq[Ref[G, Class[G]]] = Nil,
+              lockInv: Expr[G] = tt[G])(implicit o: Origin): Class[G] =
+    new Class[G](decls, supports, lockInv)
 
   case object GeneratedQuantifier extends Origin {
     override def preferredName: String = "i"

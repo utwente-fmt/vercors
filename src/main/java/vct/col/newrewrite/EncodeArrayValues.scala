@@ -62,7 +62,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     val from = Local[Post](from_var.ref)
     val to = Local[Post](to_var.ref)
 
-    val f = withResult((result: Result[Post]) => function[Post](
+    val f = function[Post](
       blame = AbstractApplicable,
       contractBlame = PanicBlame("the function for \\values always has a satisfiable contract"),
       returnType = TSeq(dispatch(arrayType.element)),
@@ -76,7 +76,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           i => (from <= i && i < to) ==> Perm(ArraySubscript(arr, i)(FramedArrIndex), ReadPerm()),
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
         )))))),
-      ensures = UnitAccountedPredicate(
+      ensures = (result: Result[Post]) => UnitAccountedPredicate(
         (Size(result) === to - from) &&
         forall(TInt(),
           i => (const(0) <= i && i < to - from) ==> (SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex)),
@@ -86,7 +86,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
       )
-    ))
+    )
     f.declareDefault(this)
     f
   }
@@ -150,7 +150,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         contractBlame = TrueSatisfiable,
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
-        ensures = UnitAccountedPredicate(ensures &* forall(definedDims, access => access === undefinedValue))
+        ensures = (r: Result[Post]) => UnitAccountedPredicate(ensures &* forall(definedDims, access => access === undefinedValue))
       )(ArrayCreationOrigin("make_array"))
     })
     p.declareDefault(this)

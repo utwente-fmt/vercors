@@ -328,9 +328,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
         staticsClass.declareDefault(rw)
         val t = TClass[Post](staticsClass.ref)
-        val singleton = withResult((res: Result[Post]) =>
-          function(AbstractApplicable, TrueSatisfiable, returnType = t,
-            ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls)))
+        val singleton = function(AbstractApplicable, TrueSatisfiable, returnType = t,
+            ensures = (res: Result[Post]) => UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls))
         singleton.declareDefault(rw)
         javaStaticsClassSuccessor(cls) = staticsClass
         javaStaticsFunctionSuccessor(cls) = singleton

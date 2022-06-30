@@ -92,7 +92,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             contractBlame = TrueSatisfiable,
             returnType = TSeq(dispatch(target)),
             args = Seq(v),
-            ensures = UnitAccountedPredicate(
+            ensures = r => UnitAccountedPredicate(
               Eq(Size(v.get), Size(result)) &&
               Forall(Seq(i), Seq(Seq(result_i)),
                 (const[Post](0) <= i.get && i.get < Size(result)) ==>
@@ -113,7 +113,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             contractBlame = TrueSatisfiable,
             returnType = TSet(dispatch(target)),
             args = Seq(v),
-            ensures = UnitAccountedPredicate(
+            ensures = r => UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(SetMember(elem.get, result))),
                   Eq(SetMember(applyCoercion(elem.get, inner), result), SetMember(elem.get, v.get)))
@@ -133,7 +133,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             contractBlame = TrueSatisfiable,
             returnType = TBag(dispatch(target)),
             args = Seq(v),
-            ensures = UnitAccountedPredicate(
+            ensures = r => UnitAccountedPredicate(
               Eq(Size(result), Size(v.get)) &&
                 Forall(Seq(elem), Seq(Seq(BagMemberCount(elem.get, result))),
                   Eq(BagMemberCount(applyCoercion(elem.get, inner), result), BagMemberCount(elem.get, v.get)))
@@ -155,7 +155,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             contractBlame = TrueSatisfiable,
             returnType = TMap(dispatch(targetKey), dispatch(targetValue)),
             args = Seq(v),
-            ensures = UnitAccountedPredicate(
+            ensures = r => UnitAccountedPredicate(
               Eq(MapKeySet(result), MapKeySet(v.get)) &&
                 Forall(Seq(k), Seq(Seq(MapGet(result, k.get)(TriggerPatternBlame))),
                   SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get)(FramedMapGet), MapGet(v.get, k.get)(FramedMapGet)))
