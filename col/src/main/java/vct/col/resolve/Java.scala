@@ -2,8 +2,9 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationData, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
+import vct.col.resolve.Java.isBipTransition
 import vct.col.resolve.Resolve.{getLit, isBip}
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
@@ -362,4 +363,18 @@ case object Java {
     method.modifiers.collectFirst {
       case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
     }
+
+  def isBipComponent(jc: JavaClassOrInterface[_]): Boolean =
+    jc.modifiers
+      .collect { case ja @ JavaAnnotation(_, _) => ja.data }
+      .collect { case Some(x) => x }
+      .collect { case _: JavaAnnotationData.BipComponentType[_] => true }
+      .contains(true)
+
+  def isBipTransition(m: JavaMethod[_]): Boolean =
+    m.modifiers
+      .collect { case ja @ JavaAnnotation(_, _) => ja.data }
+      .collect { case Some(x) => x }
+      .collect { case _: JavaAnnotationData.BipTransition[_] => true }
+      .contains(true)
 }

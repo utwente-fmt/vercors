@@ -789,7 +789,13 @@ final case class JavaBipStatePredicate[G](expr: Expr[G])(implicit val o: Origin)
     this
   }
 }
-final case class JavaBipComponent[G](constructor: Ref[G, Procedure[G]], cls: GlobalDeclaration[G], invariant: Expr[G], initial: Ref[G, JavaBipStatePredicate[G]], predicates: Seq[JavaBipStatePredicate[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] /* with JavaBipComponent[G] */ {
+final case class JavaBipTransition[G](source: Ref[G, JavaBipStatePredicate[G]], target: Ref[G, JavaBipStatePredicate[G]], impl: InstanceMethod[G])(implicit val o: Origin) extends Declaration[G] {
+  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): JavaBipTransition.this.type = {
+    scope.javaBipTransitionScopes.top += this
+    this
+  }
+}
+final case class JavaBipComponent[G](constructors: Procedure[G], cls: GlobalDeclaration[G], invariant: Expr[G], initial: Ref[G, JavaBipStatePredicate[G]], predicates: Seq[JavaBipStatePredicate[G]])(implicit val o: Origin) extends GlobalDeclaration[G] /* with JavaBipComponent[G] */ {
   assert(cls.isInstanceOf[Class[G]])
 }
 

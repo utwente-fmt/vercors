@@ -4,14 +4,14 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{AbstractApplicable, DerefPerm, DiagnosticOrigin, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.result.VerificationError.{UserError, Unreachable}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -65,14 +65,6 @@ case object LangJavaToCol {
     override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
     override def code: String = "invalidNesting"
   }
-
-  def isBipComponent(jc: JavaClassOrInterface[_]): Boolean =
-    jc.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) => ja.data }
-      .collect { case Some(x) => x }
-      .collect { case _: JavaAnnotationData.BipComponentType[_] => true }
-      .contains(true)
-
 }
 
 case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -226,6 +218,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
   }
 
+  def makeJavaBipComponent(oldCls: Class[Pre], cls: Class[Post]): JavaBipComponent[Post] = {
+    // TODO (RR): JavaBIp components seem to be a subset of java classes, so they should be explicitly modeled like that, instead of the java/nesting approach I was thinking of here
+    JavaBipComponent[Post](Seq(), cls, null, null, null)(DiagnosticOrigin).declareDefault(rw)
+  }
+
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
@@ -255,11 +252,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         }, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch(_)))(JavaInstanceClassOrigin(cls))
       }
 
-//      if (isBipComponent(cls)) {
-//        val jbc = JavaBipComponent(instanceClass)
-//      } else {
-      instanceClass.declareDefault(rw)
-//      }
+      if (Java.isBipComponent(cls)) {
+        makeJavaBipComponent(instanceClass).declareDefault(rw)
+      } else {
+        instanceClass.declareDefault(rw)
+      }
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {

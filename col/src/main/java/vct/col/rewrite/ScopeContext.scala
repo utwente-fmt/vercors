@@ -37,6 +37,7 @@ class ScopeContext[Pre, Post] {
   val cParams: ScopedStack[ArrayBuffer[CParam[Post]]] = ScopedStack()
 
   val javaBipStatePredicateScopes: ScopedStack[ArrayBuffer[JavaBipStatePredicate[Post]]] = ScopedStack()
+  val javaBipTransitionScopes: ScopedStack[ArrayBuffer[JavaBipTransition[Post]]] = ScopedStack()
 
   def withCollectInScope[T, S](scope: ScopedStack[ArrayBuffer[T]])(f: => S): (Seq[T], S) = {
     scope.push(ArrayBuffer())
@@ -47,6 +48,12 @@ class ScopeContext[Pre, Post] {
 
   def collectInScope[T](scope: ScopedStack[ArrayBuffer[T]])(f: => Unit): Seq[T] =
     withCollectInScope(scope)(f)._1
+
+  def openScope[T](scope: ScopedStack[ArrayBuffer[T]]): Unit =
+    scope.push(ArrayBuffer())
+
+  def closeScope[T](scope: ScopedStack[ArrayBuffer[T]]): Seq[T] =
+    scope.pop().toSeq
 
   def collectOneInScope[T](scope: ScopedStack[ArrayBuffer[T]])(f: => Unit)(implicit tag: ClassTag[T]): T = {
     val result = collectInScope(scope)(f)
