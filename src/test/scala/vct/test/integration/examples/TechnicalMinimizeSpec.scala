@@ -1,24 +1,19 @@
 package vct.test.integration.examples
 
-import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.matchers.must.Matchers.be
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.slf4j.LoggerFactory
-import vct.col.ast.{AccountedPredicate, ApplicableContract, Block, Class, Comparator, DecreasesClause, Eq, Expr, Function, GlobalDeclaration, InstanceFunction, InstanceMethod, PVLConstructor, Procedure, Program, Result, Return, SignalsClause, SplitAccountedPredicate, TInt, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{AccountedPredicate, AmbiguousResult, ApplicableContract, Block, Class, Comparator, Function, GlobalDeclaration, InstanceFunction, InstanceMethod, PVLConstructor, Procedure, Program, Result, Return, TInt, TVoid, UnitAccountedPredicate}
 import vct.col.newrewrite.FilterAndAbstractDeclarations
-import vct.col.origin.{Blame, ContractedFailure, DiagnosticOrigin, NontrivialUnsatisfiable, Origin, PanicBlame}
-import hre.util.ScopedStack
-import org.slf4j.LoggerFactory
-import vct.col.ast.{AmbiguousResult, ApplicableContract, Block, Class, Eq, Function, GlobalDeclaration, InstanceFunction, InstanceMethod, PVLConstructor, Procedure, Program, Result, Return, SplitAccountedPredicate, TInt, TVoid, UnitAccountedPredicate}
 import vct.col.origin.{BlameCollector, DiagnosticOrigin, PanicBlame}
-import vct.col.print.Printer
 import vct.col.rewrite.InitialGeneration
-import vct.test.integration.helper.VercorsSpec
 import vct.col.util.AstBuildHelpers._
-import vct.main.stages.Stages
 import vct.parsers.transform.{BlameProvider, ConstantBlameProvider}
+import vct.test.integration.helper.VercorsSpec
 
+/* Should test multiple concerns here:
+   Whether FilterAndAbstractDeclarations is working. Meaning: is transitive use respected, do focus/ignore work, are unused predicates filtered out
+   Whether focusing/ignoring tagging works for pvl/java frontends (so focusing/ignoring constructor yields exactly one focused/ignored constructor, etc)
+   Some integrating tests that do some (3 to 5) tests of this entire pipeline
+*/
 class TechnicalMinimizeSpec3 extends VercorsSpec with LazyLogging {
   type G = InitialGeneration
   implicit val o = DiagnosticOrigin
@@ -109,13 +104,10 @@ class TechnicalMinimizeSpec3 extends VercorsSpec with LazyLogging {
 
     val actual = FilterAndAbstractDeclarations().dispatch(input)
 
-    s"$d1 + $d2" should s"transform into $d3" in {
+    it should s"$d1 + $d2 should transform into $d3" in {
       val diff = Comparator.compare(actual, expected).collect({
         case s @ Comparator.StructuralDifference(_, _) => s
       })
-      if (!diff.isEmpty) {
-        println("Oh no")
-      }
       assert(diff.isEmpty, s"=== Diff ===\n$diff")
     }
   }
