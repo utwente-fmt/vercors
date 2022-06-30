@@ -3,16 +3,28 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
 import hre.io.Readable
+import vct.col.ast.Node
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
+import vct.col.rewrite.Generation
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
-import vct.parsers.transform.ConstantBlameProvider
+import vct.parsers.ParseResult
+import vct.parsers.transform.{BlameProvider, ConstantBlameProvider}
 import vct.result.VerificationError
 
 case object Verify extends LazyLogging {
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
     val stages = Stages.silicon(ConstantBlameProvider(collector))
+    logger.debug(stages.toString)
+    stages.run(inputs) match {
+      case Left(error) => Left(error)
+      case Right(()) => Right(collector.errs.toSeq)
+    }
+  }
+
+  def verifyWithSiliconAst[G <: Generation](inputs: ParseResult[G], collector: BlameCollector, blameProvider: BlameProvider): Either[VerificationError, Seq[VerificationFailure]] = {
+    val stages = Stages.siliconAst[G](blameProvider)
     logger.debug(stages.toString)
     stages.run(inputs) match {
       case Left(error) => Left(error)
