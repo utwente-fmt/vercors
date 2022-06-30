@@ -668,19 +668,20 @@ final case class CInit[G](decl: CDeclarator[G], init: Option[Expr[G]])(implicit 
   var ref: Option[RefCFunctionDefinition[G]] = None
 }
 
-final class CDeclaration[G](val contract: ApplicableContract[G], val kernelInvariant: Expr[G], val specs: Seq[CDeclarationSpecifier[G]], val inits: Seq[CInit[G]])(implicit val o: Origin) extends Declaration[G] with CDeclarationImpl[G]
+final class CDeclaration[G](val contract: ApplicableContract[G], val kernelInvariant: Expr[G], val specs: Seq[CDeclarationSpecifier[G]], val inits: Seq[CInit[G]])(implicit val o: Origin) extends NodeFamily[G] with CDeclarationImpl[G]
 
 final class CTranslationUnit[G](val declarations: Seq[GlobalDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with CTranslationUnitImpl[G]
 
 sealed trait CAbstractDeclaration[G] extends GlobalDeclaration[G] with CAbstractDeclarationImpl[G]
 
 final class CGlobalDeclaration[G](val decl: CDeclaration[G])(implicit val o: Origin) extends CAbstractDeclaration[G] with CGlobalDeclarationImpl[G]
+final class CLocalDeclaration[G](val decl: CDeclaration[G])(implicit val o: Origin) extends Declaration[G] with CLocalDeclarationImpl[G]
 final class CFunctionDefinition[G](val contract: ApplicableContract[G], val specs: Seq[CDeclarationSpecifier[G]], val declarator: CDeclarator[G], val body: Statement[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends CAbstractDeclaration[G] with CFunctionDefinitionImpl[G] {
   var ref: Option[RefCGlobalDeclaration[G]] = None
 }
 
 sealed trait CStatement[G] extends Statement[G] with CStatementImpl[G]
-final case class CDeclarationStatement[G](decl: CDeclaration[G])(implicit val o: Origin) extends CStatement[G] with CDeclarationStatementImpl[G]
+final case class CDeclarationStatement[G](decl: CLocalDeclaration[G])(implicit val o: Origin) extends CStatement[G] with CDeclarationStatementImpl[G]
 final case class CGoto[G](label: String)(implicit val o: Origin) extends CStatement[G] with CGotoImpl[G] {
   var ref: Option[LabelDecl[G]] = None
 }
