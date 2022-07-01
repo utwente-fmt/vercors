@@ -1225,6 +1225,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         constructor
       case method: JavaMethod[Pre] =>
         method
+      case param: JavaParam[Pre] =>
+        param
       case method: JavaAnnotationMethod[Pre] =>
         method
       case constructor: PVLConstructor[Pre] =>
@@ -1259,6 +1261,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
+      case bsp: BipStatePredicate[Pre] =>
+        new BipStatePredicate(bool(bsp.expr))
+      case trans: BipTransition[Pre] =>
+        new BipTransition(trans.source, trans.target, trans.data, trans.guard,
+          bool(trans.requires),
+          bool(trans.ensures),
+          trans.body
+        )(trans.blame)
+      case guard: BipGuard[Pre] =>
+        guard
     }
   }
 

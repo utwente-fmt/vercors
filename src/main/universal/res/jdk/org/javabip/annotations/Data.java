@@ -34,7 +34,7 @@ import java.lang.annotation.RetentionPolicy;
  * @author Alina Zolotukhina
  */
 // Retention(RetentionPolicy.RUNTIME)
-public @interface Data {
+public /*@ bip_annotation @*/ @interface Data {
 
 	/**
 	 * It returns the name of the data.

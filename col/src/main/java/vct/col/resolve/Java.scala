@@ -2,9 +2,8 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationData, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationData, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
-import vct.col.resolve.Java.isBipTransition
 import vct.col.resolve.Resolve.{getLit, isBip}
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
@@ -108,8 +107,8 @@ case object Java {
     case cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)
   }
 
-  def translateRuntimeParameter[G](param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext[G]): Variable[G] = {
-    new Variable(translateRuntimeType(param.getType))(SourceNameOrigin(param.getName, o))
+  def translateRuntimeParameter[G](param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaParam[G] = {
+    new JavaParam(Seq(), param.getName, translateRuntimeType(param.getType))(SourceNameOrigin(param.getName, o))
   }
 
   def translateRuntimeClass[G](cls: Class[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaClassOrInterface[G] = {
@@ -275,7 +274,7 @@ case object Java {
 
   def findMethodInClass[G](cls: JavaClassOrInterface[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
     cls.decls.flatMap(Referrable.from).collectFirst {
-      case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) => ref
       case ref: RefJavaAnnotationMethod[G] if ref.name == method && args.length == 0 => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
@@ -304,7 +303,7 @@ case object Java {
 
   def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] = {
     val selectMatchingSignature: PartialFunction[Referrable[G], JavaInvocationTarget[G]] = {
-      case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
@@ -341,7 +340,7 @@ case object Java {
   def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[JavaConstructorTarget[G]] = t match {
     case JavaTClass(Ref(cls), _) =>
       val definedConstructor = cls.decls.collectFirst {
-        case cons: JavaConstructor[G] if Util.compat(args, cons.parameters) => RefJavaConstructor(cons)
+        case cons: JavaConstructor[G] if Util.compatJavaParams(args, cons.parameters) => RefJavaConstructor(cons)
       }
 
       args match {
@@ -364,17 +363,24 @@ case object Java {
       case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
     }
 
-  def isBipComponent(jc: JavaClassOrInterface[_]): Boolean =
+  def getBipComponentData[G](jc: JavaClassOrInterface[G]): Option[JavaAnnotationData.BipComponentType[G]] =
     jc.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) => ja.data }
-      .collect { case Some(x) => x }
-      .collect { case _: JavaAnnotationData.BipComponentType[_] => true }
-      .contains(true)
+      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+      .collectFirst { case bct: JavaAnnotationData.BipComponentType[G] => bct }
 
-  def isBipTransition(m: JavaMethod[_]): Boolean =
+  def getBipTransitionData[G](m: JavaMethod[G]): Option[JavaAnnotationData.BipTransition[G]] =
     m.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) => ja.data }
-      .collect { case Some(x) => x }
-      .collect { case _: JavaAnnotationData.BipTransition[_] => true }
-      .contains(true)
+      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+      .collectFirst { case b: JavaAnnotationData.BipTransition[G] => b }
+
+  def getBipGuardData[G](m: JavaMethod[G]): Option[JavaAnnotationData.BipGuard[G]] =
+    m.modifiers
+      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+      .collectFirst { case b: JavaAnnotationData.BipGuard[G] => b }
+
+  def getBipDataData[G](p: JavaParam[G]): Option[JavaAnnotationData.BipData[G]] =
+    p.modifiers
+      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+      .collectFirst { case d: JavaAnnotationData.BipData[G] => d }
+
 }

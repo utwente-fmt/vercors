@@ -389,26 +389,22 @@ case object ResolveReferences extends LazyLogging {
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Transition") =>
       logger.info(s"BIP Transition @ ${ann.o}")
-      val guard = (ann.get("guard"), ann.get("pre"), ann.get("post")) match {
-        case (Some(guardName), None, None) => ctx.javaBipGuards.get(getLit(guardName)) match {
-          case Some(guard) => Left(guard)
-          case None => throw MalformedBipAnnotation(ann, "Guard name does not exist")
-        }
-        case (None, requiresO, ensuresO) =>
-          def extractExpr(s: Option[Expr[_]]): String = s match {
-            case None => "true"
-            case Some(JavaStringLiteral(data)) => data
-            case Some(n) => throw MalformedBipAnnotation(n, "pre- and post-conditions must be string literals")
-          }
 
-          val requires: Expr[G] = ctx.javaParser.parse(extractExpr(requiresO))
-          val ensures: Expr[G] = ctx.javaParser.parse(extractExpr(ensuresO))
-          resolve(requires, ctx)
-          resolve(ensures, ctx)
-          Right((requires, ensures))
-        case (Some(_), _, _) =>
-          throw MalformedBipAnnotation(ann, "Specifying guard & pre- & post-condition simultaneously is not supported")
+      val guard = ann.get("guard").map { g =>
+        ctx.javaBipGuards.getOrElse(getLit(g), throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
+
+      def extractExpr(s: Option[Expr[_]]): String = s match {
+        case None => "true"
+        case Some(JavaStringLiteral(data)) => data
+        case Some(n) => throw MalformedBipAnnotation(n, "pre- and post-conditions must be string literals")
+      }
+
+      val requires: Expr[G] = ctx.javaParser.parse(extractExpr(ann.get("post")))
+      resolve(requires, ctx)
+
+      val ensures: Expr[G] = ctx.javaParser.parse(extractExpr(ann.get("post")))
+      resolve(ensures, ctx)
 
       val name = getLit(ann.expect("name"))
       val source = getLit(ann.expect("source"))
@@ -416,7 +412,7 @@ case object ResolveReferences extends LazyLogging {
       ann.data = Some(JavaAnnotationData.BipTransition[G](name,
         Java.findJavaBipStatePredicate(ctx, source),
         Java.findJavaBipStatePredicate(ctx, target),
-        guard))
+        guard, requires, ensures))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
@@ -431,6 +427,12 @@ case object ResolveReferences extends LazyLogging {
     case ann@JavaAnnotation(_, _) if isBip(ann, "ComponentType") =>
       ann.data = Some(JavaAnnotationData.BipComponentType(getLit(ann.expect("name")),
         Java.findJavaBipStatePredicate(ctx, getLit(ann.expect("initial")))))
+
+    case ann@JavaAnnotation(_, _) if isBip(ann, "Data") =>
+      ann.data = Some(JavaAnnotationData.BipData(getLit(ann.expect("name"))))
+
+    case ann@JavaAnnotation(_, _) if isBip(ann, "Guard") =>
+      ann.data = Some(JavaAnnotationData.BipGuard(getLit(ann.expect("name"))))
 
     case _ =>
   }

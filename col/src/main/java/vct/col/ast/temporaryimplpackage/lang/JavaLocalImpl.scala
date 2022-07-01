@@ -2,7 +2,7 @@ package vct.col.ast.temporaryimplpackage.lang
 
 import hre.util.FuncTools
 import vct.col.ast.{JavaLocal, TArray, TNotAValue, Type}
-import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefModelField, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefJavaParam, RefModelField, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.util.Types
 
 trait JavaLocalImpl[G] { this: JavaLocal[G] =>
@@ -13,6 +13,7 @@ trait JavaLocalImpl[G] { this: JavaLocal[G] =>
     case ref: RefJavaClass[G] => Types.notAValue(ref)
     case RefJavaField(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
     case RefJavaLocalDeclaration(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
+    case RefJavaParam(decl) => decl.t
     case RefModelField(field) => field.t
   }
 }

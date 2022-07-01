@@ -40,6 +40,7 @@ public class CalculatorSpec {
 
 
     @Transition(name = GET_DATA, source = WORK, target = CALCULATED, guard = "MEDIAN")
+    // requires isSorted(data);
 //    Transition(name = GET_DATA, source = WORK, target = CALCULATED, guard = MEDIAN)
     public void work(@Data(name = INCOMING_DATA)int[] data) {
         // System.out.println("CALCULATOR: CALCULATE DATA");
@@ -67,7 +68,7 @@ public class CalculatorSpec {
         return variance;
     }
 
-    //@ requires data[0] == 3;
+    // requires data[0] == 3;
     @Guard(name = "MEDIAN")
     public boolean isSorted(@Data(name = INCOMING_DATA) int[] data){
         //Collections.sort(data);

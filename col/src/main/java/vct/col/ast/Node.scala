@@ -744,8 +744,14 @@ final class JavaAnnotationInterface[G](val name: String, val modifiers: Seq[Java
 sealed trait JavaClassDeclaration[G] extends ClassDeclaration[G] with JavaClassDeclarationImpl[G]
 final class JavaSharedInitialization[G](val isStatic: Boolean, val initialization: Statement[G])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaSharedInitializationImpl[G]
 final class JavaFields[G](val modifiers: Seq[JavaModifier[G]], val t: Type[G], val decls: Seq[JavaVariableDeclaration[G]])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaFieldsImpl[G]
-final class JavaConstructor[G](val modifiers: Seq[JavaModifier[G]], val name: String, val parameters: Seq[Variable[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Statement[G], val contract: ApplicableContract[G])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaConstructorImpl[G]
-final class JavaMethod[G](val modifiers: Seq[JavaModifier[G]], val returnType: Type[G], val dims: Int, val name: String, val parameters: Seq[Variable[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaMethodImpl[G]
+final class JavaConstructor[G](val modifiers: Seq[JavaModifier[G]], val name: String, val parameters: Seq[JavaParam[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Statement[G], val contract: ApplicableContract[G])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaConstructorImpl[G]
+final class JavaParam[G](val modifiers: Seq[JavaModifier[G]], val name: String, val t: Type[G])(implicit val o: Origin) extends Declaration[G] {
+  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): this.type = {
+    scope.javaParams.top += this
+    this
+  }
+}
+final class JavaMethod[G](val modifiers: Seq[JavaModifier[G]], val returnType: Type[G], val dims: Int, val name: String, val parameters: Seq[JavaParam[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaMethodImpl[G]
 final class JavaAnnotationMethod[G](val returnType: Type[G], val name: String, val default: Option[Expr[G]])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaAnnotationMethodImpl[G]
 
 final class JavaLocalDeclaration[G](val modifiers: Seq[JavaModifier[G]], val t: Type[G], val decls: Seq[JavaVariableDeclaration[G]])(implicit val o: Origin) extends Declaration[G] with JavaLocalDeclarationImpl[G]
@@ -783,21 +789,17 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
-final case class JavaBipStatePredicate[G](expr: Expr[G])(implicit val o: Origin) extends Declaration[G] {
-  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): JavaBipStatePredicate.this.type = {
-    scope.javaBipStatePredicateScopes.top += this
-    this
-  }
-}
-final case class JavaBipTransition[G](source: Ref[G, JavaBipStatePredicate[G]], target: Ref[G, JavaBipStatePredicate[G]], impl: InstanceMethod[G])(implicit val o: Origin) extends Declaration[G] {
-  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): JavaBipTransition.this.type = {
-    scope.javaBipTransitionScopes.top += this
-    this
-  }
-}
-final case class JavaBipComponent[G](constructors: Procedure[G], cls: GlobalDeclaration[G], invariant: Expr[G], initial: Ref[G, JavaBipStatePredicate[G]], predicates: Seq[JavaBipStatePredicate[G]])(implicit val o: Origin) extends GlobalDeclaration[G] /* with JavaBipComponent[G] */ {
-  assert(cls.isInstanceOf[Class[G]])
-}
+sealed trait BipData[G] extends GlobalDeclaration[G]
+final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends BipData[G] { }
+final class BipOutgoingData[G]()(implicit val o: Origin) extends BipData[G] { }
+final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
+final class BipTransition[G](val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
+                             val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val guard: Option[Ref[G, BipGuard[G]]],
+                             val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
+                            )(val blame: Blame[ContractedFailure])(implicit val o: Origin) extends ClassDeclaration[G] { }
+final class BipGuard[G](val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val body: Statement[G])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipComponent[G](val constructors: Ref[G, Procedure[G]], val invariant: Expr[G],
+                            val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] { }
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

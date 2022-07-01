@@ -27,6 +27,7 @@ case object LangSpecificToCol extends RewriterBuilder {
 
 case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
+  val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
@@ -76,6 +77,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
+    case m: JavaMethod[Pre] => java.rewriteMethod(m)
+    case p: JavaParam[Pre] => java.rewriteParameter(p)
+
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
 
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
@@ -95,10 +99,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         }
       }
 
-    case function: Function[Pre] if concatStrings.contains(function) =>
+    case function: Function[Pre] if concatStrings.contains(function) => {
       val x = function.rewrite(pin = Some(JavaStringConcatOperator()))
       x.succeedDefault(function)
-      x
+    }
 
     case other => rewriteDefault(other)
   }

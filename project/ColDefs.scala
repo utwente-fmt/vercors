@@ -40,8 +40,9 @@ object ColDefs {
     "ParInvariantDecl" -> q"parInvariantScopes",
     "CDeclaration" -> q"cLocalScopes",
     "CParam" -> q"cParams",
+    "JavaParam" -> q"javaParams",
     "JavaLocalDeclaration" -> q"javaLocalScopes",
-    "JavaBipStatePredicate" -> q"javaBipStatePredicateScopes"
+    "BipIncomingData" -> q"bipIncomingDataScopes"
   )
 
   /**

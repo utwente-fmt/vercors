@@ -4,9 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, DiagnosticOrigin, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{AbstractApplicable, DerefPerm, DiagnosticOrigin, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefJavaParam, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -190,20 +190,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
         ).succeedDefault(cons)
       case method: JavaMethod[Pre] =>
-        new InstanceMethod(
-          returnType = rw.dispatch(method.returnType),
-          args = rw.collectInScope(rw.variableScopes) { method.parameters.foreach(rw.dispatch) },
-          outArgs = Nil, typeArgs = Nil,
-          body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-            case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-            case None => method.body.map(rw.dispatch)
-          },
-          contract = method.contract.rewrite(
-            signals = method.contract.signals.map(rw.dispatch) ++
-              method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-          ),
-          pure = method.modifiers.contains(JavaPure[Pre]())
-        )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+        rw.dispatch(method)
       case method: JavaAnnotationMethod[Pre] =>
         new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -218,10 +205,41 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
   }
 
-  def makeJavaBipComponent(oldCls: Class[Pre], cls: Class[Post]): JavaBipComponent[Post] = {
-    // TODO (RR): JavaBIp components seem to be a subset of java classes, so they should be explicitly modeled like that, instead of the java/nesting approach I was thinking of here
-    JavaBipComponent[Post](Seq(), cls, null, null, null)(DiagnosticOrigin).declareDefault(rw)
-  }
+  def rewriteParameter(param: JavaParam[Pre]): Unit =
+    if (Java.getBipDataData(param).isDefined) {
+      rw.bip.rewriteParameter(param)
+    } else {
+      val v = new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o))
+      v.succeedDefault(param)
+    }
+
+  def rewriteMethod(method: JavaMethod[Pre]): Unit =
+    if (Java.getBipTransitionData(method).isDefined) {
+      rw.bip.rewriteTransition(method)
+    } else if (Java.getBipGuardData(method).isDefined) {
+      rw.bip.rewriteGuard(method)
+    } else {
+      implicit val o = JavaInstanceClassOrigin(currentJavaClass.top)
+      new InstanceMethod(
+        returnType = rw.dispatch(method.returnType),
+        args = rw.collectInScope(rw.variableScopes) { method.parameters.foreach(rw.dispatch) },
+        outArgs = Nil, typeArgs = Nil,
+        body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
+          case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+          case None => method.body.map(rw.dispatch)
+        },
+        contract = method.contract.rewrite(
+          signals = method.contract.signals.map(rw.dispatch) ++
+            method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+        ),
+        pure = method.modifiers.contains(JavaPure[Pre]())
+      )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+    }
+
+  //  def makeJavaBipComponent(oldCls: Class[Pre], cls: Class[Post]): JavaBipComponent[Post] = {
+//    // TODO (RR): JavaBIp components seem to be a subset of java classes, so they should be explicitly modeled like that, instead of the java/nesting approach I was thinking of here
+//    JavaBipComponent[Post](Seq(), cls, null, null, null)(DiagnosticOrigin).declareDefault(rw)
+//  }
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
@@ -252,11 +270,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         }, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch(_)))(JavaInstanceClassOrigin(cls))
       }
 
-      if (Java.isBipComponent(cls)) {
-        makeJavaBipComponent(instanceClass).declareDefault(rw)
-      } else {
+//      if (Java.isBipComponent(cls)) {
+//        makeJavaBipComponent(instanceClass).declareDefault(rw)
+//      } else {
         instanceClass.declareDefault(rw)
-      }
+//      }
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {
@@ -310,6 +328,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     local.ref.get match {
       case RefAxiomaticDataType(decl) => throw NotAValue(local)
       case RefVariable(decl) => Local(rw.succ(decl))
+      case RefJavaParam(decl) => Local(rw.succ(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
       case RefJavaClass(decl) => throw NotAValue(local)
       case RefJavaField(decls, idx) =>

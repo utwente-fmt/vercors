@@ -33,11 +33,11 @@ class ScopeContext[Pre, Post] {
   val modelScopes: ScopedStack[ArrayBuffer[ModelDeclaration[Post]]] = ScopedStack()
 
   val javaLocalScopes: ScopedStack[ArrayBuffer[JavaLocalDeclaration[Post]]] = ScopedStack()
+  val javaParams: ScopedStack[ArrayBuffer[JavaParam[Post]]] = ScopedStack()
+
   val cLocalScopes: ScopedStack[ArrayBuffer[CDeclaration[Post]]] = ScopedStack()
   val cParams: ScopedStack[ArrayBuffer[CParam[Post]]] = ScopedStack()
 
-  val javaBipStatePredicateScopes: ScopedStack[ArrayBuffer[JavaBipStatePredicate[Post]]] = ScopedStack()
-  val javaBipTransitionScopes: ScopedStack[ArrayBuffer[JavaBipTransition[Post]]] = ScopedStack()
 
   def withCollectInScope[T, S](scope: ScopedStack[ArrayBuffer[T]])(f: => S): (Seq[T], S) = {
     scope.push(ArrayBuffer())

@@ -1,12 +1,17 @@
 package vct.col.resolve
 
-import vct.col.ast.Type
-import vct.col.ast.{ContractApplicable, Expr, Variable}
+import vct.col.ast.{ContractApplicable, Expr, JavaParam, Type, Variable}
 
 case object Util {
+  def compatJavaParams[G](args: Seq[Expr[G]], params: Seq[JavaParam[G]]): Boolean =
+    compatTypes(args, params.map(_.t))
+
   def compat[G](args: Seq[Expr[G]], params: Seq[Variable[G]]): Boolean =
-    args.size == params.size && params.zip(args).forall {
-      case (v, e) => v.t.superTypeOf(e.t)
+    compatTypes(args, params.map(_.t))
+
+  def compatTypes[G](args: Seq[Expr[G]], types: Seq[Type[G]]): Boolean =
+    args.size == types.size && types.zip(args).forall {
+      case (t, e) => t.superTypeOf(e.t)
     }
 
   def compat[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], genericInvokable: ContractApplicable[G]): Boolean =

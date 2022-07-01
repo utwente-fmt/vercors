@@ -8,7 +8,7 @@ object JavaAnnotationImpl {
   case class AnnotationElementMissing(ann: JavaAnnotation[_], element: String) extends UserError {
     override def code: String = "annotationElementMissing"
 
-    override def text: String = ann.o.messageInContext("The element $element should be present")
+    override def text: String = ann.o.messageInContext(s"The element $element should be present")
   }
 }
 

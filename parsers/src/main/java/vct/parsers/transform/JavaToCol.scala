@@ -240,26 +240,26 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       JavaVariableDeclaration(convert(name), dims.map(convert(_)).getOrElse(0), Some(convert(init)))
   }
 
-  def convert(implicit params: FormalParametersContext): Seq[Variable[G]] = params match {
+  def convert(implicit params: FormalParametersContext): Seq[JavaParam[G]] = params match {
     case FormalParameters0(_, params, _) => params.map(convert(_)).getOrElse(Nil)
   }
 
-  def convert(implicit params: FormalParameterListContext): Seq[Variable[G]] = params match {
+  def convert(implicit params: FormalParameterListContext): Seq[JavaParam[G]] = params match {
     case FormalParameterList0(varargs) => ??(varargs)
     case FormalParameterList1(params) => convert(params)
     case FormalParameterList2(_, _, varargs) => ??(varargs)
   }
 
-  def convert(implicit params: InitFormalParameterListContext): Seq[Variable[G]] = params match {
+  def convert(implicit params: InitFormalParameterListContext): Seq[JavaParam[G]] = params match {
     case InitFormalParameterList0(param) => Seq(convert(param))
     case InitFormalParameterList1(param, _, params) => convert(param) +: convert(params)
   }
 
-  def convert(implicit param: FormalParameterContext): Variable[G] = param match {
-    case FormalParameter0(_, tNode, nameDims) =>
+  def convert(implicit param: FormalParameterContext): JavaParam[G] = param match {
+    case FormalParameter0(modifiers, tNode, nameDims) =>
       val (name, dims) = convert(nameDims)
       val t = FuncTools.repeat(TArray[G](_), dims, convert(tNode))
-      new Variable(t)(SourceNameOrigin(name, origin(param)))
+      new JavaParam(modifiers.map(convert(_)), name, t)(SourceNameOrigin(name, origin(param)))
   }
 
   def convert(implicit dims: DimsContext): Int = dims match {

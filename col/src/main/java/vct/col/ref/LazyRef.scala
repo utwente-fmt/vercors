@@ -12,6 +12,8 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G])(implicit t
   // Capture lazyDecl into a lambda, so that lazyDecl is not implicitly added as a field in the LazyRef class.
   private var computeDecl: () => Declaration[G] = () => lazyDecl
 
+  val stacktrace = Thread.currentThread().getStackTrace
+
   // Make decl lazy, so its evaluation is delayed, but only performed once.
   lazy val decl: Decl = {
     val result = computeDecl()
