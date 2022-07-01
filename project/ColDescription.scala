@@ -102,7 +102,7 @@ class ColDescription {
     case _ =>
       MetaUtil.fail(
         s"Encountered an unknown type while generating default rewriters: $typ\n" +
-          "Perhaps there is an 'extends Expr' or so missing?",
+          "Perhaps there is an 'extends Expr' or so missing, or ColDefs.DECLARATION_KINDS is incomplete?",
         node=Some(typ)
       )
   }

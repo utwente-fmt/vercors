@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, Origin, TrueSatisfiable}
 import vct.col.ref.Ref
-import vct.col.resolve.{BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable}
+import vct.col.resolve.{BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCLocalDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.{Substitute, SuccessionMap}
 import vct.col.util.AstBuildHelpers._
@@ -111,17 +111,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
-  def rewriteLocal(decl: CDeclaration[Pre]): Statement[Post] = {
+  def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
     // PB: this is correct because Seq[CInit]'s are flattened, but the structure is a bit stupid.
-    val t = decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
-    Block(for((init, idx) <- decl.inits.zipWithIndex) yield {
+    val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
+    Block(for((init, idx) <- decl.decl.inits.zipWithIndex) yield {
       val info = C.getDeclaratorInfo(init.decl)
       info.params match {
         case Some(params) => ???
         case None =>
           val v = new Variable[Post](t)(init.o)
-          cNameSuccessor(RefCDeclaration(decl, idx)) = v
+          cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
           implicit val o: Origin = init.o
           init.init match {
             case Some(value) =>
@@ -159,7 +159,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
           Local(cNameSuccessor.ref(ref))
       case RefCFunctionDefinition(decl) => throw NotAValue(local)
       case RefCGlobalDeclaration(decls, initIdx) => throw NotAValue(local)
-      case ref: RefCDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
+      case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
     }
   }
 
@@ -195,7 +195,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
-      case RefCDeclaration(decls, initIdx) => ???
     }
   }
 }

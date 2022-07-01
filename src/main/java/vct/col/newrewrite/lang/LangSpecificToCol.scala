@@ -51,7 +51,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)
     case decl: CGlobalDeclaration[Pre] => c.rewriteGlobalDecl(decl)
-    case decl: CDeclaration[Pre] => ???
+    case decl: CLocalDeclaration[Pre] => ???
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {

@@ -1,6 +1,6 @@
 package vct.col.newrewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLocalDeclaration, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.origin.Origin
 import vct.col.resolve.{C, RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -85,14 +85,16 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
     case param: CParam[Pre] =>
       val (specs, decl) = normalizeCDeclaration(param.specifiers, param.declarator, context = Some(param))(param.o)
       new CParam(specs, decl)(param.o).declareDefault(this)
-    case declaration: CDeclaration[Pre] =>
-      declaration.inits.foreach(init => {
+    case declaration: CLocalDeclaration[Pre] =>
+      declaration.decl.inits.foreach(init => {
         implicit val o: Origin = init.o
-        val (specs, decl) = normalizeCDeclaration(declaration.specs, init.decl)
+        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl)
         declaration.rewrite(
-          specs = specs,
-          inits = Seq(
-            CInit(decl, init.init.map(dispatch)),
+          decl = declaration.decl.rewrite(
+            specs = specs,
+            inits = Seq(
+              CInit(decl, init.init.map(dispatch)),
+            ),
           ),
         ).declareDefault(this)
       })

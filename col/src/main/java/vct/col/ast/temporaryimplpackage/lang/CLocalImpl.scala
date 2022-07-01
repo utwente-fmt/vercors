@@ -1,7 +1,7 @@
 package vct.col.ast.temporaryimplpackage.lang
 
-import vct.col.ast.{CLocal, CPrimitiveType, TNotAValue, Type}
-import vct.col.resolve.{C, RefAxiomaticDataType, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefModelField, RefVariable}
+import vct.col.ast.{CLocal, CPrimitiveType, Type}
+import vct.col.resolve.{C, RefAxiomaticDataType, RefCLocalDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefModelField, RefVariable}
 import vct.col.util.Types
 
 trait CLocalImpl[G] { this: CLocal[G] =>
@@ -16,11 +16,11 @@ trait CLocalImpl[G] { this: CLocal[G] =>
         case Some(_) => Types.notAValue(ref) // Function declaration
         case None => declInfo.typeOrReturnType(CPrimitiveType(decls.decl.specs)) // Static declaration
       }
-    case ref @ RefCDeclaration(decls, initIdx) =>
-      val declInfo = C.getDeclaratorInfo(decls.inits(initIdx).decl)
+    case ref @ RefCLocalDeclaration(decls, initIdx) =>
+      val declInfo = C.getDeclaratorInfo(decls.decl.inits(initIdx).decl)
       declInfo.params match {
         case Some(_) => Types.notAValue(ref) // Function declaration
-        case None => declInfo.typeOrReturnType(CPrimitiveType(decls.specs)) // Static declaration
+        case None => declInfo.typeOrReturnType(CPrimitiveType(decls.decl.specs)) // Static declaration
       }
     case RefModelField(field) => field.t
   }

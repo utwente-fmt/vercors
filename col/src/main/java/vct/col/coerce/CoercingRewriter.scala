@@ -1262,8 +1262,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         decl
       case param: CParam[Pre] =>
         param
-      case declaration: CDeclaration[Pre] =>
-        new CDeclaration[Pre](declaration.contract, res(declaration.kernelInvariant), declaration.specs, declaration.inits)
+      case decl: CLocalDeclaration[Pre] =>
+        decl
       case declaration: JavaLocalDeclaration[Pre] =>
         new JavaLocalDeclaration[Pre](declaration.modifiers, declaration.t, declaration.decls.map {
           case JavaVariableDeclaration(name, dims, None) => JavaVariableDeclaration(name, dims, None)
