@@ -172,7 +172,7 @@ lazy val vercors: Project = (project in file("."))
 
     Universal / packageBin / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
     Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
-    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/vercors/res/$path") },
+    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/${normalizedName.value}/res/$path") },
 
     scriptClasspath := scriptClasspath.value :+ "../res",
 
