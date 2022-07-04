@@ -1,7 +1,7 @@
 package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AbstractRewriter, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, TBool, Type, Variable, JavaAnnotationData => jad}
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, Type, Variable, JavaAnnotationData => jad}
 import vct.col.newrewrite.lang.LangBipToCol.TodoError
 import vct.col.origin.{DiagnosticOrigin, PanicBlame, SourceNameOrigin}
 import vct.col.ref.Ref
@@ -43,7 +43,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   // Tricky: what if the types of guard & incoming transition data do not line up? How to decide the subtyping relation?
   // I think we can do something nice here, something like SenderType <: ReceiverType <: Guard. But for now all types should be equal
   def createOrGetIncomingData(name: String, expectedType: Type[Pre]): Ref[Post, BipIncomingData[Post]] = {
-    val (storedType, bid) = bipIncomingDatas.getOrElseUpdate(name, (expectedType, new BipIncomingData(rw.dispatch(expectedType))(DiagnosticOrigin)))
+    val (storedType, bid) = bipIncomingDatas.getOrElseUpdate(name,
+      (expectedType, new BipIncomingData(rw.dispatch(expectedType))(DiagnosticOrigin).declareDefault(rw)))
     if (storedType != expectedType) {
       throw Unreachable("")
     } else {
@@ -62,12 +63,6 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteTransition(m: JavaMethod[Pre]): Unit = {
     val jad.BipTransition(_, source, target, guard, requires, ensures) = Java.getBipTransitionData(m).get
 
-    guard match {
-      case Some(value) =>
-        println("In bipTransition: " + value.hashCode())
-      case None =>
-    }
-
     val trans = new BipTransition[Post](
       getJavaBipStatePredicate(source),
       getJavaBipStatePredicate(target),
@@ -83,8 +78,6 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteGuard(m: JavaMethod[Pre]): Unit = {
     val jad.BipGuard(name) = Java.getBipGuardData(m).get
 
-    println("Reweriting guard method: " + m.hashCode())
-
     if (m.returnType != TBool[Pre]()) {
       throw Unreachable("")
     }
@@ -94,5 +87,16 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       rw.dispatch(m.body.get)
     )(DiagnosticOrigin)
     guard.succeedDefault(m)
+  }
+
+  def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
+    val jad.BipComponentType(name, initialState) = Java.getBipComponentData(cls).get
+    val invariant: Expr[Pre] = Java.getBipInvariantData(cls) match {
+      case Some(value) => value.expr
+      case None => tt[Pre]
+    }
+
+    new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
+      )(DiagnosticOrigin).declareDefault(rw)
   }
 }

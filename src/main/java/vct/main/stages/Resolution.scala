@@ -14,7 +14,7 @@ import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
 import vct.parsers.{ColJavaParser, FileNotFound, ParseResult}
-import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
+import vct.parsers.transform.{BlameProvider, ReadableOriginProvider, RedirectOriginProvider}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 
@@ -47,11 +47,10 @@ case class SpecExprParseError(msg: String) extends UserError {
 }
 
 case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecExprParser {
-  override def parse[G](input: String): Expr[G] = {
-    // TODO (RR): Make filename propagation work somehow
-    // TODO (RR): Origin provider should take into account that it is actually in input file origin, not redirect to string
+  override def parse[G](input: String, o: Origin): Expr[G] = {
+    // TODO (RR): The behavior of redirecting origins works now but its is ugly, refactor
     val sr = StringReadable(input)
-    val cjp = ColJavaParser(ReadableOriginProvider(sr), blameProvider)
+    val cjp = ColJavaParser(RedirectOriginProvider(o, ReadableOriginProvider(sr)), blameProvider)
     val x = try {
         sr.read { reader =>
           cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName))

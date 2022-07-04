@@ -796,9 +796,11 @@ final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) exte
 final class BipTransition[G](val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
                              val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val guard: Option[Ref[G, BipGuard[G]]],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
-                            )(val blame: Blame[ContractedFailure])(implicit val o: Origin) extends ClassDeclaration[G] { }
+                            )(val blame: Blame[ContractedFailure])(implicit val o: Origin) extends ClassDeclaration[G] with Declarator[G] {
+  override def declarations: Seq[Declaration[G]] = data.map(_._2)
+}
 final class BipGuard[G](val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val body: Statement[G])(implicit val o: Origin) extends ClassDeclaration[G]
-final class BipComponent[G](val constructors: Ref[G, Procedure[G]], val invariant: Expr[G],
+final class BipComponent[G](val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
                             val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] { }
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]

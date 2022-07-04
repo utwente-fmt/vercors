@@ -368,6 +368,11 @@ case object Java {
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
       .collectFirst { case bct: JavaAnnotationData.BipComponentType[G] => bct }
 
+  def getBipInvariantData[G](jc: JavaClassOrInterface[G]): Option[JavaAnnotationData.BipInvariant[G]] =
+    jc.modifiers
+      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+      .collectFirst { case bi: JavaAnnotationData.BipInvariant[G] => bi }
+
   def getBipTransitionData[G](m: JavaMethod[G]): Option[JavaAnnotationData.BipTransition[G]] =
     m.modifiers
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }

@@ -1261,6 +1261,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
+      case bc: BipComponent[Pre] =>
+        new BipComponent(bc.constructors, bool(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>
         new BipStatePredicate(bool(bsp.expr))
       case trans: BipTransition[Pre] =>
@@ -1269,6 +1271,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           bool(trans.ensures),
           trans.body
         )(trans.blame)
+      case data: BipIncomingData[Pre] =>
+        data
       case guard: BipGuard[Pre] =>
         guard
     }

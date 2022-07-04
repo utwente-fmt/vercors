@@ -91,7 +91,7 @@ class Transformation
       onAfterPassKey.foreach {
         case (key, action) => if(pass.key == key) action(result)
       }
-
+      val resultX = result
       result = PrettifyBlocks().dispatch(result)
     }
 
@@ -107,6 +107,8 @@ case class SilverTransformation
   simplifyBeforeRelations: Seq[RewriterBuilder] = Nil,
   simplifyAfterRelations: Seq[RewriterBuilder] = Nil,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    EncodeBip,
+
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
 

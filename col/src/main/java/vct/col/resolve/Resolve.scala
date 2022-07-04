@@ -24,7 +24,7 @@ case object Resolve {
 
   trait SpecExprParser {
     // If parsing fails, throw/terminate
-    def parse[G](input: String): Expr[G]
+    def parse[G](input: String, o: Origin): Expr[G]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -394,16 +394,18 @@ case object ResolveReferences extends LazyLogging {
         ctx.javaBipGuards.getOrElse(getLit(g), throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
 
-      def extractExpr(s: Option[Expr[_]]): String = s match {
-        case None => "true"
-        case Some(JavaStringLiteral(data)) => data
+      def extractExpr(s: Option[Expr[_]]): (String, Origin) = s match {
+        case None => ("true", ann.o)
+        case Some(s @ JavaStringLiteral(data)) => (data, s.o)
         case Some(n) => throw MalformedBipAnnotation(n, "pre- and post-conditions must be string literals")
       }
 
-      val requires: Expr[G] = ctx.javaParser.parse(extractExpr(ann.get("post")))
+      val (r, ro) = extractExpr(ann.get("post"))
+      val requires: Expr[G] = ctx.javaParser.parse(r, ro)
       resolve(requires, ctx)
 
-      val ensures: Expr[G] = ctx.javaParser.parse(extractExpr(ann.get("post")))
+      val (e, eo) = extractExpr(ann.get("post"))
+      val ensures: Expr[G] = ctx.javaParser.parse(e, eo)
       resolve(ensures, ctx)
 
       val name = getLit(ann.expect("name"))
@@ -415,12 +417,12 @@ case object ResolveReferences extends LazyLogging {
         guard, requires, ensures))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
-      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
+      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)
       resolve(expr, ctx)
       ann.data = Some(JavaAnnotationData.BipInvariant(expr))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
-      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")))
+      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)
       resolve(expr, ctx) // TODO (RR): Throwing away errors here?
       ann.data = Some(JavaAnnotationData.BipStatePredicate(getLit(ann.expect("state")), expr))
 

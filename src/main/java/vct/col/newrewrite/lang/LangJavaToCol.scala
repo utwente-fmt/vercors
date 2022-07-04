@@ -267,6 +267,13 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
         new Class[Post](rw.collectInScope(rw.classScopes) {
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
+
+          // TODO (RR): Do bip components need to be classes? Or also interfaces?
+          cls match {
+            case cls: JavaClass[Pre] if Java.getBipComponentData(cls).isDefined =>
+              rw.bip.generateComponent(cls, cls.decls.collect({ case c: JavaConstructor[Pre] => c }).map(rw.succ(_)))
+            case _ =>
+          }
         }, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch(_)))(JavaInstanceClassOrigin(cls))
       }
 

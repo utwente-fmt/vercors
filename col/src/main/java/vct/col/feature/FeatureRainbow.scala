@@ -469,9 +469,9 @@ class FeatureRainbow[G] {
     case node: JavaNewClass[G] => return Nil
     case node: JavaNewLiteralArray[G] => return Nil
     case node: JavaNewDefaultArray[G] => return Nil
-    case node: InternedString[G] => return Nil // TODO (RR): Probably should be some feature?
-    case node: StringLiteral[G] => return Nil // TODO (RR): Probably should be some feature?
-    case node: JavaLangString[G] => return Nil // TODO (RR): Probably should be some feature?
+    case node: InternedString[G] => return Nil
+    case node: StringLiteral[G] => return Nil
+    case node: JavaLangString[G] => return Nil
     case node: JavaStringConcatOperator[G] => return Nil
     case node: PVLNamedType[G] => return Nil
     case node: PVLLocal[G] => return Nil
@@ -480,5 +480,11 @@ class FeatureRainbow[G] {
     case node: PVLNew[G] => return Nil
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
+    case _: BipGuard[G] => return Nil
+    case _: BipComponent[G] => return Nil
+    case _: BipIncomingData[G] => return Nil
+    case _: BipOutgoingData[G] => return Nil
+    case _: BipStatePredicate[G] => return Nil
+    case _: BipTransition[G] => return Nil
   })
 }
