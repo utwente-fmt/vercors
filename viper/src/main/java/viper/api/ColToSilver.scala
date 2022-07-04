@@ -275,6 +275,7 @@ case class ColToSilver(program: col.Program[_]) {
       val silver = pred(res)
       silver.perm.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver
+    case col.Wand(left, right) => silver.MagicWand(exp(left), exp(right))(pos = pos(e), info=expInfo(e))
     case col.SilverCurPredPerm(p, args) => silver.CurrentPerm(silver.PredicateAccess(args.map(exp), ref(p))(pos=pos(e), info=expInfo(e)))(pos=pos(e), info=expInfo(e))
     case col.SilverCurFieldPerm(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(e), info=expInfo(e)))(pos=pos(e), info=expInfo(e))
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(pos=pos(e), info=expInfo(e))
@@ -392,6 +393,16 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Fold(p: col.PredicateApply[_]) => silver.Fold(pred(p))(pos=pos(s), info=NodeInfo(s))
     case col.Unfold(p: col.PredicateApply[_]) => silver.Unfold(pred(p))(pos=pos(s), info=NodeInfo(s))
     case col.SilverNewRef(v, fs) => silver.NewStmt(silver.LocalVar(ref(v), typ(v.decl.t))(), fs.map(ref => fields(ref.decl)))(pos=pos(s), info=NodeInfo(s))
+    case col.WandPackage(wand @ col.Wand(left, right), proof) =>
+      silver.Package(
+        silver.MagicWand(exp(left), exp(right))(pos = pos(wand), info=NodeInfo(wand)), stat(proof) match {
+          // ugly hack to fix scoping issue in viper
+          case seqn: silver.Seqn => seqn
+          case other => silver.Seqn(Seq(other), Nil)(pos = pos(proof), info=NodeInfo(proof))
+        }
+      )(pos = pos(s), info=NodeInfo(s))
+    case col.WandApply(wand @ col.Wand(left, right)) =>
+      silver.Apply(silver.MagicWand(exp(left), exp(right))(pos = pos(wand), info=NodeInfo(wand)))(pos = pos(s), info=NodeInfo(s))
     case other => ??(other)
   }
 

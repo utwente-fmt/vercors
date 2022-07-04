@@ -49,6 +49,9 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
     case act: ModelDo[Pre] =>
       act.rewrite(impl = collectVariables(act.impl))
 
+    case pack: WandPackage[Pre] =>
+      pack.rewrite(proof = collectVariables(pack.proof))
+
     case other => rewriteDefault(other)
   }
 

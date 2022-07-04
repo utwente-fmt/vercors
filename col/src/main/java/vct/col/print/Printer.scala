@@ -544,14 +544,10 @@ case class Printer(out: Appendable,
       spec(statement("fold", space, pred))
     case Unfold(pred) =>
       spec(statement("unfold", space, pred))
-    case WandCreate(statements) =>
-      spec(control(phrase("create"), Block(statements)(DiagnosticOrigin)))
-    case WandQed(wand) =>
-      spec(statement("qed", space, wand))
+    case WandPackage(expr, state) =>
+      spec(control(phrase("package", expr), state))
     case WandApply(wand) =>
       spec(statement("apply", space, wand))
-    case WandUse(pred) =>
-      spec(statement("use", space, pred))
     case Havoc(loc) =>
       ???
     case Break(label) =>

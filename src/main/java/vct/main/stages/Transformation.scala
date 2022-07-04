@@ -74,7 +74,6 @@ class Transformation
     val tempUnsupported = Set[feature.Feature](
       feature.MatrixVector,
       feature.NumericReductionOperator,
-      feature.MagicWand,
       feature.Models,
     )
 

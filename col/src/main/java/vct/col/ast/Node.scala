@@ -166,9 +166,7 @@ final case class Unlock[G](obj: Expr[G])(val blame: Blame[UnlockFailure])(implic
 final case class Commit[G](obj: Expr[G])(val blame: Blame[CommitFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with CommitImpl[G]
 final case class Fold[G](res: Expr[G])(val blame: Blame[FoldFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with FoldImpl[G]
 final case class Unfold[G](res: Expr[G])(val blame: Blame[UnfoldFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with UnfoldImpl[G]
-final case class WandQed[G](res: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with WandQedImpl[G]
-final case class WandApply[G](res: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with WandApplyImpl[G]
-final case class WandUse[G](res: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with WandUseImpl[G]
+final case class WandApply[G](res: Expr[G])(val blame: Blame[WandApplyFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with WandApplyImpl[G]
 final case class Havoc[G](loc: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with HavocImpl[G]
 final case class FramedProof[G](pre: Expr[G], body: Statement[G], post: Expr[G])(val blame: Blame[FramedProofFailure])(implicit val o: Origin) extends NormallyCompletingStatement[G] with FramedProofImpl[G]
 
@@ -196,7 +194,7 @@ final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: St
 final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends CompositeStatement[G] with ParBarrierImpl[G]
 final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin) extends CompositeStatement[G] with ParStatementImpl[G]
 final case class VecBlock[G](iters: Seq[IterVariable[G]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with VecBlockImpl[G]
-final case class WandCreate[G](statements: Seq[Statement[G]])(implicit val o: Origin) extends CompositeStatement[G] with WandCreateImpl[G]
+final case class WandPackage[G](res: Expr[G], proof: Statement[G])(val blame: Blame[PackageFailed])(implicit val o: Origin) extends CompositeStatement[G] with WandCreateImpl[G]
 final case class ModelDo[G](model: Expr[G], perm: Expr[G], after: Expr[G], action: Expr[G], impl: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with ModelDoImpl[G]
 
 sealed abstract class Declaration[G] extends Node[G] with DeclarationImpl[G] {
