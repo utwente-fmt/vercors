@@ -203,30 +203,30 @@ class Node {
 
     resource reverse() =
       Perm(val, write) ** Perm(prev, write) ** Perm(next, write) **
-      (prev!=null ==> prev.reverse() ** prev.rev_next()==this);
+      (prev != null ==> prev.reverse() ** prev.rev_next() == this);
   @*/
 
   /*@
     requires state();
-    pure Node get_next() = next;
+    pure Node get_next() = \unfolding state() \in next;
   @*/
   /*@
     requires state();
-    pure Node get_prev() = prev;
+    pure Node get_prev() = \unfolding state() \in prev;
   @*/
   /*@
     requires reverse();
-    pure Node rev_next() = next;
-  @*/
-
-  /*@
-    requires reverse();
-    pure Node rev_prev() = prev;
+    pure Node rev_next() = \unfolding reverse() \in next;
   @*/
 
   /*@
     requires reverse();
-    pure Node first() = prev==null ? this : prev.first();
+    pure Node rev_prev() = \unfolding reverse() \in prev;
+  @*/
+
+  /*@
+    requires reverse();
+    pure Node first() = \unfolding reverse() \in (prev==null ? this : prev.first());
   @*/
 
 

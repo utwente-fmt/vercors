@@ -147,7 +147,13 @@ case class FoldFailed(failure: ContractFailure, node: Fold[_]) extends WithContr
   override def descInContext: String = "Fold may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
-case class PackageFailed(failure: ContractFailure, node: WandPackage[_]) extends WithContractFailure {
+trait PackageFailure extends VerificationFailure
+case class PackageThrows(node: WandPackage[_]) extends PackageFailure with NodeVerificationFailure {
+  override def code: String = "packageThrows"
+  override def descInContext: String = "Package proof may throw an exception"
+  override def inlineDescWithSource(source: String): String = s"`$node` may throw an exception."
+}
+case class PackageFailed(failure: ContractFailure, node: WandPackage[_]) extends PackageFailure with WithContractFailure {
   override def baseCode: String = "packageFailed"
   override def descInContext: String = "Package statement may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."

@@ -224,6 +224,8 @@ trait SilverBackend extends Backend with LazyLogging {
               case _ =>
                 defer(reason)
             }
+          case reasons.MagicWandChunkNotFound(magicWand) =>
+            applyNode.blame.blame(blame.WandApplyFailed(blame.InsufficientPermissionToExhale(get(magicWand)), applyNode))
           case _ =>
             defer(reason)
         }
