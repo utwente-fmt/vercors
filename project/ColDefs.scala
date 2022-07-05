@@ -29,20 +29,23 @@ object ColDefs {
   /**
    * The different kinds of declaration that exist, as well as a mapping to their corresponding default scope.
    */
-  val DECLARATION_KINDS: Map[String, Term.Name] = Map(
-    "GlobalDeclaration" -> q"globalScopes",
-    "ClassDeclaration" -> q"classScopes",
-    "ADTDeclaration" -> q"adtScopes",
-    "ModelDeclaration" -> q"modelScopes",
-    "Variable" -> q"variableScopes",
-    "LabelDecl" -> q"labelScopes",
-    "SendDecl" -> q"sendScopes",
-    "ParBlockDecl" -> q"parBlockScopes",
-    "ParInvariantDecl" -> q"parInvariantScopes",
-    "CLocalDeclaration" -> q"cLocalScopes",
-    "CParam" -> q"cParams",
-    "JavaLocalDeclaration" -> q"javaLocalScopes",
+  val DECLARATION_KINDS: Seq[String] = Seq(
+    "GlobalDeclaration",
+    "ClassDeclaration",
+    "ADTDeclaration",
+    "ModelDeclaration",
+    "Variable",
+    "LabelDecl",
+    "SendDecl",
+    "ParBlockDecl",
+    "ParInvariantDecl",
+    "CLocalDeclaration",
+    "CParam",
+    "JavaLocalDeclaration",
   )
+
+  def scopes(kind: String): Term.Name =
+    Term.Name(kind.charAt(0).toLower + kind.substring(1) + "s")
 
   val DECLARATION_NAMESPACE: Map[String, Seq[Type.Name]] = Map(
     "GlobalDeclaration" -> Seq(t"Program"),
@@ -86,7 +89,7 @@ object ColDefs {
     ),
   )
 
-  assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.keys.toSet)
+  assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)
 
   /**
    * The type that is the direct superclass of AbstractRewriter, and contains the default scopes mentioned above.

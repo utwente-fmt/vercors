@@ -78,7 +78,7 @@ class ColDescription {
    */
   def rewriteDefault(term: Term, typ: Type): Term = typ match {
     case Type.Apply(Type.Name("Seq"), List(Type.Apply(Type.Name(declKind), List(Type.Name("G"))))) if DECLARATION_KINDS.contains(declKind) =>
-      q"rewriter.collectInScope(rewriter.${DECLARATION_KINDS(declKind)}){$term.foreach(rewriter.dispatch)}"
+      q"rewriter.collectInScope(rewriter.${ColDefs.scopes(declKind)}){$term.foreach(rewriter.dispatch)}"
     case Type.Apply(Type.Name(collectionType), List(arg)) if Set("Seq", "Set", "Option").contains(collectionType) =>
       q"$term.map(element => ${rewriteDefault(q"element", arg)})"
 
@@ -90,7 +90,7 @@ class ColDescription {
       MetaUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
 
     case Type.Apply(Type.Name(declKind), List(Type.Name("G"))) if DECLARATION_KINDS.contains(declKind) =>
-      q"rewriter.collectOneInScope(rewriter.${DECLARATION_KINDS(declKind)}){rewriter.dispatch($term)}"
+      q"rewriter.collectOneInScope(rewriter.${ColDefs.scopes(declKind)}){rewriter.dispatch($term)}"
     case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 

@@ -378,7 +378,7 @@ case class ColToSilver(program: col.Program[_]) {
       val silverLocals = locals.map(variable)
       silver.Seqn(Seq(stat(body)), silverLocals)(pos=pos(s), info=NodeInfo(s))
     case col.Branch(Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(pos=pos(s), info=NodeInfo(s))
-    case col.Loop(col.Block(Nil), cond, col.Block(Nil), invNode @ col.LoopInvariant(inv), body) =>
+    case col.Loop(block @ col.Block(Nil), cond, col.Block(Nil), invNode @ col.LoopInvariant(inv), body) =>
       silver.While(exp(cond), currentInvariant.having(invNode) { unfoldStar(inv).map(exp) }, block(body))(pos=pos(s), info=NodeInfo(s))
     case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(pos=pos(s), info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(pos=pos(s), info=NodeInfo(s))

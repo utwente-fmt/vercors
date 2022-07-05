@@ -47,6 +47,10 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
         AbstractRewriter.${Term.Name(s"rewriteDefault${DECLARATION}LookupTable")}(decl.getClass)(decl, this)
           .succeedDefault(decl)(this)
 
+      ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
+        val ${Pat.Var(ColDefs.scopes(decl))}: Scopes[Pre, Post, ${Type.Name(decl)}[Pre], ${Type.Name(decl)}[Post]] = Scopes(this)
+      """).toList}
+
       ..${info.families.map(family => q"""
         def dispatch(node: ${Type.Name(family)}[Pre]): ${Type.Name(family)}[Post]
       """).toList}
