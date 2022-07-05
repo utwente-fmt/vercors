@@ -725,6 +725,19 @@ final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(
   var data: Option[JavaAnnotationData[G]] = None
 }
 
+sealed trait JavaAnnotationData[G] extends NodeFamily[G] { }
+case object JavaAnnotationData {
+  final case class BipTransition[G](name: String,
+                                    source: Either[String, JavaModifier[G] /* = JavaAnnotation */],
+                                    target: Either[String, JavaModifier[G] /* = JavaAnnotation */],
+                                    guard: Option[Ref[G, JavaMethod[G]]], requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends JavaAnnotationData[G]
+  final case class BipInvariant[G](expr: Expr[G])(implicit val o: Origin) extends JavaAnnotationData[G]
+  final case class BipComponentType[G](name: String, initial: Either[String, JavaModifier[G]])(implicit val o: Origin) extends JavaAnnotationData[G]
+  final case class BipStatePredicate[G](name: String, expr: Expr[G])(implicit val o: Origin) extends JavaAnnotationData[G]
+  final case class BipData[G](name: String)(implicit val o: Origin) extends JavaAnnotationData[G]
+  final case class BipGuard[G](name: String)(implicit val o: Origin) extends JavaAnnotationData[G]
+}
+
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
 final case class JavaBipAnnotation[G]()(implicit val o: Origin) extends JavaModifier[G]

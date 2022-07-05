@@ -27,6 +27,10 @@ case class ColHelperSubnodes(info: ColDescription) {
         Some(node => q"Seq($node)")
       case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Apply(Type.Name("Ref"), _) =>
         None
+      case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+        val f1 = subnodePatternByType(t1).getOrElse((elem: Term) => q"Nil")
+        val f2 = subnodePatternByType(t2).getOrElse((elem: Term) => q"Nil")
+        Some(arg => q"$arg.left.map(elem => ${f1(q"elem")}).map(elem => ${f2(q"elem")})")
       case other =>
         MetaUtil.fail(
           s"Tried to derive the subnodes for unknown type: $other",

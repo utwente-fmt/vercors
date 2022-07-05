@@ -28,6 +28,7 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
   }
 
   def baseName: String = names.last
+  def qualifiedName: String = names.mkString(".")
 
   def term: Term =
     if(names.size == 1) Term.Name(baseName)
@@ -38,10 +39,10 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
     else Type.Select(termQual, Type.Name(baseName))
 
   def rewriteHelperName: Type.Name =
-    Type.Name("Rewrite" + baseName)
+    Type.Name("Rewrite" + qualifiedName)
 
   def rewriteBuilderName: Type.Name =
-    Type.Name(baseName + "Builder")
+    Type.Name(qualifiedName + "Builder")
 
   private def termQual: Term.Ref = {
     val qualNames = names.init.map(Term.Name(_))
@@ -98,6 +99,8 @@ class ColDescription {
       q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
       term
+    case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+      q"$term.left.map(l => ${rewriteDefault(q"l", t1)}).map(r => ${rewriteDefault(q"r", t2)})"
     case _ =>
       MetaUtil.fail(
         s"Encountered an unknown type while generating default rewriters: $typ\n" +
