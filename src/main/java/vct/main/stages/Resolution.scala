@@ -50,10 +50,10 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
   override def parse[G](input: String, o: Origin): Expr[G] = {
     // TODO (RR): The behavior of redirecting origins works now but its is ugly, refactor
     val sr = StringReadable(input)
-    val cjp = ColJavaParser(RedirectOriginProvider(o, ReadableOriginProvider(sr)), blameProvider)
+    val cjp = ColJavaParser(RedirectOriginProvider(o, input), blameProvider)
     val x = try {
         sr.read { reader =>
-          cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName))
+          cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName), false)
         }
       } catch {
         case _: FileNotFoundException => throw FileNotFound(sr.fileName)

@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
-@Invariant(expr = "x >= 0")
+@Invariant(expr = "x >= 0 && (\forall int i = 0 .. 1; i == 0)")
 public class OneComponentOneTransition {
     public static final String INIT = "initialState";
     public static final String DONE = "doneState";

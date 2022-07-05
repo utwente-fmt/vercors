@@ -41,27 +41,9 @@ case class ReadableOriginProvider(readable: Readable) extends OriginProvider {
   override def apply(): Origin = FileSpanningOrigin
 }
 
-case class RedirectOrigin(o: Origin, sr: ReadableOriginProvider, start: Int, end: Int, cols: Option[(Int, Int)]) extends Origin {
-  override def preferredName: String = o.preferredName
-
-  override def context: String = o match {
-    case ReadableOrigin(readable, baseStart, baseEnd, baseCols) => {}
-      val s = baseStart + start
-      val e = baseEnd + end
-      val c: Option[(Int, Int)] = (baseCols, cols) match {
-        // TODO (RR): If inner startline == basestartline, then probably bS should be added to e as well. Right now it's probably incorrect!
-        case (Some((bS, bE)), Some((s, e))) => Some((bS + s, bE + e))
-        case (None, cols) => cols
-      }
-      ReadableOrigin(readable, s, e, c).context
-    case o: Origin =>
-      s"== Within the following context ==\n${o.context}\n== Specifically ==\n${sr.apply(start, end, cols).context}"
-  }
-}
-
-case class RedirectOriginProvider(o: Origin, sr: ReadableOriginProvider) extends OriginProvider {
+case class RedirectOriginProvider(o: Origin, textualOrigin: String) extends OriginProvider {
   override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): RedirectOrigin = {
-    RedirectOrigin(o, sr, startLineIdx, endLineIdx, cols)
+    RedirectOrigin(o, textualOrigin, startLineIdx, endLineIdx, cols)
   }
 
   override def apply(): Origin = FileSpanningOrigin
