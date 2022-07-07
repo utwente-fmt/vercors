@@ -23,7 +23,7 @@ object Scopes {
   }
 }
 
-case class Scopes[Pre <: Generation, Post <: Generation, PreDecl <: Declaration[Pre], PostDecl <: Declaration[Post]](rw: AbstractRewriter[Pre, Post])(implicit tag: ClassTag[PostDecl]) {
+case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaration[Post]](rw: AbstractRewriter[Pre, Post])(implicit tag: ClassTag[PostDecl]) {
   private val successors: ScopedStack[mutable.Map[PreDecl, PostDecl]] = ScopedStack()
   private val collectionBuffer: ScopedStack[mutable.ArrayBuffer[PostDecl]] = ScopedStack()
 

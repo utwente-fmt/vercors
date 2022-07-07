@@ -16,7 +16,9 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
   }
 
   def make(): List[Stat] = q"""
+    import scala.reflect.ClassTag
     import RewriteHelpers._
+    import vct.col.util.Scopes
 
     object AbstractRewriter {
       trait RWFunc[N[_] <: Node[_]] {
@@ -49,6 +51,11 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         val ${Pat.Var(ColDefs.scopes(decl))}: Scopes[Pre, Post, ${Type.Name(decl)}[Pre], ${Type.Name(decl)}[Post]] = Scopes(this)
+      """).toList}
+
+      ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
+        def succ[RefDecl <: ${Type.Name(decl)}[Post]](decl: ${Type.Name(decl)}[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
+          ${ColDefs.scopes(decl)}.freeze.succ(decl)
       """).toList}
 
       ..${info.families.map(family => q"""

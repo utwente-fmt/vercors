@@ -78,7 +78,7 @@ class ColDescription {
    */
   def rewriteDefault(term: Term, typ: Type): Term = typ match {
     case Type.Apply(Type.Name("Seq"), List(Type.Apply(Type.Name(declKind), List(Type.Name("G"))))) if DECLARATION_KINDS.contains(declKind) =>
-      q"rewriter.collectInScope(rewriter.${ColDefs.scopes(declKind)}){$term.foreach(rewriter.dispatch)}"
+      q"rewriter.${ColDefs.scopes(declKind)}.dispatch($term)"
     case Type.Apply(Type.Name(collectionType), List(arg)) if Set("Seq", "Set", "Option").contains(collectionType) =>
       q"$term.map(element => ${rewriteDefault(q"element", arg)})"
 
@@ -90,12 +90,12 @@ class ColDescription {
       MetaUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
 
     case Type.Apply(Type.Name(declKind), List(Type.Name("G"))) if DECLARATION_KINDS.contains(declKind) =>
-      q"rewriter.collectOneInScope(rewriter.${ColDefs.scopes(declKind)}){rewriter.dispatch($term)}"
+      q"rewriter.${ColDefs.scopes(declKind)}.dispatch($term)"
     case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
     case Type.Apply(Type.Name("Ref"), List(gen, tDecl)) =>
-      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
+      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term.decl)"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
 
