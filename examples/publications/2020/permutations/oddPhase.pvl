@@ -1,0 +1,373 @@
+//////////////////////////////////////////////////////////////////////////////////////////Operations
+ensures \result >= 0;
+ensures (\forall int j; j >= 0 && j < |ys|; element != ys[j]) ==> \result == 0;
+ensures \result == 0 ==> (\forall int j; j >= 0 && j < |ys|; element != ys[j]);
+ensures (\forall int j; j >= 0 && j < |ys|; element == ys[j]) ==> \result == |ys|;
+ensures \result == |ys| ==> (\forall int j; j >= 0 && j < |ys|; element == ys[j]);
+ensures \result <= |ys|;
+ensures element in ys ==> \result > 0;
+ensures \result > 0 ==> element in ys;
+pure int counter(seq<int> ys, int element) =
+    |ys| > 0 ? (ys.head == element ? (1 + counter(ys.tail, element)) : counter(ys.tail, element)) : 0;
+
+
+requires i >= 0 && i < |xs|;
+requires j >= 0 && j < |xs|;
+requires i < j;
+requires k >= 0 && k <= |xs|;
+ensures |\result| == |xs| - k;
+ensures k > j ==> (\forall int l; l >= 0 && l < |\result|; \result[l] == xs[l+k]);
+ensures k >= j ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k]) && ((l+k) == j ==> \result[l] == xs[i]));
+ensures k > i ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k]) && ((l+k) == j ==> \result[l] == xs[i]));
+ensures k >= i ==> (\forall int l; l >= 0 && l < |\result|; (((l+k) != i && (l+k) != j) ==> \result[l] == xs[l+k]) && ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) 					== j ==> \result[l] == xs[i]));
+ensures (\forall int l; l >= 0 && l < |\result|; (((l+k) != i && (l+k) != j) ==> \result[l] == xs[l+k]) && ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> 						\result[l] == xs[i]));
+pure seq<int> swap(seq<int> xs, int i, int j, int k) =
+  k < |xs| ? (k == i ? seq<int> {xs[j]} + swap(xs, i, j, k+1) : (k == j ? seq<int> {xs[i]} + swap(xs, i, j, k+1) : seq<int> {xs[k]} + swap(xs, i, j, k+1))) :
+  seq<int> {};
+
+pure boolean isApermutation(seq<int> xs, seq<int> ys) =
+    |xs| == |ys| && (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+
+requires |xs| == |ys|;
+pure boolean property1(seq<int> xs, seq<int> ys) =
+    (\forall int i; 0 <= i && i < |ys|/2 && 2*i+2 < |ys|;
+    ((ys[2*i+1] <= ys[2*i+2]) ==>
+    (xs[2*i+1] == ys[2*i+1] && xs[2*i+2] == ys[2*i+2])));
+
+requires |xs| == |ys|;
+pure boolean property2(seq<int> xs, seq<int> ys) =
+    ((\forall int i; 0 <= i && i < |ys|/2 && 2*i+2 < |ys|;
+         ys[2*i+1] <= ys[2*i+2]) ==>
+         (\forall int i; 0 <= i && i < |ys|; xs[i] == ys[i]));
+
+class OddPhase {
+	////////////////////////////////////////////////////////////////////////////////////////Lemmas
+	requires |xs| == |ys|;
+	requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+1<|xs|; xs[2*i] <= xs[2*i+1]);
+	requires (\forall int i; i>=0 && i<|ys|/2 && 2*i+2<|ys|; ys[2*i+1] <= ys[2*i+2]);
+	requires (\forall int i; i>=0 && i<|xs|; xs[i] == ys[i]);
+	ensures  (\forall int i; i>=0 && i<|ys|/2 && 2*i+2<|ys|; ys[2*i] <= ys[2*i+1] && ys[2*i+1] <= ys[2*i+2]);
+	void lemma_concat(seq<int> xs, seq<int> ys){
+
+	}
+
+	requires |xs| % 2 == 1;
+	requires i >= 0;
+	requires 2*i+2<|xs| ==> (xs[2*i] <= xs[2*i+1] && xs[2*i+1] <= xs[2*i+2]);
+	ensures 2*i+2<|xs| ==> (xs[2*i] <= xs[2*i+1] && xs[2*i+1] <= xs[2*i+2]);
+	ensures  2*i+2<|xs| ==> xs[2*i] <= xs[2*i+2];
+	void lemma_odd_helper(seq<int> xs, int i){
+
+	}
+
+	requires |xs| % 2 == 1;
+	requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+2<|xs|; xs[2*i] <= xs[2*i+1] && xs[2*i+1] <= xs[2*i+2]);
+	ensures (\forall int i; i>=0 && i<|xs|-1; xs[i] <= xs[i+1]);
+	void lemma_odd(seq<int> xs){
+
+		int k = 0;
+
+		loop_invariant 0 <= k && k <= |xs|/2;
+		loop_invariant (\forall int t; t>=0 && t<2*k; xs[t] <= xs[t+1]);
+		while(k < |xs|/2)
+		{
+			lemma_odd_helper(xs, k);
+			k=k+1;
+		}
+
+	}
+
+
+
+	requires |xs| % 2 == 0;
+	requires i >= 0;
+	requires 2*i+1<|xs| ==> (xs[2*i] <= xs[2*i+1]);
+	requires 2*i+2<|xs| ==> (xs[2*i+1] <= xs[2*i+2]);
+	ensures 2*i+1<|xs| ==> (xs[2*i] <= xs[2*i+1]);
+	ensures 2*i+2<|xs| ==> (xs[2*i+1] <= xs[2*i+2]);
+	ensures  2*i+2<|xs| ==> xs[2*i] <= xs[2*i+2];
+	void lemma_even_helper(seq<int> xs, int i){
+
+	}
+
+	requires |xs| % 2 == 0;
+	requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+1<|xs|; xs[2*i] <= xs[2*i+1]);
+	requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+2<|xs|; xs[2*i+1] <= xs[2*i+2]);
+	ensures (\forall int i; i>=0 && i<|xs|-1; xs[i] <= xs[i+1]);
+	void lemma_even(seq<int> xs){
+
+		int k = 0;
+
+		loop_invariant 0 <= k && k <= |xs|/2;
+		loop_invariant k <= (|xs|/2) -1 ==> (\forall int t; t>=0 && t<2*k; xs[t] <= xs[t+1]);
+		loop_invariant k > (|xs|/2) -1 ==> (\forall int t; t>=0 && t<2*k-1; xs[t] <= xs[t+1]);
+		while(k < |xs|/2)
+		{
+			lemma_even_helper(xs, k);
+			k=k+1;
+		}
+
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i < j;
+	ensures swap(xs, i, j, 0) == xs[i -> xs[j]][j -> xs[i]];
+	ensures xs[i -> xs[j]][j -> xs[i]] == swap(xs, i, j, 0);
+	void lemma_swap_seq_eq(seq<int> xs, int i, int j){
+
+	}
+
+	ensures counter(seq<int> {}, i) == 0;
+	void lemma_count_empty(int i){
+
+	}
+
+	ensures i == element ==> counter(seq<int> {i}, element) == 1;
+	ensures i != element ==> counter(seq<int> {i}, element) == 0;
+	void lemma_count_single(int i, int element){
+
+	}
+
+
+	ensures |xs| == 0 ==> counter(xs + ys, element) == counter(ys, element);
+	ensures |ys| == 0 ==> counter(xs + ys, element) == counter(xs, element);
+	ensures |xs + ys| == |xs| + |ys|;
+	ensures counter(xs.tail + ys, element) == counter(xs.tail, element) + counter(ys, element);
+	ensures counter(xs + ys, element) == counter(xs, element) + counter(ys, element);
+	void lemma_count_app(seq<int> xs, seq<int> ys, int element) {
+		if (0 < |xs|) {
+			lemma_count_app(xs.tail, ys, element);
+			assert xs.tail + ys == (xs + ys).tail;
+		}
+	}
+
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs + ys, xs[l]) == counter(xs, xs[l]) + counter(ys, xs[l]));
+	void lemma_count_app_all(seq<int> xs, seq<int> ys){
+		int k = 0;
+
+		loop_invariant 0 <= k && k <= |xs|;
+		loop_invariant (\forall int l; l>=0 && l<k; counter(xs + ys, xs[l]) == counter(xs, xs[l]) + counter(ys, xs[l]));
+		while(k < |xs|)
+		{
+			lemma_count_app(xs, ys, xs[k]);
+			k=k+1;
+		}
+
+	}
+
+	ensures counter(xs + ys + ts + rs + zs, element) == counter(xs, element) + counter(ys, element) + counter(ts, element) + counter(rs, element) + counter(zs, element);
+	void lemma_count_app_ext(seq<int> xs, seq<int> ys, seq<int> ts, seq<int> rs, seq<int> zs, int element){
+		lemma_count_app(xs + ys + ts + rs, zs, element);
+		assert counter(xs + ys + ts + rs + zs, element) == counter(xs + ys + ts + rs, element) + counter(zs, element);
+		lemma_count_app(xs + ys + ts, rs, element);
+		assert counter(xs + ys + ts + rs, element) == counter(xs + ys + ts, element) + counter(rs, element);
+		lemma_count_app(xs + ys, ts, element);
+		assert counter(xs + ys + ts, element) == counter(xs + ys, element) + counter(ts, element);
+		lemma_count_app(xs, ys, element);
+		assert counter(xs + ys, element) == counter(xs, element) + counter(ys, element);
+
+		assert counter(xs + ys + ts + rs + zs, element) == counter(xs, element) + counter(ys, element) + counter(ts, element) + counter(rs, element) + counter(zs, 					 element);
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i < j;
+	ensures xs == xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|];
+	ensures counter(xs, element) == counter(xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|], element);
+	void lemma_swap_permutation_helper(seq<int> xs, int i, int j, int element){
+
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i < j;
+	requires ys == swap(xs, i, j, 0);
+	ensures counter(xs, element) == counter(ys, element);
+	void lemma_swap_permutation(seq<int> xs, seq<int> ys, int i, int j, int element){
+		assert (\forall int l; l >= 0 && l < |ys|; (l != i && l != j) ==> swap(xs, i, j, 0)[l] == xs[l]);
+		assert (\forall int l; l >= 0 && l < |ys|; ((l == i) ==> swap(xs, i, j, 0)[l] == xs[j]) && ((l == j) ==> ys[l] == xs[i]));
+
+		assert ys == xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|];
+		assert counter(ys, element) == counter(xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|], element);
+		lemma_count_app_ext(xs[0..i], seq<int> {xs[j]}, xs[i+1..j], seq<int> {xs[i]}, xs[j+1..|xs|], element);
+		assert counter(ys, element) == counter(xs[0..i], element) + counter(seq<int> {xs[j]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[i]}, element) + counter(xs[j+1..|xs|], element);
+		lemma_count_single(i, element);
+		lemma_count_single(j, element);
+
+		lemma_swap_permutation_helper(xs, i, j, element);
+		//assert xs == xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|];
+		//assert counter(xs, element) == counter(xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|], element);
+		lemma_count_app_ext(xs[0..i], seq<int> {xs[i]}, xs[i+1..j], seq<int> {xs[j]}, xs[j+1..|xs|], element);
+		assert counter(xs, element) == counter(xs[0..i], element) + counter(seq<int> {xs[i]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[j]}, element) 																	 + counter(xs[j+1..|xs|], element);
+
+		assert counter(xs, element) == counter(ys, element);
+
+	}
+
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i < j;
+	requires ys == swap(xs, i, j, 0);
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	void lemma_swap_permutation_all(seq<int> xs, seq<int> ys, int i, int j){
+		int k = 0;
+
+		loop_invariant 0 <= k && k <= |xs|;
+		loop_invariant (\forall int l; l>=0 && l<k; counter(xs, xs[l]) == counter(ys, xs[l]));
+		while(k < |xs|)
+		{
+			lemma_swap_permutation(xs, ys, i, j, xs[k]);
+			k=k+1;
+		}
+
+	}
+
+
+	requires |xs| == |ys|;
+	requires |ys| == |ts|;
+	requires (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	requires (\forall int l; l>=0 && l<|xs|; counter(ys, ys[l]) == counter(ts, ys[l]));
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ts, xs[l]));
+	void lemma_swap_permutation_trans(seq<int> xs, seq<int> ys, seq<int> ts){
+
+
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i < j;
+	requires |xs| == |ys|;
+	requires |ys| == |ts|;
+	requires (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	requires ts == swap(ys, i, j, 0);
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ts, xs[l]));
+	ensures swap(ys, i, j, 0) == ys[i -> ys[j]][j -> ys[i]];
+	ensures ys[i -> ys[j]][j -> ys[i]] == swap(ys, i, j, 0);
+	void lemma_permutation_apply(seq<int> xs, seq<int> ys, seq<int> ts, int i, int j){
+
+			lemma_swap_permutation_all(ys, ts, i, j);
+			lemma_swap_permutation_trans(xs, ys, ts);
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////Class fields
+	seq<int> inp_seq_cur;
+	seq<seq<int>> inp_seq_all;
+	/////////////////////////////////////////////////////////////////////////////////////////Odd phase
+
+  context_everywhere input != null;
+  context_everywhere isSorted != null;
+	context_everywhere contrib != null;
+	context_everywhere loopCounter != null;
+  context_everywhere input.length > 0;
+  context_everywhere isSorted.length == 1;
+	context_everywhere loopCounter.length == 1;
+	context_everywhere contrib.length == input.length;
+	context Perm(inp_seq_all, 1);
+	context Perm(loopCounter[0], write);
+  context loopCounter[0] >= 0;
+  context |inp_seq_all| == loopCounter[0] + 2;
+  context (\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|);
+	context (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], write));
+	context (\forall int i; 0 <= i && i < contrib.length/2 && 2*i < contrib.length; contrib[2*i] == 1);
+	requires (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 0);
+	context (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write));
+	context Perm(isSorted[0], 1);
+	context Perm(inp_seq_cur, 1);
+	context |inp_seq_cur| == input.length;
+	context (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]);
+	requires (\forall int i; 0 <= i && i < |inp_seq_cur|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]+1][i]);
+	requires (\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
+										 inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1]) ==> !isSorted[0];
+	requires isSorted[0]  ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j]);
+	context isApermutation(inp_seq_all[0], inp_seq_cur);
+	ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 1);
+	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+ 	 	 	 							 inp_seq_all[loopCounter[0]+1][2*i+1] <= inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
+ 	 	 								 (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]+1][i]);
+	ensures (\forall int i; 0 <= i && i < input.length/2 && 2*i+2 < input.length; input[2*i+1] <= input[2*i+2]);
+	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+	 									((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
+	 									(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+2] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+1])));
+	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+		 								((inp_seq_all[loopCounter[0]+1][2*i+1] <= inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
+		 								(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+1] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+2])));
+	ensures ((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
+										  (inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1])) ||
+											(\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+										  (inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] ))) ==> !isSorted[0];
+	ensures isSorted[0] ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_all[loopCounter[0]+1][j]);
+	void odd_kernel(int[] input, boolean[] isSorted, int[] contrib, int[] loopCounter){
+
+
+	  invariant inv(Perm(isSorted[0], write) ** Perm(inp_seq_cur, 1) ** input.length == |inp_seq_cur| ** contrib.length == input.length **
+									Perm(loopCounter[0], write) ** Perm(inp_seq_all, 1) **
+									(loopCounter[0] >= 0 && |inp_seq_all| == loopCounter[0] + 2) **
+									(\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|) **
+									(\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2)) **
+									(\forall* int i; 0 <= i && i < input.length; Perm(input[i], write)) **
+		              (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]) **
+									/*Perm(inp_seq_cur, 1) ** Perm(inp_seq_all, 1) **
+									resource_odd(isSorted, inp_seq_cur, input, contrib, loopCounter, inp_seq_all) ** */
+										isApermutation(inp_seq_all[0], inp_seq_cur) **
+
+									((\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 0) ==>
+									   (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]+1][j] == inp_seq_cur[j])) **
+
+										 property2(inp_seq_cur, inp_seq_all[loopCounter[0]+1]) **
+
+									(\forall int i; 0 <= i && i < input.length/2 && 2*i+2 < input.length && (contrib[2*i+1] == 1); input[2*i+1] <= input[2*i+2]) **
+
+ 	 	 							(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+ 	 	 								((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 0) ==>
+ 	 	 								(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+1] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+2]))) **
+
+	 								(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+	 									((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 1) ==>
+	 									(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+2] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+1]))) **
+
+										property1(inp_seq_cur, inp_seq_all[loopCounter[0]+1]) **
+
+										((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
+																				  (inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1])) ==> !isSorted[0]) **
+
+										((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+									  (inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 1)) ==> !isSorted[0]) **
+									(isSorted[0] ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {: inp_seq_all[loopCounter[0]][j] :} == inp_seq_all[loopCounter[0]+1][j]))
+
+									)
+		{//;
+			par odd(int tid=0..((input.length)/2))
+			requires tid*2+1 < contrib.length ==> Perm(contrib[tid*2+1], 1\2);
+			requires tid*2+1 < contrib.length ==> contrib[tid*2+1] == 0;
+			ensures tid*2+1 < contrib.length ==> Perm(contrib[tid*2+1], 1\2);
+			ensures tid*2+1 < contrib.length ==> contrib[tid*2+1] == 1;
+
+			{
+				atomic(inv){
+					if((tid*2)+2 < input.length && input[(tid*2)+1] > input[(tid*2)+2])
+					{
+						lemma_permutation_apply(inp_seq_all[0], inp_seq_cur, swap(inp_seq_cur, tid*2+1, tid*2+2, 0), tid*2+1, tid*2+2);
+						int temp = input[(tid*2)+1];
+		    		input[(tid*2)+1] = input[(tid*2)+2];
+						inp_seq_cur = inp_seq_cur[tid*2+1 -> input[(tid*2)+2]];
+		    		input[(tid*2)+2] = temp;
+						inp_seq_cur = inp_seq_cur[(tid*2)+2 -> temp];
+
+		    		isSorted[0] = false;
+						assert isApermutation(inp_seq_all[0], inp_seq_cur);
+
+					}
+					if(tid*2+1 < contrib.length)
+					{
+						contrib[tid*2+1] = 1;
+					}
+					assert isApermutation(inp_seq_all[0], inp_seq_cur);
+				}
+			}
+
+		}
+
+	}
+
+}
