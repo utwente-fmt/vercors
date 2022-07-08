@@ -10,7 +10,10 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     classes.map { cls => q"""
       classOf[${cls.typ}[_]] -> new RWFunc[${Type.Name(baseType)}] {
         def apply[Pre, Post](node: ${Type.Name(baseType)}[Pre], rw: AbstractRewriter[Pre, Post]): ${Type.Name(baseType)}[Post] =
-          new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewrite()
+          ${ColDefs.DECLARATION_KINDS.find(info.supports(_)(cls.baseName)) match {
+            case None => q"new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewrite()"
+            case Some(decl) => q"rw.${ColDefs.scopes(decl)}.succeed(node.asInstanceOf[${cls.typ}[Pre]], new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewrite())"
+          }}
       }
     """}.toList
   }
@@ -19,6 +22,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     import scala.reflect.ClassTag
     import RewriteHelpers._
     import vct.col.util.Scopes
+    import vct.col.ref.LazyRef
 
     object AbstractRewriter {
       trait RWFunc[N[_] <: Node[_]] {
@@ -47,7 +51,11 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
 
       def rewriteDefault(decl: $DECLARATION_TYPE[Pre]): Unit =
         AbstractRewriter.${Term.Name(s"rewriteDefault${DECLARATION}LookupTable")}(decl.getClass)(decl, this)
-          .succeedDefault(decl)(this)
+
+      def anySucc[RefDecl <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
+        ${MetaUtil.NonemptyMatch("decl succ kind cases", q"decl", ColDefs.DECLARATION_KINDS.map(decl =>
+          Case(p"decl: ${Type.Name(decl)}[Pre]", None, q"${ColDefs.scopes(decl)}.freeze.succ(decl)")
+        ).toList)}
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         val ${Pat.Var(ColDefs.scopes(decl))}: Scopes[Pre, Post, ${Type.Name(decl)}[Pre], ${Type.Name(decl)}[Post]] = Scopes(this)

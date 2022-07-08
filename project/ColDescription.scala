@@ -94,8 +94,11 @@ class ColDescription {
     case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
-    case Type.Apply(Type.Name("Ref"), List(gen, tDecl)) =>
-      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term.decl)"
+    case Type.Apply(Type.Name("Ref"), List(_, Type.Apply(Type.Name(tDecl), _))) =>
+      if(ColDefs.DECLARATION_KINDS.exists(kind => supports(tDecl)(kind)))
+        q"rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl)"
+      else
+        q"rewriter.anySucc[${Type.Name(tDecl)}[Post]]($term.decl)"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
 

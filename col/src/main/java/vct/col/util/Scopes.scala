@@ -2,6 +2,7 @@ package vct.col.util
 
 import hre.util.ScopedStack
 import vct.col.ast.{AbstractRewriter, Declaration}
+import vct.col.origin.Origin
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.Generation
 import vct.col.util.Scopes._
@@ -21,6 +22,15 @@ object Scopes {
     override def text: String =
       s"There is no scope to place a declaration of kind ${kind.runtimeClass.getSimpleName} in."
   }
+
+  case class DuplicateSuccessor(pre: Declaration[_], firstPost: Declaration[_], secondPost: Declaration[_]) extends SystemError {
+    override def text: String =
+      Origin.messagesInContext(Seq(
+        firstPost.o -> "This declaration already succeeds ...",
+        pre.o -> "... this declaration, but is additionally succeeded by ...",
+        secondPost.o -> "... this declaration.",
+      ))
+  }
 }
 
 case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaration[Post]](rw: AbstractRewriter[Pre, Post])(implicit tag: ClassTag[PostDecl]) {
@@ -39,7 +49,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
   class FrozenScopes {
     val scopes: Seq[mutable.Map[PreDecl, PostDecl]] = successors.toSeq
 
-    def succ[RefDecl <: PostDecl](decl: PreDecl)(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
+    def succ[RefDecl <: Declaration[Post]](decl: PreDecl)(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
       new LazyRef(scopes.collectFirst(_(decl)).get)
   }
 
@@ -66,6 +76,18 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
       case Some(buffer) => buffer += decl; decl
       case None => throw NoScope(tag)
     }
+  }
+
+  def succeedOnly[T <: PostDecl](pre: PreDecl, post: T)(implicit tag: ClassTag[T]): T =
+    successors.topOption match {
+      case Some(map) if !map.contains(pre) => map(pre) = post; post
+      case Some(map) => throw DuplicateSuccessor(pre, map(pre), post)
+      case None => throw NoScope(tag)
+    }
+
+  def succeed[T <: PostDecl](pre: PreDecl, post: T)(implicit tag: ClassTag[T]): T = {
+    declare(post)
+    succeedOnly(pre, post)
   }
 
   def dispatch(decl: PreDecl): PostDecl = {
