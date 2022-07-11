@@ -1262,7 +1262,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case bc: BipComponent[Pre] =>
-        new BipComponent(bc.constructors, bool(bc.invariant), bc.initial)
+        new BipComponent(bc.constructors, res(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>
         new BipStatePredicate(bool(bsp.expr))
       case trans: BipTransition[Pre] =>

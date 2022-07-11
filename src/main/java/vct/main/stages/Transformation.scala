@@ -107,6 +107,7 @@ case class SilverTransformation
   simplifyBeforeRelations: Seq[RewriterBuilder] = Nil,
   simplifyAfterRelations: Seq[RewriterBuilder] = Nil,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    EncodeBipPermissions,
     EncodeBip,
 
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
