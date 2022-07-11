@@ -1,7 +1,9 @@
 package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, Type, Variable, JavaAnnotationData => jad}
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, Type, Variable}
+
+import vct.col.resolve.{JavaAnnotationData => jad}
 import vct.col.newrewrite.lang.LangBipToCol.TodoError
 import vct.col.origin.{DiagnosticOrigin, PanicBlame, SourceNameOrigin}
 import vct.col.ref.Ref

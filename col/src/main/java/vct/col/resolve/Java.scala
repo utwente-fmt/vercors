@@ -2,8 +2,9 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationData, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
+import vct.col.resolve.JavaAnnotationData.{BipComponentType, BipData, BipGuard, BipInvariant, BipTransition}
 import vct.col.resolve.Resolve.{getLit, isBip}
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
@@ -363,29 +364,29 @@ case object Java {
       case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
     }
 
-  def getBipComponentData[G](jc: JavaClassOrInterface[G]): Option[JavaAnnotationData.BipComponentType[G]] =
+  def getBipComponentData[G](jc: JavaClassOrInterface[G]): Option[BipComponentType[G]] =
     jc.modifiers
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case bct: JavaAnnotationData.BipComponentType[G] => bct }
+      .collectFirst { case bct: BipComponentType[G] => bct }
 
-  def getBipInvariantData[G](jc: JavaClassOrInterface[G]): Option[JavaAnnotationData.BipInvariant[G]] =
+  def getBipInvariantData[G](jc: JavaClassOrInterface[G]): Option[BipInvariant[G]] =
     jc.modifiers
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case bi: JavaAnnotationData.BipInvariant[G] => bi }
+      .collectFirst { case bi: BipInvariant[G] => bi }
 
-  def getBipTransitionData[G](m: JavaMethod[G]): Option[JavaAnnotationData.BipTransition[G]] =
+  def getBipTransitionData[G](m: JavaMethod[G]): Option[BipTransition[G]] =
     m.modifiers
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case b: JavaAnnotationData.BipTransition[G] => b }
+      .collectFirst { case b: BipTransition[G] => b }
 
-  def getBipGuardData[G](m: JavaMethod[G]): Option[JavaAnnotationData.BipGuard[G]] =
+  def getBipGuardData[G](m: JavaMethod[G]): Option[BipGuard[G]] =
     m.modifiers
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case b: JavaAnnotationData.BipGuard[G] => b }
+      .collectFirst { case b: BipGuard[G] => b }
 
-  def getBipDataData[G](p: JavaParam[G]): Option[JavaAnnotationData.BipData[G]] =
+  def getBipDataData[G](p: JavaParam[G]): Option[BipData[G]] =
     p.modifiers
       .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case d: JavaAnnotationData.BipData[G] => d }
+      .collectFirst { case d: BipData[G] => d }
 
 }

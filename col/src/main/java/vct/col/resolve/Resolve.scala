@@ -6,6 +6,7 @@ import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
+import vct.col.resolve.JavaAnnotationData.{BipComponentType, BipData, BipGuard, BipInvariant, BipStatePredicate, BipTransition}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
@@ -411,7 +412,7 @@ case object ResolveReferences extends LazyLogging {
       val name = getLit(ann.expect("name"))
       val source = getLit(ann.expect("source"))
       val target = getLit(ann.expect("target"))
-      ann.data = Some(JavaAnnotationData.BipTransition[G](name,
+      ann.data = Some(BipTransition[G](name,
         Java.findJavaBipStatePredicate(ctx, source),
         Java.findJavaBipStatePredicate(ctx, target),
         guard, requires, ensures))
@@ -419,22 +420,22 @@ case object ResolveReferences extends LazyLogging {
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)
       resolve(expr, ctx)
-      ann.data = Some(JavaAnnotationData.BipInvariant(expr))
+      ann.data = Some(BipInvariant(expr))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)
       resolve(expr, ctx) // TODO (RR): Throwing away errors here?
-      ann.data = Some(JavaAnnotationData.BipStatePredicate(getLit(ann.expect("state")), expr))
+      ann.data = Some(BipStatePredicate(getLit(ann.expect("state")), expr))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "ComponentType") =>
-      ann.data = Some(JavaAnnotationData.BipComponentType(getLit(ann.expect("name")),
+      ann.data = Some(BipComponentType(getLit(ann.expect("name")),
         Java.findJavaBipStatePredicate(ctx, getLit(ann.expect("initial")))))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Data") =>
-      ann.data = Some(JavaAnnotationData.BipData(getLit(ann.expect("name"))))
+      ann.data = Some(BipData(getLit(ann.expect("name"))))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Guard") =>
-      ann.data = Some(JavaAnnotationData.BipGuard(getLit(ann.expect("name"))))
+      ann.data = Some(BipGuard(getLit(ann.expect("name"))))
 
     case _ =>
   }

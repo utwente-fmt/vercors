@@ -24,6 +24,7 @@ case class ColHelperComparator(info: ColDescription) {
       q"($left.isEmpty && $right.isEmpty) || ($left.nonEmpty && $right.nonEmpty && ${valueEqual(inner, q"$left.get", q"$right.get")})"
 
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+      // TODO (RR): Rewrite in above form
       q"""
         ($left.isLeft, $right.isLeft) match {
           case (true, true) => ${valueEqual(t1, q"$left.left.get", q"$right.left.get")}
@@ -53,8 +54,9 @@ case class ColHelperComparator(info: ColDescription) {
     case Type.Apply(Type.Name("Set"), _) => q"LazyList.empty"
 
     case Type.Apply(Type.Name("Option"), List(inner)) =>
-      // q"if($left.nonEmpty) ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
-      q"if($left.nonEmpty) right.nonEmpty && ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
+      q"if($left.nonEmpty) ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
+      // TODO (RR): Fix the below "improvement"?
+      // q"if($left.nonEmpty) right.nonEmpty && ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
 
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
       q"""
