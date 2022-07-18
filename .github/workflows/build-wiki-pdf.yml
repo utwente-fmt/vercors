@@ -41,11 +41,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git clone https://github.com/utwente-fmt/vercors-web-build.git
+          git clone https://user:$GITHUB_TOKEN@github.com/utwente-fmt/vercors-web-build.git
           cd vercors-web-build
           git config --local user.name "Vercors Team"
           git config --local user.email "vercors@lists.utwente.nl"
-          git remote set-url origin https://${GITHUB_TOKEN}@github.com/utwente-fmt/vercors-web-build.git
           git commit --allow-empty -m "Trigger website refresh"
           git push 
 
