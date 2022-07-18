@@ -37,14 +37,19 @@ jobs:
           prerelease: true
           tag: wiki-generated-doc
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Trigger website update
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git clone https://user:$GITHUB_TOKEN@github.com/utwente-fmt/vercors-web-build.git
-          cd vercors-web-build
-          git config --local user.name "Vercors Team"
-          git config --local user.email "vercors@lists.utwente.nl"
-          git commit --allow-empty -m "Trigger website refresh"
-          git push 
+          # instead of secrets.GITHUB_TOKEN, it should be a personal access token from the vercors-bot. So to implement:
+          # 1. Create a personal access token from vercors bot
+          # 2. add this to the secrets of the vercors repo
+          # 3. Replace the GITHUB_TOKEN secret below with the vercors bot personal access token
+          # 4. Uncomment this section. I think it should work!
+          # - name: Trigger website update
+          #   env:
+          #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #   run: |
+          #     git clone https://user:$GITHUB_TOKEN@github.com/utwente-fmt/vercors-web-build.git
+          #     cd vercors-web-build
+          #     git config --local user.name "Vercors Team"
+          #     git config --local user.email "vercors@lists.utwente.nl"
+          #     git commit --allow-empty -m "Trigger website refresh"
+          #     git push 
 
