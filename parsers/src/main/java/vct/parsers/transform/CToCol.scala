@@ -461,7 +461,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {
     case PrimaryExpression0(inner) => convert(inner)
     case PrimaryExpression1(inner) => local(expr, convert(inner))
-    case PrimaryExpression2(const) => IntegerValue(Integer.parseInt(const))
+    case PrimaryExpression2(const) => CConstant(const) // IntegerValue(Integer.parseInt(const))
     case PrimaryExpression3(_) => ??(expr)
     case PrimaryExpression4(_, inner, _) => convert(inner)
     case PrimaryExpression5(_) => ??(expr)
