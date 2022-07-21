@@ -311,6 +311,7 @@ final case class CoerceFracZFrac[G]()(implicit val o: Origin) extends Coercion[G
 final case class CoerceZFracRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracRatImpl[G]
 final case class CoerceFloatRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFloatRatImpl[G]
 final case class CoerceIntRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceIntRatImpl[G]
+final case class CoerceIntFloat[G]()(implicit val o:Origin) extends Coercion[G] with CoerceIntFloatImpl[G]
 
 final case class CoerceWidenBound[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceWidenBoundImpl[G]
 final case class CoerceUnboundInt[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceUnboundIntImpl[G]

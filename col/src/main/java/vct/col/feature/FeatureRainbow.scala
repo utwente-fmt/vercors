@@ -25,6 +25,7 @@ class FeatureRainbow[G] {
     case node: Program[G] => return Nil
     case node: IntegerValue[G] => return Nil
     case node: BooleanValue[G] => return Nil
+    case node: CConstant[G] => return Nil
     case node: LiteralSeq[G] => return Nil
     case node: LiteralSet[G] => return Nil
     case node: LiteralBag[G] => return Nil

@@ -57,6 +57,7 @@ case object CoercionUtils {
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
       case (TZFraction(), TRational()) => CoerceZFracRat()
       case (TFloat(), TRational()) => CoerceFloatRat()
+      case (TInt(), TFloat()) => CoerceIntFloat()
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 => CoerceBoundIntFrac()
       case (source @ TBoundedInt(gte, lt), TZFraction()) if gte >= 0 && lt <= 2 => CoerceBoundIntZFrac(source)
