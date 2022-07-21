@@ -285,6 +285,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloat[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
@@ -567,6 +568,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case plus @ AmbiguousPlus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
@@ -673,6 +675,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
           // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
           // and rationals.
+          Div(float(left), float(right))(div.blame),
           Div(rat(left), int(right))(div.blame),
           Div(rat(left), rat(right))(div.blame),
         )
@@ -696,7 +699,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           Exp(rat(left), rat(right)),
         )
       case div @ FloorDiv(left, right) =>
-        FloorDiv(int(left), int(right))(div.blame)
+        firstOk(e, "Expected both operands to be at least floats",
+          Div(float(left), float(right))(div.blame),
+          FloorDiv(int(left), int(right))(div.blame)
+        )
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
