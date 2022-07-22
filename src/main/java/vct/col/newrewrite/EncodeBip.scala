@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.newrewrite.EncodeBip.IsBipComponent
-import vct.col.origin.{DiagnosticOrigin, PanicBlame}
+import vct.col.origin.{Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
@@ -25,8 +25,19 @@ case object EncodeBip extends RewriterBuilder {
 
 case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
+  implicit class LocalExprBuildHelpers[G](left: Expr[G]) {
+    def &**(right: Expr[G])(implicit origin: Origin): Expr[G] = (left, right) match {
+      case (BooleanValue(true), BooleanValue(true)) => tt[G]
+      case (BooleanValue(true), e) => e
+      case (e, BooleanValue(true)) => e
+      case _ => Star[G](left, right)
+    }
+  }
+
   var procConstructorInfo: mutable.Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = mutable.Map()
   var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
+  val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
+  val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -54,6 +65,16 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
     case component: BipComponent[Pre] => component.drop()
     case guard: BipGuard[Pre] => guard.drop()
 
+    case cls: Class[Pre] =>
+      currentClass.having(cls) {
+        cls.declarations.collectFirst { case bc: BipComponent[Pre] => bc } match {
+          case Some(component) => currentComponent.having(component) {
+            rewriteDefault(cls)
+          }
+          case None => rewriteDefault(cls)
+        }
+      }
+
     case proc: Procedure[Pre] if procConstructorInfo.contains(proc) =>
       val (cls, component) = procConstructorInfo(proc)
       withResult { res: Result[Post] =>
@@ -68,18 +89,38 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     case bt: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
+      assert(bt.guard.isEmpty)
+      val component = currentComponent.top
       new InstanceMethod[Post](
-        // TODO: arguments
+        // TODO: guards
         TVoid(),
         collectInScope(variableScopes) { bt.data.map(_._2).foreach(dispatch) },
         Nil,
         Nil,
         Some(dispatch(bt.body)),
         contract[Post](
-          requires = UnitAccountedPredicate(dispatch(bt.requires)),
-          ensures = UnitAccountedPredicate(dispatch(bt.ensures))
+          requires = UnitAccountedPredicate(
+            dispatch(component.invariant)
+              &** dispatch(bt.source.decl.expr)
+              &** dispatch(bt.requires)
+              &** (bt.guard.map { f =>
+                val bg = f.decl
+                // For each @Data that the guard needs, find the appropriate @Data paramter from the transition
+                val vars = bg.data.map { case (dataRef, _) => bt.data.find(dataRef.decl == _._1.decl).get._2 }
+                methodInvocation(
+                  ???,
+                  ThisObject(succ[Class[Post]](currentClass.top)),
+                  succ[InstanceMethod[Post]](f.decl),
+                  args = vars.map(succ[Variable[Post]]).map(Local[Post](_)))
+              }.getOrElse(tt))
+          ),
+          ensures = UnitAccountedPredicate(
+            dispatch(component.invariant)
+              &** dispatch(bt.target.decl.expr)
+              &** dispatch(bt.ensures)
+          )
         )
-      )(PanicBlame("???"))(DiagnosticOrigin).succeedDefault(bt)
+      )(bt.blame.asInstanceOf[Blame[CallableFailure]] /* TODO: FISHY! */)(bt.o).succeedDefault(bt)
 
     case _ => rewriteDefault(decl)
   }

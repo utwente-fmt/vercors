@@ -10,7 +10,7 @@ import static java.lang.Math.sqrt;
 /*
 To verify:
 -p
-examples/concepts/javabip/deviation/OneComponentOneTransition.java
+examples/concepts/javabip/deviation/ComponentInvariant.java
 examples/concepts/javabip/deviation/DeviatorSpec.java
 examples/concepts/javabip/deviation/GeneratorSpec.java
 examples/concepts/javabip/deviation/Constants.java

@@ -831,6 +831,8 @@ case class Printer(out: Appendable,
       (phrase(bind(50, left), space, "!=", space, bind(50, right)), 50)
     case Greater(left, right) =>
       (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
+    case AmbiguousLess(left, right) =>
+      (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
     case Less(left, right) =>
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
     case AmbiguousGreaterEq(left, right) =>
