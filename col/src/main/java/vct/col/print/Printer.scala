@@ -569,8 +569,6 @@ case class Printer(out: Appendable,
       statement(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
     case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
-    case Commit(obj) =>
-      spec(statement("builtin_commit", space, obj))
   })
 
   def printExpr(e: Expr[_]): Unit =
