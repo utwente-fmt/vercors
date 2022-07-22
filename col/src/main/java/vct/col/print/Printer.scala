@@ -411,6 +411,7 @@ case class Printer(out: Appendable,
     say(program.declarations)
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
+    case Commit(obj) => phrase("\\commit(", obj, ")")
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(decl.specs, commas(decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
@@ -604,6 +605,8 @@ case class Printer(out: Appendable,
       (phrase(s""""${data}""""), 100)
     case StringLiteral(data) =>
       (phrase(s""""${data}""""), 100)
+    case InternedString(data, interner) =>
+      (phrase("\\internedString(", data, ", ", interner.decl.o.preferredName, ")"), 100)
     case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {
         case Some(obj) =>
