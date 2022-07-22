@@ -6,11 +6,12 @@ import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.origin.{AbstractApplicable, DerefPerm, DiagnosticOrigin, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefJavaParam, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, JavaAnnotationData, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefJavaParam, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
+import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipTransition}
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
@@ -206,7 +207,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def rewriteParameter(param: JavaParam[Pre]): Unit =
-    if (Java.getBipDataData(param).isDefined) {
+    if (BipData.get(param).isDefined) {
       rw.bip.rewriteParameter(param)
     } else {
       val v = new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o))
@@ -214,9 +215,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
 
   def rewriteMethod(method: JavaMethod[Pre]): Unit =
-    if (Java.getBipTransitionData(method).isDefined) {
+    if (BipTransition.get(method).isDefined) {
       rw.bip.rewriteTransition(method)
-    } else if (Java.getBipGuardData(method).isDefined) {
+    } else if (BipGuard.get(method).isDefined) {
       rw.bip.rewriteGuard(method)
     } else {
       implicit val o = JavaInstanceClassOrigin(currentJavaClass.top)
@@ -270,7 +271,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
           // TODO (RR): Do bip components need to be classes? Or also interfaces?
           cls match {
-            case cls: JavaClass[Pre] if Java.getBipComponentData(cls).isDefined =>
+            case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
               rw.bip.generateComponent(cls, cls.decls.collect({ case c: JavaConstructor[Pre] => c }).map(rw.succ(_)))
             case _ =>
           }

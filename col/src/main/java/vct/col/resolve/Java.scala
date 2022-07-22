@@ -4,7 +4,7 @@ import hre.util.FuncTools
 import vct.col.origin._
 import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
-import vct.col.resolve.JavaAnnotationData.{BipComponentType, BipData, BipGuard, BipInvariant, BipTransition}
+import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipTransition}
 import vct.col.resolve.Resolve.{getLit, isBip}
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
@@ -358,35 +358,61 @@ case object Java {
       case Some(ann) => RefJavaBipStatePredicate(ann)
       case None => ImplicitDefaultJavaBipStatePredicate(state)
     }
+}
 
-  def getJavaBipGuardName[G](method: JavaMethod[G]): Option[String] =
-    method.modifiers.collectFirst {
-      case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
-    }
+sealed trait JavaAnnotationData[G]
+case object JavaAnnotationData {
 
-  def getBipComponentData[G](jc: JavaClassOrInterface[G]): Option[BipComponentType[G]] =
-    jc.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case bct: BipComponentType[G] => bct }
+  case object BipTransition {
+    def get[G](m: JavaMethod[G]): Option[BipTransition[G]] =
+      m.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case b: BipTransition[G] => b }
+  }
+  final case class BipTransition[G](name: String,
+                                    source: JavaBipStatePredicateTarget[G],
+                                    target: JavaBipStatePredicateTarget[G],
+                                    guard: Option[JavaMethod[G]], requires: Expr[G], ensures: Expr[G]) extends JavaAnnotationData[G]
 
-  def getBipInvariantData[G](jc: JavaClassOrInterface[G]): Option[BipInvariant[G]] =
-    jc.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case bi: BipInvariant[G] => bi }
 
-  def getBipTransitionData[G](m: JavaMethod[G]): Option[BipTransition[G]] =
-    m.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case b: BipTransition[G] => b }
+  case object BipInvariant {
+    def get[G](jc: JavaClassOrInterface[G]): Option[BipInvariant[G]] =
+      jc.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case bi: BipInvariant[G] => bi }
 
-  def getBipGuardData[G](m: JavaMethod[G]): Option[BipGuard[G]] =
-    m.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case b: BipGuard[G] => b }
+  }
+  final case class BipInvariant[G](expr: Expr[G]) extends JavaAnnotationData[G]
 
-  def getBipDataData[G](p: JavaParam[G]): Option[BipData[G]] =
-    p.modifiers
-      .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-      .collectFirst { case d: BipData[G] => d }
+  case object BipComponent {
+    def get[G](jc: JavaClassOrInterface[G]): Option[BipComponent[G]] =
+      jc.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case bct: BipComponent[G] => bct }
+  }
+  final case class BipComponent[G](name: String, initial: JavaBipStatePredicateTarget[G]) extends JavaAnnotationData[G]
 
+  final case class BipStatePredicate[G](name: String, expr: Expr[G]) extends JavaAnnotationData[G]
+
+  case object BipData {
+    def get[G](p: JavaParam[G]): Option[BipData[G]] =
+      p.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case d: BipData[G] => d }
+
+  }
+  final case class BipData[G](name: String) extends JavaAnnotationData[G]
+
+  case object BipGuard {
+    def get[G](m: JavaMethod[G]): Option[BipGuard[G]] =
+      m.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case b: BipGuard[G] => b }
+
+    def getName[G](method: JavaMethod[G]): Option[String] =
+      method.modifiers.collectFirst {
+        case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
+      }
+  }
+  final case class BipGuard[G](name: String) extends JavaAnnotationData[G]
 }

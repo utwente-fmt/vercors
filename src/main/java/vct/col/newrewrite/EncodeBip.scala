@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.newrewrite.EncodeBip.IsBipComponent
-import vct.col.origin.DiagnosticOrigin
+import vct.col.origin.{DiagnosticOrigin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
@@ -24,7 +24,6 @@ case object EncodeBip extends RewriterBuilder {
 }
 
 case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
-  import EncodeCurrentThread._
 
   var procConstructorInfo: mutable.Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = mutable.Map()
   var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
@@ -49,7 +48,6 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case bt: BipTransition[Pre] => bt.drop()
     case id: BipIncomingData[Pre] => id.drop()
     case od: BipOutgoingData[Pre] => od.drop()
     case sp: BipStatePredicate[Pre] => sp.drop()
@@ -67,6 +65,21 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
         )
         proc.rewrite(contract = contract).succeedDefault(proc)
       } (DiagnosticOrigin)
+
+    case bt: BipTransition[Pre] =>
+      implicit val o = DiagnosticOrigin
+      new InstanceMethod[Post](
+        // TODO: arguments
+        TVoid(),
+        collectInScope(variableScopes) { bt.data.map(_._2).foreach(dispatch) },
+        Nil,
+        Nil,
+        Some(dispatch(bt.body)),
+        contract[Post](
+          requires = UnitAccountedPredicate(dispatch(bt.requires)),
+          ensures = UnitAccountedPredicate(dispatch(bt.ensures))
+        )
+      )(PanicBlame("???"))(DiagnosticOrigin).succeedDefault(bt)
 
     case _ => rewriteDefault(decl)
   }

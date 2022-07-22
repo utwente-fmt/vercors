@@ -568,6 +568,8 @@ case class Printer(out: Appendable,
       statement(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
     case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
+    case Commit(obj) =>
+      spec(statement("builtin_commit", space, obj))
   })
 
   def printExpr(e: Expr[_]): Unit =
@@ -830,6 +832,8 @@ case class Printer(out: Appendable,
       (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
     case Less(left, right) =>
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
+    case AmbiguousGreaterEq(left, right) =>
+      (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case GreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case LessEq(left, right) =>

@@ -1,11 +1,10 @@
 package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, Type, Variable}
-
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
 import vct.col.resolve.{JavaAnnotationData => jad}
-import vct.col.newrewrite.lang.LangBipToCol.TodoError
-import vct.col.origin.{DiagnosticOrigin, PanicBlame, SourceNameOrigin}
+import vct.col.newrewrite.lang.LangBipToCol.{TodoError, WrongTransitionReturnType}
+import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
 import vct.col.ref.Ref
 import vct.col.resolve.{ImplicitDefaultJavaBipStatePredicate, Java, JavaBipStatePredicateTarget, RefJavaBipStatePredicate}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -19,6 +18,11 @@ case object LangBipToCol {
   case class TodoError() extends UserError {
     override def code: String = ???
     override def text: String = ???
+  }
+
+  case class WrongTransitionReturnType(m: JavaMethod[_]) extends UserError {
+    override def code: String = "bipWrongTransitionReturnType"
+    override def text: String = m.o.messageInContext(s"The return type of this update function should be void, instead of ${m.returnType}")
   }
 }
 
@@ -55,7 +59,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteParameter(p: JavaParam[Pre]): (Ref[Post, BipIncomingData[Post]], Variable[Post]) = {
-    val jad.BipData(name) = Java.getBipDataData(p).get
+    val jad.BipData(name) = jad.BipData.get(p).get
     val r = createOrGetIncomingData(name, p.t)
     val variable = new Variable[Post](rw.dispatch(p.t))(p.o)
     rw.succeed(p, variable)
@@ -63,7 +67,9 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteTransition(m: JavaMethod[Pre]): Unit = {
-    val jad.BipTransition(_, source, target, guard, requires, ensures) = Java.getBipTransitionData(m).get
+    val jad.BipTransition(_, source, target, guard, requires, ensures) = jad.BipTransition.get(m).get
+
+    if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
 
     val trans = new BipTransition[Post](
       getJavaBipStatePredicate(source),
@@ -78,7 +84,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteGuard(m: JavaMethod[Pre]): Unit = {
-    val jad.BipGuard(name) = Java.getBipGuardData(m).get
+    val jad.BipGuard(_) = jad.BipGuard.get(m).get
 
     if (m.returnType != TBool[Pre]()) {
       throw Unreachable("")
@@ -92,8 +98,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
-    val jad.BipComponentType(name, initialState) = Java.getBipComponentData(cls).get
-    val invariant: Expr[Pre] = Java.getBipInvariantData(cls) match {
+    val jad.BipComponent(name, initialState) = jad.BipComponent.get(cls).get
+    val invariant: Expr[Pre] = jad.BipInvariant.get(cls) match {
       case Some(value) => value.expr
       case None => tt[Pre]
     }

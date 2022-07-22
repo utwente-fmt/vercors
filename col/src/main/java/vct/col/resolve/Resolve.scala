@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
-import vct.col.resolve.JavaAnnotationData.{BipComponentType, BipData, BipGuard, BipInvariant, BipStatePredicate, BipTransition}
+import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipStatePredicate, BipTransition}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
@@ -163,7 +163,7 @@ case object ResolveReferences extends LazyLogging {
   }
 
   def scanJavaBipGuards[G](nodes: Seq[Declaration[G]]): Seq[(String, JavaMethod[G])] = nodes.collect {
-    case m: JavaMethod[G] if Java.getJavaBipGuardName(m).isDefined => (Java.getJavaBipGuardName(m).get, m)
+    case m: JavaMethod[G] if BipGuard.getName(m).isDefined => (BipGuard.getName(m).get, m)
   }
 
   def scanJavaBipStatePredicates[G](nodes: Seq[JavaModifier[G]]): Seq[(String, JavaAnnotation[G])] = nodes.collect {
@@ -428,7 +428,7 @@ case object ResolveReferences extends LazyLogging {
       ann.data = Some(BipStatePredicate(getLit(ann.expect("state")), expr))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "ComponentType") =>
-      ann.data = Some(BipComponentType(getLit(ann.expect("name")),
+      ann.data = Some(BipComponent(getLit(ann.expect("name")),
         Java.findJavaBipStatePredicate(ctx, getLit(ann.expect("initial")))))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Data") =>
