@@ -78,7 +78,9 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.succ(_)),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
+      rw.dispatch(m.body.get))(
+      m.blame, ???
+    )(SourceNameOrigin(m.name, m.o))
 
     trans.succeedDefault(m)(rw)
   }

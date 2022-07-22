@@ -3,8 +3,8 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.EncodeBip.IsBipComponent
-import vct.col.origin.{Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame}
+import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, BipTransitionPostconditionFailed, IsBipComponent}
+import vct.col.origin.{BipGuardInvocationFailure, Blame, CallableFailure, ContextEverywhereFailedInPre, DiagnosticOrigin, InstanceInvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
@@ -20,6 +20,20 @@ case object EncodeBip extends RewriterBuilder {
         case bc: BipComponent[G] => (cls, bc)
       })
     }
+  }
+
+//  case class ContextEverywherePreconditionFailed(inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
+  case class BipGuardInvocationFailed(transition: BipTransition[_]) extends Blame[InstanceInvocationFailure] {
+    override def blame(error: InstanceInvocationFailure): Unit =
+      transition.blame.blame(BipGuardInvocationFailure(transition, error))
+//      inv.blame.blame(ContextEverywhereFailedInPre(error.failure, inv))
+  }
+
+  case class BipTransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[PostconditionFailed] {
+    override def blame(error: PostconditionFailed): Unit =
+
+//      transition.blame.blame(BipGuardInvocationFailure(transition, error))
+    //      inv.blame.blame(ContextEverywhereFailedInPre(error.failure, inv))
   }
 }
 
@@ -108,7 +122,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
                 // For each @Data that the guard needs, find the appropriate @Data paramter from the transition
                 val vars = bg.data.map { case (dataRef, _) => bt.data.find(dataRef.decl == _._1.decl).get._2 }
                 methodInvocation(
-                  ???,
+                  BipGuardInvocationFailed(bt),
                   ThisObject(succ[Class[Post]](currentClass.top)),
                   succ[InstanceMethod[Post]](f.decl),
                   args = vars.map(succ[Variable[Post]]).map(Local[Post](_)))
@@ -120,7 +134,9 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
               &** dispatch(bt.ensures)
           )
         )
-      )(bt.blame.asInstanceOf[Blame[CallableFailure]] /* TODO: FISHY! */)(bt.o).succeedDefault(bt)
+//      )(bt.blame.asInstanceOf[Blame[CallableFailure]] /* TODO: FISHY! */)(bt.o).succeedDefault(bt)
+        // TODO: Need to relatethe "UnitAccounted" things I make above in the blame handler here...? EncodeArrayValues is probably a good example to look at
+        )(BipTransitionPostconditionFailed(bt))(bt.o).succeedDefault(bt)
 
     case _ => rewriteDefault(decl)
   }

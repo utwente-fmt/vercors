@@ -721,7 +721,9 @@ final case class JavaNative[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaSynchronized[G]()(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
 final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaTransientImpl[G]
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
-final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G] {
+final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])]
+                                  )(val blame: Blame[JavaAnnotationFailure]
+                                  )(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G] {
   var data: Option[JavaAnnotationData[G]] = None
 }
 
@@ -796,7 +798,7 @@ final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) exte
 final class BipTransition[G](val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
                              val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val guard: Option[Ref[G, BipGuard[G]]],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
-                            )(val blame: Blame[ContractedFailure])(implicit val o: Origin) extends ClassDeclaration[G] with Declarator[G] {
+                            )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G] with Declarator[G] {
   override def declarations: Seq[Declaration[G]] = data.map(_._2)
 }
 final class BipGuard[G](val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val body: Statement[G])(implicit val o: Origin) extends ClassDeclaration[G]

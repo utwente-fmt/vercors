@@ -334,6 +334,29 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def text: String = "zfrac may be zero."
 }
 
+sealed trait BipTransitionFailure extends VerificationFailure
+case class BipComponentInvariantNotMaintained(c: BipComponent[_]) extends BipTransitionFailure {
+  override def code: String = ???
+  override def text: String = ???
+}
+case class BipStateInvariantNotMaintained() extends BipTransitionFailure {
+  override def code: String = ???
+  override def text: String = ???
+}
+case class BipTransitionPostconditionFailure() extends BipTransitionFailure {
+  override def code: String = ???
+  override def text: String = ???
+}
+case class BipGuardInvocationFailure(ann: BipTransition[_], failure: InstanceInvocationFailure) extends ContractFailure with BipTransitionFailure {
+  // Can only construct this if java annotation has a "guard" argument
+//  assert(ann.get("guard").isDefined)
+
+  override def code: String = "bipTransitionGuardInvocation"
+  override def text: String = "Invocation of transition guard in precondition of transition failed, since"
+
+  override def node: Node[_] = ann.get("guard").get
+}
+
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }
