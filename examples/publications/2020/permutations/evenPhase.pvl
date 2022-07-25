@@ -281,8 +281,8 @@ class EvenPhase {
 	ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i < contrib.length; contrib[2*i] == 1);
 	ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 0);
 	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
- 	 	 								 inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1]) ==>
- 	 									 (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]);
+         inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1])
+         ==> (\forall int i; 0 <= i && i <  (|inp_seq_all[loopCounter[0]]| - 1); inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]);
 	ensures (\forall int i; 0 <= i && i < input.length/2 && 2*i+1 < input.length; input[2*i] <= input[2*i+1]);
 	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
  										((inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1]) ==>
@@ -297,34 +297,34 @@ class EvenPhase {
 		invariant inv(Perm(isSorted[0], write) ** Perm(inp_seq_cur, 1) ** input.length == |inp_seq_cur|
 		    ** contrib.length == input.length ** Perm(loopCounter[0], write) ** Perm(inp_seq_all, 1)
 		    ** (loopCounter[0] >= 0 && |inp_seq_all| == loopCounter[0] + 1)
-		    ** (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|)
+		    ** (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |{: inp_seq_all[i] :}|)
 		    ** (\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2))
-		    ** (\forall* int i; 0 <= i && i < input.length; Perm(input[i], write))
-		    ** (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i])
+		    ** (\forall* int i; 0 <= i && i < input.length; Perm( {: input[i] :}, write))
+		    ** (\forall int i; 0 <= i && i < input.length; {: input[i] :} ==  {: inp_seq_cur[i] :})
 		    ** isApermutation(inp_seq_all[0], inp_seq_cur)
-		    ** ((\forall int i; 0 <= i && i < contrib.length/2 && 2*i < contrib.length; contrib[2*i] == 0)
-		    ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j]))
+		    ** ((\forall int i; 0 <= i && i < contrib.length; {: contrib[i] :} == 0)
+		    ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {: inp_seq_all[loopCounter[0]][j] :} == {: inp_seq_cur[j]:} ))
 
-		    ** ((\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
- 	 	 	inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1])
- 	 	 	==> (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i]))
+		    ** ((\forall int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
+ 	 	 	{: inp_seq_all[loopCounter[0]][i] :} <= inp_seq_all[loopCounter[0]][i+1])
+ 	 	 	==> (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|; {: inp_seq_cur[i] :} ==  {: inp_seq_all[loopCounter[0]][i] :}))
 
- 	 	 	** (\forall int i; 0 <= i && i < input.length/2 && 2*i+1 < {: input.length :} && (contrib[2*i] == 1); input[2*i] <= input[2*i+1])
- 	 	 	** (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
- 	 	    ((inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1] && contrib[2*i] == 0)
- 	 	    ==> (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i+1])))
+ 	 	 	** (\forall int i; 0 <= i && i < (input.length - 1) && ({: contrib[i] :} == 1);{: input[i] :} <= input[i+1])
+ 	 	 	** (\forall int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
+ 	 	    (( {: inp_seq_all[loopCounter[0]][i] :} > inp_seq_all[loopCounter[0]][i+1] && {: contrib[i] :} == 0)
+ 	 	    ==> ({: inp_seq_cur[i] :} == inp_seq_all[loopCounter[0]][i] && inp_seq_cur[i+1] == inp_seq_all[loopCounter[0]][i+1])))
 
 
- 	 	    ** (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < | inp_seq_all[loopCounter[0]] |;
- 	 	    ((inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1] && contrib[2*i] == 1)
- 	 	    ==> (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i+1] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i])))
- 	 	    ** (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-	 		((inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1])
-	 		==> (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i+1])))
-	 		** ((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-			inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1] && contrib[2*i] == 1) ==> !isSorted[0])
-			** ((isSorted[0] && (\forall int i; 0 <= i && i < contrib.length/2 && 2*i < {: contrib.length :}; contrib[2*i] == 1))
-			==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {: inp_seq_all[loopCounter[0]][j] :} == {: inp_seq_cur[j] :})))
+ 	 	    ** (\forall int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
+ 	 	    (({:inp_seq_all[loopCounter[0]][i] :} > inp_seq_all[loopCounter[0]][i+1] && {:contrib[i]:} == 1)
+ 	 	    ==> (inp_seq_cur[i] == inp_seq_all[loopCounter[0]][i+1] && inp_seq_cur[i+1] == inp_seq_all[loopCounter[0]][i])))
+ 	 	    ** (\forall int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
+	 		(( {: inp_seq_all[loopCounter[0]][i] :} <= inp_seq_all[loopCounter[0]][i+1])
+	 		==> ( {: inp_seq_cur[i] :} == inp_seq_all[loopCounter[0]][i] && inp_seq_cur[i+1] == inp_seq_all[loopCounter[0]][i+1])))
+	 		** ((\exists int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
+			inp_seq_all[loopCounter[0]][i] > inp_seq_all[loopCounter[0]][i+1] && contrib[i] == 1) ==> !isSorted[0])
+			** ((isSorted[0] && (\forall int i; 0 <= i && i < contrib.length; {: contrib[i] :} == 1))
+			==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j])))
 		{
 			par even(int tid=0..((input.length)/2))
 			requires tid*2 < contrib.length ==> Perm(contrib[tid*2], 1\2);
