@@ -318,9 +318,9 @@ class EvenPhase {
  	 	    ** (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
  	 	    ((inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1] && contrib[2*i] == 1)
  	 	    ==> (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i+1] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i])))
- 	 	    ** (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
-	 		((inp_seq_all[loopCounter[0]][2*i] <= inp_seq_all[loopCounter[0]][2*i+1])
-	 		==> (inp_seq_cur[2*i] == inp_seq_all[loopCounter[0]][2*i] && inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]][2*i+1])))
+ 	 	    ** (\forall int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
+	 		((inp_seq_all[loopCounter[0]][i] <= inp_seq_all[loopCounter[0]][i+1])
+	 		==> ( {:inp_seq_cur[i] :} == {: inp_seq_all[loopCounter[0]][i] :} && inp_seq_cur[i+1] == inp_seq_all[loopCounter[0]][i+1])))
 	 		** ((\exists int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1);
 			{: inp_seq_all[loopCounter[0]][i] :} > inp_seq_all[loopCounter[0]][i+1] && {: contrib[i] :} == 1) ==> !isSorted[0])
 			** ((isSorted[0] && (\forall int i; 0 <= i && i < contrib.length; {: contrib[i] :} == 1))
