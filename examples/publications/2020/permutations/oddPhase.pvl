@@ -306,33 +306,32 @@ class OddPhase {
 									(\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|) **
 									(\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2)) **
 									(\forall* int i; 0 <= i && i < input.length; Perm(input[i], write)) **
-		              (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]) **
-									/*Perm(inp_seq_cur, 1) ** Perm(inp_seq_all, 1) **
-									resource_odd(isSorted, inp_seq_cur, input, contrib, loopCounter, inp_seq_all) ** */
+		              (\forall int i; 0 <= i && i < input.length; {: input[i] :} == {: inp_seq_cur[i] :}) **
+
 										isApermutation(inp_seq_all[0], inp_seq_cur) **
 
-									((\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 0) ==>
-									   (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]+1][j] == inp_seq_cur[j])) **
+									((\forall int i; 0 <= i && i < (contrib.length); {: contrib[i] :} == 0) ==>
+									   (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]+1][j] == {: inp_seq_cur[j] :})) **
 
 										 property2(inp_seq_cur, inp_seq_all[loopCounter[0]+1]) **
 
-									(\forall int i; 0 <= i && i < input.length/2 && 2*i+2 < input.length && (contrib[2*i+1] == 1); input[2*i+1] <= input[2*i+2]) **
+									(\forall int i; 0 < i && i < input.length && ({: contrib[i] :} == 1); input[i - 1] <= {: input[i] :}) **
 
- 	 	 							(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
- 	 	 								((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 0) ==>
- 	 	 								(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+1] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+2]))) **
+ 	 	 							(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]| - 1;
+ 	 	 								((inp_seq_all[loopCounter[0]+1][i] > inp_seq_all[loopCounter[0]+1][i+1] && {: contrib[i] :} == 0) ==>
+ 	 	 								({: inp_seq_cur[i] :} == inp_seq_all[loopCounter[0]+1][i] && inp_seq_cur[i+1] == inp_seq_all[loopCounter[0]+1][i+1]))) **
 
-	 								(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-	 									((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 1) ==>
-	 									(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+2] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+1]))) **
+	 								(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]| - 1;
+	 									((inp_seq_all[loopCounter[0]+1][i] > inp_seq_all[loopCounter[0]+1][i+1] && {: contrib[i] :} == 1) ==>
+	 									({: inp_seq_cur[i] :} == inp_seq_all[loopCounter[0]+1][i+1] && inp_seq_cur[i+1] == inp_seq_all[loopCounter[0]+1][i]))) **
 
 										property1(inp_seq_cur, inp_seq_all[loopCounter[0]+1]) **
 
 										((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]|/2 && 2*i+1 < |inp_seq_all[loopCounter[0]]|;
 																				  (inp_seq_all[loopCounter[0]][2*i] > inp_seq_all[loopCounter[0]][2*i+1])) ==> !isSorted[0]) **
 
-										((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-									  (inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 1)) ==> !isSorted[0]) **
+										((\exists int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]| - 1;
+									  (inp_seq_all[loopCounter[0]+1][i] > inp_seq_all[loopCounter[0]+1][i+1] && ( {: contrib[i] :} == 1))) ==> !isSorted[0]) **
 									(isSorted[0] ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; {: inp_seq_all[loopCounter[0]][j] :} == inp_seq_all[loopCounter[0]+1][j]))
 
 									)
