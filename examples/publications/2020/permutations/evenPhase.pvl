@@ -305,7 +305,7 @@ class EvenPhase {
         		    ** ((\forall int i; 0 <= i && i < contrib.length/2 && 2*i < contrib.length; contrib[2*i] == 0)
         		    ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j]))
 
-        		    ** ((\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]]| - 1;
+        		    ** ((\forall int i; 0 <= i && i < (|inp_seq_all[loopCounter[0]]| - 1) && ((i % 2) == 0);
         		    ((|inp_seq_all[loopCounter[0]]| % 2 == 0)
         		    ==> (inp_seq_all[loopCounter[0]][i] <= inp_seq_all[loopCounter[0]][i+1])) &&
         		    ((|inp_seq_all[loopCounter[0]]| % 2 != 0)
