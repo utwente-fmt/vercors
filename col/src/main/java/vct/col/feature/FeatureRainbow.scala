@@ -151,6 +151,7 @@ class FeatureRainbow[G] {
     case node: NewObject[G] => Classes
     case node: NewArray[G] => Arrays
     case node: Old[G] => return Nil
+    case node: OldLabeled[G] => return Nil
     case node: AmbiguousSubscript[G] =>
       return AmbiguousOperators +: (
         if(node.isPointerOp) Seq(Pointers)

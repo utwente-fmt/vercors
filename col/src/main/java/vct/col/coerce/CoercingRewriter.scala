@@ -890,6 +890,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Null()
       case old @ Old(expr, at) =>
         Old(expr, at)(old.blame)
+      case oldLabeled @ OldLabeled(expr, at) =>
+        OldLabeled(expr,at)(oldLabeled.blame)
       case get @ OptGet(opt) =>
         OptGet(option(opt)._1)(get.blame)
       case OptGetOrElse(opt, alt) =>

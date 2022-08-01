@@ -248,6 +248,7 @@ valPrimary
  | '{:' langExpr ':}' # valInlinePattern
  | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
  | '\\old' '(' langExpr ')' # valOld
+ | '\\old' '[' langId ']' '(' langExpr ')' #valOldLabeled
  | '\\typeof' '(' langExpr ')' # valTypeof
  | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
