@@ -276,6 +276,8 @@ case object ResolveReferences {
       ref.tryResolve(name => Spec.findInstanceFunction(obj, name).getOrElse(throw NoSuchNameError("function", name, inv)))
     case inv @ InstancePredicateApply(obj, ref, _, _) =>
       ref.tryResolve(name => Spec.findInstancePredicate(obj, name).getOrElse(throw NoSuchNameError("predicate", name, inv)))
+    case inv @ CoalesceInstancePredicateApply(obj, ref, _, _) =>
+      ref.tryResolve(name => Spec.findInstancePredicate(obj, name).getOrElse(throw NoSuchNameError("predicate", name, inv)))
 
     case defn: CFunctionDefinition[G] =>
       defn.ref = C.findForwardDeclaration(defn.declarator, ctx)

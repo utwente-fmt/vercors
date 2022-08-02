@@ -1016,7 +1016,7 @@ case class Printer(out: Appendable,
       phrase(
         doubleline,
         spec(function.contract),
-        if(function.inline) phrase("inline") else phrase(), space, "pure", space, function.returnType,
+        if(function.inline) phrase("inline") else phrase(), space, "pure", space, function.returnType, space,
         name(function), "(", commas(function.args.map(NodePhrase)), ")",
         function.body match {
           case Some(body) => phrase(space, "=", newline, indent(body))
@@ -1256,6 +1256,17 @@ case class Printer(out: Appendable,
   def printJavaName(node: JavaName[_]): Unit =
     say(node.names.mkString("."))
 
+  def printVerification(node: Verification[_]): Unit =
+    node.tasks.foreach(print)
+
+  def printVerificationContext(node: VerificationContext[_]): Unit = {
+    say(newline, "// === Verification context ===", newline)
+    node.expectedErrors.foreach{ ee =>
+      say(newline, s"""// Expected error "${ee.errorCode}" at ${ee.errorRegion.shortPosition}""", newline)
+    }
+    print(node.program)
+  }
+
   def print(node: Node[_]): Unit = node match {
     case program: Program[_] => printProgram(program)
     case stat: Statement[_] => printStatement(stat)
@@ -1276,5 +1287,9 @@ case class Printer(out: Appendable,
     case node: JavaModifier[_] => printJavaModifier(node)
     case node: JavaImport[_] => printJavaImport(node)
     case node: JavaName[_] => printJavaName(node)
+    case node: Verification[_] => printVerification(node)
+    case node: VerificationContext[_] => printVerificationContext(node)
+    case x =>
+      say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
   }
 }

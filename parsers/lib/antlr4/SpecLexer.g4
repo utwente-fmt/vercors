@@ -151,6 +151,7 @@ WRITE: 'write';
 READ: 'read';
 EMPTY: 'empty';
 
+COALESCE: '?.';
 CONS: '::';
 FRAC_DIV: '\\';
 SEP_CONJ: '**';

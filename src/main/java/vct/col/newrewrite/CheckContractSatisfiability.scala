@@ -17,8 +17,8 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
     "Prove that contracts are not internally contradictory (i.e. unsatisfiable) for methods and other contract bearers, " +
       "except for the contract `false`."
 
-  case class CheckSatOrigin(inner: Origin) extends Origin {
-    override def preferredName: String = "check_sat_" + inner.preferredName
+  case class CheckSatOrigin(inner: Origin, n: Option[String]) extends Origin {
+    override def preferredName: String = "check_sat_" + n.getOrElse(inner.preferredName)
     override def context: String = inner.context
     override def inlineContext: String = inner.inlineContext
     override def shortPosition: String = inner.shortPosition
@@ -42,8 +42,8 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     case SplitAccountedPredicate(left, right) => splitAccountedPredicate(left) ++ splitAccountedPredicate(right)
   }
 
-  def checkSatisfiability(contract: ApplicableContract[Pre]): Unit = {
-    implicit val origin: Origin = CheckSatOrigin(contract.o)
+  def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[String]): Unit = {
+    implicit val origin: Origin = CheckSatOrigin(contract.o, n)
     foldStar(splitAccountedPredicate(contract.requires)) match {
       case BooleanValue(false) =>
         // Assume the contract is not intended to be satisfiable
@@ -71,8 +71,16 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     VerificationContext(program, errs ++ context.expectedErrors)(context.o)
   }
 
+  val name: ScopedStack[String] = ScopedStack()
+
+  override def dispatch(decl: Declaration[Pre]): Unit = {
+    name.having(decl.o.preferredName) {
+      super.dispatch(decl)
+    }
+  }
+
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
-    if(doCheck) checkSatisfiability(contract)
+    if(doCheck) checkSatisfiability(contract, name.topOption)
     rewriteDefault(contract)
   }
 }

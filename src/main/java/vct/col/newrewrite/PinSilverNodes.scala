@@ -41,7 +41,7 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
     case CurPerm(loc) => loc match {
       case SilverDeref(obj, Ref(field)) =>
         SilverCurFieldPerm[Post](dispatch(obj), succ(field))(e.o)
-      case PredicateApply(Ref(pred), args, WritePerm()) =>
+      case PredicateApply(Ref(pred), args, _) =>
         SilverCurPredPerm[Post](succ(pred), args.map(dispatch))(e.o)
       case _ =>
         throw Unreachable("Invalid permission location")
