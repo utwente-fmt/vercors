@@ -290,7 +290,7 @@ object Passes {
       new UnfoldSynchronized(_).rewriteAll(),
       permits = Feature.DEFAULT_PERMIT + features.Synchronized + features.NotJavaEncoded + features.PVLSugar + features.NullAsOptionValue ++ Feature.OPTION_GATES + features.ArgumentAssignment,
       removes = Set(features.Synchronized),
-      introduces = Set(features.Exceptions, features.NoExcVar, features.Finally, features.PVLSugar)
+      introduces = Set(features.Exceptions, features.NoExcVar, features.Finally, features.PVLSugar, features.ExceptionalReturn)
     ),
     SimplePass("introExcVar",
       "Introduces the auxiliary sys__exc variable for use by exceptional control flow",
@@ -364,7 +364,7 @@ object Passes {
   val PARALLEL: Seq[AbstractPass] = Seq(
     ErrorMapPass(
       "inlineAtomicMethods", "Encode CSL atomic regions with methods",
-      new CSLencoder(_, _).rewriteAll,
+      new CSLencoder(_,_).rewriteAll,
       permits=Feature.DEFAULT_PERMIT - features.ImproperlySortedBeforeAfter ++ Feature.OPTION_GATES,
       removes=Set(features.JavaAtomic),
       introduces=Feature.DEFAULT_INTRODUCE + features.ParallelAtomic + features.Goto,
@@ -757,7 +757,13 @@ object Passes {
     ErrorMapPass("returnTypeToOutParameter",
       "Replace return value by out parameter.",
       new CreateReturnParameter(_, _).rewriteAll,
-      permits=Feature.DEFAULT_PERMIT - features.NotFlattened + features.TopLevelImplementedMethod + features.TopLevelMethod - features.Constructors,
+      permits=Feature.DEFAULT_PERMIT
+        - features.NotFlattened
+        + features.TopLevelImplementedMethod
+        + features.TopLevelMethod
+        - features.Constructors
+        - features.ExceptionalReturn
+        - features.Synchronized,
       removes=Set(features.NonVoidMethods),
       introduces=Feature.NO_POLY_INTRODUCE -- Set(
         features.NotFlattened,
@@ -829,13 +835,6 @@ object Passes {
         features.BeforeSilverDomains,
         features.QuantifierWithoutTriggers,
       )
-    ),
-    SimplePass(
-      "RemoveRecursiveActionClass", "remove super class RecursiveAction, by converting java methods to ASTSpecials",
-      new RemoveRecursiveActionClass(_).rewriteAll(),
-      removes = Set(features.RecursiveActionInheritance),
-      permits=Feature.DEFAULT_PERMIT + features.TopLevelImplementedMethod + features.TopLevelMethod + features.PVLSugar + features.NullAsOptionValue + features.NotJavaEncoded + features.NeedsSatCheck + features.ArgumentAssignment,
-      introduces = Feature.DEFAULT_INTRODUCE - features.NotFlattened - features.ArrayOps + features.PVLSugar
     ),
   )
 

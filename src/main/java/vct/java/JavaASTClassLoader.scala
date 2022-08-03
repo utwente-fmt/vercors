@@ -1,10 +1,10 @@
 package vct.java
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 import hre.ast.{FileOrigin, MessageOrigin}
 import hre.config.Configuration
-import vct.col.ast.`type`.{ClassType, PrimitiveSort, Type}
+import vct.col.ast.`type`.{ PrimitiveSort, Type}
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace}
 import vct.col.ast.util.{ASTFactory, ClassName, ContractBuilder, ExternalClassLoader, SequenceUtils}
 import vct.parsers.ColJavaParser

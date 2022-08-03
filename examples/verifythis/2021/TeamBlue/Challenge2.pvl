@@ -1,0 +1,351 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis2021C2
+//:: tools silicon
+//:: suite medium
+//:: verdict Pass
+
+/** For the challenge, see https://ethz.ch/content/dam/ethz/special-interest/infk/chair-program-method/pm/documents/Verify%20This/Challenges2021/challenge2.pdf
+  * We managed to prove Tasks 1-4 (memory safety and functional correctness) as well as Task 6 (iterative version of "size").
+  * We did not work on Tasks 5 (termination).
+  */
+
+class Node {
+
+  /**
+    Fields
+  */
+
+  int data;
+  Node prev;
+  Node next;
+  
+
+  /**
+    Access Predicates
+  */
+
+  static inline resource node_perm(Node node) 
+    = Perm(node.data, write) ** Perm(node.prev, write) ** Perm(node.next, write);
+  
+  static resource list(Node node) 
+    = node != null ==> node_perm(node) ** list(node.next) 
+                        ** (node.next != null ==> \unfolding list(node.next) 
+                                                    \in node.next.prev == node);
+  
+  static resource tree(Node node) 
+    = node != null ==> node_perm(node) ** tree(node.prev) ** tree(node.next);
+
+
+  
+  /**
+    mathematical helpers
+  */
+
+  pure static int max(int x, int y) = x<y ? y : x;
+  
+  pure static int min(int a, int b) = a < b ? a : b;
+  
+  /// compute 2 to the power of given value
+    requires x >= 0;
+    ensures \result >= 1;
+    ensures x>0 ==> \result > 1 && pow2(x-1) == \result / 2;
+    ensures \result > 1 ==> x>0;
+  pure static int pow2(int x) 
+    = x<=0 ? 1 : 2*pow2(x-1);
+    
+  /// compute logarithm of given value (rounded down)
+    requires x > 0;
+    ensures \result >= 0;
+    ensures x>1 ==> \result>0 && log2(x/2)==\result-1;
+    ensures pow2(\result) <= x && pow2(\result+1) >= x+1;
+  pure static int log2(int x) { 
+    if(x/2 > 0) {
+      return log2(x/2)+1;
+    } else {
+      return 0; 
+    }
+  }
+  
+
+  /**
+    Converting list and tree to canonical representation (sequence)
+  */
+
+    requires list(headNode);
+    ensures |\result| == size(headNode);
+    ensures headNode != null 
+            ==> tail(\result) == \unfolding list(headNode) \in list2seq(headNode.next);
+  pure static seq<int> list2seq(Node headNode) 
+    = headNode == null ? [t:int]
+                       : \unfolding list(headNode) \in (headNode.data :: list2seq(headNode.next));
+    
+    requires tree(headNode);
+  pure static seq<int> tree2seq(Node headNode) 
+    = headNode == null ? [t:int]
+                       : \unfolding tree(headNode) 
+                          \in (tree2seq(headNode.prev) 
+                               + (headNode.data :: tree2seq(headNode.next)));
+    
+    
+
+  /**
+    List properties
+  */
+
+    requires list(headNode);
+  pure static boolean sorted(Node headNode)
+    = headNode != null ==> \unfolding list(headNode) 
+                            \in headNode.next != null 
+                                    ==> sorted(headNode.next)
+                                        && \unfolding list(headNode.next)
+                                            \in headNode.data <= headNode.next.data;
+  
+    requires list(headNode);
+    ensures \result >= 0;
+  pure static int size(Node headNode)
+    = headNode == null ? 0
+                       : \unfolding list(headNode) \in size(headNode.next) + 1;
+  
+  
+  /// Task 6) iterative version of size, slightly harder to verify
+    context list(headNode);
+    ensures \result >= 0;
+    /// correctness of this method defined via the recursive one
+    ensures \result == size(headNode);
+    /// data in list remains unchanged
+    ensures list2seq(headNode) == \old(list2seq(headNode));   
+  static int size_iterative(Node headNode) {
+    int size = 0;
+
+    /// cur iterates over the list to compute the size
+    Node cur = headNode;
+    
+    /// store the previous pointer of cur, to ensure proper double-linking during iteration
+    Node prev = null;
+    if (cur != null) {
+        unfold list(cur);
+        prev = cur.prev;
+        fold list(cur);
+    }
+    
+    seq<int> as_seq = list2seq(cur);
+    
+    /// create magic wand to store permissions of already iterated list. Initial wand is trivial
+    create { 
+      use size==0;
+      qed (list(cur) ** wandCond(cur, prev, as_seq, size)) -* (list(cur) ** wandPost(cur, as_seq));
+    }
+    
+      loop_invariant list(cur);
+      loop_invariant wandCond(cur, prev, as_seq, size);
+      loop_invariant (list(cur) ** wandCond(cur, prev, as_seq, size)) 
+                     -* (list(headNode) ** wandPost(headNode, as_seq));
+      /// size correctly stores the size of the already traversed list
+      loop_invariant size == \old(size(headNode)) - size(cur);
+    while(cur != null) {
+      /// quite a bit of caching of various values, to be able to refer to them later
+      seq<int> cur_seq = list2seq(cur);
+      assert cur_seq == as_seq[size..];
+      
+      unfold list(cur);
+      
+      Node next = cur.next;
+      assert cur.prev == prev;
+      assert cur_seq == cur.data :: as_seq[size+1..];
+      
+      /// create the magic wand for cur.next
+      create {
+        /// use the wand for cur, and all the necessary permissions and knowledge of cur
+        use (list(cur) ** wandCond(cur, prev, as_seq, size)) 
+            -* (list(headNode) ** wandPost(headNode, as_seq));
+        use node_perm(cur);
+        use next == cur.next;
+        use cur.prev == prev;
+        use cur_seq == as_seq[size..];
+        use cur_seq == cur.data :: as_seq[size+1..];
+        
+        /// proof script how to transform the knowledge of cur and the wand for cur 
+        /// into the wand for cur.next
+        fold list(cur);
+        assert cur_seq == list2seq(cur);
+        assert wandCond(cur, prev, as_seq, size);
+        apply (list(cur) ** wandCond(cur, prev, as_seq, size)) 
+              -* (list(headNode) ** wandPost(headNode, as_seq));
+        
+        /// we successfully created the wand for next, i.e. cur.next
+        qed (list(next) ** wandCond(next, cur, as_seq, size+1)) 
+            -* (list(headNode) ** wandPost(headNode, as_seq));
+      }
+      
+      /// update pointers for next iteration
+      prev = cur;
+      cur = next;
+      
+      /// the most important part: updating size
+      size = size + 1;
+    }
+    
+    /// apply the wand for cur to restore the list(headNode) predicate
+    apply (list(cur) ** wandCond(cur, prev, as_seq, size)) 
+          -* (list(headNode) ** wandPost(headNode, as_seq));
+    
+    return size;
+  }
+  
+  /// wrapper for all conditions in the first part of the magic wand of size_iterative
+    requires list(cur);
+  pure static boolean wandCond(Node cur, Node prev, seq<int> as_seq, int idx)
+    = (cur != null ==> \unfolding list(cur) \in cur.prev == prev)
+      && list2seq(cur) == as_seq[idx..];
+    
+  /// wrapper for the knowledge in the second part of the magic wand of size_iterative
+    requires list(headNode);
+  pure static boolean wandPost(Node headNode, seq<int> as_seq)
+    = list2seq(headNode) == as_seq;
+  
+  
+  
+  /**
+    Tree properties
+  */
+
+    requires tree(headNode);
+    ensures \result >= 0;
+  pure static int height(Node headNode)
+    = headNode == null ? 0
+                       : \unfolding tree(headNode) 
+                            \in max(height(headNode.prev), height(headNode.next)) + 1;
+  
+  
+    requires tree(headNode);
+  pure static boolean balanced(Node headNode)
+    = headNode != null ==> \unfolding tree(headNode) 
+                            \in (height(headNode.prev) == height(headNode.next)
+                                 || height(headNode.prev) == height(headNode.next) + 1
+                                 || height(headNode.prev) == height(headNode.next) - 1)
+                                && balanced(headNode.prev) && balanced(headNode.next);
+  
+    
+    requires tree(headNode);
+    requires headNode != null;
+    ensures \result >= \unfolding tree(headNode) \in headNode.data;
+  pure static int maxData(Node headNode) 
+    = \unfolding tree(headNode) \in
+            max(headNode.data, 
+                max(headNode.prev == null ? headNode.data : maxData(headNode.prev), 
+                    headNode.next == null ? headNode.data : maxData(headNode.next))); 
+                            
+  
+    requires tree(headNode);
+    requires headNode != null;
+    ensures \result <= \unfolding tree(headNode) \in headNode.data;
+  pure static int minData(Node headNode) 
+    = \unfolding tree(headNode) \in
+            min(headNode.data,
+                min(headNode.prev == null ? headNode.data : minData(headNode.prev), 
+                    headNode.next == null ? headNode.data : minData(headNode.next)));
+                              
+  
+    requires tree(headNode);
+  pure static boolean isBST(Node headNode) 
+    = headNode != null ==> \unfolding tree(headNode) \in
+              ( headNode.prev != null ==> maxData(headNode.prev) <= headNode.data)
+             && ( headNode.next != null ==> minData(headNode.next) >= headNode.data)
+             && isBST(headNode.next) && isBST(headNode.prev);
+  
+
+
+  /**
+    Main function: turning Tree into List
+  */
+
+    requires list(headNode);
+    /// 1) The result is a tree & 2) Memory safety
+    ensures tree(\result);
+    /// 1) and the tree actually represents the given list
+    ensures tree2seq(\result) == \old(list2seq(headNode));
+    /// 3) if input is sorted, then result is BST
+    ensures \old(sorted(headNode)) ==> isBST(\result);
+    /// 4) result is balanced
+    ensures balanced(\result);
+  static Node dll_to_bst(Node headNode) {
+    int n = size(headNode);
+    Node root;
+    int height = (n==0 ? 0 : log2(n)+1);
+    dll_to_bst_rec(headNode, n) with {height=height;} then {root=root;};
+    return root;
+  }
+  
+  
+    given int height;
+    yields Node root;
+    yields Node right;
+    
+    requires list(headNode);
+    requires 0<=n && n<=size(headNode);
+    requires n>0 ==> height > 0;
+    requires n>0 ==> pow2(height-1)-2 < n && n < pow2(height);
+    
+    /// part of the list is turned into a balanced tree (potentially BST)
+    ensures tree(root);
+    ensures tree2seq(root) == \old(list2seq(headNode))[0..n];
+    ensures n==0 ==> root == null;
+    ensures n>0 ==> (height(root) == height || height(root) == height-1);
+    ensures balanced(root);
+    ensures \old(sorted(headNode)) ==> isBST(root);
+    /// rest of the list remains as a list (still sorted)
+    ensures list(right);
+    ensures size(right) == \old(size(headNode)) - n;
+    ensures list2seq(right) == \old(list2seq(headNode))[n..];
+    ensures \old(sorted(headNode)) ==> sorted(right);
+    ensures n==0 ==> right == headNode 
+                     && (right!= null ==> \unfolding list(right)\in right.data 
+                                          == \old(\unfolding list(headNode)\in headNode.data));
+    /// connection between tree and remaining list: values in tree are smaller (if list was sorted)
+    ensures \old(sorted(headNode)) && root != null && right != null 
+            ==> maxData(root) <= \unfolding list(right) \in right.data;
+    /// connection between tree and original list: same minimal value (if list was sorted)
+    ensures \old(sorted(headNode)) && headNode != null && root != null 
+            ==> minData(root) == \old(\unfolding list(headNode) \in headNode.data);
+  static void dll_to_bst_rec(Node headNode, int n) {
+    Node left, temp;
+    if (n > 0) {
+      /// Recursively construct the left subtree
+      dll_to_bst_rec(headNode, n/2) with {height=height-1;} then {left=root; root=right;};
+      /// [headNode, root) is a tree rooted at left, [root, ...] is a list
+      
+      assert height(left) == height-1 || height(left) == height-2;
+      assert \old(sorted(headNode)) && headNode != null && left != null 
+            ==> minData(left) == \old(\unfolding list(headNode) \in headNode.data);
+      
+      unfold list(root);
+      
+      assert left == null ==> root.data == \old(list2seq(headNode))[0];
+      
+      /// Set pointer to left subtree
+      root.prev = left;
+      
+      /// Recursively construct the right subtree
+      /// size(right subtree) = n - size(left subtree) - 1 (for root)
+      dll_to_bst_rec(root.next, n-n/2-1) with {height=height-1;} then {temp=root; right=right;};
+      /// [headNode, root) is a tree rooted at left, [root.next, right) is tree at temp
+      
+      assert height(temp) == height-1 || height(temp) == height-2;
+      
+      /// Set pointer to right subtree
+      root.next = temp;
+
+      fold tree(root);
+      /// [headNode, right) is a tree rooted at root
+
+      assert \old(sorted(headNode)) && left == null 
+                ==> minData(root) == \unfolding tree(root) \in root.data;
+                
+    } else {
+      root = null;
+      right = headNode;
+      fold tree(root);
+    }
+  }
+
+}

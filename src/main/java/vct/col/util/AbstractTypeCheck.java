@@ -50,7 +50,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
   }
 
   public AbstractTypeCheck(PassReport report, ProgramUnit arg){
-    super(arg,true);
+    super(arg);
     this.report = report;
   }
 
@@ -505,7 +505,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         kind = info.kind;
       } else {
         e.setType(new ClassType(e.name()));
-        e.getType().accept(this);
+        try {
+          e.getType().accept(this);
+        } catch (HREExitException exc) {
+          e.getOrigin().report("error", "Unknown name");
+          throw exc;
+        }
         return;
       }
     }
@@ -740,15 +745,15 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         break;
       }
       case MatrixSum: {
-        Type t = (Type) ((PrimitiveType) tt[1]).firstarg();
-        t = (Type) ((PrimitiveType) t).firstarg();
+        Type t = (Type) tt[1].firstarg();
+        t = (Type) t.firstarg();
         e.setType(t);
         break;
       }
       case FoldPlus: {
         Type t = tt[0];
         if (t.isPrimitive(PrimitiveSort.Sequence)) {
-          t = (Type) ((PrimitiveType) t).firstarg();
+          t = (Type) t.firstarg();
           if (!t.isPrimitive(PrimitiveSort.Integer)) {
             Fail("first argument of summation must be a sequence of integers");
           }
@@ -757,7 +762,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         }
         t = e.arg(1).getType();
         if (t.isPrimitive(PrimitiveSort.Sequence)) {
-          t = (Type) ((PrimitiveType) t).firstarg();
+          t = (Type) t.firstarg();
         } else {
           Fail("argument of summation must be a sequence");
         }
@@ -1127,7 +1132,7 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         if (!t.isPrimitive(PrimitiveSort.Option)) {
           Fail("argument of option get is %s rather than option<?>", t);
         }
-        e.setType((Type) ((PrimitiveType) t).firstarg());
+        e.setType((Type) t.firstarg());
         break;
       }
       case OptionGetOrElse: {
@@ -1190,8 +1195,8 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
       case Mult: {
         // handle cartesian product meaning of *
         if (tt[0].isPrimitive(PrimitiveSort.Sequence) && tt[1].isPrimitive(PrimitiveSort.Sequence)) {
-          tt[0] = (Type) ((PrimitiveType) tt[0]).firstarg();
-          tt[1] = (Type) ((PrimitiveType) tt[1]).firstarg();
+          tt[0] = (Type) tt[0].firstarg();
+          tt[1] = (Type) tt[1].firstarg();
           e.setType(new PrimitiveType(PrimitiveSort.Sequence, new TupleType(new Type[]{tt[0], tt[1]})));
           break;
         }

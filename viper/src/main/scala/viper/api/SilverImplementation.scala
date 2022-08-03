@@ -27,9 +27,7 @@ class SilverImplementation[O](o:OriginFactory[O])
     pw.write(program.toString())
   }
   
-  private def getOrigin(e : Object) : O = e.asInstanceOf[Infoed].info.asInstanceOf[O]
-  
- 
+
   private def show(text: String, obj: Any): Unit = {
     println(s"$text (${obj.getClass.getSimpleName}): $obj")
   }

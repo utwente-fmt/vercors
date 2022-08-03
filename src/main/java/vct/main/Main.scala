@@ -1,15 +1,14 @@
 package vct.main
 
 import java.io._
-import java.time.Instant
+import java.time.{Instant, ZoneId}
 import java.util
 import hre.ast.FileOrigin
 import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
-import vct.col.util.FeatureScanner
+import vct.col.ast.stmt.decl.ProgramUnit
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
@@ -20,9 +19,10 @@ import vct.col.veymont.{Preprocessor, Util}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
-import java.net.URLClassLoader
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
+import java.time.format.DateTimeFormatter
+import java.util.TimeZone
 
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
@@ -61,7 +61,6 @@ class Main {
   private val check_axioms = new BooleanSetting(false)
   private val check_history = new BooleanSetting(false)
   private val separate_checks = new BooleanSetting(false)
-  private val sequential_spec = new BooleanSetting(false)
   private val global_with_field = new BooleanSetting(false)
   private val no_context = new BooleanSetting(false)
   private val gui_context = new BooleanSetting(false)
@@ -86,7 +85,6 @@ class Main {
     clops.add(check_history.getEnable("Check if the program correctly implements the process-algebraic specification."), "check-history")
     clops.add(separate_checks.getEnable("validate classes separately"), "separate")
     clops.add(help_passes.getEnable("print help on available passes"), "help-passes")
-    clops.add(sequential_spec.getEnable("sequential specification instead of concurrent"), "sequential")
     clops.add(pass_list_option, "passes")
     clops.add(show_before.getAppendOption("Show source code before given passes"), "show-before")
     clops.add(show_after.getAppendOption("Show source code after given passes"), "show-after")
@@ -143,13 +141,7 @@ class Main {
 
   private def checkOptions(): Unit = {
     if (version.get) {
-      Output("%s %s", BuildInfo.name, BuildInfo.version)
-      Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion, BuildInfo.scalaVersion, Instant.ofEpochMilli(BuildInfo.builtAtMillis))
-      if (BuildInfo.currentBranch != "master")
-        Output("On branch %s, commit %s, %s",
-          BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
-
-      throw new HREExitException(0)
+      printVersions()
     }
 
     if (help_passes.get) {
@@ -190,23 +182,73 @@ class Main {
     }
   }
 
+  private def printVersions(): Unit = {
+    Output("%s %s", BuildInfo.name, BuildInfo.version)
+
+    val timestamp = {
+      val instance = Instant.ofEpochMilli(BuildInfo.builtAtMillis)
+      val localDateTime = java.time.LocalDateTime
+        .ofInstant(instance, ZoneId.systemDefault())
+      localDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }
+
+    Output("Built at %s", timestamp)
+    if (BuildInfo.currentBranch != "master")
+      Output("On branch %s, commit %s, %s",
+        BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
+
+    val z3VersionLine = {
+      val z3 = Configuration.getZ3
+      z3.addArg("--version")
+      val mp = z3.startProcess()
+      mp.recv().getArg(0)
+    }
+
+    val boogieVersionLine = {
+      val boogie = Configuration.getBoogie
+      boogie.addArg("/version")
+      val mp = boogie.startProcess()
+      mp.recv().getArg(0)
+    }
+
+    val viperVersions = if (Set(BuildInfo.silverCommit, BuildInfo.siliconCommit, BuildInfo.carbonCommit).size == 1) {
+      Seq(("viper", BuildInfo.silverCommit))
+    } else {
+      Seq(("silver", BuildInfo.silverCommit),
+        ("silicon", BuildInfo.siliconCommit),
+        ("carbon", BuildInfo.carbonCommit))
+    }
+    val viperVersionsTxt = viperVersions.map {
+      case (name, commitId) => s"- $name: ${commitId.getOrElse("unknown")}"
+    }
+
+    val allVersions = viperVersionsTxt ++ Seq(
+      s"- z3: $z3VersionLine",
+      s"- boogie: $boogieVersionLine"
+    )
+
+    val allVersionsTxt = ("Versions:" +: allVersions).mkString("\n")
+
+    Output("%s", allVersionsTxt)
+
+    throw new HREExitException(0)
+  }
+
   private def parseInputs(inputPaths: Array[String]): Unit = {
-    Progress("parsing inputs...")
+    Progress("Parsing inputs...")
     report = new PassReport(new ProgramUnit)
     report.setOutput(report.getInput)
     report.add(new ErrorDisplayVisitor)
 
     tk.show
     for (pathName <- inputPaths) {
-      val path = Paths.get(pathName);
+      val path = Paths.get(pathName)
       if (!no_context.get) FileOrigin.add(path, gui_context.get)
       report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
 
-    if (sequential_spec.get)
-      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
 

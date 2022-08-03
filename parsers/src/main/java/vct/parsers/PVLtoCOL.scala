@@ -30,7 +30,7 @@ object PVLtoCOL {
 // Maybe we can turn this off in the future.
 @nowarn("msg=not.*?exhaustive")
 case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLParser)
-  extends ToCOL(fileName, tokens, parser) {
+  extends ToCOL(fileName) {
   def convertProgram(tree: ProgramContext): ProgramUnit = {
     val output = new ProgramUnit()
 
@@ -322,17 +322,6 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       var arrayType = addDims(baseType, dimSizes.size)
       create expression(NewArray, arrayType, dimSizes)
     case NewExpr2(nonTarget) => expr(nonTarget)
-    case NewExpr3(target) => expr(target)
-
-    case Target0(target, ".", prop) =>
-      create dereference(expr(target), convertID(prop))
-    case Target1(seq, "[", idx, "]") =>
-      create expression(Subscript, expr(seq), expr(idx))
-    case Target2(nonTarget, ".", prop) =>
-      create dereference(expr(nonTarget), convertID(prop))
-    case Target3(seq, "[", idx, "]") =>
-      create expression(Subscript, expr(seq), expr(idx))
-    case Target4(TargetUnit0(id)) => convertIDName(id)
 
     case NonTarget0(nonTarget, ".", prop) =>
       create dereference(expr(nonTarget), convertID(prop))

@@ -30,7 +30,6 @@ public abstract class ViperAPI<O, T,E,S,DFunc,DAxiom,P> {
   
   /**
    * Verify a program.
-   * @param tool_home The root directory of the third party tools.
    * @param program The program to be verified.
    * @return test report
    */

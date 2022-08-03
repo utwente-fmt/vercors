@@ -4,7 +4,6 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.syntax.Syntax;
 import vct.col.ast.syntax.Syntax.Associativity;
@@ -32,11 +31,6 @@ public class Parenthesize extends AbstractRewriter {
         cb.signals(sc.name(), rewrite(sc.type()), rewrite(sc.condition()));
       }
     }
-  }
-
-  public Parenthesize(Syntax syntax, ProgramUnit pu) {
-    super(pu);
-    this.syntax=syntax;
   }
 
   @Override

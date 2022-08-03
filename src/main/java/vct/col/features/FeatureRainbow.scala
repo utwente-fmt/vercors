@@ -20,7 +20,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
-class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
+class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source) {
   val features: mutable.Set[Feature] = mutable.Set()
   val blames: mutable.Map[Feature, ArrayBuffer[ASTNode]] = mutable.Map()
 

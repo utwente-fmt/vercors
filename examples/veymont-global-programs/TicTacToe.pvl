@@ -1,6 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TicTacToeInt TicTacToeMatrix
-//:: tools veymont
+//:: cases TicTacToeInt
 //:: verdict Pass
 
 class SeqProgram {

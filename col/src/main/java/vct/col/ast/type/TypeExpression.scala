@@ -2,7 +2,7 @@ package vct.col.ast.`type`
 
 import scala.jdk.CollectionConverters._
 import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping, VisitorHelper}
+import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping}
 import vct.col.ast.util.VisitorHelper
 
 object TypeExpression {
@@ -37,6 +37,12 @@ case class TypeExpression(val operator:TypeOperator, val types:List[Type]) exten
 
   override def isNumeric: Boolean =
     if (isLeaky) firstType.isNumeric else false
+
+  override def isIntegerType: Boolean =
+    if (isLeaky) firstType.isIntegerType else false
+
+  override def isInteger: Boolean =
+    if (isLeaky) firstType.isInteger else false
 
   override def supertypeof(context: ProgramUnit, t: Type): Boolean =
     if (isLeaky) firstType.supertypeof(context, t) else false

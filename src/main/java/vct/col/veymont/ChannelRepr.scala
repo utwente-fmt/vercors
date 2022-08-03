@@ -7,7 +7,7 @@ import vct.col.ast.util.ASTFactory
 import Util.{chanRecvdFieldName, chanSentFieldName, channelClassName, getArgName}
 import vct.col.veymont.GenerateTypedChannel.getTypeName
 
-case class ChannelRepr(val channel: String)(val isWrite : Boolean, val chanType : Type) {
+case class ChannelRepr(channel: String)(val isWrite : Boolean, val chanType : Type) {
 
   override def toString: String = channel + " " + (if(isWrite) "Write" else "Read")
 

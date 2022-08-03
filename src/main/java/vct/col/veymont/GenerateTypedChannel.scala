@@ -34,7 +34,8 @@ object GenerateTypedChannel {
   }
 
 }
-class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(null, true) {
+
+class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(source) {
 
   override def visit(t : PrimitiveType) : Unit = {
     if(t.sort == PrimitiveSort.Integer) {
@@ -136,7 +137,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   })
 
   override def visit(l : LoopStatement) : Unit = sort match {
-    case Left(p) => super.visit(l)
+    case Left(_) => super.visit(l)
     case Right(cl) => {
      /* val cb = new ContractBuilder()
       rewrite(l.getContract,cb)
