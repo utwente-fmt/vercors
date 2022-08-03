@@ -76,7 +76,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       executionContext.topOption.flatten match {
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
-          flat.declareDefault(this)
+          variables.declare(flat)
           implicit val o: Origin = SideEffectOrigin
           val condition = ReInliner().dispatch(foldAnd(conditions))
           val action = assignLocal[Post](Local(flat.ref), pureExpr)

@@ -57,6 +57,9 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
   def scope[T](f: => T): T =
     successors.having(mutable.Map())(f)
 
+  def isEmpty: Boolean = collectionBuffer.isEmpty
+  def nonEmpty: Boolean = !isEmpty
+
   def collect[T](f: => T): (Seq[PostDecl], T) = {
     val buffer = ArrayBuffer[PostDecl]()
 
@@ -97,7 +100,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
     }
   }
 
-  def dispatch(decls: Seq[PreDecl])(implicit rw: AbstractRewriter[Pre, Post]): Seq[PostDecl] =
+  def dispatch(decls: Iterable[PreDecl])(implicit rw: AbstractRewriter[Pre, Post]): Seq[PostDecl] =
     collect { decls.foreach((decl: PreDecl) => rw.dispatch(decl.asInstanceOf[Declaration[Pre]])) }._1
 
   def dispatch[PreRefDecl <: PreDecl, PostRefDecl <: PostDecl](ref: Ref[Pre, PreRefDecl])(implicit tag: ClassTag[PostRefDecl]): Ref[Post, PostRefDecl] =

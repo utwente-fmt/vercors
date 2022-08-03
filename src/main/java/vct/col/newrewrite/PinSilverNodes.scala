@@ -53,13 +53,12 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
 
     case starall @ Starall(bindings, triggers, body) =>
       implicit val o: Origin = e.o
-      val newBindings = ArrayBuffer[Variable[Post]]()
-      val (conds, consequent) = variableScopes.having(newBindings) {
+      val (newBindings, (conds, consequent)) = variables.collect {
         bindings.foreach(dispatch)
         collectStarall(body)
       }
       val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
-      Starall(newBindings.toIndexedSeq, triggers.map(_.map(dispatch)), newBody)(starall.blame)
+      Starall(newBindings, triggers.map(_.map(dispatch)), newBody)(starall.blame)
 
     case Size(xs) =>
       if(xs.t.asSet.nonEmpty) SilverSetSize(dispatch(xs))(e.o)

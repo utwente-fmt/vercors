@@ -56,7 +56,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
           blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
           contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
           requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
-          args = collectInScope(variableScopes) { substitutions.keys.foreach(dispatch) },
+          args = variables.dispatch(substitutions.keys),
           body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
         ).declareDefault(this)
     }

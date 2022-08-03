@@ -28,7 +28,7 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
     case loop @ Loop(init, cond, update, contract @ IterationContract(requires, ensures, context_everywhere), body) =>
       val IterationContractData(v, low, high) = loop.getIterationContractData(IterationContractOrigin).fold(throw _, identity)
 
-      val newV = collectOneInScope(variableScopes) { dispatch(v) }
+      val newV = variables.dispatch(v)
 
       implicit val o: Origin = loop.o
       ParStatement(

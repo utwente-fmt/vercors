@@ -31,18 +31,18 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] =>
       method.rewrite(
-        args = collectInScope(variableScopes) {
+        args = variables.collect {
           method.args.foreach(dispatch)
           method.contract.givenArgs.foreach(dispatch)
-        },
-        outArgs = collectInScope(variableScopes) {
+        }._1,
+        outArgs = variables.collect {
           method.outArgs.foreach(dispatch)
           method.contract.yieldsArgs.foreach(dispatch)
-        },
+        }._1,
       ).succeedDefault(method)
     case func: AbstractFunction[Pre] =>
       func.rewrite(
-        args = collectInScope(variableScopes) {
+        args = variables.collect {
           func.args.foreach(dispatch)
           func.contract.givenArgs.foreach(dispatch)
         }
@@ -64,7 +64,7 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
       })
 
       val (yieldDummies, orderedYieldTargets: Seq[Ref[Post, Variable[Post]]]) =
-        withCollectInScope(variableScopes) {
+        variables.collect {
           inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
             case Some(value) => succ[Variable[Post]](value)
             case None => new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg)).declareDefault(this).ref
