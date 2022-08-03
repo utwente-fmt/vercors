@@ -78,8 +78,7 @@ lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
   .settings(
-//    name := "Vercors",
-    name := "VeyMont",
+    name := "Vercors",
 //    organization := "University of Twente",
 //    version := "1.4.0-SNAPSHOT",
     version := "1.0.0-SNAPSHOT",
