@@ -30,7 +30,11 @@ trait TypeImpl[G] { this: Type[G] =>
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
     case object Particularize extends NonLatchingRewriter[G, G] {
-      override def lookupSuccessor: Declaration[G] => Option[Declaration[G]] = Some(_)
+      case object IdentitySuccessorsProvider extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
+        override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] = Some(pre.asInstanceOf[T])
+      }
+
+      override def succProvider: SuccessorsProvider[G, G] = IdentitySuccessorsProvider
 
       override def dispatch(t: Type[G]): Type[G] = t match {
         case TVar(Ref(v)) => substitutions(v)

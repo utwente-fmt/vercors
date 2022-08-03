@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.{AbstractRewriter, Declaration}
 import vct.col.origin.Origin
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.Generation
+import vct.col.rewrite.{Generation, SuccessorProvider}
 import vct.col.util.Scopes._
 import vct.result.VerificationError.SystemError
 
@@ -33,7 +33,7 @@ object Scopes {
   }
 }
 
-case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaration[Post]](rw: AbstractRewriter[Pre, Post])(implicit tag: ClassTag[PostDecl]) {
+case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaration[Post]]()(implicit tag: ClassTag[PostDecl]) {
   private val successors: ScopedStack[mutable.Map[PreDecl, PostDecl]] = ScopedStack()
   private val collectionBuffer: ScopedStack[mutable.ArrayBuffer[PostDecl]] = ScopedStack()
 
@@ -46,11 +46,10 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
    * since everything between the LazyRef parentheses is evaluated lazily, and only the value of successors is captured
    * in the closure.
    */
-  class FrozenScopes {
+  class FrozenScopes extends SuccessorProvider[Pre, Post, PreDecl, PostDecl] {
     val scopes: Seq[mutable.Map[PreDecl, PostDecl]] = successors.toSeq
 
-    def succ[RefDecl <: Declaration[Post]](decl: PreDecl)(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
-      new LazyRef(scopes.collectFirst(_(decl)).get)
+    override def computeSucc(decl: PreDecl): Option[PostDecl] = scopes.collectFirst(_(decl))
   }
 
   def freeze: FrozenScopes = new FrozenScopes
@@ -90,7 +89,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
     succeedOnly(pre, post)
   }
 
-  def dispatch(decl: PreDecl): PostDecl = {
+  def dispatch(decl: PreDecl)(implicit rw: AbstractRewriter[Pre, Post]): PostDecl = {
     val result = collect { rw.dispatch(decl.asInstanceOf[Declaration[Pre]]) }
     result._1 match {
       case Seq(decl) => decl
@@ -98,7 +97,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
     }
   }
 
-  def dispatch(decls: Seq[PreDecl]): Seq[PostDecl] =
+  def dispatch(decls: Seq[PreDecl])(implicit rw: AbstractRewriter[Pre, Post]): Seq[PostDecl] =
     collect { decls.foreach((decl: PreDecl) => rw.dispatch(decl.asInstanceOf[Declaration[Pre]])) }._1
 
   def dispatch[PreRefDecl <: PreDecl, PostRefDecl <: PostDecl](ref: Ref[Pre, PreRefDecl])(implicit tag: ClassTag[PostRefDecl]): Ref[Post, PostRefDecl] =

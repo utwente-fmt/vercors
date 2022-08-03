@@ -14,8 +14,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
-  globalScopes.push(ArrayBuffer())
-
   override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = e
 }
 
@@ -44,21 +42,10 @@ case object CoercingRewriter {
 abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import CoercingRewriter._
 
-  val coercedSuccessionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Pre]]] = ScopedStack()
-  coercedSuccessionMap.push(SuccessionMap())
+  val coercedScopes: AllScopes[Pre, Pre] = AllScopes()
 
-  override def lookupSuccessor: Declaration[Pre] => Option[Declaration[Rewritten[Pre]]] = {
-    val frozenCoercedSuccessionMap = coercedSuccessionMap.toSeq
-    val inner = super.lookupSuccessor
-    (decl: Declaration[Pre]) =>
-      FuncTools.firstOption[SuccessionMap[Declaration[Pre], Declaration[Pre]], Declaration[Post]](frozenCoercedSuccessionMap, _.get(decl) match {
-        case None => None
-        case Some(decl: Declaration[Pre]) => inner(decl)
-      })
-  }
-
-  override def freshSuccessionScope[T](f: => T): T =
-    coercedSuccessionMap.having(SuccessionMap()) { super.freshSuccessionScope(f) }
+  override def succProvider: SuccessorsProvider[Pre, Post] =
+    SuccessorsProviderChain(coercedScopes.freeze, allScopes.freeze)
 
   /**
     * Apply a particular coercion to an expression.
@@ -101,7 +88,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
       case CoerceMapSet(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
@@ -121,7 +108,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
       case CoerceMapBag(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
@@ -141,7 +128,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
       case CoerceMapMatrix(inner, source, target) =>
         ???
@@ -163,7 +150,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
       case CoerceMapTuple(inner, sourceTypes, targetTypes) =>
         LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
@@ -241,7 +228,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
   override def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
-    coercedSuccessionMap.top(decl) = coercedDecl
+    coercedScopes.anySucceedOnly(decl, coercedDecl)
     postCoerce(coercedDecl)
   }
 

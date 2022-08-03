@@ -46,7 +46,7 @@ object AstBuildHelpers {
   }
 
   implicit class ApplicableBuildHelpers[Pre, Post](applicable: Applicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { applicable.args.foreach(rewriter.dispatch) },
+    def rewrite(args: Seq[Variable[Post]] = rewriter.variables.dispatch(applicable.args),
                ): Applicable[Post] = applicable match {
       case inlineable: InlineableApplicable[Pre] =>
         new InlineableApplicableBuildHelpers(inlineable).rewrite(args = args)
@@ -60,7 +60,7 @@ object AstBuildHelpers {
   }
 
   implicit class InlineableApplicableBuildHelpers[Pre, Post](inlineable: InlineableApplicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { inlineable.args.foreach(rewriter.dispatch) },
+    def rewrite(args: Seq[Variable[Post]] = rewriter.variables.dispatch(inlineable.args),
                 inline: Boolean = inlineable.inline,
                ): InlineableApplicable[Post] = inlineable match {
       case pred: AbstractPredicate[Pre] =>
@@ -71,10 +71,10 @@ object AstBuildHelpers {
   }
 
   implicit class ContractApplicableBuildHelpers[Pre, Post](contracted: ContractApplicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { contracted.args.foreach(rewriter.dispatch) },
+    def rewrite(args: Seq[Variable[Post]] = rewriter.variables.dispatch(contracted.args),
                 returnType: Type[Post] = rewriter.dispatch(contracted.returnType),
                 contract: ApplicableContract[Post] = rewriter.dispatch(contracted.contract),
-                typeArgs: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { contracted.typeArgs.foreach(rewriter.dispatch) },
+                typeArgs: Seq[Variable[Post]] = rewriter.variables.dispatch(contracted.typeArgs),
                 inline: Boolean = contracted.inline,
                ): ContractApplicable[Post] = contracted match {
       case function: Function[Pre] =>
@@ -87,12 +87,12 @@ object AstBuildHelpers {
   }
 
   implicit class MethodBuildHelpers[Pre, Post](method: AbstractMethod[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { method.args.foreach(rewriter.dispatch) },
+    def rewrite(args: Seq[Variable[Post]] = rewriter.variables.dispatch(method.args),
                 returnType: Type[Post] = rewriter.dispatch(method.returnType),
-                outArgs: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { method.outArgs.foreach(rewriter.dispatch) },
+                outArgs: Seq[Variable[Post]] = rewriter.variables.dispatch(method.outArgs),
                 body: Option[Statement[Post]] = method.body.map(rewriter.dispatch),
                 contract: ApplicableContract[Post] = rewriter.dispatch(method.contract),
-                typeArgs: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { method.typeArgs.foreach(rewriter.dispatch) },
+                typeArgs: Seq[Variable[Post]] = rewriter.variables.dispatch(method.typeArgs),
                 inline: Boolean = method.inline,
                 pure: Boolean = method.pure,
                 blame: Blame[CallableFailure] = method.blame,
@@ -105,11 +105,11 @@ object AstBuildHelpers {
   }
 
   implicit class FunctionBuildHelpers[Pre, Post](function: AbstractFunction[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { function.args.foreach(rewriter.dispatch) },
+    def rewrite(args: Seq[Variable[Post]] = rewriter.variables.dispatch(function.args),
                 returnType: Type[Post] = rewriter.dispatch(function.returnType),
                 body: Option[Expr[Post]] = function.body.map(rewriter.dispatch),
                 contract: ApplicableContract[Post] = rewriter.dispatch(function.contract),
-                typeArgs: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { function.typeArgs.foreach(rewriter.dispatch) },
+                typeArgs: Seq[Variable[Post]] = rewriter.variables.dispatch(function.args),
                 inline: Boolean = function.inline,
                 threadLocal: Boolean = function.threadLocal,
                 blame: Blame[ContractedFailure] = function.blame,
@@ -122,7 +122,7 @@ object AstBuildHelpers {
   }
 
   implicit class PredicateBuildHelpers[Pre, Post](predicate: AbstractPredicate[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Variable[Post]] = rewriter.collectInScope(rewriter.variableScopes) { predicate.args.foreach(rewriter.dispatch) },
+    def rewrite(args: Seq[Variable[Post]] = rewriter.variables.dispatch(predicate.args),
                 inline: Boolean = predicate.inline,
                 threadLocal: Boolean = predicate.threadLocal,
                ): AbstractPredicate[Post] = predicate match {
@@ -156,7 +156,7 @@ object AstBuildHelpers {
   }
 
   implicit class InvocationBuildHelpers[Pre, Post](apply: Invocation[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a), rewriter.succ(b)) }): Invocation[Post] = apply match {
+    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): Invocation[Post] = apply match {
       case apply: AnyFunctionInvocation[Pre] =>
         new ApplyAnyFunctionBuildHelpers(apply).rewrite(args = args, givenMap = givenMap, yields = yields)
       case apply: AnyMethodInvocation[Pre] =>
@@ -165,7 +165,7 @@ object AstBuildHelpers {
   }
 
   implicit class ApplyAnyFunctionBuildHelpers[Pre, Post](apply: AnyFunctionInvocation[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), typeArgs: Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a), rewriter.succ(b)) }): AnyFunctionInvocation[Post] = apply match {
+    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), typeArgs: Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): AnyFunctionInvocation[Post] = apply match {
       case inv: FunctionInvocation[Pre] =>
         new RewriteFunctionInvocation(inv).rewrite(args = args, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: InstanceFunctionInvocation[Pre] =>
@@ -174,7 +174,7 @@ object AstBuildHelpers {
   }
 
   implicit class ApplyAnyMethodBuildHelpers[Pre, Post](apply: AnyMethodInvocation[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: Seq[Ref[Post, Variable[Post]]] = apply.outArgs.map(rewriter.succ[Variable[Post]]), typeArgs: Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a), rewriter.succ(b)) }): AnyMethodInvocation[Post] = apply match {
+    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: Seq[Ref[Post, Variable[Post]]] = apply.outArgs.map(arg => rewriter.succ[Variable[Post]](arg.decl)), typeArgs: Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): AnyMethodInvocation[Post] = apply match {
       case inv: ProcedureInvocation[Pre] =>
         new RewriteProcedureInvocation(inv).rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: MethodInvocation[Pre] =>
@@ -183,7 +183,7 @@ object AstBuildHelpers {
   }
 
   implicit class InvocationStatementBuildHelpers[Pre, Post](apply: InvocationStatement[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: Seq[Ref[Post, Variable[Post]]] = apply.outArgs.map(rewriter.succ[Variable[Post]]), typeArgs: Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a), rewriter.succ(b)) }): InvocationStatement[Post] = apply match {
+    def rewrite(args: Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: Seq[Ref[Post, Variable[Post]]] = apply.outArgs.map(arg => rewriter.succ[Variable[Post]](arg.decl)), typeArgs: Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): InvocationStatement[Post] = apply match {
       case inv: InvokeProcedure[Pre] =>
         new RewriteInvokeProcedure(inv).rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: InvokeMethod[Pre] =>
