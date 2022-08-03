@@ -14,7 +14,7 @@ import vct.col.veymont.Util.{getBlockOrThrow, getNameFromNode, getNamesFromExpre
 import java.io.PrintWriter
 import scala.jdk.CollectionConverters._
 
-class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(null, true) {
+class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(source) {
 
   private var parNr = 0
   private var classFields : Iterable[DeclarationStatement] = null

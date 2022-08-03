@@ -9,7 +9,7 @@ import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
-class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter(null, true) {
+class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private var currentClassName : String = null
   private var currentMethodArgs : Array[DeclarationStatement] = null

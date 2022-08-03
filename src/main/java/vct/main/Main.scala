@@ -297,7 +297,6 @@ class Main {
     "removeUnusedExternMethods",
     "encodeLockInvariantProof",
     "synchronizedToTryFinally",
-    "RemoveRecursiveActionClass",
     "encodeForkLockWait",
     "specifyImplicitLoopLabels",
     "switchToIfChain",
