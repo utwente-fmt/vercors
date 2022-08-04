@@ -116,7 +116,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
         val catchImpl = Block[Post](catches.map {
           case CatchClause(decl, body) =>
-            val typedExc = collectOneInScope(variableScopes) { dispatch(decl) }
+            val typedExc = variables.dispatch(decl)
             Scope(Seq(typedExc), Branch(Seq((
               (getExc !== Null[Post]()) && InstanceOf(getExc, TypeValue(dispatch(decl.t))),
               Block(Seq(
@@ -170,7 +170,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       case inv: InvokeProcedure[Pre] =>
         Block(Seq(
-          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(succ[Variable[Post]])),
+          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(arg => succ[Variable[Post]](arg.decl))),
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
@@ -179,7 +179,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       case inv: InvokeMethod[Pre] =>
         Block(Seq(
-          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(succ[Variable[Post]])),
+          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(arg => succ[Variable[Post]](arg.decl))),
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
@@ -245,7 +245,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           ),
         )
 
-        method.rewrite(
+        allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(
           blame = PostBlameSplit.left(
             left = SignalsClosedPostconditionFailed(method),
             right = PostBlameSplit.right(
@@ -254,9 +254,9 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
             ),
           ),
           body = body,
-          outArgs = collectInScope(variableScopes) { exc.declareDefault(this); method.outArgs.foreach(dispatch) },
+          outArgs = variables.collect { variables.declare(exc); method.outArgs.foreach(dispatch) }._1,
           contract = method.contract.rewrite(ensures = ensures, signals = Nil),
-        ).succeedDefault(method)
+        )))
       }
 
     case other => rewriteDefault(other)

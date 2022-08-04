@@ -47,14 +47,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     cParam.drop()
     val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(cParam.o)
     cNameSuccessor(RefCParam(cParam)) = v
-    v.declareDefault(rw)
+    rw.variables.declare(v)
   }
 
   def rewriteFunctionDef(func: CFunctionDefinition[Pre]): Unit = {
     func.drop()
     val info = C.getDeclaratorInfo(func.declarator)
     val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
-    val params = rw.collectInScope(rw.variableScopes) { info.params.get.foreach(rw.dispatch) }
+    val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
 
     val contract = func.ref match {
       case Some(RefCGlobalDeclaration(decl, idx)) if decl.decl.contract.nonEmpty =>

@@ -272,13 +272,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     case method: AbstractMethod[Pre] =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       currentResultVar.having(Local[Post](res.ref)(ResultVar)) {
-        method.rewrite(
+        allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(
           returnType = TVoid()(method.o),
-          outArgs = collectInScope(variableScopes) {
-            res.declareDefault(this)
+          outArgs = variables.collect {
+            variables.declare(res)
             method.outArgs.foreach(dispatch)
-          },
-        ).succeedDefault(method)
+          }._1,
+        )))
       }
     case other => rewriteDefault(other)
   }
@@ -375,12 +375,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       stored(value, oldValue.t)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeMethod[Post](
         obj = inlined(obj),
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
+        outArgs = res.ref[Variable[Post]] +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
@@ -388,11 +388,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       stored(res.get(SideEffectOrigin), method.returnType)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeProcedure[Post](
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
+        outArgs = res.ref[Variable[Post]] +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
