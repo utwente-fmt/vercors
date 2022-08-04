@@ -74,9 +74,7 @@ VAL_SIGNALS: 'signals';
 VAL_DECREASES: 'decreases';
 
 VAL_CREATE: 'create_wand';
-VAL_QED: 'qed';
 VAL_APPLY: 'apply';
-VAL_USE: 'use';
 VAL_FOLD: 'fold';
 VAL_UNFOLD: 'unfold';
 VAL_OPEN: 'open';

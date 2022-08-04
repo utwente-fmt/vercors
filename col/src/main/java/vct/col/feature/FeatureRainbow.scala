@@ -151,7 +151,6 @@ class FeatureRainbow[G] {
     case node: NewObject[G] => Classes
     case node: NewArray[G] => Arrays
     case node: Old[G] => return Nil
-    case node: OldLabeled[G] => return Nil
     case node: AmbiguousSubscript[G] =>
       return AmbiguousOperators +: (
         if(node.isPointerOp) Seq(Pointers)
@@ -311,9 +310,7 @@ class FeatureRainbow[G] {
     case node: Fold[G] => return Nil
     case node: Unfold[G] => return Nil
     case node: WandCreate[G] => MagicWand
-    case node: WandQed[G] => MagicWand
     case node: WandApply[G] => MagicWand
-    case node: WandUse[G] => MagicWand
     case node: ModelDo[G] => Models
     case node: Havoc[G] => return Nil
     case node: Break[G] => ExceptionalLoopControl

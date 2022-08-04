@@ -890,8 +890,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Null()
       case old @ Old(expr, at) =>
         Old(expr, at)(old.blame)
-      case oldLabeled @ OldLabeled(expr, at) =>
-        OldLabeled(expr,at)(oldLabeled.blame)
       case get @ OptGet(opt) =>
         OptGet(option(opt)._1)(get.blame)
       case OptGetOrElse(opt, alt) =>
@@ -1180,8 +1178,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case w @ Wait(obj) => Wait(cls(obj)._1)(w.blame)
       case WandApply(assn) => WandApply(res(assn))
       case WandCreate(statements) => WandCreate(statements)
-      case WandQed(assn) => WandQed(res(assn))
-      case WandUse(assn) => WandUse(res(assn))
     }
   }
 

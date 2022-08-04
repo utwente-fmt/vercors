@@ -735,9 +735,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
     case ValCreateWand(_, block) => WandCreate(convert(block))
-    case ValQedWand(_, wand, _) => WandQed(convert(wand))
     case ValApplyWand(_, wand, _) => WandApply(convert(wand))
-    case ValUseWand(_, wand, _) => WandUse(convert(wand))
     case ValFold(_, predicate, _) =>
       Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>
@@ -1028,6 +1026,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
+    case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
