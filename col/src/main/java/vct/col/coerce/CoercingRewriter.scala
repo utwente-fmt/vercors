@@ -1176,10 +1176,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case u @ Unlock(obj) => Unlock(cls(obj)._1)(u.blame)
       case VecBlock(iters, requires, ensures, content) => VecBlock(iters, res(requires), res(ensures), content)
       case w @ Wait(obj) => Wait(cls(obj)._1)(w.blame)
-      case WandApply(assn) => WandApply(res(assn))
-      case WandCreate(statements) => WandCreate(statements)
-      case WandQed(assn) => WandQed(res(assn))
-      case WandUse(assn) => WandUse(res(assn))
+      case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
+      case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
     }
   }
 

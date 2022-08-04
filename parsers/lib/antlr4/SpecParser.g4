@@ -63,10 +63,8 @@ valBlock
  ;
 
 valStatement
- : 'create_wand' valBlock # valCreateWand
- | 'qed' langExpr ';' # valQedWand
+ : 'package' langExpr langStatement  # valPackage
  | 'apply' langExpr ';' # valApplyWand
- | 'use' langExpr ';' # valUseWand
  | 'fold' langExpr ';' # valFold
  | 'unfold' langExpr ';' # valUnfold
  | 'open' langExpr ';' # valOpen

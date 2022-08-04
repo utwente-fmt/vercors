@@ -249,10 +249,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
       case fold: Fold[Pre] => rewriteDefault(fold)
       case unfold: Unfold[Pre] => rewriteDefault(unfold)
-      case create: WandCreate[Pre] => rewriteDefault(create)
-      case qed: WandQed[Pre] => rewriteDefault(qed)
+      case create: WandPackage[Pre] => rewriteDefault(create)
       case apply: WandApply[Pre] => rewriteDefault(apply)
-      case use: WandUse[Pre] => rewriteDefault(use)
       case modelDo: ModelDo[Pre] => rewriteDefault(modelDo)
       case havoc: Havoc[Pre] => rewriteDefault(havoc) // PB: pretty sure you can only havoc locals?
       case break: Break[Pre] => rewriteDefault(break)

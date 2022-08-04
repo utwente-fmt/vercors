@@ -7,6 +7,7 @@ channels {
 
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
+VAL_PACKAGE: 'package';
 
 PAREN_OPEN: '(';
 PAREN_CLOSE: ')';

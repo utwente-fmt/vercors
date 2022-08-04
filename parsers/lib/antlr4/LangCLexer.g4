@@ -16,6 +16,7 @@ VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
 VAL_SIZEOF: EOF EOF;
+VAL_PACKAGE: 'package';
 
 Placeholder : EOF EOF ;
 
