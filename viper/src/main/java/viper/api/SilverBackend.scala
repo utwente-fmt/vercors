@@ -198,9 +198,37 @@ trait SilverBackend extends Backend with LazyLogging {
       case TerminationFailed(_, _, _) =>
         throw NotSupported(s"Vercors does not support termination measures from Viper")
       case PackageFailed(node, reason, _) =>
-        throw NotSupported(s"Vercors does not support magic wands from Viper")
+        val packageNode = get[col.WandPackage[_]](node)
+        reason match {
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
+            packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
+          case reasons.InsufficientPermission(permNode) =>
+            get[col.Node[_]](permNode) match {
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) =>
+                packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
+              case _ =>
+                defer(reason)
+            }
+          case _ =>
+            defer(reason)
+        }
       case ApplyFailed(node, reason, _) =>
-        throw NotSupported(s"Vercors does not support magic wands from Viper")
+        val applyNode = get[col.WandApply[_]](node)
+        reason match {
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
+            applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
+          case reasons.InsufficientPermission(permNode) =>
+            get[col.Node[_]](permNode) match {
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) =>
+                applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
+              case _ =>
+                defer(reason)
+            }
+          case reasons.MagicWandChunkNotFound(magicWand) =>
+            applyNode.blame.blame(blame.WandApplyFailed(blame.InsufficientPermissionToExhale(get(magicWand)), applyNode))
+          case _ =>
+            defer(reason)
+        }
       case MagicWandNotWellformed(_, _, _) =>
         throw NotSupported(s"Vercors does not support magic wands from Viper")
       case LetWandFailed(_, _, _) =>

@@ -238,6 +238,9 @@ case object Spec {
       case TClass(Ref(cls)) => cls.declarations.flatMap(Referrable.from).collectFirst {
         case ref @ RefInstancePredicate(decl) if ref.name == name => decl
       }
+      case JavaTClass(Ref(cls), _) => cls.declarations.flatMap(Referrable.from).collectFirst {
+        case ref @ RefInstancePredicate(decl) if ref.name == name => decl
+      }
       case _ => None
     }
 

@@ -309,7 +309,7 @@ class FeatureRainbow[G] {
     case node: Unlock[G] => IntrinsicLocks
     case node: Fold[G] => return Nil
     case node: Unfold[G] => return Nil
-    case node: WandCreate[G] => MagicWand
+    case node: WandPackage[G] => MagicWand
     case node: WandApply[G] => MagicWand
     case node: ModelDo[G] => Models
     case node: Havoc[G] => return Nil

@@ -975,8 +975,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
-    case ValCreateWand(_, block) => WandCreate(convert(block))
-    case ValApplyWand(_, wand, _) => WandApply(convert(wand))
+    case ValPackage(_, expr, innerStat) => WandPackage(convert(expr), convert(innerStat))(blame(stat))
+    case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
     case ValFold(_, predicate, _) =>
       Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>

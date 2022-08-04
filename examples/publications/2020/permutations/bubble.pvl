@@ -1,0 +1,249 @@
+//////////////////////////////////////////////////////////////////////////Functions
+ensures \result >= 0;
+ensures (\forall int j; j >= 0 && j < |ys|; element != ys[j]) ==> \result == 0;
+ensures \result == 0 ==> (\forall int j; j >= 0 && j < |ys|; element != ys[j]);
+ensures (\forall int j; j >= 0 && j < |ys|; element == ys[j]) ==> \result == |ys|;
+ensures \result == |ys| ==> (\forall int j; j >= 0 && j < |ys|; element == ys[j]);
+ensures \result <= |ys|;
+ensures element in ys ==> \result > 0;
+ensures \result > 0 ==> element in ys;
+pure int counter(seq<int> ys, int element) =
+    |ys| > 0 ? (ys.head == element ? (1 + counter(ys.tail, element)) : counter(ys.tail, element)) : 0;
+
+
+requires i >= 0 && i < |xs|;
+requires j >= 0 && j < |xs|;
+requires i <= j;
+requires k >= 0 && k <= |xs|;
+ensures |\result| == |xs| - k;
+ensures k > j ==> (\forall int l; l >= 0 && l < |\result|; \result[l] == xs[l+k]);
+ensures k >= j ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k]) && ((l+k) == j ==> \result[l] == xs[i]));
+ensures k > i ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k]) && ((l+k) == j ==> \result[l] == xs[i]));
+ensures k >= i ==> (\forall int l; l >= 0 && l < |\result|; (((l+k) != i && (l+k) != j) ==> \result[l] == xs[l+k])
+&& ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> \result[l] == xs[i]));
+ensures (\forall int l; l >= 0 && l < |\result|; (((l+k) != i && (l+k) != j) ==> \result[l] == xs[l+k])
+&& ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> \result[l] == xs[i]));
+pure seq<int> swap(seq<int> xs, int i, int j, int k) = k < |xs| ? (k == i ? seq<int> {xs[j]} + swap(xs, i, j, k+1)
+: (k == j ? seq<int> {xs[i]} + swap(xs, i, j, k+1) : seq<int> {xs[k]} + swap(xs, i, j, k+1))) : seq<int> {};
+
+pure boolean isApermutation(seq<int> xs, seq<int> ys) =
+    |xs| == |ys| && (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+
+class BubbleSort {
+	//////////////////////////////////////////////////////////////////////////Lemmas
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i <= j;
+	ensures swap(xs, i, j, 0) == xs[i -> xs[j]][j -> xs[i]];
+	ensures xs[i -> xs[j]][j -> xs[i]] == swap(xs, i, j, 0);
+	void lemma_swap_seq_eq(seq<int> xs, int i, int j){
+
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i == j;
+	ensures swap(xs, i, j, 0) == xs;
+	void lemma_swap_base(seq<int> xs, int i, int j){
+
+	}
+
+	ensures counter(seq<int> {}, i) == 0;
+	void lemma_count_empty(int i){
+
+	}
+
+	ensures i == element ==> counter(seq<int> {i}, element) == 1;
+	ensures i != element ==> counter(seq<int> {i}, element) == 0;
+	void lemma_count_single(int i, int element){
+
+	}
+
+
+	ensures |xs| == 0 ==> counter(xs + ys, element) == counter(ys, element);
+	ensures |ys| == 0 ==> counter(xs + ys, element) == counter(xs, element);
+	ensures |xs + ys| == |xs| + |ys|;
+	ensures counter(xs.tail + ys, element) == counter(xs.tail, element) + counter(ys, element);
+	ensures counter(xs + ys, element) == counter(xs, element) + counter(ys, element);
+	void lemma_count_app(seq<int> xs, seq<int> ys, int element) {
+		if (0 < |xs|) {
+			lemma_count_app(xs.tail, ys, element);
+			assert xs.tail + ys == (xs + ys).tail;
+		}
+	}
+
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs + ys, xs[l]) == counter(xs, xs[l]) + counter(ys, xs[l]));
+	void lemma_count_app_all(seq<int> xs, seq<int> ys){
+		int k = 0;
+
+		loop_invariant 0 <= k && k <= |xs|;
+		loop_invariant (\forall int l; l>=0 && l<k; counter(xs + ys, xs[l]) == counter(xs, xs[l]) + counter(ys, xs[l]));
+		while(k < |xs|)
+		{
+			lemma_count_app(xs, ys, xs[k]);
+			k=k+1;
+		}
+
+	}
+
+	ensures counter(xs + ys + ts + rs + zs, element) == counter(xs, element) + counter(ys, element) + counter(ts, element) + counter(rs, element) + counter(zs, element);
+	void lemma_count_app_ext(seq<int> xs, seq<int> ys, seq<int> ts, seq<int> rs, seq<int> zs, int element){
+		lemma_count_app(xs + ys + ts + rs, zs, element);
+		assert counter(xs + ys + ts + rs + zs, element) == counter(xs + ys + ts + rs, element) + counter(zs, element);
+		lemma_count_app(xs + ys + ts, rs, element);
+		assert counter(xs + ys + ts + rs, element) == counter(xs + ys + ts, element) + counter(rs, element);
+		lemma_count_app(xs + ys, ts, element);
+		assert counter(xs + ys + ts, element) == counter(xs + ys, element) + counter(ts, element);
+		lemma_count_app(xs, ys, element);
+		assert counter(xs + ys, element) == counter(xs, element) + counter(ys, element);
+
+		assert counter(xs + ys + ts + rs + zs, element) == counter(xs, element) + counter(ys, element) + counter(ts, element) + counter(rs, element) + counter(zs, 					 element);
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i < j;
+	ensures xs == xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|];
+	ensures counter(xs, element) == counter(xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|], element);
+	void lemma_swap_permutation_helper(seq<int> xs, int i, int j, int element){
+
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i <= j;
+	requires ys == swap(xs, i, j, 0);
+	ensures counter(xs, element) == counter(ys, element);
+	void lemma_swap_permutation(seq<int> xs, seq<int> ys, int i, int j, int element){
+		assert (\forall int l; l >= 0 && l < |ys|; (l != i && l != j) ==> swap(xs, i, j, 0)[l] == xs[l]);
+		assert (\forall int l; l >= 0 && l < |ys|; ((l == i) ==> swap(xs, i, j, 0)[l] == xs[j]) && ((l == j) ==> ys[l] == xs[i]));
+		if(i == j){
+		lemma_swap_base(xs, i, j);
+		assert xs == ys;
+		assert counter(xs, element) == counter(ys, element);
+		}
+		if(i < j){
+		assert ys == xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|];
+		assert counter(ys, element) == counter(xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|], element);
+		lemma_count_app_ext(xs[0..i], seq<int> {xs[j]}, xs[i+1..j], seq<int> {xs[i]}, xs[j+1..|xs|], element);
+		assert counter(ys, element) == counter(xs[0..i], element) + counter(seq<int> {xs[j]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[i]}, element) + counter(xs[j+1..|xs|], element);
+		lemma_count_single(i, element);
+		lemma_count_single(j, element);
+		lemma_swap_permutation_helper(xs, i, j, element);
+		//assert xs == xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|];
+		//assert counter(xs, element) == counter(xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|], element);
+		lemma_count_app_ext(xs[0..i], seq<int> {xs[i]}, xs[i+1..j], seq<int> {xs[j]}, xs[j+1..|xs|], element);
+		assert counter(xs, element) == counter(xs[0..i], element) + counter(seq<int> {xs[i]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[j]}, element) 																	 + counter(xs[j+1..|xs|], element);
+
+		assert counter(xs, element) == counter(ys, element);
+
+		}
+
+		assert counter(xs, element) == counter(ys, element);
+
+	}
+
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i <= j;
+	requires ys == swap(xs, i, j, 0);
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	void lemma_swap_permutation_all(seq<int> xs, seq<int> ys, int i, int j){
+		int k = 0;
+
+		loop_invariant 0 <= k && k <= |xs|;
+		loop_invariant (\forall int l; l>=0 && l<k; counter(xs, xs[l]) == counter(ys, xs[l]));
+		while(k < |xs|)
+		{
+			lemma_swap_permutation(xs, ys, i, j, xs[k]);
+			k=k+1;
+		}
+
+	}
+
+
+	requires |xs| == |ys|;
+	requires |ys| == |ts|;
+	requires (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	requires (\forall int l; l>=0 && l<|xs|; counter(ys, ys[l]) == counter(ts, ys[l]));
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ts, xs[l]));
+	void lemma_swap_permutation_trans(seq<int> xs, seq<int> ys, seq<int> ts){
+
+
+	}
+
+	requires i >= 0 && i < |xs|;
+	requires j >= 0 && j < |xs|;
+	requires i <= j;
+	requires |xs| == |ys|;
+	requires |ys| == |ts|;
+	requires (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	requires ts == swap(ys, i, j, 0);
+	ensures (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ts, xs[l]));
+	ensures swap(ys, i, j, 0) == ys[i -> ys[j]][j -> ys[i]];
+	ensures ys[i -> ys[j]][j -> ys[i]] == swap(ys, i, j, 0);
+	void lemma_permutation_apply(seq<int> xs, seq<int> ys, seq<int> ts, int i, int j){
+
+			lemma_swap_permutation_all(ys, ts, i, j);
+			lemma_swap_permutation_trans(xs, ys, ts);
+
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////////////Main
+	context_everywhere input != null;
+	context_everywhere input.length == size;
+	context_everywhere size > 0;
+	context |inp_seq_cur| == size;
+	requires |inp_seq_all| == 1;
+	requires |inp_seq_all[0]| == size;
+	context (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
+	context (\forall int i; 0 <= i && i < size; input[i] == inp_seq_cur[i]);
+	requires (\forall int i; 0 <= i && i < size; inp_seq_all[0][i] == inp_seq_cur[i]);
+	ensures isApermutation(inp_seq_all[0], inp_seq_cur);
+	void bubble(int[] input, int size, seq<int> inp_seq_cur, seq<seq<int>> inp_seq_all){
+
+		  int outerLoop = 0;
+		  int innerLoop = 0;
+		  int temp;
+
+			assert inp_seq_all[0] == inp_seq_cur;
+
+		  loop_invariant outerLoop >= 0 && outerLoop <= size-1;
+		  loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
+		  loop_invariant |inp_seq_all| == outerLoop + 1;
+		  loop_invariant (\forall int i; 0 <= i && i < outerLoop + 1; |inp_seq_all[i]| == size);
+			loop_invariant |inp_seq_cur| == size;
+			loop_invariant (\forall int i; 0 <= i && i < size; inp_seq_all[outerLoop][i] == inp_seq_cur[i]);
+			loop_invariant (\forall int i; 0 <= i && i < size; input[i] == inp_seq_cur[i]);
+			loop_invariant isApermutation(inp_seq_all[0], inp_seq_cur);
+		  while(outerLoop < size-1){
+				innerLoop = 0;
+
+				  loop_invariant outerLoop >= 0 && outerLoop < size-1;
+				  loop_invariant innerLoop >= 0 && innerLoop <= size-outerLoop-1;
+				  loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
+			    loop_invariant |inp_seq_all| == outerLoop + 1;
+			    loop_invariant (\forall int i; 0 <= i && i < outerLoop + 1; |inp_seq_all[i]| == size);
+				  loop_invariant |inp_seq_cur| == size;
+					loop_invariant (\forall int i; 0 <= i && i < size; input[i] == inp_seq_cur[i]);
+					loop_invariant isApermutation(inp_seq_all[0], inp_seq_cur);
+					while(innerLoop < size-outerLoop-1){
+		        if (input[innerLoop] > input[innerLoop+1]){
+							  lemma_permutation_apply(inp_seq_all[0], inp_seq_cur, swap(inp_seq_cur, innerLoop, innerLoop+1, 0), innerLoop, innerLoop+1);
+								temp = input[innerLoop];
+								input[innerLoop] = input[innerLoop+1];
+								inp_seq_cur = inp_seq_cur[innerLoop -> input[innerLoop+1]];
+								input[innerLoop+1] = temp;
+								inp_seq_cur = inp_seq_cur[innerLoop+1 -> temp];
+						 }
+						 innerLoop = innerLoop + 1;
+				 }
+				 outerLoop = outerLoop + 1;
+
+				 inp_seq_all = inp_seq_all + seq<seq<int>> {inp_seq_cur};
+		}
+
+	}
+
+}
