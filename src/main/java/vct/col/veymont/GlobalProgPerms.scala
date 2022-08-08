@@ -40,6 +40,8 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
         cb.ensures(create.invokation(null, null, Util.ownerShipPredicateName))
       } else if (m.kind == Method.Kind.Pure) {
         cb.requires(create.invokation(null, null, Util.ownerShipPredicateName))
+        m.getArgs.filter(_.`type`.isInstanceOf[ClassType]).foreach(
+          arg => cb.requires(create.invokation(create.argument_name(arg.name),null,Util.ownerShipPredicateName)))
       } else if (m.kind != Method.Kind.Predicate) {
         cb.requires(getMethodArgsPerms(m.getArgs))
         cb.context(create.invokation(null, null, Util.ownerShipPredicateName))
@@ -48,7 +50,7 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
             val newBlock = new BlockStatement()
             for(s <- block.asScala) {
               s match {
-                case i : IfStatement => newBlock.add(create.special(ASTSpecial.Kind.Assert,getEquivCond(i.getGuard(0))))
+                case i : IfStatement => if(currentClassName == Util.mainClassName) newBlock.add(create.special(ASTSpecial.Kind.Assert,getEquivCond(i.getGuard(0))))
                 case _ => //nothing
               }
               newBlock.add(rewrite(s))
