@@ -1,12 +1,15 @@
 package vct.col.veymont
 
 import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
-import vct.col.ast.expr.{NameExpression, StandardOperator}
+import vct.col.ast.expr
+import vct.col.ast.expr.{Dereference, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement}
+import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelBlock, ParallelRegion}
 import vct.col.ast.stmt.decl.{ASTClass, ASTFlags, ASTSpecial, DeclarationStatement, Method, ProgramUnit}
+import vct.col.ast.stmt.terminal.AssignmentStatement
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
 
+import java.util
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter(source) {
@@ -19,7 +22,7 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
     if(!Util.isChannelClass(c.name)) {
       val body = getFieldPerms(c.fields().asScala,true)
       val resource = create.predicate(Util.ownerShipPredicateName, body)
-      resource.setFlag(ASTFlags.INLINE, true)
+      resource.annotations().add(create.reserved_name(ASTReserved.Inline))
       if(c.name == Util.mainClassName)
         addIfNoMainMethod(c)
       c.add_dynamic(resource)
@@ -76,6 +79,47 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
       rewrite(l.getContract, cb)
       result = create.while_loop(l.getEntryGuard, rewrite(l.getBody), cb.getContract)
     } else super.visit(l)
+  }
+
+  override def visit(p : ParallelRegion) : Unit = {
+    val blockvars = p.blocks.map(b => getAssignmentVars(b.block))
+    val (_, reads) = blockvars.unzip
+    val counts = reads.flatten.map(_.toString).groupBy(identity).map { case (str, els) => (str, els.length) }
+    val bl: List[(ParallelBlock, (Array[Dereference], Array[Dereference]))] = p.blocks.zip(blockvars)
+    val contractblocks = bl.map { case (b: ParallelBlock, (writesb: Array[Dereference], readsb: Array[Dereference])) =>
+      val cb = new ContractBuilder()
+      (writesb.map(Util.getNameFromNode) ++ readsb.map(Util.getNameFromNode)).distinct.foreach(role =>
+        cb.context(create.expression(StandardOperator.Perm,rewrite(role.get),
+          create.expression(StandardOperator.Div,create.constant(1),create.constant(p.blocks.size))))
+      )
+      writesb.distinct.foreach(writevar => cb.context(create.expression(StandardOperator.Perm, rewrite(writevar),create.constant(1))))
+      readsb.filter(!writesb.contains(_)).distinct.foreach(readvar => cb.context(create.expression(StandardOperator.Perm,rewrite(readvar),
+        create.expression(StandardOperator.Div,create.constant(1),create.constant(if(counts(readvar.toString)==1) 2 else counts(readvar.toString))))))
+      rewrite(b.contract,cb)
+      cb.getContract
+      create.parallel_block(b.label,cb.getContract,b.iters.toArray,rewrite(b.block))
+    }
+    result = create.region(rewrite(p.contract),contractblocks.toArray:_*)
+  }
+
+  private def getAssignmentVars(b : BlockStatement) : (Array[Dereference],Array[Dereference]) = {
+    val (writes,reads) = b.getStatements.filter(_.isInstanceOf[AssignmentStatement]).map {
+      case AssignmentStatement(location, expression) => location match {
+        case dloc: Dereference => expression match {
+          case dexp: Dereference => (dloc, Some(dexp))
+          case o : OperatorExpression => getNodeFromOp(o).head match {
+            case dexpvar : Dereference => (dloc,Some(dexpvar))
+          }
+          case _ => (dloc,None)
+        }
+      }
+    }.unzip
+    (writes,reads.filter(_.isDefined).map(_.get))
+  }
+
+  private def getNodeFromOp(n : ASTNode) : List[ASTNode] = n match {
+    case op : OperatorExpression => op.args.flatMap(arg => getNodeFromOp(arg))
+    case n : ASTNode => List(n)
   }
 
   private def getEquivCond(cond : ASTNode) : ASTNode = {
@@ -157,25 +201,5 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
       }
     }
   }
-
-//  override def visit(m : Method) : Unit = {
-////    Warning("GlobalProgPerms not implemented!")
-//
-//    val c = m.getContract()
-//    val cb = new ContractBuilder()
-//
-//
-//
-//    //Warning(m.getType.toString)
-//
-////    val inv = create.invokation();
-//
-////    Warning("\n" + m.getContract.pre_condition.toString)
-////    m.getContract.pre_condition.
-//
-////    m.setContract(...);
-//
-//    super.visit(m)
-//  }
 
 }

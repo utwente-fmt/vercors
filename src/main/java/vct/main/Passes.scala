@@ -927,7 +927,7 @@ object Passes {
     SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
       arg => { new TerminationCheck(arg); arg}),
     SimplePass("VeyMontGlobalProgPerms","add all permissions to global program",
-      new GlobalProgPerms(_).rewriteAll()),
+      new GlobalProgPerms(_).rewriteAll(),introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.InlinePredicate, features.MethodAnnotations)),
     Pass("VeyMontPrintAnnotatedProg", "print global program with generated permissions",
       (prog,filename) => {
         PrintVeyMontProg.print(prog,Util.getAnnotatedFileName(filename.head),false)

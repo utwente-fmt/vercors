@@ -152,7 +152,7 @@ class Main {
       throw new HREExitException(0)
     }
 
-    if(Seq(
+    if (Seq(
       CommandLineTesting.enabled,
       silver.used,
       pass_list.asScala.nonEmpty,
@@ -171,14 +171,15 @@ class Main {
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
-
-    val vFile = inputPaths.headOption
-    if(vFile.isDefined) {
-      val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl"))
-      if(nonPVL.nonEmpty && !nonPVL.forall(_.endsWith(Configuration.javaChannelFile)))
-        Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
-      if(!(vFile.get.endsWith(".pvl") || vFile.get.endsWith(".java")))
-        Fail("VeyMont can only output to file %s, it only accepts files ending with '.pvl' or '.java'",vFile)
+    if (Configuration.veymont.get() != null) {
+      val vFile = inputPaths.headOption
+      if (vFile.isDefined) {
+        val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl"))
+        if (nonPVL.nonEmpty && !nonPVL.forall(_.endsWith(Configuration.javaChannelFile)))
+          Fail("VeyMont cannot use non-PVL files %s", nonPVL.mkString(", "))
+        if (!(vFile.get.endsWith(".pvl") || vFile.get.endsWith(".java")))
+          Fail("VeyMont can only output to file %s, it only accepts files ending with '.pvl' or '.java'", vFile)
+      }
     }
   }
 
@@ -481,8 +482,8 @@ class Main {
       }).toSeq
     }
     else if (silver.used) collectPassesForSilver
-    else if (Configuration.veymont.is(Configuration.veymont_check)) collectPassesForVeyMontPre ++ collectPassesForSilver
-    else if (Configuration.veymont.is(Configuration.veymont_decompose)) collectPassesForVeyMontPost
+    else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) collectPassesForSilver
+    else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_decompose)) collectPassesForVeyMontPost
     else { Fail("no back-end or passes specified"); ??? }
   }
 
@@ -512,7 +513,7 @@ class Main {
       } else { Set.empty }
 
       tk.show
-      report = pass.apply_pass(report, if(Configuration.veymont.get() != null)inputPaths else Array())
+      report = pass.apply_pass(report, if(Configuration.veymont.get() != null) inputPaths else Array())
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
@@ -584,16 +585,22 @@ class Main {
       checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
+        val veymontIndex = args.indexOf("--" + Configuration.veymont_check)
+        if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          parseInputs(inputPaths)
+          doPasses(collectPassesForVeyMontPre)
+          args.update(veymontIndex+1,Util.getAnnotatedFileName(args(veymontIndex+1)))
+          inputPaths = parseOptions(args)
+          checkOptions()
+        }
         parseInputs(inputPaths)
         exit = doPasses(getPasses)
-        if(Configuration.veymont.is(Configuration.veymont_check)) {
-          val veymontIndex = args.indexOf("--" + Configuration.veymont_check)
+        if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
           args.update(veymontIndex,"--" + Configuration.veymont_decompose)
-          args.update(veymontIndex+1,Util.getAnnotatedFileName(args.last))
           inputPaths = parseOptions(args)
           checkOptions()
           parseInputs(inputPaths)
-          exit = doPasses(getPasses)
+          exit = doPasses(collectPassesForVeyMontPost)
         }
       }
     } catch {
