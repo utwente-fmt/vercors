@@ -72,12 +72,10 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   }
 
   case class ApplyParametricBindings(bindings: Map[Variable[Pre], Ref[Pre, Variable[Pre]]]) extends NonLatchingRewriter[Pre, Pre] {
-    override def succ[DPost <: Declaration[Pre]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Pre, DPost] = decl match {
-      case v: Variable[Pre] => bindings.getOrElse(v, new LazyRef[Pre, DPost](v)).asInstanceOf[Ref[Pre, DPost]]
-      case other => new LazyRef(other)
+    override def succProvider: SuccessorsProvider[Pre, Pre] = new SuccessorsProviderTrafo(allScopes.freeze) {
+      override def succ[RefDecl <: Declaration[Pre]](decl: Variable[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Pre, RefDecl] =
+        bindings.getOrElse(decl, super.succ(decl)).asInstanceOf
     }
-
-    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(decl)
   }
 
   case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]], defaultOrigin: Origin) extends NonLatchingRewriter[Rule, Pre] {
@@ -89,7 +87,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
         else Local[Pre](succ(v))(e.o)
       case FunctionOf(Ref(v), ruleVars) =>
         val (replacement, vars) = inst(v)
-        ApplyParametricBindings(vars.zip(ruleVars.map(succ[Variable[Pre]])).toMap).dispatch(replacement)
+        ApplyParametricBindings(vars.zip(ruleVars.map(ruleVar => succ[Variable[Pre]](ruleVar.decl))).toMap).dispatch(replacement)
       case other => rewriteDefault(other)
     }
 
@@ -257,8 +255,9 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     }
 
   case class ApplyRecursively() extends NonLatchingRewriter[Pre, Pre] {
-    override def succ[DPost <: Declaration[Pre]](decl: Declaration[Pre])(implicit tag: ClassTag[DPost]): Ref[Pre, DPost] =
-      new LazyRef(decl)
+    case object IdentitySucc extends SuccessorsProviderTrafo(allScopes.freeze) {
+      override def postTransform[T <: Declaration[Pre]](pre: Declaration[Pre], post: Option[T]): Option[T] = Some(pre.asInstanceOf[T])
+    }
 
     @tailrec
     override final def dispatch(e: Expr[Pre]): Expr[Pre] = {
@@ -275,7 +274,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       }
     }
 
-    override def dispatch(decl: Declaration[Pre]): Unit = decl.succeedDefault(decl)
+    override def dispatch(decl: Declaration[Pre]): Unit = allScopes.anyDeclare(decl)
   }
 
   val simplificationDone: ScopedStack[Unit] = ScopedStack()
