@@ -98,7 +98,7 @@ public class Configuration {
     public static final BooleanSetting ansi = new BooleanSetting(false);
 
     /**
-     * The option for veymont decomposition
+     * The options for VeyMont
      */
     public static final String veymont_check = "veymont", veymont_decompose = "veymont-decompose";
     public static final ChoiceSetting veymont = new ChoiceSetting(new String[]{veymont_check, veymont_decompose}, null);
@@ -183,6 +183,14 @@ public class Configuration {
 
     public static File getVeyMontFiles()  {
         return getFileOrAbort(javaChannelFile);
+    }
+
+    public static int getVeyMontArgIndex(String[] args) {
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("--" + veymont_check))
+                return i;
+        }
+        return -1;
     }
 
     public static File getVercorsJREBasePath() {

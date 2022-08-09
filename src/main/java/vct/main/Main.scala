@@ -585,22 +585,14 @@ class Main {
       checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
-        val veymontIndex = args.indexOf("--" + Configuration.veymont_check)
+        var newArgs = Array[String]()
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          parseInputs(inputPaths)
-          doPasses(collectPassesForVeyMontPre)
-          args.update(veymontIndex+1,Util.getAnnotatedFileName(args(veymontIndex+1)))
-          inputPaths = parseOptions(args)
-          checkOptions()
+          newArgs = runVeyMontPrePasses(args)
         }
         parseInputs(inputPaths)
         exit = doPasses(getPasses)
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          args.update(veymontIndex,"--" + Configuration.veymont_decompose)
-          inputPaths = parseOptions(args)
-          checkOptions()
-          parseInputs(inputPaths)
-          exit = doPasses(collectPassesForVeyMontPost)
+          runVeyMontPostPasses(newArgs)
         }
       }
     } catch {
@@ -622,5 +614,30 @@ class Main {
       }
     }
     exit
+  }
+
+  private def runVeyMontPrePasses(args: Array[String]) : Array[String] = {
+    parseInputs(inputPaths)
+    doPasses(collectPassesForVeyMontPre)
+    val veymontIndex = Configuration.getVeyMontArgIndex(args);
+    args.update(veymontIndex + 1, Util.getAnnotatedFileName(args(veymontIndex + 1)))
+    var removeIndex = -1; //remove other files than new -glob file in arguments
+    for(i <- veymontIndex+2 until args.length) {
+      if(args(i).endsWith(".pvl"))
+        removeIndex = i
+    }
+    val newArgs = if(removeIndex == -1) args else args.slice(0,veymontIndex+2) ++ args.slice(removeIndex+1,args.length)
+    inputPaths = parseOptions(newArgs)
+    checkOptions()
+    newArgs
+  }
+
+  private def runVeyMontPostPasses(args: Array[String]) : Unit = {
+    val veymontIndex = Configuration.getVeyMontArgIndex(args);
+    args.update(veymontIndex, "--" + Configuration.veymont_decompose)
+    inputPaths = parseOptions(args)
+    checkOptions()
+    parseInputs(inputPaths)
+    doPasses(collectPassesForVeyMontPost)
   }
 }
