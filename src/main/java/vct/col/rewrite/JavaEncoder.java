@@ -172,13 +172,17 @@ public class JavaEncoder extends AbstractRewriter {
             String external_name = m.name();
             String internal_name = INTERNAL + m.name();
             boolean varArgs=m.usesVarArgs();
-            res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
+            Method resMethod0 = create.method_kind(m.kind, returns, rewrite(m.signals), external_contract, external_name, parameters, varArgs, null);
+            resMethod0.setFlag(ASTFlags.FINAL,true);
+            res.add(resMethod0);
             // We leave body empty, as the method is guaranteed to have no contract
             // Therefore no extra proof steps (unfolding predicates, checking pre/post conditions for implications)
             // are not necessary and we can leave the method abstract. However, when the empty contract check is
             // removed, a call to super or something similar should be added, such that the static/dynamic contract
             // implication is checked.
-            res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null));
+            Method resMethod = create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null);
+            resMethod.setFlag(ASTFlags.FINAL,true);
+            res.add(resMethod);
             break;
           }
           case Predicate:{

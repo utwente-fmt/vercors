@@ -15,6 +15,7 @@ import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.veymont.{Preprocessor, Util}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
@@ -26,7 +27,9 @@ import java.util.TimeZone
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]): Unit = System.exit(new Main().run(args))
+  def main(args: Array[String]): Unit =
+    new Main().run(args)
+  //def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 
 class Main {
@@ -102,7 +105,10 @@ class Main {
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
+    val parseres = clops.parse(args)
+    if (Configuration.veymont.is(Configuration.veymont_decompose))
+      parseres :+ Configuration.getVeyMontFiles.getAbsolutePath()
+    else parseres
   }
 
   private def setupLogging(): Unit = {
@@ -146,11 +152,11 @@ class Main {
       throw new HREExitException(0)
     }
 
-    if(Seq(
+    if (Seq(
       CommandLineTesting.enabled,
       silver.used,
       pass_list.asScala.nonEmpty,
-      Configuration.veymont_file.used()
+      Configuration.veymont.get() != null,
     ).forall(!_)) {
       Fail("no back-end or passes specified")
     }
@@ -165,14 +171,15 @@ class Main {
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
-
-    val vFile = Configuration.veymont_file.get()
-    if(vFile != null) {
-      val nonPVL = inputPaths.filter(!_.endsWith(".pvl"))
-      if(nonPVL.nonEmpty)
-        Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
-      if(!vFile.endsWith(".pvl"))
-        Fail("VeyMont cannot output to non-PVL file %s",vFile)
+    if (Configuration.veymont.get() != null) {
+      val vFile = inputPaths.headOption
+      if (vFile.isDefined) {
+        val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl"))
+        if (nonPVL.nonEmpty && !nonPVL.forall(_.endsWith(Configuration.javaChannelFile)))
+          Fail("VeyMont cannot use non-PVL files %s", nonPVL.mkString(", "))
+        if (!(vFile.get.endsWith(".pvl") || vFile.get.endsWith(".java")))
+          Fail("VeyMont can only output to file %s, it only accepts files ending with '.pvl' or '.java'", vFile)
+      }
     }
   }
 
@@ -246,20 +253,24 @@ class Main {
   }
 
 
-  private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
-    BY_KEY("VeyMontStructCheck"),
-    BY_KEY("VeyMontTerminationCheck"),
-  //  BY_KEY("VeyMontGlobalLTS"),
-    BY_KEY("VeyMontDecompose"),
-    BY_KEY("VeyMontLocalLTS"),
-    BY_KEY("removeTaus"),
-    BY_KEY("removeEmptyBlocks"),
-    BY_KEY("VeyMontBarrier"),
-    BY_KEY("VeyMontLocalProgConstr"),
-    BY_KEY("VeyMontAddChannelPerms"),
-    BY_KEY("VeyMontAddStartThreads"),
-    BY_KEY("printPVL"),
-  )
+  private def collectPassesForVeyMontPre : Seq[AbstractPass] = {
+    silver.set("silicon")
+    Seq(
+      BY_KEY("VeyMontStructCheck"),
+      BY_KEY("VeyMontTerminationCheck"),
+      BY_KEY("VeyMontGlobalProgPerms"),
+      BY_KEY("VeyMontPrintAnnotatedProg"))
+  }
+
+  private def collectPassesForVeyMontPost : Seq[AbstractPass] = {
+    silver.set("silicon")
+    Seq(
+      BY_KEY("VeyMontDecompose"),
+      BY_KEY("removeEmptyBlocks"),
+      BY_KEY("VeyMontLocalProgConstr"),
+      BY_KEY("VeyMontAddStartThreads"),
+      BY_KEY("VeyMontPrintOutput"))
+  }
 
   object ChainPart {
     def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =
@@ -452,6 +463,7 @@ class Main {
       Seq()
     } else {
       computeGoal(features).get
+      computeGoal(features).get
     }
 
     if (stopBeforeBackend.get()) {
@@ -470,7 +482,8 @@ class Main {
       }).toSeq
     }
     else if (silver.used) collectPassesForSilver
-    else if (Configuration.veymont_file.used()) collectPassesForVeyMont
+    else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) collectPassesForSilver
+    else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_decompose)) collectPassesForVeyMontPost
     else { Fail("no back-end or passes specified"); ??? }
   }
 
@@ -489,7 +502,8 @@ class Main {
     }
   }
 
-  private def doPasses(passes: Seq[AbstractPass]): Unit = {
+  private def doPasses(passes: Seq[AbstractPass]): Int = {
+    report = BY_KEY("checkTypesJava").apply_pass(report, Array())
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
@@ -499,11 +513,11 @@ class Main {
       } else { Set.empty }
 
       tk.show
-      report = pass.apply_pass(report, Array())
+      report = pass.apply_pass(report, if(Configuration.veymont.get() != null) inputPaths else Array())
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
-        return
+        return report.getFatal
       }
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
@@ -516,7 +530,7 @@ class Main {
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
-        return
+        return report.getFatal
       }
 
       if(strictInternalConditions.get()) {
@@ -556,9 +570,10 @@ class Main {
     }
 
     Verdict("The final verdict is Pass")
+    0
   }
 
-  private def run(args: Array[String]): Int = {
+  def run(args: Array[String]): Int = {
     var exit = 0
     val wallStart = System.currentTimeMillis
     tk = new TimeKeeper
@@ -570,8 +585,15 @@ class Main {
       checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
+        var newArgs = Array[String]()
+        if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          newArgs = runVeyMontPrePasses(args)
+        }
         parseInputs(inputPaths)
-        doPasses(getPasses)
+        exit = doPasses(getPasses)
+        if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          runVeyMontPostPasses(newArgs)
+        }
       }
     } catch {
       case e: HREExitException =>
@@ -579,6 +601,7 @@ class Main {
         if(exit != 0)
           Verdict("The final verdict is Error")
       case e: Throwable =>
+        exit = -180614
         DebugException(e)
         Warning("An unexpected error occured in VerCors! "
               + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "
@@ -591,5 +614,30 @@ class Main {
       }
     }
     exit
+  }
+
+  private def runVeyMontPrePasses(args: Array[String]) : Array[String] = {
+    parseInputs(inputPaths)
+    doPasses(collectPassesForVeyMontPre)
+    val veymontIndex = Configuration.getVeyMontArgIndex(args);
+    args.update(veymontIndex + 1, Util.getAnnotatedFileName(args(veymontIndex + 1)))
+    var removeIndex = -1; //remove other files than new -glob file in arguments
+    for(i <- veymontIndex+2 until args.length) {
+      if(args(i).endsWith(".pvl"))
+        removeIndex = i
+    }
+    val newArgs = if(removeIndex == -1) args else args.slice(0,veymontIndex+2) ++ args.slice(removeIndex+1,args.length)
+    inputPaths = parseOptions(newArgs)
+    checkOptions()
+    newArgs
+  }
+
+  private def runVeyMontPostPasses(args: Array[String]) : Unit = {
+    val veymontIndex = Configuration.getVeyMontArgIndex(args);
+    args.update(veymontIndex, "--" + Configuration.veymont_decompose)
+    inputPaths = parseOptions(args)
+    checkOptions()
+    parseInputs(inputPaths)
+    doPasses(collectPassesForVeyMontPost)
   }
 }

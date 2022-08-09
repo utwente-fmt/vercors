@@ -3,14 +3,14 @@ package vct.main
 import hre.config.Configuration
 
 import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import hre.lang.System.{Abort, Debug}
+import hre.lang.System.{Abort, Debug, Fail}
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.Feature
 import vct.col.rewrite._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{GenerateBarrier, GenerateLTS, ChannelPerms, Decompose, RemoveTaus, GenerateForkJoinMain, LocalProgConstructors, StructureCheck, TerminationCheck}
+import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, GlobalProgPerms, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, RemoveTaus, StructureCheck, TerminationCheck, Util}
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
@@ -29,21 +29,6 @@ object Passes {
       val out = hre.lang.System.getLogLevelOutputWriter(hre.lang.System.LogLevel.Info)
       vct.col.ast.print.CPrinter.dump(out, arg)
       out.close()
-      arg
-    }, introduces=Set(), permits=Feature.ALL),
-    SimplePass("printPVL", "print AST in PVL syntax", arg => {
-      try {
-        val f = new File(Configuration.veymont_file.get())
-        val b = f.createNewFile()
-        if(!b) {
-          Debug("File %s already exists and is now overwritten", Configuration.veymont_file.get())
-        }
-        val out = new PrintWriter(new FileOutputStream(f))
-        PVLSyntax.get().print(out,arg)
-        out.close()
-      } catch {
-        case e: IOException => Debug(e.getMessage);
-      }
       arg
     }, introduces=Set(), permits=Feature.ALL),
     new AbstractPass("checkTypes", "run a basic type check") {
@@ -941,24 +926,26 @@ object Passes {
       arg => { new StructureCheck(arg); arg }),
     SimplePass("VeyMontTerminationCheck", "check absence non-terminating statements",
       arg => { new TerminationCheck(arg); arg}),
-  //  SimplePass("VeyMontGlobalLTS", "generate LTS of global program",
-  //    arg => { new GenerateLTS(arg,true).generateLTSAndPrint(); arg }),
+    SimplePass("VeyMontGlobalProgPerms","add all permissions to global program",
+      new GlobalProgPerms(_).rewriteAll(),introduces = Feature.DEFAULT_INTRODUCE ++ Set(features.InlinePredicate, features.MethodAnnotations)),
+    Pass("VeyMontPrintAnnotatedProg", "print global program with generated permissions",
+      (prog,filename) => {
+        PrintVeyMontProg.print(prog,Util.getAnnotatedFileName(filename.head),false)
+      }
+      , introduces=Set(), permits=Feature.ALL),
     SimplePass("VeyMontDecompose", "generate local program classes from given global program",
       new Decompose(_).addThreadClasses()),
-    SimplePass("VeyMontLocalLTS", "generate LTSs of local programs and check well-behavedness",
-      arg => { new GenerateLTS(arg,false).generateLTSAndCheckWellBehavedness(); arg }),
-    SimplePass("removeTaus", "remove all occurences of ASTSpecial TauAction",
-      new RemoveTaus(_).rewriteAll()),
     SimplePass("removeEmptyBlocks", "remove empty blocks of parallel regions",
       new RemoveEmptyBlocks(_).rewriteAll),
-    SimplePass("VeyMontBarrier", "generate barrier annotations",
-      new GenerateBarrier(_).rewriteAll),
     SimplePass("VeyMontLocalProgConstr", "add constructors to the local program classes",
       new LocalProgConstructors(_).addChansToConstructors()),
     SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
       new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
-      new GenerateForkJoinMain(_).addStartThreadClass()),
+      new GenerateForkJoinMain(_).addStartThreadClass(Configuration.veymont_fork_join_threading.get())),
+    Pass("VeyMontPrintOutput", "print AST produced by VeyMont in PVL or Java syntax",
+      (prog,filename) => PrintVeyMontProg.print(prog,Util.getOutputFileName(filename.head),true)
+      , introduces=Set(), permits=Feature.ALL),
   )
 
   val BY_KEY: Map[String, AbstractPass] = (
