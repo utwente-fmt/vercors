@@ -52,18 +52,18 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         val onlyAssertBlame = FilterExpectedErrorBlame(PanicBlame("A boolean assert can only report assertFailed:false"), err)
         expectedErrors.top += err
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
-        procedure(
+        globalDeclarations.declare(procedure(
           blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
           contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
           requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
           args = variables.dispatch(substitutions.keys),
           body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
-        ).declareDefault(this)
+        ))
     }
   }
 
   override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = {
-    val (errs, program) = withCollectInScope(expectedErrors) {
+    val (errs, program) = expectedErrors.collect {
       dispatch(context.program)
     }
     // PB: Important: the expected errors from this pass must appear before other errors, since the absence of an assert

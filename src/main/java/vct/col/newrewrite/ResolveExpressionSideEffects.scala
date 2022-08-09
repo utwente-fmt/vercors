@@ -101,8 +101,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
-    override def succ[DPost <: Declaration[Post]](ref: Ref[Post, _ <: Declaration[Post]])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
-      ref.asInstanceOf[Ref[Post, DPost]]
+    case object SuccIdentity extends SuccessorsProviderTrafo(allScopes.freeze) {
+      override def postTransform[T <: Declaration[Post]](pre: Declaration[Post], post: Option[T]): Option[T] =
+        Some(pre.asInstanceOf[T])
+    }
+
+    override def succProvider: SuccessorsProvider[Post, Post] = SuccIdentity
 
     // ... but since we need to be able to unpack locals, we latch those, and they are not latched in
     // ResolveExpressionSideEffects.
@@ -125,15 +129,16 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   def evaluateOne(e: Expr[Pre]): (Seq[Variable[Post]], Seq[Statement[Post]], Expr[Post]) = {
     val statements = ArrayBuffer[Statement[Post]]()
-    variableScopes.push(ArrayBuffer[Variable[Post]]())
 
-    val result = executionContext.having(Some(statements.append)) {
-      ReInliner().dispatch(dispatch(e))
+    val (vars, result) = variables.collect {
+      executionContext.having(Some(statements.append)) {
+        ReInliner().dispatch(dispatch(e))
+      }
     }
 
     assert(currentlyExtracted.isEmpty)
 
-    (variableScopes.pop().toSeq, statements.toSeq, result)
+    (vars, statements.toSeq, result)
   }
 
   def evaluateAll(es: Seq[Expr[Pre]]): (Seq[Variable[Post]], Seq[Statement[Post]], Seq[Expr[Post]]) = {
@@ -187,14 +192,17 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(obj +: args, {
           case obj :: args => Scope(Seq(res),
-            InvokeMethod[Post](obj, succ(method), args, res.ref +: outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+            InvokeMethod[Post](
+              obj, succ(method), args, res.ref +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+              typeArgs.map(dispatch),
               givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
               yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
         })
       case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(args, args => Scope(Seq(res),
-          InvokeProcedure[Post](succ(method), args, res.ref +: outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+          InvokeProcedure[Post](succ(method), args,
+            res.ref +: outArgs.map(arg => succ[Variable[Post]](arg.decl)), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
             yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)

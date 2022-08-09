@@ -70,14 +70,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         rw.dispatch(func.contract)
     }
 
-    val proc = new Procedure(
+    val proc = rw.globalDeclarations.declare(new Procedure(
       returnType = returnType,
       args = params,
       outArgs = Nil,
       typeArgs = Nil,
       body = Some(rw.dispatch(func.body)),
       contract = contract,
-    )(func.blame)(func.o).declareDefault(rw)
+    )(func.blame)(func.o))
 
     cFunctionSuccessor(func) = proc
 
@@ -96,14 +96,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         val info = C.getDeclaratorInfo(init.decl)
         info.params match {
           case Some(params) =>
-            cFunctionDeclSuccessor((decl, idx)) = new Procedure[Post](
+            cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(new Procedure[Post](
               returnType = t,
-              args = rw.collectInScope(rw.variableScopes) { params.foreach(rw.dispatch) },
+              args = rw.variables.collect { params.foreach(rw.dispatch) }._1,
               outArgs = Nil,
               typeArgs = Nil,
               body = None,
               contract = rw.dispatch(decl.decl.contract),
-            )(AbstractApplicable)(init.o).declareDefault(rw)
+            )(AbstractApplicable)(init.o))
           case None =>
             throw CGlobalStateNotSupported(init)
         }

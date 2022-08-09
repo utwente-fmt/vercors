@@ -30,7 +30,7 @@ case object GivenYieldsToArgs extends RewriterBuilder {
 case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] =>
-      method.rewrite(
+      allScopes.anySucceedOnly(method, allScopes.anyDeclare(method.rewrite(
         args = variables.collect {
           method.args.foreach(dispatch)
           method.contract.givenArgs.foreach(dispatch)
@@ -39,14 +39,14 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
           method.outArgs.foreach(dispatch)
           method.contract.yieldsArgs.foreach(dispatch)
         }._1,
-      ).succeedDefault(method)
+      )))
     case func: AbstractFunction[Pre] =>
-      func.rewrite(
+      allScopes.anySucceedOnly(func, allScopes.anyDeclare(func.rewrite(
         args = variables.collect {
           func.args.foreach(dispatch)
           func.contract.givenArgs.foreach(dispatch)
-        }
-      ).succeedDefault(func)
+        }._1,
+      )))
     case other => rewriteDefault(other)
   }
 
@@ -66,14 +66,14 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
       val (yieldDummies, orderedYieldTargets: Seq[Ref[Post, Variable[Post]]]) =
         variables.collect {
           inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
-            case Some(value) => succ[Variable[Post]](value)
-            case None => new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg)).declareDefault(this).ref
+            case Some(value) => succ[Variable[Post]](value.decl)
+            case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).ref
           })
         }
 
       val newInv = inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
-        outArgs = inv.outArgs.map(succ[Variable[Post]]) ++ orderedYieldTargets,
+        outArgs = inv.outArgs.map(arg => succ[Variable[Post]](arg.decl)) ++ orderedYieldTargets,
         givenMap = Nil, yields = Nil,
       )
 
@@ -102,13 +102,13 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
       })
 
       val orderedYieldTargets: Seq[Ref[Post, Variable[Post]]] = inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
-        case Some(value) => succ(value)
-        case None => new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg)).declareDefault(this).ref
+        case Some(value) => succ(value.decl)
+        case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).ref
       })
 
       inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
-        outArgs = inv.outArgs.map(succ[Variable[Post]]) ++ orderedYieldTargets,
+        outArgs = inv.outArgs.map(arg => succ[Variable[Post]](arg.decl)) ++ orderedYieldTargets,
         givenMap = Nil, yields = Nil,
       )
     case other => rewriteDefault(other)

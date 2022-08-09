@@ -26,14 +26,14 @@ case class ResolveExpressionSideChecks[Pre <: Generation]() extends Rewriter[Pre
     val checkValue = new Variable[Post](TAny())(EvalCheckFunction("checkedValue"))
     val value = new Variable[Post](TVar(t.ref))(EvalCheckFunction("value"))
 
-    function[Post](
+    globalDeclarations.declare(function[Post](
       blame = PanicBlame("witheval ensures nothing"),
       contractBlame = PanicBlame("witheval requires nothing"),
       typeArgs = Seq(t),
       args = Seq(checkValue, value),
       returnType = TVar(t.ref),
       body = Some(value.get),
-    )(EvalCheckFunction("withEval")).declareDefault(this)
+    )(EvalCheckFunction("withEval")))
   }
 
   lazy val thenEval: Function[Post] = {
@@ -43,14 +43,14 @@ case class ResolveExpressionSideChecks[Pre <: Generation]() extends Rewriter[Pre
     val value = new Variable[Post](TVar(t.ref))(EvalCheckFunction("value"))
     val checkValue = new Variable[Post](TAny())(EvalCheckFunction("checkedValue"))
 
-    function[Post](
+    globalDeclarations.declare(function[Post](
       blame = PanicBlame("theneval ensures nothing"),
       contractBlame = PanicBlame("theneval requires nothing"),
       typeArgs = Seq(t),
       args = Seq(value, checkValue),
       returnType = TVar(t.ref),
       body = Some(value.get),
-    )(EvalCheckFunction("thenEval")).declareDefault(this)
+    )(EvalCheckFunction("thenEval")))
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {

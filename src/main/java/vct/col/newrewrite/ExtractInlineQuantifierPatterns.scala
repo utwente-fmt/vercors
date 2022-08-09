@@ -21,21 +21,21 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       dispatch(i.inner)
 
     case f: Forall[Pre] if f.triggers.isEmpty =>
-      val (patternsHere, body) = withCollectInScope(patterns) {
+      val (patternsHere, body) = patterns.collect {
         dispatch(f.body)
       }
       val triggers = if(patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
       f.rewrite(triggers = triggers, body = body)
 
     case f: Starall[Pre] if f.triggers.isEmpty =>
-      val (patternsHere, body) = withCollectInScope(patterns) {
+      val (patternsHere, body) = patterns.collect {
         dispatch(f.body)
       }
       val triggers = if(patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
       f.rewrite(triggers = triggers, body = body)
 
     case f: Exists[Pre] if f.triggers.isEmpty =>
-      val (patternsHere, body) = withCollectInScope(patterns) {
+      val (patternsHere, body) = patterns.collect {
         dispatch(f.body)
       }
       val triggers = if(patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))

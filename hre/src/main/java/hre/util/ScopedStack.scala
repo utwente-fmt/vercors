@@ -1,6 +1,17 @@
 package hre.util
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
+case object ScopedStack {
+  implicit class ScopedArrayBufferStack[T](stack: ScopedStack[ArrayBuffer[T]]) {
+    def collect[R](f: => R): (Seq[T], R) = {
+      val buf = ArrayBuffer[T]()
+      val res = stack.having(buf)(f)
+      (buf.toSeq, res)
+    }
+  }
+}
 
 case class ScopedStack[T]() {
   private val stacks: ThreadLocal[mutable.Stack[T]] = ThreadLocal.withInitial(() => mutable.Stack())

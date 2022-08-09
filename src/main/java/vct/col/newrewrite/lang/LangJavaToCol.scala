@@ -184,7 +184,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
-        rw.globalDeclarations.succeed(cons, withResult((result: Result[Post]) =>
+        javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
           new Procedure(
             returnType = t,
             args = rw.variables.dispatch(cons.parameters),
@@ -208,7 +208,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
         ))
       case method: JavaMethod[Pre] =>
-        new InstanceMethod(
+        rw.classDeclarations.declare(new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
           args = rw.variables.dispatch(method.parameters),
           outArgs = Nil, typeArgs = Nil,
@@ -220,7 +220,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             signals = method.contract.signals.map(rw.dispatch) ++
               method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
           ),
-        )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+        )(method.blame)(JavaMethodOrigin(method)))
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -422,13 +422,12 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefJavaConstructor(cons) =>
-        ProcedureInvocation[Post](rw.succ[Procedure[Post]](cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
+        ProcedureInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor() =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
-        val succ = rw.lookupSuccessor
-        val ref = new LazyRef[Post, Procedure[Post]](succ(javaDefaultConstructor(cls)).get)
+        val ref = new LazyRef[Post, Procedure[Post]](javaConstructor(javaDefaultConstructor(cls)))
         ProcedureInvocation[Post](ref,
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },

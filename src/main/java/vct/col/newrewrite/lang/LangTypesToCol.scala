@@ -23,12 +23,14 @@ case object LangTypesToCol extends RewriterBuilder {
 }
 
 case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
+  /*
   override def succ[DPost <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] =
     ref match {
       // Retain unresolved references to be resolved by LangSpecificToCol
       case unresolved: UnresolvedRef[_, _] => new UnresolvedRef[Post, DPost](unresolved.name)
       case other => succ(other.decl)
     }
+  */
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
@@ -70,7 +72,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case Some(params) =>
         // PB TODO: varargs is discarded here.
         CTypedFunctionDeclarator[Post](
-          collectInScope(cParams) { params.foreach(dispatch) },
+          cParams.dispatch(params),
           varargs = false,
           CName(info.name)
         )
@@ -84,24 +86,24 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case param: CParam[Pre] =>
       val (specs, decl) = normalizeCDeclaration(param.specifiers, param.declarator, context = Some(param))(param.o)
-      new CParam(specs, decl)(param.o).declareDefault(this)
+      cParams.declare(new CParam(specs, decl)(param.o))
     case declaration: CLocalDeclaration[Pre] =>
       declaration.decl.inits.foreach(init => {
         implicit val o: Origin = init.o
         val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl)
-        declaration.rewrite(
+        cLocalDeclarations.declare(declaration.rewrite(
           decl = declaration.decl.rewrite(
             specs = specs,
             inits = Seq(
               CInit(decl, init.init.map(dispatch)),
             ),
           ),
-        ).declareDefault(this)
+        ))
       })
     case declaration: CFunctionDefinition[Pre] =>
       implicit val o: Origin = declaration.o
       val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator)
-      declaration.rewrite(specs = specs, declarator = decl).declareDefault(this)
+      globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
     case other => rewriteDefault(other)
   }
 }
