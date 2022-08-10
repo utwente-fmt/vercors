@@ -131,23 +131,15 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       quantify(block, block.context_everywhere &* block.ensures)
   }
 
-  def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Statement[Post] = region match {
-    case ParParallel(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
-    case ParSequential(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
+  def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Unit = region match {
+    case ParParallel(regions) => regions.foreach(ranges(_, rangeValues))
+    case ParSequential(regions) => regions.foreach(ranges(_, rangeValues))
     case block @ ParBlock(decl, iters, _, _, _, _) =>
       decl.drop()
       blockDecl(decl) = block
-      Block(iters.map { v =>
-        implicit val o: Origin = v.o
-        val lo = new Variable(TInt())(LowEvalOrigin(v)).declareDefault(this)
-        val hi = new Variable(TInt())(HighEvalOrigin(v)).declareDefault(this)
-        rangeValues(v.variable) = (lo.get, hi.get)
-
-        Block(Seq(
-          assignLocal(lo.get, dispatch(v.from)),
-          assignLocal(hi.get, dispatch(v.to)),
-        ))
-      })(region.o)
+      iters.foreach { v =>
+        rangeValues(v.variable) = (dispatch(v.from), dispatch(v.to))
+      }
   }
 
   def execute(region: ParRegion[Pre]): Statement[Post] = {
@@ -192,18 +184,15 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
       val rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])] = mutable.Map()
 
-      val (vars, evalRanges) = withCollectInScope(variableScopes) {
-        ranges(region, rangeValues)
-      }
+      ranges(region, rangeValues)
 
       currentRanges.having(rangeValues.toMap) {
-        Scope(vars, Block(Seq(
-          evalRanges,
+        Block(Seq(
           IndetBranch(Seq(
             execute(region),
             Block(Seq(check(region), Inhale(ff)))
           )),
-        )))
+        ))
       }
 
     case inv @ ParInvariant(decl, dependentInvariant, body) =>
