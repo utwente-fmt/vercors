@@ -23,14 +23,17 @@ case object LangTypesToCol extends RewriterBuilder {
 }
 
 case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
-  /*
-  override def succ[DPost <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] =
+  override def porcelainRefSucc[RefDecl <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Rewritten[Pre], RefDecl]] =
     ref match {
       // Retain unresolved references to be resolved by LangSpecificToCol
-      case unresolved: UnresolvedRef[_, _] => new UnresolvedRef[Post, DPost](unresolved.name)
-      case other => succ(other.decl)
+      case unresolved: UnresolvedRef[_, _] => Some(new UnresolvedRef[Post, RefDecl](unresolved.name))
+      case _ => None
     }
-  */
+
+  override def porcelainRefSeqSucc[RefDecl <: Declaration[Rewritten[Pre]]](refs: Seq[Ref[Pre, _]])(implicit tag: ClassTag[RefDecl]): Option[Seq[Ref[Rewritten[Pre], RefDecl]]] =
+    if(refs.forall(_.isInstanceOf[UnresolvedRef[_, _]]))
+      Some(refs.map(porcelainRefSucc[RefDecl]).map(_.get))
+    else None
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o

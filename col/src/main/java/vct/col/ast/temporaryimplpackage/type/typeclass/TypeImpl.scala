@@ -31,7 +31,8 @@ trait TypeImpl[G] { this: Type[G] =>
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
     case object Particularize extends NonLatchingRewriter[G, G] {
       case object IdentitySuccessorsProvider extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
-        override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] = Some(pre.asInstanceOf[T])
+        override def preTransform[I <: Declaration[G], O <: Declaration[G]](pre: I): Option[O] =
+          Some(pre.asInstanceOf[O])
       }
 
       override def succProvider: SuccessorsProvider[G, G] = IdentitySuccessorsProvider

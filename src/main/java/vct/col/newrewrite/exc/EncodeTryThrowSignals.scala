@@ -95,9 +95,9 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] =
     program.rootClass match {
       case Some(TClass(Ref(cls))) =>
-        rootClass.having(succ[Class[Post]](cls)) {
-          program.rewrite()
-        }
+        program.rewrite(declarations = rootClass.having(succ[Class[Post]](cls)) {
+          globalDeclarations.dispatch(program.declarations)
+        })
       case _ => throw Unreachable("Root class unknown or not a class.")
     }
 
@@ -216,7 +216,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
       val exc = new Variable[Post](TClass(rootClass.top))(ExcVar)
 
       currentException.having(exc) {
-        val body = method.body.map(body => {
+        lazy val body = method.body.map(body => {
           val bubble = new LabelDecl[Post]()(ReturnPoint)
 
           Block(Seq(
@@ -230,7 +230,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           ))
         })
 
-        val ensures: AccountedPredicate[Post] = SplitAccountedPredicate(
+        lazy val ensures: AccountedPredicate[Post] = SplitAccountedPredicate(
           left = UnitAccountedPredicate((exc.get !== Null()) ==> foldOr(method.contract.signals.map {
             case SignalsClause(binding, _) => InstanceOf(exc.get, TypeValue(dispatch(binding.t)))
           })),

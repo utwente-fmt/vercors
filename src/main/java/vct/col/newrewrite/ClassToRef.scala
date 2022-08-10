@@ -118,7 +118,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           implicit val o: Origin = function.o
           val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
-            functionSucc(function) = globalDeclarations.declare(new Function(
+            functionSucc(function) = globalDeclarations.declare(labelDecls.scope { new Function(
               returnType = dispatch(function.returnType),
               args = variables.collect {
                 variables.declare(thisVar)
@@ -141,13 +141,13 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                 )
               ),
               inline = function.inline,
-            )(function.blame)(function.o))
+            )(function.blame)(function.o) })
           }
         case method: InstanceMethod[Pre] =>
           implicit val o: Origin = method.o
           val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
-            methodSucc(method) = globalDeclarations.declare(new Procedure(
+            methodSucc(method) = globalDeclarations.declare(labelDecls.scope { new Procedure(
               returnType = dispatch(method.returnType),
               args = variables.collect {
                 variables.declare(thisVar)
@@ -172,7 +172,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               ),
               inline = method.inline,
               pure = method.pure,
-            )(method.blame)(method.o))
+            )(method.blame)(method.o) })
           }
         case predicate: InstancePredicate[Pre] =>
           val thisVar = new Variable[Post](TRef())(This)

@@ -94,11 +94,11 @@ class ColDescription {
     case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
-    case Type.Apply(Type.Name("Ref"), List(_, Type.Apply(Type.Name(tDecl), _))) =>
+    case Type.Apply(Type.Name("Ref"), List(_, Type.Apply(decl @ Type.Name(tDecl), _))) =>
       if(ColDefs.DECLARATION_KINDS.exists(kind => supports(kind)(tDecl)))
-        q"rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl)"
+        q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl))"
       else
-        q"rewriter.allScopes.freeze.anySucc[${Type.Name(tDecl)}[Post]]($term.decl)"
+        q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.allScopes.freeze.anySucc[${Type.Name(tDecl)}[Post]]($term.decl))"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
 

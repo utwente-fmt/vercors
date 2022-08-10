@@ -98,6 +98,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
 
+  val javaMethod: SuccessionMap[JavaMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
   val javaConstructor: SuccessionMap[JavaConstructor[Pre], Procedure[Post]] = SuccessionMap()
   val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface[Pre], JavaConstructor[Pre]] = SuccessionMap()
 
@@ -184,43 +185,47 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
-        javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
-          new Procedure(
-            returnType = t,
-            args = rw.variables.dispatch(cons.parameters),
-            outArgs = Nil, typeArgs = Nil,
-            body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
-              assignLocal(res, NewObject(ref)),
-              fieldInit(res),
-              sharedInit(res),
-              rw.dispatch(cons.body),
-              Commit(res)(cons.blame),
-              Return(res),
-            )))) },
-            contract = rw.currentThis.having(result) { cons.contract.rewrite(
-              ensures = SplitAccountedPredicate(
-                left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-                right = rw.dispatch(cons.contract.ensures),
-              ),
-              signals = cons.contract.signals.map(rw.dispatch) ++
-                cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-            ) },
-          )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
-        ))
+        rw.labelDecls.scope {
+          javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
+            new Procedure(
+              returnType = t,
+              args = rw.variables.dispatch(cons.parameters),
+              outArgs = Nil, typeArgs = Nil,
+              body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
+                assignLocal(res, NewObject(ref)),
+                fieldInit(res),
+                sharedInit(res),
+                rw.dispatch(cons.body),
+                Commit(res)(cons.blame),
+                Return(res),
+              )))) },
+              contract = rw.currentThis.having(result) { cons.contract.rewrite(
+                ensures = SplitAccountedPredicate(
+                  left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
+                  right = rw.dispatch(cons.contract.ensures),
+                ),
+                signals = cons.contract.signals.map(rw.dispatch) ++
+                  cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+              ) },
+            )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
+          ))
+        }
       case method: JavaMethod[Pre] =>
-        rw.classDeclarations.declare(new InstanceMethod(
-          returnType = rw.dispatch(method.returnType),
-          args = rw.variables.dispatch(method.parameters),
-          outArgs = Nil, typeArgs = Nil,
-          body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-            case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-            case None => method.body.map(rw.dispatch)
-          },
-          contract = method.contract.rewrite(
-            signals = method.contract.signals.map(rw.dispatch) ++
-              method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-          ),
-        )(method.blame)(JavaMethodOrigin(method)))
+        rw.labelDecls.scope {
+          javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
+            returnType = rw.dispatch(method.returnType),
+            args = rw.variables.dispatch(method.parameters),
+            outArgs = Nil, typeArgs = Nil,
+            body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
+              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+              case None => method.body.map(rw.dispatch)
+            },
+            contract = method.contract.rewrite(
+              signals = method.contract.signals.map(rw.dispatch) ++
+                method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+            ),
+          )(method.blame)(JavaMethodOrigin(method)))
+        }
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -391,7 +396,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decl)))
           MethodInvocation[Post](
             obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(inv.blame),
-            ref = rw.succ(decl),
+            ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
             yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
@@ -399,7 +404,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         } else {
           MethodInvocation[Post](
             obj = obj.map(rw.dispatch).getOrElse(rw.currentThis.top),
-            ref = rw.succ(decl),
+            ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
             yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },

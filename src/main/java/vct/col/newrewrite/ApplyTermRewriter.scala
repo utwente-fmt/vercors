@@ -256,7 +256,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
 
   case class ApplyRecursively() extends NonLatchingRewriter[Pre, Pre] {
     case object IdentitySucc extends SuccessorsProviderTrafo(allScopes.freeze) {
-      override def postTransform[T <: Declaration[Pre]](pre: Declaration[Pre], post: Option[T]): Option[T] = Some(pre.asInstanceOf[T])
+      override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](pre: I): Option[O] =
+        Some(pre.asInstanceOf[O])
     }
 
     @tailrec

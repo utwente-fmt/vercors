@@ -30,12 +30,12 @@ case class ColHelperSuccessorsProvider(info: ColDescription) {
     }
 
     abstract class SuccessorsProviderTrafo[Pre, Post](inner: SuccessorsProvider[Pre, Post]) extends SuccessorsProvider[Pre, Post] {
-      def preTransform[T <: Declaration[Pre]](pre: T): Option[T] = Some(pre)
+      def preTransform[I <: Declaration[Pre], O <: Declaration[Post]](pre: I): Option[O] = None
       def postTransform[T <: Declaration[Post]](pre: Declaration[Pre], post: Option[T]): Option[T] = post
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         def computeSucc(decl: ${Type.Name(decl)}[Pre]): Option[${Type.Name(decl)}[Post]] =
-          postTransform(decl, preTransform(decl).flatMap(inner.computeSucc))
+          preTransform(decl).getOrElse(postTransform(decl, inner.computeSucc(decl)))
       """).toList}
     }
   """.stats

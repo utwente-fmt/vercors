@@ -49,7 +49,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
   class FrozenScopes extends SuccessorProvider[Pre, Post, PreDecl, PostDecl] {
     val scopes: Seq[mutable.Map[PreDecl, PostDecl]] = successors.toSeq
 
-    override def computeSucc(decl: PreDecl): Option[PostDecl] = scopes.collectFirst(_(decl))
+    override def computeSucc(decl: PreDecl): Option[PostDecl] = scopes.collectFirst { case m if m.contains(decl) => m(decl) }
   }
 
   def freeze: FrozenScopes = new FrozenScopes

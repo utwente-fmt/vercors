@@ -47,45 +47,45 @@ object ColDefs {
   def scopes(kind: String): Term.Name =
     Term.Name(kind.charAt(0).toLower + kind.substring(1) + "s")
 
-  val DECLARATION_NAMESPACE: Map[String, Seq[Type.Name]] = Map(
-    "GlobalDeclaration" -> Seq(t"Program"),
-    "ClassDeclaration" -> Seq(t"Program"),
-    "ADTDeclaration" -> Seq(t"Program"),
-    "ModelDeclaration" -> Seq(t"Program"),
+  val DECLARATION_NAMESPACE: Map[String, Seq[String]] = Map(
+    "GlobalDeclaration" -> Seq("Program"),
+    "ClassDeclaration" -> Seq("Program"),
+    "ADTDeclaration" -> Seq("Program"),
+    "ModelDeclaration" -> Seq("Program"),
     "Variable" -> Seq(
-      t"ParBlock", t"VecBlock", t"CatchClause", t"Scope", t"SignalsClause", // Explicit declarations
-      t"AxiomaticDataType", t"JavaClass", t"JavaInterface", // Type arguments
-      t"Predicate", t"InstancePredicate", // Arguments
-      t"ModelProcess", t"ModelAction", t"ADTFunction",
+      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
+      "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
+      "Predicate", "InstancePredicate", // Arguments
+      "ModelProcess", "ModelAction", "ADTFunction",
       // given/yields variables must be deemed in the same scope as the applicable.
       // maybe they can be non-variables, since they are not referenced via Local?
-      t"Program",
-      // t"Function", t"Procedure",
-      // t"InstanceFunction", t"InstanceMethod",
-      // t"JavaConstructor", t"JavaMethod",
-      // t"PVLConstructor",
-      t"Forall", t"Starall", t"Exists", t"Sum", t"Product", t"Let", t"ScopedExpr" // Binders in expressions
+      "Program",
+      // "Function", "Procedure",
+      // "InstanceFunction", "InstanceMethod",
+      // "JavaConstructor", "JavaMethod",
+      // "PVLConstructor",
+      "Forall", "Starall", "Exists", "Sum", "Product", "Let", "ScopedExpr" // Binders in expressions
     ),
     "LabelDecl" -> Seq(
-      t"Function", t"Procedure",
-      t"InstanceFunction", t"InstanceMethod",
-      t"JavaConstructor", t"JavaMethod",
-      t"PVLConstructor",
+      "Function", "Procedure",
+      "InstanceFunction", "InstanceMethod",
+      "JavaConstructor", "JavaMethod",
+      "PVLConstructor",
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),
-    "SendDecl" -> Seq(t"ParBlock"),
-    "ParBlockDecl" -> Seq(t"ParBlock"),
-    "ParInvariantDecl" -> Seq(t"ParInvariant"),
+    "SendDecl" -> Seq("ParBlock"),
+    "ParBlockDecl" -> Seq("ParBlock"),
+    "ParInvariantDecl" -> Seq("ParInvariant"),
     "CLocalDeclaration" -> Seq(
-      t"CGlobalDeclaration", t"CFunctionDefinition",
-      t"Scope",
+      "CGlobalDeclaration", "CFunctionDefinition",
+      "Scope",
     ),
     "CParam" -> Seq(
-      t"CGlobalDeclaration", t"CFunctionDefinition",
+      "CGlobalDeclaration", "CFunctionDefinition",
     ),
     "JavaLocalDeclaration" -> Seq(
-      t"JavaConstructor", t"JavaMethod",
-      t"Scope",
+      "JavaConstructor", "JavaMethod",
+      "Scope",
     ),
   )
 

@@ -52,6 +52,9 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       def rewriteDefault(decl: $DECLARATION_TYPE[Pre]): Unit =
         AbstractRewriter.${Term.Name(s"rewriteDefault${DECLARATION}LookupTable")}(decl.getClass)(decl, this)
 
+      def porcelainRefSucc[RefDecl <: Declaration[Post]](ref: Ref[Pre, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Post, RefDecl]] = None
+      def porcelainRefSeqSucc[RefDecl <: Declaration[Post]](refs: Seq[Ref[Pre, _]])(implicit tag: ClassTag[RefDecl]): Option[Seq[Ref[Post, RefDecl]]] = None
+
       val allScopes: AllScopes[Pre, Post] = AllScopes()
       def succProvider: SuccessorsProvider[Pre, Post] = allScopes.freeze
 

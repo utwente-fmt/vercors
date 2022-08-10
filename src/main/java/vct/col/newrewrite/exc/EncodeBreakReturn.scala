@@ -177,33 +177,34 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
       method.body match {
         case None => rewriteDefault(method)
         case Some(body) =>
-          val newBody: Statement[Post] = if(hasFinally(body)) {
-            implicit val o: Origin = body.o
-            val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
-            val returnClass = new Class[Post](Seq(returnField), Seq(rootClass.top), tt)(ReturnClass)
-            globalDeclarations.declare(returnClass)
+          allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(body = Some({
+            if (hasFinally(body)) {
+              implicit val o: Origin = body.o
+              val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
+              val returnClass = new Class[Post](Seq(returnField), Seq(rootClass.top), tt)(ReturnClass)
+              globalDeclarations.declare(returnClass)
 
-            val caughtReturn = new Variable[Post](TClass(returnClass.ref))
+              val caughtReturn = new Variable[Post](TClass(returnClass.ref))
 
-            TryCatchFinally(
-              body = BreakReturnToException(returnClass, returnField).dispatch(body),
-              catches = Seq(CatchClause(caughtReturn,
-                Return(Deref[Post](caughtReturn.get, returnField.ref)(PanicBlame("Permission for the field of a return exception cannot be non-write, as the class is only instantiated at a return site, and caught immediately.")))
-              )),
-              after = Block(Nil)
-            )
-          } else {
-            val resultTarget = new LabelDecl[Post]()(ReturnTarget)
-            val resultVar = new Variable(dispatch(method.returnType))(ReturnVariable)
-            val newBody = BreakReturnToGoto(resultTarget, resultVar.get(ReturnVariable)).dispatch(body)
-            implicit val o: Origin = body.o
-            Scope(Seq(resultVar), Block(Seq(
-              newBody,
-              Label(resultTarget, Block(Nil)),
-              Return(resultVar.get),
-            )))
-          }
-          allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(body = Some(newBody))))
+              TryCatchFinally(
+                body = BreakReturnToException(returnClass, returnField).dispatch(body),
+                catches = Seq(CatchClause(caughtReturn,
+                  Return(Deref[Post](caughtReturn.get, returnField.ref)(PanicBlame("Permission for the field of a return exception cannot be non-write, as the class is only instantiated at a return site, and caught immediately.")))
+                )),
+                after = Block(Nil)
+              )
+            } else {
+              val resultTarget = new LabelDecl[Post]()(ReturnTarget)
+              val resultVar = new Variable(dispatch(method.returnType))(ReturnVariable)
+              val newBody = BreakReturnToGoto(resultTarget, resultVar.get(ReturnVariable)).dispatch(body)
+              implicit val o: Origin = body.o
+              Scope(Seq(resultVar), Block(Seq(
+                newBody,
+                Label(resultTarget, Block(Nil)),
+                Return(resultVar.get),
+              )))
+            }
+          }))))
       }
     case other => rewriteDefault(other)
   }

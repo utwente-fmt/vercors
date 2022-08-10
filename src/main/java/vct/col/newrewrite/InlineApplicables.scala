@@ -31,8 +31,8 @@ case object InlineApplicables extends RewriterBuilder {
 
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
     case object IdentitySuccessor extends SuccessorsProviderTrafo(allScopes.freeze) {
-      override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] =
-        Some(pre.asInstanceOf[T])
+      override def preTransform[I <: Declaration[G], O <: Declaration[G]](pre: I): Option[O] =
+        Some(pre.asInstanceOf[O])
     }
 
     override def succProvider: SuccessorsProvider[G, G] = IdentitySuccessor

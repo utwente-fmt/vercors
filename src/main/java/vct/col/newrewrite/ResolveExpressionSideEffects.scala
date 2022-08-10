@@ -101,12 +101,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
-    case object SuccIdentity extends SuccessorsProviderTrafo(allScopes.freeze) {
-      override def postTransform[T <: Declaration[Post]](pre: Declaration[Post], post: Option[T]): Option[T] =
-        Some(pre.asInstanceOf[T])
-    }
+    override def porcelainRefSucc[RefDecl <: Declaration[Post]](ref: Ref[Post, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Post, RefDecl]] =
+      Some(ref.asInstanceOf[Ref[Post, RefDecl]])
 
-    override def succProvider: SuccessorsProvider[Post, Post] = SuccIdentity
+    override def porcelainRefSeqSucc[RefDecl <: Declaration[Post]](refs: Seq[Ref[Post, _]])(implicit tag: ClassTag[RefDecl]): Option[Seq[Ref[Post, RefDecl]]] =
+      Some(refs.map(_.asInstanceOf[Ref[Post, RefDecl]]))
 
     // ... but since we need to be able to unpack locals, we latch those, and they are not latched in
     // ResolveExpressionSideEffects.
