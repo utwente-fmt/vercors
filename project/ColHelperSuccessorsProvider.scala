@@ -35,7 +35,7 @@ case class ColHelperSuccessorsProvider(info: ColDescription) {
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         def computeSucc(decl: ${Type.Name(decl)}[Pre]): Option[${Type.Name(decl)}[Post]] =
-          preTransform(decl).getOrElse(postTransform(decl, inner.computeSucc(decl)))
+          preTransform(decl).orElse(postTransform(decl, inner.computeSucc(decl)))
       """).toList}
     }
   """.stats

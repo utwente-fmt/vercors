@@ -72,10 +72,11 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   }
 
   case class ApplyParametricBindings(bindings: Map[Variable[Pre], Ref[Pre, Variable[Pre]]]) extends NonLatchingRewriter[Pre, Pre] {
-    override def succProvider: SuccessorsProvider[Pre, Pre] = new SuccessorsProviderTrafo(allScopes.freeze) {
-      override def succ[RefDecl <: Declaration[Pre]](decl: Variable[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Pre, RefDecl] =
-        bindings.getOrElse(decl, super.succ(decl)).asInstanceOf
-    }
+    override def succProvider: SuccessorsProvider[Pre, Pre] =
+      new SuccessorsProviderTrafo(allScopes.freeze) {
+        override def succ[RefDecl <: Declaration[Pre]](decl: Variable[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Pre, RefDecl] =
+          bindings.getOrElse(decl, super.succ(decl)).asInstanceOf
+      }
   }
 
   case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]], defaultOrigin: Origin) extends NonLatchingRewriter[Rule, Pre] {
@@ -259,6 +260,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](pre: I): Option[O] =
         Some(pre.asInstanceOf[O])
     }
+
+    override def succProvider: SuccessorsProvider[Pre, Pre] = IdentitySucc
 
     @tailrec
     override final def dispatch(e: Expr[Pre]): Expr[Pre] = {

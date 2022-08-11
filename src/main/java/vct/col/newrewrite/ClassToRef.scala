@@ -238,7 +238,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
       implicit val o: Origin = inv.o
-      rewriteInstancePredicateApply(inv) &* dispatch(obj) !== Null()
+      rewriteInstancePredicateApply(inv) &* (dispatch(obj) !== Null())
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs, givenMap, yields) =>
       FunctionInvocation[Post](
         ref = functionSucc.ref(func),
