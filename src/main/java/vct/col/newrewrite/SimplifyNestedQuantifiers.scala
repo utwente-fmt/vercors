@@ -1,9 +1,9 @@
 package vct.col.newrewrite
 
 import vct.col.ast.{ArraySubscript, _}
-import vct.col.ast.util.ExpressionEqualityCheck
+import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.newrewrite.util.Comparison
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{Blame, NontrivialUnsatisfiable, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -74,6 +74,53 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     }
   }
 
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = {
+    val e = stat match {
+      case Exhale(e) => e
+      case Inhale(e) => e
+      case _ => return rewriteDefault(stat)
+    }
+
+    val conditions = getConditions(e)
+    val infoGetter = new AnnotationVariableInfoGetter[Pre]()
+    equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(conditions)))
+    val result = rewriteDefault(stat)
+    equalityChecker = ExpressionEqualityCheck()
+    result
+  }
+
+  def getConditions(preds: AccountedPredicate[Pre]): Seq[Expr[Pre]] = preds match {
+    case UnitAccountedPredicate(pred) => getConditions(pred)
+    case SplitAccountedPredicate(left, right) => getConditions(left) ++ getConditions(right)
+  }
+
+  def getConditions(e: Expr[Pre]): Seq[Expr[Pre]] = e match {
+    case And(left, right) => getConditions(left) ++ getConditions(right)
+    case Star(left, right) => getConditions(left) ++ getConditions(right)
+    case other => Seq[Expr[Pre]](other)
+  }
+
+  override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
+    val infoGetter = new AnnotationVariableInfoGetter[Pre]()
+    val reqConditions = getConditions(contract.requires)
+    val contextConditions = getConditions(contract.contextEverywhere)
+    val ensureConditions = getConditions(contract.ensures)
+    equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(reqConditions ++ contextConditions)))
+    val requires = dispatch(contract.requires)
+    equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(ensureConditions ++ contextConditions)))
+    val ensures = dispatch(contract.ensures)
+    equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(contextConditions)))
+    val contextEverywhere = dispatch(contract.contextEverywhere)
+    equalityChecker = ExpressionEqualityCheck()
+
+    val signals = contract.signals.map(element => dispatch(element))
+    val givenArgs = collectInScope(variableScopes) {contract.givenArgs.foreach(dispatch)}
+    val yieldsArgs = collectInScope(variableScopes) {contract.yieldsArgs.foreach(dispatch)}
+    val decreases = contract.decreases.map(element => rewriter.dispatch(element))
+
+    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contract.blame)(contract.o)
+  }
+
   def rewriteLinearArray(e: Binder[Pre]): Option[Expr[Post]] = {
     val originalBody = e match {
       case Forall(_, _, body) => body
@@ -134,7 +181,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       val (newVars, secondBody) = mainBody match {
         case Forall(newVars, _, secondBody) => (newVars, secondBody)
         case Starall(newVars, _, secondBody) => (newVars, secondBody)
-        case _ => return newConditions
+        case _ =>
+          body = mainBody
+          return newConditions
       }
 
       bindings.addAll(newVars)

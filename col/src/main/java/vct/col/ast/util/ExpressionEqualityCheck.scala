@@ -2,7 +2,8 @@ package vct.col.ast.util
 
 import hre.lang.System.Warning
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.col.ast.{And, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Minus, Mod, Mult, Neq, Not, Or, Plus, Star, UMinus, Wand}
+import vct.col.ast.{And, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Star, UMinus, Wand}
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
@@ -16,6 +17,11 @@ object ExpressionEqualityCheck {
   def equalExpressions[G](lhs: Expr[G], rhs: Expr[G]): Boolean = {
     ExpressionEqualityCheck().equalExpressions(lhs, rhs)
   }
+}
+
+case class InconsistentVariableEquality(v: Local[_], x: BigInt, y: BigInt) extends UserError {
+  override def code: String = "inconsistentVariableEquality"
+  override def text: String = s"Inconsistent variable equality: value of $v is required to be both $x and $y"
 }
 
 class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
@@ -242,7 +248,8 @@ class AnnotationVariableInfoGetter[G]() {
     // Add to constant list
     isConstantInt[G](expr) match {
       case Some(x) => variableValues.get(v) match {
-        case Some(x_) => if (x!=x_) Warning("Value of %s is required to be both %d and %d", v, x, x_);
+        case Some(y) => if (x!=y)
+          throw InconsistentVariableEquality(v, x, y)
         case None => variableValues(v) = x
       }
       case None =>
