@@ -109,7 +109,7 @@ object AstBuildHelpers {
                 returnType: => Type[Post] = rewriter.dispatch(function.returnType),
                 body: => Option[Expr[Post]] = function.body.map(rewriter.dispatch),
                 contract: => ApplicableContract[Post] = rewriter.dispatch(function.contract),
-                typeArgs: => Seq[Variable[Post]] = rewriter.variables.dispatch(function.args),
+                typeArgs: => Seq[Variable[Post]] = rewriter.variables.dispatch(function.typeArgs),
                 inline: => Boolean = function.inline,
                 threadLocal: => Boolean = function.threadLocal,
                 blame: => Blame[ContractedFailure] = function.blame,

@@ -63,9 +63,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
   def collect[T](f: => T): (Seq[PostDecl], T) = {
     val buffer = ArrayBuffer[PostDecl]()
 
-    val result = collectionBuffer.having(buffer) {
-      f
-    }
+    val result = collectionBuffer.having(buffer)(f)
 
     (buffer.toSeq, result)
   }
