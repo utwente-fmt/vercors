@@ -98,7 +98,7 @@ class ColDescription {
       if(ColDefs.DECLARATION_KINDS.exists(kind => supports(kind)(tDecl)))
         q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl))"
       else
-        q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.allScopes.freeze.anySucc[${Type.Name(tDecl)}[Post]]($term.decl))"
+        q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.anySucc[${Type.Name(tDecl)}[Post]]($term.decl))"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
 

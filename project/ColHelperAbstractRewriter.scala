@@ -58,12 +58,17 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       val allScopes: AllScopes[Pre, Post] = AllScopes()
       def succProvider: SuccessorsProvider[Pre, Post] = allScopes.freeze
 
+      def anySucc[RefDecl <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
+        ${MetaUtil.NonemptyMatch("decl succ kind cases", q"decl", ColDefs.DECLARATION_KINDS.map(decl =>
+          Case(p"decl: ${Type.Name(decl)}[Pre]", None, q"succ(decl)")
+        ).toList)}
+
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         def ${ColDefs.scopes(decl)}: Scopes[Pre, Post, ${Type.Name(decl)}[Pre], ${Type.Name(decl)}[Post]] = allScopes.${ColDefs.scopes(decl)}
       """).toList}
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
-        def succ[RefDecl <: ${Type.Name(decl)}[Post]](decl: ${Type.Name(decl)}[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
+        def succ[RefDecl <: Declaration[Post]](decl: ${Type.Name(decl)}[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
           succProvider.succ(decl)
       """).toList}
 

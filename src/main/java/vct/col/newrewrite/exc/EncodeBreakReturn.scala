@@ -168,7 +168,12 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(program: Program[Pre]): Program[Post] =
     program.rootClass match {
-      case Some(TClass(Ref(cls))) => rootClass.having(succ(cls)) { program.rewrite() }
+      case Some(TClass(Ref(cls))) =>
+        program.rewrite(
+          declarations = rootClass.having(succ(cls)) {
+            globalDeclarations.dispatch(program.declarations)
+          },
+        )
       case _ => ???
     }
 

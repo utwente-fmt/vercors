@@ -7,11 +7,6 @@ case class ColHelperSuccessorsProvider(info: ColDescription) {
     import vct.col.ref.LazyRef
 
     trait SuccessorsProvider[Pre, Post] {
-      def anySucc[RefDecl <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
-        ${MetaUtil.NonemptyMatch("decl succ kind cases", q"decl", ColDefs.DECLARATION_KINDS.map(decl =>
-          Case(p"decl: ${Type.Name(decl)}[Pre]", None, q"succ(decl)")
-        ).toList)}
-
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         def computeSucc(decl: ${Type.Name(decl)}[Pre]): Option[${Type.Name(decl)}[Post]]
       """).toList}

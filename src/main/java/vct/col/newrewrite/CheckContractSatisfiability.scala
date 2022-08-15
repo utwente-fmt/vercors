@@ -52,13 +52,15 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         val onlyAssertBlame = FilterExpectedErrorBlame(PanicBlame("A boolean assert can only report assertFailed:false"), err)
         expectedErrors.top += err
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
-        globalDeclarations.declare(procedure(
-          blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
-          contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
-          requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
-          args = variables.dispatch(substitutions.keys),
-          body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
-        ))
+        variables.scope {
+          globalDeclarations.declare(procedure(
+            blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
+            contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
+            requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
+            args = variables.dispatch(substitutions.keys),
+            body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
+          ))
+        }
     }
   }
 
@@ -73,11 +75,10 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
 
   val name: ScopedStack[String] = ScopedStack()
 
-  override def dispatch(decl: Declaration[Pre]): Unit = {
+  override def dispatch(decl: Declaration[Pre]): Unit =
     name.having(decl.o.preferredName) {
       super.dispatch(decl)
     }
-  }
 
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
     if(doCheck) checkSatisfiability(contract, name.topOption)

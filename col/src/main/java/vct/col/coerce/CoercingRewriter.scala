@@ -42,10 +42,15 @@ case object CoercingRewriter {
 abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import CoercingRewriter._
 
-  val coercedScopes: AllScopes[Pre, Pre] = AllScopes()
+  val coercedDeclaration: SuccessionMap[Declaration[Pre], Declaration[Pre]] = SuccessionMap()
+
+  class CoercedSuccessorsProvider extends SuccessorsProviderTrafo[Pre, Pre](null) {
+    override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](pre: I): Option[O] =
+      Some(coercedDeclaration(pre).asInstanceOf[O])
+  }
 
   override def succProvider: SuccessorsProvider[Pre, Post] =
-    SuccessorsProviderChain(coercedScopes.freeze, allScopes.freeze)
+    SuccessorsProviderChain(new CoercedSuccessorsProvider, allScopes.freeze)
 
   /**
     * Apply a particular coercion to an expression.
@@ -228,7 +233,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
   override def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
-    coercedScopes.anySucceedOnly(decl, coercedDecl)
+    coercedDeclaration(decl) = coercedDecl
     postCoerce(coercedDecl)
   }
 

@@ -96,11 +96,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       result.ref.get match {
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
-        case RefFunction(decl) => Result[Post](allScopes.freeze.anySucc(decl))
-        case RefProcedure(decl) => Result[Post](allScopes.freeze.anySucc(decl))
-        case RefJavaMethod(decl) => Result[Post](allScopes.freeze.anySucc(decl))
-        case RefInstanceFunction(decl) => Result[Post](allScopes.freeze.anySucc(decl))
-        case RefInstanceMethod(decl) => Result[Post](allScopes.freeze.anySucc(decl))
+        case RefFunction(decl) => Result[Post](anySucc(decl))
+        case RefProcedure(decl) => Result[Post](anySucc(decl))
+        case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
+        case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
+        case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>

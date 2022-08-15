@@ -160,7 +160,8 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
 
   private def parse(name: String): Seq[GlobalDeclaration[Post]] = {
     val program = importer.loadAdt[Pre](name)
-    program.declarations.map(globalDeclarations.dispatch)
+    program.declarations.foreach(dispatch)
+    program.declarations.map(succProvider.computeSucc).map(_.get)
   }
 
   private lazy val nothingFile = parse("nothing")

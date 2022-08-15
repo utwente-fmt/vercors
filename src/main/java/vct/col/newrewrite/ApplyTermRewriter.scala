@@ -74,9 +74,15 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   case class ApplyParametricBindings(bindings: Map[Variable[Pre], Ref[Pre, Variable[Pre]]]) extends NonLatchingRewriter[Pre, Pre] {
     override def succProvider: SuccessorsProvider[Pre, Pre] =
       new SuccessorsProviderTrafo(allScopes.freeze) {
+        override def postTransform[T <: Declaration[Pre]](pre: Declaration[Pre], post: Option[T]): Option[T] =
+          Some(pre.asInstanceOf[T])
+
         override def succ[RefDecl <: Declaration[Pre]](decl: Variable[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Pre, RefDecl] =
-          bindings.getOrElse(decl, super.succ(decl)).asInstanceOf
+          bindings.getOrElse(decl, decl.asInstanceOf[RefDecl].ref).asInstanceOf[Ref[Pre, RefDecl]]
       }
+
+    override def dispatch(decl: Declaration[Pre]): Unit =
+      allScopes.anyDeclare(decl)
   }
 
   case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]], defaultOrigin: Origin) extends NonLatchingRewriter[Rule, Pre] {
@@ -101,7 +107,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   def apply(rule: (Seq[Variable[Rule]], Expr[Rule], Expr[Rule], Origin), subject: Expr[Pre]): Option[Expr[Pre]] = {
     incApply()
     implicit val o: Origin = DiagnosticOrigin
-    val (free, pattern, subtitute, ruleOrigin) = rule
+    val (free, pattern, substitute, ruleOrigin) = rule
 
     val debugFilter =
       debugFilterRule.map(_ == ruleOrigin.preferredName).getOrElse(true) &&
@@ -209,7 +215,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
         return None
     }
 
-    val result = ApplyRule(inst.toMap, typeInst.toMap, subject.o).dispatch(subtitute)
+    val result = ApplyRule(inst.toMap, typeInst.toMap, subject.o).dispatch(substitute)
 
     if(debugMatch && debugFilter) {
       if(debugMatchShort) {
@@ -234,7 +240,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
             case (rule, binding) => logger.debug(s"  $rule = $binding")
           }
         }
-        logger.debug(s"Applied to:       $subtitute")
+        logger.debug(s"Applied to:       $substitute")
         logger.debug(s"Result:           $result")
         logger.debug("")
       }
@@ -305,7 +311,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       countApply = 0
       countSuccess = 0
       currentExpr = e
-      dispatch(ApplyRecursively().dispatch(e))
+      val res = ApplyRecursively().dispatch(e)
+      dispatch(res)
     }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
