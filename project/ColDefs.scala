@@ -73,7 +73,7 @@ object ColDefs {
       "PVLConstructor",
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),
-    "SendDecl" -> Seq("ParBlock"),
+    "SendDecl" -> Seq("ParBlock", "Loop"),
     "ParBlockDecl" -> Seq("ParBlock"),
     "ParInvariantDecl" -> Seq("ParInvariant"),
     "CLocalDeclaration" -> Seq(

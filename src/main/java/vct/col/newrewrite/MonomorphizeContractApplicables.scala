@@ -31,7 +31,9 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
         monomorphizedImpl((app, typeValues)) = currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
           globalDeclarations.scope {
             classDeclarations.scope {
-              allScopes.anyDeclare(allScopes.anySucceedOnly(app, app.rewrite(typeArgs = Nil)))
+              variables.scope {
+                allScopes.anyDeclare(allScopes.anySucceedOnly(app, app.rewrite(typeArgs = Nil)))
+              }
             }
           }
         }
