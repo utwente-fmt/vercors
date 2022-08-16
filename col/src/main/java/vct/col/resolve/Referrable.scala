@@ -101,6 +101,13 @@ sealed trait Referrable[G] {
     case RefPVLConstructor(decl) => ""
     case ImplicitDefaultJavaConstructor() => ""
     case ImplicitDefaultPVLConstructor() => ""
+    case RefCudaThreadIdx() => "threadIdx"
+    case RefCudaBlockDim() => "blockDim"
+    case RefCudaBlockIdx() => "blockIdx"
+    case RefCudaGridDim() => "gridDim"
+    case RefCudaVecX(_) => "x"
+    case RefCudaVecY(_) => "y"
+    case RefCudaVecZ(_) => "z"
   }
 }
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
@@ -177,3 +184,14 @@ case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) exten
 
 case class ImplicitDefaultJavaConstructor[G]() extends Referrable[G] with JavaConstructorTarget[G]
 case class ImplicitDefaultPVLConstructor[G]() extends Referrable[G] with PVLConstructorTarget[G]
+
+sealed trait RefCudaVec[G] extends Referrable[G] with CNameTarget[G]
+case class RefCudaThreadIdx[G]() extends RefCudaVec[G]
+case class RefCudaBlockDim[G]() extends RefCudaVec[G]
+case class RefCudaBlockIdx[G]() extends RefCudaVec[G]
+case class RefCudaGridDim[G]() extends RefCudaVec[G]
+
+sealed trait RefCudaVecDim[G] extends Referrable[G] with CDerefTarget[G]
+case class RefCudaVecX[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
+case class RefCudaVecY[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
+case class RefCudaVecZ[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
