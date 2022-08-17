@@ -120,6 +120,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: PVLInvocation[Pre] => pvl.invocation(inv)
 
     case local: CLocal[Pre] => c.local(local)
+    case deref: CStructAccess[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)

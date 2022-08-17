@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, Origin, TrueSatisfiable}
 import vct.col.ref.Ref
-import vct.col.resolve.{BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCLocalDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefCParam, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaVecDim, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.{Substitute, SuccessionMap}
 import vct.col.util.AstBuildHelpers._
@@ -96,6 +96,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         val info = C.getDeclaratorInfo(init.decl)
         info.params match {
           case Some(params) =>
+            if(decl.decl.specs.collectFirst { case CKernel() => () }.nonEmpty)
             cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(new Procedure[Post](
               returnType = t,
               args = rw.variables.collect { params.foreach(rw.dispatch) }._1,
@@ -160,6 +161,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case RefCFunctionDefinition(decl) => throw NotAValue(local)
       case RefCGlobalDeclaration(decls, initIdx) => throw NotAValue(local)
       case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
+    }
+  }
+
+  def deref(deref: CStructAccess[Pre]): Expr[Post] = {
+    implicit val o: Origin = deref.o
+    deref.ref.get match {
+      case RefModelField(decl) => ModelDeref[Post](rw.currentThis.top, rw.succ(decl))(deref.blame)
+      case BuiltinField(f) => rw.dispatch(f(deref.struct))
+      case target: SpecInvocationTarget[Pre] => ???
+      case dim: RefCudaVecDim[Pre] => ???
     }
   }
 
