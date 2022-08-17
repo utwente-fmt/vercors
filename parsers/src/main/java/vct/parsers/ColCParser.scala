@@ -51,7 +51,7 @@ case class ColCParser(override val originProvider: OriginProvider,
       val interpreted = File.createTempFile("vercors-interpreted-", ".i")
       interpreted.deleteOnExit()
 
-      val process = interpret(localInclude=Seq(Paths.get(readable.fileName).getParent), input="-", output=interpreted.toString)
+      val process = interpret(localInclude=Seq(Paths.get(readable.fileName).toAbsolutePath.getParent), input="-", output=interpreted.toString)
       new Thread(() => {
         val writer = new OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
         readable.read { reader =>
