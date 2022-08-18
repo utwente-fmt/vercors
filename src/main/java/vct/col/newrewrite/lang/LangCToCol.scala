@@ -4,13 +4,15 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, Origin, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, Origin, PanicBlame, TrueSatisfiable}
 import vct.col.ref.Ref
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaVecDim, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.{Substitute, SuccessionMap}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
+
+import scala.collection.immutable.ListMap
 
 case object LangCToCol {
   case class CGlobalStateNotSupported(example: CInit[_]) extends UserError {
@@ -39,6 +41,34 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] = SuccessionMap()
   val cCurrentDefinitionParamSubstitutions: ScopedStack[Map[CParam[Pre], CParam[Pre]]] = ScopedStack()
 
+  val cudaCurrentIndexVariables: ScopedStack[CudaIndexVariables] = ScopedStack()
+  val cudaCurrentDimensionVariables: ScopedStack[CudaDimensionVariables] = ScopedStack()
+
+  case class CudaIndexVariableOrigin(dim: RefCudaVecDim[_]) extends Origin {
+    override def preferredName: String =
+      dim.vec.name + dim.name.toUpperCase
+
+    override def context: String = s"At: [Variable for dimension ${dim.name} of ${dim.vec.name}]"
+    override def inlineContext: String = s"[Variable for dimension ${dim.name} of ${dim.vec.name}]"
+    override def shortPosition: String = "generated"
+  }
+
+  class CudaIndexVariables(implicit val o: Origin) {
+    val indices: ListMap[RefCudaVecDim[Pre], Variable[Post]] =
+      ListMap((for(
+        set <- Seq(RefCudaThreadIdx[Pre](), RefCudaBlockIdx[Pre]());
+        dim <- Seq(RefCudaVecX[Pre](_), RefCudaVecY[Pre](_), RefCudaVecZ[Pre](_))
+      ) yield dim(set) -> new Variable[Post](TInt())(CudaIndexVariableOrigin(dim(set)))): _*)
+  }
+
+  class CudaDimensionVariables(implicit val o: Origin) {
+    val indices: ListMap[RefCudaVecDim[Pre], Variable[Post]] =
+      ListMap((for (
+        set <- Seq(RefCudaBlockDim[Pre](), RefCudaGridDim[Pre]());
+        dim <- Seq(RefCudaVecX[Pre](_), RefCudaVecY[Pre](_), RefCudaVecZ[Pre](_))
+      ) yield dim(set) -> new Variable[Post](TInt())(CudaIndexVariableOrigin(dim(set)))): _*)
+  }
+
   def rewriteUnit(cUnit: CTranslationUnit[Pre]): Unit = {
     cUnit.declarations.foreach(rw.dispatch)
   }
@@ -56,28 +86,35 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
     val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
 
-    val contract = func.ref match {
+    val (contract, subs: Map[CParam[Pre], CParam[Pre]]) = func.ref match {
       case Some(RefCGlobalDeclaration(decl, idx)) if decl.decl.contract.nonEmpty =>
         if(func.contract.nonEmpty) throw CDoubleContracted(decl, func)
 
         val declParams = C.getDeclaratorInfo(decl.decl.inits(idx).decl).params.get
         val defnParams = info.params.get
 
-        cCurrentDefinitionParamSubstitutions.having(declParams.zip(defnParams).toMap) {
-          rw.dispatch(decl.decl.contract)
-        }
+        (decl.decl.contract, declParams.zip(defnParams).toMap)
       case _ =>
-        rw.dispatch(func.contract)
+        (func.contract, Map.empty)
     }
 
-    val proc = rw.globalDeclarations.declare(new Procedure(
-      returnType = returnType,
-      args = params,
-      outArgs = Nil,
-      typeArgs = Nil,
-      body = Some(rw.dispatch(func.body)),
-      contract = contract,
-    )(func.blame)(func.o))
+    val proc =
+      cCurrentDefinitionParamSubstitutions.having(subs) {
+        rw.globalDeclarations.declare(
+          if (func.specs.collectFirst { case CKernel() => () }.nonEmpty) {
+            kernelProcedure(func.o, contract, info)
+          } else {
+            new Procedure[Post](
+              returnType = returnType,
+              args = params,
+              outArgs = Nil,
+              typeArgs = Nil,
+              body = Some(rw.dispatch(func.body)),
+              contract = rw.dispatch(contract),
+            )(func.blame)(func.o)
+          }
+        )
+      }
 
     cFunctionSuccessor(func) = proc
 
@@ -85,6 +122,45 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case Some(RefCGlobalDeclaration(decl, idx)) =>
         cFunctionDeclSuccessor((decl, idx)) = proc
       case None => // ok
+    }
+  }
+
+  def indexed(e: Expr[Pre]): Expr[Post] = {
+    implicit val o: Origin = e.o
+    val indices = new CudaIndexVariables()
+    Starall(indices.indices.values.toSeq, Nil, Implies(
+      foldAnd(indices.indices.values.zip(cudaCurrentDimensionVariables.top.indices.values).map {
+        case (index, dim) => const[Post](0) <= index.get && index.get < dim.get
+      }),
+      cudaCurrentIndexVariables.having(indices) { rw.dispatch(e) },
+    ))(PanicBlame("Where blame")) // TODO figure out where to put blame
+  }
+
+  def indexed(p: AccountedPredicate[Pre]): AccountedPredicate[Post] = p match {
+    case UnitAccountedPredicate(pred) =>
+      UnitAccountedPredicate(indexed(pred))(p.o)
+    case SplitAccountedPredicate(left, right) =>
+      SplitAccountedPredicate(indexed(left), indexed(right))(p.o)
+  }
+
+  def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre]): Procedure[Post] = {
+    val dims = new CudaDimensionVariables()(o)
+    cudaCurrentDimensionVariables.having(dims) {
+      new Procedure[Post](
+        returnType = TVoid(),
+        args = dims.indices.values.toSeq ++ rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1,
+        outArgs = Nil, typeArgs = Nil,
+        body = None,
+        contract = ApplicableContract(
+          indexed(contract.requires),
+          indexed(contract.ensures),
+          indexed(contract.contextEverywhere),
+          contract.signals.map(rw.dispatch),
+          rw.variables.dispatch(contract.givenArgs),
+          rw.variables.dispatch(contract.yieldsArgs),
+          contract.decreases.map(rw.dispatch),
+        )(contract.blame)(contract.o)
+      )(AbstractApplicable)(o)
     }
   }
 
@@ -96,15 +172,20 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         val info = C.getDeclaratorInfo(init.decl)
         info.params match {
           case Some(params) =>
-            if(decl.decl.specs.collectFirst { case CKernel() => () }.nonEmpty)
-            cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(new Procedure[Post](
-              returnType = t,
-              args = rw.variables.collect { params.foreach(rw.dispatch) }._1,
-              outArgs = Nil,
-              typeArgs = Nil,
-              body = None,
-              contract = rw.dispatch(decl.decl.contract),
-            )(AbstractApplicable)(init.o))
+            cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
+              if(decl.decl.specs.collectFirst { case CKernel() => () }.nonEmpty) {
+                kernelProcedure(init.o, decl.decl.contract, info)
+              } else {
+                new Procedure[Post](
+                  returnType = t,
+                  args = rw.variables.collect { params.foreach(rw.dispatch) }._1,
+                  outArgs = Nil,
+                  typeArgs = Nil,
+                  body = None,
+                  contract = rw.dispatch(decl.decl.contract),
+                )(AbstractApplicable)(init.o)
+              }
+            )
           case None =>
             throw CGlobalStateNotSupported(init)
         }
@@ -155,12 +236,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case RefModelField(decl) => ModelDeref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
       case ref: RefCParam[Pre] =>
         if(cCurrentDefinitionParamSubstitutions.nonEmpty)
-          Local(cNameSuccessor.ref(RefCParam(cCurrentDefinitionParamSubstitutions.top(ref.decl))))
+          Local(cNameSuccessor.ref(RefCParam(cCurrentDefinitionParamSubstitutions.top.getOrElse(ref.decl, ref.decl))))
         else
           Local(cNameSuccessor.ref(ref))
       case RefCFunctionDefinition(decl) => throw NotAValue(local)
       case RefCGlobalDeclaration(decls, initIdx) => throw NotAValue(local)
       case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
+      case ref: RefCudaVec[Pre] => throw NotAValue(local)
     }
   }
 
@@ -170,7 +252,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case RefModelField(decl) => ModelDeref[Post](rw.currentThis.top, rw.succ(decl))(deref.blame)
       case BuiltinField(f) => rw.dispatch(f(deref.struct))
       case target: SpecInvocationTarget[Pre] => ???
-      case dim: RefCudaVecDim[Pre] => ???
+      case dim: RefCudaVecDim[Pre] => dim.vec match {
+        case RefCudaThreadIdx() | RefCudaBlockIdx() =>
+          cudaCurrentIndexVariables.top.indices(dim).get
+        case RefCudaBlockDim() | RefCudaGridDim() =>
+          cudaCurrentDimensionVariables.top.indices(dim).get
+      }
     }
   }
 

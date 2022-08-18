@@ -312,7 +312,7 @@ object AstBuildHelpers {
   def arrayPerm[G](arr: Expr[G], index: Expr[G], amount: Expr[G])(implicit o: Origin): Perm[G] =
     Perm(ArraySubscript(arr, index)(ArrayPerm), amount)
 
-  def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
+  def foldAnd[G](exprs: Iterable[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
 
   def unfoldImplies[G](expr: Expr[G]): (Seq[Expr[G]], Expr[G]) = expr match {

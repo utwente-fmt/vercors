@@ -191,7 +191,9 @@ case class RefCudaBlockDim[G]() extends RefCudaVec[G]
 case class RefCudaBlockIdx[G]() extends RefCudaVec[G]
 case class RefCudaGridDim[G]() extends RefCudaVec[G]
 
-sealed trait RefCudaVecDim[G] extends Referrable[G] with CDerefTarget[G]
+sealed trait RefCudaVecDim[G] extends Referrable[G] with CDerefTarget[G] {
+  def vec: RefCudaVec[G]
+}
 case class RefCudaVecX[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
 case class RefCudaVecY[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
 case class RefCudaVecZ[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
