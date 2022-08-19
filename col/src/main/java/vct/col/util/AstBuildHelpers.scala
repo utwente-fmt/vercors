@@ -315,6 +315,11 @@ object AstBuildHelpers {
   def foldAnd[G](exprs: Iterable[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
 
+  def unfoldPredicate[G](p: AccountedPredicate[G]): Seq[Expr[G]] = p match {
+    case UnitAccountedPredicate(pred) => Seq(pred)
+    case SplitAccountedPredicate(left, right) => unfoldPredicate(left) ++ unfoldPredicate(right)
+  }
+
   def unfoldImplies[G](expr: Expr[G]): (Seq[Expr[G]], Expr[G]) = expr match {
     case Implies(left, right) =>
       val (antecedent, consequent) = AstBuildHelpers.unfoldImplies(right)

@@ -102,7 +102,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       cCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
           if (func.specs.collectFirst { case CKernel() => () }.nonEmpty) {
-            kernelProcedure(func.o, contract, info)
+            kernelProcedure(func.o, contract, info, Some(func.body))
           } else {
             new Procedure[Post](
               returnType = returnType,
@@ -143,14 +143,32 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       SplitAccountedPredicate(indexed(left), indexed(right))(p.o)
   }
 
-  def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre]): Procedure[Post] = {
+  def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre], body: Option[Statement[Pre]]): Procedure[Post] = {
     val dims = new CudaDimensionVariables()(o)
     cudaCurrentDimensionVariables.having(dims) {
+      val parBody = body.map(impl => {
+        implicit val o: Origin = impl.o
+        val indices = new CudaIndexVariables()
+
+        cudaCurrentIndexVariables.having(indices) {
+          ParStatement(ParBlock(
+            decl = new ParBlockDecl(),
+            iters = indices.indices.values.zip(dims.indices.values).map {
+              case (index, dim) => IterVariable(index, const(0), dim.get)
+            }.toSeq,
+            context_everywhere = rw.dispatch(contract.contextEverywhere),
+            requires = rw.dispatch(foldStar(unfoldPredicate(contract.requires))),
+            ensures = rw.dispatch(foldStar(unfoldPredicate(contract.ensures))),
+            content = rw.dispatch(impl)
+          )(PanicBlame("where blame?")))
+        }
+      })
+
       new Procedure[Post](
         returnType = TVoid(),
         args = dims.indices.values.toSeq ++ rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1,
         outArgs = Nil, typeArgs = Nil,
-        body = None,
+        body = parBody,
         contract = ApplicableContract(
           indexed(contract.requires),
           indexed(contract.ensures),
@@ -174,7 +192,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
           case Some(params) =>
             cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
               if(decl.decl.specs.collectFirst { case CKernel() => () }.nonEmpty) {
-                kernelProcedure(init.o, decl.decl.contract, info)
+                kernelProcedure(init.o, decl.decl.contract, info, None)
               } else {
                 new Procedure[Post](
                   returnType = t,
