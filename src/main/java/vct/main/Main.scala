@@ -577,6 +577,7 @@ class Main {
     var exit = 0
     val wallStart = System.currentTimeMillis
     tk = new TimeKeeper
+    val vtk = new TimeKeeper()
     try {
       hre.lang.System.setOutputStream(System.out, hre.lang.System.LogLevel.Info)
       hre.lang.System.setErrorStream(System.err, hre.lang.System.LogLevel.Info)
@@ -587,12 +588,14 @@ class Main {
       else {
         var newArgs = Array[String]()
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          newArgs = runVeyMontPrePasses(args)
+          newArgs = runVeyMontPrePasses(args,vtk)
         }
         parseInputs(inputPaths)
+        Output("[VeyMont] parsing took %d ms", Long.box(vtk.show))
         exit = doPasses(getPasses)
+        Output("[VeyMont] VerCors took %d ms", Long.box(vtk.show))
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          runVeyMontPostPasses(newArgs)
+          runVeyMontPostPasses(newArgs,vtk)
         }
       }
     } catch {
@@ -616,9 +619,11 @@ class Main {
     exit
   }
 
-  private def runVeyMontPrePasses(args: Array[String]) : Array[String] = {
+  private def runVeyMontPrePasses(args: Array[String], vtk : TimeKeeper) : Array[String] = {
     parseInputs(inputPaths)
+    Output("[VeyMont] parsing took %d ms", Long.box(vtk.show))
     doPasses(collectPassesForVeyMontPre)
+    Output("[VeyMont] Check took %d ms", Long.box(vtk.show))
     val veymontIndex = Configuration.getVeyMontArgIndex(args);
     args.update(veymontIndex + 1, Util.getAnnotatedFileName(args(veymontIndex + 1)))
     var removeIndex = -1; //remove other files than new -glob file in arguments
@@ -632,12 +637,14 @@ class Main {
     newArgs
   }
 
-  private def runVeyMontPostPasses(args: Array[String]) : Unit = {
+  private def runVeyMontPostPasses(args: Array[String], vtk: TimeKeeper) : Unit = {
     val veymontIndex = Configuration.getVeyMontArgIndex(args);
     args.update(veymontIndex, "--" + Configuration.veymont_decompose)
     inputPaths = parseOptions(args)
     checkOptions()
     parseInputs(inputPaths)
+    Output("[VeyMont] parsing took %d ms", Long.box(vtk.show))
     doPasses(collectPassesForVeyMontPost)
+    Output("[VeyMont] Decompose took %d ms", Long.box(vtk.show))
   }
 }
