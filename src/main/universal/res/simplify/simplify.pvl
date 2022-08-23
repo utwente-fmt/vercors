@@ -54,8 +54,18 @@ axiom star_true { (∀resource b; (b ** true) == b) }
 axiom false_star { (∀resource b; (false ** b) == false) }
 axiom star_bool { (∀boolean a, boolean b; (a ** b) == (a && b)) }
 
+axiom forall_nothing { (∀boolean b; (∀nothing n; (b!n)) == true) }
+axiom starall_nothing { (∀resource r; (∀*nothing n; (r!n)) == true) }
+
+axiom forall_true { (∀type<any> T; (∀T t; true) == true) }
+axiom starall_true { (∀type<any> T; (∀*T t; true) == true) }
+// T is non-empty, since nothing is the unique empty type, and {forall, starall}_nothing have priority.
+axiom forall_false { (∀type<any> T; (∀T t; false) == false) }
+axiom starall_false { (∀type<any> T; (∀*T t; false) == false) }
+
 axiom scale_bool { (∀boolean b, rational s; ([s]b) == b) }
-axiom scale_scale { (∀resource r, rational s1, rational s2; ([s1][s2]r) == ([s1*s2]r)) }
+// PB: this is not well-formedness-preserving
+// axiom scale_scale { (∀resource r, rational s1, rational s2; ([s1][s2]r) == ([s1*s2]r)) }
 axiom scale_star { (∀resource r1, resource r2, rational s; ([s](r1 ** r2)) == (([s]r1) ** ([s]r2))) }
 axiom scale_implies { (∀boolean cond, resource r, rational s; ([s](cond ==> r)) == (cond ==> ([s]r))) }
 axiom scale_select {

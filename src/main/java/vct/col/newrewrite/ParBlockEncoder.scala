@@ -171,8 +171,8 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = region.o
       val (vars, init) = variables.collect {
         Block(iters.map { v =>
-          val newVar = variables.dispatch(v.variable)
-          assignLocal(newVar.get, IndeterminateInteger(from(v.variable), to(v.variable)))
+          dispatch(v.variable)
+          assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
         })
       }
 

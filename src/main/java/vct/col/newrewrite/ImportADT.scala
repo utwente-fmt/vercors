@@ -556,6 +556,30 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))
+      case len @ PointerBlockLength(pointer) =>
+        ADTFunctionInvocation[Post](
+          typeArgs = Some((blockAdt.ref, Nil)),
+          ref = blockLength.ref,
+          args = Seq(ADTFunctionInvocation[Post](
+            typeArgs = Some((pointerAdt.ref, Nil)),
+            ref = pointerBlock.ref,
+            args = Seq(FunctionInvocation[Post](
+              ref = optionGet.ref,
+              args = Seq(dispatch(pointer)),
+              typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
+            )(NoContext(PointerNullPreconditionFailed(len.blame, pointer))))
+          ))
+        )
+      case off @ PointerBlockOffset(pointer) =>
+        ADTFunctionInvocation[Post](
+          typeArgs = Some((pointerAdt.ref, Nil)),
+          ref = pointerOffset.ref,
+          args = Seq(FunctionInvocation[Post](
+            ref = optionGet.ref,
+            args = Seq(dispatch(pointer)),
+            typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
+          )(NoContext(PointerNullPreconditionFailed(off.blame, pointer))))
+        )
       case other => rewriteDefault(other)
     }
   }
