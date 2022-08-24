@@ -77,6 +77,10 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
           case AmbiguousGreaterEq(left, right) => GreaterEq(dispatch(left), dispatch(right))
           case AmbiguousLessEq(left, right) => LessEq(dispatch(left), dispatch(right))
         }
+      case loc @ AmbiguousLocation(expr) =>
+        expr match {
+          case ???
+        }
       case other => rewriteDefault(other)
     }
   }
