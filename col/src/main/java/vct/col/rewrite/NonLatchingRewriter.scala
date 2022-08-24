@@ -23,6 +23,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: SignalsClause[Pre]): SignalsClause[Post] = rewriteDefault(node)
   override def dispatch(fieldFlag: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(fieldFlag)
   override def dispatch(iterVariable: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(iterVariable)
+  override def dispatch(location: Location[Pre]): Location[Post] = rewriteDefault(location)
 
   override def dispatch(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
   override def dispatch(cDeclSpec: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(cDeclSpec)

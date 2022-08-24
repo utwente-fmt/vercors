@@ -129,8 +129,13 @@ class FeatureRainbow[G] {
     case node: Scale[G] => return Nil
     case node: Unfolding[G] => return Nil
     case node: Perm[G] => return Nil
-    case node: HPerm[G] => Models
-    case node: APerm[G] => Models
+    case node: FieldLocation[G] => return Nil
+    case node: ModelLocation[G] => Models
+    case node: ArrayLocation[G] => Arrays
+    case node: PointerLocation[G] => Pointers
+    case node: PredicateLocation[G] => return Nil
+    case node: InstancePredicateLocation[G] => Classes
+    case node: AmbiguousLocation[G] => AmbiguousOperators
     case node: PointsTo[G] => SugarPermissionOperator
     case node: CurPerm[G] => return Nil
     case node: ValidArray[G] => return Seq(SugarPermissionOperator, Arrays)
