@@ -46,6 +46,7 @@ import vct.col.ast.temporaryimplpackage.family.fieldflag._
 import vct.col.ast.temporaryimplpackage.family.invoking._
 import vct.col.ast.temporaryimplpackage.family.itervariable._
 import vct.col.ast.temporaryimplpackage.family.javavar.JavaVariableDeclarationImpl
+import vct.col.ast.temporaryimplpackage.family.location._
 import vct.col.ast.temporaryimplpackage.family.loopcontract._
 import vct.col.ast.temporaryimplpackage.family.parregion._
 import vct.col.ast.temporaryimplpackage.family.signals._
@@ -478,10 +479,17 @@ final case class ScaleByParBlock[G](block: Ref[G, ParBlockDecl[G]], res: Expr[G]
 
 final case class Unfolding[G](res: Expr[G], body: Expr[G])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
 
+sealed trait Location[G] extends NodeFamily[G] with LocationImpl[G]
+final case class FieldLocation[G](obj: Expr[G], field: Ref[G, InstanceField[G]])(implicit val o: Origin) extends Location[G] with FieldLocationImpl[G]
+final case class ModelLocation[G](obj: Expr[G], field: Ref[G, ModelField[G]])(implicit val o: Origin) extends Location[G] with ModelLocationImpl[G]
+final case class ArrayLocation[G](array: Expr[G], subscript: Expr[G])(implicit val o: Origin) extends Location[G] with ArrayLocationImpl[G]
+final case class PointerLocation[G](pointer: Expr[G])(implicit val o: Origin) extends Location[G] with PointerLocationImpl[G]
+final case class PredicateLocation[G](predicate: Ref[G, Predicate[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with PredicateLocationImpl[G]
+final case class InstancePredicateLocation[G](predicate: Ref[G, Predicate[G]], obj: Expr[G], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with InstancePredicateLocationImpl[G]
+final case class AmbiguousLocation[G](expr: Expr[G])(implicit val o: Origin) extends Location[G] with AmbiguousLocationImpl[G]
+
 sealed trait Locator[G] extends Expr[G] with LocatorImpl[G]
 final case class Perm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermImpl[G] with Locator[G]
-final case class HPerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with HPermImpl[G] with Locator[G]
-final case class APerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with APermImpl[G] with Locator[G]
 final case class PointsTo[G](loc: Expr[G], perm: Expr[G], value: Expr[G])(implicit val o: Origin) extends Expr[G] with PointsToImpl[G] with Locator[G]
 
 final case class CurPerm[G](loc: Expr[G])(implicit val o: Origin) extends Expr[G] with CurPermImpl[G] with Locator[G]
