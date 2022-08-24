@@ -261,7 +261,7 @@ trait SilverBackend extends Backend with LazyLogging {
       deref.blame.blame(blame.InsufficientPermission(deref))
     case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
       val starall = info(access).starall.get
-      starall.blame.blame(blame.ReceiverNotInjective(starall))
+      starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))
     case reasons.LabelledStateNotReached(expr) =>
       val old = get[col.Old[_]](expr)
       old.blame.blame(blame.LabelNotReached(old))
