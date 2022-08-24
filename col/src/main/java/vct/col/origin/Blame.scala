@@ -245,7 +245,7 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) exten
   ))
   override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.inlineContext}` may not be unique with regards to the quantified variables."
 
-  override def position: String = resource.o.shortPosition;
+  override def position: String = resource.o.shortPosition
 }
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def code: String = "divByZero"
