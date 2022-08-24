@@ -398,7 +398,7 @@ case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinErro
   override def descInContext: String = "Array may be null."
   override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
 }
-case class ArrayBounds(node: Expr[_]) extends ArraySubscriptError with NodeVerificationFailure {
+case class ArrayBounds(node: ArraySubscript[_]) extends ArraySubscriptError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
   override def descInContext: String = "Index may be negative, or exceed the length of the array."
   override def inlineDescWithSource(source: String): String = s"Index `$source` may be negative, or exceed the length of the array."

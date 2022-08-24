@@ -103,9 +103,9 @@ case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
       inner.blame(ArrayNull(expr))
   }
 
-  case class ArrayBoundsPreconditionFailed(inner: Blame[ArrayBounds], idx: Expr[_]) extends Blame[PreconditionFailed] {
+  case class ArrayBoundsPreconditionFailed(inner: Blame[ArrayBounds], subscript: ArraySubscript[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
-      inner.blame(ArrayBounds(idx))
+      inner.blame(ArrayBounds(subscript))
   }
 
   case class ArrayFieldInsufficientPermission(inner: Blame[ArrayInsufficientPermission], expr: Expr[_]) extends Blame[InsufficientPermission] {
@@ -514,7 +514,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
               FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)), Nil, Nil)(
                 NoContext(ArrayNullPreconditionFailed(sub.blame, arr))),
               dispatch(index)),
-            typeArgs = Nil, Nil, Nil)(NoContext(ArrayBoundsPreconditionFailed(sub.blame, index))),
+            typeArgs = Nil, Nil, Nil)(NoContext(ArrayBoundsPreconditionFailed(sub.blame, sub))),
           field = getArrayField(arr))(ArrayFieldInsufficientPermission(sub.blame, sub))
       case length @ Length(arr) =>
         ADTFunctionInvocation(None, arrayLen.ref, Seq(
