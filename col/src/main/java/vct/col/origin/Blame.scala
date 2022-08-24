@@ -237,10 +237,15 @@ case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvari
   override def descInContext: String = "This invariant may not be maintained, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Invariant of `$node` may not be maintained, since $failure."
 }
-case class ReceiverNotInjective(node: Starall[_]) extends NodeVerificationFailure with AnyStarError {
+case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
-  override def descInContext: String = "The location of the permission predicate in this quantifier may not be unique with regards to the quantified variables."
-  override def inlineDescWithSource(source: String): String = s"The location of the permission predicate in `$source` may not be unique with regards to the quantified variables."
+  override def desc: String = Origin.messagesInContext(Seq(
+    quantifier.o -> "This quantifier causes the resources in its body to be quantified, ...",
+    resource.o   -> "... but this resource may not be unique with regards to the quantified variables.",
+  ))
+  override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.inlineContext}` may not be unique with regards to the quantified variables."
+
+  override def position: String = resource.o.shortPosition
 }
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def code: String = "divByZero"
