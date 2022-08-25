@@ -76,7 +76,7 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
       decl.drop()
       if(allowSendRecv.top.isEmpty)
         throw WrongSendRecvPosition(stat)
-      else Exhale(freshSuccessionScope { dispatch(res) })(SendFailedExhaleFailed(send))(stat.o)
+      else Exhale(dispatch(res))(SendFailedExhaleFailed(send))(stat.o)
 
     case recv @ Recv(Ref(decl)) =>
       val send = sendOfDecl(decl)
@@ -94,7 +94,7 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
           val resource = Substitute(
             Map[Expr[Pre], Expr[Pre]](v.get -> (v.get - const(send.delta))),
           ).dispatch(send.res)
-          Inhale(freshSuccessionScope { dispatch(resource) })(stat.o)
+          Inhale(dispatch(resource))(stat.o)
       }
 
     case other => allowSendRecv.having(None) { rewriteDefault(other) }

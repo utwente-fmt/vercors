@@ -28,7 +28,7 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     timer.cancel()
     timer = new Timer()
     timer.schedule(new TimerTask {
-      override def run(): Unit = printDetailedState(symbLog)
+      override def run(): Unit = printDetailedState()
     }, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
   }
 
@@ -45,14 +45,14 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     }
   }
 
-  def printDetailedState(symbLog: SymbLog): Unit = {
+  def printDetailedState(): Unit = {
     val exclude = branchScopeCloseRecords.flatMap(_.toSeq).toSet
 
     val excludedBy = branchScopeCloseRecords.zipWithIndex.flatMap {
       case (excluded, idx) => excluded.map(_ -> idx)
     }.toMap
 
-    logger.warn(s"State of ${symbLog.v.name}:")
+    logger.warn(s"Current state of silicon worker:")
     printRecords(openScopeFrames.last, excludedBy)
 
     for(((records, idx), condition) <- openScopeFrames.init.zipWithIndex.zip(branchConditions).reverse) {

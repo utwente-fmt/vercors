@@ -41,7 +41,7 @@ case object Referrable {
     case decl: ModelField[G] => RefModelField(decl)
     case decl: ModelProcess[G] => RefModelProcess(decl)
     case decl: ModelAction[G] => RefModelAction(decl)
-    case decl: CDeclaration[G] => return decl.inits.indices.map(RefCDeclaration(decl, _))
+    case decl: CLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
   })
@@ -63,7 +63,7 @@ sealed trait Referrable[G] {
     case RefCParam(decl) => C.nameFromDeclarator(decl.declarator)
     case RefCFunctionDefinition(decl) => C.nameFromDeclarator(decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
-    case RefCDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.inits(initIdx).decl)
+    case RefCLocalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
     case RefJavaClass(decl) => decl.name
@@ -101,6 +101,13 @@ sealed trait Referrable[G] {
     case RefPVLConstructor(decl) => ""
     case ImplicitDefaultJavaConstructor() => ""
     case ImplicitDefaultPVLConstructor() => ""
+    case RefCudaThreadIdx() => "threadIdx"
+    case RefCudaBlockDim() => "blockDim"
+    case RefCudaBlockIdx() => "blockIdx"
+    case RefCudaGridDim() => "gridDim"
+    case RefCudaVecX(_) => "x"
+    case RefCudaVecY(_) => "y"
+    case RefCudaVecZ(_) => "z"
   }
 }
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
@@ -137,7 +144,7 @@ case class RefCTranslationUnit[G](decl: CTranslationUnit[G]) extends Referrable[
 case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[G]
 case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCGlobalDeclaration[G](decls: CGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
-case class RefCDeclaration[G](decls: CDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G]
+case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]
@@ -177,3 +184,16 @@ case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) exten
 
 case class ImplicitDefaultJavaConstructor[G]() extends Referrable[G] with JavaConstructorTarget[G]
 case class ImplicitDefaultPVLConstructor[G]() extends Referrable[G] with PVLConstructorTarget[G]
+
+sealed trait RefCudaVec[G] extends Referrable[G] with CNameTarget[G]
+case class RefCudaThreadIdx[G]() extends RefCudaVec[G]
+case class RefCudaBlockDim[G]() extends RefCudaVec[G]
+case class RefCudaBlockIdx[G]() extends RefCudaVec[G]
+case class RefCudaGridDim[G]() extends RefCudaVec[G]
+
+sealed trait RefCudaVecDim[G] extends Referrable[G] with CDerefTarget[G] {
+  def vec: RefCudaVec[G]
+}
+case class RefCudaVecX[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
+case class RefCudaVecY[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]
+case class RefCudaVecZ[G](vec: RefCudaVec[G]) extends RefCudaVecDim[G]

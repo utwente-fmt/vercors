@@ -412,7 +412,7 @@ case class Printer(out: Appendable,
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
     case CDeclarationStatement(decl) =>
-      statement(syntax(C -> phrase(decl.specs, commas(decl.inits.map(NodePhrase)))))
+      statement(syntax(C -> phrase(decl.decl.specs, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
       statement(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
     case GpgpuLocalBarrier(requires, ensures) =>
@@ -958,7 +958,8 @@ case class Printer(out: Appendable,
   })
 
   def printDeclaration(decl: Declaration[_]): Unit = say(decl match {
-    case decl: CDeclaration[_] =>
+    case globalDecl: CGlobalDeclaration[_] =>
+      val decl = globalDecl.decl
       phrase(doubleline,
         spec(decl.contract, clauses(decl.kernelInvariant, "kernel_invariant")),
         spaced(decl.specs.map(NodePhrase)), space, spaced(decl.inits.map(NodePhrase)),

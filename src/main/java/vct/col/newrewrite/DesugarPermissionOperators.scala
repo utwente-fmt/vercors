@@ -3,7 +3,7 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteBuilders._
-import vct.col.origin.{FramedArrIndex, FramedArrLength, IteratedArrayInjective, Origin}
+import vct.col.origin.{FramedArrIndex, FramedArrLength, FramedPtrBlockLength, FramedPtrBlockOffset, FramedPtrOffset, IteratedArrayInjective, IteratedPtrInjective, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 case object DesugarPermissionOperators extends RewriterBuilder {
@@ -38,10 +38,16 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
               ((ArraySubscript(mat, row0)(FramedArrIndex) === ArraySubscript(mat, row1)(FramedArrIndex)) ==> (row0 === row1))
           ))
       case PermPointer(p, len, perm) =>
-        // TODO PB: need some concept of blocks to do this in the new pointer encoding
-        ???
+        (dispatch(p) !== Null()) &*
+          const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) &*
+          PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
+          starall(IteratedPtrInjective, TInt(), i =>
+            (const(0) <= i && i < dispatch(len)) ==> Perm(PointerSubscript(dispatch(p), i)(FramedPtrOffset), dispatch(perm)))
       case PermPointerIndex(p, idx, perm) =>
-        ???
+        (dispatch(p) !== Null()) &*
+          const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) &*
+          PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) < PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
+          Perm(PointerSubscript(dispatch(p), dispatch(idx))(FramedPtrOffset), dispatch(perm))
       case other => rewriteDefault(other)
     }
   }

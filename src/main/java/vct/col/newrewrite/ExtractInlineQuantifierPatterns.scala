@@ -21,25 +21,47 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       dispatch(i.inner)
 
     case f: Forall[Pre] if f.triggers.isEmpty =>
-      val (patternsHere, body) = withCollectInScope(patterns) {
-        dispatch(f.body)
+      variables.scope {
+        val (patternsHere, body) = patterns.collect {
+          dispatch(f.body)
+        }
+        val triggers = if (patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
+        Forall(
+          bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
+          triggers = triggers,
+          body = body
+        )(f.o)
       }
-      val triggers = if(patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
-      f.rewrite(triggers = triggers, body = body)
 
     case f: Starall[Pre] if f.triggers.isEmpty =>
-      val (patternsHere, body) = withCollectInScope(patterns) {
-        dispatch(f.body)
+      variables.scope {
+        val (patternsHere, body) = patterns.collect {
+          dispatch(f.body)
+        }
+        val triggers = if (patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
+        Starall(
+          bindings = variables.collect {
+            f.bindings.foreach(dispatch)
+          }._1,
+          triggers = triggers,
+          body = body
+        )(f.blame)(f.o)
       }
-      val triggers = if(patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
-      f.rewrite(triggers = triggers, body = body)
 
     case f: Exists[Pre] if f.triggers.isEmpty =>
-      val (patternsHere, body) = withCollectInScope(patterns) {
-        dispatch(f.body)
+      variables.scope {
+        val (patternsHere, body) = patterns.collect {
+          dispatch(f.body)
+        }
+        val triggers = if (patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
+        Exists(
+          bindings = variables.collect {
+            f.bindings.foreach(dispatch)
+          }._1,
+          triggers = triggers,
+          body = body
+        )(f.o)
       }
-      val triggers = if(patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
-      f.rewrite(triggers = triggers, body = body)
 
     case other => rewriteDefault(other)
   }

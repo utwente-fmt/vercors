@@ -9,23 +9,19 @@ import vct.col.util.AstBuildHelpers._
 import scala.collection.mutable.ArrayBuffer
 
 case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
-  val haveTopScope: ScopedStack[Unit] = ScopedStack()
-
   def collectVariables(body: Statement[Pre], extra: Seq[Variable[Pre]] = Nil): Statement[Post] = {
-    val variables = ArrayBuffer[Variable[Post]]()
-
-    val newBody = variableScopes.having(variables) {
+    val (variablesHere, newBody) = variables.collect {
       extra.foreach(dispatch)
       dispatch(body)
     }
 
-    Scope(variables.toIndexedSeq, newBody)(body.o)
+    Scope(variablesHere, newBody)(body.o)
   }
 
   def dispatchFlatly(stat: Statement[Pre]): Seq[Statement[Post]] = stat match {
     case Block(statements) => statements.flatMap(dispatchFlatly)
     case Scope(Nil, body) => dispatchFlatly(body)
-    case Scope(locals, body) if variableScopes.nonEmpty =>
+    case Scope(locals, body) if variables.nonEmpty =>
       locals.foreach(dispatch)
       dispatchFlatly(body)
     case other => Seq(dispatch(other))
@@ -36,7 +32,7 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
       Block(statements.flatMap(dispatchFlatly))(stat.o)
     case Scope(Nil, body) => dispatch(body)
     case Scope(locals, body) =>
-      if(variableScopes.nonEmpty) {
+      if(variables.nonEmpty) {
         locals.foreach(dispatch)
         dispatch(body)
       } else {
@@ -70,9 +66,11 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case method: RunMethod[Pre] =>
-      method.rewrite(body = method.body.map(collectVariables(_))).succeedDefault(method)
+      classDeclarations.succeed(method, method.rewrite(body = method.body.map(collectVariables(_))))
     case method: AbstractMethod[Pre] =>
-      method.rewrite(body = method.body.map(collectVariables(_))).succeedDefault(method)
+      allScopes.anySucceedOnly(method,
+        allScopes.anyDeclare(
+          method.rewrite(body = method.body.map(collectVariables(_)))))
     case other => rewriteDefault(other)
   }
 }

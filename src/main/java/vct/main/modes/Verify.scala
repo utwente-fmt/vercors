@@ -3,11 +3,14 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
 import hre.io.Readable
+import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
+import viper.api.SiliconLogListener
+import viper.silicon.logger.SymbExLogger
 
 case object Verify extends LazyLogging {
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
@@ -41,6 +44,13 @@ case object Verify extends LazyLogging {
   }
 
   def runOptions(options: Options): Int = {
+    Signal.handle(new Signal("USR1"), _ => SymbExLogger.memberList.synchronized {
+      SymbExLogger.memberList.toSeq.map(_.listener).collect { case l: SiliconLogListener => l } match {
+        case Nil => logger.warn("Silicon is idle.")
+        case listeners => listeners.foreach(_.printDetailedState())
+      }
+    })
+
     verifyWithOptions(options, options.inputs) match {
       case Left(err) =>
         logger.error(err.text)

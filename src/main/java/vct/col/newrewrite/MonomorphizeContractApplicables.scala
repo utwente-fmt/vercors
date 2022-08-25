@@ -29,8 +29,12 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
       case None =>
         monomorphizedRef((app, typeValues)) = new LazyRef(monomorphizedImpl((app, typeValues)))
         monomorphizedImpl((app, typeValues)) = currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
-          freshSuccessionScope {
-            app.rewrite(typeArgs = Nil).succeedDefault(app)
+          globalDeclarations.scope {
+            classDeclarations.scope {
+              variables.scope {
+                allScopes.anyDeclare(allScopes.anySucceedOnly(app, app.rewrite(typeArgs = Nil)))
+              }
+            }
           }
         }
         monomorphizedRef((app, typeValues))

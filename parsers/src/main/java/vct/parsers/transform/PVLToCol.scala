@@ -20,7 +20,7 @@ import scala.collection.mutable
 case class PVLToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
   def convert(implicit program: ProgramContext): Seq[GlobalDeclaration[G]] = program match {
-    case Program0(decls, _) => decls.flatMap(convert(_))
+    case Program0(decls, _, _) => decls.flatMap(convert(_))
   }
 
   def convert(implicit decl: ProgramDeclContext): Seq[GlobalDeclaration[G]] = decl match {
@@ -941,6 +941,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+    case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
+    case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {

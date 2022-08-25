@@ -162,6 +162,8 @@ class FeatureRainbow[G] {
     case node: ArraySubscript[G] => Arrays
     case node: PointerAdd[G] => Pointers
     case node: PointerSubscript[G] => Pointers
+    case node: PointerBlockLength[G] => Pointers
+    case node: PointerBlockOffset[G] => Pointers
     case node: Length[G] => Arrays
     case node: Size[G] => return Nil
     case node: Cons[G] => SugarCollectionOperator

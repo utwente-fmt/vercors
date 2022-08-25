@@ -87,8 +87,14 @@ case object C {
     }
 
   def findCName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CNameTarget[G]] =
-    ctx.stack.flatten.collectFirst {
-      case target: CNameTarget[G] if target.name == name => target
+    name match {
+      case "threadIdx" => Some(RefCudaThreadIdx())
+      case "blockDim" => Some(RefCudaBlockDim())
+      case "blockIdx" => Some(RefCudaBlockIdx())
+      case "gridDim" => Some(RefCudaGridDim())
+      case _ => ctx.stack.flatten.collectFirst {
+        case target: CNameTarget[G] if target.name == name => target
+      }
     }
 
   def findForwardDeclaration[G](declarator: CDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCGlobalDeclaration[G]] =
@@ -102,15 +108,23 @@ case object C {
     }
 
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
-    obj.t match {
+    (obj.t match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {
           case ref: RefADTFunction[G] if ref.name == name => ref
         }
-        case _ => Spec.builtinField(obj, name, blame)
+        case _ => None
       }
-      case _ => Spec.builtinField(obj, name, blame)
-    }
+      case CTCudaVec() =>
+        val ref = obj.asInstanceOf[CLocal[G]].ref.get.asInstanceOf[RefCudaVec[G]]
+        name match {
+          case "x" => Some(RefCudaVecX(ref))
+          case "y" => Some(RefCudaVecY(ref))
+          case "z" => Some(RefCudaVecZ(ref))
+          case _ => None
+        }
+      case _ => None
+    }).orElse(Spec.builtinField(obj, name, blame))
 
   def resolveInvocation[G](obj: Expr[G], ctx: ReferenceResolutionContext[G]): CInvocationTarget[G] =
     obj.t match {
