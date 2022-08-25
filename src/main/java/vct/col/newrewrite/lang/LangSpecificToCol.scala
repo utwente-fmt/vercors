@@ -86,6 +86,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
+    case barrier: GpgpuLocalBarrier[Pre] => c.localBarrier(barrier)
+    case barrier: GpgpuGlobalBarrier[Pre] => c.globalBarrier(barrier)
 
     case other => rewriteDefault(other)
   }

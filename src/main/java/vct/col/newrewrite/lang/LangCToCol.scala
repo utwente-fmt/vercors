@@ -41,8 +41,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] = SuccessionMap()
   val cCurrentDefinitionParamSubstitutions: ScopedStack[Map[CParam[Pre], CParam[Pre]]] = ScopedStack()
 
-  val cudaCurrentIndexVariables: ScopedStack[CudaIndexVariables] = ScopedStack()
-  val cudaCurrentDimensionVariables: ScopedStack[CudaDimensionVariables] = ScopedStack()
+  val cudaCurrentThreadIdx: ScopedStack[CudaVec] = ScopedStack()
+  val cudaCurrentBlockIdx: ScopedStack[CudaVec] = ScopedStack()
+  val cudaCurrentBlockDim: ScopedStack[CudaVec] = ScopedStack()
+  val cudaCurrentGridDim: ScopedStack[CudaVec] = ScopedStack()
+
+  val cudaCurrentGrid: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
+  val cudaCurrentBlock: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
 
   case class CudaIndexVariableOrigin(dim: RefCudaVecDim[_]) extends Origin {
     override def preferredName: String =
@@ -53,20 +58,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     override def shortPosition: String = "generated"
   }
 
-  class CudaIndexVariables(implicit val o: Origin) {
+  class CudaVec(ref: RefCudaVec[Pre])(implicit val o: Origin) {
     val indices: ListMap[RefCudaVecDim[Pre], Variable[Post]] =
-      ListMap((for(
-        set <- Seq(RefCudaThreadIdx[Pre](), RefCudaBlockIdx[Pre]());
-        dim <- Seq(RefCudaVecX[Pre](_), RefCudaVecY[Pre](_), RefCudaVecZ[Pre](_))
-      ) yield dim(set) -> new Variable[Post](TInt())(CudaIndexVariableOrigin(dim(set)))): _*)
-  }
-
-  class CudaDimensionVariables(implicit val o: Origin) {
-    val indices: ListMap[RefCudaVecDim[Pre], Variable[Post]] =
-      ListMap((for (
-        set <- Seq(RefCudaBlockDim[Pre](), RefCudaGridDim[Pre]());
-        dim <- Seq(RefCudaVecX[Pre](_), RefCudaVecY[Pre](_), RefCudaVecZ[Pre](_))
-      ) yield dim(set) -> new Variable[Post](TInt())(CudaIndexVariableOrigin(dim(set)))): _*)
+      ListMap(Seq(RefCudaVecX[Pre](ref), RefCudaVecY[Pre](ref), RefCudaVecZ[Pre](ref)).map(
+        dim => dim -> new Variable[Post](TInt())(CudaIndexVariableOrigin(dim))
+      ): _*)
   }
 
   def rewriteUnit(cUnit: CTranslationUnit[Pre]): Unit = {
@@ -125,60 +121,84 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
-  def indexed(e: Expr[Pre]): Expr[Post] = {
+  def all(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
     implicit val o: Origin = e.o
-    val indices = new CudaIndexVariables()
-    Starall(indices.indices.values.toSeq, Nil, Implies(
-      foldAnd(indices.indices.values.zip(cudaCurrentDimensionVariables.top.indices.values).map {
-        case (index, dim) => const[Post](0) <= index.get && index.get < dim.get
+    Starall(idx.indices.values.toSeq, Nil, Implies(
+      foldAnd(idx.indices.values.zip(dim.indices.values).map {
+        case (idx, dim) => const[Post](0) <= idx.get && idx.get < dim.get
       }),
-      cudaCurrentIndexVariables.having(indices) { rw.dispatch(e) },
-    ))(PanicBlame("Where blame")) // TODO figure out where to put blame
+      e
+    ))(PanicBlame("Where blame"))
   }
 
-  def indexed(p: AccountedPredicate[Pre]): AccountedPredicate[Post] = p match {
-    case UnitAccountedPredicate(pred) =>
-      UnitAccountedPredicate(indexed(pred))(p.o)
-    case SplitAccountedPredicate(left, right) =>
-      SplitAccountedPredicate(indexed(left), indexed(right))(p.o)
+  def allThreadsInBlock(e: Expr[Pre]): Expr[Post] = {
+    val thread = new CudaVec(RefCudaThreadIdx())(e.o)
+    cudaCurrentThreadIdx.having(thread) { all(thread, cudaCurrentBlockDim.top, rw.dispatch(e)) }
+  }
+
+  def allThreadsInGrid(e: Expr[Pre]): Expr[Post] = {
+    val thread = new CudaVec(RefCudaThreadIdx())(e.o)
+    val block = new CudaVec(RefCudaBlockIdx())(e.o)
+    cudaCurrentBlockIdx.having(block) { all(block, cudaCurrentGridDim.top, allThreadsInBlock(e)) }
   }
 
   def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre], body: Option[Statement[Pre]]): Procedure[Post] = {
-    val dims = new CudaDimensionVariables()(o)
-    cudaCurrentDimensionVariables.having(dims) {
-      val parBody = body.map(impl => {
-        implicit val o: Origin = impl.o
-        val indices = new CudaIndexVariables()
+    val blockDim = new CudaVec(RefCudaBlockDim())(o)
+    val gridDim = new CudaVec(RefCudaGridDim())(o)
+    cudaCurrentBlockDim.having(blockDim) {
+      cudaCurrentGridDim.having(gridDim) {
+        val parBody = body.map(impl => {
+          implicit val o: Origin = impl.o
+          val threadIdx = new CudaVec(RefCudaThreadIdx())
+          val blockIdx = new CudaVec(RefCudaBlockIdx())
+          val gridDecl = new ParBlockDecl[Post]()
+          val blockDecl = new ParBlockDecl[Post]()
 
-        cudaCurrentIndexVariables.having(indices) {
-          ParStatement(ParBlock(
-            decl = new ParBlockDecl(),
-            iters = indices.indices.values.zip(dims.indices.values).map {
-              case (index, dim) => IterVariable(index, const(0), dim.get)
-            }.toSeq,
-            context_everywhere = rw.dispatch(contract.contextEverywhere),
-            requires = rw.dispatch(foldStar(unfoldPredicate(contract.requires))),
-            ensures = rw.dispatch(foldStar(unfoldPredicate(contract.ensures))),
-            content = rw.dispatch(impl)
-          )(PanicBlame("where blame?")))
-        }
-      })
+          cudaCurrentThreadIdx.having(threadIdx) {
+            cudaCurrentBlockIdx.having(blockIdx) {
+              cudaCurrentGrid.having(gridDecl) {
+                cudaCurrentBlock.having(blockDecl) {
+                  ParStatement(ParBlock(
+                    decl = gridDecl,
+                    iters = blockIdx.indices.values.zip(gridDim.indices.values).map {
+                      case (index, dim) => IterVariable(index, const(0), dim.get)
+                    }.toSeq,
+                    context_everywhere = allThreadsInBlock(contract.contextEverywhere),
+                    requires = allThreadsInBlock(foldStar(unfoldPredicate(contract.requires))),
+                    ensures = allThreadsInBlock(foldStar(unfoldPredicate(contract.ensures))),
+                    content = ParStatement(ParBlock(
+                      decl = blockDecl,
+                      iters = threadIdx.indices.values.zip(blockDim.indices.values).map {
+                        case (index, dim) => IterVariable(index, const(0), dim.get)
+                      }.toSeq,
+                      context_everywhere = rw.dispatch(contract.contextEverywhere),
+                      requires = rw.dispatch(foldStar(unfoldPredicate(contract.requires))),
+                      ensures = rw.dispatch(foldStar(unfoldPredicate(contract.ensures))),
+                      content = rw.dispatch(impl),
+                    )(PanicBlame("where blame?")))
+                  )(PanicBlame("where blame?")))
+                }
+              }
+            }
+          }
+        })
 
-      new Procedure[Post](
-        returnType = TVoid(),
-        args = dims.indices.values.toSeq ++ rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1,
-        outArgs = Nil, typeArgs = Nil,
-        body = parBody,
-        contract = ApplicableContract(
-          indexed(contract.requires),
-          indexed(contract.ensures),
-          indexed(contract.contextEverywhere),
-          contract.signals.map(rw.dispatch),
-          rw.variables.dispatch(contract.givenArgs),
-          rw.variables.dispatch(contract.yieldsArgs),
-          contract.decreases.map(rw.dispatch),
-        )(contract.blame)(contract.o)
-      )(AbstractApplicable)(o)
+        new Procedure[Post](
+          returnType = TVoid(),
+          args = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1,
+          outArgs = Nil, typeArgs = Nil,
+          body = parBody,
+          contract = ApplicableContract(
+            mapPredicate(contract.requires, allThreadsInGrid),
+            mapPredicate(contract.ensures, allThreadsInGrid),
+            allThreadsInGrid(contract.contextEverywhere),
+            contract.signals.map(rw.dispatch),
+            rw.variables.dispatch(contract.givenArgs),
+            rw.variables.dispatch(contract.yieldsArgs),
+            contract.decreases.map(rw.dispatch),
+          )(contract.blame)(contract.o)
+        )(AbstractApplicable)(o)
+      }
     }
   }
 
@@ -235,6 +255,28 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def rewriteGoto(goto: CGoto[Pre]): Statement[Post] =
     Goto[Post](rw.succ(goto.ref.getOrElse(???)))(goto.o)
 
+  def localBarrier(barrier: GpgpuLocalBarrier[Pre]): Statement[Post] = {
+    implicit val o: Origin = barrier.o
+    ParBarrier[Post](
+      block = cudaCurrentBlock.top.ref,
+      invs = Nil,
+      requires = rw.dispatch(barrier.requires),
+      ensures = rw.dispatch(barrier.ensures),
+      content = Block(Nil),
+    )(PanicBlame("more panic"))
+  }
+
+  def globalBarrier(barrier: GpgpuGlobalBarrier[Pre]): Statement[Post] = {
+    implicit val o: Origin = barrier.o
+    ParBarrier[Post](
+      block = cudaCurrentGrid.top.ref,
+      invs = Nil,
+      requires = rw.dispatch(barrier.requires),
+      ensures = rw.dispatch(barrier.ensures),
+      content = Block(Nil),
+    )(PanicBlame("more panic"))
+  }
+
   def result(ref: RefCFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
     Result[Post](cFunctionSuccessor.ref(ref.decl))
 
@@ -271,10 +313,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case BuiltinField(f) => rw.dispatch(f(deref.struct))
       case target: SpecInvocationTarget[Pre] => ???
       case dim: RefCudaVecDim[Pre] => dim.vec match {
-        case RefCudaThreadIdx() | RefCudaBlockIdx() =>
-          cudaCurrentIndexVariables.top.indices(dim).get
-        case RefCudaBlockDim() | RefCudaGridDim() =>
-          cudaCurrentDimensionVariables.top.indices(dim).get
+        case RefCudaThreadIdx() => cudaCurrentThreadIdx.top.indices(dim).get
+        case RefCudaBlockIdx() => cudaCurrentBlockIdx.top.indices(dim).get
+        case RefCudaBlockDim() => cudaCurrentBlockDim.top.indices(dim).get
+        case RefCudaGridDim() => cudaCurrentGridDim.top.indices(dim).get
       }
     }
   }

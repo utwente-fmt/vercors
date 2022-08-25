@@ -320,6 +320,11 @@ object AstBuildHelpers {
     case SplitAccountedPredicate(left, right) => unfoldPredicate(left) ++ unfoldPredicate(right)
   }
 
+  def mapPredicate[G1, G2](p: AccountedPredicate[G1], f: Expr[G1] => Expr[G2]): AccountedPredicate[G2] = p match {
+    case UnitAccountedPredicate(pred) => UnitAccountedPredicate(f(pred))(p.o)
+    case SplitAccountedPredicate(left, right) => SplitAccountedPredicate(mapPredicate(left, f), mapPredicate(right, f))(p.o)
+  }
+
   def unfoldImplies[G](expr: Expr[G]): (Seq[Expr[G]], Expr[G]) = expr match {
     case Implies(left, right) =>
       val (antecedent, consequent) = AstBuildHelpers.unfoldImplies(right)
