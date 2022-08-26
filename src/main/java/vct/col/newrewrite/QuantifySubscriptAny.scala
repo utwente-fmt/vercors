@@ -31,7 +31,7 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = GeneratedQuantifierOrigin
     e match {
-      case Perm(ArraySubscript(arrIn, any @ Any()), permIn) =>
+      case Perm(ArrayLocation(arrIn, any @ Any()), permIn) =>
         val i_var = new Variable[Post](TInt())
         val i = Local[Post](i_var.ref)
         val arr = dispatch(arrIn)

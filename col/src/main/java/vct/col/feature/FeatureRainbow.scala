@@ -130,6 +130,7 @@ class FeatureRainbow[G] {
     case node: Unfolding[G] => return Nil
     case node: Perm[G] => return Nil
     case node: FieldLocation[G] => return Nil
+    case node: SilverFieldLocation[G] => return Nil
     case node: ModelLocation[G] => Models
     case node: ArrayLocation[G] => Arrays
     case node: PointerLocation[G] => Pointers

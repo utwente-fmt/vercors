@@ -3,21 +3,62 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteBuilders._
-import vct.col.origin.{FramedArrIndex, FramedArrLength, IteratedArrayInjective, Origin}
+import vct.col.newrewrite.DesugarPermissionOperators.{FramedArraySubscriptBlame, FramedPointerDerefBlame, PredicateValueError}
+import vct.col.origin.{ArrayInsufficientPermission, ArrayLocationError, ArraySubscriptError, Blame, FramedArrIndex, FramedArrLength, IteratedArrayInjective, Origin, PointerBounds, PointerDerefError, PointerInsufficientPermission, PointerLocationError, PointerSubscriptError, PointsToDeref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.result.VerificationError.UserError
 
 case object DesugarPermissionOperators extends RewriterBuilder {
   override def key: String = "desugarPerm"
   override def desc: String = "Desugar assorted syntactic sugar for permission predicates."
+
+  case class FramedArraySubscriptBlame(blame: Blame[ArrayLocationError]) extends Blame[ArraySubscriptError] {
+    override def blame(error: ArraySubscriptError): Unit = {
+      error match {
+        case error: ArrayLocationError => blame.blame(error)
+        case ArrayInsufficientPermission(node) => PointsToDeref.blame(error)
+      }
+    }
+  }
+
+  case class FramedPointerDerefBlame(blame: Blame[PointerLocationError]) extends Blame[PointerDerefError] {
+    override def blame(error: PointerDerefError): Unit = {
+      error match {
+        case error: PointerLocationError => blame.blame(error)
+        case PointerInsufficientPermission(node) => PointsToDeref.blame(error)
+      }
+    }
+  }
+
+  case class PredicateValueError(loc: Location[_]) extends UserError {
+    override def code: String = "predicateValue"
+
+    override def text: String = loc.o.messageInContext("The predicate has a location but does not point to a value.")
+  }
+
 }
 
 case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre] {
+
+  def extractValueFromLocation(loc: Location[Pre]): Expr[Pre] = {
+    loc match {
+      case FieldLocation(obj, field) => Deref(obj, field)(PointsToDeref)(loc.o)
+      case ModelLocation(obj, field) => ModelDeref(obj, field)(PointsToDeref)(loc.o)
+      case SilverFieldLocation(obj, field) => SilverDeref(obj, field)(PointsToDeref)(loc.o)
+      case node @ ArrayLocation(array, subscript) => ArraySubscript(array, subscript)(FramedArraySubscriptBlame(node.blame))(loc.o)
+      case node @ PointerLocation(pointer) => DerefPointer(pointer)(FramedPointerDerefBlame(node.blame))(loc.o)
+      case PredicateLocation(predicate, args) => throw PredicateValueError(loc)
+      case InstancePredicateLocation(predicate, obj, args) => throw PredicateValueError(loc)
+      case AmbiguousLocation(expr) => expr
+    }
+  }
+
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
       case PointsTo(loc1, perm1, value1) =>
         val (loc, perm, value) = (dispatch(loc1), dispatch(perm1), dispatch(value1))
-        Perm(loc, perm) &* (loc === value)
+        Perm(loc, perm) &* (dispatch(extractValueFromLocation(loc1)) === value)
       case ValidArray(arr1, len1) =>
         val (arr, len) = (dispatch(arr1), dispatch(len1))
         (arr !== Null()) && (Length(arr)(FramedArrLength) === len)

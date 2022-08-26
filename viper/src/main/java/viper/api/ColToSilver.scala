@@ -267,7 +267,7 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Implies(left, right) => silver.Implies(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case col.Or(left, right) => silver.Or(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
 
-    case res @ col.Perm(col.SilverDeref(obj, Ref(field)), perm) =>
+    case res @ col.Perm(col.SilverFieldLocation(obj, Ref(field)), perm) =>
       val permValue = exp(perm)
       permValue.info.asInstanceOf[NodeInfo[_]].permissionValuePermissionNode = Some(res)
       silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field))(pos=pos(res), info=expInfo(res)), permValue)(pos=pos(res), info=expInfo(res))
