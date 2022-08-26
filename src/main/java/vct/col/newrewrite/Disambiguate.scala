@@ -101,10 +101,10 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
             ModelLocation(dispatch(obj), succ(ref))
           case SilverDeref(obj, ref) =>
             SilverFieldLocation(dispatch(obj), succ(ref))
-          case ArraySubscript(arr, index) =>
-            ArrayLocation(dispatch(arr), dispatch(index))
-          case expr if expr.t.asPointer.isDefined =>
-            PointerLocation(dispatch(expr))
+          case expr @ ArraySubscript(arr, index) =>
+            ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
+          case point @ expr if expr.t.asPointer.isDefined =>
+            PointerLocation(dispatch(expr))(point.blame)
           case PredicateApply(ref, args, WritePerm()) =>
             PredicateLocation(succ(ref), (args.map(dispatch)))
           case InstancePredicateApply(obj, ref, args, WritePerm()) =>

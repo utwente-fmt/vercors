@@ -1184,10 +1184,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
-    case ValCurPerm(_, _, loc, _) => CurPerm(convert(loc))
-    case ValPerm(_, _, loc, _, perm, _) => Perm(convert(loc), convert(perm))
-    case ValValue(_, _, loc, _) => Perm(convert(loc), ReadPerm())
-    case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(convert(loc), convert(perm), convert(v))
+    case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
+    case ValPerm(_, _, loc, _, perm, _) => Perm(AmbiguousLocation(convert(loc)), convert(perm))
+    case ValValue(_, _, loc, _) => Perm(AmbiguousLocation(convert(loc)), ReadPerm())
+    case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
     case ValHPerm(_, _, loc, _, perm, _) => ModelPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => ActionPerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)

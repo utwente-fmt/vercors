@@ -4,7 +4,7 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteBuilders._
 import vct.col.newrewrite.DesugarPermissionOperators.{FramedArraySubscriptBlame, FramedPointerDerefBlame, PredicateValueError}
-import vct.col.origin.{ArrayInsufficientPermission, ArrayLocationError, ArraySubscriptError, Blame, FramedArrIndex, FramedArrLength, IteratedArrayInjective, Origin, PointerBounds, PointerDerefError, PointerInsufficientPermission, PointerLocationError, PointerSubscriptError, PointsToDeref}
+import vct.col.origin.{ArrayInsufficientPermission, ArrayLocationError, ArraySubscriptError, Blame, FramedArrIndex, FramedArrLength, FramedArrLoc, IteratedArrayInjective, Origin, PointerBounds, PointerDerefError, PointerInsufficientPermission, PointerLocationError, PointerSubscriptError, PointsToDeref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 
@@ -67,7 +67,7 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
         (mat !== Null()) && (Length(mat)(FramedArrLength) === dim0) &*
           starall(IteratedArrayInjective, TInt(), row =>
             (const(0) <= row && row < dim0) ==>
-              arrayPerm(mat, row, ReadPerm())
+              arrayPerm(mat, row, ReadPerm(), FramedArrLoc)
           ) &* forall(TInt(), row =>
             (const(0) <= row && row < dim0) ==>
               (ArraySubscript(mat, row)(FramedArrIndex) !== Null())

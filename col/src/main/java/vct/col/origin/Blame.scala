@@ -600,6 +600,7 @@ object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should 
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
 object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
+object FramedArrLoc extends PanicBlame("Bounds and non-nullness are ensured.")
 object FramedArrLength extends PanicBlame("length query in `arr == null ? _ : arr.length` should always be ok.")
 object FramedMapGet extends PanicBlame("access in `∀k. k \\in m.keys ==> ...m[k]...` should always be ok.")
 object FramedGetLeft extends PanicBlame("left in `e.isLeft ? e.left : ...` should always be ok.")
