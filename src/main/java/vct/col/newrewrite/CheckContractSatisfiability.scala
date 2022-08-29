@@ -17,8 +17,8 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
     "Prove that contracts are not internally contradictory (i.e. unsatisfiable) for methods and other contract bearers, " +
       "except for the contract `false`."
 
-  case class CheckSatOrigin(inner: Origin) extends Origin {
-    override def preferredName: String = "check_sat_" + inner.preferredName
+  case class CheckSatOrigin(inner: Origin, n: Option[String]) extends Origin {
+    override def preferredName: String = "check_sat_" + n.getOrElse(inner.preferredName)
     override def context: String = inner.context
     override def inlineContext: String = inner.inlineContext
     override def shortPosition: String = inner.shortPosition
@@ -42,8 +42,8 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     case SplitAccountedPredicate(left, right) => splitAccountedPredicate(left) ++ splitAccountedPredicate(right)
   }
 
-  def checkSatisfiability(contract: ApplicableContract[Pre]): Unit = {
-    implicit val origin: Origin = CheckSatOrigin(contract.o)
+  def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[String]): Unit = {
+    implicit val origin: Origin = CheckSatOrigin(contract.o, n)
     foldStar(splitAccountedPredicate(contract.requires)) match {
       case BooleanValue(false) =>
         // Assume the contract is not intended to be satisfiable
@@ -52,18 +52,20 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         val onlyAssertBlame = FilterExpectedErrorBlame(PanicBlame("A boolean assert can only report assertFailed:false"), err)
         expectedErrors.top += err
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
-        procedure(
-          blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
-          contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
-          requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
-          args = collectInScope(variableScopes) { substitutions.keys.foreach(dispatch) },
-          body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
-        ).declareDefault(this)
+        variables.scope {
+          globalDeclarations.declare(procedure(
+            blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
+            contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
+            requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
+            args = variables.dispatch(substitutions.keys),
+            body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
+          ))
+        }
     }
   }
 
   override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = {
-    val (errs, program) = withCollectInScope(expectedErrors) {
+    val (errs, program) = expectedErrors.collect {
       dispatch(context.program)
     }
     // PB: Important: the expected errors from this pass must appear before other errors, since the absence of an assert
@@ -71,8 +73,15 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     VerificationContext(program, errs ++ context.expectedErrors)(context.o)
   }
 
+  val name: ScopedStack[String] = ScopedStack()
+
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    name.having(decl.o.preferredName) {
+      super.dispatch(decl)
+    }
+
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
-    if(doCheck) checkSatisfiability(contract)
+    if(doCheck) checkSatisfiability(contract, name.topOption)
     rewriteDefault(contract)
   }
 }

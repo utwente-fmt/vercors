@@ -12,7 +12,7 @@ class Test {
 
     requires Perm(this.sequence, write);
     requires this.sequence.size > 0;
-    requires (\forall* int i; 0 <= i && i < this.sequence.size; Perm(sequence[i].value, write));
+    requires /*[/expect notInjective]*/(\forall* int i; 0 <= i && i < this.sequence.size; Perm(sequence[i].value, write))/*[/end]*/;
     void test() {
         if(sequence[0].value == 0) {
 

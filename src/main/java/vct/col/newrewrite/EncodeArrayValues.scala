@@ -62,7 +62,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     val from = Local[Post](from_var.ref)
     val to = Local[Post](to_var.ref)
 
-    val f = withResult((result: Result[Post]) => function[Post](
+    globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
       blame = AbstractApplicable,
       contractBlame = PanicBlame("the function for \\values always has a satisfiable contract"),
       returnType = TSeq(dispatch(arrayType.element)),
@@ -86,9 +86,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
       )
-    ))
-    f.declareDefault(this)
-    f
+    )))
   }
 
   def makeCreationMethodFor(elementType: Type[Pre], definedDims: Int, undefinedDims: Int): Procedure[Post] = {
@@ -107,7 +105,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     //
     // forall ar[i][j] :: ar[i][j] == null
 
-    val p = withResult((result: Result[Post]) => {
+    globalDeclarations.declare(withResult((result: Result[Post]) => {
       val forall = (count: Int, assn: Expr[Post] => Expr[Post]) => {
         val bindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"i$i")))
         val access = (0 until count).foldLeft[Expr[Post]](result)((e, i) => ArraySubscript(e, bindings(i).get)(FramedArrIndex))
@@ -152,9 +150,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         args = dimArgs,
         ensures = UnitAccountedPredicate(ensures &* forall(definedDims, access => access === undefinedValue))
       )(ArrayCreationOrigin("make_array"))
-    })
-    p.declareDefault(this)
-    p
+    }))
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {

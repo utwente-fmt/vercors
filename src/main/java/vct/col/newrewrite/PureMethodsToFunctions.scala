@@ -53,27 +53,27 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
       case proc: Procedure[Pre] if proc.pure =>
         if(proc.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
         if(proc.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
-        new Function(
+        globalDeclarations.succeed(proc, new Function(
           returnType = dispatch(proc.returnType),
-          args = collectInScope(variableScopes) { proc.args.foreach(dispatch) },
-          typeArgs = collectInScope(variableScopes) { proc.typeArgs.foreach(dispatch) },
+          args = variables.dispatch(proc.args),
+          typeArgs = variables.dispatch(proc.typeArgs),
           body = proc.body.map(toExpression(_, None).getOrElse(throw MethodCannotIntoFunction(
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(proc.contract),
           inline = proc.inline
-        )(proc.blame)(proc.o).succeedDefault(proc)
+        )(proc.blame)(proc.o))
       case method: InstanceMethod[Pre] if method.pure =>
         if(method.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
         if(method.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
-        new InstanceFunction(
+        classDeclarations.succeed(method, new InstanceFunction(
           returnType = dispatch(method.returnType),
-          args = collectInScope(variableScopes) { method.args.foreach(dispatch) },
-          typeArgs = collectInScope(variableScopes) { method.typeArgs.foreach(dispatch) },
+          args = variables.dispatch(method.args),
+          typeArgs = variables.dispatch(method.typeArgs),
           body = method.body.map(toExpression(_, None).getOrElse(throw MethodCannotIntoFunction(
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(method.contract),
           inline = method.inline,
-        )(method.blame)(method.o).succeedDefault(method)
+        )(method.blame)(method.o))
       case other => rewriteDefault(other)
     }
   }

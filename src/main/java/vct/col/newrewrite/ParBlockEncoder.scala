@@ -110,7 +110,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     block.iters.foldLeft(dispatch(body))((body, iter) => {
       val v = quantVars(iter.variable)
       Starall[Post](
-        collectInScope(variableScopes) { dispatch(v) },
+        Seq(variables.dispatch(v)),
         Nil,
         (from(iter.variable) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter.variable)) ==> body
       )(ParBlockNotInjective(block, expr))
@@ -161,10 +161,10 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       })(region.o)
     case block @ ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
       implicit val o: Origin = region.o
-      val (vars, init) = withCollectInScope(variableScopes) {
+      val (vars, init) = variables.collect {
         Block(iters.map { v =>
-          val newVar = v.variable.rewrite().succeedDefault(v.variable)
-          assignLocal(newVar.get, IndeterminateInteger(from(v.variable), to(v.variable)))
+          dispatch(v.variable)
+          assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
         })
       }
 
@@ -202,19 +202,19 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       decl.drop()
       invDecl(decl) = frozenInvariant
 
-      Scope(collectInScope(variableScopes) { mappings.keys.foreach(dispatch) }, Block(Seq(
+      Scope(variables.collect { mappings.keys.foreach(dispatch) }._1, Block(Seq(
         Block(mappings.map { case (v, e) => assignLocal[Post](Local(succ(v)), dispatch(e)) }.toSeq),
-        Exhale(freshSuccessionScope { dispatch(frozenInvariant) })(ParInvariantCannotBeExhaled(inv)),
+        Exhale(dispatch(frozenInvariant))(ParInvariantCannotBeExhaled(inv)),
         dispatch(body),
-        Inhale(freshSuccessionScope { dispatch(frozenInvariant) }),
+        Inhale(dispatch(frozenInvariant)),
       )))
 
     case atomic @ ParAtomic(invDecls, body) =>
       implicit val o: Origin = atomic.o
       Block(Seq(
-        Block(invDecls.map { case Ref(decl) => freshSuccessionScope { Inhale(dispatch(invDecl(decl))) } }),
+        Block(invDecls.map { case Ref(decl) => Inhale(dispatch(invDecl(decl))) }),
         dispatch(body),
-        Block(invDecls.reverse.map { case Ref(decl) => freshSuccessionScope { Exhale(dispatch(invDecl(decl)))(ParAtomicCannotBeExhaled(atomic)) } }),
+        Block(invDecls.reverse.map { case Ref(decl) => Exhale(dispatch(invDecl(decl)))(ParAtomicCannotBeExhaled(atomic)) }),
       ))
 
     case barrier @ ParBarrier(Ref(decl), suspendedInvariants, requires, ensures, hint) =>
@@ -227,12 +227,12 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
             pre = tt,
             body = Block(Seq(
               Inhale(quantify(block, requires)),
-              Block(suspendedInvariants.map { case Ref(decl) => Inhale(freshSuccessionScope { dispatch(invDecl(decl)) }) }),
+              Block(suspendedInvariants.map { case Ref(decl) => Inhale(dispatch(invDecl(decl))) }),
               dispatch(hint),
               Block(suspendedInvariants.reverse.map {
-                case Ref(decl) => Exhale(freshSuccessionScope {
+                case Ref(decl) => Exhale(
                   dispatch(invDecl(decl))
-                })(ParBarrierInvariantExhaleFailed(barrier))
+                )(ParBarrierInvariantExhaleFailed(barrier))
               }),
             )),
             post = quantify(block, ensures),

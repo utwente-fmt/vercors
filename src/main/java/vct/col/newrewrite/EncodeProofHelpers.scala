@@ -46,7 +46,7 @@ case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
 
         contract = LoopInvariant(
           (once.get ==> dispatch(pre)) &*
-            (!once.get ==> freshSuccessionScope { dispatch(post) })
+            (!once.get ==> dispatch(post))
         )(FramedProofLoopInvariantFailed(proof)),
         body = dispatch(body),
       ))

@@ -14,8 +14,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
-  globalScopes.push(ArrayBuffer())
-
   override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = e
 }
 
@@ -44,21 +42,15 @@ case object CoercingRewriter {
 abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import CoercingRewriter._
 
-  val coercedSuccessionMap: ScopedStack[SuccessionMap[Declaration[Pre], Declaration[Pre]]] = ScopedStack()
-  coercedSuccessionMap.push(SuccessionMap())
+  val coercedDeclaration: SuccessionMap[Declaration[Pre], Declaration[Pre]] = SuccessionMap()
 
-  override def lookupSuccessor: Declaration[Pre] => Option[Declaration[Rewritten[Pre]]] = {
-    val frozenCoercedSuccessionMap = coercedSuccessionMap.toSeq
-    val inner = super.lookupSuccessor
-    (decl: Declaration[Pre]) =>
-      FuncTools.firstOption[SuccessionMap[Declaration[Pre], Declaration[Pre]], Declaration[Post]](frozenCoercedSuccessionMap, _.get(decl) match {
-        case None => None
-        case Some(decl: Declaration[Pre]) => inner(decl)
-      })
+  class CoercedSuccessorsProvider extends SuccessorsProviderTrafo[Pre, Pre](null) {
+    override def preTransform[I <: Declaration[Pre], O <: Declaration[Pre]](pre: I): Option[O] =
+      Some(coercedDeclaration(pre).asInstanceOf[O])
   }
 
-  override def freshSuccessionScope[T](f: => T): T =
-    coercedSuccessionMap.having(SuccessionMap()) { super.freshSuccessionScope(f) }
+  override def succProvider: SuccessorsProvider[Pre, Post] =
+    SuccessorsProviderChain(new CoercedSuccessorsProvider, allScopes.freeze)
 
   /**
     * Apply a particular coercion to an expression.
@@ -101,7 +93,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
       case CoerceMapSet(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
@@ -121,7 +113,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
       case CoerceMapBag(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
@@ -141,7 +133,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
       case CoerceMapMatrix(inner, source, target) =>
         ???
@@ -163,7 +155,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           )
         })
 
-        f.declareDefault(this)
+        globalDeclarations.declare(f)
         FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for map<_, _> requires nothing."))
       case CoerceMapTuple(inner, sourceTypes, targetTypes) =>
         LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
@@ -218,6 +210,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node
     case node: CInit[Pre] => node
+    case node: CDeclaration[Pre] => node
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
     case node: JavaName[Pre] => node
@@ -241,7 +234,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
   override def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
-    coercedSuccessionMap.top(decl) = coercedDecl
+    coercedDeclaration(decl) = coercedDecl
     postCoerce(coercedDecl)
   }
 
@@ -704,6 +697,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
         GetRight(either(e)._1)(get.blame)
+      case GlobalThreadId() =>
+        GlobalThreadId()
       case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
         GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
       case Greater(left, right) =>
@@ -738,6 +733,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
         InstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
+      case CoalesceInstancePredicateApply(obj, ref, args, perm) =>
+        CoalesceInstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
       case IsLeft(e) =>
         IsLeft(either(e)._1)
       case IsRight(e) =>
@@ -782,6 +779,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         })
       case Local(ref) =>
         Local(ref)
+      case LocalThreadId() =>
+        LocalThreadId()
       case MapCons(m, k, v) =>
         val (coercedMap, mapType) = map(m)
         val sharedType = Types.leastCommonSuperType(mapType.value, v.t)
@@ -914,6 +913,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         )
       case add @ PointerAdd(p, offset) =>
         PointerAdd(pointer(p)._1, int(offset))(add.blame)
+      case len @ PointerBlockLength(p) =>
+        PointerBlockLength(pointer(p)._1)(len.blame)
+      case off @ PointerBlockOffset(p) =>
+        PointerBlockOffset(pointer(p)._1)(off.blame)
       case get @ PointerSubscript(p, index) =>
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
@@ -1170,16 +1173,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case u @ Unlock(obj) => Unlock(cls(obj)._1)(u.blame)
       case VecBlock(iters, requires, ensures, content) => VecBlock(iters, res(requires), res(ensures), content)
       case w @ Wait(obj) => Wait(cls(obj)._1)(w.blame)
-      case WandApply(assn) => WandApply(res(assn))
-      case WandCreate(statements) => WandCreate(statements)
-      case WandQed(assn) => WandQed(res(assn))
-      case WandUse(assn) => WandUse(res(assn))
+      case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
+      case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
     }
   }
 
   def coerce(decl: Declaration[Pre]): Declaration[Pre] = {
     implicit val o: Origin = decl.o
     decl match {
+      case unit: CTranslationUnit[Pre] =>
+        new CTranslationUnit(unit.declarations)
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] =>
@@ -1256,8 +1259,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         decl
       case param: CParam[Pre] =>
         param
-      case declaration: CDeclaration[Pre] =>
-        new CDeclaration[Pre](declaration.contract, res(declaration.kernelInvariant), declaration.specs, declaration.inits)
+      case decl: CLocalDeclaration[Pre] =>
+        decl
       case declaration: JavaLocalDeclaration[Pre] =>
         new JavaLocalDeclaration[Pre](declaration.modifiers, declaration.t, declaration.decls.map {
           case JavaVariableDeclaration(name, dims, None) => JavaVariableDeclaration(name, dims, None)

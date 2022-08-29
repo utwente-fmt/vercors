@@ -966,6 +966,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPostfix1(_, from, _, None, _) => Drop(xs, convert(from))
     case ValPostfix1(_, from, _, Some(to), _) => Slice(xs, convert(from), convert(to))
     case ValPostfix2(_, idx, _, v, _) => SeqUpdate(xs, convert(idx), convert(v))
+    case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
   def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
@@ -974,10 +975,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
-    case ValCreateWand(_, block) => WandCreate(convert(block))
-    case ValQedWand(_, wand, _) => WandQed(convert(wand))
-    case ValApplyWand(_, wand, _) => WandApply(convert(wand))
-    case ValUseWand(_, wand, _) => WandUse(convert(wand))
+    case ValPackage(_, expr, innerStat) => WandPackage(convert(expr), convert(innerStat))(blame(stat))
+    case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
     case ValFold(_, predicate, _) =>
       Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>
@@ -1196,6 +1195,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+    case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
+    case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
@@ -1268,6 +1269,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
+    case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))

@@ -4,7 +4,7 @@ parser grammar LangPVLParser;
     private static int specLevel = 1;
 }
 
-program  : programDecl* EOF ;
+program  : programDecl* EOF EOF ;
 
 programDecl : valGlobalDeclaration | declClass | method;
 

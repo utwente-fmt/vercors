@@ -5,7 +5,7 @@ import vct.col.origin.Origin.{BOLD_HR, HR}
 import vct.col.util.ExpectedError
 import hre.io.Readable
 
-import java.nio.file.Path
+import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
@@ -234,9 +234,11 @@ case class ReadableOrigin(readable: Readable,
     case None => f"${endLineIdx+1}"
   }
 
+  private def baseFilename: String = Paths.get(readable.fileName).getFileName.toString
+
   override def shortPosition: String = cols match {
-    case Some((startColIdx, _)) => f"${startLineIdx+1}:${startColIdx+1}"
-    case None => (startLineIdx+1).toString
+    case Some((startColIdx, _)) => f"$baseFilename:${startLineIdx+1}:${startColIdx+1}"
+    case None => f"$baseFilename:${startLineIdx+1}"
   }
 
   override def context: String = {

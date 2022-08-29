@@ -39,7 +39,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case model: Model[Pre] =>
       implicit val o: Origin = model.o
       currentThis.having(ThisModel[Post](succ(model))) {
-        model.rewrite().succeedDefault(model)
+        globalDeclarations.succeed(model, model.rewrite())
       }
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
@@ -47,20 +47,21 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
 
+    case unit: CTranslationUnit[Pre] => c.rewriteUnit(unit)
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)
     case decl: CGlobalDeclaration[Pre] => c.rewriteGlobalDecl(decl)
-    case decl: CDeclaration[Pre] => ???
+    case decl: CLocalDeclaration[Pre] => ???
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
         currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
-          val decls = collectInScope(classScopes) {
+          val decls = classDeclarations.collect {
             cls.declarations.foreach(dispatch)
             pvl.maybeDeclareDefaultConstructor(cls)
-          }
+          }._1
 
-          cls.rewrite(decls).succeedDefault(cls)
+          globalDeclarations.succeed(cls, cls.rewrite(decls))
         }
       }
 
@@ -76,15 +77,17 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case other => other.subnodes.foreach(scanScope)
       }
 
-      scope.rewrite(locals = collectInScope(variableScopes) {
+      scope.rewrite(locals = variables.collect {
         locals.foreach(dispatch)
         scanScope(body)
-      })
+      }._1)
 
     case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) => java.initLocal(locals)
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
+    case barrier: GpgpuLocalBarrier[Pre] => c.localBarrier(barrier)
+    case barrier: GpgpuGlobalBarrier[Pre] => c.globalBarrier(barrier)
 
     case other => rewriteDefault(other)
   }
@@ -95,11 +98,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       result.ref.get match {
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
-        case RefFunction(decl) => Result(succ(decl))
-        case RefProcedure(decl) => Result(succ(decl))
-        case RefJavaMethod(decl) => Result(succ(decl))
-        case RefInstanceFunction(decl) => Result(succ(decl))
-        case RefInstanceMethod(decl) => Result(succ(decl))
+        case RefFunction(decl) => Result[Post](anySucc(decl))
+        case RefProcedure(decl) => Result[Post](anySucc(decl))
+        case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
+        case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
+        case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>
@@ -119,6 +122,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: PVLInvocation[Pre] => pvl.invocation(inv)
 
     case local: CLocal[Pre] => c.local(local)
+    case deref: CStructAccess[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)

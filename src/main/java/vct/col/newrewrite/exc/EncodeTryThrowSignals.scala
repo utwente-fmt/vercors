@@ -14,6 +14,7 @@ import scala.collection.mutable
 
 case object EncodeTryThrowSignals extends RewriterBuilder {
   override def key: String = "tryThrowSignals"
+
   override def desc: String = "Encode try, throw and signals specifications to goto, exception out-parameters and regular postconditions."
 
   case class ThrowNullAssertFailed(t: Throw[_]) extends Blame[AssertFailed] {
@@ -21,45 +22,67 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
       t.blame.blame(ThrowNull(t))
   }
 
+  case class PackageThrowsAssertFailed(pack: WandPackage[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit = pack.blame.blame(PackageThrows(pack))
+  }
+
   case object ExcVar extends Origin {
     override def preferredName: String = "exc"
+
     override def shortPosition: String = "generated"
+
     override def context: String = "[At variable generated to contain thrown exception]"
+
     override def inlineContext: String = "[Current exception]"
   }
 
   case object CurrentlyHandling extends Origin {
     override def preferredName: String = "currently_handling_exc"
+
     override def shortPosition: String = "generated"
+
     override def context: String = "[At variable generated to remember exception currently being handled]"
+
     override def inlineContext: String = "[Exception currently being handled]"
   }
 
   case object ReturnPoint extends Origin {
     override def preferredName: String = "bubble"
+
     override def shortPosition: String = "generated"
+
     override def context: String = "[At label generated to bubble an exception]"
+
     override def inlineContext: String = "[Exception bubble label]"
   }
 
   case object CatchLabel extends Origin {
     override def preferredName: String = "catches"
+
     override def shortPosition: String = "generated"
+
     override def context: String = "[At label generated for catch blocks]"
+
     override def inlineContext: String = "[Catch label]"
   }
 
   case object FinallyLabel extends Origin {
     override def preferredName: String = "finally"
+
     override def shortPosition: String = "generated"
+
     override def context: String = "[At label generated for finally]"
+
     override def inlineContext: String = "[Finally label]"
   }
 
   case object ExcBeforeLoop extends Origin {
     override def preferredName: String = "excBeforeLoop"
+
     override def shortPosition: String = "generated"
+
     override def context: String = "[At variable generated to contain exc before loop]"
+
     override def inlineContext: String = "[Exception before loop]"
   }
 
@@ -75,11 +98,13 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
 }
 
 case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
+
   import EncodeTryThrowSignals._
 
   val currentException: ScopedStack[Variable[Post]] = ScopedStack()
   val exceptionalHandlerEntry: ScopedStack[LabelDecl[Post]] = ScopedStack()
   val returnHandler: ScopedStack[LabelDecl[Post]] = ScopedStack()
+
 
   val needCurrentExceptionRestoration: ScopedStack[Boolean] = ScopedStack()
   needCurrentExceptionRestoration.push(false)
@@ -95,9 +120,9 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] =
     program.rootClass match {
       case Some(TClass(Ref(cls))) =>
-        rootClass.having(succ[Class[Post]](cls)) {
-          program.rewrite()
-        }
+        program.rewrite(declarations = rootClass.having(succ[Class[Post]](cls)) {
+          globalDeclarations.dispatch(program.declarations)
+        })
       case _ => throw Unreachable("Root class unknown or not a class.")
     }
 
@@ -116,7 +141,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
         val catchImpl = Block[Post](catches.map {
           case CatchClause(decl, body) =>
-            val typedExc = collectOneInScope(variableScopes) { dispatch(decl) }
+            val typedExc = variables.dispatch(decl)
             Scope(Seq(typedExc), Branch(Seq((
               (getExc !== Null[Post]()) && InstanceOf(getExc, TypeValue(dispatch(decl.t))),
               Block(Seq(
@@ -128,19 +153,21 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
                   }
                 },
               ),
-            )))))
+              )))))
         })
 
         val finallyImpl = Block[Post](Seq(
           Label(finallyEntry, Block(Nil)),
-          needCurrentExceptionRestoration.having(true) { dispatch(after) },
+          needCurrentExceptionRestoration.having(true) {
+            dispatch(after)
+          },
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
           ))),
         ))
 
-        val (store: Statement[Post], restore: Statement[Post], vars: Seq[Variable[Post]]) = if(needCurrentExceptionRestoration.top) {
+        val (store: Statement[Post], restore: Statement[Post], vars: Seq[Variable[Post]]) = if (needCurrentExceptionRestoration.top) {
           val tmp = new Variable[Post](TClass(rootClass.top))(CurrentlyHandling)
           (
             Block[Post](Seq(
@@ -161,7 +188,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           restore,
         )))
 
-      case t @ Throw(obj) =>
+      case t@Throw(obj) =>
         Block(Seq(
           assignLocal(getExc, dispatch(obj)),
           Assert(getExc !== Null())(ThrowNullAssertFailed(t)),
@@ -170,7 +197,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       case inv: InvokeProcedure[Pre] =>
         Block(Seq(
-          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(succ[Variable[Post]])),
+          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(arg => succ[Variable[Post]](arg.decl))),
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
@@ -179,7 +206,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       case inv: InvokeMethod[Pre] =>
         Block(Seq(
-          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(succ[Variable[Post]])),
+          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(arg => succ[Variable[Post]](arg.decl))),
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
@@ -192,11 +219,32 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         Scope(Seq(beforeLoop), Block[Post](Seq(
           assignLocal(beforeLoop.get, getExc),
           loop.rewrite(contract = loop.contract match {
-            case inv @ LoopInvariant(invariant) =>
+            case inv@LoopInvariant(invariant) =>
               LoopInvariant(getExc === beforeLoop.get &* dispatch(invariant))(inv.blame)
             case it: IterationContract[Pre] => rewriteDefault(it)
           })
         )))
+
+      case w@WandPackage(wand, proof) =>
+        val exc = new Variable[Post](TClass(rootClass.top))(ExcVar)
+        val labelHandler = new LabelDecl[Post]()
+        val labelDone = new LabelDecl[Post]()
+        exceptionalHandlerEntry.having(labelHandler) {
+          currentException.having(exc) {
+            WandPackage(dispatch(wand),
+              Scope(Seq(exc),
+                Block(
+                  Seq(
+                    dispatch(proof),
+                    Goto[Post](labelDone.ref),
+                    Label(labelHandler, Block(Nil)),
+                    Assert[Post](BooleanValue(false))(PackageThrowsAssertFailed(w)),
+                    Label(labelDone, Block(Nil)),
+                  ))
+              )
+            )(w.blame)
+          }
+        }
 
       case other => rewriteDefault(other)
     }
@@ -216,7 +264,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
       val exc = new Variable[Post](TClass(rootClass.top))(ExcVar)
 
       currentException.having(exc) {
-        val body = method.body.map(body => {
+        lazy val body = method.body.map(body => {
           val bubble = new LabelDecl[Post]()(ReturnPoint)
 
           Block(Seq(
@@ -230,7 +278,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
           ))
         })
 
-        val ensures: AccountedPredicate[Post] = SplitAccountedPredicate(
+        lazy val ensures: AccountedPredicate[Post] = SplitAccountedPredicate(
           left = UnitAccountedPredicate((exc.get !== Null()) ==> foldOr(method.contract.signals.map {
             case SignalsClause(binding, _) => InstanceOf(exc.get, TypeValue(dispatch(binding.t)))
           })),
@@ -240,12 +288,14 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
               case SignalsClause(binding, assn) =>
                 binding.drop()
                 ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
-                  signalsBinding.having((binding, exc.get)) { dispatch(assn) }
+                  signalsBinding.having((binding, exc.get)) {
+                    dispatch(assn)
+                  }
             })),
           ),
         )
 
-        method.rewrite(
+        allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(
           blame = PostBlameSplit.left(
             left = SignalsClosedPostconditionFailed(method),
             right = PostBlameSplit.right(
@@ -254,9 +304,9 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
             ),
           ),
           body = body,
-          outArgs = collectInScope(variableScopes) { exc.declareDefault(this); method.outArgs.foreach(dispatch) },
+          outArgs = variables.collect { variables.declare(exc); method.outArgs.foreach(dispatch) }._1,
           contract = method.contract.rewrite(ensures = ensures, signals = Nil),
-        ).succeedDefault(method)
+        )))
       }
 
     case other => rewriteDefault(other)

@@ -72,6 +72,7 @@ class FeatureRainbow[G] {
     case node: AddrOf[G] => Pointers
     case node: PredicateApply[G] => return Nil
     case node: InstancePredicateApply[G] => Classes
+    case node: CoalesceInstancePredicateApply[G] => Classes
     case node: ADTFunctionInvocation[G] => return Nil
     case node: ProcedureInvocation[G] => return Nil
     case node: InvokeProcedure[G] => return Nil
@@ -161,6 +162,8 @@ class FeatureRainbow[G] {
     case node: ArraySubscript[G] => Arrays
     case node: PointerAdd[G] => Pointers
     case node: PointerSubscript[G] => Pointers
+    case node: PointerBlockLength[G] => Pointers
+    case node: PointerBlockOffset[G] => Pointers
     case node: Length[G] => Arrays
     case node: Size[G] => return Nil
     case node: Cons[G] => SugarCollectionOperator
@@ -308,10 +311,8 @@ class FeatureRainbow[G] {
     case node: Unlock[G] => IntrinsicLocks
     case node: Fold[G] => return Nil
     case node: Unfold[G] => return Nil
-    case node: WandCreate[G] => MagicWand
-    case node: WandQed[G] => MagicWand
+    case node: WandPackage[G] => MagicWand
     case node: WandApply[G] => MagicWand
-    case node: WandUse[G] => MagicWand
     case node: ModelDo[G] => Models
     case node: Havoc[G] => return Nil
     case node: Break[G] => ExceptionalLoopControl
@@ -437,6 +438,7 @@ class FeatureRainbow[G] {
     case node: CInit[G] => return Nil
     case node: CDeclaration[G] => return Nil
     case node: CFunctionDefinition[G] => return Nil
+    case node: CTranslationUnit[G] => return Nil
     case node: CGlobalDeclaration[G] => return Nil
     case node: CDeclarationStatement[G] => return Nil
     case node: CGoto[G] => return Nil

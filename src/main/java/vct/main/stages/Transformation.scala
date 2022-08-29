@@ -74,7 +74,6 @@ class Transformation
     val tempUnsupported = Set[feature.Feature](
       feature.MatrixVector,
       feature.NumericReductionOperator,
-      feature.MagicWand,
       feature.Models,
     )
 
@@ -97,10 +96,6 @@ class Transformation
         case Nil => // ok
         case errors => throw TransformationCheckError(errors)
       }
-
-      logger.debug(s"After ${pass.key}: ${result.transSubnodes.collect {
-        case _: RunMethod[_] => ()
-      }.size} run methods")
 
       onAfterPassKey.foreach {
         case (key, action) => if(pass.key == key) action(result)
@@ -132,6 +127,7 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+    DesugarCoalescingOperators, // no .!
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]
     IterationContractToParBlock,
@@ -167,6 +163,8 @@ case class SilverTransformation
     ClassToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
+
+    SplitQuantifiers,
   ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
     SimplifyNestedQuantifiers,

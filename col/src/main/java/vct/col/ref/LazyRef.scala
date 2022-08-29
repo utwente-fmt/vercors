@@ -9,10 +9,14 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G])(implicit t
   // Sometimes Nothing ends up in Decl, which is never useful, so we try to crash a bit earlier when that happens.
   require(tag != ClassTag.Nothing)
 
+  // Occasionally useful for debugging: the stack trace where the LazyRef is created
+  // private val debugTrace = Thread.currentThread().getStackTrace
+
   // Capture lazyDecl into a lambda, so that lazyDecl is not implicitly added as a field in the LazyRef class.
   private var computeDecl: () => Declaration[G] = () => lazyDecl
 
-  // Make decl lazy, so its evaluation is delayed, but only performed once.
+  // Make decl lazy, so its evaluation is delayed, but only performed once. It is acceptable that the `decl` is
+  // recomputed when it crashes, e.g. when viewed from a debugging context.
   lazy val decl: Decl = {
     val result = computeDecl()
     // Clear out the value of computeDecl once we have computed the declaration. If we wouldn't do this, we would create

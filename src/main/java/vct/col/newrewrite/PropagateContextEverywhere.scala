@@ -40,18 +40,18 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   }
 
   def freshInvariants()(implicit o: Origin): Expr[Post] =
-    foldStar(invariants.top.map(inv => freshSuccessionScope { dispatch(inv) }))
+    foldStar(invariants.top.map(dispatch))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
-      (withInvariant(app.contract.contextEverywhere) {
+      allScopes.anyDeclare(allScopes.anySucceedOnly(app, withInvariant(app.contract.contextEverywhere) {
         app match {
           case func: AbstractFunction[Pre] =>
             func.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
           case method: AbstractMethod[Pre] =>
             method.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), method.blame))
         }
-      }).succeedDefault(app)
+      }))
     case other => rewriteDefault(other)
   }
 

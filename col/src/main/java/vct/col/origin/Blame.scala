@@ -147,6 +147,22 @@ case class FoldFailed(failure: ContractFailure, node: Fold[_]) extends WithContr
   override def descInContext: String = "Fold may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
+trait PackageFailure extends VerificationFailure
+case class PackageThrows(node: WandPackage[_]) extends PackageFailure with NodeVerificationFailure {
+  override def code: String = "packageThrows"
+  override def descInContext: String = "Package proof may throw an exception"
+  override def inlineDescWithSource(source: String): String = s"`$node` may throw an exception."
+}
+case class PackageFailed(failure: ContractFailure, node: WandPackage[_]) extends PackageFailure with WithContractFailure {
+  override def baseCode: String = "packageFailed"
+  override def descInContext: String = "Package statement may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
+}
+case class WandApplyFailed(failure: ContractFailure, node: WandApply[_]) extends WithContractFailure {
+  override def baseCode: String = "applyFailed"
+  override def descInContext: String = "Wand apply may fail, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
+}
 case class SendFailed(failure: ContractFailure, node: Send[_]) extends WithContractFailure {
   override def baseCode: String = "sendFailed"
   override def descInContext: String = "Send may fail, since"
@@ -221,10 +237,15 @@ case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvari
   override def descInContext: String = "This invariant may not be maintained, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Invariant of `$node` may not be maintained, since $failure."
 }
-case class ReceiverNotInjective(node: Starall[_]) extends NodeVerificationFailure with AnyStarError {
+case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
-  override def descInContext: String = "The location of the permission predicate in this quantifier may not be unique with regards to the quantified variables."
-  override def inlineDescWithSource(source: String): String = s"The location of the permission predicate in `$source` may not be unique with regards to the quantified variables."
+  override def desc: String = Origin.messagesInContext(Seq(
+    quantifier.o -> "This quantifier causes the resources in its body to be quantified, ...",
+    resource.o   -> "... but this resource may not be unique with regards to the quantified variables.",
+  ))
+  override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.inlineContext}` may not be unique with regards to the quantified variables."
+
+  override def position: String = resource.o.shortPosition
 }
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def code: String = "divByZero"
@@ -382,7 +403,7 @@ case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinErro
   override def descInContext: String = "Array may be null."
   override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
 }
-case class ArrayBounds(node: Expr[_]) extends ArraySubscriptError with NodeVerificationFailure {
+case class ArrayBounds(node: ArraySubscript[_]) extends ArraySubscriptError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
   override def descInContext: String = "Index may be negative, or exceed the length of the array."
   override def inlineDescWithSource(source: String): String = s"Index `$source` may be negative, or exceed the length of the array."
@@ -577,13 +598,17 @@ object NeverNone extends PanicBlame("get in `opt == none ? _ : get(opt)` should 
 object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...xs[i]...` should never be out of bounds")
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
 object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
+object IteratedPtrInjective extends PanicBlame("access in `∀*i. Perm(xs[i], _)` should always be injective")
 object FramedArrLength extends PanicBlame("length query in `arr == null ? _ : arr.length` should always be ok.")
+object FramedPtrBlockLength extends PanicBlame("length query in `p == null ? _ : \\pointer_block_length(p)` should always be ok.")
+object FramedPtrBlockOffset extends PanicBlame("offset query in `p == null ? _ : \\pointer_block_offset(p)` should always be ok.")
 object FramedMapGet extends PanicBlame("access in `∀k. k \\in m.keys ==> ...m[k]...` should always be ok.")
 object FramedGetLeft extends PanicBlame("left in `e.isLeft ? e.left : ...` should always be ok.")
 object FramedGetRight extends PanicBlame("right in `e.isLeft ? ... : e.right` should always be ok.")
 object AbstractApplicable extends PanicBlame("the postcondition of an abstract applicable is not checked, and hence cannot fail.")
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
 object TrueSatisfiable extends PanicBlame("`requires true` is always satisfiable.")
+object FramedPtrOffset extends PanicBlame("pointer arithmetic in (0 <= \\pointer_block_offset(p)+i < \\pointer_block_length(p)) ? p+i : _ should always be ok.")
 
 object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")

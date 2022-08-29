@@ -30,7 +30,7 @@ trait SilverBackend extends Backend with LazyLogging {
       "An error occurred in a viper plugin, which should always be prevented:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
-  def createVerifier(reporter: Reporter): (Verifier, SilverPluginManager)
+  def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
   private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
@@ -42,7 +42,7 @@ trait SilverBackend extends Backend with LazyLogging {
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
   override def submit(colProgram: col.Program[_], output: Option[Writeable]): Unit = {
-    val silverProgram = ColToSilver.transform(colProgram)
+    val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     output.foreach(_.write { writer =>
       writer.write(silverProgram.toString())
@@ -77,7 +77,7 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     val tracker = EntityTrackingReporter()
-    val (verifier, plugins) = createVerifier(tracker)
+    val (verifier, plugins) = createVerifier(tracker, nodeFromUniqueId)
 
     val transformedProgram = plugins.beforeVerify(silverProgram) match {
       case Some(program) => program
@@ -92,7 +92,6 @@ trait SilverBackend extends Backend with LazyLogging {
           errors.foreach(processError)
       }
     }
-
     stopVerifier(verifier)
   }
 
@@ -199,9 +198,37 @@ trait SilverBackend extends Backend with LazyLogging {
       case TerminationFailed(_, _, _) =>
         throw NotSupported(s"Vercors does not support termination measures from Viper")
       case PackageFailed(node, reason, _) =>
-        throw NotSupported(s"Vercors does not support magic wands from Viper")
+        val packageNode = get[col.WandPackage[_]](node)
+        reason match {
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
+            packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
+          case reasons.InsufficientPermission(permNode) =>
+            get[col.Node[_]](permNode) match {
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) =>
+                packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
+              case _ =>
+                defer(reason)
+            }
+          case _ =>
+            defer(reason)
+        }
       case ApplyFailed(node, reason, _) =>
-        throw NotSupported(s"Vercors does not support magic wands from Viper")
+        val applyNode = get[col.WandApply[_]](node)
+        reason match {
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
+            applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
+          case reasons.InsufficientPermission(permNode) =>
+            get[col.Node[_]](permNode) match {
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) =>
+                applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
+              case _ =>
+                defer(reason)
+            }
+          case reasons.MagicWandChunkNotFound(magicWand) =>
+            applyNode.blame.blame(blame.WandApplyFailed(blame.InsufficientPermissionToExhale(get(magicWand)), applyNode))
+          case _ =>
+            defer(reason)
+        }
       case MagicWandNotWellformed(_, _, _) =>
         throw NotSupported(s"Vercors does not support magic wands from Viper")
       case LetWandFailed(_, _, _) =>
@@ -234,7 +261,7 @@ trait SilverBackend extends Backend with LazyLogging {
       deref.blame.blame(blame.InsufficientPermission(deref))
     case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
       val starall = info(access).starall.get
-      starall.blame.blame(blame.ReceiverNotInjective(starall))
+      starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))
     case reasons.LabelledStateNotReached(expr) =>
       val old = get[col.Old[_]](expr)
       old.blame.blame(blame.LabelNotReached(old))

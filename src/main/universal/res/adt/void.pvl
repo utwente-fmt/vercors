@@ -1,5 +1,5 @@
 adt `void` {
   pure `void` unit();
 
-  axiom (\forall `void` v; true; {:unit():} == v);
+  axiom (\forall `void` v; true; unit() == v);
 }
