@@ -38,15 +38,6 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case CurPerm(loc) => loc match {
-      case SilverDeref(obj, Ref(field)) =>
-        SilverCurFieldPerm[Post](dispatch(obj), succ(field))(e.o)
-      case PredicateApply(Ref(pred), args, _) =>
-        SilverCurPredPerm[Post](succ(pred), args.map(dispatch))(e.o)
-      case _ =>
-        throw Unreachable("Invalid permission location")
-    }
-
     case SeqMember(x, Range(from, to)) =>
       implicit val o: Origin = e.o
       dispatch(from) <= dispatch(x) && dispatch(x) < dispatch(to)

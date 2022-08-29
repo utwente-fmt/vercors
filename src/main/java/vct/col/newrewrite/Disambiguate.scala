@@ -93,7 +93,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(loc: Location[Pre]): Location[Post] = {
     implicit val o: Origin = loc.o
     loc match {
-      case AmbiguousLocation(expr) => {
+      case location @ AmbiguousLocation(expr) => {
         expr match {
           case Deref(obj, ref) =>
             FieldLocation(dispatch(obj), succ(ref))
@@ -104,7 +104,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
           case expr @ ArraySubscript(arr, index) =>
             ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
           case point @ expr if expr.t.asPointer.isDefined =>
-            PointerLocation(dispatch(expr))(point.blame)
+            PointerLocation(dispatch(expr))(location.blame)
           case PredicateApply(ref, args, WritePerm()) =>
             PredicateLocation(succ(ref), (args.map(dispatch)))
           case InstancePredicateApply(obj, ref, args, WritePerm()) =>

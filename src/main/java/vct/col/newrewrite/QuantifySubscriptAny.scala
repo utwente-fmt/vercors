@@ -44,7 +44,7 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
           ),
           body = Implies(
             const[Post](0) <= i && i < Length(arr)(any.blame),
-            Perm(ArraySubscript(arr, i)(FramedArrIndex), perm)
+            Perm(ArrayLocation(arr, i)(FramedArrIndex), perm)
           )
         )(any.blame)
 

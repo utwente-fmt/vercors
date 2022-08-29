@@ -296,7 +296,7 @@ case class SilverToCol[G](program: silver.Program) {
         if(left.typ.isInstanceOf[silver.SetType]) col.SetUnion(f(left), f(right))
         else col.BagAdd(f(left), f(right))
       case silver.CondExp(cond, thn, els) => col.Select(f(cond), f(thn), f(els))
-      case silver.CurrentPerm(res) => col.CurPerm(col.AmbiguousLocation(f(res)))
+      case silver.CurrentPerm(res) => col.CurPerm(col.AmbiguousLocation(f(res))(vct.col.origin.PanicBlame("Silver does not have pointers.")))
       case silver.Div(left, right) => col.FloorDiv(f(left), f(right))(blame(e))
       case silver.DomainFuncApp(funcname, args, typVarMap) =>
         col.SilverPartialADTFunctionInvocation(funcname, args.map(f), typVarMap.toSeq.map {
