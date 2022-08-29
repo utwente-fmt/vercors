@@ -28,7 +28,7 @@ pure seq<int> reverse(seq<int> s) = Seq.is_empty(s) ? Seq.create_empty() : Seq.r
 pure boolean is_empty(List list) = list == null;
 
 /** yields a sequence containing the values of `list`. */
-requires p != none ** list->state(p);
+requires p != none ** list?.state(p);
 pure seq<int> as_seq(List list, frac p) =
   List.is_empty(list) ? Seq.create_empty() : \unfolding list.state(p) \in seq<int> { list.value } + List.as_seq(list.next, p);
 
