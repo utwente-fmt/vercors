@@ -14,6 +14,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.math.BigInt
 import scala.annotation.nowarn
+import scala.reflect.ClassTag
 
 /**
   * This rewrite pass simplifies expressions of roughly this form:
@@ -114,8 +115,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     equalityChecker = ExpressionEqualityCheck()
 
     val signals = contract.signals.map(element => dispatch(element))
-    val givenArgs = collectInScope(variableScopes) {contract.givenArgs.foreach(dispatch)}
-    val yieldsArgs = collectInScope(variableScopes) {contract.yieldsArgs.foreach(dispatch)}
+    val givenArgs = variables.collect { contract.givenArgs.foreach(dispatch) }._1
+    val yieldsArgs = variables.collect {contract.yieldsArgs.foreach(dispatch)}._1
     val decreases = contract.decreases.map(element => rewriter.dispatch(element))
 
     ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contract.blame)(contract.o)
@@ -403,10 +404,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     case class ForallSubstitute(subs: Map[Expr[Pre], Expr[Post]])
       extends Rewriter[Pre] {
 
-      override def lookupSuccessor: Declaration[Pre] => Option[Declaration[Post]] = {
-        val here = mainRewriter.lookupSuccessor
-        decl => here(decl)
-      }
+//      override def lookupSuccessor: Declaration[Pre] => Option[Declaration[Post]] = {
+//        val here = mainRewriter.lookupSuccessor
+//        decl => here(decl)
+//      }
+
+      override def anySucc[RefDecl <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl]
+      = mainRewriter.anySucc(decl)(tag)
 
       override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
         case expr if subs.contains(expr) => subs(expr)
@@ -416,7 +420,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
     def lookForLinearAccesses(): Option[Expr[Post]] = {
       val linearAccesses = new FindLinearArrayAccesses(this)
-      withCollectInScope(mainRewriter.variableScopes) {linearAccesses.search(body)} match {
+
+      mainRewriter.variables.collect {linearAccesses.search(body)} match {
         case (bindings, Some(substituteForall)) =>
           if(bindings.size != 1){
             ???
@@ -678,7 +683,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           }
           // We found a replacement!
           // Make the declaration final
-          x_new.declareDefault(quantifierData.mainRewriter)
+          quantifierData.mainRewriter.variables.declare(x_new)
+//          x_new.declareDefault(quantifierData.mainRewriter)
           val ArraySubscript(arr, index) = arrayIndex
           // Replace the linear expression with the new variable
           val x_new_var: Expr[Post] = Local(x_new.ref)
