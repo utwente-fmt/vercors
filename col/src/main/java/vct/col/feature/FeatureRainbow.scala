@@ -143,6 +143,7 @@ class FeatureRainbow[G] {
     case node: ValidMatrix[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: PermPointer[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
+    case node: Value[G] => return Nil
     case node: Eq[G] => return Nil
     case node: Neq[G] => return Nil
     case node: AmbiguousGreater[G] => AmbiguousOperators

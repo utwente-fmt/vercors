@@ -488,12 +488,13 @@ final case class PointerLocation[G](pointer: Expr[G])(val blame: Blame[PointerLo
 final case class PredicateLocation[G](predicate: Ref[G, Predicate[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with PredicateLocationImpl[G]
 final case class InstancePredicateLocation[G](predicate: Ref[G, InstancePredicate[G]], obj: Expr[G], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with InstancePredicateLocationImpl[G]
 final case class AmbiguousLocation[G](expr: Expr[G])(val blame: Blame[PointerLocationError])(implicit val o: Origin) extends Location[G] with AmbiguousLocationImpl[G]
-// magic wand location ?
 
 
 final case class Perm[G](loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermImpl[G]
 final case class PointsTo[G](loc: Location[G], perm: Expr[G], value: Expr[G])(implicit val o: Origin) extends Expr[G] with PointsToImpl[G]
 final case class CurPerm[G](loc: Location[G])(implicit val o: Origin) extends Expr[G] with CurPermImpl[G]
+
+final case class Value[G](loc: Location[G])(implicit val o: Origin) extends Expr[G] with ValueImpl[G]
 
 final case class ValidArray[G](arr: Expr[G], len: Expr[G])(implicit val o: Origin) extends Expr[G] with ValidArrayImpl[G]
 final case class ValidMatrix[G](mat: Expr[G], w: Expr[G], h: Expr[G])(implicit val o: Origin) extends Expr[G] with ValidMatrixImpl[G]

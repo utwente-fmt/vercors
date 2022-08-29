@@ -932,7 +932,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
     case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
     case ValPerm(_, _, loc, _, perm, _) => Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-    case ValValue(_, _, loc, _) => Perm(AmbiguousLocation(convert(loc))(blame(e)), ReadPerm())
+    case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc))(blame(e)))
     case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(AmbiguousLocation(convert(loc))(blame(e)), convert(perm), convert(v))
     case ValHPerm(_, _, loc, _, perm, _) => ModelPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => ActionPerm(convert(loc), convert(perm))

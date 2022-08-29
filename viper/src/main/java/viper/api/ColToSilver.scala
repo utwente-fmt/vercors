@@ -280,6 +280,12 @@ case class ColToSilver(program: col.Program[_]) {
       case col.SilverFieldLocation(obj, field) => silver.CurrentPerm(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(e), info=expInfo(e)))(pos=pos(e), info=expInfo(e))
       case default => ??(default)
     }
+    case col.Value(loc) => loc match {
+      case col.SilverFieldLocation(obj, field) =>
+        silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(pos = pos(loc), NodeInfo(loc)), silver.WildcardPerm()())(pos=pos(e), expInfo(e))
+      case col.PredicateLocation(predicate, args) =>
+        silver.PredicateAccessPredicate(silver.PredicateAccess(args.map(exp), ref(predicate))(pos = pos(loc), NodeInfo(loc)), silver.WildcardPerm()())(pos = pos(e), expInfo(e))
+    }
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(pos=pos(e), info=expInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(pos=pos(e), info=expInfo(e))
     case col.FunctionInvocation(f, args, Nil, Nil, Nil) =>
