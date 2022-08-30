@@ -12,24 +12,36 @@ case object SplitQuantifiers extends RewriterBuilder {
 
 case class SplitQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
   @tailrec
-  private def unroll(bindings: Seq[Variable[Pre]], body: Expr[Post], builder: (Variable[Post], Boolean, Expr[Post]) => Expr[Post]): Expr[Post] =
+  private def unroll(bindings: Seq[Variable[Pre]], body: Expr[Post], builder: (Variable[Post], Expr[Post]) => Expr[Post]): Expr[Post] =
     bindings match {
-      case binding :: Nil => builder(variables.dispatch(binding), true, body)
-      case binding :: more => unroll(more, builder(variables.dispatch(binding), false, body), builder)
+      case Nil => body
+      case binding :: bindings => unroll(bindings, builder(variables.dispatch(binding), body), builder)
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
     case Forall(bindings, triggers, body) =>
       variables.scope {
-        unroll(bindings, dispatch(body), (binding, outer, body) => Forall(Seq(binding), if(outer) triggers.map(_.map(dispatch)) else Nil, body)(e.o))
+        unroll(
+          bindings.init,
+          Forall(Seq(variables.dispatch(bindings.last)), triggers.map(_.map(dispatch)), dispatch(body))(e.o),
+          (binding, body) => Forall(Seq(binding), Nil, body)(e.o)
+        )
       }
     case s @ Starall(bindings, triggers, body) =>
       variables.scope {
-        unroll(bindings, dispatch(body), (binding, outer, body) => Starall(Seq(binding), if (outer) triggers.map(_.map(dispatch)) else Nil, body)(s.blame)(e.o))
+        unroll(
+          bindings.init,
+          Starall(Seq(variables.dispatch(bindings.last)), triggers.map(_.map(dispatch)), dispatch(body))(s.blame)(e.o),
+          (binding, body) => Starall(Seq(binding), Nil, body)(s.blame)(e.o)
+        )
       }
     case Exists(bindings, triggers, body) =>
       variables.scope {
-        unroll(bindings, dispatch(body), (binding, outer, body) => Exists(Seq(binding), if (outer) triggers.map(_.map(dispatch)) else Nil, body)(e.o))
+        unroll(
+          bindings.init,
+          Exists(Seq(variables.dispatch(bindings.last)), triggers.map(_.map(dispatch)), dispatch(body))(e.o),
+          (binding, body) => Exists(Seq(binding), Nil, body)(e.o)
+        )
       }
     case other => rewriteDefault(other)
   }

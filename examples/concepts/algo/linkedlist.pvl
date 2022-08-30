@@ -35,7 +35,7 @@ pure seq<int> as_seq(List list, frac p) =
 /** gives a new list equal to `list` but with `value` appended to the front. */
 given frac p;
 given seq<int> orig;
-context p != none ** list->state(p);
+context p != none ** list?.state(p);
 requires orig == List.as_seq(list, p);
 ensures \result != null;
 ensures \result.state(write);
@@ -55,9 +55,9 @@ List append(List list, int value) {
 /** yields a clone (hard copy) of the input list `a`. */
 given frac p;
 given seq<int> orig;
-context p != none ** a->state(p);
+context p != none ** a?.state(p);
 requires orig == List.as_seq(a, p);
-ensures \result->state(write);
+ensures \result?.state(write);
 ensures List.as_seq(\result, write) == orig;
 List clone(List a) {
   if (List.is_empty(a)) {
@@ -84,10 +84,10 @@ given frac p;
 given frac q;
 given seq<int> orig_a;
 given seq<int> orig_b;
-context p != none ** q != none ** a->state(p) ** b->state(q);
+context p != none ** q != none ** a?.state(p) ** b?.state(q);
 requires orig_a == List.as_seq(a, p);
 requires orig_b == List.as_seq(b, q);
-ensures \result->state(write);
+ensures \result?.state(write);
 ensures List.as_seq(\result, write) == orig_a + orig_b;
 List concatenate(List a, List b) {
   if (List.is_empty(a)) {
@@ -117,7 +117,7 @@ List concatenate(List a, List b) {
 /** prepends `value` to the back of `list`. */
 given frac p;
 given seq<int> orig;
-context p != none ** list->state(p);
+context p != none ** list?.state(p);
 requires List.as_seq(list, p) == orig;
 ensures \result != null;
 ensures \result.state(write);
@@ -148,9 +148,9 @@ List prepend(List list, int value) {
 /** gives a new list equal to `list` but with the first occurence of `value` removed. */
 given frac p;
 given seq<int> orig;
-context p != none ** list->state(p);
+context p != none ** list?.state(p);
 requires orig == List.as_seq(list, p);
-ensures \result->state(write);
+ensures \result?.state(write);
 ensures List.as_seq(\result, write) == Seq.`remove`(orig, value);
 List `remove`(List list, int value) {
   if (List.is_empty(list)) {
@@ -185,9 +185,9 @@ List `remove`(List list, int value) {
 /** gives a new list equal to the reversed `list`. */
 given frac p;
 given seq<int> orig;
-context p != none ** list->state(p);
+context p != none ** list?.state(p);
 requires orig == List.as_seq(list, p);
-ensures \result->state(write);
+ensures \result?.state(write);
 ensures List.as_seq(\result, write) == Seq.reverse(orig);
 List reverse(List list) {
   if (List.is_empty(list)) {
@@ -215,11 +215,11 @@ class List {
 	List next;
 	int value;
 	
-	resource state(frac p) = p != none ** Perm(value, p) ** Perm(next, p) ** next->state(p);
+	resource state(frac p) = p != none ** Perm(value, p) ** Perm(next, p) ** next?.state(p);
 
 	/** constructs a new list with tail `n` and value `v` */
 	given seq<int> orig;
-	requires n->state(write);
+	requires n?.state(write);
 	requires List.as_seq(n, write) == orig;
 	ensures state(write);
 	ensures \unfolding state(write) \in value == v;
