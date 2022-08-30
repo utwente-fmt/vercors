@@ -1,6 +1,5 @@
 package vct.col.ast.util
 
-import hre.lang.System.Warning
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.ast.{And, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Star, UMinus, Wand}
 import vct.result.VerificationError.UserError
@@ -75,6 +74,16 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
   def equalExpressions(lhs: Expr[G], rhs: Expr[G]): Boolean = {
     replacerDepth = 0
     equalExpressionsRecurse(lhs, rhs)
+  }
+
+  def isGreaterThanZero(e: Expr[G]): Boolean = e match {
+    case v: Local[G] => info.exists(_.variableGreaterThanZero.contains(v))
+    case _ => isConstantInt(e).getOrElse(0: BigInt) > 0
+  }
+
+  def isNonZero(e: Expr[G]):Boolean = e match {
+    case v: Local[G] => info.exists(_.variableNotZero.contains(v))
+    case _ => isConstantInt(e).getOrElse(0) != 0
   }
 
   //
@@ -199,7 +208,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 }
 
 case class AnnotationVariableInfo[G](variableEqualities: Map[Local[G], List[Expr[G]]], variableValues: Map[Local[G], BigInt],
-                                     variableSynonyms: Map[Local[G], Int])
+                                     variableSynonyms: Map[Local[G], Int], variableNotZero: Set[Local[G]], variableGreaterThanZero: Set[Local[G]])
 
 /** This class gathers information about variables, such as:
   * `requires x == 0` and stores that x is equal to the value 0.
@@ -213,7 +222,10 @@ class AnnotationVariableInfoGetter[G]() {
   val variableValues: mutable.Map[Local[G], BigInt] = mutable.Map()
   // We put synonyms in the same group and give them a group number, to identify the same synonym groups
   val variableSynonyms: mutable.Map[Local[G], Int] = mutable.Map()
+  val variableNotZero: mutable.Set[Local[G]] = mutable.Set()
+  val variableGreaterThanZero: mutable.Set[Local[G]] = mutable.Set()
   var currentSynonymGroup = 0
+  var equalCheck: ExpressionEqualityCheck[G] = ExpressionEqualityCheck()
 
   def extractEqualities(e: Expr[G]): Unit = {
     e match{
@@ -224,6 +236,32 @@ class AnnotationVariableInfoGetter[G]() {
           case (_, v2: Local[G])  => addName(v2, e1)
           case _ =>
         }
+      case _ =>
+    }
+  }
+
+  def extractComparisons(e: Expr[G]): Unit = {
+    e match{
+      // x != 0
+      case Neq(v: Local[G], e2) =>  equalCheck.isConstantInt(e2).foreach{i => if(i == 0) variableNotZero.add(v)}
+      // 0 != x
+      case Neq(e1, v: Local[G]) => equalCheck.isConstantInt(e1).foreach{i => if(i == 0) variableNotZero.add(v)}
+      // x < 0
+      case Less(v: Local[G], e2) => equalCheck.isConstantInt(e2).foreach{i => if(i <= 0) variableNotZero.add(v) }
+      // x <= -1
+      case LessEq(v: Local[G], e2) => equalCheck.isConstantInt(e2).foreach{i => if(i < 0) variableNotZero.add(v) }
+      // 0 < x
+      case Less(e1, v: Local[G]) => equalCheck.isConstantInt(e1).foreach{i => if(i >= 0) variableNotZero.add(v); variableGreaterThanZero.add(v) }
+      // 1 <= x
+      case LessEq(e1, v: Local[G]) => equalCheck.isConstantInt(e1).foreach{i => if(i > 0) variableNotZero.add(v); variableGreaterThanZero.add(v) }
+      // x > 0
+      case Greater(v: Local[G], e2) => equalCheck.isConstantInt(e2).foreach{i => if(i >= 0) variableNotZero.add(v); variableGreaterThanZero.add(v) }
+      // x >= 1
+      case GreaterEq(v: Local[G], e2) => equalCheck.isConstantInt(e2).foreach{i => if(i > 0) variableNotZero.add(v); variableGreaterThanZero.add(v) }
+      // 0 > x
+      case Greater(e1, v: Local[G]) => equalCheck.isConstantInt(e1).foreach{i => if(i <= 0) variableNotZero.add(v) }
+      // 0 >= x
+      case GreaterEq(e1, v: Local[G]) => equalCheck.isConstantInt(e1).foreach{i => if(i < 0) variableNotZero.add(v) }
       case _ =>
     }
   }
@@ -239,55 +277,85 @@ class AnnotationVariableInfoGetter[G]() {
       case (Some(id1), None) => variableSynonyms(v2) = id1
       case (None, Some(id2)) => variableSynonyms(v1) = id2
       // Merge the groups, give every synonym group member of id2 value id1
-      case (Some(id1), Some(id2)) =>
+      case (Some(id1), Some(id2)) if id1 != id2 =>
         variableSynonyms.mapValuesInPlace((_, group) => if (group == id2) id1 else group)
+      case _ =>
     }
   }
+
+  def addValue(v: Local[G], x: BigInt): Unit =
+    variableValues.get(v) match {
+      case Some(y) => if (x!=y) throw InconsistentVariableEquality(v, x, y)
+      case None =>
+        variableValues(v) = x
+        if(x>0) variableGreaterThanZero.add(v)
+        if(x!=0) variableNotZero.add(v)
+    }
 
   def addName(v: Local[G], expr: Expr[G]): Unit ={
     // Add to constant list
     isConstantInt[G](expr) match {
-      case Some(x) => variableValues.get(v) match {
-        case Some(y) => if (x!=y)
-          throw InconsistentVariableEquality(v, x, y)
-        case None => variableValues(v) = x
-      }
+      case Some(x) => addValue(v, x)
       case None =>
         val list = variableEqualities.getOrElseUpdate(v, mutable.ListBuffer())
         list.addOne(expr)
     }
   }
 
-  def getInfo(annotations: Iterable[Expr[G]]): AnnotationVariableInfo[G] = {
+  def getInfo(annotations: Seq[Expr[G]]): AnnotationVariableInfo[G] = {
     variableEqualities.clear()
     variableValues.clear()
+    variableSynonyms.clear()
+    currentSynonymGroup = 0
+    variableNotZero.clear()
+    variableGreaterThanZero.clear()
 
     for(clause <- annotations){
       extractEqualities(clause)
     }
 
+    val res = AnnotationVariableInfo[G](variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
+      variableSynonyms.toMap, Set[Local[G]](), Set[Local[G]]())
+    equalCheck = ExpressionEqualityCheck(Some(res))
+
+    for(clause <- annotations){
+      extractComparisons(clause)
+    }
+
     distributeInfo()
+
     AnnotationVariableInfo(variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
-      variableSynonyms.toMap)
+      variableSynonyms.toMap, variableNotZero.toSet, variableGreaterThanZero.toSet)
   }
 
   def distributeInfo(): Unit = {
-    // First distribute value knowledge over the rest of the map
-    val beginSize = variableValues.size
-
+    // First check if expressions have become integers
     for((name, equals) <- variableEqualities){
       if(!variableValues.contains(name))
         for(equal <- equals){
-          equal match {
-            case n : Local[G] =>
-              variableValues.get(n).foreach(variableValues(name) = _)
-            case _ =>
+          equalCheck.isConstantInt(equal) match {
+            case Some(x) => addValue(name, x)
+            case None =>
           }
         }
     }
 
-    // If sizes are not the same, we know more, so distribute again!
-    if(variableValues.size != beginSize) distributeInfo()
+    // Group synonym sets
+    val synonymSets: mutable.Map[Int, mutable.Set[Local[G]]] = mutable.Map()
+    variableSynonyms.foreach{ case (v, groupId) => synonymSets.getOrElse(groupId,mutable.Set()).add(v) }
+
+    def hasValue(vars: mutable.Set[Local[G]]): Option[BigInt] = {
+      vars.foreach{v => if(variableValues.contains(v)) return variableValues.get(v) }
+      None
+    }
+
+    synonymSets.foreach{ case (_, vars) =>
+      // Redistribute values over synonyms
+      hasValue(vars).foreach{x => vars.foreach{addValue(_, x)}}
+      // Redistribute not-zero over synonyms
+      if(vars.intersect(variableNotZero).nonEmpty) variableNotZero.addAll(vars)
+      // Redistribute greater than zero over synonyms
+      if(vars.intersect(variableGreaterThanZero).nonEmpty) variableGreaterThanZero.addAll(vars) }
   }
 
 }
