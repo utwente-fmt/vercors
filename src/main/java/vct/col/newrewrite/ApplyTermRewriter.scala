@@ -142,7 +142,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
 
     override def dispatch(d: Declaration[Rule]): Unit = d match {
       case v: Variable[Rule] =>
-        allScopes.anySucceedOnly(v, new Variable(dispatch(v.t))(binderOrigins.getOrElse(v,defaultOrigin)))
+        variables.succeed(v, new Variable(dispatch(v.t))(binderOrigins.getOrElse(v,defaultOrigin)))
       case other => rewriteDefault(other)
     }
 

@@ -450,6 +450,8 @@ class FeatureRainbow[G] {
     case node: CStructAccess[G] => return Nil
     case node: CStructDeref[G] => return Nil
     case node: GpgpuCudaKernelInvocation[G] => return Nil
+    case node: LocalThreadId[G] => return Nil
+    case node: GlobalThreadId[G] => return Nil
     case node: CPrimitiveType[G] => return Nil
     case node: JavaName[G] => return Nil
     case node: JavaImport[G] => return Nil

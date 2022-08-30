@@ -633,9 +633,9 @@ case class Printer(out: Appendable,
     case MapDisjoint(left, right) =>
       (phrase("disjointMap(", left, ",", space, right, ")"), 100)
     case Forall(bindings, triggers, body) =>
-      (phrase("(", "\\forall", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+      (phrase("(", "\\forall", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
     case Exists(bindings, triggers, body) =>
-      (phrase("(", "\\exists", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+      (phrase("(", "\\exists", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
     case ValidArray(arr, len) =>
       (phrase("\\array(", arr, ",", space, len, ")"), 100)
     case ValidMatrix(mat, w, h) =>
@@ -655,13 +655,15 @@ case class Printer(out: Appendable,
     case JoinToken(thread) =>
       (phrase("running", "(", thread, ")"), 100)
     case Starall(bindings, triggers, body) =>
-      (phrase("(", "\\forall*", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+      (phrase("(", "\\forall*", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
     case Star(left, right) =>
       (phrase(assoc(40, left), space, "**", space, assoc(40, right)), 40)
     case Wand(left, right) =>
       (phrase(bind(30, left), space, "-*", space, assoc(30, right)), 30)
     case Scale(scale, res) =>
       (phrase("[", scale, "]", assoc(90, res)), 90)
+    case ScaleByParBlock(block, res) =>
+      (phrase("[", block.decl, "]", assoc(90, res)), 90)
     case Perm(loc, perm) =>
       (phrase("Perm(", loc, ",", space, perm, ")"), 100)
     case PointsTo(loc, perm, value) =>
@@ -849,6 +851,10 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, arr), "[", index, "]"), 100)
     case PointerSubscript(pointer, index) =>
       (phrase(assoc(100, pointer), "[", index, "]"), 100)
+    case PointerBlockOffset(pointer) =>
+      (phrase("pointer_block(", pointer ,")"), 100)
+    case PointerBlockLength(pointer) =>
+      (phrase("block_length(", pointer ,")"), 100)
     case Cons(x, xs) =>
       (phrase(bind(87, x), space, "::", space, assoc(87, xs)), 87)
     case Head(xs) =>
