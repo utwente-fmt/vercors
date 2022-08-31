@@ -84,12 +84,13 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
           const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) &*
           PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
           starall(IteratedPtrInjective, TInt(), i =>
-            (const(0) <= i && i < dispatch(len)) ==> Perm(PointerSubscript(dispatch(p), i)(FramedPtrOffset), dispatch(perm)))
+            (const(0) <= i && i < dispatch(len)) ==>
+              Perm(PointerLocation(PointerAdd(dispatch(p), i)(FramedPtrOffset))(FramedPtrOffset), dispatch(perm)))
       case PermPointerIndex(p, idx, perm) =>
         (dispatch(p) !== Null()) &*
           const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) &*
           PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) < PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
-          Perm(PointerSubscript(dispatch(p), dispatch(idx))(FramedPtrOffset), dispatch(perm))
+          Perm(PointerLocation(PointerAdd(dispatch(p), dispatch(idx))(FramedPtrOffset))(FramedPtrOffset), dispatch(perm))
       case other => rewriteDefault(other)
     }
   }

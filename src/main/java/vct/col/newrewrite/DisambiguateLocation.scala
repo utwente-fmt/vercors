@@ -25,19 +25,19 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre]  {
       case location@AmbiguousLocation(expr) => {
         expr match {
           case Deref(obj, ref) =>
-            FieldLocation(dispatch(obj), succ(ref))
+            FieldLocation(dispatch(obj), succ(ref.decl))
           case ModelDeref(obj, ref) =>
-            ModelLocation(dispatch(obj), succ(ref))
+            ModelLocation(dispatch(obj), succ(ref.decl))
           case SilverDeref(obj, ref) =>
-            SilverFieldLocation(dispatch(obj), succ(ref))
+            SilverFieldLocation(dispatch(obj), succ(ref.decl))
           case expr@ArraySubscript(arr, index) =>
             ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
           case point@expr if expr.t.asPointer.isDefined =>
             PointerLocation(dispatch(expr))(location.blame)
           case PredicateApply(ref, args, WritePerm()) =>
-            PredicateLocation(succ(ref), (args.map(dispatch)))
+            PredicateLocation(succ(ref.decl), (args.map(dispatch)))
           case InstancePredicateApply(obj, ref, args, WritePerm()) =>
-            InstancePredicateLocation(succ(ref), dispatch(obj), args.map(dispatch))
+            InstancePredicateLocation(succ(ref.decl), dispatch(obj), args.map(dispatch))
           case default =>
             throw NotALocation(default)
         }
