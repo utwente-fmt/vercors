@@ -40,7 +40,6 @@ case object Main extends LazyLogging {
       return 0
     }
 
-
     Progress.forceProgress = options.progress
 
     for((key, logLevel) <- options.logLevels) {

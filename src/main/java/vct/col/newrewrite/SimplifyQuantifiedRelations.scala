@@ -52,7 +52,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
       val min = (e: Expr[Pre]) => extremeValue(e, !maximizing).getOrElse(return None)
 
       Some(expr match {
-        case v @ IntegerValue(_) => v
+        case e if indepOf(bindings, e) => e
         case Local(Ref(v)) =>
           if(bindings.contains(v)) {
             val bounds = if(maximizing) exclusiveUpperBound(v) else inclusiveLowerBound(v)

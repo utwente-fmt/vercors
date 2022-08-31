@@ -1,6 +1,6 @@
 package vct.col.newrewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CInit, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CGlobalDeclaration, CInit, CLocalDeclaration, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.origin.Origin
 import vct.col.resolve.{C, RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -23,12 +23,17 @@ case object LangTypesToCol extends RewriterBuilder {
 }
 
 case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
-  override def succ[DPost <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _ <: Declaration[Pre]])(implicit tag: ClassTag[DPost]): Ref[Rewritten[Pre], DPost] =
+  override def porcelainRefSucc[RefDecl <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Rewritten[Pre], RefDecl]] =
     ref match {
       // Retain unresolved references to be resolved by LangSpecificToCol
-      case unresolved: UnresolvedRef[_, _] => new UnresolvedRef[Post, DPost](unresolved.name)
-      case other => succ(other.decl)
+      case unresolved: UnresolvedRef[_, _] => Some(new UnresolvedRef[Post, RefDecl](unresolved.name))
+      case _ => None
     }
+
+  override def porcelainRefSeqSucc[RefDecl <: Declaration[Rewritten[Pre]]](refs: Seq[Ref[Pre, _]])(implicit tag: ClassTag[RefDecl]): Option[Seq[Ref[Rewritten[Pre], RefDecl]]] =
+    if(refs.forall(_.isInstanceOf[UnresolvedRef[_, _]]))
+      Some(refs.map(porcelainRefSucc[RefDecl]).map(_.get))
+    else None
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
@@ -70,7 +75,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case Some(params) =>
         // PB TODO: varargs is discarded here.
         CTypedFunctionDeclarator[Post](
-          collectInScope(cParams) { params.foreach(dispatch) },
+          cParams.dispatch(params),
           varargs = false,
           CName(info.name)
         )
@@ -84,22 +89,37 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case param: CParam[Pre] =>
       val (specs, decl) = normalizeCDeclaration(param.specifiers, param.declarator, context = Some(param))(param.o)
-      new CParam(specs, decl)(param.o).declareDefault(this)
-    case declaration: CDeclaration[Pre] =>
-      declaration.inits.foreach(init => {
+      cParams.declare(new CParam(specs, decl)(param.o))
+    case declaration: CLocalDeclaration[Pre] =>
+      declaration.decl.inits.foreach(init => {
         implicit val o: Origin = init.o
-        val (specs, decl) = normalizeCDeclaration(declaration.specs, init.decl)
-        declaration.rewrite(
-          specs = specs,
-          inits = Seq(
-            CInit(decl, init.init.map(dispatch)),
+        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl)
+        cLocalDeclarations.declare(declaration.rewrite(
+          decl = declaration.decl.rewrite(
+            specs = specs,
+            inits = Seq(
+              CInit(decl, init.init.map(dispatch)),
+            ),
           ),
-        ).declareDefault(this)
+        ))
+      })
+    case declaration: CGlobalDeclaration[Pre] =>
+      declaration.decl.inits.foreach(init => {
+        implicit val o: Origin = init.o
+        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl)
+        globalDeclarations.declare(declaration.rewrite(
+          decl = declaration.decl.rewrite(
+            specs = specs,
+            inits = Seq(
+              CInit(decl, init.init.map(dispatch)),
+            ),
+          ),
+        ))
       })
     case declaration: CFunctionDefinition[Pre] =>
       implicit val o: Origin = declaration.o
       val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator)
-      declaration.rewrite(specs = specs, declarator = decl).declareDefault(this)
+      globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
     case other => rewriteDefault(other)
   }
 }

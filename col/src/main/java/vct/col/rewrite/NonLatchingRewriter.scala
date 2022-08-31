@@ -30,6 +30,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)
   override def dispatch(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
   override def dispatch(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
+  override def dispatch(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
 
   override def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override def dispatch(node: JavaModifier[Pre]): JavaModifier[Post] = rewriteDefault(node)

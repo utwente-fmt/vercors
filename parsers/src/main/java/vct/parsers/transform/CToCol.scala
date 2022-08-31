@@ -205,7 +205,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit stat: BlockItemContext): Statement[G] = stat match {
     case BlockItem0(decl) =>
-      CDeclarationStatement(convert(decl))
+      CDeclarationStatement(new CLocalDeclaration(convert(decl)))
     case BlockItem1(stat) => convert(stat)
     case BlockItem2(embedStats) => convert(embedStats)
     case BlockItem3(embedStat) => convert(embedStat)
@@ -261,7 +261,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       })
     case IterationStatement3(contract1, maybePragma, _, _, init, cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop[G](CDeclarationStatement(convert(init)), cond.map(convert(_)) getOrElse tt, evalOrNop(update), c.consumeLoopContract(stat), convert(body)))
+        Scope(Nil, Loop[G](CDeclarationStatement(new CLocalDeclaration(convert(init))), cond.map(convert(_)) getOrElse tt, evalOrNop(update), c.consumeLoopContract(stat), convert(body)))
       })
   }
 
@@ -954,6 +954,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+    case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
+    case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {

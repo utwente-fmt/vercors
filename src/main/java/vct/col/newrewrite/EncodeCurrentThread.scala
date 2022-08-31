@@ -53,18 +53,18 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: RunMethod[Pre] =>
       implicit val o: Origin = app.o
-      app.rewrite(body = app.body.map { body =>
+      classDeclarations.succeed(app, app.rewrite(body = app.body.map { body =>
         val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
         Scope(Seq(currentThreadVar), currentThreadId.having(currentThreadVar.get) { dispatch(body) })
-      }).succeedDefault(app)
+      }))
     case app: Applicable[Pre] =>
       if(wantsThreadLocal(app)) {
         val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
         currentThreadId.having(Local[Post](currentThreadVar.ref)(CurrentThreadIdOrigin)) {
-          app.rewrite(args = collectInScope(variableScopes) {
-            currentThreadVar.declareDefault(this)
+          allScopes.anySucceedOnly(app, allScopes.anyDeclare(app.rewrite(args = variables.collect {
+            variables.declare(currentThreadVar)
             app.args.foreach(dispatch)
-          }).succeedDefault(app)
+          }._1)))
         }
       } else {
         rewriteDefault(app)

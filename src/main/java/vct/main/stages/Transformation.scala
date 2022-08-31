@@ -165,6 +165,8 @@ case class SilverTransformation
     ClassToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
+
+    SplitQuantifiers,
   ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
   ) ++ simplifyAfterRelations ++ Seq(

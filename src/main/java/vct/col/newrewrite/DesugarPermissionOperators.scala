@@ -5,6 +5,7 @@ import vct.col.util.AstBuildHelpers._
 import RewriteBuilders._
 import vct.col.newrewrite.DesugarPermissionOperators.{FramedArraySubscriptBlame, FramedPointerDerefBlame, PredicateValueError}
 import vct.col.origin.{ArrayInsufficientPermission, ArrayLocationError, ArraySubscriptError, Blame, FramedArrIndex, FramedArrLength, FramedArrLoc, IteratedArrayInjective, Origin, PointerBounds, PointerDerefError, PointerInsufficientPermission, PointerLocationError, PointerSubscriptError, PointsToDeref}
+import vct.col.origin.{FramedArrIndex, FramedArrLength, FramedPtrBlockLength, FramedPtrBlockOffset, FramedPtrOffset, IteratedArrayInjective, IteratedPtrInjective, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 
@@ -79,10 +80,16 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
               ((ArraySubscript(mat, row0)(FramedArrIndex) === ArraySubscript(mat, row1)(FramedArrIndex)) ==> (row0 === row1))
           ))
       case PermPointer(p, len, perm) =>
-        // TODO PB: need some concept of blocks to do this in the new pointer encoding
-        ???
+        (dispatch(p) !== Null()) &*
+          const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) &*
+          PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(len) <= PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
+          starall(IteratedPtrInjective, TInt(), i =>
+            (const(0) <= i && i < dispatch(len)) ==> Perm(PointerSubscript(dispatch(p), i)(FramedPtrOffset), dispatch(perm)))
       case PermPointerIndex(p, idx, perm) =>
-        ???
+        (dispatch(p) !== Null()) &*
+          const(0) <= PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) &*
+          PointerBlockOffset(dispatch(p))(FramedPtrBlockOffset) + dispatch(idx) < PointerBlockLength(dispatch(p))(FramedPtrBlockLength) &*
+          Perm(PointerSubscript(dispatch(p), dispatch(idx))(FramedPtrOffset), dispatch(perm))
       case other => rewriteDefault(other)
     }
   }

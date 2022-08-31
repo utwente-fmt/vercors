@@ -161,7 +161,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   private def parse(name: String): Seq[GlobalDeclaration[Post]] = {
     val program = importer.loadAdt[Pre](name)
     program.declarations.foreach(dispatch)
-    program.declarations.map(lookupSuccessor(_).get.asInstanceOf[GlobalDeclaration[Post]])
+    program.declarations.map(succProvider.computeSucc).map(_.get)
   }
 
   private lazy val nothingFile = parse("nothing")
@@ -396,11 +396,11 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
-      program.rewrite(declarations = collectInScope(globalScopes) {
+      program.rewrite(declarations = globalDeclarations.collect {
         parse("viper_order")
         anyFile
         program.declarations.foreach(dispatch)
-      })
+      }._1)
     }
   }
 
@@ -431,18 +431,14 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   private def getArrayField(arr: Expr[Pre]): Ref[Post, SilverField[Post]] = {
     val tElement = dispatch(arr.t.asArray.get.element)
     arrayField.getOrElseUpdate(tElement, {
-      val field = new SilverField(tElement)(ArrayField(tElement))
-      field.declareDefault(this)
-      field
+      globalDeclarations.declare(new SilverField(tElement)(ArrayField(tElement)))
     }).ref
   }
 
   private def getPointerField(ptr: Expr[Pre]): Ref[Post, SilverField[Post]] = {
     val tElement = dispatch(ptr.t.asPointer.get.element)
     pointerField.getOrElseUpdate(tElement, {
-      val field = new SilverField(tElement)(PointerField(tElement))
-      field.declareDefault(this)
-      field
+      globalDeclarations.declare(new SilverField(tElement)(PointerField(tElement)))
     }).ref
   }
 
@@ -558,6 +554,30 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
           )(PanicBlame("ptr_deref requires nothing.")),
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(deref.blame, deref))
+      case len @ PointerBlockLength(pointer) =>
+        ADTFunctionInvocation[Post](
+          typeArgs = Some((blockAdt.ref, Nil)),
+          ref = blockLength.ref,
+          args = Seq(ADTFunctionInvocation[Post](
+            typeArgs = Some((pointerAdt.ref, Nil)),
+            ref = pointerBlock.ref,
+            args = Seq(FunctionInvocation[Post](
+              ref = optionGet.ref,
+              args = Seq(dispatch(pointer)),
+              typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
+            )(NoContext(PointerNullPreconditionFailed(len.blame, pointer))))
+          ))
+        )
+      case off @ PointerBlockOffset(pointer) =>
+        ADTFunctionInvocation[Post](
+          typeArgs = Some((pointerAdt.ref, Nil)),
+          ref = pointerOffset.ref,
+          args = Seq(FunctionInvocation[Post](
+            ref = optionGet.ref,
+            args = Seq(dispatch(pointer)),
+            typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
+          )(NoContext(PointerNullPreconditionFailed(off.blame, pointer))))
+        )
       case other => rewriteDefault(other)
     }
   }
@@ -565,7 +585,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
   // PB: dumb hack alert: TVoid and Return(Void()) is (for viper) a marker to indicate that there is no return type.
   override def postCoerce(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] if method.returnType == TVoid[Pre]() =>
-      method.rewrite(returnType = TVoid()).succeedDefault(decl)
+      allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(returnType = TVoid())))
     case other => super.postCoerce(other)
   }
 

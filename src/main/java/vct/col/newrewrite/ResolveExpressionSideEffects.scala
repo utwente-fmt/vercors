@@ -76,7 +76,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       executionContext.topOption.flatten match {
         case None => throw Unreachable("flushExtractedExpressions is not called from pure context.")
         case Some(acceptor) =>
-          flat.declareDefault(this)
+          variables.declare(flat)
           implicit val o: Origin = SideEffectOrigin
           val condition = ReInliner().dispatch(foldAnd(conditions))
           val action = assignLocal[Post](Local(flat.ref), pureExpr)
@@ -101,8 +101,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
-    override def succ[DPost <: Declaration[Post]](ref: Ref[Post, _ <: Declaration[Post]])(implicit tag: ClassTag[DPost]): Ref[Post, DPost] =
-      ref.asInstanceOf[Ref[Post, DPost]]
+    override def porcelainRefSucc[RefDecl <: Declaration[Post]](ref: Ref[Post, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Post, RefDecl]] =
+      Some(ref.asInstanceOf[Ref[Post, RefDecl]])
+
+    override def porcelainRefSeqSucc[RefDecl <: Declaration[Post]](refs: Seq[Ref[Post, _]])(implicit tag: ClassTag[RefDecl]): Option[Seq[Ref[Post, RefDecl]]] =
+      Some(refs.map(_.asInstanceOf[Ref[Post, RefDecl]]))
 
     // ... but since we need to be able to unpack locals, we latch those, and they are not latched in
     // ResolveExpressionSideEffects.
@@ -125,15 +128,16 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
   def evaluateOne(e: Expr[Pre]): (Seq[Variable[Post]], Seq[Statement[Post]], Expr[Post]) = {
     val statements = ArrayBuffer[Statement[Post]]()
-    variableScopes.push(ArrayBuffer[Variable[Post]]())
 
-    val result = executionContext.having(Some(statements.append)) {
-      ReInliner().dispatch(dispatch(e))
+    val (vars, result) = variables.collect {
+      executionContext.having(Some(statements.append)) {
+        ReInliner().dispatch(dispatch(e))
+      }
     }
 
     assert(currentlyExtracted.isEmpty)
 
-    (variableScopes.pop().toSeq, statements.toSeq, result)
+    (vars, statements.toSeq, result)
   }
 
   def evaluateAll(es: Seq[Expr[Pre]]): (Seq[Variable[Post]], Seq[Statement[Post]], Seq[Expr[Post]]) = {
@@ -187,14 +191,17 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(obj +: args, {
           case obj :: args => Scope(Seq(res),
-            InvokeMethod[Post](obj, succ(method), args, res.ref +: outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+            InvokeMethod[Post](
+              obj, succ(method), args, res.ref +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+              typeArgs.map(dispatch),
               givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
               yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
         })
       case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(args, args => Scope(Seq(res),
-          InvokeProcedure[Post](succ(method), args, res.ref +: outArgs.map(succ[Variable[Post]]), typeArgs.map(dispatch),
+          InvokeProcedure[Post](succ(method), args,
+            res.ref +: outArgs.map(arg => succ[Variable[Post]](arg.decl)), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
             yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
@@ -270,13 +277,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     case method: AbstractMethod[Pre] =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
       currentResultVar.having(Local[Post](res.ref)(ResultVar)) {
-        method.rewrite(
+        allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(
           returnType = TVoid()(method.o),
-          outArgs = collectInScope(variableScopes) {
-            res.declareDefault(this)
+          outArgs = variables.collect {
+            variables.declare(res)
             method.outArgs.foreach(dispatch)
-          },
-        ).succeedDefault(method)
+          }._1,
+        )))
       }
     case other => rewriteDefault(other)
   }
@@ -373,12 +380,12 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       stored(value, oldValue.t)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeMethod[Post](
         obj = inlined(obj),
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
+        outArgs = res.ref[Variable[Post]] +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
@@ -386,11 +393,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       stored(res.get(SideEffectOrigin), method.returnType)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
-      res.succeedDefault(res.asInstanceOf[Variable[Pre]])
+      variables.succeed(res.asInstanceOf[Variable[Pre]], res)
       effect(InvokeProcedure[Post](
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.ref[Variable[Post]] +: outArgs.map(succ[Variable[Post]]),
+        outArgs = res.ref[Variable[Post]] +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
         yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },

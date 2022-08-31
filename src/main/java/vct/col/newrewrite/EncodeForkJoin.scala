@@ -115,26 +115,26 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
     case m: RunMethod[Pre] =>
       implicit val o: Origin = m.o
       val cls = currentClass.top
-      idleToken(cls) = new InstancePredicate(Nil, None)(IdleToken(cls)).declareDefault(this)
-      runningToken(cls) = new InstancePredicate(Nil, None)(RunningToken(cls)).declareDefault(this)
-      forkMethod(cls) = new InstanceMethod(TVoid(), Nil, Nil, Nil, None, contract(
+      idleToken(cls) = classDeclarations.declare(new InstancePredicate(Nil, None)(IdleToken(cls)))
+      runningToken(cls) = classDeclarations.declare(new InstancePredicate(Nil, None)(RunningToken(cls)))
+      forkMethod(cls) = classDeclarations.declare(new InstanceMethod(TVoid(), Nil, Nil, Nil, None, contract(
         blame = UnsafeDontCare.Satisfiability("satisfiability is checked by verifying the run method"),
         requires = SplitAccountedPredicate(
           UnitAccountedPredicate(InstancePredicateApply[Post](ThisObject(succ(cls)), idleToken.ref(cls), Nil, WritePerm())),
           dispatch(m.contract.requires),
         ),
         ensures = UnitAccountedPredicate(InstancePredicateApply[Post](ThisObject(succ(cls)), runningToken.ref(cls), Nil, WritePerm()))
-      ))(AbstractApplicable)(ForkMethod(cls)).declareDefault(this)
-      joinMethod(cls) = new InstanceMethod(TVoid(), Nil, Nil, Nil, None, contract(
+      ))(AbstractApplicable)(ForkMethod(cls)))
+      joinMethod(cls) = classDeclarations.declare(new InstanceMethod(TVoid(), Nil, Nil, Nil, None, contract(
         blame = PanicBlame("one predicate resource is obviously satisfiable"),
         requires = UnitAccountedPredicate(InstancePredicateApply[Post](ThisObject(succ(cls)), runningToken.ref(cls), Nil, WritePerm())),
         ensures = SplitAccountedPredicate(
           UnitAccountedPredicate(InstancePredicateApply[Post](ThisObject(succ(cls)), idleToken.ref(cls), Nil, WritePerm())),
           dispatch(m.contract.ensures),
         ),
-      ))(AbstractApplicable)(JoinMethod(cls)).declareDefault(this)
+      ))(AbstractApplicable)(JoinMethod(cls)))
 
-      new InstanceMethod[Post](TVoid(), Nil, Nil, Nil, m.body.map(dispatch), dispatch(m.contract))(m.blame).declareDefault(this)
+      classDeclarations.declare(new InstanceMethod[Post](TVoid(), Nil, Nil, Nil, m.body.map(dispatch), dispatch(m.contract))(m.blame))
     case other => rewriteDefault(other)
   }
 }

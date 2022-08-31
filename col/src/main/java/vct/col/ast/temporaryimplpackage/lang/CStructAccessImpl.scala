@@ -1,7 +1,7 @@
 package vct.col.ast.temporaryimplpackage.lang
 
-import vct.col.ast.{CStructAccess, TNotAValue, Type}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, RefADTFunction, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure}
+import vct.col.ast.{CStructAccess, TInt, TNotAValue, Type}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, RefADTFunction, RefCudaVecDim, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure}
 import vct.col.util.Types
 
 trait CStructAccessImpl[G] { this: CStructAccess[G] =>
@@ -18,5 +18,6 @@ trait CStructAccessImpl[G] { this: CStructAccess[G] =>
     case ref: RefModelAction[G] => Types.notAValue(ref)
     case ref: BuiltinField[G] => ref.f(struct).t
     case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
+    case ref: RefCudaVecDim[G] => TInt()
   }
 }

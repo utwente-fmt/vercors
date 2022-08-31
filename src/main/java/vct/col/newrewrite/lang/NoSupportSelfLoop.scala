@@ -12,7 +12,7 @@ case object NoSupportSelfLoop extends RewriterBuilder {
 case class NoSupportSelfLoop[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
-      cls.rewrite(supports = cls.supports.filter(_.decl != cls).map(succ[Class[Post]])).succeedDefault(cls)
+      globalDeclarations.succeed(cls, cls.rewrite(supports = cls.supports.map(_.decl).filter(_ != cls).map(succ[Class[Post]])))
     case other => rewriteDefault(other)
   }
 }
