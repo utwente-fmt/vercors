@@ -169,7 +169,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               fields.decls.indices.map(decl => {
                 val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
                 local.ref = Some(RefJavaField[Pre](fields, decl))
-                Perm(local, WritePerm())
+                Perm(AmbiguousLocation(local)(PanicBlame("Field location is not a pointer.")), WritePerm())
               })
           }.flatten)),
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,

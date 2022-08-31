@@ -372,8 +372,6 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
 
     case CoerceZFracRat() =>
       ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
-    case CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat())) if e == ReadPerm[Post]() =>
-      e
     case CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat())) =>
       ADTFunctionInvocation(Some((fracAdt.ref, Nil)), fracVal.ref, Seq(e))
     case CoerceFracZFrac() =>

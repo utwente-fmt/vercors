@@ -216,6 +216,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: JavaName[Pre] => node
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
+    case node: Location[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -591,8 +592,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         And(bool(left), bool(right))
       case any @ Any() =>
         Any()(any.blame)
-      case APerm(loc, perm) =>
-        APerm(loc, rat(perm))
       case a @ ArraySubscript(arr, index) =>
         ArraySubscript(array(arr)._1, int(index))(a.blame)
       case BagAdd(xs, ys) =>
@@ -715,8 +714,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Head(seq(xs)._1)(head.blame)
       case Held(obj) =>
         Held(cls(obj)._1)
-      case HPerm(loc, perm) =>
-        HPerm(loc, rat(perm))
       case IdleToken(thread) =>
         IdleToken(cls(thread)._1)
       case Implies(left, right) =>
@@ -1084,6 +1081,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
       case value: IntegerValue[Pre] => e
+      case value @ Value(loc) =>
+        Value(loc)
       case values @ Values(arr, from, to) =>
         Values(array(arr)._1, int(from), int(to))(values.blame)
       case VectorCompare(left, right) =>

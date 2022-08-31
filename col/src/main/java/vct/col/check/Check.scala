@@ -38,8 +38,6 @@ sealed trait CheckError {
       ???
     case TupleTypeCount(tup) =>
       ???
-    case NotAHeapLocation(loc) =>
-      loc.loc.o.messageInContext("This expression does not denote a heap location.")
     case NotAPredicateApplication(res) =>
       res.o.messageInContext("This expression is not a (scaled) predicate application")
     case AbstractPredicate(res) =>
@@ -57,7 +55,6 @@ case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) ex
 case class DoesNotDefine(declarator: Declarator[_], declaration: Declaration[_], use: Node[_]) extends CheckError
 case class IncomparableTypes(left: Expr[_], right: Expr[_]) extends CheckError
 case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
-case class NotAHeapLocation(loc: Locator[_]) extends CheckError
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError

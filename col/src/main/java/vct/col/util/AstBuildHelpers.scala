@@ -307,10 +307,10 @@ object AstBuildHelpers {
     Assign(Deref(obj, field)(DerefAssignTarget), value)(blame)
 
   def fieldPerm[G](obj: Expr[G], field: Ref[G, InstanceField[G]], amount: Expr[G])(implicit o: Origin): Perm[G] =
-    Perm(Deref(obj, field)(DerefPerm), amount)
+    Perm(FieldLocation(obj, field), amount)
 
-  def arrayPerm[G](arr: Expr[G], index: Expr[G], amount: Expr[G])(implicit o: Origin): Perm[G] =
-    Perm(ArraySubscript(arr, index)(ArrayPerm), amount)
+  def arrayPerm[G](arr: Expr[G], index: Expr[G], amount: Expr[G], arrayLocationError: Blame[ArrayLocationError])(implicit o: Origin): Perm[G] =
+    Perm(ArrayLocation(arr, index)(arrayLocationError), amount)
 
   def foldAnd[G](exprs: Iterable[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)
