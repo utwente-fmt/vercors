@@ -1,21 +1,11 @@
 package vct.col.newrewrite
 
 import vct.col.ast._
-import vct.col.util.AstBuildHelpers._
-import vct.col.ast.RewriteHelpers._
-import vct.col.newrewrite.Disambiguate.NotALocation
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.VerificationError.{Unreachable, UserError}
-import viper.silicon.state.terms.SetDifference
+import vct.result.VerificationError.Unreachable
 
 case object Disambiguate extends RewriterBuilder {
-
-  case class NotALocation(expr: Expr[_]) extends UserError {
-    override def code: String = "notALocation"
-
-    override def text: String = expr.o.messageInContext("This expression is not a heap location")
-  }
 
   override def key: String = "disambiguate"
   override def desc: String = "Translate ambiguous operators into concrete operators."
@@ -85,34 +75,6 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
           case AmbiguousGreaterEq(left, right) => GreaterEq(dispatch(left), dispatch(right))
           case AmbiguousLessEq(left, right) => LessEq(dispatch(left), dispatch(right))
         }
-      case other => rewriteDefault(other)
-    }
-  }
-
-
-  override def dispatch(loc: Location[Pre]): Location[Post] = {
-    implicit val o: Origin = loc.o
-    loc match {
-      case location @ AmbiguousLocation(expr) => {
-        expr match {
-          case Deref(obj, ref) =>
-            FieldLocation(dispatch(obj), succ(ref))
-          case ModelDeref(obj, ref) =>
-            ModelLocation(dispatch(obj), succ(ref))
-          case SilverDeref(obj, ref) =>
-            SilverFieldLocation(dispatch(obj), succ(ref))
-          case expr @ ArraySubscript(arr, index) =>
-            ArrayLocation(dispatch(arr), dispatch(index))(expr.blame)
-          case point @ expr if expr.t.asPointer.isDefined =>
-            PointerLocation(dispatch(expr))(location.blame)
-          case PredicateApply(ref, args, WritePerm()) =>
-            PredicateLocation(succ(ref), (args.map(dispatch)))
-          case InstancePredicateApply(obj, ref, args, WritePerm()) =>
-            InstancePredicateLocation(succ(ref), dispatch(obj), args.map(dispatch))
-          case default =>
-            throw NotALocation(default)
-        }
-    }
       case other => rewriteDefault(other)
     }
   }

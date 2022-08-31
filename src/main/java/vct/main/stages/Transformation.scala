@@ -125,8 +125,10 @@ case class SilverTransformation
 
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
+    DisambiguateLocation, // Resolve location type
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+    ReadToValue, // resolve wildcard into fractional permission
     DesugarCoalescingOperators, // no .!
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]

@@ -270,6 +270,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(loc: Location[Pre]): Location[Post] = loc match {
     case InstancePredicateLocation(predicate, obj, args) => PredicateLocation[Post](succ(predicate), dispatch(obj) +: args.map(dispatch))(loc.o)
+    case FieldLocation(obj, field) =>
+      SilverFieldLocation[Post](dispatch(obj), fieldSucc.ref(field.decl))(loc.o)
     case default => rewriteDefault(default)
   }
 }
