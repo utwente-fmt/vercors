@@ -67,7 +67,7 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
         (mat !== Null()) && (Length(mat)(FramedArrLength) === dim0) &*
           starall(IteratedArrayInjective, TInt(), row =>
             (const(0) <= row && row < dim0) ==>
-              arrayPerm(mat, row, ReadPerm(), FramedArrLoc)
+              Value(ArrayLocation(mat, row)(FramedArrLoc))
           ) &* forall(TInt(), row =>
             (const(0) <= row && row < dim0) ==>
               (ArraySubscript(mat, row)(FramedArrIndex) !== Null())

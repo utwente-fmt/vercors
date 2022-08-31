@@ -57,6 +57,8 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
 
       case e if TBool().superTypeOf(e.t) => dispatch(e)
       case Perm(loc, p) => Perm(dispatch(loc), amount * dispatch(p))
+      case Value(loc) =>
+        (amount > NoPerm()) ==> Value(dispatch(loc))
       case apply: PredicateApply[Pre] => apply.rewrite(perm = amount * dispatch(apply.perm))
 
       case Star(left, right) => scale(left, amount) &* scale(right, amount)
