@@ -349,7 +349,7 @@ case class BipTransitionPostconditionFailure(failure: ContractFailure, node: Bip
   override def code: String = "bipTransitionPostconditionFailure"
   override def text: String = "The postcondition of the transition is not maintained, since"
 }
-case class BipGuardInvocationFailure(node: BipTransition[_], failure: ContractFailure) extends ContractFailure with BipTransitionFailure {
+case class BipGuardInvocationFailure(failure: ContractFailure, node: BipTransition[_]) extends ContractFailure with BipTransitionFailure {
   override def code: String = "bipTransitionGuardInvocation"
   override def text: String = "Invocation of transition guard in precondition of transition failed, since"
 }
