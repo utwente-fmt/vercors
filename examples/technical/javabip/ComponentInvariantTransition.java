@@ -22,7 +22,7 @@ public class OneComponentOneTransition {
 
     @Transition(name = GO, source = INIT, target = DONE, pre = "x >= 0", post = "x < 3")
     public void goTransition() {
-        x = 3;
+        x = -1;
     }
 }
 

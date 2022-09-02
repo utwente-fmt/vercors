@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
 import vct.col.resolve.{JavaAnnotationData => jad}
 import vct.col.newrewrite.lang.LangBipToCol.{TodoError, WrongTransitionReturnType}
-import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
+import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
 import vct.col.ref.Ref
 import vct.col.resolve.{ImplicitDefaultJavaBipStatePredicate, Java, JavaBipStatePredicateTarget, RefJavaBipStatePredicate}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -78,9 +78,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.succ(_)),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(
-      m.blame, ???
-    )(SourceNameOrigin(m.name, m.o))
+      rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
 
     trans.succeedDefault(m)(rw)
   }

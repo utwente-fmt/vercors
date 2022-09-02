@@ -334,27 +334,24 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
   override def text: String = "zfrac may be zero."
 }
 
-sealed trait BipTransitionFailure extends VerificationFailure
-case class BipComponentInvariantNotMaintained(c: BipComponent[_]) extends BipTransitionFailure {
-  override def code: String = ???
-  override def text: String = ???
-}
-case class BipStateInvariantNotMaintained() extends BipTransitionFailure {
-  override def code: String = ???
-  override def text: String = ???
-}
-case class BipTransitionPostconditionFailure() extends BipTransitionFailure {
-  override def code: String = ???
-  override def text: String = ???
-}
-case class BipGuardInvocationFailure(ann: BipTransition[_], failure: InstanceInvocationFailure) extends ContractFailure with BipTransitionFailure {
-  // Can only construct this if java annotation has a "guard" argument
-//  assert(ann.get("guard").isDefined)
+sealed trait JavaAnnotationFailure extends VerificationFailure
 
+sealed trait BipTransitionFailure extends CallableFailure
+case class BipComponentInvariantNotMaintained(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure {
+  override def code: String = "bipComponentInvariantNotMaintained"
+  override def text: String = "In this transition the invariant of the component is not maintained, since"
+}
+case class BipStateInvariantNotMaintained(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure {
+  override def code: String = "bipStateInvariantNotMaintained"
+  override def text: String = "In this transition the invariant of the state is not maintained, since"
+}
+case class BipTransitionPostconditionFailure(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure {
+  override def code: String = "bipTransitionPostconditionFailure"
+  override def text: String = "The postcondition of the transition is not maintained, since"
+}
+case class BipGuardInvocationFailure(node: BipTransition[_], failure: ContractFailure) extends ContractFailure with BipTransitionFailure {
   override def code: String = "bipTransitionGuardInvocation"
   override def text: String = "Invocation of transition guard in precondition of transition failed, since"
-
-  override def node: Node[_] = ann.get("guard").get
 }
 
 trait Blame[-T <: VerificationFailure] {

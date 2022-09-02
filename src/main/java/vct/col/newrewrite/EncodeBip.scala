@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, BipTransitionPostconditionFailed, IsBipComponent}
-import vct.col.origin.{BipGuardInvocationFailure, Blame, CallableFailure, ContextEverywhereFailedInPre, DiagnosticOrigin, InstanceInvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed}
+import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
@@ -24,16 +24,25 @@ case object EncodeBip extends RewriterBuilder {
 
 //  case class ContextEverywherePreconditionFailed(inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
   case class BipGuardInvocationFailed(transition: BipTransition[_]) extends Blame[InstanceInvocationFailure] {
-    override def blame(error: InstanceInvocationFailure): Unit =
-      transition.blame.blame(BipGuardInvocationFailure(transition, error))
+    override def blame(error: InstanceInvocationFailure): Unit = ???
+//      transition.blame.blame(BipGuardInvocationFailure(transition, error))
 //      inv.blame.blame(ContextEverywhereFailedInPre(error.failure, inv))
   }
 
-  case class BipTransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[PostconditionFailed] {
-    override def blame(error: PostconditionFailed): Unit =
-
-//      transition.blame.blame(BipGuardInvocationFailure(transition, error))
-    //      inv.blame.blame(ContextEverywhereFailedInPre(error.failure, inv))
+  case class BipTransitionPostconditionFailed(component: BipComponent[_], transition: BipTransition[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case cf: ContractedFailure => cf match {
+        case PostconditionFailed(Seq(FailLeft), failure, _) =>
+          transition.blame.blame(BipComponentInvariantNotMaintained(failure, transition))
+        case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) =>
+          transition.blame.blame(BipStateInvariantNotMaintained(failure, transition))
+        case PostconditionFailed(Seq(FailRight, FailRight), failure, _) =>
+          transition.blame.blame(BipTransitionPostconditionFailure(failure, transition))
+        case ctx: ContextEverywhereFailedInPost => PanicBlame("BIP transition does not have context everywhere").blame(ctx)
+      }
+      case ctx: SignalsFailed => PanicBlame("BIP transition does not have signals").blame(ctx)
+      case ctx: ExceptionNotInSignals => PanicBlame("BIP transition does not have signals").blame(ctx)
+    }
   }
 }
 
@@ -107,6 +116,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       val component = currentComponent.top
       new InstanceMethod[Post](
         // TODO: guards
+        // TODO: Need to relate the "UnitAccounted" things I make above in the blame handler here...? EncodeArrayValues is probably a good example to look at
         TVoid(),
         collectInScope(variableScopes) { bt.data.map(_._2).foreach(dispatch) },
         Nil,
@@ -128,15 +138,15 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
                   args = vars.map(succ[Variable[Post]]).map(Local[Post](_)))
               }.getOrElse(tt))
           ),
-          ensures = UnitAccountedPredicate(
-            dispatch(component.invariant)
-              &** dispatch(bt.target.decl.expr)
-              &** dispatch(bt.ensures)
+          ensures =
+            // Establish component invariant
+            SplitAccountedPredicate(UnitAccountedPredicate(dispatch(component.invariant)),
+            // Establish state invariant
+            SplitAccountedPredicate(UnitAccountedPredicate(dispatch(bt.target.decl.expr)),
+            // Establish update function postcondition
+            UnitAccountedPredicate(dispatch(bt.ensures))))
           )
-        )
-//      )(bt.blame.asInstanceOf[Blame[CallableFailure]] /* TODO: FISHY! */)(bt.o).succeedDefault(bt)
-        // TODO: Need to relatethe "UnitAccounted" things I make above in the blame handler here...? EncodeArrayValues is probably a good example to look at
-        )(BipTransitionPostconditionFailed(bt))(bt.o).succeedDefault(bt)
+        )(BipTransitionPostconditionFailed(component, bt))(bt.o).succeedDefault(bt)
 
     case _ => rewriteDefault(decl)
   }
