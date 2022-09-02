@@ -8,7 +8,7 @@ import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
 @Invariant(expr = "x >= 0")
-public class OneComponentOneTransition {
+public class ComponentInvariantNotMaintained {
     public static final String INIT = "initialState";
     public static final String DONE = "doneState";
     public static final String NAME = "oneComponentOneTransition";

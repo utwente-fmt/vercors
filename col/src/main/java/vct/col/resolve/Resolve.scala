@@ -416,6 +416,8 @@ case object ResolveReferences extends LazyLogging {
         Java.findJavaBipStatePredicate(ctx, source),
         Java.findJavaBipStatePredicate(ctx, target),
         guard, requires, ensures))
+      val x = ann.data
+      val y = ann.data
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)

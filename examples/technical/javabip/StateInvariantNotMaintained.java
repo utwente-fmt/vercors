@@ -7,22 +7,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
-@Invariant(expr = "true")
-public class TransitionPostconditionFailed {
+@StatePredicate(state = "doneState", expr = "x >= 3")
+public class StateInvariantNotMaintained {
     public static final String INIT = "initialState";
     public static final String DONE = "doneState";
     public static final String NAME = "oneComponentOneTransition";
     public static final String GO = "go";
 
-    OneComponentOneTransition() {
-        x = 0;
-    }
+    OneComponentOneTransition() { }
 
     private int x;
 
-    @Transition(name = GO, source = INIT, target = DONE, pre = "x >= 0", post = "x < 3")
+    @Transition(name = GO, source = INIT, target = DONE)
     public void goTransition() {
-        x = 4;
+        x = 2;
     }
 }
 

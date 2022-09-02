@@ -1,7 +1,7 @@
 package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
 import vct.col.resolve.{JavaAnnotationData => jad}
 import vct.col.newrewrite.lang.LangBipToCol.{TodoError, WrongTransitionReturnType}
 import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
@@ -104,7 +104,18 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case None => tt[Pre]
     }
 
+    // Create bip component marker declaration
     new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
       )(DiagnosticOrigin).declareDefault(rw)
+
+    // Create bip state predicate declarations
+    cls.modifiers.collect {
+      case ja: JavaAnnotation[Pre] => (ja, ja.data)
+    }.collect {
+      case (ja, Some(bsp @ jad.BipStatePredicate(_, _))) => (ja, bsp)
+    }.foreach { case (ja, bspData) =>
+      val bspNode = new BipStatePredicate[Post](rw.dispatch(bspData.expr))(SourceNameOrigin(bspData.name, ja.o)).declareDefault(rw)
+      bipStatePredicates.update(bspData, bspNode)
+    }
   }
 }
