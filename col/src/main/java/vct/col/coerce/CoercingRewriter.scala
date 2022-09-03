@@ -1155,7 +1155,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case p @ ParInvariant(decl, inv, content) => ParInvariant(decl, res(inv), content)(p.blame)
       case ParStatement(impl) => ParStatement(impl)
       case Recv(ref) => Recv(ref)
-      case Refute(assn) => Refute(res(assn))
+      case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
       case Scope(locals, body) => Scope(locals, body)
       case send @ Send(decl, offset, resource) => Send(decl, offset, res(resource))(send.blame)

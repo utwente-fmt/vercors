@@ -132,6 +132,11 @@ case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithC
   override def descInContext: String = "Assertion may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Assertion `$node` may fail, since $failure."
 }
+case class RefuteFailed(node: Refute[_]) extends NodeVerificationFailure {
+  override def code: String = "refuteFailed"
+  override def descInContext: String = "Assertion holds in all cases where it is reachable."
+  override def inlineDescWithSource(source: String): String = s"Assertion `$source` holds in all cases where it is reachable."
+}
 case class ExhaleFailed(failure: ContractFailure, node: Exhale[_]) extends WithContractFailure {
   override def baseCode: String = "exhaleFailed"
   override def descInContext: String = "Exhale may fail, since"
@@ -531,7 +536,7 @@ trait Blame[-T <: VerificationFailure] {
 
 case class FilterExpectedErrorBlame(otherwise: Blame[VerificationFailure], expectedError: ExpectedError) extends Blame[VerificationFailure] {
   override def blame(error: VerificationFailure): Unit =
-    if(error.code == expectedError.errorCode) {
+    if(expectedError.errorCode.r.matches(error.code)) {
       expectedError.trip(error)
     } else {
       otherwise.blame(error)

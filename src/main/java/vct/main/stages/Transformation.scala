@@ -143,6 +143,7 @@ case class SilverTransformation
     EncodeForkJoin,
     InlineApplicables,
     PureMethodsToFunctions,
+    RefuteToInvertedAssert,
 
     // Encode parallel blocks
     EncodeSendRecv,

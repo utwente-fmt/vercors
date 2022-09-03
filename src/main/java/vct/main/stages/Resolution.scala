@@ -50,7 +50,6 @@ case class Resolution[G <: Generation]
         }
       })
       case addrOf: AddrOf[_] => throw TemporarilyUnsupported("&", Seq(addrOf))
-      case ref: Refute[_] => throw TemporarilyUnsupported("Refute", Seq(ref))
       case _ =>
     })
 
