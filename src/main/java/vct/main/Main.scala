@@ -586,19 +586,15 @@ class Main {
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
         var newArgs = Array[String]()
-        var wallAfterVeyMontPre : Long = Long.MinValue
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          val preTup = runVeyMontPrePasses(args,wallStart)
-          newArgs = preTup._1
-          wallAfterVeyMontPre = preTup._2
+          newArgs = runVeyMontPrePasses(args)
         }
+        val verCorsStart = System.currentTimeMillis
         parseInputs(inputPaths)
-        Output("[VeyMont] Parse of VerCors took %d ms",Long.box(System.currentTimeMillis() - wallAfterVeyMontPre) )
         exit = doPasses(getPasses)
-        val wallAfterVerCors = System.currentTimeMillis
-        Output("[VeyMont] VerCors took %d ms",Long.box(wallAfterVerCors - wallAfterVeyMontPre) )
+        Output("[VeyMont] VerCors took %d ms",Long.box(System.currentTimeMillis - verCorsStart) )
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          runVeyMontPostPasses(newArgs,wallAfterVerCors)
+          runVeyMontPostPasses(newArgs)
         }
       }
     } catch {
@@ -623,12 +619,9 @@ class Main {
     exit
   }
 
-  private def runVeyMontPrePasses(args: Array[String], wallStart : Long) : (Array[String],Long) = {
+  private def runVeyMontPrePasses(args: Array[String]) : Array[String] = {
     parseInputs(inputPaths)
-    Output("[VeyMont] Parse of Check took %d ms",Long.box(System.currentTimeMillis() - wallStart) )
     doPasses(collectPassesForVeyMontPre)
-    val afterPre = System.currentTimeMillis
-    Output("[VeyMont] Check took %d ms", Long.box(afterPre - wallStart))
     val veymontIndex = Configuration.getVeyMontArgIndex(args);
     args.update(veymontIndex + 1, Util.getAnnotatedFileName(args(veymontIndex + 1)))
     var removeIndex = -1; //remove other files than new -glob file in arguments
@@ -639,17 +632,15 @@ class Main {
     val newArgs = if(removeIndex == -1) args else args.slice(0,veymontIndex+2) ++ args.slice(removeIndex+1,args.length)
     inputPaths = parseOptions(newArgs)
     checkOptions()
-    (newArgs, afterPre)
+    newArgs
   }
 
-  private def runVeyMontPostPasses(args: Array[String], wallAfterVerCors: Long) : Unit = {
+  private def runVeyMontPostPasses(args: Array[String]) : Unit = {
     val veymontIndex = Configuration.getVeyMontArgIndex(args);
     args.update(veymontIndex, "--" + Configuration.veymont_decompose)
     inputPaths = parseOptions(args)
     checkOptions()
     parseInputs(inputPaths)
-    Output("[VeyMont] Parse of Decompose took %d ms",Long.box(System.currentTimeMillis() - wallAfterVerCors) )
     doPasses(collectPassesForVeyMontPost)
-    Output("[VeyMont] Decompose took %d ms", Long.box(System.currentTimeMillis() - wallAfterVerCors))
   }
 }
