@@ -106,7 +106,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create bip component marker declaration
     new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
-      )(DiagnosticOrigin).declareDefault(rw)
+      )(cls.o).declareDefault(rw)
 
     // Create bip state predicate declarations
     cls.modifiers.collect {

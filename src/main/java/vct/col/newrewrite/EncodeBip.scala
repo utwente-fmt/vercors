@@ -3,8 +3,8 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, BipTransitionPostconditionFailed, IsBipComponent}
-import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
+import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
@@ -30,7 +30,7 @@ case object EncodeBip extends RewriterBuilder {
     }
   }
 
-  case class BipTransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[CallableFailure] {
+  case class TransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) =>
@@ -43,6 +43,23 @@ case object EncodeBip extends RewriterBuilder {
       }
       case ctx: SignalsFailed => PanicBlame("BIP transition does not have signals").blame(ctx)
       case ctx: ExceptionNotInSignals => PanicBlame("BIP transition does not have signals").blame(ctx)
+    }
+  }
+
+  case class ConstructorPostconditionFailed(component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case cf: ContractedFailure => cf match {
+        case PostconditionFailed(Seq(FailLeft), failure, _) => // Failed establishing component invariant
+          proc.blame.blame(BipComponentInvariantNotEstablished(failure, component))
+        case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) => // Failed establishing state invariant
+          proc.blame.blame(BipStateInvariantNotEstablished(failure, component))
+        case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
+          proc.blame.blame(PostconditionFailed(path, failure, node))
+        // TODO (RR): Probably should disallow contracts on constructor?
+        case ctx: ContextEverywhereFailedInPost => proc.blame.blame(ctx)
+      }
+      case ctx: SignalsFailed => proc.blame.blame(ctx)
+      case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
     }
   }
 }
@@ -106,15 +123,22 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     case proc: Procedure[Pre] if procConstructorInfo.contains(proc) =>
       val (cls, component) = procConstructorInfo(proc)
+      implicit val o = DiagnosticOrigin
       withResult { res: Result[Post] =>
         val subst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), res)
         val contract = proc.contract.rewrite(
-          ensures = SplitAccountedPredicate(
-            UnitAccountedPredicate(replaceThis.having(subst) { dispatch(component.invariant) })(DiagnosticOrigin),
-            dispatch(proc.contract.ensures))(DiagnosticOrigin)
+          ensures =
+            // Establish component invariant
+            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) { dispatch(component.invariant) } ),
+            // Establish state invariant
+            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) { dispatch(component.initial.decl.expr) }),
+            // Also include everything that was generated extra for the constructor
+            dispatch(proc.contract.ensures)))
         )
-        proc.rewrite(contract = contract).succeedDefault(proc)
-      } (DiagnosticOrigin)
+        val x = proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(component, proc)).succeedDefault(proc)
+        val y = 3;
+        x
+      }
 
     case bt: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
@@ -151,7 +175,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
             // Establish update function postcondition
             UnitAccountedPredicate(dispatch(bt.ensures))))
           )
-        )(BipTransitionPostconditionFailed(bt))(bt.o).succeedDefault(bt)
+        )(TransitionPostconditionFailed(bt))(bt.o).succeedDefault(bt)
 
     case _ => rewriteDefault(decl)
   }

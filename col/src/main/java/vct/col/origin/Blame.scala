@@ -337,7 +337,7 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
 sealed trait JavaAnnotationFailure extends VerificationFailure
 
 sealed trait BipTransitionFailure extends CallableFailure
-case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure {
+case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: BipComponent[_]) extends BipTransitionFailure {
   override def code: String = "bipComponentInvariantNotEstablished"
   override def text: String = "In this constructor the component invariant is not established, since"
 }
@@ -345,7 +345,7 @@ case class BipComponentInvariantNotMaintained(failure: ContractFailure, node: Bi
   override def code: String = "bipComponentInvariantNotMaintained"
   override def text: String = "In this transition the invariant of the component is not maintained, since"
 }
-case class BipStateInvariantNotEstablished(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure {
+case class BipStateInvariantNotEstablished(failure: ContractFailure, node: BipComponent[_]) extends BipTransitionFailure {
   override def code: String = "bipStateInvariantNotEstablished"
   override def text: String = "In this constructor the invariant of the state is not established, since"
 }
