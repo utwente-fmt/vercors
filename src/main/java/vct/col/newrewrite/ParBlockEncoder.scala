@@ -316,9 +316,19 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def nonPermissionExpr[G](e: Node[G]): Boolean = e match {
-    case _: Locator[G] => false
+    case _: Perm[G] => false
+    case _: PointsTo[G] => false
     case _: PermPointer[G] => false
     case _: PermPointerIndex[G] => false
+    case _: ModelState[G] => false
+    case _: ModelSplit[G] => false
+    case _: ModelMerge[G] => false
+    case _: ModelChoose[G] => false
+    case _: ModelPerm[G] => false
+    case _: ActionPerm[G] => false
+    case _: PredicateApply[G] => false
+    case _: InstancePredicateApply[G] => false
+    case _: CoalesceInstancePredicateApply[G] => false
     case other => other.subnodes.forall(nonPermissionExpr)
   }
 }

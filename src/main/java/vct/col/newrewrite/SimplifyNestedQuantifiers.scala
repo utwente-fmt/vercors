@@ -490,18 +490,18 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
   def indepOf[G](bindings: mutable.Set[Variable[G]], e: Expr[G]): Boolean =
     e.transSubnodes.collectFirst { case Local(ref) if bindings.contains(ref.decl) => () }.isEmpty
 
-  sealed trait Subscript {
-    val index: Expr[Pre]
-    val subnodes: Seq[Node[Pre]]
+  sealed trait Subscript[G] {
+    val index: Expr[G]
+    val subnodes: Seq[Node[G]]
   }
-  final case class Array(e: ArraySubscript[Pre]) extends Subscript {
-    val index: Expr[Pre] = e.index
-    val subnodes: Seq[Node[Pre]] = e.subnodes
+  case class Array[G](e: ArraySubscript[G]) extends Subscript[G] {
+    val index: Expr[G] = e.index
+    val subnodes: Seq[Node[G]] = e.subnodes
   }
 
-  final case class Pointer(e: PointerSubscript[Pre]) extends Subscript {
-    val index: Expr[Pre] = e.index
-    val subnodes: Seq[Node[Pre]] = e.subnodes
+  case class Pointer[G](e: PointerSubscript[G]) extends Subscript[G] {
+    val index: Expr[G] = e.index
+    val subnodes: Seq[Node[G]] = e.subnodes
   }
 
     class FindLinearArrayAccesses(quantifierData: RewriteQuantifierData){
@@ -517,7 +517,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         }
       }
 
-      def testSubscript(e: Subscript): Option[SubstituteForall] = {
+      def testSubscript(e: Subscript[Pre]): Option[SubstituteForall] = {
         if (indepOf(quantifierData.bindings, e.index)) {
           return None
         }
@@ -527,13 +527,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         }
       }
 
-      def linearExpression(e: Subscript): Option[SubstituteForall] = {
+      def linearExpression(e: Subscript[Pre]): Option[SubstituteForall] = {
         val pot = new PotentialLinearExpressions(e)
         pot.visit(e.index)
         pot.canRewrite()
       }
 
-      class PotentialLinearExpressions(val arrayIndex: Subscript){
+      class PotentialLinearExpressions(val arrayIndex: Subscript[Pre]){
         val linearExpressions: mutable.Map[Variable[Pre], Expr[Pre]] = mutable.Map()
         var constantExpression: Option[Expr[Pre]] = None
         var isLinear: Boolean  = true
@@ -796,180 +796,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       }
     }
 
-  //  // The `new_forall_var` will be the name of variable of the newly made forall.
-  //  // The `newBounds`, will contain all the new equations for "select" part of the forall.
-  //  // The `substituteOldVars` contains a map, so we can replace the old forall variables with new expressions
-  //  // We also store the `linearExpression`, so if we ever come across it, we can replace it with the new variable.
+  // The `newBounds`, will contain all the new equations for "select" part of the forall.
+  // The `substituteOldVars` contains a map, so we can replace the old forall variables with new expressions
+  // We also store the `linearExpression`, so if we ever come across it, we can replace it with the new variable.
   case class SubstituteForall(newBounds: Expr[Post], substituteOldVars: Map[Expr[Pre], Expr[Post]], newTrigger: Seq[Seq[Expr[Post]]])
 }
-
-//
-//  var equalityChecker: ExpressionEqualityCheck = ExpressionEqualityCheck()
-//
-//  override def visit(special: ASTSpecial): Unit = {
-//    if(special.kind == ASTSpecial.Kind.Inhale){
-//      val info_getter = new AnnotationVariableInfoGetter()
-//      val annotations = ASTUtils.conjuncts(special.args(0), StandardOperator.Star).asScala
-//      equalityChecker = ExpressionEqualityCheck(Some(info_getter.getInfo(annotations)))
-//
-//      result = create special(special.kind, rewrite(special.args):_*)
-//
-//      equalityChecker = ExpressionEqualityCheck()
-//
-//    } else {
-//      result = create special(special.kind, rewrite(special.args): _*)
-//    }
-//  }
-//
-//  override def visit(c: ASTClass): Unit = { //checkPermission(c);
-//    val name = c.getName
-//    if (name == null) Abort("illegal class without name")
-//    else {
-//      Debug("rewriting class " + name)
-//      val new_pars = rewrite(c.parameters)
-//      val new_supers = rewrite(c.super_classes)
-//      val new_implemented = rewrite(c.implemented_classes)
-//      val res = new ASTClass(name, c.kind, new_pars, new_supers, new_implemented)
-//      res.setOrigin(c.getOrigin)
-//      currentTargetClass = res
-//      val contract = c.getContract
-//      if (currentContractBuilder == null) currentContractBuilder = new ContractBuilder
-//      if (contract != null) {
-//        val info_getter = new AnnotationVariableInfoGetter()
-//        val annotations = LazyList(ASTUtils.conjuncts(contract.pre_condition, StandardOperator.Star).asScala
-//          , ASTUtils.conjuncts(contract.invariant, StandardOperator.Star).asScala).flatten
-//
-//        equalityChecker = ExpressionEqualityCheck(Some(info_getter.getInfo(annotations)))
-//        rewrite(contract, currentContractBuilder)
-//        equalityChecker = ExpressionEqualityCheck()
-//      }
-//      res.setContract(currentContractBuilder.getContract)
-//      currentContractBuilder = null
-//
-//      for (i <- 0 until c.size()) {
-//        res.add(rewrite(c.get(i)))
-//      }
-//      result = res
-//      currentTargetClass = null
-//    }
-//  }
-//
-//  override def visit(s: ForEachLoop): Unit = {
-//    val new_decl = rewrite(s.decls)
-//    val res = create.foreach(new_decl, rewrite(s.guard), rewrite(s.body))
-//
-//    val mc = s.getContract
-//    if (mc != null) {
-//      val info_getter = new AnnotationVariableInfoGetter()
-//      val annotations = LazyList(ASTUtils.conjuncts(mc.pre_condition, StandardOperator.Star).asScala
-//        , ASTUtils.conjuncts(mc.invariant, StandardOperator.Star).asScala).flatten
-//
-//      equalityChecker = ExpressionEqualityCheck(Some(info_getter.getInfo(annotations)))
-//      res.setContract(rewrite(mc))
-//      equalityChecker = ExpressionEqualityCheck()
-//    } else {
-//      res.setContract(rewrite(mc))
-//    }
-//
-//
-//    res.set_before(rewrite(s.get_before))
-//    res.set_after(rewrite(s.get_after))
-//    result = res
-//  }
-//
-//  override def visit(s: LoopStatement): Unit = { //checkPermission(s);
-//    val res = new LoopStatement
-//    var tmp = s.getInitBlock
-//    if (tmp != null) res.setInitBlock(tmp.apply(this))
-//    tmp = s.getUpdateBlock
-//    if (tmp != null) res.setUpdateBlock(tmp.apply(this))
-//    tmp = s.getEntryGuard
-//    if (tmp != null) res.setEntryGuard(tmp.apply(this))
-//    tmp = s.getExitGuard
-//    if (tmp != null) res.setExitGuard(tmp.apply(this))
-//    val mc = s.getContract
-//    if (mc != null) {
-//      val info_getter = new AnnotationVariableInfoGetter()
-//      val annotations = LazyList(ASTUtils.conjuncts(mc.pre_condition, StandardOperator.Star).asScala
-//        , ASTUtils.conjuncts(mc.invariant, StandardOperator.Star).asScala).flatten
-//
-//      equalityChecker = ExpressionEqualityCheck(Some(info_getter.getInfo(annotations)))
-//      res.appendContract(rewrite(mc))
-//      equalityChecker = ExpressionEqualityCheck()
-//    } else {
-//      res.appendContract(rewrite(mc))
-//    }
-//
-//
-//    tmp = s.getBody
-//    res.setBody(tmp.apply(this))
-//    res.set_before(rewrite(s.get_before))
-//    res.set_after(rewrite(s.get_after))
-//    res.setOrigin(s.getOrigin)
-//    result = res
-//  }
-//
-//  override def visit(m: Method): Unit = { //checkPermission(m);
-//    val name = m.getName
-//    if (currentContractBuilder == null) {
-//      currentContractBuilder = new ContractBuilder
-//    }
-//    val args = rewrite(m.getArgs)
-//    val mc = m.getContract
-//
-//    var c: Contract = null
-//    // Ensure we maintain the type of emptiness of mc
-//    // If the contract was null previously, the new contract can also be null
-//    // If the contract was non-null previously, the new contract cannot be null
-//    if (mc != null) {
-//      val info_getter = new AnnotationVariableInfoGetter()
-//      val annotations = LazyList(ASTUtils.conjuncts(mc.pre_condition, StandardOperator.Star).asScala
-//        , ASTUtils.conjuncts(mc.invariant, StandardOperator.Star).asScala).flatten
-//
-//      equalityChecker = ExpressionEqualityCheck(Some(info_getter.getInfo(annotations)))
-//
-//      rewrite(mc, currentContractBuilder)
-//      c = currentContractBuilder.getContract(false)
-//      equalityChecker = ExpressionEqualityCheck()
-//    }
-//    else {
-//      c = currentContractBuilder.getContract(true)
-//    }
-//    if (mc != null && c != null && c.getOrigin == null) {
-//      c.setOrigin(mc.getOrigin)
-//    }
-//    currentContractBuilder = null
-//    val kind = m.kind
-//    val rt = rewrite(m.getReturnType)
-//    val signals = rewrite(m.signals)
-//    val body = rewrite(m.getBody)
-//    result = create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs, body)
-//  }
-//
-//  override def visit(expr: BindingExpression): Unit = {
-//    expr.binder match {
-//      case Binder.Forall | Binder.Star =>
-//        val bindings = expr.getDeclarations.map(_.name).toSet
-//        val (select, main) = splitSelect(rewrite(expr.select), rewrite(expr.main))
-//        val (independentSelect, potentialBounds) = select.partition(independentOf(bindings, _))
-//        val (bounds, dependent_bounds) = getBounds(bindings, potentialBounds)
-//        //Only rewrite main, when the dependent bounds are not existing
-//        if(dependent_bounds.isEmpty && expr.binder != Binder.Star){
-//          rewriteMain(bounds, main) match {
-//            case Some(main) =>
-//              result = create expression(Implies, (independentSelect ++ bounds.selectNonEmpty).reduce(and), main); return
-//            case None =>
-//          }
-//        }
-//        rewriteLinearArray(bounds, main, independentSelect, dependent_bounds, expr.binder, expr.result_type) match {
-//          case Some(new_forall) =>
-//            result = new_forall;
-//            return
-//          case None =>
-//        }
-//        super.visit(expr)
-//      case _ =>
-//        super.visit(expr)
-//    }
-//  }
-//}
