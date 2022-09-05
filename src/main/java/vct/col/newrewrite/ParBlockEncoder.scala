@@ -104,31 +104,73 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   def from(v: Variable[Pre]): Expr[Post] = range(v)._1
   def to(v: Variable[Pre]): Expr[Post] = range(v)._2
 
-  def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Post] = {
-    val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
-    val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
-    block.iters.foldLeft(dispatch(body))((body, iter) => {
-      val v = quantVars(iter.variable)
-      Starall[Post](
-        Seq(variables.dispatch(v)),
-        Nil,
-        (from(iter.variable) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter.variable)) ==> body
-      )(ParBlockNotInjective(block, expr))
-    })
+//  def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Post] = {
+//    val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
+//    val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
+//    block.iters.foldLeft(dispatch(body))((body, iter) => {
+//      val v = quantVars(iter.variable)
+//      Starall[Post](
+//        Seq(variables.dispatch(v)),
+//        Nil,
+//        SeqMember(Local[Post](succ(v)), Range(from(iter.variable), to(iter.variable))) ==> body
+////        (from(iter.variable) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter.variable)) ==> body
+//      )(ParBlockNotInjective(block, expr))
+//    })
+//  }
+
+  def depVars[G](bindings: Set[Variable[G]], e: Expr[G]): Set[Variable[G]] = {
+    val result: mutable.Set[Variable[G]] = mutable.Set()
+    e.transSubnodes.foreach {
+      case Local(ref) if bindings.contains(ref.decl) => result.addOne(ref.decl)
+      case _ => }
+    result.toSet
   }
 
-  def requires(region: ParRegion[Pre])(implicit o: Origin): Expr[Post] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires))
-    case ParSequential(regions) => regions.headOption.map(requires).getOrElse(tt)
-    case block: ParBlock[Pre] =>
-      quantify(block, block.context_everywhere &* block.requires)
+  def quantify(block: ParBlock[Pre], expr: Expr[Pre], nonEmpty: Boolean)(implicit o: Origin): Expr[Post] = {
+    val exprs = AstBuildHelpers.unfoldStar(expr)
+    val vars = block.iters.map(_.variable).toSet
+
+    val rewrittenExpr = exprs.map(
+      e => {
+        val quantVars = if (nonEmpty) depVars(vars, e) else vars
+        val nonQuantVars = vars.diff(quantVars)
+        val newQuantVars = quantVars.map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
+        var body = dispatch(Substitute(newQuantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(e))
+        body = if (nonPermissionExpr(e)) {
+          body
+        } else {
+          // Scale the body if it contains permissions
+          nonQuantVars.foldLeft(body)((body, iter) => {
+            val scale = to(iter) - from(iter)
+            Scale(const[Post](1) /:/ scale, body)(PanicBlame("Par block was checked to be non-empty"))
+          })
+        }
+        // Result, quantify over all the relevant variables
+        quantVars.foldLeft(body)((body, iter) => {
+          val v: Variable[Pre] = newQuantVars(iter)
+          Starall[Post](
+            Seq(variables.dispatch(v)),
+            Nil,
+            (from(iter) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter)) ==> body
+          )(ParBlockNotInjective(block, e))
+        })
+      }
+    )
+    AstBuildHelpers.foldStar(rewrittenExpr)
   }
 
-  def ensures(region: ParRegion[Pre])(implicit o: Origin): Expr[Post] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures))
-    case ParSequential(regions) => regions.lastOption.map(ensures).getOrElse(tt)
+  def requires(region: ParRegion[Pre], nonEmpty: Boolean)(implicit o: Origin): Expr[Post] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires(_, nonEmpty)))
+    case ParSequential(regions) => regions.headOption.map(requires(_, nonEmpty)).getOrElse(tt)
     case block: ParBlock[Pre] =>
-      quantify(block, block.context_everywhere &* block.ensures)
+      quantify(block, block.context_everywhere &* block.requires, nonEmpty)
+  }
+
+  def ensures(region: ParRegion[Pre], nonEmpty: Boolean)(implicit o: Origin): Expr[Post] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures(_, nonEmpty)))
+    case ParSequential(regions) => regions.lastOption.map(ensures(_, nonEmpty)).getOrElse(tt)
+    case block: ParBlock[Pre] =>
+      quantify(block, block.context_everywhere &* block.ensures, nonEmpty)
   }
 
   def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Unit = region match {
@@ -142,11 +184,11 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       }
   }
 
-  def execute(region: ParRegion[Pre]): Statement[Post] = {
+  def execute(region: ParRegion[Pre], nonEmpty: Boolean): Statement[Post] = {
     implicit val o: Origin = region.o
     Block(Seq(
-      Exhale(requires(region))(ParStatementExhaleFailed(region)),
-      Inhale(ensures(region)),
+      Exhale(requires(region, nonEmpty))(ParStatementExhaleFailed(region)),
+      Inhale(ensures(region, nonEmpty)),
     ))
   }
 
@@ -157,7 +199,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       IndetBranch(regions.map(check) ++ regions.zip(regions.tail).map {
         case (leftRegion, rightRegion) =>
           implicit val o: Origin = region.o
-          FramedProof(tt, Inhale(ensures(leftRegion)), requires(rightRegion))(ParSequenceProofFailed(rightRegion))
+          FramedProof(tt, Inhale(ensures(leftRegion, false)), requires(rightRegion, false))(ParSequenceProofFailed(rightRegion))
       })(region.o)
     case block @ ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
       implicit val o: Origin = region.o
@@ -180,6 +222,11 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = stat match {
     case ParStatement(region) =>
+      val (isSingleBlock: Boolean, iters: Option[Seq[IterVariable[Pre]]]) = region match {
+        case pb : ParBlock[Pre] => (true, Some(pb.iters))
+        case _ => (false, None)
+      }
+
       implicit val o: Origin = stat.o
 
       val rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])] = mutable.Map()
@@ -187,12 +234,17 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       ranges(region, rangeValues)
 
       currentRanges.having(rangeValues.toMap) {
-        Block(Seq(
+        var res: Statement[Post] = Block(Seq(
           IndetBranch(Seq(
-            execute(region),
+            execute(region, isSingleBlock),
             Block(Seq(check(region), Inhale(ff)))
           )),
         ))
+        if(isSingleBlock){
+          val condition: Expr[Post] = foldAnd(rangeValues.values.map{case (low, hi) => low < hi})
+          res = Branch(Seq((condition, res)))
+        }
+        res
       }
 
     case inv @ ParInvariant(decl, dependentInvariant, body) =>
@@ -226,7 +278,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           FramedProof(
             pre = tt,
             body = Block(Seq(
-              Inhale(quantify(block, requires)),
+              Inhale(quantify(block, requires, false)),
               Block(suspendedInvariants.map { case Ref(decl) => Inhale(dispatch(invDecl(decl))) }),
               dispatch(hint),
               Block(suspendedInvariants.reverse.map {
@@ -235,7 +287,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
                 )(ParBarrierInvariantExhaleFailed(barrier))
               }),
             )),
-            post = quantify(block, ensures),
+            post = quantify(block, ensures, false),
           )(ParBarrierProofFailed(barrier)),
           Inhale(ff),
         )),
@@ -250,6 +302,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
+//    case ScaleByParBlock(Ref(decl), res) if !nonPermissionExpr(res) =>
     case ScaleByParBlock(Ref(decl), res) =>
       implicit val o: Origin = e.o
       val block = blockDecl(decl)
@@ -258,6 +311,14 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           val scale = to(v.variable) - from(v.variable)
           Implies(scale > const(0), Scale(const[Post](1) /:/ scale, res)(PanicBlame("framed positive")))
       }
+//    case ScaleByParBlock(Ref(_), res) => dispatch(res)
     case other => rewriteDefault(other)
+  }
+
+  def nonPermissionExpr[G](e: Node[G]): Boolean = e match {
+    case _: Locator[G] => false
+    case _: PermPointer[G] => false
+    case _: PermPointerIndex[G] => false
+    case other => other.subnodes.forall(nonPermissionExpr)
   }
 }
