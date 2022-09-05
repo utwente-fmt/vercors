@@ -301,11 +301,11 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
       val e = PreAssignExpression(target, op match {
         case "=" => value
-        case "*=" => Mult(target, value)
+        case "*=" => AmbiguousMult(target, value)
         case "/=" => FloorDiv(target, value)(blame(expr))
         case "%=" => col.Mod(target, value)(blame(expr))
-        case "+=" => col.Plus(target, value)
-        case "-=" => col.Minus(target, value)
+        case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
+        case "-=" => col.AmbiguousMinus(target, value)
         case "<<=" => BitShl(target, value)
         case ">>=" => BitShr(target, value)
         case "&=" => BitAnd(target, value)
@@ -383,7 +383,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit expr: AdditiveExpressionContext): Expr[G] = expr match {
     case AdditiveExpression0(inner) => convert(inner)
     case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AdditiveExpression2(left, _, right) => col.Minus(convert(left), convert(right))
+    case AdditiveExpression2(left, _, right) => col.AmbiguousMinus(convert(left), convert(right))
   }
 
   def convert(implicit expr: MultiplicativeExpressionContext): Expr[G] = expr match {
@@ -411,10 +411,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.Plus(target, const(1)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.Minus(target, const(1)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousMinus(target, const(1)))(blame(expr))
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
       case "*" => DerefPointer(convert(arg))(blame(expr))
@@ -439,10 +439,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.Plus(target, const(1)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
     case PostfixExpression6(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.Minus(target, const(1)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousMinus(target, const(1)))(blame(expr))
     case PostfixExpression7(e, SpecPostfix0(postfix)) => convert(postfix, convert(e))
     case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)

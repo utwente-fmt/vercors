@@ -532,7 +532,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(sub.blame, sub))
       case add @ PointerAdd(pointer, offset) =>
-        FunctionInvocation[Post](
+        optSome(FunctionInvocation[Post](
           ref = pointerAdd.ref,
           args = Seq(FunctionInvocation[Post](
             ref = optionGet.ref,
@@ -540,7 +540,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
             typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
           )(NoContext(PointerNullPreconditionFailed(add.blame, pointer))), dispatch(offset)),
           typeArgs = Nil, Nil, Nil,
-        )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
+        )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer))), TAxiomatic[Post](pointerAdt.ref, Nil))
       case deref @ DerefPointer(pointer) =>
         SilverDeref(
           obj = FunctionInvocation[Post](
