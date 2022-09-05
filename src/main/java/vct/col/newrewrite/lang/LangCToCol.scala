@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, Origin, PanicBlame, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, InterpretedOriginVariable, Origin, PanicBlame, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CInvocationTarget, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecDerefTarget, SpecInvocationTarget}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -69,9 +69,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     cUnit.declarations.foreach(rw.dispatch)
   }
 
+  def cDeclToName(cDecl: CDeclarator[Pre]): String = cDecl match {
+    case CPointerDeclarator(_, inner) => cDeclToName(inner)
+    case CArrayDeclarator(_, _, inner) => cDeclToName(inner)
+    case CTypedFunctionDeclarator(_, _, inner) => cDeclToName(inner)
+    case CAnonymousFunctionDeclarator(_, inner) => cDeclToName(inner)
+    case CName(name: String) => name
+  }
+
   def rewriteParam(cParam: CParam[Pre]): Unit = {
     cParam.drop()
-    val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(cParam.o)
+    val o = InterpretedOriginVariable(cDeclToName(cParam.declarator), cParam.o)
+    val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(o)
     cNameSuccessor(RefCParam(cParam)) = v
     rw.variables.declare(v)
   }
@@ -98,7 +107,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       cCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
           if (func.specs.collectFirst { case CKernel() => () }.nonEmpty) {
-            kernelProcedure(func.o, contract, info, Some(func.body))
+            val namedO = InterpretedOriginVariable(cDeclToName(func.declarator), func.o)
+            kernelProcedure(namedO, contract, info, Some(func.body))
           } else {
             new Procedure[Post](
               returnType = returnType,

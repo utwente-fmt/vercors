@@ -260,6 +260,17 @@ case class ReadableOrigin(readable: Readable,
   override def toString: String = f"$startText - $endText"
 }
 
+case class InterpretedOriginVariable(name: String, original: Origin)
+  extends InputOrigin {
+  override def preferredName: String = name
+
+  override def context: String = original.context
+
+  override def inlineContext: String = original.inlineContext
+
+  override def shortPosition: String = original.shortPosition
+}
+
 case class InterpretedOrigin(interpreted: Readable,
                              startLineIdx: Int, endLineIdx: Int,
                              cols: Option[(Int, Int)],
