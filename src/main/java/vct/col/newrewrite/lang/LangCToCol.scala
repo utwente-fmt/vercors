@@ -132,13 +132,31 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def all(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
+    foldStar(unfoldStar(e).map(allOneExpr(idx, dim, _)))(e.o)
+  }
+
+  def allOneExpr(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
     implicit val o: Origin = e.o
-    Starall(idx.indices.values.toSeq, Nil, Implies(
-      foldAnd(idx.indices.values.zip(dim.indices.values).map {
-        case (idx, dim) => const[Post](0) <= idx.get && idx.get < dim.get
-      }),
-      e
-    ))(PanicBlame("Where blame"))
+    val vars = findVars(e)
+    val filteredIdx = idx.indices.values.zip(dim.indices.values).filter{ case (i, _) => vars.contains(i)}
+    val otherIdx = idx.indices.values.zip(dim.indices.values).filterNot{ case (i, _) => vars.contains(i)}
+
+    val body = otherIdx.map{case (_,range) => range}.foldLeft(e)((newE, scaleFactor) => Scale(scaleFactor.get, newE)(PanicBlame("Framed positive")) )
+    if(filteredIdx.isEmpty){
+      body
+    } else {
+      Starall(filteredIdx.map{case (v,_) => v}.toSeq, Nil, Implies(
+        foldAnd(filteredIdx.map {
+          case (idx, dim) => const[Post](0) <= idx.get && idx.get < dim.get
+        }),
+        body
+      ))(PanicBlame("Where blame"))
+    }
+  }
+
+  def findVars(e: Node[Post], vars: Set[Variable[Post]] = Set()): Set[Variable[Post]] = e match {
+      case Local(ref) => vars + ref.decl
+      case _ => e.subnodes.foldLeft(vars)( (set, node) => set ++ findVars(node) )
   }
 
   def allThreadsInBlock(e: Expr[Pre]): Expr[Post] = {
@@ -147,7 +165,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def allThreadsInGrid(e: Expr[Pre]): Expr[Post] = {
-    val thread = new CudaVec(RefCudaThreadIdx())(e.o)
     val block = new CudaVec(RefCudaBlockIdx())(e.o)
     cudaCurrentBlockIdx.having(block) { all(block, cudaCurrentGridDim.top, allThreadsInBlock(e)) }
   }
@@ -157,6 +174,19 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val gridDim = new CudaVec(RefCudaGridDim())(o)
     cudaCurrentBlockDim.having(blockDim) {
       cudaCurrentGridDim.having(gridDim) {
+        val newArgs = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
+        val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
+        val newYieldsArgs = rw.variables.dispatch(contract.yieldsArgs)
+        // We add the requirement that a GPU kernel must always have threads (non zero block or grid dimensions)
+        val nonZeroThreadsSeq: Seq[Expr[Post]]
+          = (blockDim.indices.values ++ gridDim.indices.values).map( v => Less(IntegerValue(0)(o), v.get(o))(o) ).toSeq
+        val nonZeroThreads = foldStar(nonZeroThreadsSeq)(o)
+
+        // Ugly, but can't get it to type check otherwise
+        val nonZeroThreadsPred1: Seq[AccountedPredicate[Post]] = nonZeroThreadsSeq.map(UnitAccountedPredicate(_)(o))
+        val nonZeroThreadsPred: AccountedPredicate[Post] =
+          nonZeroThreadsPred1.reduceLeft((l,r) => SplitAccountedPredicate(l, r)(o))
+
         val parBody = body.map(impl => {
           implicit val o: Origin = impl.o
           val threadIdx = new CudaVec(RefCudaThreadIdx())
@@ -173,15 +203,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                     iters = blockIdx.indices.values.zip(gridDim.indices.values).map {
                       case (index, dim) => IterVariable(index, const(0), dim.get)
                     }.toSeq,
-                    context_everywhere = allThreadsInBlock(contract.contextEverywhere),
-                    requires = allThreadsInBlock(foldStar(unfoldPredicate(contract.requires))),
-                    ensures = allThreadsInBlock(foldStar(unfoldPredicate(contract.ensures))),
+                    context_everywhere = tt, //Star(nonZeroThreads, allThreadsInBlock(contract.contextEverywhere))(o),
+                    requires = Star(nonZeroThreads, allThreadsInBlock(foldStar(unfoldPredicate(contract.requires)))),
+                    ensures = Star(nonZeroThreads, allThreadsInBlock(foldStar(unfoldPredicate(contract.ensures)))),
                     content = ParStatement(ParBlock(
                       decl = blockDecl,
                       iters = threadIdx.indices.values.zip(blockDim.indices.values).map {
                         case (index, dim) => IterVariable(index, const(0), dim.get)
                       }.toSeq,
-                      context_everywhere = rw.dispatch(contract.contextEverywhere),
+                      // Context is already inherited
+                      context_everywhere = Star(nonZeroThreads, rw.dispatch(contract.contextEverywhere)),
                       requires = rw.dispatch(foldStar(unfoldPredicate(contract.requires))),
                       ensures = rw.dispatch(foldStar(unfoldPredicate(contract.ensures))),
                       content = rw.dispatch(impl),
@@ -195,16 +226,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
         new Procedure[Post](
           returnType = TVoid(),
-          args = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1,
+          args = newArgs,
           outArgs = Nil, typeArgs = Nil,
           body = parBody,
           contract = ApplicableContract(
-            mapPredicate(contract.requires, allThreadsInGrid),
-            mapPredicate(contract.ensures, allThreadsInGrid),
-            allThreadsInGrid(contract.contextEverywhere),
+            SplitAccountedPredicate(nonZeroThreadsPred, mapPredicate(contract.requires, allThreadsInGrid))(o),
+            SplitAccountedPredicate(nonZeroThreadsPred, mapPredicate(contract.ensures, allThreadsInGrid))(o),
+            // Context everywhere is already passed down in the body
+            //allThreadsInGrid(contract.contextEverywhere),
+            tt,
             contract.signals.map(rw.dispatch),
-            rw.variables.dispatch(contract.givenArgs),
-            rw.variables.dispatch(contract.yieldsArgs),
+            newGivenArgs,
+            newYieldsArgs,
             contract.decreases.map(rw.dispatch),
           )(contract.blame)(contract.o)
         )(AbstractApplicable)(o)
