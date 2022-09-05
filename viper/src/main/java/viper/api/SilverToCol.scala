@@ -296,7 +296,7 @@ case class SilverToCol[G](program: silver.Program) {
         if(left.typ.isInstanceOf[silver.SetType]) col.SetUnion(f(left), f(right))
         else col.BagAdd(f(left), f(right))
       case silver.CondExp(cond, thn, els) => col.Select(f(cond), f(thn), f(els))
-      case silver.CurrentPerm(res) => col.CurPerm(f(res))
+      case silver.CurrentPerm(res) => col.CurPerm(col.AmbiguousLocation(f(res))(vct.col.origin.PanicBlame("Silver does not have pointers.")))
       case silver.Div(left, right) => col.FloorDiv(f(left), f(right))(blame(e))
       case silver.DomainFuncApp(funcname, args, typVarMap) =>
         col.SilverPartialADTFunctionInvocation(funcname, args.map(f), typVarMap.toSeq.map {
@@ -317,7 +317,7 @@ case class SilverToCol[G](program: silver.Program) {
       case silver.ExplicitSet(elems) => col.UntypedLiteralSet(elems.map(f))
       case silver.FalseLit() => col.BooleanValue(false)
       case silver.FieldAccess(rcv, field) => col.SilverDeref[G](f(rcv), new UnresolvedRef(field.name))(blame(e))
-      case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverDeref[G](f(loc.rcv), new UnresolvedRef(loc.field.name))(DerefPerm), f(perm))
+      case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverFieldLocation[G](f(loc.rcv), new UnresolvedRef(loc.field.name)), f(perm))
       case silver.Forall(variables, triggers, exp) =>
         if(exp.typ == silver.Bool) col.Forall(variables.map(transform), triggers.map(transform), f(exp))
         else col.Starall(variables.map(transform), triggers.map(transform), f(exp))(blame(e))

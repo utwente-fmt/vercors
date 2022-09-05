@@ -132,6 +132,11 @@ case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithC
   override def descInContext: String = "Assertion may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Assertion `$node` may fail, since $failure."
 }
+case class RefuteFailed(node: Refute[_]) extends NodeVerificationFailure {
+  override def code: String = "refuteFailed"
+  override def descInContext: String = "Assertion holds in all cases where it is reachable."
+  override def inlineDescWithSource(source: String): String = s"Assertion `$source` holds in all cases where it is reachable."
+}
 case class ExhaleFailed(failure: ContractFailure, node: Exhale[_]) extends WithContractFailure {
   override def baseCode: String = "exhaleFailed"
   override def descInContext: String = "Exhale may fail, since"
@@ -397,13 +402,14 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
 sealed trait ArraySubscriptError extends FrontendSubscriptError
+sealed trait ArrayLocationError extends ArraySubscriptError
 sealed trait AnyStarError extends VerificationFailure
-case class ArrayNull(node: Expr[_]) extends ArraySubscriptError with BuiltinError with AnyStarError with NodeVerificationFailure {
+case class ArrayNull(node: Expr[_]) extends ArrayLocationError with BuiltinError with AnyStarError with NodeVerificationFailure {
   override def code: String = "arrayNull"
   override def descInContext: String = "Array may be null."
   override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
 }
-case class ArrayBounds(node: ArraySubscript[_]) extends ArraySubscriptError with NodeVerificationFailure {
+case class ArrayBounds(node: ArraySubscript[_]) extends ArrayLocationError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
   override def descInContext: String = "Index may be negative, or exceed the length of the array."
   override def inlineDescWithSource(source: String): String = s"Index `$source` may be negative, or exceed the length of the array."
@@ -444,8 +450,9 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
+sealed trait PointerLocationError extends PointerDerefError
 sealed trait PointerAddError extends FrontendPlusError
-case class PointerNull(node: Expr[_]) extends PointerDerefError with PointerAddError with NodeVerificationFailure {
+case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."
   override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."
@@ -529,7 +536,7 @@ trait Blame[-T <: VerificationFailure] {
 
 case class FilterExpectedErrorBlame(otherwise: Blame[VerificationFailure], expectedError: ExpectedError) extends Blame[VerificationFailure] {
   override def blame(error: VerificationFailure): Unit =
-    if(error.code == expectedError.errorCode) {
+    if(expectedError.errorCode.r.matches(error.code)) {
       expectedError.trip(error)
     } else {
       otherwise.blame(error)
@@ -599,6 +606,7 @@ object FramedSeqIndex extends PanicBlame("access in `∀i. 0 <= i < |xs| ==> ...
 object FramedArrIndex extends PanicBlame("access in `∀i. 0 <= i < xs.length ==> Perm(xs[i], read) ** ...xs[i]...` should always be ok")
 object IteratedArrayInjective extends PanicBlame("access in `∀*i. 0 <= i < xs.length ==> Perm(xs[i], _)` should always be injective")
 object IteratedPtrInjective extends PanicBlame("access in `∀*i. Perm(xs[i], _)` should always be injective")
+object FramedArrLoc extends PanicBlame("Bounds and non-nullness are ensured.")
 object FramedArrLength extends PanicBlame("length query in `arr == null ? _ : arr.length` should always be ok.")
 object FramedPtrBlockLength extends PanicBlame("length query in `p == null ? _ : \\pointer_block_length(p)` should always be ok.")
 object FramedPtrBlockOffset extends PanicBlame("offset query in `p == null ? _ : \\pointer_block_offset(p)` should always be ok.")
@@ -615,7 +623,8 @@ object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger
 object SubscriptAssignTarget extends PanicBlame("Assigning to a subscript should trigger an error on the assignment, and not on the subscript.")
 object DerefPerm extends PanicBlame("Dereferencing a field in a permission should trigger an error on the permission, not on the dereference.")
 object ArrayPerm extends PanicBlame("Subscripting an array in a permission should trigger an error on the permission, not on the dereference.")
-object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here")
+object UnresolvedDesignProblem extends PanicBlame("The design does not yet accommodate passing a meaningful blame here.")
+object PointsToDeref extends PanicBlame("The permission has already been ensured and thus cannot be insufficient.")
 
 object JavaArrayInitializerBlame extends PanicBlame("The explicit initialization of an array in Java should never generate an assignment that exceeds the bounds of the array")
 

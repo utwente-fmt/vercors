@@ -23,7 +23,7 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Resources.getZ3Path)) {
   )
 
   vercors should "verify a dereference with sufficient permission" in procedure(
-    args=Seq(r), requires=Perm(r.get~>int, WritePerm()),
+    args=Seq(r), requires=Perm(SilverFieldLocation(r.get, int.ref), WritePerm()),
     body=Scope(Seq(i), i <~ r.get~>int)
   )
 
@@ -32,7 +32,7 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Resources.getZ3Path)) {
   )
 
   vercors should "assign a field with sufficient permission" in procedure(
-    args=Seq(r), requires=Perm(r.get~>int, WritePerm()),
+    args=Seq(r), requires=Perm(SilverFieldLocation(r.get, int.ref), WritePerm()),
     body=r.get~>int <~ const(0)
   )
 
@@ -51,28 +51,28 @@ class TestSilicon extends VerifySpec(Silicon(Map.empty, Resources.getZ3Path)) {
     body=Assert[G](
       Starall(Seq(i), Seq(),
         Implies(i.get >= const(0) && i.get < SilverSeqSize(rs.get),
-          Perm((rs.get @@ i.get)~>int, WritePerm())))(ExpectError()))(noErrors)
+          Perm(SilverFieldLocation[G]((rs.get @@ i.get), int.ref), WritePerm())))(ExpectError()))(noErrors)
   )
 
   val p = new Variable[G](TRational())
 
   vercors should "report the failure of an assertion with a negative permission value" in procedure(
-    args=Seq(r, p), body=Block[G](Seq(Assert[G](Perm(r.get~>int, p.get))(ExpectError())))
+    args=Seq(r, p), body=Block[G](Seq(Assert[G](Perm(SilverFieldLocation(r.get, int.ref), p.get))(ExpectError())))
   )
 
   vercors should "report insufficient permission to exhale when asserting too much permission" in procedure(
-    args=Seq(r), body=Block[G](Seq(Assert[G](Perm(r.get~>int, WritePerm()))(ExpectError())))
+    args=Seq(r), body=Block[G](Seq(Assert[G](Perm(SilverFieldLocation(r.get, int.ref), WritePerm()))(ExpectError())))
   )
 
   vercors should "verify a valid exhale of permission" in procedure(
-    args=Seq(r), requires=Perm(r.get~>int, WritePerm()),
-    body=Block[G](Seq(Exhale[G](Perm(r.get~>int, WritePerm()))(noErrors)))
+    args=Seq(r), requires=Perm(SilverFieldLocation[G](r.get, int.ref), WritePerm()),
+    body=Block[G](Seq(Exhale[G](Perm(SilverFieldLocation(r.get, int.ref), WritePerm()))(noErrors)))
   )
 
   vercors should "report insufficient permission to exhale when exhaling too much permission" in procedure(
-    args=Seq(r), body=Exhale[G](Perm(r.get~>int, WritePerm()))(ExpectError())
+    args=Seq(r), body=Exhale[G](Perm(SilverFieldLocation(r.get, int.ref), WritePerm()))(ExpectError())
   )
 
-  val validPred = new Predicate(Seq(), Some(Perm[G](r.get~>int, WritePerm())))
+  val validPred = new Predicate(Seq(), Some(Perm[G](SilverFieldLocation(r.get, int.ref), WritePerm())))
   val invalidPred = new Predicate(Seq(), Some(Eq(r.get~>int, const(5))))
 }
