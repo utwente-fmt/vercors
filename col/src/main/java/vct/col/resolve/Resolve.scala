@@ -162,12 +162,12 @@ case object ResolveReferences extends LazyLogging {
     case block: ParBlock[G] => Seq(block)
   }
 
-  def scanJavaBipGuards[G](nodes: Seq[Declaration[G]]): Seq[(String, JavaMethod[G])] = nodes.collect {
+  def scanJavaBipGuards[G](nodes: Seq[Declaration[G]]): Seq[(Expr[G], JavaMethod[G])] = nodes.collect {
     case m: JavaMethod[G] if BipGuard.getName(m).isDefined => (BipGuard.getName(m).get, m)
   }
 
-  def scanJavaBipStatePredicates[G](nodes: Seq[JavaModifier[G]]): Seq[(String, JavaAnnotation[G])] = nodes.collect {
-    case ann: JavaAnnotation[G] if isBip(ann, "StatePredicate") => (getLit(ann.expect("state")), ann)
+  def scanJavaBipStatePredicates[G](nodes: Seq[JavaModifier[G]]): Seq[(Expr[G], JavaAnnotation[G])] = nodes.collect {
+    case ann: JavaAnnotation[G] if isBip(ann, "StatePredicate") => (ann.expect("state"), ann)
   }
 
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G]): ReferenceResolutionContext[G] = (node match {
@@ -392,7 +392,7 @@ case object ResolveReferences extends LazyLogging {
       logger.info(s"BIP Transition @ ${ann.o}")
 
       val guard = ann.get("guard").map { g =>
-        ctx.javaBipGuards.getOrElse(getLit(g), throw MalformedBipAnnotation(ann, "Guard name does not exist"))
+        Java.findJavaBipGuard(ctx, getLit(g)).getOrElse(throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
 
       def extractExpr(s: Option[Expr[_]]): (String, Origin) = s match {

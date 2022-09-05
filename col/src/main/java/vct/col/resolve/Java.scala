@@ -353,11 +353,16 @@ case object Java {
     case _ => None
   }
 
-  def findJavaBipStatePredicate[G](ctx: ReferenceResolutionContext[G], state: String): JavaBipStatePredicateTarget[G] =
-     ctx.javaBipStatePredicates.get(state) match {
+  def findJavaBipStatePredicate[G](ctx: ReferenceResolutionContext[G], state: String): JavaBipStatePredicateTarget[G] = {
+    val m = ctx.javaBipStatePredicates.map { case (k, v) => (getLit(k), v) }
+    m.get(state) match {
       case Some(ann) => RefJavaBipStatePredicate(ann)
       case None => ImplicitDefaultJavaBipStatePredicate(state)
     }
+  }
+
+  def findJavaBipGuard[G](ctx: ReferenceResolutionContext[G], name: String): Option[JavaMethod[G]] =
+    ctx.javaBipGuards.map { case (k, v) => (getLit(k), v) }.get(name)
 }
 
 sealed trait JavaAnnotationData[G]
@@ -409,9 +414,9 @@ case object JavaAnnotationData {
         .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
         .collectFirst { case b: BipGuard[G] => b }
 
-    def getName[G](method: JavaMethod[G]): Option[String] =
+    def getName[G](method: JavaMethod[G]): Option[Expr[G]] =
       method.modifiers.collectFirst {
-        case ann: JavaAnnotation[G] if isBip(ann, "Guard") => getLit(ann.expect("name"))
+        case ann: JavaAnnotation[G] if isBip(ann, "Guard") => ann.expect("name")
       }
   }
   final case class BipGuard[G](name: String) extends JavaAnnotationData[G]

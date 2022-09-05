@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{Declaration, GlobalDeclaration, JavaAnnotation, JavaClassOrInterface, JavaMethod, JavaName, JavaNamespace, Type}
+import vct.col.ast.{Declaration, Expr, GlobalDeclaration, JavaAnnotation, JavaClassOrInterface, JavaMethod, JavaName, JavaNamespace, Type}
 import vct.col.check.CheckContext
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.Resolve.SpecExprParser
@@ -20,8 +20,8 @@ case class ReferenceResolutionContext[G]
   currentThis: Option[ThisTarget[G]] = None,
   currentResult: Option[ResultTarget[G]] = None,
   currentInitializerType: Option[Type[G]] = None,
-  javaBipStatePredicates: Map[String, JavaAnnotation[G]] = Map[String, JavaAnnotation[G]](),
-  javaBipGuards: Map[String, JavaMethod[G]] = new HashMap[String, JavaMethod[G]]()
+  javaBipStatePredicates: ListMap[Expr[G], JavaAnnotation[G]] = ListMap[Expr[G], JavaAnnotation[G]](),
+  javaBipGuards: ListMap[Expr[G], JavaMethod[G]] = ListMap[Expr[G], JavaMethod[G]]()
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
     TypeResolutionContext(stack, currentJavaNamespace, None, externallyLoadedElements)
@@ -29,11 +29,17 @@ case class ReferenceResolutionContext[G]
   def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     copy(stack = decls.flatMap(Referrable.from) +: stack)
 
-  def declareJavaBipStatePredicates(ps: Seq[(String, JavaAnnotation[G])]) =
-    copy(javaBipStatePredicates = ps.toMap ++ javaBipStatePredicates)
+  /* State predicates names are saved as expr's here because at the time this method is called, fields are not yet resolved.
+     E.g. if in the code it says "@Guard(name = INIT)", where INIT is some static field, in the ast INIT is a LocalVariable.
+     It is only after recursively visiting this annotation that INIT is resolved to a static field. So we save the expr
+     here so we can later use the resolved value, instead of directly using an unresolved local.
+  */
+  def declareJavaBipStatePredicates(ps: Seq[(Expr[G], JavaAnnotation[G])]) =
+    copy(javaBipStatePredicates = javaBipStatePredicates ++ ps.toMap)
 
-  def declareJavaBipGuards(gs: Seq[(String, JavaMethod[G])]): ReferenceResolutionContext[G] =
-    copy(javaBipGuards = gs.toMap ++ javaBipGuards)
+  /* Guard names are explicitly saved as expr's instead of String. See comment at declareJavaBipStatePredicates. */
+  def declareJavaBipGuards(gs: Seq[(Expr[G], JavaMethod[G])]): ReferenceResolutionContext[G] =
+    copy(javaBipGuards = javaBipGuards ++ gs.toMap)
 
   def currentPkg: Option[JavaName[G]] = currentJavaNamespace.flatMap(_.pkg)
   def currentFqn: Option[JavaName[G]] = currentPkg.map(pkg => JavaName(pkg.names ++ currentJavaClass.map(cls => Seq(cls.name)).getOrElse(Seq()))(DiagnosticOrigin))
