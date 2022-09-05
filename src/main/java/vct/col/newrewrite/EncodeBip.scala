@@ -142,7 +142,6 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     case bt: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
-      assert(bt.guard.isEmpty)
       val component = currentComponent.top
       new InstanceMethod[Post](
         // TODO: guards
