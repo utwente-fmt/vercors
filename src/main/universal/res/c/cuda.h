@@ -3,6 +3,8 @@
 
 #define __global__ __vercors_kernel__
 
+#define bool _Bool
+
 #define cudaEvent_t int
 #define cudaMemcpyHostToDevice 0
 #define cudaMemcpyDeviceToHost 1

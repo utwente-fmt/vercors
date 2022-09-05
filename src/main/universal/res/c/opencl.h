@@ -8,6 +8,8 @@
 
 #define barrier(locality) __vercors_barrier__(locality)
 
+#define bool _Bool
+
 extern /*@ pure @*/ int get_work_dim(); // Number of dimensions in use
 
 extern /*@ pure @*/ int get_global_size(int dimindx); // Number of global work-items  
