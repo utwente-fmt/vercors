@@ -976,7 +976,6 @@ case class Printer(out: Appendable,
       phrase(spaced(local.modifiers.map(NodePhrase)), space, local.t, space, javaDecls(local.decls))
     case defn: CFunctionDefinition[_] =>
       control(phrase(spaced(defn.specs.map(NodePhrase)), space, defn.declarator), defn.body)
-    case decl: CGlobalDeclaration[_] => decl
     case ns: JavaNamespace[_] =>
       phrase(
         if(ns.pkg.nonEmpty) statement("package", space, ns.pkg.get) else phrase(),

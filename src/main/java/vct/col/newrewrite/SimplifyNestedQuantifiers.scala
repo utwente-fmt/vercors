@@ -69,8 +69,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           case None =>
             val res = rewriteDefault(e)
             res match {
-              case Starall(_, triggers, _) if triggers.isEmpty => logger.info(f"Warning the binder '$res' contains no triggers")
-              case Forall(_, triggers, _) if triggers.isEmpty => logger.info(f"Warning the binder '$res' contains no triggers")
+              case Starall(_, triggers, _) if triggers.isEmpty => logger.warn(f"The binder '$res' contains no triggers")
+              case Forall(_, triggers, _) if triggers.isEmpty => logger.warn(f"The binder '$res' contains no triggers")
               case _ =>
             }
             res

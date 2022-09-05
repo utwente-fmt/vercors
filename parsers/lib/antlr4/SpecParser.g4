@@ -177,6 +177,7 @@ valPrimaryPermission
  | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')' # valPointerIndex
  | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
  | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
+ | '\\pointer_length' '(' langExpr ')' # valPointerLength
  ;
 
 valPrimaryBinder

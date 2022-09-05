@@ -956,6 +956,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
+    case ValPointerLength(_, _, ptr, _) =>
+      val convertedPtr = convert(ptr)
+      val blameExpr = blame(e)
+      PointerBlockLength(convertedPtr)(blameExpr) - PointerBlockOffset(convertedPtr)(blameExpr)
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
