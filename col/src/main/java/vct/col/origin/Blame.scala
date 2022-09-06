@@ -409,7 +409,7 @@ case class ArrayNull(node: Expr[_]) extends ArrayLocationError with BuiltinError
   override def descInContext: String = "Array may be null."
   override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
 }
-case class ArrayBounds(node: ArraySubscript[_]) extends ArrayLocationError with NodeVerificationFailure {
+case class ArrayBounds(node: Node[_]) extends ArrayLocationError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
   override def descInContext: String = "Index may be negative, or exceed the length of the array."
   override def inlineDescWithSource(source: String): String = s"Index `$source` may be negative, or exceed the length of the array."
@@ -457,7 +457,7 @@ case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerA
   override def descInContext: String = "Pointer may be null."
   override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."
 }
-case class PointerBounds(node: Expr[_]) extends PointerSubscriptError with PointerAddError with NodeVerificationFailure {
+case class PointerBounds(node: Node[_]) extends PointerSubscriptError with PointerAddError with NodeVerificationFailure {
   override def code: String = "ptrBlock"
   override def descInContext: String = "The offset to the pointer may be outside the bounds of the allocated memory area that the pointer is in."
   override def inlineDescWithSource(source: String): String = s"The offset in `$source` may be outside the bounds of the allocated memory area that the pointer is in."

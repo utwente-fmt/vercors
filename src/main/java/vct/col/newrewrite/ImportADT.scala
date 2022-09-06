@@ -6,11 +6,11 @@ import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.coerce.CoercingRewriter
-import vct.col.newrewrite.ImportADT.{InvalidImportedAdt, ArrayField, PointerField, OptionNonePreconditionFailed, MapKeyErrorPreconditionFailed, ArrayNullPreconditionFailed, ArrayBoundsPreconditionFailed, ArrayFieldInsufficientPermission, PointerNullPreconditionFailed, PointerBoundsPreconditionFailed, PointerFieldInsufficientPermission, RatZFracPreconditionFailed, RatFracPreconditionFailed, ZFracFracPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed}
+import vct.col.newrewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatFracPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{Generation, RewriterBuilderArg}
+import vct.col.rewrite.{Generation, RewriterBuilderArg, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 
@@ -103,7 +103,7 @@ case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
       inner.blame(ArrayNull(expr))
   }
 
-  case class ArrayBoundsPreconditionFailed(inner: Blame[ArrayBounds], subscript: ArraySubscript[_]) extends Blame[PreconditionFailed] {
+  case class ArrayBoundsPreconditionFailed(inner: Blame[ArrayBounds], subscript: Node[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
       inner.blame(ArrayBounds(subscript))
   }
@@ -118,7 +118,7 @@ case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
       inner.blame(PointerNull(expr))
   }
 
-  case class PointerBoundsPreconditionFailed(inner: Blame[PointerBounds], expr: Expr[_]) extends Blame[PreconditionFailed] {
+  case class PointerBoundsPreconditionFailed(inner: Blame[PointerBounds], expr: Node[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
       inner.blame(PointerBounds(expr))
   }
@@ -532,7 +532,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
           field = getPointerField(pointer),
         )(PointerFieldInsufficientPermission(sub.blame, sub))
       case add @ PointerAdd(pointer, offset) =>
-        FunctionInvocation[Post](
+        optSome(FunctionInvocation[Post](
           ref = pointerAdd.ref,
           args = Seq(FunctionInvocation[Post](
             ref = optionGet.ref,
@@ -540,7 +540,7 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
             typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
           )(NoContext(PointerNullPreconditionFailed(add.blame, pointer))), dispatch(offset)),
           typeArgs = Nil, Nil, Nil,
-        )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer)))
+        )(NoContext(PointerBoundsPreconditionFailed(add.blame, pointer))), TAxiomatic[Post](pointerAdt.ref, Nil))
       case deref @ DerefPointer(pointer) =>
         SilverDeref(
           obj = FunctionInvocation[Post](
@@ -580,6 +580,35 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
         )
       case other => rewriteDefault(other)
     }
+  }
+
+  override def dispatch(location: Location[Pre]): Location[Post] = location match {
+    case loc @ ArrayLocation(arr, index) =>
+      SilverFieldLocation(
+        obj = FunctionInvocation[Post](
+          ref = arrayLoc.ref,
+          args = Seq(
+            FunctionInvocation[Post](optionGet.ref, Seq(dispatch(arr)), Seq(TAxiomatic(arrayAdt.ref, Nil)), Nil, Nil)(
+              NoContext(ArrayNullPreconditionFailed(loc.blame, arr)))(arr.o),
+            dispatch(index)),
+          typeArgs = Nil, Nil, Nil)(NoContext(ArrayBoundsPreconditionFailed(loc.blame, loc)))(loc.o),
+        field = getArrayField(arr),
+      )(loc.o)
+    case loc @ PointerLocation(pointer) =>
+      SilverFieldLocation(
+        obj = FunctionInvocation[Post](
+          ref = pointerDeref.ref,
+          args = Seq(FunctionInvocation[Post](
+            ref = optionGet.ref,
+            args = Seq(dispatch(pointer)),
+            typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
+          )(NoContext(PointerNullPreconditionFailed(loc.blame, pointer)))(pointer.o)),
+          typeArgs = Nil, Nil, Nil,
+        )(PanicBlame("ptr_deref requires nothing."))(pointer.o),
+        field = getPointerField(pointer),
+      )(loc.o)
+
+    case other => rewriteDefault(other)
   }
 
   // PB: dumb hack alert: TVoid and Return(Void()) is (for viper) a marker to indicate that there is no return type.
