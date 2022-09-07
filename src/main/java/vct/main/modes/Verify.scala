@@ -44,12 +44,18 @@ case object Verify extends LazyLogging {
   }
 
   def runOptions(options: Options): Int = {
-    Signal.handle(new Signal("USR1"), _ => SymbExLogger.memberList.synchronized {
-      SymbExLogger.memberList.toSeq.map(_.listener).collect { case l: SiliconLogListener => l } match {
-        case Nil => logger.warn("Silicon is idle.")
-        case listeners => listeners.foreach(_.printDetailedState())
-      }
-    })
+    try {
+      // Wrapped in try because this seems to crash on windows
+      Signal.handle(new Signal("USR1"), _ => SymbExLogger.memberList.synchronized {
+        SymbExLogger.memberList.toSeq.map(_.listener).collect { case l: SiliconLogListener => l } match {
+          case Nil => logger.warn("Silicon is idle.")
+          case listeners => listeners.foreach(_.printDetailedState())
+        }
+      })
+    } catch {
+      // Could not register USR1 debug hook. This is expected behaviour on windows.
+      case _: IllegalArgumentException =>
+    }
 
     verifyWithOptions(options, options.inputs) match {
       case Left(err) =>
