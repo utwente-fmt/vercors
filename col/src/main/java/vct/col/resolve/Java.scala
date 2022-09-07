@@ -1,8 +1,9 @@
 package vct.col.resolve
 
 import hre.util.FuncTools
+import vct.col.ast.temporaryimplpackage.lang.JavaAnnotationEx
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, Node, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipTransition}
 import vct.col.resolve.Resolve.{getLit, isBip}
@@ -400,11 +401,15 @@ case object JavaAnnotationData {
   final case class BipStatePredicate[G](name: String, expr: Expr[G]) extends JavaAnnotationData[G]
 
   case object BipData {
-    def get[G](p: JavaParam[G]): Option[BipData[G]] =
-      p.modifiers
-        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-        .collectFirst { case d: BipData[G] => d }
-
+    def get[G](node: Node[G]): Option[BipData[G]] = {
+      val modifiers = node match {
+        case p: JavaParam[G] => p.modifiers
+        case m: JavaMethod[G] => m.modifiers
+        case _ => return None
+      }
+      // TODO (RR): Why asInstanceOf here?
+      modifiers.collectFirst { case JavaAnnotationEx(_, _, d @ BipData(_)) => d.asInstanceOf }
+    }
   }
   final case class BipData[G](name: String) extends JavaAnnotationData[G]
 
@@ -420,4 +425,8 @@ case object JavaAnnotationData {
       }
   }
   final case class BipGuard[G](name: String) extends JavaAnnotationData[G]
+
+  case object BipPure {
+    def isPure[G](m: JavaMethod[G]): Boolean = ???
+  }
 }

@@ -1,11 +1,12 @@
 package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaLocal, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
 import vct.col.resolve.{JavaAnnotationData => jad}
-import vct.col.newrewrite.lang.LangBipToCol.{TodoError, WrongTransitionReturnType}
+import vct.col.newrewrite.lang.LangBipToCol.{TodoError, WrongGuardReturnType, WrongTransitionReturnType}
 import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
 import vct.col.ref.Ref
+import vct.col.resolve.JavaAnnotationData.{BipData, BipPure}
 import vct.col.resolve.{ImplicitDefaultJavaBipStatePredicate, Java, JavaBipStatePredicateTarget, RefJavaBipStatePredicate}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
@@ -24,6 +25,11 @@ case object LangBipToCol {
     override def code: String = "bipWrongTransitionReturnType"
     override def text: String = m.o.messageInContext(s"The return type of this update function should be void, instead of ${m.returnType}")
   }
+
+  case class WrongGuardReturnType(m: JavaMethod[_]) extends UserError {
+    override def code: String = "bipWrongGuardReturnType"
+    override def text: String = m.o.messageInContext(s"The return type of this guard should be boolean, instead of ${m.returnType}")
+  }
 }
 
 // TODO (RR): More specific origins (e.g. avoid SourceNameOrigin), errors, panicBlame...
@@ -34,6 +40,9 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   val defaultBipStatePredicates: mutable.Map[String, BipStatePredicate[Post]] = mutable.Map()
   val bipStatePredicates: SuccessionMap[jad.BipStatePredicate[Pre], BipStatePredicate[Post]] = SuccessionMap()
+  val outgoingDatas: SuccessionMap[String, BipOutgoingData[Post]] = SuccessionMap()
+  val incomingDatas: SuccessionMap[String, BipIncomingData[Post]] = SuccessionMap()
+  // TODO (RR): Probably only need the top one, not the bottom one...?
   val bipIncomingDatas: mutable.Map[String, (Type[Pre], BipIncomingData[Post])] = mutable.Map()
   val bipOutgoingDatas: mutable.Map[String, (Type[Pre], BipOutgoingData[Post])] = mutable.Map()
 
@@ -58,12 +67,10 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
-  def rewriteParameter(p: JavaParam[Pre]): (Ref[Post, BipIncomingData[Post]], Variable[Post]) = {
+  def rewriteParameter(p: JavaParam[Pre]): Unit = {
     val jad.BipData(name) = jad.BipData.get(p).get
-    val r = createOrGetIncomingData(name, p.t)
-    val variable = new Variable[Post](rw.dispatch(p.t))(p.o)
-    rw.succeed(p, variable)
-    (r, variable)
+    val bid = new BipIncomingData(rw.dispatch(p.t))(p.o).succeedDefault(p)
+    incomingDatas(name) = bid
   }
 
   def rewriteTransition(m: JavaMethod[Pre]): Unit = {
@@ -74,7 +81,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val trans = new BipTransition[Post](
       getJavaBipStatePredicate(source),
       getJavaBipStatePredicate(target),
-      m.parameters.map(rewriteParameter),
+      rw.collectInScope(rw.bipIncomingDataScopes) { m.parameters.map(rewriteParameter) },
       guard.map(rw.succ(_)),
       rw.dispatch(requires),
       rw.dispatch(ensures),
@@ -83,18 +90,34 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     trans.succeedDefault(m)(rw)
   }
 
+  def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {
+    val jad.BipData(name) = BipData.get(decl).get
+    // TODO (RR): Continue here!
+    ???
+  }
+
   def rewriteGuard(m: JavaMethod[Pre]): Unit = {
     val jad.BipGuard(_) = jad.BipGuard.get(m).get
 
-    if (m.returnType != TBool[Pre]()) {
-      throw Unreachable("")
-    }
+    if (m.returnType != TBool[Pre]()) { throw WrongGuardReturnType(m) }
 
     val guard = new BipGuard[Post](
       m.parameters.map(rewriteParameter),
       rw.dispatch(m.body.get)
     )(DiagnosticOrigin)
     guard.succeedDefault(m)
+  }
+
+  def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
+    val jad.BipData(name) = jad.BipData.get(m).get
+
+    val bod = new BipOutgoingData(
+      rw.dispatch(m.returnType),
+      rw.dispatch(m.body.get),
+      BipPure.isPure(m)
+    )(m.blame)(SourceNameOrigin(m.name, m.o)).succeedDefault(m)
+
+    outgoingDatas(name) = bod
   }
 
   def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {

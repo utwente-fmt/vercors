@@ -336,6 +336,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     local.ref.get match {
       case RefAxiomaticDataType(decl) => throw NotAValue(local)
       case RefVariable(decl) => Local(rw.succ(decl))
+      case RefJavaParam(decl) if BipData.get(decl).isDefined => rw.bip.local(local, decl)
       case RefJavaParam(decl) => Local(rw.succ(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
       case RefJavaClass(decl) => throw NotAValue(local)

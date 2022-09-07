@@ -1,7 +1,8 @@
 package vct.col.ast.temporaryimplpackage.lang
 
 import vct.col.ast.temporaryimplpackage.lang.JavaAnnotationImpl.AnnotationElementMissing
-import vct.col.ast.{Expr, JavaAnnotation}
+import vct.col.ast.{Expr, JavaAnnotation, Type}
+import vct.col.resolve.JavaAnnotationData
 import vct.result.VerificationError.UserError
 
 object JavaAnnotationImpl {
@@ -9,6 +10,15 @@ object JavaAnnotationImpl {
     override def code: String = "annotationElementMissing"
 
     override def text: String = ann.o.messageInContext(s"The element $element should be present")
+  }
+}
+
+object JavaAnnotationEx {
+  def unapply[G](ja: JavaAnnotation[G]): Option[(Type[G], Seq[(String, Expr[G])], JavaAnnotationData[G])] = {
+    ja.data match {
+      case Some(data) => Some(ja.name, ja.args, data)
+      case None => None
+    }
   }
 }
 
