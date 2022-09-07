@@ -53,7 +53,8 @@ case object Verify extends LazyLogging {
         }
       })
     } catch {
-      case _: IllegalArgumentException => logger.warn("Could not register USR1 debug hook. This is expected behaviour on windows.")
+      // Could not register USR1 debug hook. This is expected behaviour on windows.
+      case _: IllegalArgumentException =>
     }
 
     verifyWithOptions(options, options.inputs) match {
