@@ -3,8 +3,8 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
-import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
+import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, GuardPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 
@@ -30,6 +30,9 @@ case object EncodeBip extends RewriterBuilder {
     }
   }
 
+  /* TODO (RR): The next three classes seem repetetive. Can probably factor out a common core,
+      e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
+   */
   case class TransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
@@ -60,6 +63,21 @@ case object EncodeBip extends RewriterBuilder {
       }
       case ctx: SignalsFailed => proc.blame.blame(ctx)
       case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
+    }
+  }
+
+  case class GuardPostconditionFailed(guard: BipGuard[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case cf: ContractedFailure => cf match {
+        case PostconditionFailed(_, failure, node) => guard.blame.blame(BipGuardPostconditionFailure(failure, guard))
+        case ContextEverywhereFailedInPost(failure, node) => PanicBlame("BIP guard does not have context everywhere")
+      }
+
+      // These are all impossible...?
+      case SignalsFailed(failure, node) => ???
+      case ExceptionNotInSignals(failure, node) => ???
+      case failure: BipTransitionFailure => ???
+      case failure: BipGuardFailure => ???
     }
   }
 }
@@ -100,16 +118,33 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case id: BipIncomingData[Pre] => id.drop()
-    case od: BipOutgoingData[Pre] => od.drop()
+    // These should be encoded as regular variable passing, so they are dropped
+    case data: BipData[Pre] => data.drop()
+
+    case id: BipIncomingData[Pre] => new Variable(dispatch(id.t))(id.o).succeedDefault(id)
+    case od: BipOutgoingData[Pre] =>
+      // TODO (RR): Encode as instance function
+      od.drop()
+
+    // Is encoded in contracts, so dropped
     case sp: BipStatePredicate[Pre] => sp.drop()
+
     case component: BipComponent[Pre] =>
-      /* TODO: Need to encode test here that invariant implies all guard preconditions.
-          This is also checked when guards are invoked (as encoded below), but if guards are not used this check
-          does not take place. Hence it must also separately be encoded.
-       */
       component.drop()
-    case guard: BipGuard[Pre] => guard.drop()
+
+    case guard: BipGuard[Pre] =>
+      implicit val o = guard.o
+      new InstanceMethod[Post](
+        TBool()(guard.o),
+        collectInScope(this.variableScopes) { guard.data.map(dispatch) },
+        Nil, Nil,
+        Some(dispatch(guard.body)),
+        contract[Post](
+          requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
+          ensures = UnitAccountedPredicate(dispatch(guard.ensures))
+        ),
+        pure = guard.pure
+      )(GuardPostconditionFailed(guard))(guard.o).succeedDefault(guard)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
@@ -135,18 +170,15 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
             // Also include everything that was generated extra for the constructor
             dispatch(proc.contract.ensures)))
         )
-        val x = proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(component, proc)).succeedDefault(proc)
-        val y = 3;
-        x
+        proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(component, proc)).succeedDefault(proc)
       }
 
     case bt: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
       val component = currentComponent.top
       new InstanceMethod[Post](
-        // TODO: guards
         TVoid(),
-        collectInScope(variableScopes) { bt.data.map(_._2).foreach(dispatch) },
+        collectInScope(variableScopes) { bt.data.foreach(dispatch) },
         Nil,
         Nil,
         Some(dispatch(bt.body)),
@@ -158,7 +190,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
               &** (bt.guard.map { f =>
                 val bg = f.decl
                 // For each @Data that the guard needs, find the appropriate @Data paramter from the transition
-                val vars = bg.data.map { case (dataRef, _) => bt.data.find(dataRef.decl == _._1.decl).get._2 }
+                val vars = bg.data.map(guardData => bt.data.find(guardData.data == _.data).get)
                 methodInvocation(
                   BipGuardInvocationFailed(bt),
                   ThisObject(succ[Class[Post]](currentClass.top)),

@@ -361,6 +361,11 @@ case class BipGuardInvocationFailure(failure: ContractFailure, node: BipTransiti
   override def code: String = "bipTransitionGuardInvocation"
   override def text: String = "Invocation of transition guard in precondition of transition failed, since"
 }
+sealed trait BipGuardFailure extends CallableFailure
+case class BipGuardPostconditionFailure(failure: ContractFailure, node: BipGuard[_]) extends ContractFailure with BipGuardFailure {
+  override def code: String = ???
+  override def text: String = ???
+}
 
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit

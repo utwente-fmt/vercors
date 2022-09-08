@@ -792,15 +792,23 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
-sealed trait BipData[G]
-final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends Declaration[G] with BipData[G] {
+final class BipData[G](val t: Type[G])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipIncomingData[G](val data: Ref[G, BipData[G]])(implicit val o: Origin) extends Declaration[G] {
   override def declareDefault[Pre](scope: ScopeContext[Pre, G]): this.type = {
     scope.bipIncomingDataScopes.top += this
     this
   }
+
+  def t: Type[G] = data.decl.t
 }
-// TODO (RR): PRobably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category
-final class BipOutgoingData[G](val returnType: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with BipData[G] { }
+// TODO (RR): Probably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category
+final class BipOutgoingData[G](val data: Ref[G, BipData[G]], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] {
+  def returnType: Type[G] = data.decl.t
+}
+final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] {
+  override def t: Type[G] = ref.decl.t
+}
+
 final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
 final class BipTransition[G](val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
                              val data: Seq[BipIncomingData[G]], val guard: Option[Ref[G, BipGuard[G]]],
@@ -808,7 +816,7 @@ final class BipTransition[G](val source: Ref[G, BipStatePredicate[G]], val targe
                             )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G] with Declarator[G] {
   override def declarations: Seq[Declaration[G]] = data
 }
-final class BipGuard[G](val data: Seq[(Ref[G, BipIncomingData[G]], Variable[G])], val body: Statement[G])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipGuard[G](val data: Seq[BipIncomingData[G]], val body: Statement[G], val ensures: Expr[G], val pure: Boolean)(val blame: Blame[BipGuardFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 final class BipComponent[G](val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
                             val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] { }
 

@@ -82,7 +82,7 @@ class Transformation
       }
 
       result = pass().dispatch(result)
-      println("\n" + pass.key + " Done")
+
       result.check match {
         case Nil => // ok
         case errors => throw TransformationCheckError(errors)
