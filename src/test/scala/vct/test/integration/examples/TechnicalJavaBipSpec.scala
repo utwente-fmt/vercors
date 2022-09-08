@@ -9,4 +9,5 @@ class TechnicalJavaBipSpec extends VercorsSpec {
   vercors should fail withCode "bipStateInvariantNotEstablished" using silicon example "technical/javabip/StateInvariantNotEstablished.java"
   vercors should fail withCode "bipComponentInvariantNotEstablished" using silicon example "technical/javabip/ComponentInvariantNotEstablished.java"
   vercors should verify using silicon example "technical/javabip/BipGuardUsed.java"
+  vercors should verify using silicon example "technical/javabip/BipGuardDataUsed.java"
 }

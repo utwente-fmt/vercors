@@ -114,6 +114,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       case Some((otherThis, res)) if thisObj == otherThis => res
       case None => thisObj.rewrite()
     }
+    case BipLocalIncomingData(ref) => Local[Post](succ(ref.decl))(expr.o)
     case _ => rewriteDefault(expr)
   }
 

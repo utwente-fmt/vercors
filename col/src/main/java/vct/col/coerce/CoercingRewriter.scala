@@ -1100,6 +1100,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+      case localIncoming: BipLocalIncomingData[Pre] => localIncoming
     }
   }
 
@@ -1271,10 +1272,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           bool(trans.ensures),
           trans.body
         )(trans.blame)
-      case data: BipIncomingData[Pre] =>
-        data
-      case guard: BipGuard[Pre] =>
-        guard
+      case data: BipIncomingData[Pre] => data
+      case data: BipOutgoingData[Pre] => data
+      case data: BipData[Pre] => data
+      case guard: BipGuard[Pre] => guard
     }
   }
 

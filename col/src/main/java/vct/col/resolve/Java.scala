@@ -408,7 +408,7 @@ case object JavaAnnotationData {
         case _ => return None
       }
       // TODO (RR): Why asInstanceOf here?
-      modifiers.collectFirst { case JavaAnnotationEx(_, _, d @ BipData(_)) => d.asInstanceOf }
+      modifiers.collectFirst { case JavaAnnotationEx(_, _, d @ BipData(_)) => d.asInstanceOf[BipData[G]] }
     }
   }
   final case class BipData[G](name: String) extends JavaAnnotationData[G]
