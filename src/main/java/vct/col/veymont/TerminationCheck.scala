@@ -76,7 +76,7 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
         }
         case None =>
       }
-      Warning("VeyMont Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
+      //Warning("VeyMont Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
     } else methods.find(tup => tup._1.name == (if(m.method == Method.JavaConstructor) m.dispatch.getName else m.method)) match {
       case Some(tup) => {
         val method = tup._1
