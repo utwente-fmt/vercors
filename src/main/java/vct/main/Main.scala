@@ -592,8 +592,8 @@ class Main {
         val verCorsStart = System.currentTimeMillis
         parseInputs(inputPaths)
         exit = doPasses(getPasses)
-        Output("[VeyMont] VerCors took %d ms",Long.box(System.currentTimeMillis - verCorsStart) )
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          Output("[VeyMont] VerCors took %d ms",Long.box(System.currentTimeMillis - verCorsStart) )
           runVeyMontPostPasses(newArgs)
         }
       }
