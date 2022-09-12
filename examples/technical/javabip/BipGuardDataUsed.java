@@ -8,6 +8,7 @@ import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
 @StatePredicate(state = "xyz", expr = "true")
+@Port(name = GO)
 public class GuardIsUsed {
     public static final String INIT = "initialState";
     public static final String NAME = "oneComponentOneTransition";

@@ -6,6 +6,7 @@ import org.javabip.api.PortType;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Port(name = GO)
 @ComponentType(initial = INIT, name = NAME)
 @StatePredicate(state = "doneState", expr = "x >= 3")
 public class StateInvariantNotMaintained {

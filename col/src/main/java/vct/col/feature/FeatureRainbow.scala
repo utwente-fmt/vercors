@@ -488,5 +488,7 @@ class FeatureRainbow[G] {
     case _: BipTransition[G] => return Nil
     case _: BipData[G] => return Nil
     case _: BipLocalIncomingData[G] => return Nil
+    case _: BipPort[G] => return Nil
+    case _: BipPortType[G] => return Nil
   })
 }

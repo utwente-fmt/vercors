@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
+@Port(name = GO)
 @Invariant(expr = "true")
 public class TransitionPostconditionFailed {
     public static final String INIT = "initialState";

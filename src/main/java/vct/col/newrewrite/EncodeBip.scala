@@ -119,8 +119,9 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    // These should be encoded as regular variable passing, so they are dropped
+    // The next two should be resolved within this pass, so they should be dropped
     case data: BipData[Pre] => data.drop()
+    case port: BipPort[Pre] => port.drop()
 
     case id: BipIncomingData[Pre] => new Variable(dispatch(id.t))(id.o).succeedDefault(id)
     case od: BipOutgoingData[Pre] =>

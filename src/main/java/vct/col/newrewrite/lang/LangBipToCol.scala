@@ -1,7 +1,8 @@
 package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipGuard, BipIncomingData, BipLocalIncomingData, BipOutgoingData, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaLocal, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
+import vct.col.ast.temporaryimplpackage.lang.JavaAnnotationEx
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipEnforceable, BipGuard, BipIncomingData, BipLocalIncomingData, BipOutgoingData, BipPort, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaLocal, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
 import vct.col.resolve.{JavaAnnotationData => jad}
 import vct.col.newrewrite.lang.LangBipToCol.{InconsistentBipDataType, TodoError, WrongGuardReturnType, WrongTransitionReturnType}
 import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
@@ -46,6 +47,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val defaultBipStatePredicates: mutable.Map[String, BipStatePredicate[Post]] = mutable.Map()
   val bipStatePredicates: SuccessionMap[jad.BipStatePredicate[Pre], BipStatePredicate[Post]] = SuccessionMap()
   var bipDatas: ListMap[String, (Type[Pre], BipData[Post])] = ListMap()
+  val bipPorts: SuccessionMap[String, BipPort[Post]] = SuccessionMap()
 
   def getJavaBipStatePredicate(t: JavaBipStatePredicateTarget[Pre]): Ref[Post, BipStatePredicate[Post]] = t match {
     case RefJavaBipStatePredicate(decl) => bipStatePredicates.ref(decl.data.get.asInstanceOf[jad.BipStatePredicate[Pre]])
@@ -78,11 +80,12 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteTransition(m: JavaMethod[Pre]): Unit = {
-    val jad.BipTransition(_, source, target, guard, requires, ensures) = jad.BipTransition.get(m).get
+    val jad.BipTransition(portName, source, target, guard, requires, ensures) = jad.BipTransition.get(m).get
 
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
 
     val trans = new BipTransition[Post](
+      bipPorts.ref(portName),
       getJavaBipStatePredicate(source),
       getJavaBipStatePredicate(target),
       rw.collectInScope(rw.bipIncomingDataScopes) { m.parameters.map(rewriteParameter) },
@@ -126,6 +129,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
     val jad.BipComponent(name, initialState) = jad.BipComponent.get(cls).get
+    val ports = jad.BipPort.getAll(cls)
+
     val invariant: Expr[Pre] = jad.BipInvariant.get(cls) match {
       case Some(value) => value.expr
       case None => tt[Pre]
@@ -135,14 +140,16 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
       )(cls.o).declareDefault(rw)
 
-    // Create bip state predicate declarations
-    cls.modifiers.collect {
-      case ja: JavaAnnotation[Pre] => (ja, ja.data)
-    }.collect {
-      case (ja, Some(bsp @ jad.BipStatePredicate(_, _))) => (ja, bsp)
-    }.foreach { case (ja, bspData) =>
-      val bspNode = new BipStatePredicate[Post](rw.dispatch(bspData.expr))(SourceNameOrigin(bspData.name, ja.o)).declareDefault(rw)
-      bipStatePredicates.update(bspData, bspNode)
+    // Create bip state predicates
+    jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>
+      val bspNode = new BipStatePredicate[Post](rw.dispatch(expr))(SourceNameOrigin(name, bspData.o)).declareDefault(rw)
+      bipStatePredicates(bspData) = bspNode
+    }
+
+    // Create bip ports
+    ports.foreach { port =>
+      assert(port.portType == BipEnforceable[Pre]())
+      bipPorts(port.name) = new BipPort(rw.dispatch(port.portType))(SourceNameOrigin(port.name, port.o)).declareDefault(rw)
     }
   }
 }

@@ -3,7 +3,7 @@ package vct.col.resolve
 import hre.util.FuncTools
 import vct.col.ast.temporaryimplpackage.lang.JavaAnnotationEx
 import vct.col.origin._
-import vct.col.ast.{ApplicableContract, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, Node, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
+import vct.col.ast.{ApplicableContract, BipPortType, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, Node, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
 import vct.col.ref.Ref
 import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipTransition}
 import vct.col.resolve.Resolve.{getLit, isBip}
@@ -375,7 +375,7 @@ case object JavaAnnotationData {
         .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
         .collectFirst { case b: BipTransition[G] => b }
   }
-  final case class BipTransition[G](name: String,
+  final case class BipTransition[G](portName: String,
                                     source: JavaBipStatePredicateTarget[G],
                                     target: JavaBipStatePredicateTarget[G],
                                     guard: Option[JavaMethod[G]], requires: Expr[G], ensures: Expr[G]) extends JavaAnnotationData[G]
@@ -390,6 +390,12 @@ case object JavaAnnotationData {
   }
   final case class BipInvariant[G](expr: Expr[G]) extends JavaAnnotationData[G]
 
+  case object BipPort {
+    def getAll[G](c: JavaClass[G]): Seq[BipPort[G]] =
+      c.modifiers.collect { case JavaAnnotationEx(_, _, bp: BipPort[G]) => bp}
+  }
+  final case class BipPort[G](name: String, portType: BipPortType[G])(implicit val o: Origin) extends JavaAnnotationData[G]
+
   case object BipComponent {
     def get[G](jc: JavaClassOrInterface[G]): Option[BipComponent[G]] =
       jc.modifiers
@@ -398,7 +404,11 @@ case object JavaAnnotationData {
   }
   final case class BipComponent[G](name: String, initial: JavaBipStatePredicateTarget[G]) extends JavaAnnotationData[G]
 
-  final case class BipStatePredicate[G](name: String, expr: Expr[G]) extends JavaAnnotationData[G]
+  case object BipStatePredicate {
+    def getAll[G](c: JavaClass[G]): Seq[BipStatePredicate[G]] =
+      c.modifiers.collect { case JavaAnnotationEx(_, _, bsp: BipStatePredicate[G]) => bsp}
+  }
+  final case class BipStatePredicate[G](name: String, expr: Expr[G])(implicit val o: Origin) extends JavaAnnotationData[G]
 
   case object BipData {
     def get[G](node: Node[G]): Option[BipData[G]] = {

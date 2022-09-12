@@ -217,6 +217,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: PinnedDecl[Pre] => node
+    case node: BipPortType[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -1267,7 +1268,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case bsp: BipStatePredicate[Pre] =>
         new BipStatePredicate(bool(bsp.expr))
       case trans: BipTransition[Pre] =>
-        new BipTransition(trans.source, trans.target, trans.data, trans.guard,
+        new BipTransition(trans.port, trans.source, trans.target, trans.data, trans.guard,
           bool(trans.requires),
           bool(trans.ensures),
           trans.body
@@ -1276,6 +1277,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case data: BipOutgoingData[Pre] => data
       case data: BipData[Pre] => data
       case guard: BipGuard[Pre] => guard
+      case port: BipPort[Pre] => port
     }
   }
 

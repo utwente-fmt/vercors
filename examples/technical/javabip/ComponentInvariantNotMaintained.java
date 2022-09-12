@@ -6,6 +6,7 @@ import org.javabip.api.PortType;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Port(name = GO)
 @ComponentType(initial = INIT, name = NAME)
 @Invariant(expr = "x >= 0")
 public class ComponentInvariantNotMaintained {

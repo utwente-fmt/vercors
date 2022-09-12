@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.temporaryimplpackage.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
-import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipStatePredicate, BipTransition}
+import vct.col.resolve.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipStatePredicate, BipTransition}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
@@ -434,7 +434,7 @@ case object ResolveReferences extends LazyLogging {
     case ann@JavaAnnotation(_, _) if isBip(ann, "StatePredicate") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)
       resolve(expr, ctx) // TODO (RR): Throwing away errors here?
-      ann.data = Some(BipStatePredicate(getLit(ann.expect("state")), expr))
+      ann.data = Some(BipStatePredicate(getLit(ann.expect("state")), expr)(ann.o))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "ComponentType") =>
       ann.data = Some(BipComponent(getLit(ann.expect("name")),
@@ -445,6 +445,10 @@ case object ResolveReferences extends LazyLogging {
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Guard") =>
       ann.data = Some(BipGuard(getLit(ann.expect("name"))))
+
+    case ann: JavaAnnotation[G] if isBip(ann, "Port") =>
+      // TODO (RR): Also do port type
+      ann.data = Some(BipPort[G](getLit(ann.expect("name")), BipEnforceable()(ann.o))(ann.o))
 
     case _ =>
   }
