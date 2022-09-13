@@ -281,7 +281,7 @@ case class ColToSilver(program: col.Program[_]) {
     }
     case col.Value(loc) => loc match {
       case col.SilverFieldLocation(obj, field) =>
-        silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(pos = pos(loc), NodeInfo(loc)), silver.WildcardPerm()())(pos=pos(e), expInfo(e))
+        silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(loc), info=expInfo(e)), silver.WildcardPerm()())(pos=pos(e), info=expInfo(e))
       case col.PredicateLocation(predicate, args) =>
         silver.PredicateAccessPredicate(silver.PredicateAccess(args.map(exp), ref(predicate))(pos = pos(loc), NodeInfo(loc)), silver.WildcardPerm()())(pos = pos(e), expInfo(e))
     }
