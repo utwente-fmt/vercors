@@ -1,22 +1,34 @@
 package hre.progress
 
 import hre.platform.Platform
+import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
 case object Progress {
   var forceProgress: Boolean = false
 
   val PROGRESS_BLOCKS = " ▏▎▍▌▋▊▉█"
-  val MAX_BORING_WIDTH = 300
-  val PROGRESS_BAR_WIDTH = 60
 
-  private def isTTY: Boolean = Option(System.console()).isDefined
+  def install(progress: Boolean): Unit = {
+    forceProgress = progress
+    AnsiConsole.systemInstall()
+  }
 
-  private def wantProgress: Boolean = forceProgress || isTTY
-  private def wantPrettyProgress: Boolean = isTTY && (Platform.getCurrent match {
-    case Platform.Windows => false
-    case Platform.Unix => true
-    case Platform.Mac => true
-  })
+  private def wantProgress: Boolean = AnsiConsole.out().getType match {
+    case AnsiType.Native | AnsiType.VirtualTerminal | AnsiType.Emulation => true
+    case AnsiType.Unsupported | AnsiType.Redirected => forceProgress
+  }
+
+  private def wantPrettyProgress: Boolean = AnsiConsole.out().getType match {
+    case AnsiType.Native | AnsiType.VirtualTerminal | AnsiType.Emulation => true
+    case AnsiType.Unsupported | AnsiType.Redirected => false
+  }
+
+  def maxWidth: Int = (AnsiConsole.out().getTerminalWidth match {
+    case 0 => 80
+    case other => other
+  }) - 2
+
+  def maxProgressBarWidth: Int = maxWidth - 8
 
   private def esc(command: Char, args: String = ""): String =
     "\u001b[" + args + command
@@ -32,7 +44,7 @@ case object Progress {
       if(wantPrettyProgress)
         up + clearLine + up + clearLine
       else {
-        "\r" + " ".repeat(MAX_BORING_WIDTH) + "\r"
+        "\r" + " ".repeat(maxWidth) + "\r"
       }
     } else ""
 
@@ -50,12 +62,12 @@ case object Progress {
   } else 1.0
 
   def progressBar: String = {
-    val progress = (progressEstimate * PROGRESS_BAR_WIDTH * PROGRESS_BLOCKS.length).toInt
+    val progress = (progressEstimate * maxProgressBarWidth * PROGRESS_BLOCKS.length).toInt
     val fullBlocks = progress / PROGRESS_BLOCKS.length
     val halfBlockIdx = progress % PROGRESS_BLOCKS.length
 
-    if(halfBlockIdx == 0) PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + " ".repeat(PROGRESS_BAR_WIDTH - fullBlocks)
-    else PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + PROGRESS_BLOCKS(halfBlockIdx) + " ".repeat(PROGRESS_BAR_WIDTH - fullBlocks - 1)
+    if(halfBlockIdx == 0) PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + " ".repeat(maxProgressBarWidth - fullBlocks)
+    else PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + PROGRESS_BLOCKS(halfBlockIdx) + " ".repeat(maxProgressBarWidth - fullBlocks - 1)
   }
 
   def framesText: String =
@@ -75,7 +87,7 @@ case object Progress {
         framesText + "\n" + progressBar + "\n"
         f"$framesText\n[$progressBar] ${progressEstimate*100}%.1f%%\n"
       } else {
-        f"[${progressEstimate*100}%.1f%%] $framesText".take(MAX_BORING_WIDTH)
+        f"[${progressEstimate*100}%.1f%%] $framesText".take(maxWidth)
       }
     } else ""
   } else {
