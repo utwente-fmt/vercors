@@ -596,7 +596,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
     case JavaAdd(left, op, right) => op match {
       case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-      case "-" => AmbiguousMinus(convert(left), convert(right))
+      case "-" => AmbiguousMinus(convert(left), convert(right))(blame(expr))
     }
     case JavaShift(left, shift, right) => shift match {
       case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
@@ -634,7 +634,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       PreAssignExpression(target, op match {
         case "=" => value
         case "+=" => AmbiguousPlus(target, value)(blame(right))
-        case "-=" => AmbiguousMinus(target, value)
+        case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
         case "/=" => FloorDiv(target,  value)(blame(expr))
         case "&=" => AmbiguousComputationalAnd(target, value)
