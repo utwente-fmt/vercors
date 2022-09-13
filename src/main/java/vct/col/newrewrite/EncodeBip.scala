@@ -7,7 +7,9 @@ import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostco
 import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.result.VerificationError.Unreachable
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 // TODO (RR): Proof obligation that if a port is enabled, only one transition can ever be enabled
@@ -99,13 +101,31 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+  var portToComponent: ListMap[BipPort[Pre], BipComponent[Pre]] = ListMap()
+  var portToTransitions: ListMap[BipPort[Pre], Seq[BipTransition[Pre]]] = ListMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
-      case IsBipComponent(cls, bc) =>
-        bc.constructors.foreach { p => procConstructorInfo(p.decl) = (cls, bc) }
+      case IsBipComponent(cls, component) =>
+        component.constructors.foreach { p => procConstructorInfo(p.decl) = (cls, component) }
       case _ =>
     }
+
+    val ports = p.subnodes.collect { case port: BipPort[Pre] => port }
+
+    portToComponent = ListMap.newBuilder(ports.map { port =>
+      val component = p.subnodes.collectFirst {
+        case IsBipComponent(cls, component) if cls.declarations.contains(port) => component
+      }.get
+      port -> component
+    }).result()
+
+    portToTransitions = ListMap.newBuilder(ports.map { port =>
+      val transitions: Seq[BipTransition[Pre]] = p.subnodes.collect {
+        case transition: BipTransition[Pre] if transition.port.decl == port => transition
+      }
+      port -> transitions
+    }).result()
 
     super.dispatch(p)
   }
@@ -212,6 +232,30 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
           )
         )(TransitionPostconditionFailed(bt))(bt.o).succeedDefault(bt)
 
+    case synchron: BipSynchron[Pre] =>
+      val p1 = synchron.p1.decl
+      val p2 = synchron.p2.decl
+
+      val comp1 = portToComponent(p1)
+      val comp2 = portToComponent(p2)
+
+      portToTransitions(p1).foreach { transition1 =>
+        portToTransitions(p2).foreach { transition2 =>
+          generateSynchronization(comp1, transition1, comp2, transition2)
+        }
+      }
+
     case _ => rewriteDefault(decl)
+  }
+
+  def generateSynchronization(component1: BipComponent[Pre], transition1: BipTransition[Pre],
+                              component2: BipComponent[Pre], transition2: BipTransition[Pre]): Unit = {
+    // Ensure that 1 is sending to 2, and not otherwise
+    if (transition1.data.nonEmpty) {
+      throw Unreachable("Sending transition cannot (yet) have incoming data")
+    }
+
+    // Find getter on sender that provides data, if present
+    // val sendingData = transition2.data.map(incomingDataToOutgoing(_.data.decl))
   }
 }
