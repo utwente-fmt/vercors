@@ -3,7 +3,7 @@ package vct.main.stages
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute}
 import vct.col.check.CheckError
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.newrewrite.lang.{LangSpecificToCol, LangSpecificToColArgs, LangTypesToCol}
 import vct.col.origin.{FileSpanningOrigin, Origin}
 import vct.col.resolve.{C, Java, Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
@@ -70,6 +70,8 @@ case class Resolution[G <: Generation]
   blameProvider: BlameProvider,
   withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
+  bipSynchrons: Seq[((String, String), (String, String))] = Seq(),
+  bipDatas: Seq[((String, String), (String, String))] = Seq(),
 ) extends Stage[ParseResult[G], (Program[_ <: Generation], Seq[ExpectedError])] {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
@@ -96,7 +98,7 @@ case class Resolution[G <: Generation]
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-    val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
+    val resolvedProgram = LangSpecificToCol.withArg(LangSpecificToColArgs(bipSynchrons, bipDatas))().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       case some => throw TransformationCheckError(some)

@@ -6,11 +6,14 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.resolve._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.result.VerificationError.UserError
 import vct.col.util.SuccessionMap
 
-case object LangSpecificToCol extends RewriterBuilder {
+case class LangSpecificToColArgs(bipSynchrons: Seq[((String, String), (String, String))] = Seq(),
+                                 bipDatas: Seq[((String, String), (String, String))] = Seq())
+
+case object LangSpecificToCol extends RewriterBuilderArg[LangSpecificToColArgs] {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -25,7 +28,7 @@ case object LangSpecificToCol extends RewriterBuilder {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation](args: LangSpecificToColArgs) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
@@ -65,7 +68,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       case _ =>
     }
 
-    super.dispatch(program)
+    program.rewrite(declarations = collectInScope(globalScopes) {
+      // TODO (RR): Assuming that all port & data names are unique, and are not shared between components. Keep it this way or...?
+      args.bipSynchrons.foreach { case ((class1, port1), (class2, port2)) => bip.generateSynchron(port1, port2) }
+      args.bipDatas.foreach { case ((class1, data1), (class2, data2)) => bip.generateDataBinding(data1, data2) }
+      program.declarations.foreach(dispatch)
+    })
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {

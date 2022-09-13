@@ -10,6 +10,8 @@ import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
 
+// TODO (RR): Proof obligation that if a port is enabled, only one transition can ever be enabled
+
 case object EncodeBip extends RewriterBuilder {
   override def key: String = "encodeBip"
   override def desc: String = "encodes BIP semantics explicitly"
@@ -191,7 +193,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
               &** dispatch(bt.requires)
               &** (bt.guard.map { f =>
                 val bg = f.decl
-                // For each @Data that the guard needs, find the appropriate @Data paramter from the transition
+                // For each @Data that the guard needs, find the appropriate @Data parameter from the transition
                 val vars = bg.data.map(guardData => bt.data.find(guardData.data == _.data).get)
                 methodInvocation(
                   BipGuardInvocationFailed(bt),

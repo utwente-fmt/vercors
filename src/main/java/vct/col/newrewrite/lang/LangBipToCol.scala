@@ -2,7 +2,7 @@ package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.temporaryimplpackage.lang.JavaAnnotationEx
-import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipEnforceable, BipGuard, BipIncomingData, BipLocalIncomingData, BipOutgoingData, BipPort, BipStatePredicate, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaLocal, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
+import vct.col.ast.{AbstractRewriter, BipComponent, BipData, BipDataBinding, BipEnforceable, BipGuard, BipIncomingData, BipLocalIncomingData, BipOutgoingData, BipPort, BipStatePredicate, BipSynchron, BipTransition, Expr, InstanceMethod, InvokeMethod, JavaAnnotation, JavaClass, JavaLocal, JavaMethod, JavaParam, MethodInvocation, PinnedDecl, Procedure, TBool, TVoid, Type, Variable}
 import vct.col.resolve.{JavaAnnotationData => jad}
 import vct.col.newrewrite.lang.LangBipToCol.{InconsistentBipDataType, TodoError, WrongGuardReturnType, WrongTransitionReturnType}
 import vct.col.origin.{BipComponentInvariantNotMaintained, BipGuardInvocationFailure, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
@@ -44,14 +44,16 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val defaultBipStatePredicates: mutable.Map[String, BipStatePredicate[Post]] = mutable.Map()
-  val bipStatePredicates: SuccessionMap[jad.BipStatePredicate[Pre], BipStatePredicate[Post]] = SuccessionMap()
-  var bipDatas: ListMap[String, (Type[Pre], BipData[Post])] = ListMap()
-  val bipPorts: SuccessionMap[String, BipPort[Post]] = SuccessionMap()
+  val defaultStatePredicates: mutable.Map[String, BipStatePredicate[Post]] = mutable.Map()
+  val statePredicates: SuccessionMap[jad.BipStatePredicate[Pre], BipStatePredicate[Post]] = SuccessionMap()
+  val components: SuccessionMap[String, BipComponent[Post]] = SuccessionMap()
+  val datas: SuccessionMap[String, BipData[Post]] = SuccessionMap()
+  val ports: SuccessionMap[String, BipPort[Post]] = SuccessionMap()
+  var dataTypes: ListMap[String, Type[Pre]] = ListMap()
 
   def getJavaBipStatePredicate(t: JavaBipStatePredicateTarget[Pre]): Ref[Post, BipStatePredicate[Post]] = t match {
-    case RefJavaBipStatePredicate(decl) => bipStatePredicates.ref(decl.data.get.asInstanceOf[jad.BipStatePredicate[Pre]])
-    case ImplicitDefaultJavaBipStatePredicate(state) => defaultBipStatePredicates.getOrElseUpdate(state, {
+    case RefJavaBipStatePredicate(decl) => statePredicates.ref(decl.data.get.asInstanceOf[jad.BipStatePredicate[Pre]])
+    case ImplicitDefaultJavaBipStatePredicate(state) => defaultStatePredicates.getOrElseUpdate(state, {
       val bsp = new BipStatePredicate[Post](tt)(DiagnosticOrigin)
       bsp.declareDefault(rw)
       bsp
@@ -59,18 +61,18 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def getBipData(name: String, expectedType: Type[Pre])(implicit o: Origin): Ref[Post, BipData[Post]] = {
-    bipDatas.get(name) match {
-      case Some((preType, data)) =>
+    dataTypes.get(name) match {
+      case Some(preType) =>
         // No subtyping (yet): references of a data must all have exact same type
         if (preType != expectedType) {
-          throw InconsistentBipDataType(data, o, expectedType)
+          throw InconsistentBipDataType(datas(name), o, expectedType)
         } else {
-          data.ref
+          datas(name).ref
         }
       case None =>
-        val data = new BipData[Post](rw.dispatch(expectedType)).declareDefault(rw)
-        bipDatas = bipDatas.updated(name, (expectedType, data))
-        data.ref
+        dataTypes = dataTypes.updated(name, expectedType)
+        datas(name) = new BipData[Post](rw.dispatch(expectedType)).declareDefault(rw)
+        datas(name).ref
     }
   }
 
@@ -85,7 +87,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
 
     val trans = new BipTransition[Post](
-      bipPorts.ref(portName),
+      ports.ref(portName),
       getJavaBipStatePredicate(source),
       getJavaBipStatePredicate(target),
       rw.collectInScope(rw.bipIncomingDataScopes) { m.parameters.map(rewriteParameter) },
@@ -129,7 +131,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
     val jad.BipComponent(name, initialState) = jad.BipComponent.get(cls).get
-    val ports = jad.BipPort.getAll(cls)
+    val allPorts = jad.BipPort.getAll(cls)
+
 
     val invariant: Expr[Pre] = jad.BipInvariant.get(cls) match {
       case Some(value) => value.expr
@@ -137,19 +140,25 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
 
     // Create bip component marker declaration
-    new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
+    components(name) = new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
       )(cls.o).declareDefault(rw)
 
     // Create bip state predicates
     jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>
       val bspNode = new BipStatePredicate[Post](rw.dispatch(expr))(SourceNameOrigin(name, bspData.o)).declareDefault(rw)
-      bipStatePredicates(bspData) = bspNode
+      statePredicates(bspData) = bspNode
     }
 
     // Create bip ports
-    ports.foreach { port =>
+    allPorts.foreach { port =>
       assert(port.portType == BipEnforceable[Pre]())
-      bipPorts(port.name) = new BipPort(rw.dispatch(port.portType))(SourceNameOrigin(port.name, port.o)).declareDefault(rw)
+      ports(port.name) = new BipPort(rw.dispatch(port.portType))(SourceNameOrigin(port.name, port.o)).declareDefault(rw)
     }
   }
+
+  def generateSynchron(port1: String, port2: String): Unit =
+    new BipSynchron[Post](ports.ref(port1), ports.ref(port2))(DiagnosticOrigin).declareDefault(rw)
+
+  def generateDataBinding(data1: String, data2: String): Unit =
+    new BipDataBinding[Post](datas.ref(data1), datas.ref(data2))(DiagnosticOrigin).declareDefault(rw)
 }

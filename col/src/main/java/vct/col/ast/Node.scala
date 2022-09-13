@@ -827,7 +827,8 @@ final case class BipEnforceable[G]()(implicit val o: Origin = DiagnosticOrigin) 
 final case class BipSpontaneous[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 
-final class BipSynchron[G](val c1: Ref[G, BipComponent[G]], val p1: Ref[G, BipPort[G]], val c2: Ref[G, BipComponent[G]], val p2: Ref[G, BipPort[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+// Assuming datas and ports are not shared between components, class/component references are omitted
+final class BipSynchron[G](val p1: Ref[G, BipPort[G]], val p2: Ref[G, BipPort[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 final class BipDataBinding[G](val from: Ref[G, BipData[G]], val to: Ref[G, BipData[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
