@@ -967,12 +967,12 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         case "\\forall" => Forall(Seq(variable), Nil, Implies(cond, convert(body)))
         case "\\exists" => Exists(Seq(variable), Nil, col.And(cond, convert(body)))
       }
-    case ValQuantifier(_, quant, t, id, _, cond, _, body, _) =>
-      val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
+    case ValQuantifier(_, quant, bindings, _, cond, _, body, _) =>
+      val variables = convert(bindings)
       quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(convert(cond), convert(body)))(blame(e))
-        case "\\forall" => Forall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
-        case "\\exists" => Exists(Seq(variable), Nil, col.And(convert(cond), convert(body)))
+        case "\\forall*" => Starall(variables, Nil, Implies(convert(cond), convert(body)))(blame(e))
+        case "\\forall" => Forall(variables, Nil, Implies(convert(cond), convert(body)))
+        case "\\exists" => Exists(variables, Nil, col.And(convert(cond), convert(body)))
       }
     case ValShortQuantifier(_, quant, bindings, _, body, _) =>
       val variables = convert(bindings)

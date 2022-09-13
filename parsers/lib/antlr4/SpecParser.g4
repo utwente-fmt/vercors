@@ -183,7 +183,7 @@ valPrimaryBinder
  : '(' ('\\forall*'|'\\forall'|'\\exists')
         langType langId '=' langExpr '..' langExpr ';' langExpr ')' # valRangeQuantifier
  | '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId ';' langExpr ';' langExpr ')' # valQuantifier
+        valArgList ';' langExpr ';' langExpr ')' # valQuantifier
  | '(' ('\u2200'|'\u2200*'|'\u2203') valArgList ';' langExpr ')' # valShortQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  ;

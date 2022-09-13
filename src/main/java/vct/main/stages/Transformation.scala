@@ -172,6 +172,7 @@ case class SilverTransformation
     SimplifyQuantifiedRelations,
   ) ++ simplifyAfterRelations ++ Seq(
     ResolveExpressionSideChecks,
+    RejoinQuantifiers,
 
     // Translate internal types to domains
     ImportADT.withArg(adtImporter),
