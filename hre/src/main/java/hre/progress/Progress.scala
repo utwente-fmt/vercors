@@ -84,8 +84,7 @@ case object Progress {
 
     if(wantProgress) {
       if(wantPrettyProgress) {
-        framesText + "\n" + progressBar + "\n"
-        f"$framesText\n[$progressBar] ${progressEstimate*100}%.1f%%\n"
+        framesText.take(maxWidth) + "\n" + f"[$progressBar] ${progressEstimate*100}%.1f%%" + "\n"
       } else {
         f"[${progressEstimate*100}%.1f%%] $framesText".take(maxWidth)
       }
