@@ -101,13 +101,16 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+  // TODO (RR): Make these vars lazy so construction only happens if there's bip stuff present in the ast?
   var portToComponent: ListMap[BipPort[Pre], BipComponent[Pre]] = ListMap()
   var portToTransitions: ListMap[BipPort[Pre], Seq[BipTransition[Pre]]] = ListMap()
+  var componentToClass: ListMap[BipComponent[Pre], Class[Pre]] = ListMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
       case IsBipComponent(cls, component) =>
         component.constructors.foreach { p => procConstructorInfo(p.decl) = (cls, component) }
+        componentToClass = componentToClass.updated(component, cls)
       case _ =>
     }
 
@@ -241,14 +244,15 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
       portToTransitions(p1).foreach { transition1 =>
         portToTransitions(p2).foreach { transition2 =>
-          generateSynchronization(comp1, transition1, comp2, transition2)
+          generateSynchronization(synchron, comp1, transition1, comp2, transition2)
         }
       }
 
     case _ => rewriteDefault(decl)
   }
 
-  def generateSynchronization(component1: BipComponent[Pre], transition1: BipTransition[Pre],
+  def generateSynchronization(synchron: BipSynchron[Pre],
+                              component1: BipComponent[Pre], transition1: BipTransition[Pre],
                               component2: BipComponent[Pre], transition2: BipTransition[Pre]): Unit = {
     // Ensure that 1 is sending to 2, and not otherwise
     if (transition1.data.nonEmpty) {
@@ -257,5 +261,22 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     // Find getter on sender that provides data, if present
     // val sendingData = transition2.data.map(incomingDataToOutgoing(_.data.decl))
+
+    implicit val o: Origin = DiagnosticOrigin
+    val cls1 = componentToClass(component1)
+    val cls2 = componentToClass(component2)
+    val c = new Variable[Post](TClass(succ[Class[Post]](cls1)))
+    val d = new Variable[Post](TClass(succ[Class[Post]](cls2)))
+
+    // Can do substitute, and then a plain dispatch. Or: just do it inline. Or: a nested rewriter.
+    component1.invariant
+
+    procedure[Post](
+      args = ???,
+      requires = UnitAccountedPredicate[Post]((c.get !== Null()) && (d.get !== Null())),
+      ensures = ???,
+      body = Some(???),
+      blame = ???
+    )(synchron.o).succeedDefault(synchron)
   }
 }
