@@ -79,7 +79,7 @@ class ColDescription {
    */
   def rewriteDefault(term: Term, typ: Type): Term = typ match {
     case Type.Apply(Type.Name("Seq"), List(Type.Apply(Type.Name(declKind), List(Type.Name("G"))))) if DECLARATION_KINDS.contains(declKind) =>
-      q"rewriter.collectInScope(rewriter.${DECLARATION_KINDS(declKind)}){$term.foreach(rewriter.dispatch)}"
+      q"rewriter.${ColDefs.scopes(declKind)}.dispatch($term)"
     case Type.Apply(Type.Name(collectionType), List(arg)) if Set("Seq", "Set", "Option").contains(collectionType) =>
       q"$term.map(element => ${rewriteDefault(q"element", arg)})"
 
@@ -91,20 +91,23 @@ class ColDescription {
       MetaUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
 
     case Type.Apply(Type.Name(declKind), List(Type.Name("G"))) if DECLARATION_KINDS.contains(declKind) =>
-      q"rewriter.collectOneInScope(rewriter.${DECLARATION_KINDS(declKind)}){rewriter.dispatch($term)}"
+      q"rewriter.${ColDefs.scopes(declKind)}.dispatch($term)"
     case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
-    case Type.Apply(Type.Name("Ref"), List(gen, tDecl)) =>
-      q"rewriter.succ[${MetaUtil.substituteTypeName("G", t"Post")(tDecl)}]($term)"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
+    case Type.Apply(Type.Name("Ref"), List(_, Type.Apply(decl @ Type.Name(tDecl), _))) =>
+      if(ColDefs.DECLARATION_KINDS.exists(kind => supports(kind)(tDecl)))
+        q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl))"
+      else
+        q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.anySucc[${Type.Name(tDecl)}[Post]]($term.decl))"
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
       q"$term.left.map(l => ${rewriteDefault(q"l", t1)}).map(r => ${rewriteDefault(q"r", t2)})"
     case _ =>
       MetaUtil.fail(
         s"Encountered an unknown type while generating default rewriters: $typ\n" +
-          "Perhaps there is an 'extends Expr' or so missing?",
+          "Perhaps there is an 'extends Expr' or so missing, or ColDefs.DECLARATION_KINDS is incomplete?",
         node=Some(typ)
       )
   }

@@ -39,32 +39,23 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case CurPerm(loc) => loc match {
-      case SilverDeref(obj, Ref(field)) =>
-        SilverCurFieldPerm[Post](dispatch(obj), succ(field))(e.o)
-      case PredicateApply(Ref(pred), args, WritePerm()) =>
-        SilverCurPredPerm[Post](succ(pred), args.map(dispatch))(e.o)
-      case _ =>
-        throw Unreachable("Invalid permission location")
-    }
-
     case SeqMember(x, Range(from, to)) =>
       implicit val o: Origin = e.o
       dispatch(from) <= dispatch(x) && dispatch(x) < dispatch(to)
 
     case starall @ Starall(bindings, triggers, body) =>
       implicit val o: Origin = e.o
-      val newBindings = ArrayBuffer[Variable[Post]]()
-      val (conds, consequent) = variableScopes.having(newBindings) {
+      val (newBindings, (conds, consequent)) = variables.collect {
         bindings.foreach(dispatch)
         collectStarall(body)
       }
       val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
-      Starall(newBindings.toIndexedSeq, triggers.map(_.map(dispatch)), newBody)(starall.blame)
+      Starall(newBindings, triggers.map(_.map(dispatch)), newBody)(starall.blame)
 
     case Size(xs) =>
       if(xs.t.asSet.nonEmpty) SilverSetSize(dispatch(xs))(e.o)
       else if(xs.t.asBag.nonEmpty) SilverBagSize(dispatch(xs))(e.o)
+      else if(xs.t.asMap.nonEmpty) SilverMapSize(dispatch(xs))(e.o)
       else SilverSeqSize(dispatch(xs))(e.o)
 
     case other => rewriteDefault(other)

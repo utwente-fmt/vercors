@@ -13,7 +13,7 @@ class Worker {
   
   requires Value(q1) ** q1!=null;
   requires Value(q2) ** q2!=null;
-  void run(){
+  run {
     int tmp;
     int i=0;
     loop_invariant 0 <= i && i <= 4;

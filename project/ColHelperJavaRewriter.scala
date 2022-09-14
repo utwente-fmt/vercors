@@ -19,7 +19,8 @@ case class ColHelperJavaRewriter(info: ColDescription) {
     def rewrite(node: ${cls.typ}[Pre]): Unit = {
       val builder = new RewriteBuilders.${cls.rewriteBuilderName}[Pre, Post](node)
       rewrite(builder)
-      builder.build().succeedDefault(node)(this)
+      ${ColDefs.scopes(ColDefs.DECLARATION_KINDS.find(info.supports(_)(cls.baseName)).get)}
+        .succeed(node, builder.build())
     }
   """
 

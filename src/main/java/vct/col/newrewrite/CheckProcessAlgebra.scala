@@ -75,12 +75,12 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
 
       val newClass = currentModel.having(model) {
         new Class(
-          collectInScope(classScopes) {
+          classDeclarations.collect {
             model.declarations.foreach(dispatch(_))
-          }, Nil, tt,
+          }._1, Nil, tt,
         )(model.o)
       }
-      newClass.declareDefault(this)
+      globalDeclarations.declare(newClass)
       modelSuccessors(model) = newClass
 
     case process: ModelProcess[Pre] =>
@@ -95,9 +95,9 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
         process.modifies.map(f => fieldRefToPerm(WritePerm(), f)) ++
           process.accessible.map(f => fieldRefToPerm(ReadPerm(), f)))
 
-      val args = collectInScope(variableScopes)(process.args.foreach(dispatch(_)))
+      val args = variables.dispatch(process.args)
 
-      new InstanceMethod[Post](
+      classDeclarations.declare(new InstanceMethod[Post](
         TVoid(),
         args,
         Nil, Nil,
@@ -109,15 +109,16 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
           tt,
           Seq(),
           Seq(),
-          Seq()
-        ),
+          Seq(),
+          None,
+        )(???),
         false,
         false
-      )(ModelPostconditionFailed(process)).declareDefault(this)
+      )(ModelPostconditionFailed(process)))
 
     case modelField: ModelField[Pre] =>
       val instanceField = new InstanceField[Post](dispatch(modelField.t), Set())(modelField.o)
-      instanceField.declareDefault(this)
+      classDeclarations.declare(instanceField)
       modelFieldSuccessors(modelField) = instanceField
 
     case other => rewriteDefault(other)

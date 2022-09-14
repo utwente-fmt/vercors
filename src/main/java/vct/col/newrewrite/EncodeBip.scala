@@ -7,6 +7,7 @@ import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostco
 import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
 
 import scala.collection.immutable.ListMap
@@ -79,7 +80,7 @@ case object EncodeBip extends RewriterBuilder {
 
       // These are all impossible...?
       case SignalsFailed(failure, node) => ???
-      case ExceptionNotInSignals(failure, node) => ???
+      case ExceptionNotInSignals(node) => ???
       case failure: BipTransitionFailure => ???
       case failure: BipGuardFailure => ???
     }
@@ -102,9 +103,11 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
   // TODO (RR): Make these vars lazy so construction only happens if there's bip stuff present in the ast?
-  var portToComponent: ListMap[BipPort[Pre], BipComponent[Pre]] = ListMap()
-  var portToTransitions: ListMap[BipPort[Pre], Seq[BipTransition[Pre]]] = ListMap()
-  var componentToClass: ListMap[BipComponent[Pre], Class[Pre]] = ListMap()
+  var portToComponent: Map[BipPort[Pre], BipComponent[Pre]] = Map()
+  var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
+  var componentToClass: Map[BipComponent[Pre], Class[Pre]] = Map()
+
+  val incomingDataSucc: SuccessionMap[BipIncomingData[Pre], Variable[Post]]
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -116,19 +119,19 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     val ports = p.subnodes.collect { case port: BipPort[Pre] => port }
 
-    portToComponent = ListMap.newBuilder(ports.map { port =>
+    portToComponent = ports.map { port =>
       val component = p.subnodes.collectFirst {
         case IsBipComponent(cls, component) if cls.declarations.contains(port) => component
       }.get
       port -> component
-    }).result()
+    }.toMap
 
-    portToTransitions = ListMap.newBuilder(ports.map { port =>
+    portToTransitions = ports.map { port =>
       val transitions: Seq[BipTransition[Pre]] = p.subnodes.collect {
         case transition: BipTransition[Pre] if transition.port.decl == port => transition
       }
       port -> transitions
-    }).result()
+    }.toMap
 
     super.dispatch(p)
   }
@@ -148,7 +151,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
     case data: BipData[Pre] => data.drop()
     case port: BipPort[Pre] => port.drop()
 
-    case id: BipIncomingData[Pre] => new Variable(dispatch(id.t))(id.o).succeedDefault(id)
+    case id: BipIncomingData[Pre] => incomingDataSucc(id) = new Variable(dispatch(id.t))(id.o)
+      variables.declare(incomingDataSucc(id))
     case od: BipOutgoingData[Pre] =>
       // TODO (RR): Encode as instance function
       od.drop()

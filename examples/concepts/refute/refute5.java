@@ -16,8 +16,8 @@ public class Refute {
     ensures  Perm(x,write) ** x==3;
   @*/
   public void good2(){
-    //@ assert x==3;
-    //@ refute x==3;
+    //@ [/expect assertFailed:false] assert x==3; [/end]
+    //@ [/expect refuteFailed] refute x==3; [/end]
   }
 
 }

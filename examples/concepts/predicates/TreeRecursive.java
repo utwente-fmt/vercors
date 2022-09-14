@@ -18,7 +18,7 @@ public class Tree {
   public Tree right;
 
   /*@
-    final resource state()=Perm(data,1) **
+    resource state()=Perm(data,1) **
     Perm(left,1) ** Perm(right,1) **
     left->state() ** right->state();
   @*/

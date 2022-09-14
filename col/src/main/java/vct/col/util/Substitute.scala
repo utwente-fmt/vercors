@@ -1,11 +1,8 @@
-package vct.col.newrewrite.util
+package vct.col.util
 
-import vct.col.ast.{Declaration, Expr, TVar, Type, Variable}
+import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.ref.{LazyRef, Ref}
-import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
-
-import scala.reflect.ClassTag
+import vct.col.rewrite.NonLatchingRewriter
 
 /**
  * Apply a substitution map to expressions
@@ -16,10 +13,12 @@ case class Substitute[G](subs: Map[Expr[G], Expr[G]],
                          originTrafo: Origin => Origin = identity)
   extends NonLatchingRewriter[G, G] {
 
-  override def lookupSuccessor: Declaration[G] => Option[Declaration[G]] = {
-    val here = super.lookupSuccessor
-    decl => here(decl).orElse(Some(decl))
+  case class SuccOrIdentity() extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
+    override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] =
+      Some(post.getOrElse(pre.asInstanceOf[T]))
   }
+
+  override def succProvider: SuccessorsProvider[G, G] = SuccOrIdentity()
 
   override def dispatch(o: Origin): Origin = originTrafo(o)
 

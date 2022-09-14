@@ -1,4 +1,3 @@
 adt `nothing` {}
 
-ensures false;
 pure T nothing_as<T>(`nothing` value);

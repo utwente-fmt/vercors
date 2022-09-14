@@ -3,6 +3,9 @@ package vct.col.rewrite
 import vct.col.ast._
 
 class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
+  override def dispatch(context: Verification[Pre]): Verification[Post] = rewriteDefault(context)
+  override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(context)
+
   override def dispatch(program: Program[Pre]): Program[Post] = rewriteDefault(program)
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
@@ -11,6 +14,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
   override def dispatch(specialDecl: PinnedDecl[Pre]): PinnedDecl[Post] = rewriteDefault(specialDecl)
 
+  override def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Post] = rewriteDefault(node)
   override def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
   override def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Post] = rewriteDefault(node)
   override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = rewriteDefault(node)
@@ -20,12 +24,14 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: SignalsClause[Pre]): SignalsClause[Post] = rewriteDefault(node)
   override def dispatch(fieldFlag: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(fieldFlag)
   override def dispatch(iterVariable: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(iterVariable)
+  override def dispatch(location: Location[Pre]): Location[Post] = rewriteDefault(location)
 
   override def dispatch(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
   override def dispatch(cDeclSpec: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(cDeclSpec)
   override def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)
   override def dispatch(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
   override def dispatch(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
+  override def dispatch(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
 
   override def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override def dispatch(node: JavaModifier[Pre]): JavaModifier[Post] = rewriteDefault(node)

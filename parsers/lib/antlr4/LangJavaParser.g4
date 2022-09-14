@@ -587,8 +587,7 @@ expression
     ;
 
 expr
-    :   {specLevel>0}? valPrimary # javaValPrimary
-    |   annotatedPrimary # javaPrimary
+    :   annotatedPrimary # javaPrimary
     |   expr '.' javaIdentifier # javaDeref
     |   expr '.' 'this' # javaPinnedThis
     |   expr '.' 'new' nonWildcardTypeArguments? innerCreator # javaPinnedOuterClassNew
@@ -596,9 +595,9 @@ expr
     |   expr '.' explicitGenericInvocation # javaGenericInvocation
     |   expr '[' expr ']' # javaSubscript
     |   expr '->' javaIdentifier arguments # javaNonNullInvocation
-    |   expr '.' javaIdentifier predicateEntryType? valEmbedGiven? arguments valEmbedYields? # javaInvocation
+    |   expr '.' javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields? # javaInvocation
     |   expr postfixOp # javaValPostfix
-    |   valEmbedGiven? 'new' creator valEmbedYields? # javaNew
+    |   'new' creator valEmbedGiven? valEmbedYields? # javaNew
     |   '(' type ')' expr # javaCast
     |   expr ('++' | '--') # javaPostfixIncDec
     |   ('+'|'-'|'++'|'--') expr # javaPrefixOp
@@ -676,11 +675,12 @@ primary
     |   'super'
     |   literal
     |   javaIdentifier
-    |   javaIdentifier predicateEntryType? valEmbedGiven? arguments valEmbedYields?
+    |   javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields?
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall
-	;
+    |   valExpr
+	  ;
 
 constructorCall
     :   explicitGenericInvocationSuffix
@@ -757,7 +757,6 @@ arguments
     ;
 
 javaIdentifier
-    : {specLevel>0}? valReserved
-    | Identifier
-    | valReserved // allow reserved identifiers outside specification
+    : Identifier
+    | valIdentifier
     ;

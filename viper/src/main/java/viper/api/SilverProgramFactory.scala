@@ -7,8 +7,8 @@ import hre.util.Triple
 import java.util.List
 import scala.jdk.CollectionConverters._
 import viper.silver.ast.{SeqAppend, _}
-import viper.silver.plugin.PluginAwareReporter
 import viper.silver.ast._
+import viper.silver.reporter.Reporter
 
 import scala.annotation.nowarn
 
@@ -416,7 +416,7 @@ class SilverProgramFactory[O] extends ProgramFactory[O,Type,Exp,Stmt,
 @nowarn("msg=.*early initializers are deprecated.*")
 object Parser extends {
   // early initializer: reporter must be populated before initialization of superclass SilFrontend
-  override val reporter: PluginAwareReporter = PluginAwareReporter(HREViperReporter())
+  override val reporter: Reporter = HREViperReporter()
 } with viper.silver.frontend.SilFrontend {
   private var silicon: viper.silver.verifier.NoVerifier = new viper.silver.verifier.NoVerifier
 

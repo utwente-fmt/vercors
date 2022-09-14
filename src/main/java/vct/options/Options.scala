@@ -1,33 +1,39 @@
 package vct.options
 
-import scopt.OParser
+import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.parsers.Language
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
+import scala.collection.mutable
+import scala.reflect.ClassTag
 
 case object Options {
   private val builder = OParser.builder[Options]
 
-  private val parser = {
+  def parser(hide: Boolean = true): OParser[Unit, Options] =
+    constructParser(hide)._1
+
+  def constructParser(hide: Boolean): (OParser[Unit, Options], Map[String, ClassTag[_]]) = {
     import builder._
 
-    implicit val readBackend: scopt.Read[Backend] =
-      scopt.Read.reads {
-        case "silicon" => Backend.Silicon
-        case "carbon" => Backend.Carbon
-      }
+    implicit class Hideable[A, C](opt: OParser[A, C]) {
+      def maybeHidden(): OParser[A, C] = if(hide) opt.hidden() else opt
+    }
 
-    implicit val readLanguage: scopt.Read[Language] =
-      scopt.Read.reads {
-        case "java" => Language.Java
-        case "c" => Language.C
-        case "i" => Language.InterpretedC
-        case "pvl" => Language.PVL
-        case "silver" => Language.Silver
-      }
+    val tags: mutable.Map[String, ClassTag[_]] = mutable.Map()
+
+    def opt[T: scopt.Read](name: String)(implicit tag: ClassTag[T]): OParser[T, Options] = {
+      val parser = builder.opt[T](name)
+      tags(parser.toList.head.name) = tag
+      parser
+    }
+
+    import Backend.read
+    implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    import Verbosity.read
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] =
       scopt.Read.reads {
@@ -36,17 +42,6 @@ case object Options {
       }
 
     implicit val readPath: scopt.Read[Path] = scopt.Read.reads(Paths.get(_))
-
-    implicit val readVerbosity: scopt.Read[Verbosity] =
-      scopt.Read.reads {
-        case "off" => Verbosity.Off
-        case "error" => Verbosity.Error
-        case "warning" => Verbosity.Warning
-        case "info" => Verbosity.Info
-        case "debug" => Verbosity.Debug
-        case "trace" => Verbosity.Trace
-        case "all" => Verbosity.All
-      }
 
     def parseSep(sep: String)(s: String): (String, String) =
       s.split(sep).toSeq match {
@@ -59,11 +54,16 @@ case object Options {
           (parseSep("\\.")(l), parseSep("\\.")(r))
       }
 
-    OParser.sequence(
+    val parser = OParser.sequence(
       programName(BuildInfo.name),
       head(BuildInfo.name, BuildInfo.version),
 
-      help("help").abbr("h").text("Prints this usage text"),
+      opt[Unit]("help").abbr("h")
+        .action((_, c) => c.copy(help = true))
+        .text("Prints this usage text"),
+      opt[Unit]("help-hidden")
+        .action((_, c) => c.copy(showHidden = true))
+        .text("Show hidden options (intended for VerCors experts, proceed with caution!)"),
       version("version").text("Prints version and build information"),
       opt[Unit]("help-passes")
         .action((_, c) => c.copy(mode = Mode.HelpVerifyPasses))
@@ -78,7 +78,7 @@ case object Options {
         .action((_, c) => c.copy(progress = true))
         .text("Print progress information, even if stdout is not a tty."),
 
-      opt[(String, Verbosity)]("dev-log-verbosity").unbounded().hidden().keyValueName("<loggerKey>", "<verbosity>")
+      opt[(String, Verbosity)]("dev-log-verbosity").unbounded().maybeHidden().keyValueName("<loggerKey>", "<verbosity>")
         .action((tup, c) => c.copy(logLevels = c.logLevels :+ tup))
         .text("Set the log level for a custom logger key"),
 
@@ -88,14 +88,14 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.Verify))
         .text("Enable verification mode: instruct VerCors to verify the given files (default)"),
 
-      opt[Language]("lang").valueName("{java|c|i|pvl|silver}")
+      opt[Language]("lang").valueName(ReadLanguage.valueName)
         .action((lang, c) => c.copy(language = Some(lang)))
         .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
-      opt[Backend]("backend").valueName("{silicon|carbon}")
+      opt[Backend]("backend").valueName(Backend.valueName)
         .action((backend, c) => c.copy(backend = backend))
         .text("Set the backend to verify with (default: silicon)"),
-      opt[Option[PathOrStd]]("backend-file").valueName("<path>")
-        .action((backendFile, c) => c.copy(backendFile = backendFile))
+      opt[PathOrStd]("backend-file").valueName("<path>")
+        .action((backendFile, c) => c.copy(backendFile = Some(backendFile)))
         .text("In addition to verification, output the resulting AST for the backend to a file"),
       opt[Unit]("backend-debug")
         .action((_, c) => c.copy(logLevels = c.logLevels :+ ("viper", Verbosity.Debug)))
@@ -108,12 +108,15 @@ case object Options {
         .action((output, c) => c.copy(outputBeforePass = c.outputBeforePass ++ Map(output)))
         .text("Print the AST before a pass key"),
 
+      opt[String]("backend-option").unbounded().keyName("<option>,...")
+        .action((opt, c) => c.copy(backendFlags = c.backendFlags :+ opt))
+        .text("Provide custom flags to Viper"),
       opt[Unit]("skip-backend")
         .action((_, c) => c.copy(skipBackend = true))
         .text("Stop VerCors successfully before the backend is used to verify the program"),
       opt[Unit]("skip-translation")
         .action((_, c) => c.copy(skipTranslation = true))
-        .text("Stop VerCors successully immediately after the file is parsed and resolved, and do no further processing"),
+        .text("Stop VerCors successfully immediately after the file is parsed and resolved, and do no further processing"),
       opt[String]("skip-translation-after").valueName("<pass>")
         .action((pass, c) => c.copy(skipTranslationAfter = Some(pass)))
         .text("Stop VerCors successfully after executing the transformation pass with the supplied key"),
@@ -121,9 +124,50 @@ case object Options {
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
 
-      opt[Unit]("dev-abrupt-exc").hidden()
+      opt[Int]("silicon-print-quantifier-stats").valueName("<amount>")
+        .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
+        .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds. Implies --dev-silicon-num-verifiers 1"),
+
+      opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
+      opt[Unit]("dev-no-sat").maybeHidden()
+        .action((_, c) => c.copy(devCheckSat = false))
+        .text("Do not check the satisfiability of contracts in the input"),
+
+      opt[String]("dev-simplify-debug-in").unbounded().maybeHidden().valueName("<declaration>")
+        .action((decl, c) => c.copy(devSimplifyDebugIn = c.devSimplifyDebugIn :+ decl))
+        .text("Debug simplifications below a declaration preferredName (recommended to inspect --output-before-pass simplify=-)"),
+      opt[Unit]("dev-simplify-debug-match").maybeHidden()
+        .action((_, c) => c.copy(devSimplifyDebugMatch = true))
+        .text("Debug matched expressions in simplifications"),
+      opt[Unit]("dev-simplify-debug-match-long").maybeHidden()
+        .action((_, c) => c.copy(devSimplifyDebugMatchShort = false))
+        .text("Use long form to print matched expressions in sipmlifications"),
+      opt[Unit]("dev-simplify-debug-no-match").maybeHidden()
+        .action((_, c) => c.copy(devSimplifyDebugNoMatch = true))
+        .text("Debug expressions that do not match in simplifications"),
+      opt[String]("dev-simplify-debug-filter-input-kind").maybeHidden()
+        .action((kind, c) => c.copy(devSimplifyDebugFilterInputKind = Some(kind)))
+        .text("Debug only expressions of a certain kind by simple class name"),
+      opt[String]("dev-simplify-debug-filter-rule").maybeHidden()
+        .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
+        .text("Debug only applications of a particular rule, by name"),
+
+      opt[Int]("dev-silicon-num-verifiers").hidden()
+        .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
+        .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+      opt[Path]("dev-silicon-z3-log-file").hidden()
+        .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
+        .text("Path for z3 to write smt2 log file to"),
+
+      opt[Path]("dev-carbon-boogie-log-file").hidden()
+        .action((p, c) => c.copy(devCarbonBoogieLogFile = Some(p)))
+        .text("Path for boogie to write smt2 log file to"),
+
+      opt[Path]("dev-viper-prover-log-file").hidden()
+        .action((p, c) => c.copy(devViperProverLogFile = Some(p)))
+        .text("Path for viper to write boogie or smt2 input file to, depending on selected backend"),
 
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
@@ -216,14 +260,19 @@ case object Options {
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
         .text("List of input files to process")
     )
+
+    (parser, tags.toMap)
   }
 
   def parse(args: Array[String]): Option[Options] =
-    OParser.parse(parser, args, Options())
+    OParser.parse(parser(), args, Options())
 }
 
 case class Options
 (
+  help: Boolean = false,
+  showHidden: Boolean = false,
+
   mode: Mode = Mode.Verify,
   inputs: Seq[PathOrStd] = Nil,
   logLevels: Seq[(String, Verbosity)] = Seq(
@@ -241,6 +290,7 @@ case class Options
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,
 
+  backendFlags: Seq[String] = Nil,
   skipBackend: Boolean = false,
   skipTranslation: Boolean = false,
   skipTranslationAfter: Option[String] = None,
@@ -258,8 +308,24 @@ case class Options
   boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
 
+  siliconPrintQuantifierStats: Option[Int] = None,
+
   // Verify options - hidden
   devAbruptExc: Boolean = false,
+  devCheckSat: Boolean = true,
+  devSimplifyDebugIn: Seq[String] = Nil,
+  devSimplifyDebugMatch: Boolean = false,
+  devSimplifyDebugMatchShort: Boolean = true,
+  devSimplifyDebugNoMatch: Boolean = false,
+  devSimplifyDebugFilterInputKind: Option[String] = None,
+  devSimplifyDebugFilterRule: Option[String] = None,
+
+  devSiliconNumVerifiers: Option[Int] = None,
+  devSiliconZ3LogFile: Option[Path] = None,
+
+  devCarbonBoogieLogFile: Option[Path] = None,
+
+  devViperProverLogFile: Option[Path] = None,
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required

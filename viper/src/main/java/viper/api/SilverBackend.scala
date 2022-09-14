@@ -1,10 +1,12 @@
 package viper.api
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.Writeable
+import org.slf4j.LoggerFactory.getLogger
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
 import viper.silver.ast.ConsInfo
+import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.errors._
 import viper.silver.verifier._
@@ -23,7 +25,12 @@ trait SilverBackend extends Backend with LazyLogging {
       "The silver AST delivered to viper is not valid:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
-  def createVerifier(reporter: Reporter): Verifier
+  case class PluginErrors(errors: Seq[AbstractError]) extends SystemError {
+    override def text: String =
+      "An error occurred in a viper plugin, which should always be prevented:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
+  }
+
+  def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
   private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
@@ -35,7 +42,7 @@ trait SilverBackend extends Backend with LazyLogging {
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
   override def submit(colProgram: col.Program[_], output: Option[Writeable]): Unit = {
-    val silverProgram = ColToSilver.transform(colProgram)
+    val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     output.foreach(_.write { writer =>
       writer.write(silverProgram.toString())
@@ -61,24 +68,30 @@ trait SilverBackend extends Backend with LazyLogging {
         SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
           case Nil =>
           case diffs =>
-            logger.warn("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
+            logger.debug("Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:")
             for((left, right) <- diffs) {
-              logger.warn(s" - Left: ${left.getClass.getSimpleName}: $left")
-              logger.warn(s" - Right: ${right.getClass.getSimpleName}: $right")
+              logger.debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+              logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
             }
         }
     }
 
     val tracker = EntityTrackingReporter()
-    val verifier = createVerifier(tracker)
+    val (verifier, plugins) = createVerifier(tracker, nodeFromUniqueId)
 
-    tracker.withEntities(silverProgram) {
-      verifier.verify(silverProgram) match {
-        case Success =>
-        case Failure(errors) => errors.foreach(processError)
-      }
+    val transformedProgram = plugins.beforeVerify(silverProgram) match {
+      case Some(program) => program
+      case None => throw PluginErrors(plugins.errors)
     }
 
+    tracker.withEntities(transformedProgram) {
+      verifier.verify(transformedProgram) match {
+        case Success =>
+        case Failure(errors) =>
+          logger.debug(errors.toString())
+          errors.foreach(processError)
+      }
+    }
     stopVerifier(verifier)
   }
 
@@ -112,7 +125,7 @@ trait SilverBackend extends Backend with LazyLogging {
         val exhale = get[col.Exhale[_]](node)
         reason match {
           case reasons.InsufficientPermission(permNode) => get[col.Node[_]](permNode) match {
-            case _: col.Perm[_] | _: col.PredicateApply[_] =>
+            case _: col.Perm[_] | _: col.PredicateApply[_] | _: col.Value[_] =>
               exhale.blame.blame(blame.ExhaleFailed(getFailure(reason), exhale))
             case _ =>
               defer(reason)
@@ -132,7 +145,7 @@ trait SilverBackend extends Backend with LazyLogging {
         val assert = get[col.Assert[_]](node)
         reason match {
           case reasons.InsufficientPermission(permNode) => get[col.Node[_]](permNode) match {
-            case _: col.Perm[_] | _: col.PredicateApply[_] =>
+            case _: col.Perm[_] | _: col.PredicateApply[_] | _: col.Value[_] =>
               assert.blame.blame(blame.AssertFailed(getFailure(reason), assert))
             case _ =>
               defer(reason)
@@ -185,9 +198,37 @@ trait SilverBackend extends Backend with LazyLogging {
       case TerminationFailed(_, _, _) =>
         throw NotSupported(s"Vercors does not support termination measures from Viper")
       case PackageFailed(node, reason, _) =>
-        throw NotSupported(s"Vercors does not support magic wands from Viper")
+        val packageNode = get[col.WandPackage[_]](node)
+        reason match {
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
+            packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
+          case reasons.InsufficientPermission(permNode) =>
+            get[col.Node[_]](permNode) match {
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) | col.Value(_) =>
+                packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
+              case _ =>
+                defer(reason)
+            }
+          case _ =>
+            defer(reason)
+        }
       case ApplyFailed(node, reason, _) =>
-        throw NotSupported(s"Vercors does not support magic wands from Viper")
+        val applyNode = get[col.WandApply[_]](node)
+        reason match {
+          case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
+            applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
+          case reasons.InsufficientPermission(permNode) =>
+            get[col.Node[_]](permNode) match {
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) | col.Value(_) =>
+                applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
+              case _ =>
+                defer(reason)
+            }
+          case reasons.MagicWandChunkNotFound(magicWand) =>
+            applyNode.blame.blame(blame.WandApplyFailed(blame.InsufficientPermissionToExhale(get(magicWand)), applyNode))
+          case _ =>
+            defer(reason)
+        }
       case MagicWandNotWellformed(_, _, _) =>
         throw NotSupported(s"Vercors does not support magic wands from Viper")
       case LetWandFailed(_, _, _) =>
@@ -218,9 +259,9 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))
-    case reasons.ReceiverNotInjective(access @ silver.LocationAccess(_)) =>
+    case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
       val starall = info(access).starall.get
-      starall.blame.blame(blame.ReceiverNotInjective(starall))
+      starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))
     case reasons.LabelledStateNotReached(expr) =>
       val old = get[col.Old[_]](expr)
       old.blame.blame(blame.LabelNotReached(old))

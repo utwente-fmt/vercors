@@ -1,0 +1,19 @@
+adt map_compat<K, V> {
+  pure boolean map_disjoint(map<K, V> m1, map<K, V> m2);
+
+  axiom (∀map<K, V> m1, map<K, V> m2; {:map_disjoint(m1, m2):} == (∀K k; !(k \in m1) || !(k \in m2)));
+
+  pure set<tuple<K, V>> map_items(map<K, V> m);
+
+  axiom (∀map<K, V> m; |{:map_items(m):}| == m.size);
+  axiom (∀tuple<K, V> t, map<K, V> m; (t \in map_items(m)) == (t.fst \in m.keys && m[t.fst] == t.snd));
+
+  pure map<K, V> map_remove(map<K, V> m, K k);
+
+  axiom (∀map<K, V> m, K k; !(k \in {:map_remove(m, k):}));
+  axiom (∀map<K, V> m, K k1, K k2; k1 != k2 ==> {:map_remove(m, k1)[k2]:} == m[k2]);
+  axiom (∀map<K, V> m, K k1, K k2; k1 != k2 ==> ({:k2 \in map_remove(m, k1):} == k2 \in m));
+  axiom (∀map<K, V> m, K k; k \in m ==> {:map_remove(m, k).size:} == m.size - 1);
+  axiom (∀map<K, V> m, K k; k \in m ==> {:map_remove(m, k).size:} == m.size);
+  axiom (∀map<K, V> m, K k; !(k \in m) ==> {:map_remove(m, k):} == m);
+}

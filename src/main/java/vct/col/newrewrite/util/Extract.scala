@@ -3,6 +3,7 @@ package vct.col.newrewrite.util
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.newrewrite.util.FreeVariables.{FreeThisModel, FreeThisObject, FreeVar}
+import vct.col.util.Substitute
 
 import scala.collection.mutable
 
@@ -12,7 +13,9 @@ import scala.collection.mutable
 case object Extract {
   case class ExtractOrigin(name: String) extends Origin {
     override def preferredName: String = name
+    override def shortPosition: String = "generated"
     override def context: String = "[At extracted expression]"
+    override def inlineContext: String = "[Extracted expression]"
   }
 
   def extract[G](nodes: Expr[G]*): (Seq[Expr[G]], Map[Variable[G], Expr[G]]) = {

@@ -8,7 +8,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 case class ImplicitLabelOrigin(inner: Origin) extends Origin {
   override def preferredName: String = "loop"
+  override def shortPosition: String = inner.shortPosition
   override def context: String = inner.context
+  override def inlineContext: String = inner.inlineContext
 }
 
 case object SpecifyImplicitLabels extends RewriterBuilder {
@@ -28,7 +30,7 @@ case class SpecifyImplicitLabels[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Label(decl, impl) if isBreakable(impl) =>
       val newLabel = decl.rewrite()
-      succeed(decl, newLabel)
+      labelDecls.succeedOnly(decl, newLabel)
       val newImpl = labelStack.having(newLabel) {
         rewriteDefault(impl)
       }

@@ -4,12 +4,12 @@ parser grammar LangPVLParser;
     private static int specLevel = 1;
 }
 
-program  : programDecl* EOF ;
+program  : programDecl* EOF EOF ;
 
 programDecl : valGlobalDeclaration | declClass | method;
 
 declClass : contract 'class' identifier '{' classDecl* '}' ;
-classDecl : valClassDeclaration | constructor | method | field;
+classDecl : valClassDeclaration | constructor | method | field | runMethod;
 
 field : type identifierList ';' ;
 
@@ -17,6 +17,8 @@ method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
 
 constructor : contract 'constructor' '(' args? ')' methodBody ;
+
+runMethod : contract 'run' methodBody ;
 
 contract : valContractClause* ;
 
@@ -126,7 +128,7 @@ postfixExpr
  ;
 
 unit
- : valPrimary
+ : valExpr
  | 'this'
  | 'null'
  | NUMBER
@@ -135,7 +137,7 @@ unit
  | valGenericAdtInvocation
  ;
 
-call : typeArgs? valGiven? tuple valYields?;
+call : typeArgs? tuple valGiven? valYields?;
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;
@@ -245,4 +247,4 @@ identifierList
  | identifier ',' identifierList
  ;
 
-identifier : Identifier | valReserved ;
+identifier : Identifier | LANG_ID_ESCAPE ;

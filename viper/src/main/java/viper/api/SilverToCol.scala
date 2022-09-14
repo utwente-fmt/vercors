@@ -1,6 +1,6 @@
 package viper.api
 
-import vct.col.origin.{Blame, DerefPerm, Origin, ReadableOrigin, SourceNameOrigin, VerificationFailure}
+import vct.col.origin.{Blame, DerefPerm, InputOrigin, Origin, ReadableOrigin, SourceNameOrigin, VerificationFailure}
 import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers._
 import viper.silver.{ast => silver}
@@ -9,13 +9,18 @@ import vct.result.VerificationError.UserError
 import viper.api.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
 import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
 import viper.silver.verifier.AbstractError
-import hre.io.{Readable, RWFile}
+import hre.io.{RWFile, Readable}
+import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesStar, DecreasesTuple, DecreasesWildcard}
 
 import java.nio.file.{Path, Paths}
 
 case object SilverToCol {
   case class SilverPositionOrigin(node: silver.Positioned) extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = node.pos match {
+      case pos: AbstractSourcePosition => s"${pos.start.line}:${pos.start.column}"
+      case _ => "unknown"
+    }
     override def context: String = node.pos match {
       case NoPosition => "[Unknown position from silver parse tree]"
       case pos: AbstractSourcePosition =>
@@ -23,6 +28,7 @@ case object SilverToCol {
         ReadableOrigin(RWFile(pos.file.toFile), start.line-1, end.line-1, Some((start.column-1, end.column-1))).context
       case other => s"[Unknown silver position kind: $other]"
     }
+    override def inlineContext: String = InputOrigin.compressInlineText(node.toString)
   }
 
   case class SilverNodeNotSupported(node: silver.Node) extends UserError {
@@ -104,20 +110,52 @@ case class SilverToCol[G](program: silver.Program) {
   def transform(field: silver.Field): col.SilverField[G] =
     new col.SilverField(transform(field.typ))(origin(field))
 
-  def transform(func: silver.Function): col.Function[G] =
+  def partitionDecreases(exps: Seq[silver.Exp]): (Seq[silver.Exp], Seq[DecreasesClause]) =
+    exps.partitionMap {
+      case decreases: DecreasesClause => Right(decreases)
+      case other => Left(other)
+    }
+
+  def partitionContract(contracted: silver.Contracted): (Seq[silver.Exp], Seq[silver.Exp], Option[DecreasesClause]) = {
+    val (pres, decreases1) = partitionDecreases(contracted.pres)
+    val (posts, decreases2) = partitionDecreases(contracted.posts)
+
+    val decreases = (decreases1 ++ decreases2) match {
+      case Nil => None
+      case x :: Nil => Some(x)
+      case _ :: x :: _ => ??(x)
+    }
+
+    (pres, posts, decreases)
+  }
+
+  def transform(clause: DecreasesClause): Option[col.DecreasesClause[G]] = clause match {
+    case DecreasesTuple(_, Some(cond)) => ??(cond)
+    case DecreasesTuple(Nil, None) => Some(col.DecreasesClauseNoRecursion()(origin(clause)))
+    case DecreasesTuple(exps, None) => Some(col.DecreasesClauseTuple(exps.map(transform))(origin(clause)))
+    case DecreasesWildcard(Some(cond)) => ??(cond)
+    case DecreasesWildcard(None) => Some(col.DecreasesClauseAssume()(origin(clause)))
+    case DecreasesStar() => None
+  }
+
+  def transform(func: silver.Function): col.Function[G] = {
+    val (pres, posts, decreases) = partitionContract(func)
+
     new col.Function(
       returnType = transform(func.typ),
       args = func.formalArgs.map(transform),
       typeArgs = Nil,
       body = func.body.map(transform),
       contract = col.ApplicableContract(
-        requires = col.UnitAccountedPredicate(foldStar(func.pres.map(transform))(origin(func)))(origin(func)),
-        ensures = col.UnitAccountedPredicate(foldStar(func.posts.map(transform))(origin(func)))(origin(func)),
+        requires = col.UnitAccountedPredicate(foldStar(pres.map(transform))(origin(func)))(origin(func)),
+        ensures = col.UnitAccountedPredicate(foldStar(posts.map(transform))(origin(func)))(origin(func)),
         contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil,
-      )(origin(func)),
+        decreases = decreases.flatMap(transform),
+      )(blame(func))(origin(func)),
       inline = false,
       threadLocal = false,
     )(blame(func))(origin(func))
+  }
 
   def transform(v: silver.AnyLocalVarDecl): col.Variable[G] = v match {
     case silver.LocalVarDecl(_, typ) =>
@@ -134,7 +172,9 @@ case class SilverToCol[G](program: silver.Program) {
       inline = false
     )(origin(pred))
 
-  def transform(proc: silver.Method): col.Procedure[G] =
+  def transform(proc: silver.Method): col.Procedure[G] = {
+    val (pres, posts, decreases) = partitionContract(proc)
+
     new col.Procedure(
       returnType = col.TVoid(),
       args = proc.formalArgs.map(transform),
@@ -142,13 +182,15 @@ case class SilverToCol[G](program: silver.Program) {
       typeArgs = Nil,
       body = proc.body.map(transform),
       contract = col.ApplicableContract(
-        requires = col.UnitAccountedPredicate(foldStar(proc.pres.map(transform))(origin(proc)))(origin(proc)),
-        ensures = col.UnitAccountedPredicate(foldStar(proc.posts.map(transform))(origin(proc)))(origin(proc)),
+        requires = col.UnitAccountedPredicate(foldStar(pres.map(transform))(origin(proc)))(origin(proc)),
+        ensures = col.UnitAccountedPredicate(foldStar(posts.map(transform))(origin(proc)))(origin(proc)),
         contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil,
-      )(origin(proc)),
+        decreases = decreases.flatMap(transform),
+      )(blame(proc))(origin(proc)),
       inline = false,
       pure = false,
     )(blame(proc))(origin(proc))
+  }
 
   def transform(s: silver.Stmt): col.Statement[G] = s match {
     case silver.NewStmt(lhs, fields) =>
@@ -254,7 +296,7 @@ case class SilverToCol[G](program: silver.Program) {
         if(left.typ.isInstanceOf[silver.SetType]) col.SetUnion(f(left), f(right))
         else col.BagAdd(f(left), f(right))
       case silver.CondExp(cond, thn, els) => col.Select(f(cond), f(thn), f(els))
-      case silver.CurrentPerm(res) => col.CurPerm(f(res))
+      case silver.CurrentPerm(res) => col.CurPerm(col.AmbiguousLocation(f(res))(vct.col.origin.PanicBlame("Silver does not have pointers.")))
       case silver.Div(left, right) => col.FloorDiv(f(left), f(right))(blame(e))
       case silver.DomainFuncApp(funcname, args, typVarMap) =>
         col.SilverPartialADTFunctionInvocation(funcname, args.map(f), typVarMap.toSeq.map {
@@ -275,7 +317,7 @@ case class SilverToCol[G](program: silver.Program) {
       case silver.ExplicitSet(elems) => col.UntypedLiteralSet(elems.map(f))
       case silver.FalseLit() => col.BooleanValue(false)
       case silver.FieldAccess(rcv, field) => col.SilverDeref[G](f(rcv), new UnresolvedRef(field.name))(blame(e))
-      case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverDeref[G](f(loc.rcv), new UnresolvedRef(loc.field.name))(DerefPerm), f(perm))
+      case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverFieldLocation[G](f(loc.rcv), new UnresolvedRef(loc.field.name)), f(perm))
       case silver.Forall(variables, triggers, exp) =>
         if(exp.typ == silver.Bool) col.Forall(variables.map(transform), triggers.map(transform), f(exp))
         else col.Starall(variables.map(transform), triggers.map(transform), f(exp))(blame(e))

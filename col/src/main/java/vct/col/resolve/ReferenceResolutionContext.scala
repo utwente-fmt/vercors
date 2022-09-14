@@ -1,6 +1,6 @@
 package vct.col.resolve
 
-import vct.col.ast.{Declaration, Expr, GlobalDeclaration, JavaAnnotation, JavaClassOrInterface, JavaMethod, JavaName, JavaNamespace, Type}
+import vct.col.ast.{CTranslationUnit, Declaration, Expr, GlobalDeclaration, JavaAnnotation, JavaClassOrInterface, JavaMethod, JavaName, JavaNamespace, Type}
 import vct.col.check.CheckContext
 import vct.col.origin.DiagnosticOrigin
 import vct.col.resolve.Resolve.SpecExprParser

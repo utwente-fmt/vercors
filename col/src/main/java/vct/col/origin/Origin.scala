@@ -8,6 +8,7 @@ import vct.col.origin.RedirectOrigin.StringReadable
 
 import java.io.{Reader, StringReader}
 import java.nio.file.Path
+import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
@@ -24,7 +25,10 @@ case object Origin {
 
 trait Origin extends Blame[VerificationFailure] {
   def preferredName: String
+
   def context: String
+  def inlineContext: String
+  def shortPosition: String
 
   def messageInContext(message: String): String =
     context match {
@@ -41,11 +45,15 @@ trait Origin extends Blame[VerificationFailure] {
 case object DiagnosticOrigin extends Origin {
   override def preferredName: String = "unknown"
   override def context: String = ""
+  override def inlineContext: String = ""
+  override def shortPosition: String = "unknown"
 }
 
 object InputOrigin {
   val CONTEXT = 2
   val LINE_NUMBER_WIDTH = 5
+  val MAX_INLINE_CONTEXT_WIDTH = 30
+  val INLINE_CONTEXT_ELLIPSIS = " ... "
 
   def contextLines(readable: Readable, unsafeStartLineIdx: Int, unsafeEndLineIdx: Int, unsafeCols: Option[(Int, Int)]): String = {
     // The newline at the end is dropped, so replace it with two spaces as we need to be able to point to the newline character.
@@ -169,6 +177,39 @@ object InputOrigin {
     result.toString()
   }
 
+  def sanitizeInlineText(text: String): String =
+    text.replaceAll(raw"[\t\r\n]", " ").replaceAll(raw"[ ]+", " ").strip()
+
+  def compressInlineText(text: String): String = {
+    val sanitized = sanitizeInlineText(text)
+
+    if(sanitized.length > MAX_INLINE_CONTEXT_WIDTH) {
+      val len = MAX_INLINE_CONTEXT_WIDTH - INLINE_CONTEXT_ELLIPSIS.length
+      val startLen = len / 2
+      val endLen = len - startLen
+
+      sanitizeInlineText(sanitized.take(startLen)) +
+        INLINE_CONTEXT_ELLIPSIS +
+        sanitizeInlineText(sanitized.takeRight(endLen))
+    } else {
+      sanitized
+    }
+  }
+
+  def inlineContext(readable: Readable, unsafeStartLineIdx: Int, unsafeEndLineIdx: Int, unsafeCols: Option[(Int, Int)]): String =
+    readable.readLines().slice(unsafeStartLineIdx, unsafeEndLineIdx+1) match {
+      case Nil => "(empty source region)"
+      case line :: Nil => unsafeCols match {
+        case None => compressInlineText(line)
+        case Some((start, end)) => compressInlineText(line.slice(start, end))
+      }
+      case first :: moreLines =>
+        val (context, last) = (moreLines.init, moreLines.last)
+        unsafeCols match {
+          case None => compressInlineText((first +: context :+ last).mkString("\n"))
+          case Some((start, end)) => compressInlineText((first.drop(start) +: context :+ last.take(end)).mkString("\n"))
+        }
+    }
 }
 
 abstract class InputOrigin extends Origin {
@@ -196,6 +237,13 @@ case class ReadableOrigin(readable: Readable,
     case None => f"${endLineIdx+1}"
   }
 
+  private def baseFilename: String = Paths.get(readable.fileName).getFileName.toString
+
+  override def shortPosition: String = cols match {
+    case Some((startColIdx, _)) => f"$baseFilename:${startLineIdx+1}:${startColIdx+1}"
+    case None => f"$baseFilename:${startLineIdx+1}"
+  }
+
   override def context: String = {
     val atLine = f" At $startText:\n"
 
@@ -205,6 +253,12 @@ case class ReadableOrigin(readable: Readable,
       atLine
     }
   }
+
+  override def inlineContext: String =
+    if(readable.isRereadable)
+      InputOrigin.inlineContext(readable, startLineIdx, endLineIdx, cols)
+    else
+      f"(non-rereadable source ${readable.fileName})"
 
   override def toString: String = f"$startText - $endText"
 }
@@ -224,6 +278,8 @@ case class InterpretedOrigin(interpreted: Readable,
     case None => f"${endLineIdx+1}"
   }
 
+  override def shortPosition: String = original.shortPosition
+
   override def context: String = {
     val interpretedAtLine = f" Interpreted at $startText as:\n"
 
@@ -236,13 +292,21 @@ case class InterpretedOrigin(interpreted: Readable,
     original.context + Origin.HR + interpretedText
   }
 
+  override def inlineContext: String =
+    if(interpreted.isRereadable)
+      InputOrigin.inlineContext(interpreted, startLineIdx, endLineIdx, cols)
+    else
+      f"(non-rereadable source ${interpreted.fileName})"
+
   override def toString: String =
     f"$startText - $endText interpreted from $original"
 }
 
 case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
   override def preferredName: String = name
+  override def shortPosition: String = inner.shortPosition
   override def context: String = inner.context
+  override def inlineContext: String = inner.inlineContext
 
   override def toString: String =
     s"$name at $inner"
@@ -261,6 +325,9 @@ case object RedirectOrigin {
 
 case class RedirectOrigin(o: Origin, textualOrigin: String, startLine: Int, endLine: Int, cols: Option[(Int, Int)]) extends Origin {
   override def preferredName: String = o.preferredName
+
+  override def inlineContext: String = ???
+  override def shortPosition: String = ???
 
   override def context: String = o match {
     case ReadableOrigin(readable, baseStartLine, baseEndLine, baseCols) =>

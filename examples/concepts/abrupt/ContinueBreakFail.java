@@ -10,7 +10,7 @@ class CB {
         while (pp) {
             break;
         }
-        /*[/expect failed]*/
+        /*[/expect assertFailed:false]*/
         assert false; // Should be triggered
         /*[/end]*/
     }

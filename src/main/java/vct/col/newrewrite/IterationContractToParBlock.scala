@@ -3,9 +3,11 @@ package vct.col.newrewrite
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
+import hre.util.ScopedStack
+import vct.col.ast.temporaryimplpackage.statement.composite.LoopImpl.IterationContractData
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
 
 case object IterationContractToParBlock extends RewriterBuilder {
@@ -14,70 +16,71 @@ case object IterationContractToParBlock extends RewriterBuilder {
 
   case object IterationContractOrigin extends Origin {
     override def preferredName: String = ???
+    override def shortPosition: String = "generated"
     override def context: String = ???
+    override def inlineContext: String = ???
   }
 
-  case class InvalidLoopFormatForIterationContract(loop: Loop[_], message: String) extends UserError {
-    override def code: String = "invalidIterationLoop"
-    override def text: String =
-      loop.o.messageInContext(s"This loop has an iteration contract, but $message.")
+  case class VariableReadOutsideParLoop(e: Local[_]) extends UserError {
+    override def code: String = "localOutsideParLoop"
+    override def text: String = e.o.messageInContext("This variable may not be read here, since it is used as a loop variable in a loop specified with an iteration contract.")
+  }
+
+  case class VariableWrittenInParLoop(assign: Assign[_]) extends UserError {
+    override def code: String = "writeParVar"
+    override def text: String = assign.o.messageInContext("This variable may not be written to, since it is used as a loop variable in a loop specified with an iteration contract.")
   }
 }
 
 case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre] {
   import IterationContractToParBlock._
 
-  def getVariableAndLowerBound(init: Statement[Pre]): Option[(Variable[Pre], Expr[Pre])] =
-    init match {
-      case Block(Seq(Assign(Local(Ref(v)), low))) =>
-        Some((v, low))
-      case _ => None
-    }
+  var iterationLoopVariables: Set[Variable[Pre]] = Set.empty
+  val currentIterationVariables: ScopedStack[Variable[Pre]] = ScopedStack()
 
-  def getExclusiveUpperBound(v: Variable[Pre], cond: Expr[Pre]): Option[Expr[Pre]] = {
-    implicit val o: Origin = IterationContractOrigin
-    cond match {
-      case Less(Local(Ref(`v`)), high) => Some(high)
-      case LessEq(Local(Ref(`v`)), high) => Some(high + const(1))
-      case Greater(high, Local(Ref(`v`))) => Some(high)
-      case GreaterEq(high, Local(Ref(`v`))) => Some(high + const(1))
-      case _ => None
-    }
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    iterationLoopVariables = program.transSubnodes.collect {
+      case loop @ Loop(_, _, _, contract @ IterationContract(_, _, _), _) =>
+        loop.getIterationContractData(IterationContractOrigin).fold(throw _, identity).v
+    }.toSet
+
+    program.rewrite()
   }
-
-  def doesIncrement(v: Variable[Pre], update: Statement[Pre]): Boolean =
-    update match {
-      case Block(Seq(s)) => doesIncrement(v, s)
-      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))) => true
-      case Eval(PostAssignExpression(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)))) => true
-      case _ => false
-    }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case loop @ Loop(init, cond, update, contract @ IterationContract(requires, ensures, context_everywhere), body) =>
-      val (v, low) = getVariableAndLowerBound(init).getOrElse(throw InvalidLoopFormatForIterationContract(loop,
-        "we could not derive the iteration variable or its lower bound from the initialization portion of the loop"))
+      val IterationContractData(v, low, high) = loop.getIterationContractData(IterationContractOrigin).fold(throw _, identity)
 
-      val high = getExclusiveUpperBound(v, cond).getOrElse(throw InvalidLoopFormatForIterationContract(loop,
-        "we could not derive an upper bound for the iteration variable from the condition"))
-
-      if(!doesIncrement(v, update))
-        throw InvalidLoopFormatForIterationContract(loop,
-          "we could not ascertain that the iteration variable is incremented by one each iteration")
-
-      val newV = collectOneInScope(variableScopes) { dispatch(v) }
+      val newV = variables.dispatch(v)
 
       implicit val o: Origin = loop.o
-      ParStatement(
-        ParBlock(
-          decl = new ParBlockDecl(),
-          iters = Seq(IterVariable(newV, dispatch(low), dispatch(high))),
-          requires = dispatch(requires),
-          ensures = dispatch(ensures),
-          context_everywhere = dispatch(context_everywhere),
-          content = dispatch(body),
-        )(contract.blame)
-      )
+      currentIterationVariables.having(v) {
+        sendDecls.scope {
+          ParStatement(
+            ParBlock(
+              decl = new ParBlockDecl(),
+              iters = Seq(IterVariable(newV, dispatch(low), dispatch(high))),
+              requires = dispatch(requires),
+              ensures = dispatch(ensures),
+              context_everywhere = dispatch(context_everywhere),
+              content = dispatch(body),
+            )(contract.blame)
+          )
+        }
+      }
+
+    case a @ Assign(Local(Ref(v)), _) if iterationLoopVariables.contains(v) =>
+      throw VariableWrittenInParLoop(a)
+
+    case s @ Scope(locals, _) =>
+      s.rewrite(locals = variables.dispatch(locals.filterNot(iterationLoopVariables.contains)))
+
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
+    case l @ Local(Ref(v)) if iterationLoopVariables.contains(v) && !currentIterationVariables.toSeq.contains(v) =>
+      throw VariableReadOutsideParLoop(l)
     case other => rewriteDefault(other)
   }
 }

@@ -4,6 +4,7 @@ lazy val hre = (project in file(".")).settings(
 
   libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
   libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
+  libraryDependencies += "org.fusesource.jansi" % "jansi" % "2.4.0",
 
   // Disable documentation generation
   Compile / doc / sources := Nil,

@@ -22,7 +22,9 @@ case object SimplifyQuantifiedRelations extends RewriterBuilder {
 case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
   case object SimplifyQuantifiedRelationsOrigin extends Origin {
     override def preferredName: String = "unknown"
+    override def shortPosition: String = "generated"
     override def context: String = "[At generated expression for the simplification of quantified integer relations]"
+    override def inlineContext: String = "[Simplified expression]"
   }
 
   private implicit val o: Origin = SimplifyQuantifiedRelationsOrigin
@@ -50,7 +52,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
       val min = (e: Expr[Pre]) => extremeValue(e, !maximizing).getOrElse(return None)
 
       Some(expr match {
-        case v @ IntegerValue(_) => v
+        case e if indepOf(bindings, e) => e
         case Local(Ref(v)) =>
           if(bindings.contains(v)) {
             val bounds = if(maximizing) exclusiveUpperBound(v) else inclusiveLowerBound(v)
@@ -72,10 +74,10 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
           ).distinct, maximizing)
         case Div(left, right) =>
           extremeValue(Seq(
-            max(left) /: max(right),
-            max(left) /: min(right),
-            min(left) /: max(right),
-            min(left) /: min(right)
+            max(left) /:/ max(right),
+            max(left) /:/ min(right),
+            min(left) /:/ max(right),
+            min(left) /:/ min(right)
           ).distinct, maximizing)
         case FloorDiv(left, right) =>
           extremeValue(Seq(

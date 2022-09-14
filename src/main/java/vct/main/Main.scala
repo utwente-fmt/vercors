@@ -4,6 +4,7 @@ import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
 import org.slf4j.LoggerFactory
+import scopt.OParser
 import vct.col.ast.Node
 import vct.main.modes.Verify
 import vct.main.stages.Transformation
@@ -34,7 +35,10 @@ case object Main extends LazyLogging {
   }
 
   def runOptions(options: Options): Int = {
-    Progress.forceProgress = options.progress
+    if(options.help) {
+      println(OParser.usage(Options.parser(hide = !options.showHidden)))
+      return 0
+    }
 
     for((key, logLevel) <- options.logLevels) {
       LoggerFactory.getLogger(key).asInstanceOf[Logger].setLevel(logLevel match {
@@ -47,6 +51,8 @@ case object Main extends LazyLogging {
         case Verbosity.All => Level.ALL
       })
     }
+
+    Progress.install(options.progress)
 
     options.mode match {
       case Mode.Verify =>

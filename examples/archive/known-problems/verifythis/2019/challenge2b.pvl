@@ -59,7 +59,7 @@ class CartTree {
   ensures correctness_invar(s,parent,left,right);
   ensures (\forall int i;0<=i && i < s.size; parent[i]!=-1 ==> 0 <= parent[i] && parent[i] < s.size);
   ensures correctness_upto(s,parent,left,right,root,s.size);
-  cartTree(seq<int> s){
+  void cartTree(seq<int> s){
     
     parent = new int[s.size];
     left = new int[s.size];

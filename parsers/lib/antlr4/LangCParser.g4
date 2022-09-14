@@ -31,9 +31,7 @@ parser grammar C;
 import LangOMPParser, LangGPGPUParser;
 
 primaryExpression
-    /* valPrimary has to be before even identifier, so we consume `reserved arguments` instead of greedily matching
-     * the identifier first. */
-    :   {specLevel>0}? valPrimary
+    :   valExpr
     |   clangIdentifier
     |   Constant
     |   StringLiteral+
@@ -66,7 +64,7 @@ genericAssociation
 postfixExpression
     :   annotatedPrimaryExpression
     |   postfixExpression '[' expression ']'
-    |   postfixExpression valEmbedGiven? '(' argumentExpressionList? ')' valEmbedYields?
+    |   postfixExpression '(' argumentExpressionList? ')' valEmbedGiven? valEmbedYields?
     |   postfixExpression '.' clangIdentifier
     |   postfixExpression '->' clangIdentifier
     |   postfixExpression '++'
@@ -608,7 +606,6 @@ declarationList
     ;
 
 clangIdentifier
-    :   {specLevel>0}? valReserved
-    |   Identifier
-    |   valReserved
+    :   Identifier
+    |   valIdentifier
     ;

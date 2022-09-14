@@ -20,6 +20,8 @@ class FeatureRainbow[G] {
     }))
 
   def scanFlatly(node: Node[G]): Seq[Feature] = Seq(node match {
+    case node: Verification[G] => return Nil
+    case node: VerificationContext[G] => return Nil
     case node: Program[G] => return Nil
     case node: IntegerValue[G] => return Nil
     case node: BooleanValue[G] => return Nil
@@ -70,6 +72,7 @@ class FeatureRainbow[G] {
     case node: AddrOf[G] => Pointers
     case node: PredicateApply[G] => return Nil
     case node: InstancePredicateApply[G] => Classes
+    case node: CoalesceInstancePredicateApply[G] => Classes
     case node: ADTFunctionInvocation[G] => return Nil
     case node: ProcedureInvocation[G] => return Nil
     case node: InvokeProcedure[G] => return Nil
@@ -91,6 +94,7 @@ class FeatureRainbow[G] {
         else if(node.isPointerOp) Seq(Pointers)
         else Nil
       )
+    case node: AmbiguousMinus[G] => AmbiguousOperators
     case node: AmbiguousOr[G] =>
       return AmbiguousOperators +: (
         if(node.isProcessOp) Seq(Models)
@@ -125,14 +129,21 @@ class FeatureRainbow[G] {
     case node: Scale[G] => return Nil
     case node: Unfolding[G] => return Nil
     case node: Perm[G] => return Nil
-    case node: HPerm[G] => Models
-    case node: APerm[G] => Models
+    case node: FieldLocation[G] => return Nil
+    case node: SilverFieldLocation[G] => return Nil
+    case node: ModelLocation[G] => Models
+    case node: ArrayLocation[G] => Arrays
+    case node: PointerLocation[G] => Pointers
+    case node: PredicateLocation[G] => return Nil
+    case node: InstancePredicateLocation[G] => Classes
+    case node: AmbiguousLocation[G] => AmbiguousOperators
     case node: PointsTo[G] => SugarPermissionOperator
     case node: CurPerm[G] => return Nil
     case node: ValidArray[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: ValidMatrix[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: PermPointer[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
+    case node: Value[G] => return Nil
     case node: Eq[G] => return Nil
     case node: Neq[G] => return Nil
     case node: AmbiguousGreater[G] => AmbiguousOperators
@@ -158,6 +169,8 @@ class FeatureRainbow[G] {
     case node: ArraySubscript[G] => Arrays
     case node: PointerAdd[G] => Pointers
     case node: PointerSubscript[G] => Pointers
+    case node: PointerBlockLength[G] => Pointers
+    case node: PointerBlockOffset[G] => Pointers
     case node: Length[G] => Arrays
     case node: Size[G] => return Nil
     case node: Cons[G] => SugarCollectionOperator
@@ -183,6 +196,12 @@ class FeatureRainbow[G] {
     case node: SubSetEq[G] => SugarCollectionOperator
     case node: SubBag[G] => return Nil
     case node: SubBagEq[G] => SugarCollectionOperator
+    case node: SetIntersection[G] => return Nil
+    case node: BagLargestCommon[G] => return Nil
+    case node: SetMinus[G] => return Nil
+    case node: BagMinus[G] => return Nil
+    case node: SetUnion[G] => return Nil
+    case node: BagAdd[G] => return Nil
     case node: Permutation[G] => PermutationOperator
     case node: OptGet[G] => AxiomaticLibraryType
     case node: OptGetOrElse[G] => AxiomaticLibraryType
@@ -248,6 +267,7 @@ class FeatureRainbow[G] {
     case node: ScopedExpr[G] => return Nil
     case node: LoopInvariant[G] => return Nil
     case node: IterationContract[G] => LoopIterationContract
+    case node: IndetBranch[G] => NonTrivialBranch
     case node: Branch[G] =>
       node.branches match {
         case Seq((_, _), (BooleanValue(true), _)) => return Nil
@@ -266,6 +286,7 @@ class FeatureRainbow[G] {
     case node: ParBarrier[G] => ParallelRegion
     case node: IterVariable[G] => return Nil
     case node: ParBlock[G] => ParallelRegion
+    case node: ScaleByParBlock[G] => ParallelRegion
     case node: ParParallel[G] => ParallelRegion
     case node: ParRegion[G] => ParallelRegion
     case node: VecBlock[G] => ParallelRegion
@@ -290,16 +311,15 @@ class FeatureRainbow[G] {
     case node: Throw[G] => Exceptions
     case node: Wait[G] => WaitNotify
     case node: Notify[G] => WaitNotify
+    case node: RunMethod[G] => JavaThreads
     case node: Fork[G] => JavaThreads
     case node: Join[G] => JavaThreads
     case node: Lock[G] => IntrinsicLocks
     case node: Unlock[G] => IntrinsicLocks
     case node: Fold[G] => return Nil
     case node: Unfold[G] => return Nil
-    case node: WandCreate[G] => MagicWand
-    case node: WandQed[G] => MagicWand
+    case node: WandPackage[G] => MagicWand
     case node: WandApply[G] => MagicWand
-    case node: WandUse[G] => MagicWand
     case node: ModelDo[G] => Models
     case node: Havoc[G] => return Nil
     case node: Break[G] => ExceptionalLoopControl
@@ -346,6 +366,7 @@ class FeatureRainbow[G] {
     case node: AxiomaticDataType[G] => return Nil
     case node: ADTAxiom[G] => return Nil
     case node: SignalsClause[G] => Exceptions
+    case node: DecreasesClause[G] => return Nil
     case node: ApplicableContract[G] => return Nil
     case node: SplitAccountedPredicate[G] => return Nil
     case node: UnitAccountedPredicate[G] => return Nil
@@ -390,6 +411,7 @@ class FeatureRainbow[G] {
     case node: SilverSeqSize[G] => return Nil
     case node: SilverSetSize[G] => return Nil
     case node: SilverBagSize[G] => return Nil
+    case node: SilverMapSize[G] => return Nil
     case node: CPure[G] => return Nil
     case node: CInline[G] => return Nil
     case node: CTypedef[G] => return Nil
@@ -423,6 +445,7 @@ class FeatureRainbow[G] {
     case node: CInit[G] => return Nil
     case node: CDeclaration[G] => return Nil
     case node: CFunctionDefinition[G] => return Nil
+    case node: CTranslationUnit[G] => return Nil
     case node: CGlobalDeclaration[G] => return Nil
     case node: CDeclarationStatement[G] => return Nil
     case node: CGoto[G] => return Nil
@@ -480,6 +503,7 @@ class FeatureRainbow[G] {
     case node: PVLNew[G] => return Nil
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
+    case node: FramedProof[G] => return Nil
     case _: BipGuard[G] => return Nil
     case _: BipComponent[G] => return Nil
     case _: BipIncomingData[G] => return Nil

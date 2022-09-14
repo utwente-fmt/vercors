@@ -18,6 +18,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val signals: mutable.ArrayBuffer[(ParserRuleContext, SignalsClause[G1])] = mutable.ArrayBuffer()
+    val decreases: mutable.ArrayBuffer[(ParserRuleContext, DecreasesClause[G1])] = mutable.ArrayBuffer()
 
     val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
     val ensures: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable.ArrayBuffer()
@@ -36,11 +37,22 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
       result.toSeq
     }
 
-    def consumeApplicableContract()(implicit o: Origin): ApplicableContract[G1] = {
+    def consumeOpt[T](buffer: mutable.ArrayBuffer[(ParserRuleContext, T)]): Option[T] = {
+      val result = buffer.toSeq
+      buffer.clear()
+
+      result match {
+        case Nil => None
+        case (_, x) :: Nil => Some(x)
+        case _ :: (rule, _) :: _ => fail(rule, "Only one clause of this type may occur in a contract")
+      }
+    }
+
+    def consumeApplicableContract(blame: Blame[NontrivialUnsatisfiable])(implicit o: Origin): ApplicableContract[G1] = {
       ApplicableContract(UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(requires))),
                          UnitAccountedPredicate(AstBuildHelpers.foldStar(consume(ensures))),
                          AstBuildHelpers.foldStar(consume(context_everywhere)),
-                         consume(signals), consume(given), consume(yields))
+                         consume(signals), consume(given), consume(yields), consumeOpt(decreases))(blame)
     }
 
     def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {
@@ -53,7 +65,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     }
 
     def nodes: Seq[ParserRuleContext] = Seq(
-      modifies, accessible, signals,
+      modifies, accessible, signals, decreases,
       requires, ensures, context_everywhere, kernel_invariant,
       given, yields, loop_invariant,
     ).flatMap(_.map(_._1))
