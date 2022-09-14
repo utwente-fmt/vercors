@@ -1213,6 +1213,13 @@ case class Printer(out: Appendable,
     case CSpecificationType(t) => say(t)
     case CTypeQualifierDeclarationSpecifier(typeQual) => say(typeQual)
     case CKernel() => say("__kernel")
+    case GPULocal() => say(syntax(
+      Cuda -> phrase("__shared__"),
+      OpenCL -> phrase("__local"),
+    ))
+    case GPUGlobal() => say(syntax(
+      OpenCL -> phrase("__global"),
+      ))
   }
 
   def printCTypeQualifier(node: CTypeQualifier[_]): Unit = node match {

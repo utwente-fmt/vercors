@@ -254,6 +254,7 @@ valPrimary
  | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
  | LANG_ID_ESCAPE # valIdEscape
+ | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
  ;
 
 // Out spec: defined meaning: a language local

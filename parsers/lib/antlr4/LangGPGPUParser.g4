@@ -17,3 +17,7 @@ gpgpuAtomicBlock
     ;
 
 gpgpuKernelSpecifier: GPGPU_KERNEL;
+
+gpgpuLocalMemory: GPGPU_LOCAL_MEMORY;
+
+gpgpuGlobalMemory: GPGPU_GLOBAL_MEMORY;

@@ -14,7 +14,6 @@ import vct.result.VerificationError.Unreachable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.annotation.nowarn
-import scala.reflect.ClassTag
 
 /**
   * This rewrite pass simplifies expressions of roughly this form:
@@ -125,7 +124,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     val yieldsArgs = variables.collect {contract.yieldsArgs.foreach(dispatch)}._1
     val decreases = contract.decreases.map(element => rewriter.dispatch(element))
 
-    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contract.blame)(contract.o)
+    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases
+      )(contract.blame)(contract.o)
   }
 
   def rewriteLinearArray(e: Binder[Pre]): Option[Expr[Post]] = {
@@ -255,6 +255,18 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       */
     @nowarn("msg=xhaust")
     def addSingleBound(v: Variable[Pre], right: Expr[Pre], comp: Comparison): Unit = {
+      right match {
+        // Simplify rules from simplify.pvl come up with these kind of rules (specialize_range_right_i),
+        // but we want the original bounds
+        case Select(Less(e1, e2), e3, e4) =>
+          if(e1 == e3 && e2 == e4 || e1 == e4 && e2 == e3){
+            addSingleBound(v, e1, comp)
+            addSingleBound(v, e2, comp)
+            return
+          }
+        case _ =>
+      }
+
       comp match {
         // v < right
         case Comparison.LESS =>
@@ -699,7 +711,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
               if(is_value(a_i_last, 1))
                 Mod(x_base, newGen(n_i_last))(PanicBlame("Error in SimplifyNestedQuantifiers, n_i_last should not be zero"))
               else
-                Mod(FloorDiv(x_base, newGen(a_i_last))(PanicBlame("Error in SimplifyNestedQuantifiers, a_i_last should not be zero")), newGen(n_i_last))(PanicBlame("Error in SimplifyNestedQuantifiers, n_i_last should not be zero"))
+                Mod(FloorDiv(x_base, newGen(a_i_last))(
+                  PanicBlame("Error in SimplifyNestedQuantifiers, a_i_last should not be zero")),
+                  newGen(n_i_last))(PanicBlame("Error in SimplifyNestedQuantifiers, n_i_last should not be zero"))
 
             // Yay we are good up to now, go check out the next i
             x_i_last = x_i
