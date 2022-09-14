@@ -1,6 +1,7 @@
 package vct.col.newrewrite
 
 import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -13,7 +14,9 @@ case object EncodeCurrentThread extends RewriterBuilder {
 
   case object CurrentThreadIdOrigin extends Origin {
     override def preferredName: String = "tid"
+    override def shortPosition: String = "generated"
     override def context: String = "[At generated variable for the current thread ID]"
+    override def inlineContext: String = "\\current_thread"
   }
 
   abstract class MisplacedCurrentThreadReference extends UserError {
@@ -22,12 +25,12 @@ case object EncodeCurrentThread extends RewriterBuilder {
 
   case class MisplacedCurrentThreadConstant(node: CurrentThreadId[_]) extends MisplacedCurrentThreadReference {
     override def text: String =
-      "This reference to \\current_thread is misplaced, since the surrounding declaration is not thread_local."
+      node.o.messageInContext("This reference to \\current_thread is misplaced, since the surrounding declaration is not thread_local.")
   }
 
   case class MisplacedThreadLocalInvocation(node: Apply[_]) extends MisplacedCurrentThreadReference {
     override def text: String =
-      "This invocation refers to an applicable that is thread local, but the surrounding context is not thread local."
+      node.o.messageInContext("This invocation refers to an applicable that is thread local, but the surrounding context is not thread local.")
   }
 }
 
@@ -48,14 +51,20 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case app: RunMethod[Pre] =>
+      implicit val o: Origin = app.o
+      classDeclarations.succeed(app, app.rewrite(body = app.body.map { body =>
+        val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
+        Scope(Seq(currentThreadVar), currentThreadId.having(currentThreadVar.get) { dispatch(body) })
+      }))
     case app: Applicable[Pre] =>
       if(wantsThreadLocal(app)) {
         val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
         currentThreadId.having(Local[Post](currentThreadVar.ref)(CurrentThreadIdOrigin)) {
-          app.rewrite(args = collectInScope(variableScopes) {
-            currentThreadVar.declareDefault(this)
+          allScopes.anySucceedOnly(app, allScopes.anyDeclare(app.rewrite(args = variables.collect {
+            variables.declare(currentThreadVar)
             app.args.foreach(dispatch)
-          }).succeedDefault(app)
+          }._1)))
         }
       } else {
         rewriteDefault(app)

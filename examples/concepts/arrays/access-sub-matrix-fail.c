@@ -20,7 +20,7 @@ void bad1(int M,int N,int step,int matrix[M][step]){
                Perm(matrix[i1][j1],write)));
 @*/
 void bad2(int M,int N,int step,int matrix[M][step]){
-  /*[/expect null]*/
+  /*[/expect ptrNull]*/
   matrix[0][0]=0;
   /*[/end]*/
 }

@@ -4,11 +4,12 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
+import vct.col.ast.temporaryimplpackage.statement.composite.LoopImpl.IterationContractData
 import vct.col.newrewrite.EncodeSendRecv.{DuplicateRecv, SendFailedExhaleFailed, WrongSendRecvPosition}
-import vct.col.newrewrite.util.Substitute
-import vct.col.origin.{Blame, ExhaleFailed, Origin, SendFailed}
+import vct.col.origin.{Blame, DiagnosticOrigin, ExhaleFailed, Origin, SendFailed}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.Substitute
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -64,11 +65,18 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
     case scope: Scope[Pre] => rewriteDefault(scope)
     case label: Label[Pre] => rewriteDefault(label)
 
+    case loop @ Loop(_, _, _, IterationContract(_, _, _), _) =>
+      loop.getIterationContractData(DiagnosticOrigin) match {
+        case Left(err) => throw err
+        case Right(IterationContractData(v, _, _)) =>
+          allowSendRecv.having(Some(v)) { rewriteDefault(loop) }
+      }
+
     case send @ Send(decl, _, res) =>
       decl.drop()
       if(allowSendRecv.top.isEmpty)
         throw WrongSendRecvPosition(stat)
-      else Exhale(freshSuccessionScope { dispatch(res) })(SendFailedExhaleFailed(send))(stat.o)
+      else Exhale(dispatch(res))(SendFailedExhaleFailed(send))(stat.o)
 
     case recv @ Recv(Ref(decl)) =>
       val send = sendOfDecl(decl)
@@ -86,7 +94,7 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
           val resource = Substitute(
             Map[Expr[Pre], Expr[Pre]](v.get -> (v.get - const(send.delta))),
           ).dispatch(send.res)
-          Inhale(freshSuccessionScope { dispatch(resource) })(stat.o)
+          Inhale(dispatch(resource))(stat.o)
       }
 
     case other => allowSendRecv.having(None) { rewriteDefault(other) }

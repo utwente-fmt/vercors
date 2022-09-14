@@ -2,7 +2,7 @@ package vct.col.newrewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{PVLInvocation, _}
-import vct.col.origin.{Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -16,14 +16,15 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
   val pvlDefaultConstructor: SuccessionMap[Class[Pre], Procedure[Post]] = SuccessionMap()
+  val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Procedure[Post]] = SuccessionMap()
 
   def rewriteConstructor(cons: PVLConstructor[Pre]): Unit = {
     implicit val o: Origin = cons.o
     val t = TClass[Post](rw.succ(rw.currentClass.top))
     val resVar = new Variable(t)
-    withResult((result: Result[Post]) => new Procedure[Post](
+    pvlConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure[Post](
       returnType = t,
-      args = rw.collectInScope(rw.variableScopes) { cons.args.foreach(rw.dispatch) },
+      args = rw.variables.dispatch(cons.args),
       outArgs = Nil,
       typeArgs = Nil,
       body = rw.currentThis.having(resVar.get) { cons.body.map(body => Scope(Seq(resVar), Block(Seq(
@@ -38,7 +39,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           right = rw.dispatch(cons.contract.ensures),
         )
       ) },
-    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))).succeedDefault(cons)
+    )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))))
   }
 
   def maybeDeclareDefaultConstructor(cls: Class[Pre]): Unit = {
@@ -49,7 +50,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val res = Local[Post](resVar.ref)(ThisVar)
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
 
-      pvlDefaultConstructor(cls) = withResult((result: Result[Post]) => new Procedure(
+      pvlDefaultConstructor(cls) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure(
         t,
         Nil, Nil, Nil,
         Some(Scope(Seq(resVar), Block(Seq(
@@ -62,9 +63,9 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
             case field: InstanceField[Pre] =>
               fieldPerm[Post](result, rw.succ(field), WritePerm())
-          })), tt, Nil, Nil, Nil,
-        )
-      )(defaultBlame)).declareDefault(rw)
+          })), tt, Nil, Nil, Nil, None,
+        )(TrueSatisfiable)
+      )(defaultBlame)))
     }
   }
 
@@ -136,7 +137,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefPVLConstructor(decl) =>
-        ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, Nil,
+        ProcedureInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor() =>

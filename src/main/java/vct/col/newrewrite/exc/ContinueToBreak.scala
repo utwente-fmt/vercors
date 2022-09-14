@@ -13,7 +13,9 @@ import scala.collection.mutable
 // that is what all continues have in common. This should be changed if it results in a bad user experience.
 case class ContinueToBreakOrigin(labelDeclOrigin: Origin) extends Origin {
   override def preferredName: String = "continue" + labelDeclOrigin.preferredName.capitalize
+  override def shortPosition: String = "generated"
   override def context: String = labelDeclOrigin.context
+  override def inlineContext: String = labelDeclOrigin.inlineContext
 }
 
 case object ContinueToBreak extends RewriterBuilder {
@@ -37,7 +39,7 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
         case None => rewrittenBody
       }
 
-      Label(collectOneInScope(labelScopes) { rewriteDefault(labelDecl) }, loop.rewrite(body = possiblyWrappedBody))(stat.o)
+      Label(labelDecls.dispatch(labelDecl), loop.rewrite(body = possiblyWrappedBody))(stat.o)
 
     case c@Continue(Some(Ref(labelDecl))) =>
       // Reuse an already created inner label or create one

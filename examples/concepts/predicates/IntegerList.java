@@ -10,7 +10,7 @@ public class IntegerList {
     //@ ghost int min;
 
     /*@
-        final resource state() = Perm(val,1) ** Perm(min,1) ** Perm(next,1)**
+        resource state() = Perm(val,1) ** Perm(min,1) ** Perm(next,1)**
             next->state() ** next->check_min(min);
         
         requires state();

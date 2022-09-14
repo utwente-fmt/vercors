@@ -12,7 +12,7 @@ case object Spec {
     case RefProcedure(decl) => decl.contract
     case RefInstanceFunction(decl) => decl.contract
     case RefInstanceMethod(decl) => decl.contract
-    case RefCDeclaration(decls, _) => decls.contract
+    case RefCLocalDeclaration(decls, _) => decls.decl.contract
     case RefCGlobalDeclaration(decls, _) => decls.decl.contract
 //    case RefCFunctionDefinition(decl) =>
     case RefJavaConstructor(decl) => decl.contract
@@ -236,6 +236,9 @@ case object Spec {
   def findInstancePredicate[G](obj: Expr[G], name: String): Option[InstancePredicate[G]] =
     obj.t match {
       case TClass(Ref(cls)) => cls.declarations.flatMap(Referrable.from).collectFirst {
+        case ref @ RefInstancePredicate(decl) if ref.name == name => decl
+      }
+      case JavaTClass(Ref(cls), _) => cls.declarations.flatMap(Referrable.from).collectFirst {
         case ref @ RefInstancePredicate(decl) if ref.name == name => decl
       }
       case _ => None

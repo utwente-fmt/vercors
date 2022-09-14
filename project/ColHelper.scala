@@ -23,7 +23,9 @@ case class ColHelper() {
       ("RewriteBuilders", ColHelperRewriteBuilders(info).make),
       ("JavaRewriter", ColHelperJavaRewriter(info).make),
       ("Subnodes", ColHelperSubnodes(info).make),
-      ("Comparator", ColHelperComparator(info).make)
+      ("Comparator", ColHelperComparator(info).make),
+      ("AllScopes", ColHelperAllScopes(info).make),
+      ("SuccessorsProvider", ColHelperSuccessorsProvider(info).make),
     ).map {
       case (fileName, maker) =>
         val out = packageOutput.resolve(fileName + ".scala")

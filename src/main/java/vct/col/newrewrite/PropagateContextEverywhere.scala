@@ -40,18 +40,18 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
   }
 
   def freshInvariants()(implicit o: Origin): Expr[Post] =
-    foldStar(invariants.top.map(inv => freshSuccessionScope { dispatch(inv) }))
+    foldStar(invariants.top.map(dispatch))
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: ContractApplicable[Pre] =>
-      (withInvariant(app.contract.contextEverywhere) {
+      allScopes.anyDeclare(allScopes.anySucceedOnly(app, withInvariant(app.contract.contextEverywhere) {
         app match {
           case func: AbstractFunction[Pre] =>
             func.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), func.blame))
           case method: AbstractMethod[Pre] =>
             method.rewrite(blame = PostBlameSplit.left(ContextEverywherePostconditionFailed(app), method.blame))
         }
-      }).succeedDefault(app)
+      }))
     case other => rewriteDefault(other)
   }
 
@@ -101,25 +101,21 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
     case block: ParBlock[Pre] =>
       implicit val o: Origin = parRegion.o
 
-      val scaledInvariants = block.iters match {
-        case Nil => invariants.top
-        case iters =>
-          val nonEmpty = iters.map {
-            case IterVariable(_, from, to) => from < to
-          }.reduce[Expr[Pre]](And(_, _))
-
-          val scale = iters.map {
-            case IterVariable(_, from, to) => from - to
-          }.reduce[Expr[Pre]](Mult(_, _))
-
-          invariants.top.map(inv => nonEmpty ==> Scale(scale, inv)(PanicBlame("scale is framed non-negative")))
-      }
+      val scaledInvariants = invariants.top.map(inv => ScaleByParBlock[Pre](block.decl.ref, inv))
 
       invariants.having(scaledInvariants ++ unfoldStar(block.context_everywhere)) {
         block.rewrite(
           context_everywhere = freshInvariants()
         )
       }
-    case other => rewriteDefault(other)
+    case ParParallel(regions) =>
+      implicit val o: Origin = parRegion.o
+      val scaledInvariants = invariants.top.map(inv => Scale[Pre](const[Pre](1) /:/ const(regions.size), inv)(
+        PanicBlame("If used, the number of regions is strictly positive")))
+
+      invariants.having(scaledInvariants) {
+        rewriteDefault(parRegion)
+      }
+    case ParSequential(_) => rewriteDefault(parRegion)
   }
 }

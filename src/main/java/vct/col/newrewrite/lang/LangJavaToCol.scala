@@ -4,9 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit}
+import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -18,47 +18,65 @@ import scala.collection.mutable
 case object LangJavaToCol {
   case class JavaFieldOrigin(fields: JavaFields[_], idx: Int) extends Origin {
     override def preferredName: String = fields.decls(idx).name
+    override def shortPosition: String = fields.decls(idx).o.shortPosition
     override def context: String = fields.o.context
+    override def inlineContext: String = fields.decls(idx).o.inlineContext
   }
 
   case class JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int) extends Origin {
     override def preferredName: String = locals.decls(idx).name
+    override def shortPosition: String = locals.decls(idx).o.shortPosition
     override def context: String = locals.o.context
+    override def inlineContext: String = locals.decls(idx).o.inlineContext
   }
 
   case class JavaConstructorOrigin(cons: JavaConstructor[_]) extends Origin {
     override def preferredName: String = cons.name
+    override def shortPosition: String = cons.o.shortPosition
     override def context: String = cons.o.context
+    override def inlineContext: String = cons.o.inlineContext
   }
 
   case class JavaMethodOrigin(method: JavaMethod[_]) extends Origin {
     override def preferredName: String = method.name
+    override def shortPosition: String = method.o.shortPosition
     override def context: String = method.o.context
+    override def inlineContext: String = method.o.inlineContext
   }
 
   case class JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]) extends Origin {
     override def preferredName: String = method.name
+    override def shortPosition: String = method.o.shortPosition
     override def context: String = method.o.context
+    override def inlineContext: String = method.o.inlineContext
   }
 
   case class JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name
+    override def shortPosition: String = cls.o.shortPosition
     override def context: String = cls.o.context
+    override def inlineContext: String = cls.o.inlineContext
   }
 
   case class JavaStaticsClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name + "Statics"
+    override def shortPosition: String = cls.o.shortPosition
     override def context: String = cls.o.context
+    override def inlineContext: String = cls.o.inlineContext
   }
 
   case class JavaStaticsClassSingletonOrigin(cls: JavaClassOrInterface[_]) extends Origin {
     override def preferredName: String = cls.name + "StaticsSingleton"
+    override def shortPosition: String = cls.o.shortPosition
     override def context: String = cls.o.context
+    override def inlineContext: String = cls.o.inlineContext
   }
 
   case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
     override def preferredName: String = "arrayInitializer"
+    override def shortPosition: String = inner.shortPosition
     override def context: String = inner.context
+    override def inlineContext: String = inner.inlineContext
   }
 
   case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray[_]) extends UserError {
@@ -80,6 +98,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
 
+  val javaMethod: SuccessionMap[JavaMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val javaConstructor: SuccessionMap[JavaConstructor[Pre], Procedure[Post]] = SuccessionMap()
   val javaDefaultConstructor: SuccessionMap[JavaClassOrInterface[Pre], JavaConstructor[Pre]] = SuccessionMap()
 
   val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
@@ -104,7 +124,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             new InstanceField(
               t = FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)),
               flags = fields.modifiers.collect { case JavaFinal() => new Final[Post]() }.toSet[FieldFlag[Post]])(JavaFieldOrigin(fields, idx))
-          javaFieldsSuccessor((fields, idx)).declareDefault(rw)
+          rw.classDeclarations.declare(javaFieldsSuccessor((fields, idx)))
         }
       case _ =>
     }
@@ -114,9 +134,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
       case fields: JavaFields[Pre] =>
-        Block(for((JavaVariableDeclaration(_, _, init), idx) <- fields.decls.zipWithIndex if init.nonEmpty)
-          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), rw.dispatch(init.get),
-            PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
+        Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
+          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
+            case Some(value) => rw.dispatch(value)
+            case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)))
+          }, PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
         )
     })
 
@@ -147,11 +169,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               fields.decls.indices.map(decl => {
                 val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
                 local.ref = Some(RefJavaField[Pre](fields, decl))
-                Perm(local, WritePerm())
+                Perm(AmbiguousLocation(local)(PanicBlame("Field location is not a pointer.")), WritePerm())
               })
           }.flatten)),
-          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil
-        )
+          contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
+        )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
       if (!isStaticPart) javaDefaultConstructor(currentJavaClass.top) = cons
       cons +: decls
@@ -164,54 +186,56 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
-        withResult((result: Result[Post]) =>
-          new Procedure(
-            returnType = t,
-            args = rw.collectInScope(rw.variableScopes) {
-              cons.parameters.foreach(rw.dispatch)
-            },
-            outArgs = Nil, typeArgs = Nil,
-            body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
-              assignLocal(res, NewObject(ref)),
-              fieldInit(res),
-              sharedInit(res),
-              rw.dispatch(cons.body),
-              Commit(res)(cons.blame),
-              Return(res),
-            )))) },
-            contract = rw.currentThis.having(result) { cons.contract.rewrite(
-              ensures = SplitAccountedPredicate(
-                left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-                right = rw.dispatch(cons.contract.ensures),
-              ),
-              signals = cons.contract.signals.map(rw.dispatch) ++
-                cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-            ) },
-          )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
-        ).succeedDefault(cons)
+        rw.labelDecls.scope {
+          javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
+            new Procedure(
+              returnType = t,
+              args = rw.variables.dispatch(cons.parameters),
+              outArgs = Nil, typeArgs = Nil,
+              body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
+                assignLocal(res, NewObject(ref)),
+                fieldInit(res),
+                sharedInit(res),
+                rw.dispatch(cons.body),
+                Commit(res)(cons.blame),
+                Return(res),
+              )))) },
+              contract = rw.currentThis.having(result) { cons.contract.rewrite(
+                ensures = SplitAccountedPredicate(
+                  left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
+                  right = rw.dispatch(cons.contract.ensures),
+                ),
+                signals = cons.contract.signals.map(rw.dispatch) ++
+                  cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+              ) },
+            )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
+          ))
+        }
       case method: JavaMethod[Pre] =>
-        new InstanceMethod(
-          returnType = rw.dispatch(method.returnType),
-          args = rw.collectInScope(rw.variableScopes) { method.parameters.foreach(rw.dispatch) },
-          outArgs = Nil, typeArgs = Nil,
-          body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-            case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-            case None => method.body.map(rw.dispatch)
-          },
-          contract = method.contract.rewrite(
-            signals = method.contract.signals.map(rw.dispatch) ++
-              method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-          ),
-          pure = method.modifiers.contains(JavaPure[Pre]())
-        )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+        rw.labelDecls.scope {
+          javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
+            returnType = rw.dispatch(method.returnType),
+            args = rw.variables.dispatch(method.parameters),
+            outArgs = Nil, typeArgs = Nil,
+            body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
+              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+              case None => method.body.map(rw.dispatch)
+            },
+            contract = method.contract.rewrite(
+              signals = method.contract.signals.map(rw.dispatch) ++
+                method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+            ),
+            pure = method.modifiers.contains(JavaPure[Pre]())
+          )(method.blame)(JavaMethodOrigin(method)))
+        }
       case method: JavaAnnotationMethod[Pre] =>
-        new InstanceMethod(
+        rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
           args = Nil,
           outArgs = Nil, typeArgs = Nil,
           body = None,
-          contract = contract()
-        )(PanicBlame("Verification of annotation method cannot fail"))(JavaAnnotationMethodOrigin(method)).succeedDefault(method)
+          contract = contract(TrueSatisfiable)
+        )(PanicBlame("Verification of annotation method cannot fail"))(JavaAnnotationMethodOrigin(method)))
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
       case other => rw.dispatch(other)
@@ -242,27 +266,27 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       }
 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
-        new Class[Post](rw.collectInScope(rw.classScopes) {
+        new Class[Post](rw.classDeclarations.collect {
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
-        }, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch(_)))(JavaInstanceClassOrigin(cls))
+        }._1, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch))(JavaInstanceClassOrigin(cls))
       }
 
-      instanceClass.declareDefault(rw)
+      rw.globalDeclarations.declare(instanceClass)
       javaInstanceClassSuccessor(cls) = instanceClass
 
       if(staticDecls.nonEmpty) {
-        val staticsClass = new Class[Post](rw.collectInScope(rw.classScopes) {
+        val staticsClass = new Class[Post](rw.classDeclarations.collect {
           rw.currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
             makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), isStaticPart = true)
           }
-        }, Nil, tt)(JavaStaticsClassOrigin(cls))
+        }._1, Nil, tt)(JavaStaticsClassOrigin(cls))
 
-        staticsClass.declareDefault(rw)
+        rw.globalDeclarations.declare(staticsClass)
         val t = TClass[Post](staticsClass.ref)
         val singleton = withResult((res: Result[Post]) =>
-          function(AbstractApplicable, returnType = t,
+          function(AbstractApplicable, TrueSatisfiable, returnType = t,
             ensures = UnitAccountedPredicate((res !== Null()) && (TypeOf(res) === TypeValue(t))))(JavaStaticsClassSingletonOrigin(cls)))
-        singleton.declareDefault(rw)
+        rw.globalDeclarations.declare(singleton)
         javaStaticsClassSuccessor(cls) = staticsClass
         javaStaticsFunctionSuccessor(cls) = singleton
       }
@@ -284,14 +308,17 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case (JavaVariableDeclaration(_, dims, _), idx) =>
         val v = new Variable[Post](FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(locals.t)))(JavaLocalOrigin(locals, idx))
         javaLocalsSuccessor((locals, idx)) = v
-        v.declareDefault(rw)
+        rw.variables.declare(v)
     }
   }
 
   def initLocal(locals: JavaLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = locals.o
-    Block(for((JavaVariableDeclaration(_, _, init), i) <- locals.decls.zipWithIndex if init.nonEmpty)
-      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), rw.dispatch(init.get))
+    Block(for((JavaVariableDeclaration(_, dims, init), i) <- locals.decls.zipWithIndex)
+      yield assignLocal(Local(javaLocalsSuccessor.ref((locals, i))), init match {
+        case Some(value) => rw.dispatch(value)
+        case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(locals.t)))
+      })
     )
   }
 
@@ -371,7 +398,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decl)))
           MethodInvocation[Post](
             obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(inv.blame),
-            ref = rw.succ(decl),
+            ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
             yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
@@ -379,7 +406,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         } else {
           MethodInvocation[Post](
             obj = obj.map(rw.dispatch).getOrElse(rw.currentThis.top),
-            ref = rw.succ(decl),
+            ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
             yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
@@ -402,13 +429,12 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))
       case RefJavaConstructor(cons) =>
-        ProcedureInvocation[Post](rw.succ[Procedure[Post]](cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
+        ProcedureInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor() =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
-        val succ = rw.lookupSuccessor
-        val ref = new LazyRef[Post, Procedure[Post]](succ(javaDefaultConstructor(cls)).get)
+        val ref = new LazyRef[Post, Procedure[Post]](javaConstructor(javaDefaultConstructor(cls)))
         ProcedureInvocation[Post](ref,
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },

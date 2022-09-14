@@ -7,6 +7,7 @@ channels {
 
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
+VAL_PACKAGE: 'package';
 
 PAREN_OPEN: '(';
 PAREN_CLOSE: ')';
@@ -50,6 +51,7 @@ KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
+RUN: 'run';
 
 IF: 'if';
 ELSE: 'else';
@@ -99,7 +101,7 @@ mode DEFAULT_MODE;
 Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 
 COMMENT : '/*' .*? '*/' -> skip;
-LINE_COMMENT : '//' .*? '\n' -> skip;
+LINE_COMMENT : '//' .*? ('\n'|EOF) -> skip;
 
 WS  :   (   ' '
         |   '\t'

@@ -1,0 +1,9 @@
+adt WellFoundedOrder<T> {
+  pure boolean bounded(T v);
+  pure boolean decreasing(T v1, T v2);
+}
+
+adt IntOrder {
+  axiom (∀int i; (0 <= i) == WellFoundedOrder<int>.bounded(i));
+  axiom (∀int i; (∀int j; (i < j) == WellFoundedOrder<int>.decreasing(i, j)));
+}

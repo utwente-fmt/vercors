@@ -13,7 +13,7 @@ object SimpleProgramGenerator {
   }
 
   def generateSimpleApplicableContract[G]()(implicit origin: Origin = generateSimpleInputOrigin()): ApplicableContract[G] ={
-    ApplicableContract(UnitAccountedPredicate(BooleanValue(value = true)), UnitAccountedPredicate(BooleanValue(value = true)), BooleanValue(value = true),Seq(),Seq(),Seq())
+    ApplicableContract(UnitAccountedPredicate(BooleanValue(value = true)), UnitAccountedPredicate(BooleanValue(value = true)), BooleanValue(value = true),Seq(),Seq(),Seq(),None)(TrueSatisfiable)
   }
 
   def generateProgramWithSingleClassAndSingleMethod[G](body: Statement[G])(implicit origin: Origin = generateSimpleInputOrigin()): Program[G] ={

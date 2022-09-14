@@ -35,14 +35,14 @@ axiom inv_mul_left { (∀rational num, rational den; (1 \ den) * num == num \ de
 axiom inv_mul_right { (∀rational num, rational den; num * (1 \ den) == num \ den) }
 
 axiom div_one { (∀rational i; i \ 1 == i) }
-axiom zero_div { (∀rational i; 0 \ i == (0 then { 1 \ i; })) }
-axiom div_self { (∀rational i; i \ i == (1 then { 1 \ i; })) }
+axiom zero_div { (∀rational i; 0 \ i == (0 then 1 \ i;)) }
+axiom div_self { (∀rational i; i \ i == (1 then 1 \ i;)) }
 
-axiom mod_self { (∀int i; i % i == (0 then { 1 % i; })) }
+axiom mod_self { (∀int i; i % i == (0 then 1 % i;)) }
 axiom mod_one { (∀int i; i % 1 == 0) }
-axiom zero_mod { (∀int i; 0 % i == (0 then { 1 % i; })) }
+axiom zero_mod { (∀int i; 0 % i == (0 then 1 % i;)) }
 
-axiom mod_def { (∀int num, int denom; (num/denom)*denom + (num%denom) == (num then { 1/denom; })) }
+axiom mod_def { (∀int num, int denom; (num/denom)*denom + (num%denom) == (num then 1/denom;)) }
 
 axiom true_and { (∀boolean b; (true && b) == b) }
 axiom and_true { (∀boolean b; (b && true) == b) }
@@ -54,7 +54,28 @@ axiom star_true { (∀resource b; (b ** true) == b) }
 axiom false_star { (∀resource b; (false ** b) == false) }
 axiom star_bool { (∀boolean a, boolean b; (a ** b) == (a && b)) }
 
+axiom forall_nothing { (∀boolean b; (∀nothing n; (b!n)) == true) }
+axiom starall_nothing { (∀resource r; (∀*nothing n; (r!n)) == true) }
+
+axiom forall_true { (∀type<any> T; (∀T t; true) == true) }
+axiom starall_true { (∀type<any> T; (∀*T t; true) == true) }
+// T is non-empty, since nothing is the unique empty type, and {forall, starall}_nothing have priority.
+axiom forall_false { (∀type<any> T; (∀T t; false) == false) }
+axiom starall_false { (∀type<any> T; (∀*T t; false) == false) }
+
 axiom scale_bool { (∀boolean b, rational s; ([s]b) == b) }
+// PB: this is not well-formedness-preserving
+// axiom scale_scale { (∀resource r, rational s1, rational s2; ([s1][s2]r) == ([s1*s2]r)) }
+axiom scale_star { (∀resource r1, resource r2, rational s; ([s](r1 ** r2)) == (([s]r1) ** ([s]r2))) }
+axiom scale_implies { (∀boolean cond, resource r, rational s; ([s](cond ==> r)) == (cond ==> ([s]r))) }
+axiom scale_select {
+  (∀boolean cond, resource r1, resource r2, rational s;
+    ([s](cond ? r1 : r2)) == (cond ? ([s]r1) : ([s]r2)))
+}
+axiom scale_starall {
+  (∀type<any> T, resource r, rational s;
+    ([s](∀*T t; (r!t))) == (∀*T t; ([s](r!t))))
+}
 
 axiom true_or { (∀boolean b; (true || b) == true) }
 axiom or_true { (∀boolean b; (b || true) == true) }
@@ -111,6 +132,8 @@ axiom not_ne { (∀any l, any r; (!(l != r)) == (l == r)) }
 
 axiom normalize_range_gte { (∀rational left, rational right; left >= right == right <= left) }
 axiom normalize_range_gt { (∀rational left, rational right; left > right == right < left) }
+axiom normalize_range_diff_zero_lt { (∀rational left, rational right; 0 < left - right == right < left) }
+axiom normalize_range_diff_zero_lte { (∀rational left, rational right; 0 <= left - right == right <= left) }
 
 axiom lt_self { (∀rational r; (r < r) == false) }
 axiom lte_self { (∀rational r; (r <= r) == true) }
@@ -173,10 +196,22 @@ axiom forall_indep_cond_left {
     (cond1 ==> (∀T binding; (cond2!binding) ==> (body!binding))))
 }
 
+axiom forall_indep_cond_right {
+  (∀type<any> T, boolean cond1, boolean cond2, boolean body;
+    (∀T binding; (cond1!binding) && cond2 ==> (body!binding)) ==
+    (cond2 ==> (∀T binding; (cond1!binding) ==> (body!binding))))
+}
+
 axiom starall_indep_cond_left {
   (∀type<any> T, boolean cond1, boolean cond2, resource body;
     (∀*T binding; cond1 && (cond2!binding) ==> (body!binding)) ==
     (cond1 ==> (∀*T binding; (cond2!binding) ==> (body!binding))))
+}
+
+axiom starall_indep_cond_right {
+  (∀type<any> T, boolean cond1, boolean cond2, resource body;
+    (∀*T binding; (cond1!binding) && cond2 ==> (body!binding)) ==
+    (cond2 ==> (∀*T binding; (cond1!binding) ==> (body!binding))))
 }
 
 axiom nested_forall_indep_cond {

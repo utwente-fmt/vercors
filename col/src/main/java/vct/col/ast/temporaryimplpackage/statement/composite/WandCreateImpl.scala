@@ -1,7 +1,7 @@
 package vct.col.ast.temporaryimplpackage.statement.composite
 
-import vct.col.ast.WandCreate
+import vct.col.ast.WandPackage
 
-trait WandCreateImpl[G] { this: WandCreate[G] =>
+trait WandCreateImpl[G] { this: WandPackage[G] =>
 
 }

@@ -2,11 +2,11 @@ package viper.api
 
 import viper.silver.ast.Program
 import viper.silver.frontend.{DefaultStates, SilFrontend, SilFrontendConfig}
-import viper.silver.plugin.PluginAwareReporter
 import viper.silver.verifier.{AbstractError, Verifier}
 
 import java.nio.file.{Files, Path, Paths}
 import hre.io.Readable
+import viper.silver.reporter.Reporter
 
 import java.util.Scanner
 import scala.annotation.nowarn
@@ -17,7 +17,7 @@ import scala.io.Source
 @nowarn("msg=.*early initializers are deprecated.*")
 object SilverParserDummyFrontend extends {
   // early initializer: reporter must be populated before initialization of superclass SilFrontend
-  override val reporter: PluginAwareReporter = PluginAwareReporter(HREViperReporter())
+  override val reporter: Reporter = HREViperReporter()
 } with SilFrontend {
   private val noVerifier: viper.silver.verifier.NoVerifier = new viper.silver.verifier.NoVerifier
 

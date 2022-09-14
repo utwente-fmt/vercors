@@ -13,7 +13,7 @@ public class Refute {
   @*/
   public void bad(){
     if (false) {
-      //@ refute false;
+      //@ [/expect refuteFailed] refute false; [/end]
     }
   }
 

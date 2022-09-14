@@ -1,12 +1,14 @@
 package vct.main.stages
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
-import vct.col.ast.{Program, SimplificationRule}
+import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang.NoSupportSelfLoop
+import vct.col.origin.FileSpanningOrigin
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.col.util.ExpectedError
@@ -25,17 +27,25 @@ object Transformation {
       "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 
-  private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Program[_ <: Generation] => Unit)] =
+  private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
     m.toSeq.map {
-      case (key, out) => (key, (program: Program[_ <: Generation]) => out.write { writer =>
+      case (key, out) => (key, (program: Verification[_ <: Generation]) => out.write { writer =>
         Printer(writer).print(program)
       })
     }
 
-  private def simplifierFor(path: PathOrStd): RewriterBuilder =
-    ApplyTermRewriter.BuilderFor(Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
-      case rule: SimplificationRule[InitialGeneration] => rule
-    })
+  def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
+    ApplyTermRewriter.BuilderFor(
+      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](path).declarations.collect {
+        case rule: SimplificationRule[InitialGeneration] => rule
+      },
+      debugIn = options.devSimplifyDebugIn,
+      debugMatch = options.devSimplifyDebugMatch,
+      debugNoMatch = options.devSimplifyDebugNoMatch,
+      debugMatchShort = options.devSimplifyDebugMatchShort,
+      debugFilterInputKind = options.devSimplifyDebugFilterInputKind,
+      debugFilterRule = options.devSimplifyDebugFilterRule,
+    )
 
   def ofOptions(options: Options): Transformation =
     options.backend match {
@@ -44,27 +54,26 @@ object Transformation {
           adtImporter = PathAdtImporter(options.adtPath),
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
-          simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor),
-          simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor),
+          simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
+          simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
+          checkSat = options.devCheckSat,
         )
     }
 }
 
 class Transformation
 (
-  val onBeforePassKey: Seq[(String, Program[_ <: Generation] => Unit)],
-  val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)],
+  val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
+  val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val passes: Seq[RewriterBuilder]
-) extends ContextStage[Program[_ <: Generation], Seq[ExpectedError], Program[_ <: Generation]] {
+) extends Stage[VerificationContext[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
 
-  override def runWithoutContext(input: Program[_ <: Generation]): Program[_ <: Generation] = {
+  override def run(input: VerificationContext[_ <: Generation]): Verification[_ <: Generation] = {
     val tempUnsupported = Set[feature.Feature](
-      feature.JavaThreads,
       feature.MatrixVector,
       feature.NumericReductionOperator,
-      feature.MagicWand,
       feature.Models,
     )
 
@@ -74,7 +83,7 @@ class Transformation
       case (_, _) =>
     }
 
-    var result = input
+    var result: Verification[_ <: Generation] = Verification(Seq(input))(FileSpanningOrigin)
 
     Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
       onBeforePassKey.foreach {
@@ -102,10 +111,11 @@ class Transformation
 case class SilverTransformation
 (
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
-  override val onBeforePassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
-  override val onAfterPassKey: Seq[(String, Program[_ <: Generation] => Unit)] = Nil,
-  simplifyBeforeRelations: Seq[RewriterBuilder] = Nil,
-  simplifyAfterRelations: Seq[RewriterBuilder] = Nil,
+  override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+  simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
+  simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  checkSat: Boolean = true,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
@@ -115,6 +125,7 @@ case class SilverTransformation
 
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
+    DisambiguateLocation, // Resolve location type
 
     // Q (RR): Should the next two passes be more in the center of the pass list? Like the exception passes?
     EncodeJavaLangString, // Encode java strings as string objects and interning functions
@@ -122,6 +133,8 @@ case class SilverTransformation
 
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+    ReadToValue, // resolve wildcard into fractional permission
+    DesugarCoalescingOperators, // no .!
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]
     IterationContractToParBlock,
@@ -130,16 +143,19 @@ case class SilverTransformation
     GivenYieldsToArgs,
 
     CheckProcessAlgebra,
-
     EncodeCurrentThread,
     EncodeIntrinsicLock,
+    EncodeForkJoin,
     InlineApplicables,
     PureMethodsToFunctions,
+    RefuteToInvertedAssert,
 
     // Encode parallel blocks
     EncodeSendRecv,
-    EncodeParAtomic,
     ParBlockEncoder,
+
+    // Encode proof helpers
+    EncodeProofHelpers,
 
     // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SpecifyImplicitLabels,
@@ -153,9 +169,16 @@ case class SilverTransformation
     // No more classes
     ConstantifyFinalFields,
     ClassToRef,
+
+    CheckContractSatisfiability.withArg(checkSat),
+
+    SplitQuantifiers,
   ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
   ) ++ simplifyAfterRelations ++ Seq(
+    ResolveExpressionSideChecks,
+    RejoinQuantifiers,
+
     // Translate internal types to domains
     ImportADT.withArg(adtImporter),
 

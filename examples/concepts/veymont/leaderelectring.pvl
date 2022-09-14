@@ -9,7 +9,7 @@ class Node {
 	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(left, 1);
 	ensures rank == v && maxVal == v && left < v;
 	ensures Perm(n,1) ** n == 0;
-	Node (int v);
+	constructor(int v);
 	
 	context Perm(maxVal, 1) ** Perm(left, 1\2) ** Perm(n,1);
 	ensures left > \old(maxVal) ? maxVal == left : maxVal == \old(maxVal);

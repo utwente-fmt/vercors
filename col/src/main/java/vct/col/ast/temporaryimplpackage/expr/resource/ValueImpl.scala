@@ -1,7 +1,8 @@
 package vct.col.ast.temporaryimplpackage.expr.resource
 
-import vct.col.ast.{APerm, TResource, Type}
+import vct.col.ast.{TResource, Type, Value}
 
-trait APermImpl[G] { this: APerm[G] =>
+trait ValueImpl[G] { this: Value[G] =>
   override def t: Type[G] = TResource()
+
 }

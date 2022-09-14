@@ -18,14 +18,16 @@ case object ClassToRef extends RewriterBuilder {
 
   case object TypeOfOrigin extends Origin {
     override def preferredName: String = "type"
-    override def context: String =
-      "[At function type]"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At function type]"
+    override def inlineContext: String = "[Function type]"
   }
 
   case object InstanceOfOrigin extends Origin {
     override def preferredName: String = "subtype"
-    override def context: String =
-      "[At function subtype]"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At function subtype]"
+    override def inlineContext: String = "[Function subtype]"
   }
 
   case class InstanceNullPreconditionFailed(inner: Blame[InstanceNull], inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
@@ -39,11 +41,15 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   case object This extends Origin {
     override def preferredName: String = "this"
-    override def context: String =
-      "[At generated parameter for 'this']"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At generated parameter for 'this']"
+    override def inlineContext: String = "this"
   }
 
   val fieldSucc: SuccessionMap[Field[Pre], SilverField[Post]] = SuccessionMap()
+  val methodSucc: SuccessionMap[InstanceMethod[Pre], Procedure[Post]] = SuccessionMap()
+  val functionSucc: SuccessionMap[InstanceFunction[Pre], Function[Post]] = SuccessionMap()
+  val predicateSucc: SuccessionMap[InstancePredicate[Pre], Predicate[Post]] = SuccessionMap()
 
   val diz: ScopedStack[Variable[Post]] = ScopedStack()
 
@@ -59,6 +65,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     val obj = new Variable[Post](TRef())
     withResult((result: Result[Post]) => function(
       blame = AbstractApplicable,
+      contractBlame = TrueSatisfiable,
       returnType = TInt(),
       args = Seq(obj),
       ensures = UnitAccountedPredicate(
@@ -75,6 +82,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     val sup = new Variable[Post](TInt())
     function(
       blame = PanicBlame("instanceof has no postcondition."),
+      contractBlame = UnsafeDontCare.Satisfiability("that just indicates there are no types"),
       returnType = TBool(),
       args = Seq(sub, sup),
       requires = UnitAccountedPredicate(
@@ -92,14 +100,14 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] =
-    program.rewrite(declarations = collectInScope(globalScopes) {
+    program.rewrite(declarations = globalDeclarations.collect {
       program.declarations.foreach(dispatch)
       implicit val o: Origin = TypeOfOrigin
       typeOf(()) = makeTypeOf
-      typeOf(()).declareDefault(this)
+      globalDeclarations.declare(typeOf(()))
       instanceOf(()) = makeInstanceOf
-      instanceOf(()).declareDefault(this)
-    })
+      globalDeclarations.declare(instanceOf(()))
+    }._1)
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
@@ -110,13 +118,13 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
           implicit val o: Origin = function.o
           val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
-            new Function(
+            functionSucc(function) = globalDeclarations.declare(labelDecls.scope { new Function(
               returnType = dispatch(function.returnType),
-              args = collectInScope(variableScopes) {
-                thisVar.declareDefault(this)
+              args = variables.collect {
+                variables.declare(thisVar)
                 function.args.foreach(dispatch)
-              },
-              typeArgs = collectInScope(variableScopes) { function.typeArgs.foreach(dispatch) },
+              }._1,
+              typeArgs = variables.dispatch(function.typeArgs),
               body = function.body.map(dispatch),
               contract = function.contract.rewrite(
                 requires = SplitAccountedPredicate(
@@ -133,20 +141,20 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
                 )
               ),
               inline = function.inline,
-            )(function.blame)(function.o).succeedDefault(function)
+            )(function.blame)(function.o) })
           }
         case method: InstanceMethod[Pre] =>
           implicit val o: Origin = method.o
           val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
-            new Procedure(
+            methodSucc(method) = globalDeclarations.declare(labelDecls.scope { new Procedure(
               returnType = dispatch(method.returnType),
-              args = collectInScope(variableScopes) {
-                thisVar.declareDefault(this)
+              args = variables.collect {
+                variables.declare(thisVar)
                 method.args.foreach(dispatch)
-              },
-              outArgs = collectInScope(variableScopes) { method.outArgs.foreach(dispatch) },
-              typeArgs = collectInScope(variableScopes) { method.typeArgs.foreach(dispatch) },
+              }._1,
+              outArgs = variables.dispatch(method.outArgs),
+              typeArgs = variables.dispatch(method.typeArgs),
               body = method.body.map(dispatch),
               contract = method.contract.rewrite(
                 requires = SplitAccountedPredicate(
@@ -164,24 +172,24 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
               ),
               inline = method.inline,
               pure = method.pure,
-            )(method.blame)(method.o).succeedDefault(method)
+            )(method.blame)(method.o) })
           }
         case predicate: InstancePredicate[Pre] =>
           val thisVar = new Variable[Post](TRef())(This)
           diz.having(thisVar) {
-            new Predicate(
-              args = collectInScope(variableScopes) {
-                thisVar.declareDefault(this)
+            predicateSucc(predicate) = globalDeclarations.declare(new Predicate(
+              args = variables.collect {
+                variables.declare(thisVar)
                 predicate.args.foreach(dispatch)
-              },
+              }._1,
               body = predicate.body.map(dispatch),
               threadLocal = predicate.threadLocal,
               inline = predicate.inline,
-            )(predicate.o).succeedDefault(predicate)
+            )(predicate.o))
           }
         case field: Field[Pre] =>
           fieldSucc(field) = new SilverField(dispatch(field.t))(field.o)
-          fieldSucc(field).declareDefault(this)
+          globalDeclarations.declare(fieldSucc(field))
         case _ =>
           throw ExtraNode
       }
@@ -197,13 +205,13 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       ))
     case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       InvokeProcedure[Post](
-        ref = succ(method),
+        ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(succ[Variable[Post]]),
+        outArgs = outArgs.map(arg => succ[Variable[Post]](arg.decl)),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
-      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), inv.blame))(inv.o)
+      )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case fold @ Fold(inv: InstancePredicateApply[Pre]) =>
       Fold(rewriteInstancePredicateApply(inv))(fold.blame)(fold.o)
     case unfold @ Unfold(inv: InstancePredicateApply[Pre]) =>
@@ -212,26 +220,26 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def rewriteInstancePredicateApply(inv: InstancePredicateApply[Pre]): PredicateApply[Post] =
-    PredicateApply[Post](succ(inv.ref), freshSuccessionScope { dispatch(inv.obj) } +: inv.args.map(dispatch), dispatch(inv.perm))(inv.o)
+    PredicateApply[Post](predicateSucc.ref(inv.ref.decl), dispatch(inv.obj) +: inv.args.map(dispatch), dispatch(inv.perm))(inv.o)
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Unfolding(inv: InstancePredicateApply[Pre], e) =>
       Unfolding(rewriteInstancePredicateApply(inv), dispatch(e))(e.o)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       ProcedureInvocation[Post](
-        ref = succ(method),
+        ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(succ[Variable[Post]]),
+        outArgs = outArgs.map(arg => succ[Variable[Post]](arg.decl)),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
         yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
       implicit val o: Origin = inv.o
-      rewriteInstancePredicateApply(inv) &* freshSuccessionScope { dispatch(obj) !== Null() }
+      rewriteInstancePredicateApply(inv) &* (dispatch(obj) !== Null())
     case inv @ InstanceFunctionInvocation(obj, Ref(func), args, typeArgs, givenMap, yields) =>
       FunctionInvocation[Post](
-        ref = succ(func),
+        ref = functionSucc.ref(func),
         args = dispatch(obj) +: args.map(dispatch),
         typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
@@ -255,11 +263,23 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       dispatch(typeValue),
     ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing"))(e.o)
     case Cast(value, typeValue) => dispatch(value) // Discard for now, should assert instanceOf(value, typeValue)
+    case r @ Result(app) => app.decl match {
+      case method: InstanceMethod[Pre] => Result[Post](methodSucc.ref(method))(r.o)
+      case function: InstanceFunction[Pre] => Result[Post](functionSucc.ref(function))(r.o)
+      case _ => rewriteDefault(r)
+    }
     case _ => rewriteDefault(e)
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case TClass(_) => TRef()
     case t => rewriteDefault(t)
+  }
+
+  override def dispatch(loc: Location[Pre]): Location[Post] = loc match {
+    case InstancePredicateLocation(predicate, obj, args) => PredicateLocation[Post](predicateSucc.ref(predicate.decl), dispatch(obj) +: args.map(dispatch))(loc.o)
+    case FieldLocation(obj, field) =>
+      SilverFieldLocation[Post](dispatch(obj), fieldSucc.ref(field.decl))(loc.o)
+    case default => rewriteDefault(default)
   }
 }

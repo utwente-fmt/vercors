@@ -10,7 +10,7 @@ class Worker {
   
   requires Value(store);
   ensures  Value(store);
-  void run(){
+  run {
     lock store;
     store.x=store.x+1;
     unlock store;

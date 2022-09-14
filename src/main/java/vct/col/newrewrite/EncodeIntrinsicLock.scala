@@ -35,12 +35,16 @@ case object EncodeIntrinsicLock extends RewriterBuilder {
 
   case class LockInvariantOrigin(cls: Class[_]) extends Origin {
     override def preferredName: String = "lock_inv_" + cls.o.preferredName
+    override def shortPosition: String = cls.intrinsicLockInvariant.o.shortPosition
     override def context: String = cls.intrinsicLockInvariant.o.context
+    override def inlineContext: String = cls.intrinsicLockInvariant.o.inlineContext
   }
 
   case class HeldTokenOrigin(cls: Class[_]) extends Origin {
     override def preferredName: String = "lock_held_" + cls.o.preferredName
+    override def shortPosition: String = cls.intrinsicLockInvariant.o.shortPosition
     override def context: String = cls.intrinsicLockInvariant.o.context
+    override def inlineContext: String = cls.intrinsicLockInvariant.o.inlineContext
   }
 }
 
@@ -63,13 +67,11 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
-      cls.rewrite(declarations = collectInScope(classScopes) {
-        invariant(cls) = new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls))
-        held(cls) = new InstancePredicate(Nil, None)(HeldTokenOrigin(cls))
-        invariant(cls).declareDefault(this)
-        held(cls).declareDefault(this)
+      globalDeclarations.succeed(cls, cls.rewrite(declarations = classDeclarations.collect {
+        invariant(cls) = classDeclarations.declare(new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls)))
+        held(cls) = classDeclarations.declare(new InstancePredicate(Nil, None)(HeldTokenOrigin(cls)))
         cls.declarations.foreach(dispatch)
-      }, intrinsicLockInvariant = tt).succeedDefault(decl)
+      }._1, intrinsicLockInvariant = tt))
     case other => rewriteDefault(other)
   }
 

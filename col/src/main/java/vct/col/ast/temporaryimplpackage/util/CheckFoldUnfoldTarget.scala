@@ -1,11 +1,10 @@
 package vct.col.ast.temporaryimplpackage.util
 
-import vct.col.ast.temporaryimplpackage.node.NodeFamilyImpl
-import vct.col.ast.{ApplyAnyPredicate, CInvocation, Expr, InstancePredicateApply, JavaInvocation, NodeFamily, PVLInvocation, PredicateApply, Scale}
 import vct.col.ast
+import vct.col.ast.temporaryimplpackage.node.NodeFamilyImpl
+import vct.col.ast._
 import vct.col.check.{AbstractPredicate, CheckContext, CheckError, NotAPredicateApplication}
-import vct.col.ref.Ref
-import vct.col.resolve.{BuiltinInstanceMethod, RefADTFunction, RefCDeclaration, RefCFunctionDefinition, RefCGlobalDeclaration, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaMethod, RefModelAction, RefModelProcess, RefPredicate, RefProcedure, SpecInvocationTarget}
+import vct.col.resolve.{RefInstancePredicate, RefPredicate}
 
 import scala.annotation.tailrec
 

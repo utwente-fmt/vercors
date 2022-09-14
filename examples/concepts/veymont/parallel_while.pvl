@@ -8,7 +8,7 @@ class Role {
 	
 	ensures Perm(x, write) ** Perm(left, write);
 	ensures x == v;
-	Role (int v) {
+	constructor(int v) {
 		x = v;
 	}
 	

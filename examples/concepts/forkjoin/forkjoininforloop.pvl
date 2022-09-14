@@ -50,7 +50,7 @@ class NodesThread {
 		val = v;
 	}
 	
-	void run() {
+	run {
 	
 	}
 }

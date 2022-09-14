@@ -13,7 +13,9 @@ case object QuantifySubscriptAny extends RewriterBuilder {
 
   case object GeneratedQuantifierOrigin extends Origin {
     override def preferredName: String = "i"
+    override def shortPosition: String = "generated"
     override def context: String = "[At node generated for auto-quantified expressions containing `*`]"
+    override def inlineContext: String = "[* index]"
   }
 
   case class InvalidAnyPosition(any: Any[_]) extends UserError {
@@ -29,7 +31,7 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = GeneratedQuantifierOrigin
     e match {
-      case Perm(ArraySubscript(arrIn, any @ Any()), permIn) =>
+      case Perm(ArrayLocation(arrIn, any @ Any()), permIn) =>
         val i_var = new Variable[Post](TInt())
         val i = Local[Post](i_var.ref)
         val arr = dispatch(arrIn)
@@ -42,7 +44,7 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
           ),
           body = Implies(
             const[Post](0) <= i && i < Length(arr)(any.blame),
-            Perm(ArraySubscript(arr, i)(FramedArrIndex), perm)
+            Perm(ArrayLocation(arr, i)(FramedArrIndex), perm)
           )
         )(any.blame)
 

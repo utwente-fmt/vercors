@@ -149,6 +149,10 @@ case object ResolveReferences {
     case func: CFunctionDefinition[G] => ctx
       .copy(currentResult=Some(RefCFunctionDefinition(func)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
+    case func: CGlobalDeclaration[G] => ctx
+      // PB: This is a bit dubious. It's like this because one global declaration can contain multiple forward function
+      // declarations, but the contract is before the whole declaration.
+      .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl).params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
@@ -281,6 +285,13 @@ case object ResolveReferences {
       ref.tryResolve(name => Spec.findInstanceFunction(obj, name).getOrElse(throw NoSuchNameError("function", name, inv)))
     case inv @ InstancePredicateApply(obj, ref, _, _) =>
       ref.tryResolve(name => Spec.findInstancePredicate(obj, name).getOrElse(throw NoSuchNameError("predicate", name, inv)))
+    case inv @ CoalesceInstancePredicateApply(obj, ref, _, _) =>
+      ref.tryResolve(name => Spec.findInstancePredicate(obj, name).getOrElse(throw NoSuchNameError("predicate", name, inv)))
+
+    case defn: CFunctionDefinition[G] =>
+      defn.ref = C.findForwardDeclaration(defn.declarator, ctx)
+    case decl: CInit[G] =>
+      decl.ref = C.findDefinition(decl.decl, ctx)
 
     case goto @ CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))

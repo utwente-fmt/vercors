@@ -1,6 +1,6 @@
 package vct.parsers
 
-import vct.col.ast.GlobalDeclaration
+import vct.col.ast.{GlobalDeclaration, VerificationContext}
 import vct.col.util.ExpectedError
 
 case object ParseResult {
@@ -11,4 +11,4 @@ case object ParseResult {
     }).getOrElse(ParseResult(Nil, Nil))
 }
 
-case class ParseResult[G](decls: Seq[GlobalDeclaration[G]], expectedError: Seq[ExpectedError])
+case class ParseResult[G](decls: Seq[GlobalDeclaration[G]], expectedErrors: Seq[ExpectedError])

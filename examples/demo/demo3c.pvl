@@ -17,7 +17,7 @@ class Worker {
 	
 	context Perm(main, 1\2) ** main != null;
 	context Perm(val, 1\2);
-	void run() {
+	run {
 		lock main;
 		main.sum = main.sum + val;
 		unlock main;

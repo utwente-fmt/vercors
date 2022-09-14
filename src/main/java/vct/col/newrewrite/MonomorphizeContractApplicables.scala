@@ -3,13 +3,11 @@ package vct.col.newrewrite
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.MonomorphizeContractApplicables.VerificationForGeneric
-import vct.col.newrewrite.util.Substitute
 import vct.col.origin.Origin
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.ContractApplicableBuildHelpers
-import vct.col.util.SuccessionMap
+import vct.col.util.{Substitute, SuccessionMap}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -17,11 +15,6 @@ import scala.reflect.ClassTag
 case object MonomorphizeContractApplicables extends RewriterBuilder {
   override def key: String = "monomorphize"
   override def desc: String = "Monomorphize generic declarations with their usages where Silver does not support generics."
-
-  case class VerificationForGeneric(applicable: ContractApplicable[_]) extends Origin {
-    override def preferredName: String = "verify_" + applicable.o.preferredName
-    override def context: String = applicable.o.context
-  }
 }
 
 case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter[Pre] {
@@ -36,8 +29,12 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
       case None =>
         monomorphizedRef((app, typeValues)) = new LazyRef(monomorphizedImpl((app, typeValues)))
         monomorphizedImpl((app, typeValues)) = currentSubstitutions.having(app.typeArgs.zip(typeValues).toMap) {
-          freshSuccessionScope {
-            app.rewrite(typeArgs = Nil).succeedDefault(app)
+          globalDeclarations.scope {
+            classDeclarations.scope {
+              variables.scope {
+                allScopes.anyDeclare(allScopes.anySucceedOnly(app, app.rewrite(typeArgs = Nil)))
+              }
+            }
           }
         }
         monomorphizedRef((app, typeValues))

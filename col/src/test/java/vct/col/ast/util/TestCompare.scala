@@ -18,8 +18,8 @@ class TestCompare extends AnyFlatSpec {
   }
 
   it should "judge equal declarations without references as equal with mappings" in {
-    val left = new Procedure[G](TVoid(), Nil, Nil, Nil, None, ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil))(null)
-    val right = new Procedure[G](TVoid(), Nil, Nil, Nil, None, ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil))(null)
+    val left = new Procedure[G](TVoid(), Nil, Nil, Nil, None, ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None)(null))(null)
+    val right = new Procedure[G](TVoid(), Nil, Nil, Nil, None, ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None)(null))(null)
     assert(Compare.getIsomorphism(left, right) == Right(Map(left -> right)))
   }
 
