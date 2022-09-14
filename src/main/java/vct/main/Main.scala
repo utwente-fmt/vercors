@@ -40,8 +40,6 @@ case object Main extends LazyLogging {
       return 0
     }
 
-    Progress.forceProgress = options.progress
-
     for((key, logLevel) <- options.logLevels) {
       LoggerFactory.getLogger(key).asInstanceOf[Logger].setLevel(logLevel match {
         case Verbosity.Off => Level.OFF
@@ -53,6 +51,8 @@ case object Main extends LazyLogging {
         case Verbosity.All => Level.ALL
       })
     }
+
+    Progress.install(options.progress)
 
     options.mode match {
       case Mode.Verify =>

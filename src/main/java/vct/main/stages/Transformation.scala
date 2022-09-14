@@ -175,6 +175,7 @@ case class SilverTransformation
     CheckContractSatisfiability.withArg(checkSat),
 
     ResolveExpressionSideChecks,
+    RejoinQuantifiers,
 
     // Translate internal types to domains
     ImportADT.withArg(adtImporter),

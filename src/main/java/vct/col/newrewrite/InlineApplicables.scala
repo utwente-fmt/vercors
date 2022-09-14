@@ -4,11 +4,12 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object InlineApplicables extends RewriterBuilder {
@@ -63,12 +64,21 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
   import InlineApplicables._
 
   val inlineStack: ScopedStack[Apply[Pre]] = ScopedStack()
+  val classOwner: mutable.Map[ClassDeclaration[Pre], Class[Pre]] = mutable.Map()
 
   override def dispatch(o: Origin): Origin =
     inlineStack.toSeq match {
       case Nil => o
       case some => InlinedOrigin(o, some.reverse)
     }
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
+      cls.declarations.foreach(classOwner(_) = cls)
+    }
+
+    rewriteDefault(program)
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: InlineableApplicable[Pre] if app.inline =>
@@ -110,16 +120,16 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
           case MethodInvocation(obj, Ref(method), _, outArgs, typeArgs, givenMap, yields) =>
             val done = Label[Pre](new LabelDecl(), Block(Nil))
             val v = new Variable[Pre](method.returnType)
-            val replacementsWithObj = replacements ++ Map[Expr[Pre], Expr[Pre]](AmbiguousThis[Pre]() -> obj)
+            val replacementsWithObj = replacements ++ Map[Expr[Pre], Expr[Pre]](ThisObject[Pre](classOwner(method).ref) -> obj)
             val returnReplacement = (result: Expr[Pre]) => Block(Seq(assignLocal(v.get, result), Goto[Pre](done.decl.ref)))
             val replacedArgumentsObjBody = Substitute[Pre](replacementsWithObj).dispatch(method.body.getOrElse(???))
             val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsObjBody)
             dispatch(With(Block(Seq(body, done)), v.get))
           case InstanceFunctionInvocation(obj, Ref(func), _, typeArgs, givenMap, yields) =>
-            val replacementsWithObj = replacements ++ Map(AmbiguousThis[Pre]() -> obj)
+            val replacementsWithObj = replacements ++ Map(ThisObject[Pre](classOwner(func).ref) -> obj)
             dispatch(Substitute(replacementsWithObj).dispatch(func.body.getOrElse(???)))
           case InstancePredicateApply(obj, Ref(pred), _, WritePerm()) =>
-            val replacementsWithObj = replacements ++ Map(AmbiguousThis[Pre]() -> obj)
+            val replacementsWithObj = replacements ++ Map(ThisObject[Pre](classOwner(pred).ref) -> obj)
             dispatch(Substitute(replacementsWithObj).dispatch(pred.body.getOrElse(???)))
           case InstancePredicateApply(obj, Ref(pred), _, _) => ???
         }

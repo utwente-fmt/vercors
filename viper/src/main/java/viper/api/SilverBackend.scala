@@ -125,7 +125,7 @@ trait SilverBackend extends Backend with LazyLogging {
         val exhale = get[col.Exhale[_]](node)
         reason match {
           case reasons.InsufficientPermission(permNode) => get[col.Node[_]](permNode) match {
-            case _: col.Perm[_] | _: col.PredicateApply[_] =>
+            case _: col.Perm[_] | _: col.PredicateApply[_] | _: col.Value[_] =>
               exhale.blame.blame(blame.ExhaleFailed(getFailure(reason), exhale))
             case _ =>
               defer(reason)
@@ -145,7 +145,7 @@ trait SilverBackend extends Backend with LazyLogging {
         val assert = get[col.Assert[_]](node)
         reason match {
           case reasons.InsufficientPermission(permNode) => get[col.Node[_]](permNode) match {
-            case _: col.Perm[_] | _: col.PredicateApply[_] =>
+            case _: col.Perm[_] | _: col.PredicateApply[_] | _: col.Value[_] =>
               assert.blame.blame(blame.AssertFailed(getFailure(reason), assert))
             case _ =>
               defer(reason)
@@ -204,7 +204,7 @@ trait SilverBackend extends Backend with LazyLogging {
             packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
           case reasons.InsufficientPermission(permNode) =>
             get[col.Node[_]](permNode) match {
-              case col.Perm(_, _) | col.PredicateApply(_, _, _) =>
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) | col.Value(_) =>
                 packageNode.blame.blame(blame.PackageFailed(getFailure(reason), packageNode))
               case _ =>
                 defer(reason)
@@ -219,7 +219,7 @@ trait SilverBackend extends Backend with LazyLogging {
             applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
           case reasons.InsufficientPermission(permNode) =>
             get[col.Node[_]](permNode) match {
-              case col.Perm(_, _) | col.PredicateApply(_, _, _) =>
+              case col.Perm(_, _) | col.PredicateApply(_, _, _) | col.Value(_) =>
                 applyNode.blame.blame(blame.WandApplyFailed(getFailure(reason),applyNode)) // take the blame
               case _ =>
                 defer(reason)
