@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{ArraySubscript, _}
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.newrewrite.util.Comparison
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{ArrayInsufficientPermission, Origin, PanicBlame, PointerBounds}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -449,9 +449,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           val main = if (select.nonEmpty) Implies(AstBuildHelpers.foldAnd(select), newBody) else newBody
           @nowarn("msg=xhaust")
           val forall: Binder[Post] = originalBinder match {
-            case _: Forall[Pre] => Forall(bindings, substituteForall.newTrigger, main)(originalBinder.o)
+            case _: Forall[Pre] => Forall(bindings, substituteForall.newTriggers, main)(originalBinder.o)
             case originalBinder: Starall[Pre] =>
-              Starall(bindings, substituteForall.newTrigger, main)(originalBinder.blame)(originalBinder.o)
+              Starall(bindings, substituteForall.newTriggers, main)(originalBinder.blame)(originalBinder.o)
           }
           Some(forall)
         case (_, None) => result()
@@ -506,25 +506,23 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     val index: Expr[G]
     val subnodes: Seq[Node[G]]
   }
-  case class Array[G](e: ArraySubscript[G]) extends Subscript[G] {
-    val index: Expr[G] = e.index
-    val subnodes: Seq[Node[G]] = e.subnodes
-  }
+  case class Array[G](index: Expr[G], subnodes: Seq[Node[G]], array: Expr[G]) extends Subscript[G]
 
-  case class Pointer[G](e: PointerSubscript[G]) extends Subscript[G] {
-    val index: Expr[G] = e.index
-    val subnodes: Seq[Node[G]] = e.subnodes
-  }
+  case class Pointer[G](index: Expr[G], subnodes: Seq[Node[G]], array: Expr[G]) extends Subscript[G]
 
     class FindLinearArrayAccesses(quantifierData: RewriteQuantifierData){
 
       // Search for linear array expressions
       def search(e: Node[Pre]): Option[SubstituteForall] = {
         e match {
+          case e @ ArrayLocation(_, _) =>
+            testSubscript(Array(e.subscript, e.subnodes, e.array))
           case e @ ArraySubscript(_, _)  =>
-            testSubscript(Array(e))
+            testSubscript(Array(e.index, e.subnodes, e.arr))
           case e @ PointerSubscript(_, _)  =>
-            testSubscript(Pointer(e))
+            testSubscript(Pointer(e.index, e.subnodes, e.pointer))
+          case e @ PointerAdd(_, _) =>
+            testSubscript(Pointer(e.offset, e.subnodes, e.pointer))
           case _ => e.subnodes.to(LazyList).map(search).collectFirst{case Some(sub) => sub}
         }
       }
@@ -727,14 +725,17 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           // Replace the linear expression with the new variable
           val x_new_var: Expr[Post] = Local(x_new.ref)
           replace_map(arrayIndex.index) = x_new_var
-          val trigger: Expr[Post] = arrayIndex match {
-            case Array( node @ ArraySubscript(arr, _)) => ArraySubscript(newGen(arr), x_new_var)(node.blame)
-            case Pointer( node @ PointerSubscript(arr, _)) => PointerSubscript(newGen(arr), x_new_var)(node.blame)
+          val newTriggers : Seq[Seq[Expr[Post]]] = arrayIndex match {
+            case arrayIndex: Array[Pre] =>
+              Seq(Seq(ArraySubscript(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
+               // Seq(ArrayLocation(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access")))
+              )
+            case arrayIndex: Pointer[Pre] =>
+              Seq(Seq(PointerSubscript(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
+                Seq(PointerAdd(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))))
           }
-          val newTrigger : Seq[Seq[Expr[Post]]] = Seq(Seq(trigger))
 
           // Add the last value, no need to do modulo
-          //
           replace_map(Local(x_i_last.ref)) = if(is_value(a_i_last, 1)) x_base
           else FloorDiv(x_base, newGen(a_i_last))(PanicBlame("Error in SimplifyNestedQuantifiers, a_i_last should not be zero"))
 
@@ -773,7 +774,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             new_bounds = And(Less(IntegerValue(0), newGen(n_i)), new_bounds)
           }
 
-          Some(SubstituteForall(new_bounds, replace_map.toMap, newTrigger))
+          Some(SubstituteForall(new_bounds, replace_map.toMap, newTriggers))
         }
 
         def simplified_mult(lhs: Expr[Pre], rhs: Expr[Pre]): Expr[Pre] = {
@@ -813,5 +814,5 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
   // The `newBounds`, will contain all the new equations for "select" part of the forall.
   // The `substituteOldVars` contains a map, so we can replace the old forall variables with new expressions
   // We also store the `linearExpression`, so if we ever come across it, we can replace it with the new variable.
-  case class SubstituteForall(newBounds: Expr[Post], substituteOldVars: Map[Expr[Pre], Expr[Post]], newTrigger: Seq[Seq[Expr[Post]]])
+  case class SubstituteForall(newBounds: Expr[Post], substituteOldVars: Map[Expr[Pre], Expr[Post]], newTriggers: Seq[Seq[Expr[Post]]])
 }

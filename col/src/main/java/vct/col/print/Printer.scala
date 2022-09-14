@@ -754,6 +754,8 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
     case DerefPointer(pointer) =>
       (phrase("*", assoc(90, pointer)), 90)
+    case PointerAdd(pointer, offset) =>
+      (phrase(assoc(70, pointer), space, "+", space, assoc(70, offset)), 70)
     case AddrOf(e) =>
       (phrase("&", assoc(90, e)), 90)
     case PredicateApply(ref, args, perm) =>

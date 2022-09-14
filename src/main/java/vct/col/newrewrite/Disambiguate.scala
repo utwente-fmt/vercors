@@ -22,7 +22,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else Mult(dispatch(left), dispatch(right))
       case op @ AmbiguousPlus(left, right) =>
         if(op.isProcessOp) ProcessChoice(dispatch(left), dispatch(right))
-        else if(op.isPointerOp) PointerAdd(dispatch(left), dispatch(right))(op.blame)
+        else if(op.isPointerOp) unfoldPointerAdd(PointerAdd(dispatch(left), dispatch(right))(op.blame))
         else if(op.isSeqOp) Concat(dispatch(left), dispatch(right))
         else if(op.isSetOp) SetUnion(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagAdd(dispatch(left), dispatch(right))
@@ -77,5 +77,12 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case other => rewriteDefault(other)
     }
+  }
+
+  def unfoldPointerAdd[G](e: PointerAdd[G]): PointerAdd[G] = e.pointer match {
+    case inner @ PointerAdd(_, _) =>
+    val PointerAdd(pointerInner, offsetInner) = unfoldPointerAdd(inner)
+    PointerAdd(pointerInner, Plus(offsetInner, e.offset)(e.o) )(e.blame)(e.o)
+    case _ => e
   }
 }
