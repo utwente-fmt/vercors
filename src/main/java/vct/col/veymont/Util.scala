@@ -1,32 +1,44 @@
 package vct.col.veymont
 
 import hre.lang.System.Failure
-import vct.col.ast.`type`.ClassType
+import vct.col.ast.`type`.{ClassType, PrimitiveSort, PrimitiveType}
+import vct.col.ast.expr.constant.ConstantExpression
 import vct.col.ast.expr.{Dereference, MethodInvokation, NameExpression, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.{BlockStatement, IfStatement, LoopStatement, ParallelRegion}
+import vct.col.ast.stmt.decl.Method
 import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.ASTFactory
+
 import scala.annotation.tailrec
 import scala.sys.error
 
 object Util {
 
-  val mainClassName: String = "Main"
-  val localMainClassName : String = "MainFJ"
+  val mainClassName: String = "SeqProgram"
+  val localMainClassName : String = "ParProgram"
+  val localMainMethodName : String = "ParProgram"
   val runMethodName: String = "run"
+  val javaRunMethodName = "compute"
+  val javaForkMethodName = "fork"
+  val javaJoinMethodName = "join"
+  val javaThreadInvoke : String = "invoke"
+  val javaRecursiveActionClass : ClassType = ClassType(List("RecursiveAction"),List.empty)
+  val parClassName : String = "Par"
   val mainMethodName: String = "main"
   private val threadName: String = "Thread"
   val chanName: String = "Chan"
   val channelClassName: String = "Channel"
-  val barrierClassName: String = "Barrier"
-  val barrierFieldName: String = "threadBarrier"
-  val barrierAwait: String = "await"
   val chanWriteMethodName: String = "writeValue"
   val chanReadMethodName: String = "readValue"
   val cloneMethod: String = "clone"
   val chanSentFieldName = "sent"
   val chanRecvdFieldName = "recvd"
   val chanValueFieldName = "exchangeValue"
+  val stringType = "String"
+  val ownerShipPredicateName = "ownership"
+  private val veymontAnnotatedSuffix = "-glob.pvl"
+  private val veymontOutputSuffix = "-output.java"
 
   def getThreadClassName(roleName: String): String = roleName.toUpperCase() + threadName
 
@@ -44,17 +56,22 @@ object Util {
 
   def isChannelClass(name: String): Boolean = name.endsWith(channelClassName)
 
-  def isNoBarrierOrChannelClass(name: String): Boolean = name != barrierClassName && !isChannelClass(name)
-
-  def isRoleOrHelperClassName(name: String): Boolean = name != mainClassName && isNoBarrierOrChannelClass(name)
+  def isRoleOrHelperClassName(name: String): Boolean = name != mainClassName && !isChannelClass(name)
 
   def isChanName(chan: String): Boolean = chan.endsWith(chanName)
-
-  def getBarrierClass : ClassType = new ClassType(barrierClassName)
 
   def getArgName(name: String): String = name + "Arg"
 
   def unArgName(arg: String): String = arg.slice(0, arg.length - 3)
+
+  def isParClassName(name : String) : Boolean = name.startsWith(parClassName)
+
+  def getAnnotatedFileName(inputFileName : String) : String = inputFileName.substring(0,inputFileName.length-4) + Util.veymontAnnotatedSuffix
+  def getOutputFileName(inputFileName : String) : String = {
+    if(inputFileName.endsWith(veymontAnnotatedSuffix))
+      inputFileName.substring(0,inputFileName.length-veymontAnnotatedSuffix.length) + Util.veymontOutputSuffix
+    else inputFileName.substring(0,inputFileName.length-4) + Util.veymontOutputSuffix
+  }
 
   def getChansFromBlockStatement(block: ASTNode): Set[MethodInvokation] =
     getBlockOrThrow(block,"VeyMont Fail: expected BlockStatement").getStatements.toSet[ASTNode].flatMap(s => s match {
@@ -121,6 +138,13 @@ object Util {
   def getBlockOrThrow(a : ASTNode, errorMessage : String) : BlockStatement = a match {
     case b : BlockStatement => b
     case _ => throw Failure(errorMessage)
+  }
+
+  def getArgPrimitiveSorts(typeNode: ASTNode) : List[PrimitiveSort] = {
+    typeNode match {
+      case p : PrimitiveType => p.sort :: p.args.flatMap(getArgPrimitiveSorts)
+      case _ => List()
+    }
   }
 
 }

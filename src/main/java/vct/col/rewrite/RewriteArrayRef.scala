@@ -269,7 +269,7 @@ class RewriteArrayRef(source: ProgramUnit) extends AbstractRewriter(source) {
     contract.requires(create.starall(quantGuardAdd, create.expression(StandardOperator.Perm, create.pattern(quantArrayItem), create.reserved_name(ASTReserved.ReadPerm)), quantDecls:_*))
 
     contract.ensures(eq(seqLength, create.expression(StandardOperator.Minus, to, from)))
-    contract.ensures(create.forall(quantGuardAdd, eq(quantArrayItem, create.pattern(quantSeqItemSub)), quantDecls:_*))
+    contract.ensures(create.forall(quantGuardAdd, eq(create.pattern(quantArrayItem), quantSeqItemSub), quantDecls:_*))
     contract.ensures(create.forall(quantGuard, eq(quantArrayItemAdd, create.pattern(quantSeqItem)), quantDecls:_*))
 
     val arguments = List(

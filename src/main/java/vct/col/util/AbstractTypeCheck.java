@@ -504,7 +504,12 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         kind = info.kind;
       } else {
         e.setType(new ClassType(e.name()));
-        e.getType().accept(this);
+        try {
+          e.getType().accept(this);
+        } catch (HREExitException exc) {
+          e.getOrigin().report("error", "Unknown name");
+          throw exc;
+        }
         return;
       }
     }

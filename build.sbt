@@ -2,7 +2,7 @@ import NativePackagerHelper._
 import java.io.File.pathSeparator
 import sbt.internal._
 
-
+ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 ThisBuild / fork := true
 
@@ -145,7 +145,10 @@ lazy val vercors: Project = (project in file("."))
       },
       BuildInfoKey.action("gitHasChanges") {
         Git.gitHasChanges
-      }
+      },
+      "silverCommit" -> BuildUtil.commitFromGitUrl(silver_url.toString),
+      "siliconCommit" -> BuildUtil.commitFromGitUrl(silicon_url.toString),
+      "carbonCommit" -> BuildUtil.commitFromGitUrl(carbon_url.toString)
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,
     buildInfoPackage := "vct.main",
@@ -174,7 +177,14 @@ lazy val vercors: Project = (project in file("."))
     Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
     Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/${normalizedName.value}/res/$path") },
 
-    scriptClasspath := scriptClasspath.value :+ "../res",
+    // Sets the classpath as described on the below page
+    // https://sbt-native-packager.readthedocs.io/en/latest/recipes/longclasspath.html
+    // To circumvent the long classpath problem
+    // At the time of writing (2021-10-08) the other two workarounds described
+    // on that page seem to be broken.
+    // Both result in "class vct.main.Main" not found when running vercors.
+    // See: https://github.com/sbt/sbt-native-packager/issues/1466
+    scriptClasspath := Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),

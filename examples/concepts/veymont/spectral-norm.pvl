@@ -1,0 +1,138 @@
+class Collector {
+    int n;
+    int[] t0, t1, t2;
+    int[] result;
+    int nrThreads;
+    
+    Collector(int nn, int nrT) {
+        n = nn;
+        nrThreads = nrT;
+    }
+    
+    void flatten() {
+        result = new int[n];
+        int l = n / nrThreads;
+        for(int i = 0; i < l; i++) {
+            result[i] = t0[i];
+            result[l + i] = t1[i];
+            result[2*l + i] = t2[i];
+        }
+    }
+}
+
+class Times {
+    int n;
+    int[] v,u;
+    boolean transpose;
+    int seg;
+    
+    Times(int nn, boolean transp, int nrThreads) {
+        n = nn;
+        transpose = transp;
+        seg = n / nrThreads;
+    }
+    
+    void runn();
+    //assign v
+    
+    void initv() {
+        v = new int[n];
+    }
+    
+    void initu() {
+        u = new int[n];
+        for(int i = 0; i < n; i++) {
+            u[i] = 1;
+        }
+    }
+    
+}
+
+class Calculator {
+    int[] v, u; 
+    int n,vBv, vv;
+    
+    Calculator(int nn) {
+        n = nn;
+    }
+    
+    void calculate();
+    //compute vBv and vv from v and u
+}
+
+class Main {
+
+    Times t0, t1, t2;
+    Collector c;
+    Calculator cal;
+    
+    Main(int n) {
+        t0 = new Times(n,false,3);
+        t1 = new Times(n,false,3);
+        t2 = new Times(n,false,3);
+        c = new Collector(n, 3);
+        cal = new Calculator(n);
+    }
+    
+    void run() {
+        t0.initu();
+        t1.initu();
+        t2.initu();
+        aTimesTransp();
+        t0.u = c.result;        
+        t1.u = c.result;
+        t2.u = c.result;
+        t0.transpose = true;
+        t1.transpose = true;
+        t2.transpose = true;
+        aTimesTransp();
+        cal.v = t0.u;
+        cal.u = c.result;
+        cal.calculate();
+    }
+    
+    void aTimesTransp() {
+         par
+        { 
+            t0.initv();
+            t0.runn();
+            c.t0 = t0.v;
+            
+        } and 
+        {
+            t1.initv();
+            t1.runn();
+            c.t1 = t1.v;
+        } and 
+        {
+            t2.initv();
+            t2.runn();
+            c.t1 = t1.v;
+        }
+        c.flatten(); // x in c.result
+        par
+        {
+            t0.initv();
+            t0.u = c.result;
+            t0.runn();
+            c.t0 = t0.v;
+        } and
+        {
+            t1.initv();
+            t1.u = c.result;
+            t1.runn();
+            c.t1 = t1.v;
+        } and {
+            t2.initv();
+            t2.u = c.result;
+            t2.runn();
+            c.t2 = t2.v;
+        }
+        c.flatten(); // v in c.result
+    }
+    
+    void main(int n) {
+        Main m = new Main(n);
+        m.run();
+    }    
+}

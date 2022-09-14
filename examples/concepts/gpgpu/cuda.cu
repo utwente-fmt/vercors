@@ -1,4 +1,5 @@
 //:: cases BasicCuda
+//:: tool silicon
 //:: verdict Pass
 
 #include <cuda.h>

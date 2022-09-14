@@ -351,26 +351,44 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     Origin o = e.getOrigin();
     switch (e.binder()) {
     case Star:
-    case Forall:
+    case Forall: {
       E expr;
-      if (e.select().isConstant(true)){
-        expr=e.main().apply(this);
+      if (e.select().isConstant(true)) {
+        expr = e.main().apply(this);
       } else {
-        expr=create.implies(o, e.select().apply(this), e.main().apply(this));
+        expr = create.implies(o, e.select().apply(this), e.main().apply(this));
       }
-      List<List<E>> triggers=new ArrayList<List<E>>();
-      if (e.triggers()!=null){
-        for (ASTNode trigger[]:e.javaTriggers()){
-          List<E> tmp=new ArrayList<E>();
-          for (ASTNode node:trigger){
+      List<List<E>> triggers = new ArrayList<List<E>>();
+      if (e.triggers() != null) {
+        for (ASTNode trigger[] : e.javaTriggers()) {
+          List<E> tmp = new ArrayList<E>();
+          for (ASTNode node : trigger) {
             tmp.add(node.apply(this));
           }
           triggers.add(tmp);
         }
       }
-      return create.forall(o, convert(e.getDeclarations()),triggers ,expr);
-    case Exists:
-      return create.exists(o, convert(e.getDeclarations()),create.and(o, e.select().apply(this), e.main().apply(this)));
+      return create.forall(o, convert(e.getDeclarations()), triggers, expr);
+    }
+    case Exists: {
+      E expr;
+      if (e.select().isConstant(true)) {
+        expr = e.main().apply(this);
+      } else {
+        expr = create.and(o, e.select().apply(this), e.main().apply(this));
+      }
+      List<List<E>> triggers = new ArrayList<List<E>>();
+      if (e.triggers() != null) {
+        for (ASTNode trigger[] : e.javaTriggers()) {
+          List<E> tmp = new ArrayList<E>();
+          for (ASTNode node : trigger) {
+            tmp.add(node.apply(this));
+          }
+          triggers.add(tmp);
+        }
+      }
+      return create.exists(o, convert(e.getDeclarations()), triggers, expr);
+    }
     case Let:{
       DeclarationStatement decls[]=e.getDeclarations();
       E res=e.main().apply(this);

@@ -4,11 +4,16 @@
 class Move {
 	int i, j, token;
 	
-	ensures Perm(i,read) ** Perm(j,read) ** Perm(token,read);
 	ensures i == mi ** j == mj ** token == mt;
 	constructor(int mi, int mj, int mt) {
 		i = mi;
 		j = mj;
 		token = mt;
+	}
+	
+	ensures \result.i == i ** \result.j == j ** \result.token == token;
+	ensures i == \old(i) ** j == \old(j) ** token == \old(token);
+	Move clone() {
+	    return new Move(i,j,token);
 	}
 }

@@ -29,6 +29,7 @@ import static hre.lang.System.Debug;
 public class Method extends ASTDeclaration {
 
   public static final String JavaConstructor = "<<constructor>>";
+  public static final String LockInvariant = "lock_invariant";
   public final Type[] signals;
 
   @Override
