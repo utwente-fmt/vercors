@@ -405,7 +405,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
     e match {
       case ApplyCoercion(_, _) =>
-        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.disptach.")
+        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.dispatch.")
 
       case ActionApply(action, args) =>
         ActionApply(action, coerceArgs(args, action.decl))
@@ -991,6 +991,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (right, TSet(rightT)) = set(ys)
         val sharedElement = Types.leastCommonSuperType(leftT, rightT)
         SetUnion(coerce(left, TSet(sharedElement)), coerce(right, TSet(sharedElement)))
+      case SharedMemSize(xs) =>
+        firstOk(e, s"Expected operand to be a pointer or array, but got ${xs.t}.",
+          SharedMemSize(array(xs)._1),
+          SharedMemSize(pointer(xs)._1),
+        )
       case SilverBagSize(xs) =>
         SilverBagSize(bag(xs)._1)
       case SilverCurFieldPerm(obj, field) =>

@@ -82,6 +82,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case StorageClassSpecifier3(_) => ??(storageClass)
     case StorageClassSpecifier4(_) => ??(storageClass)
     case StorageClassSpecifier5(_) => ??(storageClass)
+    case StorageClassSpecifier6(_) => GPULocal()
+    case StorageClassSpecifier7(_) => GPUGlobal()
   }
 
   def convert(implicit typeSpec: TypeSpecifierContext): CTypeSpecifier[G] = typeSpec match {
@@ -1037,6 +1039,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
+    case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
   }
 
   def convert(implicit e: ValExprContext): Expr[G] = e match {

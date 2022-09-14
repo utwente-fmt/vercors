@@ -36,11 +36,11 @@ case class Parsing[G <: Generation]
   cSystemInclude: Path = Resources.getCIncludePath,
   cOtherIncludes: Seq[Path] = Nil,
   cDefines: Map[String, String] = Map.empty,
-) extends Stage[Seq[Readable], ParseResult[G]] {
+) extends Stage[Seq[Readable], (ParseResult[G], Option[Language])] {
   override def friendlyName: String = "Parsing"
   override def progressWeight: Int = 4
 
-  override def run(in: Seq[Readable]): ParseResult[G] =
+  override def run(in: Seq[Readable]): (ParseResult[G], Option[Language]) =
     ParseResult.reduce(in.map { readable =>
       val language = forceLanguage
         .orElse(Language.fromFilename(readable.fileName))
@@ -49,13 +49,14 @@ case class Parsing[G <: Generation]
       val originProvider = ReadableOriginProvider(readable)
 
       val parser = language match {
-        case Language.C => ColCParser(originProvider, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
+        case Language.C | Language.CUDA
+         => ColCParser(originProvider, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines, language)
         case Language.InterpretedC => ColIParser(originProvider, blameProvider)
         case Language.Java => ColJavaParser(originProvider, blameProvider)
         case Language.PVL => ColPVLParser(originProvider, blameProvider)
         case Language.Silver => ColSilverParser(originProvider, blameProvider)
       }
 
-      parser.parse[G](readable)
+      (parser.parse[G](readable), Some(language))
     })
 }

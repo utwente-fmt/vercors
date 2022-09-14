@@ -259,6 +259,8 @@ storageClassSpecifier
     |   '_Thread_local'
     |   'auto'
     |   'register'
+    | gpgpuLocalMemory
+    | gpgpuGlobalMemory
     ;
 
 typeSpecifier
