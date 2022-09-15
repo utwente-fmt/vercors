@@ -99,7 +99,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
     })
   }
 
-  case class  ReInliner() extends NonLatchingRewriter[Post, Post] {
+  case class ReInliner() extends NonLatchingRewriter[Post, Post] {
     // ReInliner does not latch declarations ...
     override def porcelainRefSucc[RefDecl <: Declaration[Post]](ref: Ref[Post, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Post, RefDecl]] =
       Some(ref.asInstanceOf[Ref[Post, RefDecl]])
