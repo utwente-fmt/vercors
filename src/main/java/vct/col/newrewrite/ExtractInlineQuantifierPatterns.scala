@@ -13,11 +13,13 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
 }
 
 case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter[Pre] {
-  val patterns: ScopedStack[ArrayBuffer[Expr[Pre]]] = ScopedStack()
+  val patterns: ScopedStack[ArrayBuffer[(Int, Expr[Pre])]] = ScopedStack()
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case i: InlinePattern[Pre] =>
-      patterns.topOption.foreach { _ += i.inner }
+      if(patterns.toSeq.isDefinedAt(i.parent)) {
+        patterns.toSeq(i.parent) += i.group -> i.inner
+      }
       dispatch(i.inner)
 
     case f: Forall[Pre] if f.triggers.isEmpty =>
@@ -25,7 +27,9 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
         val (patternsHere, body) = patterns.collect {
           dispatch(f.body)
         }
-        val triggers = if (patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
+        val unsortedGroups = patternsHere.groupBy(_._1)
+        val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+        val triggers = sortedGroups.map(_.map(_._2).map(dispatch))
         Forall(
           bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
           triggers = triggers,
@@ -38,7 +42,9 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
         val (patternsHere, body) = patterns.collect {
           dispatch(f.body)
         }
-        val triggers = if (patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
+        val unsortedGroups = patternsHere.groupBy(_._1)
+        val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+        val triggers = sortedGroups.map(_.map(_._2).map(dispatch))
         Starall(
           bindings = variables.collect {
             f.bindings.foreach(dispatch)
@@ -53,7 +59,9 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
         val (patternsHere, body) = patterns.collect {
           dispatch(f.body)
         }
-        val triggers = if (patternsHere.isEmpty) Nil else Seq(patternsHere.map(dispatch))
+        val unsortedGroups = patternsHere.groupBy(_._1)
+        val sortedGroups = unsortedGroups.toSeq.sortBy(_._1).map(_._2)
+        val triggers = sortedGroups.map(_.map(_._2).map(dispatch))
         Exists(
           bindings = variables.collect {
             f.bindings.foreach(dispatch)
