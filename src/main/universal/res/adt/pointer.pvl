@@ -25,9 +25,9 @@ adt `pointer` {
       pointer_offset(p) < `block`.block_length(pointer_block(p)));
 
   // pointer_of is injective: a (block, offset) pair indicates a unique pointer value
-  axiom (\forall `block` b; true; (\forall int offset; true;
-    pointer_block(pointer_of(b, offset)) == b &&
-      pointer_offset(pointer_of(b, offset)) == offset));
+  axiom (∀`block` b, int offset;
+    pointer_block({:pointer_of(b, offset):}) == b &&
+      pointer_offset(pointer_of(b, offset)) == offset);
 }
 
 pure ref ptr_deref(`pointer` p) =

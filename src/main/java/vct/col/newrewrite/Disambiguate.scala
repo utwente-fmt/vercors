@@ -29,7 +29,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else Plus(dispatch(left), dispatch(right))
       case op @ AmbiguousMinus(left, right) =>
         if(op.isSetOp) SetMinus(dispatch(left), dispatch(right))
-        else if(op.isPointerOp) PointerAdd(dispatch(left), dispatch(right))(op.blame)
+        else if(op.isPointerOp) PointerAdd(dispatch(left), dispatch(UMinus(right)))(op.blame)
         else if(op.isBagOp) BagMinus(dispatch(left), dispatch(right))
         else Minus(dispatch(left), dispatch(right))
       case op @ AmbiguousOr(left, right) =>
