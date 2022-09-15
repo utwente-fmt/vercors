@@ -1,0 +1,70 @@
+adt `set`<T> {
+  pure int set_size(`set`<T> xs);
+  pure boolean set_in(`set`<T> xs, T t);
+
+  pure `set`<T> set_empty();
+  pure `set`<T> set_singleton(T t);
+  pure `set`<T> set_union_one(`set`<T> xs, T t);
+
+  pure `set`<T> set_union(`set`<T> xs, `set`<T> ys);
+  pure `set`<T> set_intersection(`set`<T> xs, `set`<T> ys);
+  pure `set`<T> set_difference(`set`<T> xs, `set`<T> ys);
+
+  pure boolean set_subset(`set`<T> xs, `set`<T> ys);
+  pure boolean set_equal(`set`<T> xs, `set`<T> ys);
+
+  axiom (∀`set`<T> xs; {:set_size(xs):} >= 0);
+  axiom (∀`set`<T> xs;
+    (({:set_size(xs):} == 0) == (xs == set_empty())) &&
+    (set_size(xs) != 0 ==> (∃T t; set_in(xs, t)))
+  );
+  axiom (∀T t; {:set_size(set_singleton(t)):} == 1);
+  axiom (∀`set`<T> xs, T t; {:set_size(set_union_one(xs, t)):} == (set_in(xs, t) ? set_size(xs) : set_size(xs)+1));
+
+  axiom (∀T t; !{:set_in(seq_empty(), t):});
+  axiom (∀T t1, T t2; {:set_in(set_singleton(t1), t2):} == (t1 == t2));
+  axiom (∀`set`<T> xs, T t1, T t2; {:set_in(set_union_one(xs, t1), t2):} == (t1 == t2 || set_in(xs, t2)));
+  axiom (∀`set`<T> xs, T t; set_in({:set_union_one(xs, t):}, t));
+  axiom (∀`set`<T> xs, T t1, T t2; {:set_in(xs, t2):} ==> set_in({:set_union_one(xs, t1):}, t2));
+  
+}
+
+axiom (forall<T> a: Set T, b: Set T, o: T :: { Set#Union(a,b)[o] }
+  Set#Union(a,b)[o] <==> a[o] || b[o]);
+axiom (forall<T> a, b: Set T, y: T :: { Set#Union(a, b), a[y] }
+  a[y] ==> Set#Union(a, b)[y]);
+axiom (forall<T> a, b: Set T, y: T :: { Set#Union(a, b), b[y] }
+  b[y] ==> Set#Union(a, b)[y]);
+
+axiom (forall<T> a: Set T, b: Set T, o: T :: { Set#Intersection(a,b)[o] } {Set#Intersection(a,b), a[o]} {Set#Intersection(a,b), b[o]} // AS: added alternative triggers 20/06/19
+  Set#Intersection(a,b)[o] <==> a[o] && b[o]);
+
+axiom (forall<T> a, b: Set T :: { Set#Union(Set#Union(a, b), b) }
+  Set#Union(Set#Union(a, b), b) == Set#Union(a, b));
+axiom (forall<T> a, b: Set T :: { Set#Union(a, Set#Union(a, b)) }
+  Set#Union(a, Set#Union(a, b)) == Set#Union(a, b));
+axiom (forall<T> a, b: Set T :: { Set#Intersection(Set#Intersection(a, b), b) }
+  Set#Intersection(Set#Intersection(a, b), b) == Set#Intersection(a, b));
+axiom (forall<T> a, b: Set T :: { Set#Intersection(a, Set#Intersection(a, b)) }
+  Set#Intersection(a, Set#Intersection(a, b)) == Set#Intersection(a, b));
+axiom (forall<T> a, b: Set T :: { Set#Card(Set#Union(a, b)) }{ Set#Card(Set#Intersection(a, b)) }
+  Set#Card(Set#Union(a, b)) + Set#Card(Set#Intersection(a, b)) == Set#Card(a) + Set#Card(b));
+
+axiom (forall<T> a: Set T, b: Set T, o: T :: { Set#Difference(a,b)[o] } { Set#Difference(a,b), a[o] }
+  Set#Difference(a,b)[o] <==> a[o] && !b[o]);
+axiom (forall<T> a, b: Set T, y: T :: { Set#Difference(a, b), b[y] }
+  b[y] ==> !Set#Difference(a, b)[y] );
+axiom (forall<T> a, b: Set T ::
+  { Set#Card(Set#Difference(a, b)) }
+  Set#Card(Set#Difference(a, b)) + Set#Card(Set#Difference(b, a))
+  + Set#Card(Set#Intersection(a, b))
+    == Set#Card(Set#Union(a, b)) &&
+  Set#Card(Set#Difference(a, b)) == Set#Card(a) - Set#Card(Set#Intersection(a, b)));
+
+axiom(forall<T> a: Set T, b: Set T :: { Set#Subset(a,b) }
+  Set#Subset(a,b) <==> (forall o: T :: {a[o]} {b[o]} a[o] ==> b[o]));
+
+axiom(forall<T> a: Set T, b: Set T :: { Set#Equal(a,b) }
+  Set#Equal(a,b) <==> (forall o: T :: {a[o]} {b[o]} a[o] <==> b[o]));
+axiom(forall<T> a: Set T, b: Set T :: { Set#Equal(a,b) }  // extensionality axiom for sets
+  Set#Equal(a,b) ==> a == b);
