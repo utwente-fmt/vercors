@@ -1,0 +1,74 @@
+adt `seq`<T> {
+  pure int seq_length(`seq`<T> xs);
+  pure `seq`<T> seq_empty();
+  pure `seq`<T> seq_singleton(T t);
+  pure `seq`<T> seq_build(`seq`<T> xs, T t);
+  pure T seq_index(`seq`<T> xs, int i);
+  pure `seq`<T> seq_concat(`seq`<T> xs, `seq`<T> ys);
+  pure `seq`<T> seq_update(`seq`<T> xs, int i, T t);
+  pure boolean seq_contains(`seq`<T> xs, T t);
+  pure `seq`<T> seq_take(`seq`<T> xs, int n);
+  pure `seq`<T> seq_drop(`seq`<T> xs, int n);
+  pure boolean seq_equal(`seq`<T> xs, `seq`<T> ys);
+  pure boolean seq_sameuntil(`seq`<T> xs, `seq`<T> ys, int i);
+
+  axiom (∀`seq`<T> xs; {:seq_length(xs):} >= 0);
+  axiom seq_length(seq_empty()) == 0;
+  axiom (∀`seq`<T> xs; {:seq_length(xs):} == 0 ==> xs == seq_empty());
+  axiom (∀T t; {:seq_length(seq_singleton(t)):} == 1);
+  axiom (∀`seq`<T> xs, T t; seq_length(seq_build(xs, t)) == 1 + seq_length(xs));
+  axiom (∀`seq`<T> xs, `seq`<T> ys; {:seq_length(seq_concat(xs, ys)):} == seq_length(xs) + seq_length(ys));
+  axiom (∀`seq`<T> xs, int i, T t; {:seq_length(seq_update(xs, i, t)):} == seq_length(xs));
+
+  axiom (∀`seq`<T> init, int i, T t;
+    seq_length(init) == i
+      ? {:seq_index(seq_build(init, t), i):} == t
+      : seq_index(seq_build(init, t), i) == seq_index(init, i)
+  );
+
+  axiom (∀T t; seq_index({:seq_singleton(t):}, 0) == t);
+  axiom (∀T t1, T t2; {:seq_contains(seq_singleton(t1), t2):} == (t1 == t2));
+  axiom (∀`seq`<T> xs; {:seq_concat(seq_empty(), xs):} == xs);
+  axiom (∀`seq`<T> xs; {:seq_concat(xs, seq_empty()):} == xs);
+
+  axiom (∀`seq`<T> xs, `seq`<T> ys, int i;
+    i < seq_length(xs)
+      ? {:seq_index(seq_concat(xs, ys), i):} == seq_index(xs, i)
+      : seq_index(seq_concat(xs, ys), i) == seq_index(ys, i - seq_length(xs))
+  );
+
+  axiom (∀`seq`<T> xs, int i, int ui, T t;
+    i == ui
+      ? {:seq_index(seq_update(xs, ui, t), i):} == t
+      : seq_index(seq_update(xs, ui, t), i) == seq_index(xs, i)
+  );
+
+  axiom (∀T t; !seq_contains(seq_empty(), t));
+  axiom (∀`seq`<T> xs, T t;
+    {:seq_contains(xs, t):} == (∃int i; 0 <= i && i < seq_length(xs) && {:seq_index(xs, i):} == t)
+  );
+  axiom (∀`seq`<T> xs, `seq`<T> ys, T t;
+    {:seq_contains(seq_concat(xs, ys), t):} == (seq_contains(xs, t) || seq_contains(ys, t))
+  );
+  axiom (∀`seq`<T> xs, T t, T st;
+    {:seq_contains(seq_build(xs, t), st):} == (t == st || seq_contains(xs, t))
+  );
+
+  axiom (∀`seq`<T> xs, int n; n <= 0 ==> {:seq_take(xs, n):} == seq_empty());
+  axiom (∀`seq`<T> xs, int n; n <= 0 ==> {:seq_drop(xs, n):} == xs);
+  axiom (∀`seq`<T> xs, int n, T t;
+    {:seq_contains(seq_take(xs, n), t):} ==
+      (∃int i; 0 <= i && (i < seq_length(xs) && i < n) && {:seq_index(xs, i):} == t)
+  );
+  axiom (∀`seq`<T> xs, int n, T t;
+    {:seq_contains(seq_drop(xs, n), t):} ==
+      (∃int i; (0 <= i && n <= i) && i < seq_length(xs) && {:seq_index(xs, i):} == t)
+  );
+  axiom (∀`seq`<T> xs, `seq`<T> ys;
+    {:seq_equal(xs, ys):} == (
+      seq_length(xs) == seq_length(ys) &&
+      (∀int i; 0 <= i && i < seq_length(xs) ==> seq_index(xs, i) == seq_index(ys, i))
+    )
+  );
+  axiom (∀`seq`<T> xs, `seq`<T> ys; seq_equal(xs, ys) ==> (xs == ys));
+}
