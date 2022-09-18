@@ -4,7 +4,7 @@ import java.io._
 import java.time.{Instant, ZoneId}
 import java.util
 import hre.ast.FileOrigin
-import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, LinearCollectSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
@@ -26,7 +26,7 @@ import java.time.format.DateTimeFormatter
 import java.util.TimeZone
 
 object Main {
-  val backend_option = new CollectSetting
+  val backend_option = new LinearCollectSetting
 
   var counters = new util.HashMap[String, SpecialCountVisitor]
 

@@ -841,7 +841,7 @@ object Passes {
 
   val BACKENDS: Seq[AbstractPass] = Seq(
     new AbstractPass("applySilicon", "verify input with Silicon") {
-      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "silicon", new util.ArrayList(Main.backend_option.get().keySet()))
+      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "silicon", Main.backend_option.get())
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(
@@ -858,7 +858,7 @@ object Passes {
       )
     },
     new AbstractPass("applyCarbon", "verify input with Carbon") {
-      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "carbon", new util.ArrayList(Main.backend_option.get().keySet()))
+      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "carbon", Main.backend_option.get())
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(
