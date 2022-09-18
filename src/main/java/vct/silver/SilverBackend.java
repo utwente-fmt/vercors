@@ -48,14 +48,14 @@ public class SilverBackend {
   }
   
   public static
-  PassReport TestSilicon(PassReport given, String tool) {
+  PassReport TestSilicon(PassReport given, String tool, List<String> backendOptions) {
     ViperAPI<Origin, ?, ?, ?, ?, ?, ?> verifier=getVerifier(tool);
     // We redirect through a new method, because we need to convince java the program type is consistent. The most brief
     // way to capture a  wildcard ("?") type is via a method.
-    return TestSilicon(given, tool, verifier);
+    return TestSilicon(given, tool, verifier, backendOptions);
   }
 
-  public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier) {
+  public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier, List<String> backendOptions) {
     //hre.System.Output("verifying with %s backend",silver_module.get());
     ProgramUnit arg=given.getOutput();
     PassReport report=new PassReport(arg);
@@ -99,6 +99,7 @@ public class SilverBackend {
       List<? extends ViperError<Origin>> rawErrors = verifier.verify(
               Configuration.getZ3Path().toPath(),
               settings,
+              backendOptions,
               program,
               control
       );

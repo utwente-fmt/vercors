@@ -15,6 +15,7 @@ import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
 import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
 
+import java.util
 import scala.jdk.CollectionConverters._
 
 object Passes {
@@ -840,7 +841,7 @@ object Passes {
 
   val BACKENDS: Seq[AbstractPass] = Seq(
     new AbstractPass("applySilicon", "verify input with Silicon") {
-      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "silicon")
+      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "silicon", new util.ArrayList(Main.backend_option.get().keySet()))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(
@@ -857,7 +858,7 @@ object Passes {
       )
     },
     new AbstractPass("applyCarbon", "verify input with Carbon") {
-      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "carbon")
+      override def apply_pass(arg: PassReport, args: Array[String]): PassReport = vct.silver.SilverBackend.TestSilicon(arg, "carbon", new util.ArrayList(Main.backend_option.get().keySet()))
       override def removes: Set[Feature] = Set()
       override def introduces: Set[Feature] = Set()
       override def permits: Set[Feature] = Set(
