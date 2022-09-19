@@ -700,8 +700,14 @@ final case class CGoto[G](label: String)(implicit val o: Origin) extends CStatem
   var ref: Option[LabelDecl[G]] = None
 }
 
-final case class GpgpuLocalBarrier[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends CStatement[G] with GpgpuLocalBarrierImpl[G]
-final case class GpgpuGlobalBarrier[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends CStatement[G] with GpgpuGlobalBarrierImpl[G]
+sealed trait GpuMemoryFence[G] extends NodeFamily[G] with GpuMemoryFenceImpl[G]
+
+final case class GpuLocalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuLocalMemoryFenceImpl[G]
+final case class GpuGlobalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuGlobalMemoryFenceImpl[G]
+final case class GpuZeroMemoryFence[G](value: BigInt)(implicit val o: Origin) extends GpuMemoryFence[G] with GpuZeroMemoryFenceImpl[G]
+
+
+final case class GpgpuBarrier[G](requires: Expr[G], ensures: Expr[G], specifiers: Seq[GpuMemoryFence[G]])(implicit val o: Origin) extends CStatement[G] with GpgpuBarrierImpl[G]
 final case class GpgpuAtomic[G](impl: Statement[G], before: Statement[G], after: Statement[G])(implicit val o: Origin) extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]

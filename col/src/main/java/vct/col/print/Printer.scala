@@ -415,15 +415,11 @@ case class Printer(out: Appendable,
       statement(syntax(C -> phrase(decl.decl.specs, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
       statement(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
-    case GpgpuLocalBarrier(requires, ensures) =>
+    case GpgpuBarrier(requires, ensures, specifier) =>
       statement(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
         Cuda -> phrase("__syncthreads();"),
-        OpenCL -> phrase("barrier(CLK_LOCAL_MEM_FENCE);"),
+        OpenCL -> phrase("barrier(", intersperse(" | ", specifier.map(NodePhrase)), ");"),
       ))
-    case GpgpuGlobalBarrier(requires, ensures) =>
-      statement(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
-        OpenCL -> phrase("barrier(CLK_GLOBAL_MEM_FENCE);",
-      )))
     case GpgpuAtomic(impl, before, after) =>
       syntax(C -> statement("__vercors_atomic__", space, forceInline(impl), space,
         spec("with", space, before, space, "then", space, before)))
@@ -1214,6 +1210,7 @@ case class Printer(out: Appendable,
     case CTypedefName(name) => say(name)
     case CSpecificationType(t) => say(t)
     case CTypeQualifierDeclarationSpecifier(typeQual) => say(typeQual)
+    case CExtern() => say("extern")
     case CKernel() => say("__kernel")
     case GPULocal() => say(syntax(
       Cuda -> phrase("__shared__"),
@@ -1239,6 +1236,12 @@ case class Printer(out: Appendable,
       case Some(value) => say(node.decl, space, "=", space, value)
       case None => say(node.decl)
     }
+
+  def printGpuMemoryFence(node: GpuMemoryFence[_]): Unit = node match {
+    case GpuLocalMemoryFence() => say("CLK_LOCAL_MEM_FENCE")
+    case GpuGlobalMemoryFence() => say("CLK_GLOBAL_MEM_FENCE")
+    case GpuZeroMemoryFence(i) => say(f"$i")
+  }
 
   def printJavaModifier(node: JavaModifier[_]): Unit = node match {
     case JavaPublic() => say("public")
@@ -1294,6 +1297,7 @@ case class Printer(out: Appendable,
     case node: CTypeQualifier[_] => printCTypeQualifier(node)
     case node: CPointer[_] => printCPointer(node)
     case node: CInit[_] => printCInit(node)
+    case node: GpuMemoryFence[_] => printGpuMemoryFence(node)
     case node: JavaModifier[_] => printJavaModifier(node)
     case node: JavaImport[_] => printJavaImport(node)
     case node: JavaName[_] => printJavaName(node)

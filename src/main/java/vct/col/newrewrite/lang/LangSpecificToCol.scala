@@ -88,8 +88,7 @@ case class LangSpecificToCol[Pre <: Generation](language: Option[Language]) exte
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
-    case barrier: GpgpuLocalBarrier[Pre] => c.localBarrier(barrier)
-    case barrier: GpgpuGlobalBarrier[Pre] => c.globalBarrier(barrier)
+    case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
     case other => rewriteDefault(other)
   }

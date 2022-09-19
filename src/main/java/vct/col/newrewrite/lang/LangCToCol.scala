@@ -6,12 +6,16 @@ import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, InterpretedOriginVariable, Origin, PanicBlame}
 import vct.col.ref.Ref
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecInvocationTarget}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CNameTarget, RefADTFunction, RefAxiomaticDataType,
+  RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaBlockDim, RefCudaBlockIdx,
+  RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction,
+  RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess,
+  RefPredicate, RefProcedure, RefVariable, SpecInvocationTarget}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
 import vct.parsers.Language
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -31,6 +35,27 @@ case object LangCToCol {
   case class WrongGPUType(param: CParam[_]) extends UserError {
     override def code: String = "wrongGPUType"
     override def text: String = s"The parameter `$param` has a type that is not allowed`outside of a GPU kernel."
+  }
+
+  case class NotDynamicSharedMem(e: Expr[_]) extends UserError {
+    override def code: String = "notDynamicSharedMem"
+    override def text: String = s"The expression \\shared_mem_size(`$e`) is not referencing to a shared memory location."
+  }
+
+  case class WrongBarrierSpecifier(b: GpgpuBarrier[_]) extends UserError {
+    override def code: String = "wrongBarrierSpecifier"
+    override def text: String = s"The barrier `$b` has incorrect specifiers."
+  }
+
+  case class UnsupportedBarrierPermission(e: Node[_]) extends UserError {
+    override def code: String = "unsupportedBarrierPermission"
+    override def text: String = s"The permission `$e` is unsupported for barrier for now."
+  }
+
+  case class RedistributingBarrier(v: CNameTarget[_], global: Boolean) extends UserError {
+    def memFence: String = if(global) "CLK_GLOBAL_MEM_FENCE" else "CLK_LOCAL_MEM_FENCE"
+    override def code: String = "redistributingBarrier"
+    override def text: String = s"Trying to redistribute the variable `$v` in a GPU barrier, but need the fence `$memFence` to do this."
   }
 
   case class CDoubleContracted(decl: CGlobalDeclaration[_], defn: CFunctionDefinition[_]) extends UserError {
@@ -66,7 +91,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
   private val staticSharedMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var inKernel: Boolean = false
-  private var inKernelArgs: Boolean = false
 
   case class CudaIndexVariableOrigin(dim: RefCudaVecDim[_]) extends Origin {
     override def preferredName: String =
@@ -86,15 +110,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
 
   private def hasNoSharedMemNames(node: Node[Pre]): Boolean = {
     val allowedNonRefs = Set("get_local_id", "get_group_id", "get_local_size", "get_num_groups")
+
+    def varIsNotShared(l: CLocal[Pre]): Boolean = {
+      l.ref match {
+        case Some(ref: RefCParam[Pre])
+          if dynamicSharedMemNames.contains(ref) || staticSharedMemNames.contains(ref) => return false
+        case None => if (!allowedNonRefs.contains(l.name)) ???
+        case _ =>
+      }
+      true
+    }
+
     node match {
       // SharedMemSize gets rewritten towards the length of a shared memory name, so is valid in global context
       case _: SharedMemSize[Pre] =>
-      case l: CLocal[Pre] => l.ref match {
-        case Some(ref: RefCParam[Pre])
-          if dynamicSharedMemNames.contains(ref) || staticSharedMemNames.contains(ref) => return false
-        case None => if(!allowedNonRefs.contains(l.name)) ???
-        case _ =>
-      }
+      case l: CLocal[Pre] => return varIsNotShared(l)
       case e => if(!e.subnodes.forall(hasNoSharedMemNames)) return false
     }
     true
@@ -121,18 +151,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     }
   }
 
-  def rewriteParam(cParam: CParam[Pre]): Unit = {
+  def rewriteGPUParam(cParam: CParam[Pre]): Unit = {
     cParam.drop()
     val o = InterpretedOriginVariable(cDeclToName(cParam.declarator), cParam.o)
 
-    var array = false
-    var pointer = false
+    var arrayOrPointer = false
     var global = false
     var shared = false
     var extern = false
     var innerType: Option[Type[Pre]] = None
-
-    var isDynamicShared = false
 
     val cRef = RefCParam(cParam)
 
@@ -140,40 +167,51 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
       case CSpecificationType(TPointer(t)) =>
-        pointer = true
+        arrayOrPointer = true
         innerType = Some(t)
       case CSpecificationType(TArray(t)) =>
-        array = true
+        arrayOrPointer = true
         innerType = Some(t)
       case CExtern() => extern = true
       case _ =>
     }
 
-    if((shared || global) && !inKernel) throw WrongGPUType(cParam)
-    if(inKernelArgs){
-      language.get match {
-        case Language.C =>
-          if(global && !shared && (pointer || array) && !extern) globalMemNames.add(cRef)
-          else if(shared && !global && (pointer || array) && !extern) {
+    language match {
+      case Some(Language.C) =>
+        if(global && !shared && arrayOrPointer && !extern) globalMemNames.add(cRef)
+        else if(shared && !global && arrayOrPointer && !extern) {
             dynamicSharedMemNames.add(cRef)
             // Create Var with array type here and return
-            isDynamicShared = true
             val v = new Variable[Post](TArray[Post]( rw.dispatch(innerType.get) )(o) )(o)
             cNameSuccessor(cRef) = v
             return
           }
-          else if(!shared && !global && !pointer && !array && !extern) ()
+        else if(!shared && !global && !arrayOrPointer && !extern) ()
           else throw WrongGPUKernelParameterType(cParam)
-        case Language.CUDA =>
-          if(!global && !shared && (pointer || array) && !extern) globalMemNames.add(cRef)
-          else if(!shared && !global && !pointer && !array && !extern) ()
+      case Some(Language.CUDA) =>
+        if(!global && !shared && arrayOrPointer && !extern) globalMemNames.add(cRef)
+        else if(!shared && !global && !arrayOrPointer && !extern) ()
           else throw WrongGPUKernelParameterType(cParam)
-        case _ => ??? // Should not happen
+      case _ => throw Unreachable(f"The language '$language' should not have GPU kernels.'")
       }
-    }
 
     val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(o)
     cNameSuccessor(cRef) = v
+    rw.variables.declare(v)
+  }
+
+  def rewriteParam(cParam: CParam[Pre]): Unit = {
+    if(inKernel) return rewriteGPUParam(cParam)
+    cParam.specifiers.collectFirst{
+      case GPULocal() => throw WrongGPUType(cParam)
+      case GPUGlobal() => throw WrongGPUType(cParam)
+    }
+
+    cParam.drop()
+    val o = InterpretedOriginVariable(C.getDeclaratorInfo(cParam.declarator).name, cParam.o)
+
+    val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(o)
+    cNameSuccessor(RefCParam(cParam)) = v
     rw.variables.declare(v)
   }
 
@@ -181,13 +219,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     func.drop()
     val info = C.getDeclaratorInfo(func.declarator)
     val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
-    if (func.specs.collectFirst { case CKernel() => () }.nonEmpty){
-      inKernel = true
-      inKernelArgs = true
-    }
-    val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
-    inKernel = false
-    inKernelArgs = false
 
     val (contract, subs: Map[CParam[Pre], CParam[Pre]]) = func.ref match {
       case Some(RefCGlobalDeclaration(decl, idx)) if decl.decl.contract.nonEmpty =>
@@ -208,6 +239,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
             val namedO = InterpretedOriginVariable(cDeclToName(func.declarator), func.o)
             kernelProcedure(namedO, contract, info, Some(func.body))
           } else {
+            val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
             new Procedure[Post](
               returnType = returnType,
               args = params,
@@ -276,9 +308,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     val gridDim = new CudaVec(RefCudaGridDim())(o)
     cudaCurrentBlockDim.having(blockDim) {
       cudaCurrentGridDim.having(gridDim) {
-        inKernelArgs = true
         val args = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
-        inKernelArgs = false
         rw.variables.collect { dynamicSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d)) ) }
         val (sharedMemSizes, sharedMemInit: Seq[Statement[Post]]) = rw.variables.collect {
           var result: Seq[Statement[Post]] = Seq()
@@ -435,11 +465,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
           val v = new Variable[Post](t)(init.o)
           cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
           implicit val o: Origin = init.o
-          init.init match {
-            case Some(value) =>
-              Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value))))
-            case None => LocalDecl(v)
-          }
+          init.init
+            .map(value => Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value)))))
+            .getOrElse(LocalDecl(v))
       }
     })(decl.o)
   }
@@ -447,8 +475,30 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
   def rewriteGoto(goto: CGoto[Pre]): Statement[Post] =
     Goto[Post](rw.succ(goto.ref.getOrElse(???)))(goto.o)
 
-  def localBarrier(barrier: GpgpuLocalBarrier[Pre]): Statement[Post] = {
+  def gpuBarrier(barrier: GpgpuBarrier[Pre]): Statement[Post] = {
     implicit val o: Origin = barrier.o
+
+    var globalFence = false
+    var localFence = false
+
+    barrier.specifiers.foreach {
+      case GpuLocalMemoryFence() => localFence = true
+      case GpuGlobalMemoryFence() => globalFence = true
+      case GpuZeroMemoryFence(i) => if(i != 0) throw WrongBarrierSpecifier(barrier)
+    }
+    // TODO: create requirement that shared memory arrays are not NULL?
+    if(!globalFence || !localFence){
+      val redist = permissionScanner(barrier)
+      if(!globalFence)
+        redist
+        .intersect(globalMemNames.toSet)
+        .foreach(v => throw RedistributingBarrier(v, global = true))
+      if(!localFence)
+        redist
+          .intersect(dynamicSharedMemNames.union(dynamicSharedMemNames).toSet)
+          .foreach(v => throw RedistributingBarrier(v, global = false))
+    }
+
     ParBarrier[Post](
       block = cudaCurrentBlock.top.ref,
       invs = Nil,
@@ -458,15 +508,55 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     )(PanicBlame("more panic"))
   }
 
-  def globalBarrier(barrier: GpgpuGlobalBarrier[Pre]): Statement[Post] = {
-    implicit val o: Origin = barrier.o
-    ParBarrier[Post](
-      block = cudaCurrentGrid.top.ref,
-      invs = Nil,
-      requires = rw.dispatch(barrier.requires),
-      ensures = rw.dispatch(barrier.ensures),
-      content = Block(Nil),
-    )(PanicBlame("more panic"))
+  def isPointer(t: Type[Pre]) : Boolean = t match {
+    case TPointer(_) => true
+    case CPrimitiveType(specs) =>
+      specs.collectFirst{case CSpecificationType(TPointer(_)) => }.nonEmpty
+    case _ => false
+  }
+
+  def isNumeric(t: Type[Pre]): Boolean = t match{
+    case _: NumericType[Pre] => true
+    case CPrimitiveType(specs) =>
+      specs.collectFirst{case CSpecificationType(_ : NumericType[Pre]) =>}.nonEmpty
+    case _ => false
+  }
+
+  def searchNames(e: Expr[Pre], original: Node[Pre]): Seq[CNameTarget[Pre]] = e match {
+    case arr : CLocal[Pre] => Seq(arr.ref.get)
+    case PointerAdd(arr : CLocal[Pre], _) => Seq(arr.ref.get)
+    case AmbiguousSubscript(arr : CLocal[Pre], _) => Seq(arr.ref.get)
+    case AmbiguousPlus(l, r) if isPointer(l.t) && isNumeric(r.t) => searchNames(l, original)
+    case _ => throw UnsupportedBarrierPermission(original)
+  }
+
+  def searchNames(loc: Location[Pre], original: Node[Pre]): Seq[CNameTarget[Pre]] = loc match {
+    case ArrayLocation(arr : CLocal[Pre], _) => Seq(arr.ref.get)
+    case PointerLocation(arr : CLocal[Pre]) => Seq(arr.ref.get)
+    case PointerLocation(PointerAdd(arr : CLocal[Pre], _)) => Seq(arr.ref.get)
+    case AmbiguousLocation(expr) => searchNames(expr, original)
+    case _ => throw UnsupportedBarrierPermission(original)
+  }
+
+  def searchPermission(e: Node[Pre]): Seq[CNameTarget[Pre]] = {
+    e match {
+      case e: Expr[Pre] if e.t != TResource[Pre]() => return Seq()
+      case Perm(loc, _) => searchNames(loc, e)
+      case PointsTo(loc, _, _) => searchNames(loc, e)
+      case CurPerm(loc) => searchNames(loc, e)
+      case PermPointer(pointer, _, _) => searchNames(pointer, e)
+      case PermPointerIndex(pointer, _, _) => searchNames(pointer, e)
+      case _ => e.subnodes.flatMap(searchPermission)
+    }
+  }
+
+  def permissionScanner(barrier: GpgpuBarrier[Pre]): Set[CNameTarget[Pre]] ={
+    val pres = unfoldStar(barrier.requires).toSet
+    val posts = unfoldStar(barrier.ensures).toSet
+    val context = pres intersect posts
+    // Only scan the non context permissions
+    val nonContext = (pres union posts) diff context
+    nonContext.flatMap(searchPermission)
   }
 
   def result(ref: RefCFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
@@ -500,16 +590,19 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
 
   def deref(deref: CStructAccess[Pre]): Expr[Post] = {
     implicit val o: Origin = deref.o
+
+    def getCuda(dim: RefCudaVecDim[Pre]): Expr[Post] = dim.vec match {
+      case RefCudaThreadIdx() => cudaCurrentThreadIdx.top.indices(dim).get
+      case RefCudaBlockIdx() => cudaCurrentBlockIdx.top.indices(dim).get
+      case RefCudaBlockDim() => cudaCurrentBlockDim.top.indices(dim).get
+      case RefCudaGridDim() => cudaCurrentGridDim.top.indices(dim).get
+    }
+
     deref.ref.get match {
       case RefModelField(decl) => ModelDeref[Post](rw.currentThis.top, rw.succ(decl))(deref.blame)
       case BuiltinField(f) => rw.dispatch(f(deref.struct))
       case target: SpecInvocationTarget[Pre] => ???
-      case dim: RefCudaVecDim[Pre] => dim.vec match {
-        case RefCudaThreadIdx() => cudaCurrentThreadIdx.top.indices(dim).get
-        case RefCudaBlockIdx() => cudaCurrentBlockIdx.top.indices(dim).get
-        case RefCudaBlockDim() => cudaCurrentBlockDim.top.indices(dim).get
-        case RefCudaGridDim() => cudaCurrentGridDim.top.indices(dim).get
-      }
+      case dim: RefCudaVecDim[Pre] => getCuda(dim)
     }
   }
 
@@ -541,10 +634,19 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
         ProcedureInvocation[Post](cFunctionSuccessor.ref(ref.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
-      case e@ RefCGlobalDeclaration(decls, initIdx) =>
-        val arg = if(args.size == 1){
-          args.head match {
-            case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
+      case e: RefCGlobalDeclaration[Pre] => globalInvocation(e, inv)
+
+    }
+  }
+
+  def globalInvocation(e: RefCGlobalDeclaration[Pre], inv: CInvocation[Pre]): Expr[Post] = {
+    val CInvocation(_, args, givenMap, yields) = inv
+    val RefCGlobalDeclaration(decls, initIdx) = e
+    implicit val o: Origin = inv.o
+
+    val arg = if(args.size == 1){
+      args.head match {
+        case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
             case _ => None
           }
         } else None
@@ -553,10 +655,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
           case ("get_group_id", Some(i)) => cudaCurrentBlockIdx.top.indices.values.toSeq.apply(i).get
           case ("get_local_size", Some(i)) => cudaCurrentBlockDim.top.indices.values.toSeq.apply(i).get
           case ("get_num_groups", Some(i)) => cudaCurrentGridDim.top.indices.values.toSeq.apply(i).get
-          case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
-            givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
-        }
+      case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
+        givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+        yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
     }
   }
 }

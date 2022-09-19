@@ -1,11 +1,7 @@
 parser grammar LangGPGPUParser;
 
-gpgpuLocalBarrier
-    : valEmbedContract? GPGPU_BARRIER '(' GPGPU_LOCAL_BARRIER ')'
-    ;
-
-gpgpuGlobalBarrier
-    : valEmbedContract? GPGPU_BARRIER '(' GPGPU_GLOBAL_BARRIER ')'
+gpgpuBarrier
+    : valEmbedContract? GPGPU_BARRIER '(' gpgpuMemFenceList ')'
     ;
 
 gpgpuCudaKernelInvocation
@@ -14,6 +10,17 @@ gpgpuCudaKernelInvocation
 
 gpgpuAtomicBlock
     : valEmbedWith? GPGPU_ATOMIC compoundStatement valEmbedThen?
+    ;
+
+gpgpuMemFenceList
+    :   gpgpuMemFence
+    |   gpgpuMemFenceList '|' gpgpuMemFence
+    ;
+
+gpgpuMemFence
+    :   GPGPU_LOCAL_MEMORY_FENCE
+    |   GPGPU_GLOBAL_MEMORY_FENCE
+    |   Constant
     ;
 
 gpgpuKernelSpecifier: GPGPU_KERNEL;

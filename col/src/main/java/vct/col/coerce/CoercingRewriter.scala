@@ -211,6 +211,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: CPointer[Pre] => node
     case node: CInit[Pre] => node
     case node: CDeclaration[Pre] => node
+    case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
     case node: JavaName[Pre] => node
@@ -1138,8 +1139,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
       case Goto(lbl) => Goto(lbl)
       case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
-      case GpgpuGlobalBarrier(requires, ensures) => GpgpuGlobalBarrier(res(requires), res(ensures))
-      case GpgpuLocalBarrier(requires, ensures) => GpgpuLocalBarrier(res(requires), res(ensures))
+      case GpgpuBarrier(requires, ensures, specifier) => GpgpuBarrier(res(requires), res(ensures), specifier)
       case Havoc(loc) => Havoc(loc)
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
