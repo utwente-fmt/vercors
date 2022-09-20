@@ -853,6 +853,8 @@ case class Printer(out: Appendable,
       (phrase("pointer_block(", pointer ,")"), 100)
     case PointerBlockLength(pointer) =>
       (phrase("block_length(", pointer ,")"), 100)
+    case PointerLength(pointer) =>
+      (phrase("pointer_length(", pointer ,")"), 100)
     case Cons(x, xs) =>
       (phrase(bind(87, x), space, "::", space, assoc(87, xs)), 87)
     case Head(xs) =>
@@ -1269,6 +1271,19 @@ case class Printer(out: Appendable,
   def printJavaName(node: JavaName[_]): Unit =
     say(node.names.mkString("."))
 
+  def printLocation(loc: Location[_]): Unit = loc match {
+//    case FieldLocation(obj, field) =>
+//    case ModelLocation(obj, field) =>
+//    case SilverFieldLocation(obj, field) =>
+    case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", subscript, "]"), 100)
+    case PointerLocation(pointer) => say(pointer)
+//    case PredicateLocation(predicate, args) =>
+//    case InstancePredicateLocation(predicate, obj, args) =>
+    case AmbiguousLocation(expr) => say(expr)
+    case x =>
+      say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
+  }
+
   def printVerification(node: Verification[_]): Unit =
     node.tasks.foreach(print)
 
@@ -1301,6 +1316,7 @@ case class Printer(out: Appendable,
     case node: JavaModifier[_] => printJavaModifier(node)
     case node: JavaImport[_] => printJavaImport(node)
     case node: JavaName[_] => printJavaName(node)
+    case node : Location[_] => printLocation(node)
     case node: Verification[_] => printVerification(node)
     case node: VerificationContext[_] => printVerificationContext(node)
     case x =>

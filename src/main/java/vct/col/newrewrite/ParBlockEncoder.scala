@@ -104,20 +104,6 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   def from(v: Variable[Pre]): Expr[Post] = range(v)._1
   def to(v: Variable[Pre]): Expr[Post] = range(v)._2
 
-//  def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Post] = {
-//    val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
-//    val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
-//    block.iters.foldLeft(dispatch(body))((body, iter) => {
-//      val v = quantVars(iter.variable)
-//      Starall[Post](
-//        Seq(variables.dispatch(v)),
-//        Nil,
-//        SeqMember(Local[Post](succ(v)), Range(from(iter.variable), to(iter.variable))) ==> body
-////        (from(iter.variable) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter.variable)) ==> body
-//      )(ParBlockNotInjective(block, expr))
-//    })
-//  }
-
   def depVars[G](bindings: Set[Variable[G]], e: Expr[G]): Set[Variable[G]] = {
     val result: mutable.Set[Variable[G]] = mutable.Set()
     e.transSubnodes.foreach {
@@ -135,15 +121,17 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         val quantVars = if (nonEmpty) depVars(vars, e) else vars
         val nonQuantVars = vars.diff(quantVars)
         val newQuantVars = quantVars.map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
-        var body = dispatch(Substitute(newQuantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(e))
-        body = if (nonPermissionExpr(e)) {
-          body
-        } else {
+        var body = dispatch(Substitute(
+            newQuantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]
+          ).dispatch(e))
+        body = if (e.t == TResource[Pre]()) {
           // Scale the body if it contains permissions
           nonQuantVars.foldLeft(body)((body, iter) => {
             val scale = to(iter) - from(iter)
-            Scale(const[Post](1) /:/ scale, body)(PanicBlame("Par block was checked to be non-empty"))
+            Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))
           })
+        } else {
+          body
         }
         // Result, quantify over all the relevant variables
         quantVars.foldLeft(body)((body, iter) => {
@@ -173,15 +161,40 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       quantify(block, block.context_everywhere &* block.ensures, nonEmpty)
   }
 
-  def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Unit = region match {
-    case ParParallel(regions) => regions.foreach(ranges(_, rangeValues))
-    case ParSequential(regions) => regions.foreach(ranges(_, rangeValues))
+  def constantExpression(e: Expr[_]): Boolean = e match {
+    case _: Constant[_, _] => true
+    case op: BinExpr[_] => constantExpression(op.left) && constantExpression(op.right)
+    /* TODO: This is the hard part, do we do an analysis on locals to see if they are never changed in the body of a a
+     *  parallel block? We need this, otherwise we can never hope to rewrite nested foralls, since the bounds will
+     *  depend on the hi_var en var_low values. And on that the nested quantifier pass will get stuck.
+     */
+    case _: Local[_] => false
+    case _ => false
+  }
+
+  def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Statement[Post] = region match {
+    case ParParallel(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
+    case ParSequential(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
     case block @ ParBlock(decl, iters, _, _, _, _) =>
       decl.drop()
       blockDecl(decl) = block
-      iters.foreach { v =>
-        rangeValues(v.variable) = (dispatch(v.from), dispatch(v.to))
-      }
+      Block(iters.foldLeft(Seq[Statement[Post]]()) { case(res,v) =>
+        implicit val o: Origin = v.o
+        val from = dispatch(v.from)
+        val to = dispatch(v.to)
+        if(constantExpression(from) && constantExpression (to)){
+          rangeValues(v.variable) = (from, to)
+          res
+        } else {
+          val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
+          val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
+          rangeValues(v.variable) = (lo.get, hi.get)
+          res ++ Seq(
+            assignLocal(lo.get, dispatch(v.from)),
+            assignLocal(hi.get, dispatch(v.to)),
+          )
+        }
+      })(region.o)
   }
 
   def execute(region: ParRegion[Pre], nonEmpty: Boolean): Statement[Post] = {
@@ -207,9 +220,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         Block(iters.map { v =>
           dispatch(v.variable)
           assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
-        })
-      }
-
+        }) }
       Scope(vars, Block(Seq(
         init,
         FramedProof(
@@ -220,31 +231,32 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       )))
   }
 
-  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = stat match {
+  def isParBlock(stat: ParRegion[Pre]): Boolean = stat match {
+    case _: ParBlock[Pre] => true
+    case _ => false
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case ParStatement(region) =>
-      val (isSingleBlock: Boolean, iters: Option[Seq[IterVariable[Pre]]]) = region match {
-        case pb : ParBlock[Pre] => (true, Some(pb.iters))
-        case _ => (false, None)
+      val isSingleBlock: Boolean = isParBlock(region)
+      implicit val o: Origin = stat.o
+      val rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])] = mutable.Map()
+      val (vars, evalRanges) = variables.collect {
+        ranges(region, rangeValues)
       }
 
-      implicit val o: Origin = stat.o
-
-      val rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])] = mutable.Map()
-
-      ranges(region, rangeValues)
-
       currentRanges.having(rangeValues.toMap) {
-        var res: Statement[Post] = Block(Seq(
+        var res: Statement[Post] =
           IndetBranch(Seq(
             execute(region, isSingleBlock),
             Block(Seq(check(region), Inhale(ff)))
-          )),
-        ))
+          ))
         if(isSingleBlock){
           val condition: Expr[Post] = foldAnd(rangeValues.values.map{case (low, hi) => low < hi})
           res = Branch(Seq((condition, res)))
         }
-        res
+        Scope(vars,
+          Block(Seq(evalRanges,res)))
       }
 
     case inv @ ParInvariant(decl, dependentInvariant, body) =>
@@ -302,8 +314,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
-//    case ScaleByParBlock(Ref(decl), res) if !nonPermissionExpr(res) =>
-    case ScaleByParBlock(Ref(decl), res) =>
+    case ScaleByParBlock(Ref(decl), res) if e.t == TResource[Pre]() =>
       implicit val o: Origin = e.o
       val block = blockDecl(decl)
       block.iters.foldLeft(dispatch(res)) {
@@ -311,24 +322,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           val scale = to(v.variable) - from(v.variable)
           Implies(scale > const(0), Scale(const[Post](1) /:/ scale, res)(PanicBlame("framed positive")))
       }
-//    case ScaleByParBlock(Ref(_), res) => dispatch(res)
+    case ScaleByParBlock(Ref(_), res) => dispatch(res)
     case other => rewriteDefault(other)
-  }
-
-  def nonPermissionExpr[G](e: Node[G]): Boolean = e match {
-    case _: Perm[G] => false
-    case _: PointsTo[G] => false
-    case _: PermPointer[G] => false
-    case _: PermPointerIndex[G] => false
-    case _: ModelState[G] => false
-    case _: ModelSplit[G] => false
-    case _: ModelMerge[G] => false
-    case _: ModelChoose[G] => false
-    case _: ModelPerm[G] => false
-    case _: ActionPerm[G] => false
-    case _: PredicateApply[G] => false
-    case _: InstancePredicateApply[G] => false
-    case _: CoalesceInstancePredicateApply[G] => false
-    case other => other.subnodes.forall(nonPermissionExpr)
   }
 }

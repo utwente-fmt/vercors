@@ -102,6 +102,7 @@ case class LangSpecificToCol[Pre <: Generation](language: Option[Language]) exte
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
+        case RefJavaAnnotationMethod(decL) => ???
         case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
       }

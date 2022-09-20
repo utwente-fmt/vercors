@@ -355,9 +355,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      //TODO: This progress "nextPhase" prints out a lot of garbage when having to much foralls (for instance when verifying CUDA/OpenCl programs
-      // Disabled it for now, probably a bug?
-      //Progress.nextPhase(s"`$e`")
+      Progress.nextPhase(s"`$e`")
       countApply = 0
       countSuccess = 0
       currentExpr = e

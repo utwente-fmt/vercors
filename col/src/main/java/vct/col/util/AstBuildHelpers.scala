@@ -316,12 +316,9 @@ object AstBuildHelpers {
     exprs.reduceOption(And(_, _)).getOrElse(tt)
 
   def unfoldPredicate[G](p: AccountedPredicate[G]): Seq[Expr[G]] = p match {
-    case UnitAccountedPredicate(pred) => unfoldStar(pred)
+    case UnitAccountedPredicate(pred) => Seq(pred)
     case SplitAccountedPredicate(left, right) => unfoldPredicate(left) ++ unfoldPredicate(right)
   }
-
-  def filterPredicate[G](p: AccountedPredicate[G], f: Expr[G] => Boolean): AccountedPredicate[G] =
-    foldPredicate(unfoldPredicate(p).filter(f))(p.o)
 
   def mapPredicate[G1, G2](p: AccountedPredicate[G1], f: Expr[G1] => Expr[G2]): AccountedPredicate[G2] = p match {
     case UnitAccountedPredicate(pred) => UnitAccountedPredicate(f(pred))(p.o)
@@ -356,12 +353,6 @@ object AstBuildHelpers {
     case UnitAccountedPredicate(pred) => pred
     case SplitAccountedPredicate(left, right) => Star(foldStar(left), foldStar(right))
   }
-
-  def foldPredicate[G](exprs: Seq[Expr[G]])(implicit o: Origin): AccountedPredicate[G] =
-    exprs
-      .map(e => UnitAccountedPredicate(e)(e.o))
-      .reduceOption[AccountedPredicate[G]](SplitAccountedPredicate(_, _))
-      .getOrElse(UnitAccountedPredicate(tt))
 
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Or(_, _)).getOrElse(ff)

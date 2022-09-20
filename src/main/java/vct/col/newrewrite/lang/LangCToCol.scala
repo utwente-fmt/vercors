@@ -134,26 +134,21 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     cUnit.declarations.foreach(rw.dispatch)
   }
 
-  def cDeclToName(cDecl: CDeclarator[Pre]): String = cDecl match {
-    case CPointerDeclarator(_, inner) => cDeclToName(inner)
-    case CArrayDeclarator(_, _, inner) => cDeclToName(inner)
-    case CTypedFunctionDeclarator(_, _, inner) => cDeclToName(inner)
-    case CAnonymousFunctionDeclarator(_, inner) => cDeclToName(inner)
-    case CName(name: String) => name
-  }
-
   def sharedSize(shared: SharedMemSize[Pre]): Expr[Post] = {
     val SharedMemSize(pointer) = shared
 
-    pointer match {
-      case loc: CLocal[Pre] => Local[Post](dynamicSharedMemLengthVar(loc.ref.get).ref)(shared.o)
-      case _ => ???
+    val res = pointer match {
+      case loc: CLocal[Pre] =>
+        loc.ref flatMap { dynamicSharedMemLengthVar.get } map {v => Local[Post](v.ref)(shared.o)}
+      case _ => None
     }
+    res.getOrElse(throw NotDynamicSharedMem(pointer))
   }
 
   def rewriteGPUParam(cParam: CParam[Pre]): Unit = {
     cParam.drop()
-    val o = InterpretedOriginVariable(cDeclToName(cParam.declarator), cParam.o)
+    val varO = InterpretedOriginVariable(C.getDeclaratorInfo(cParam.declarator).name, cParam.o)
+    implicit val o: Origin = cParam.o
 
     var arrayOrPointer = false
     var global = false
@@ -180,22 +175,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
       case Some(Language.C) =>
         if(global && !shared && arrayOrPointer && !extern) globalMemNames.add(cRef)
         else if(shared && !global && arrayOrPointer && !extern) {
-            dynamicSharedMemNames.add(cRef)
-            // Create Var with array type here and return
-            val v = new Variable[Post](TArray[Post]( rw.dispatch(innerType.get) )(o) )(o)
-            cNameSuccessor(cRef) = v
-            return
-          }
+          dynamicSharedMemNames.add(cRef)
+          // Create Var with array type here and return
+          val v = new Variable[Post](TArray[Post](rw.dispatch(innerType.get)) )(varO)
+          cNameSuccessor(cRef) = v
+          return
+        }
         else if(!shared && !global && !arrayOrPointer && !extern) ()
-          else throw WrongGPUKernelParameterType(cParam)
+        else throw WrongGPUKernelParameterType(cParam)
       case Some(Language.CUDA) =>
         if(!global && !shared && arrayOrPointer && !extern) globalMemNames.add(cRef)
         else if(!shared && !global && !arrayOrPointer && !extern) ()
-          else throw WrongGPUKernelParameterType(cParam)
+        else throw WrongGPUKernelParameterType(cParam)
       case _ => throw Unreachable(f"The language '$language' should not have GPU kernels.'")
-      }
+    }
 
-    val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(o)
+    val v = new Variable[Post](cParam.specifiers.collectFirst
+      { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(varO)
     cNameSuccessor(cRef) = v
     rw.variables.declare(v)
   }
@@ -208,9 +204,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     }
 
     cParam.drop()
-    val o = InterpretedOriginVariable(C.getDeclaratorInfo(cParam.declarator).name, cParam.o)
+    val varO = InterpretedOriginVariable(C.getDeclaratorInfo(cParam.declarator).name, cParam.o)
 
-    val v = new Variable[Post](cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(o)
+    val v = new Variable[Post](cParam.specifiers.collectFirst
+      { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???))(varO)
     cNameSuccessor(RefCParam(cParam)) = v
     rw.variables.declare(v)
   }
@@ -236,7 +233,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
       cCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
           if (func.specs.collectFirst { case CKernel() => () }.nonEmpty) {
-            val namedO = InterpretedOriginVariable(cDeclToName(func.declarator), func.o)
+            val namedO = InterpretedOriginVariable(C.getDeclaratorInfo(func.declarator).name, func.o)
             kernelProcedure(namedO, contract, info, Some(func.body))
           } else {
             val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
@@ -268,8 +265,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
   def allOneExpr(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
     implicit val o: Origin = e.o
     val vars = findVars(e)
-    val filteredIdx = idx.indices.values.zip(dim.indices.values).filter{ case (i, _) => vars.contains(i)}
-    val otherIdx = idx.indices.values.zip(dim.indices.values).filterNot{ case (i, _) => vars.contains(i)}
+    val (filteredIdx, otherIdx) = idx.indices.values.zip(dim.indices.values).partition{ case (i, _) => vars.contains(i)}
 
     val body = otherIdx.map{case (_,range) => range}.foldLeft(e)((newE, scaleFactor) => Scale(scaleFactor.get, newE)(PanicBlame("Framed positive")) )
     if(filteredIdx.isEmpty){
@@ -286,7 +282,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
 
   def findVars(e: Node[Post], vars: Set[Variable[Post]] = Set()): Set[Variable[Post]] = e match {
       case Local(ref) => vars + ref.decl
-      case _ => e.subnodes.foldLeft(vars)( (set, node) => set ++ findVars(node) )
+      case _ => e.transSubnodes.collect { case Local(Ref(v)) => v}.toSet
   }
 
   def allThreadsInBlock(e: Expr[Pre]): Expr[Post] = {
@@ -315,30 +311,28 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
           dynamicSharedMemNames.foreach(d =>
           {
             implicit val o: Origin = d.decl.o
-            val v = new Variable[Post](TInt())
+            val varO: Origin = InterpretedOriginVariable(s"${C.getDeclaratorInfo(d.decl.declarator).name}_size", d.decl.o)
+            val v = new Variable[Post](TInt())(varO)
             dynamicSharedMemLengthVar(d) = v
             rw.variables.declare(v)
             val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
             val assign: Statement[Post] = Assign[Post](Local(cNameSuccessor(d).ref)
               , NewArray[Post](v.t, Seq(Local(v.ref)), 0))(PanicBlame("Assign should work"))
-            result = result ++  Seq(decl, assign)
+            result ++= Seq(decl, assign)
           })
           result
         }
 
         val newArgs = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ args ++ sharedMemSizes
-
         val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
         val newYieldsArgs = rw.variables.dispatch(contract.yieldsArgs)
         // We add the requirement that a GPU kernel must always have threads (non zero block or grid dimensions)
-        val nonZeroThreadsSeq: Seq[Expr[Post]]
-          = (blockDim.indices.values ++ gridDim.indices.values).map( v => Less(IntegerValue(0)(o), v.get(o))(o) ).toSeq
-        val nonZeroThreads = foldStar(nonZeroThreadsSeq)(o)
-
-        val nonZeroThreadsPred =
-          nonZeroThreadsSeq
-            .map(UnitAccountedPredicate(_)(o))
-            .reduceLeft[AccountedPredicate[Post]](SplitAccountedPredicate(_,_)(o))
+        val nonZeroThreads: Expr[Post] = foldStar(
+            (blockDim.indices.values ++ gridDim.indices.values)
+              .map( v => Less(IntegerValue(0)(o), v.get(o))(o))
+              .toSeq)(o)
+        val UnitAccountedPredicate(contractRequires: Expr[Pre]) = contract.requires
+        val UnitAccountedPredicate(contractEnsures: Expr[Pre]) = contract.ensures
 
         val parBody = body.map(impl => {
           implicit val o: Origin = impl.o
@@ -360,8 +354,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
                       }.toSeq,
                       // Context is already inherited
                       context_everywhere = Star(nonZeroThreads, rw.dispatch(contract.contextEverywhere)),
-                      requires = rw.dispatch(foldStar(unfoldPredicate(contract.requires))),
-                      ensures = rw.dispatch(foldStar(unfoldPredicate(contract.ensures))),
+                      requires = rw.dispatch(contractRequires),
+                      ensures = rw.dispatch(contractEnsures),
                       content = rw.dispatch(impl),
                     )(PanicBlame("where blame?")))
                   ParStatement(ParBlock(
@@ -371,20 +365,20 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
                     }.toSeq,
                     // Context is added to requires and ensures here
                     context_everywhere = tt,
-                    requires = Star(
-                        Star(nonZeroThreads,
+                    requires = Star(nonZeroThreads,
+                        Star(contextBlock,
                           foldStar(
-                            unfoldPredicate(contract.requires)
+                            unfoldStar(contractRequires)
                               .filter(hasNoSharedMemNames)
                               .map(allThreadsInBlock)))
-                        , contextBlock),
-                    ensures = Star(
-                      Star(nonZeroThreads,
+                        ),
+                    ensures = Star(nonZeroThreads,
+                      Star(contextBlock,
                         foldStar(
-                          unfoldPredicate(contract.ensures)
+                          unfoldStar(contractEnsures)
                             .filter(hasNoSharedMemNames)
                             .map(allThreadsInBlock)) )
-                      , contextBlock),
+                      ),
                     // Add shared memory initialization before beginning of inner parallel block
                     content = Block[Post](sharedMemInit ++ Seq(innerContent))
                   )(PanicBlame("where blame?")))
@@ -394,24 +388,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
           }
         })
 
-        val gridContext: AccountedPredicate[Post] =
-          foldPredicate(unfoldStar(contract.contextEverywhere)
+        val gridContext: Expr[Post] =
+          foldStar(unfoldStar(contract.contextEverywhere)
             .filter(hasNoSharedMemNames)
-            .map(allThreadsInBlock))(o)
-        new Procedure[Post](
+            // TODO: unsure if we need to map over all threads. context anywhere feels like it should apply as general knowledge unrelated to thread ids
+            .map(allThreadsInGrid))(o)
+        val requires: Expr[Post] = foldStar(Seq(gridContext, nonZeroThreads)
+          ++ unfoldStar(contractRequires).filter(hasNoSharedMemNames).map(allThreadsInGrid) )(o)
+        val ensures: Expr[Post] = foldStar(Seq(gridContext, nonZeroThreads)
+          ++ unfoldStar(contractEnsures).filter(hasNoSharedMemNames).map(allThreadsInGrid) )(o)
+        val result = new Procedure[Post](
           returnType = TVoid(),
           args = newArgs,
           outArgs = Nil, typeArgs = Nil,
           body = parBody,
           contract = ApplicableContract(
-            SplitAccountedPredicate(
-              SplitAccountedPredicate(nonZeroThreadsPred,
-                mapPredicate(filterPredicate(contract.requires, hasNoSharedMemNames), allThreadsInGrid))(o),
-              gridContext)(o),
-            SplitAccountedPredicate(
-              SplitAccountedPredicate(nonZeroThreadsPred,
-                mapPredicate(filterPredicate(contract.ensures, hasNoSharedMemNames), allThreadsInGrid))(o),
-              gridContext)(o),
+            UnitAccountedPredicate(requires)(o),
+            UnitAccountedPredicate(ensures)(o),
             // Context everywhere is already passed down in the body
             tt,
             contract.signals.map(rw.dispatch),
@@ -420,35 +413,36 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
             contract.decreases.map(rw.dispatch),
           )(contract.blame)(contract.o)
         )(AbstractApplicable)(o)
+        inKernel = false
+
+        result
       }
     }
   }
 
   def rewriteGlobalDecl(decl: CGlobalDeclaration[Pre]): Unit = {
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
-    for((init, idx) <- decl.decl.inits.zipWithIndex) {
-      if(init.ref.isEmpty) {
-        // Otherwise, skip the declaration: the definition is used instead.
-        val info = C.getDeclaratorInfo(init.decl)
-        info.params match {
-          case Some(params) =>
-            cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
-              if(decl.decl.specs.collectFirst { case CKernel() => () }.nonEmpty) {
-                kernelProcedure(init.o, decl.decl.contract, info, None)
-              } else {
-                new Procedure[Post](
-                  returnType = t,
-                  args = rw.variables.collect { params.foreach(rw.dispatch) }._1,
-                  outArgs = Nil,
-                  typeArgs = Nil,
-                  body = None,
-                  contract = rw.dispatch(decl.decl.contract),
-                )(AbstractApplicable)(init.o)
-              }
-            )
-          case None =>
-            throw CGlobalStateNotSupported(init)
-        }
+    for((init, idx) <- decl.decl.inits.zipWithIndex if init.ref.isEmpty) {
+      // If the reference is empty , skip the declaration: the definition is used instead.
+      val info = C.getDeclaratorInfo(init.decl)
+      info.params match {
+        case Some(params) =>
+          cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
+            if(decl.decl.specs.collectFirst { case CKernel() => () }.nonEmpty) {
+              kernelProcedure(init.o, decl.decl.contract, info, None)
+            } else {
+              new Procedure[Post](
+                returnType = t,
+                args = rw.variables.collect { params.foreach(rw.dispatch) }._1,
+                outArgs = Nil,
+                typeArgs = Nil,
+                body = None,
+                contract = rw.dispatch(decl.decl.contract),
+              )(AbstractApplicable)(init.o)
+            }
+          )
+        case None =>
+          throw CGlobalStateNotSupported(init)
       }
     }
   }
@@ -462,7 +456,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
       info.params match {
         case Some(params) => ???
         case None =>
-          val v = new Variable[Post](t)(init.o)
+          val varO: Origin = InterpretedOriginVariable(C.getDeclaratorInfo(init.decl).name, init.o)
+          val v = new Variable[Post](t)(varO)
           cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
           implicit val o: Origin = init.o
           init.init
@@ -647,14 +642,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     val arg = if(args.size == 1){
       args.head match {
         case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
-            case _ => None
-          }
-        } else None
-        (e.name, arg) match {
-          case ("get_local_id", Some(i)) => cudaCurrentThreadIdx.top.indices.values.toSeq.apply(i).get
-          case ("get_group_id", Some(i)) => cudaCurrentBlockIdx.top.indices.values.toSeq.apply(i).get
-          case ("get_local_size", Some(i)) => cudaCurrentBlockDim.top.indices.values.toSeq.apply(i).get
-          case ("get_num_groups", Some(i)) => cudaCurrentGridDim.top.indices.values.toSeq.apply(i).get
+        case _ => None
+      }
+    } else None
+    (e.name, arg) match {
+      case ("get_local_id", Some(i)) => cudaCurrentThreadIdx.top.indices.values.toSeq.apply(i).get
+      case ("get_group_id", Some(i)) => cudaCurrentBlockIdx.top.indices.values.toSeq.apply(i).get
+      case ("get_local_size", Some(i)) => cudaCurrentBlockDim.top.indices.values.toSeq.apply(i).get
+      case ("get_num_groups", Some(i)) => cudaCurrentGridDim.top.indices.values.toSeq.apply(i).get
       case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
         givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
         yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
