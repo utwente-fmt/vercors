@@ -4,7 +4,9 @@ package vct.col.ast.print;
 import hre.ast.TrackingOutput;
 import hre.lang.HREError;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 
@@ -51,15 +53,28 @@ public class JavaPrinter extends AbstractPrinter {
       lbl.accept(this);
       out.printf(":");
     }
+    printAnnotations(node,false);
+  }
+
+  private void printAnnotations(ASTNode node, boolean printJavaModifier) {
     if (node.annotated()) for(ASTNode ann:node.annotations()) {
       if (ann==null){
         out.printf(" <null annotation> ");
       } else {
-        nextExpr();
-        ann.accept(this);
-        out.printf(" ");
+        if(printJavaModifier && isJavModifier(ann) || !printJavaModifier && !isJavModifier(ann)) {
+          nextExpr();
+          ann.accept(this);
+          out.printf(" ");
+        }
       }
     }
+  }
+
+  private boolean isJavModifier(ASTNode a) {
+    if(a instanceof NameExpression) {
+      NameExpression n = (NameExpression) a;
+      return n.isReserved(ASTReserved.Private) || n.isReserved(ASTReserved.Protected) || n.isReserved(ASTReserved.Public) || n.isReserved(ASTReserved.Synchronized);
+    } else return false;
   }
   
   @Override
@@ -81,8 +96,6 @@ public class JavaPrinter extends AbstractPrinter {
     if (!ns.name().equals(NameSpace.NONAME)) {
       out.printf("package %s;",ns.getDeclName().toString("."));
       out.println("");
-    } else {
-      out.println("// begin of package");
     }
     for(NameSpace.Import i:ns.imports){
       out.printf("import %s%s",i.static_import?"static ":"",new ClassName(i.name).toString("."));
@@ -95,7 +108,6 @@ public class JavaPrinter extends AbstractPrinter {
     for(ASTNode n:ns){
       n.accept(this);
     }
-    out.println("// end of package");
   }
   
   @Override
@@ -175,19 +187,6 @@ public class JavaPrinter extends AbstractPrinter {
   }
   @Override
   public void visit(ASTSpecial s){
-    String syn=syntax.get_annotation(s.kind);
-    if (syn!=null){
-      out.print(syn);
-      setExpr();
-      String sep=" ";
-      for(ASTNode n:s.args){
-        out.print(sep);
-        sep=",";
-        n.accept(this);
-      }
-      out.println(";");
-      return;
-    }
     ASTSpecial e=s;
     switch(s.kind){
     case Refute:{
@@ -221,6 +220,7 @@ public class JavaPrinter extends AbstractPrinter {
       setExpr();
       ASTNode prop=e.getArg(0);
       prop.accept(this);
+      out.println(";");
       break;
     }
     case Fold:{
@@ -229,6 +229,7 @@ public class JavaPrinter extends AbstractPrinter {
         setExpr();
         ASTNode prop=e.getArg(0);
         prop.accept(this);
+        out.println(";");
         break;
       }
     case Use:{
@@ -280,19 +281,43 @@ public class JavaPrinter extends AbstractPrinter {
       break;
     }
     case Fork:{
-      out.printf("fork ");
-      current_precedence=0;
       setExpr();
-      ASTNode prop=s.args[0];
-      prop.accept(this);
+      if(s.args.length > 0) {
+        s.args[0].accept(this);
+        out.print(".");
+      }
+      out.printf("fork()");
+      out.println(";");
+      current_precedence=0;
       break;
     }
     case Join:{
-      out.printf("join ");
-      current_precedence=0;
       setExpr();
-      ASTNode prop=s.args[0];
-      prop.accept(this);
+      if(s.args.length > 0) {
+        s.args[0].accept(this);
+        out.print(".");
+      }
+      out.printf("join()");
+      out.println(";");
+      current_precedence=0;
+      break;
+    }
+    case ThreadPoolExecutor:{
+      setExpr();
+      out.printf("ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(");
+      s.args[0].accept(this);
+      out.printf(");");
+      break;
+    }
+    case ThreadExecute:{
+      setExpr();
+      out.printf("EXECUTOR_SERVICE.execute(() -> ");
+      s.args[0].accept(this);
+      out.printf(".compute());");
+      break;
+    }
+    case ThreadPoolExecutorShutDown:{
+      out.printf("EXECUTOR_SERVICE.shutdown();\n    EXECUTOR_SERVICE.awaitTermination(120L, TimeUnit.SECONDS);");
       break;
     }
     case Goto:
@@ -317,7 +342,7 @@ public class JavaPrinter extends AbstractPrinter {
       out.println(";");
       break;
     case Assert:
-      out.print("assert ");
+      out.print("//@ assert ");
       setExpr();
       s.args[0].accept(this);
       out.println(";");
@@ -335,15 +360,21 @@ public class JavaPrinter extends AbstractPrinter {
       out.println(";");
       break;
     case Wait:
-      out.print("wait ");
       setExpr();
-      s.args[0].accept(this);
+      if(s.args.length > 0) {
+        s.args[0].accept(this);
+        out.print(".");
+      }
+      out.print("wait()");
       out.println(";");
       break;
     case Notify:
-      out.print("notify ");
       setExpr();
-      s.args[0].accept(this);
+      if(s.args.length > 0) {
+        s.args[0].accept(this);
+        out.print(".");
+      }
+      out.print("notify()");
       out.println(";");
       break;
     case Import:
@@ -558,9 +589,11 @@ public class JavaPrinter extends AbstractPrinter {
 
   public void visit(ASTClass cl){
     visit(cl.getContract());
+    if(cl.isValidFlag(ASTFlags.FINAL) && cl.getFlag(ASTFlags.FINAL))
+      out.printf("final ");
     switch(cl.kind){
     case Plain:
-      out.printf("public class %s",cl.getName());
+      out.printf("class %s",cl.getName());
       break;
     case Abstract:
       out.printf("abstract class %s",cl.getName());
@@ -590,10 +623,11 @@ public class JavaPrinter extends AbstractPrinter {
       }
       out.print(">");
     }
-    if (cl.super_classes.length>0) {
+    List<ClassType> sup = Arrays.stream(cl.super_classes).filter(classEl -> !classEl.getName().equals("Object")).collect(Collectors.toList());
+    if (sup.size()>0) {
       out.printf("  extends %s",cl.super_classes[0]);
       for(int i=1;i<cl.super_classes.length;i++){
-        out.printf(", %s",cl.super_classes[i]);
+        out.printf(", %s",sup.get(i));
       }
       out.lnprintf("");
     }
@@ -620,7 +654,7 @@ public class JavaPrinter extends AbstractPrinter {
 
   @Override
   public void visit(Contract contract) {
-    if (contract!=null){
+    if (contract!=null && !contract.isEmpty()){
       out.lnprintf("/*@");
       out.incrIndent();
       super.visit(contract);
@@ -657,7 +691,8 @@ public class JavaPrinter extends AbstractPrinter {
     String name=m.getName();
     Contract contract=m.getContract();
     boolean predicate=m.getKind()==Method.Kind.Predicate;
-    if (predicate){
+    boolean resource = result_type instanceof PrimitiveType && ((PrimitiveType) result_type).sort == PrimitiveSort.Resource;
+    if (predicate && !resource){
       if (contract!=null) {
         out.lnprintf("//ignoring contract of predicate");
         Debug("ignoring contract of predicate");
@@ -666,9 +701,13 @@ public class JavaPrinter extends AbstractPrinter {
       out.incrIndent();
       out.print("predicate ");
     }
-    if (contract!=null && dialect!=JavaDialect.JavaVeriFast && !predicate){
+    if (contract!=null && dialect!=JavaDialect.JavaVeriFast && !predicate && !contract.isEmpty()){
       visit(contract);
     }
+    if(resource) {
+      out.printf("/*@ ");
+    }
+    printAnnotations(m,true);
     for(int i=1;i<0xF000;i<<=1){
       if (m.isValidFlag(i)){
         if (m.getFlag(i)){
@@ -702,17 +741,13 @@ public class JavaPrinter extends AbstractPrinter {
     if (m.isValidFlag(ASTFlags.FINAL) && m.getFlag(ASTFlags.FINAL)){
       out.printf("final ");
     }
-    if (m.getKind()==Method.Kind.Pure){
-      out.printf("/*@pure@*/ ");
+    if (m.getKind()==Method.Kind.Pure && !resource){
+      out.printf("/*@ pure */");
     }
     if (m.getKind()==Method.Kind.Constructor){
-      out.printf("/*constructor*/ ");
     } else {
       result_type.accept(this);
       out.printf(" ");
-    }
-    if (m.getKind()==Method.Kind.Pure) {
-       out.printf("/*@ pure */ ");
     }
     out.printf("%s(",name);
     if (N>0) {
@@ -752,19 +787,25 @@ public class JavaPrinter extends AbstractPrinter {
     }
     ASTNode body=m.getBody();
     if (body==null) {
-      out.lnprintf(";");
+      out.lnprintf("{ \nthrow new UnsupportedOperationException(\"Method %s has not been implemented\");\n}",m.getName());
     } else if (body instanceof BlockStatement) {
       body.accept(this);
       out.lnprintf("");
-    } else {
+    } else if(predicate || resource) {
       out.printf("=");
-      nextExpr();
       body.accept(this);
-      out.lnprintf(";");
-    }
-    if (predicate){
+      out.println(";");
       out.decrIndent();
       out.lnprintf("*/");
+    } else {
+      out.println("{");
+      if(body instanceof OperatorExpression || body instanceof ConstantExpression) {
+        out.println("return ");
+      }
+      nextExpr();
+      body.accept(this);
+      out.println(";");
+      out.println("}");
     }
   }
 
@@ -898,6 +939,13 @@ public class JavaPrinter extends AbstractPrinter {
         out.printf("new ");
         e.arg(0).accept(this);
         out.printf("()");
+        break;
+      }
+      case ITE:{
+        out.printf("(");
+        nextExpr();
+        super.visit(e);
+        out.printf(")");
         break;
       }
       default:{
@@ -1124,26 +1172,26 @@ public class JavaPrinter extends AbstractPrinter {
         if (nrofargs!=1){
           Fail("Cell type constructor with %d arguments instead of 1",nrofargs);
         }
-        out.printf("cell<");
         t.firstarg().accept(this);
-        out.printf(">");
         break;
       case Option:
         if (nrofargs!=1){
           Fail("Option type constructor with %d arguments instead of 1",nrofargs);
         }
-        out.printf("option<");
         t.firstarg().accept(this);
-        out.printf(">");
         break;
       case Map:
         if (nrofargs!=2){
           Fail("Map type constructor with %d arguments instead of 2",nrofargs);
         }
-        out.printf("map<");
-        t.firstarg().accept(this);
+        out.printf("Map<");
+        if(t.firstarg() instanceof PrimitiveType && ((PrimitiveType) t.firstarg()).sort == PrimitiveSort.Integer)
+          out.printf(((PrimitiveType)t.firstarg()).sort.toString());
+        else t.firstarg().accept(this);
         out.printf(",");
-        t.secondarg().accept(this);
+        if(t.secondarg() instanceof PrimitiveType && ((PrimitiveType) t.secondarg()).sort == PrimitiveSort.Integer)
+          out.printf(((PrimitiveType)t.secondarg()).sort.toString());
+        else t.secondarg().accept(this);
         out.printf(">");
         break;
       case Tuple:
@@ -1160,8 +1208,10 @@ public class JavaPrinter extends AbstractPrinter {
         if (nrofargs!=1){
           Fail("Sequence type constructor with %d arguments instead of 1",nrofargs);
         }
-        out.printf("seq<");
-        t.firstarg().accept(this);
+        out.printf("List<");
+        if(t.firstarg() instanceof PrimitiveType && ((PrimitiveType) t.firstarg()).sort == PrimitiveSort.Integer)
+          out.printf(((PrimitiveType)t.firstarg()).sort.toString());
+        else t.firstarg().accept(this);
         out.printf(">");
         break;
       case Set:
@@ -1206,8 +1256,6 @@ public class JavaPrinter extends AbstractPrinter {
 
   @Override
   public void visit(ParallelBlock pb){
-    out.printf("parallel %s(",pb.label());
-    
     int j = 0;
     for (DeclarationStatement iter : pb.itersJava()) {
       iter.accept(this);
@@ -1223,7 +1271,6 @@ public class JavaPrinter extends AbstractPrinter {
         pb.dependency(i).accept(this);
       }
     }
-    out.println(")");
     if (pb.contract() != null) {
       visit(pb.contract());
     }

@@ -111,6 +111,7 @@ public class PVLSyntax extends Syntax {
       syntax.addPrimitiveType(PrimitiveSort.Fraction,"frac");
       syntax.addPrimitiveType(PrimitiveSort.Void,"void");
       syntax.addPrimitiveType(PrimitiveSort.Resource,"resource");
+      syntax.addReserved(Inline,"inline");
       syntax.addPrimitiveType(PrimitiveSort.Boolean,"boolean");
       syntax.addPrimitiveType(PrimitiveSort.Process,"process");
       syntax.addPrimitiveType(PrimitiveSort.String,"string");
@@ -123,6 +124,7 @@ public class PVLSyntax extends Syntax {
       syntax.addReserved(CurrentThread,"current_thread");
       syntax.addReserved(Null,"null");
       syntax.addReserved(This,"this");
+      syntax.addReserved(Protected,"");
       
       syntax.addOperator(Unfolding,140,"unfolding","in","");
       

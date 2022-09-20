@@ -1,25 +1,60 @@
 package vct.col.veymont
 
 import geny.Generator.from
-import vct.col.ast.`type`.{ASTReserved, PrimitiveSort, PrimitiveType}
+import hre.lang.System.Failure
+import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, Type}
 import vct.col.ast.expr.{NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.composite.LoopStatement
 import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, VariableDeclaration}
 import vct.col.ast.util.{ASTUtils, AbstractRewriter, ContractBuilder}
+import vct.col.veymont.GenerateTypedChannel.getPrimitiveTypeName
 import vct.col.veymont.Util.{chanReadMethodName, chanValueFieldName, chanWriteMethodName, channelClassName, getBlockOrThrow}
 
 import scala.jdk.CollectionConverters._
+
+object GenerateTypedChannel {
+
+  def getTypeName(t : Type) : String = t match {
+    case p: PrimitiveType => getPrimitiveTypeName(p)
+    case cl : ClassType  => cl.getName
+  }
+
+  private def getPrimitiveTypeName(t : ASTNode) : String = t match {
+    case p : PrimitiveType => p.sort match {
+      case PrimitiveSort.Option => getPrimitiveTypeName(p.args.head)
+      case PrimitiveSort.Array => getPrimitiveTypeName(p.args.head) + "Array"
+      case PrimitiveSort.Cell => getPrimitiveTypeName(p.args.head)
+      case PrimitiveSort.Sequence => getPrimitiveTypeName(p.args.head) + "Sequence"
+      case PrimitiveSort.Map => getPrimitiveTypeName(p.args.head) + "Map"
+      case _ => p.sort.toString
+    }
+    case cl : ClassType => cl.getName
+    case _ => throw Failure("VeyMont Fail: ASTNode %s is not a type", t.toString)
+  }
+
+}
 
 class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[PrimitiveType,ASTClass]) extends AbstractRewriter(source) {
 
   override def visit(t : PrimitiveType) : Unit = {
     if(t.sort == PrimitiveSort.Integer) {
       sort match {
-        case Left(s) => result = create.primitive_type(s.sort)
+        case Left(s) => result = createNewType(s)
         case Right(c) => result = create.class_type(c.getName)
       }
     } else super.visit(t)
+  }
+
+  private def createNewType(t : ASTNode) : Type = t match {
+    case p : PrimitiveType =>
+      if(Set(PrimitiveSort.Option, PrimitiveSort.Array, PrimitiveSort.Cell, PrimitiveSort.Sequence).contains(p.sort))
+        create.primitive_type(p.sort,createNewType(p.args.head))
+      else if(p.sort == PrimitiveSort.Map)
+        create.primitive_type(p.sort,createNewType(p.args.head),createNewType(p.args.tail.head))
+      else create.primitive_type(p.sort)
+    case cl : ClassType => create.class_type(cl.getName)
+    case _ => throw Failure("VeyMont Fail: ASTNode %s is not a type", t.toString)
   }
 
   override def visit(v : VariableDeclaration) : Unit = {
@@ -41,7 +76,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
       case Right(cl) => {
         if(m.kind == Method.Kind.Constructor) {
           visitConstructor(m,cl)
-        } else if(m.kind == Method.Kind.Predicate) {
+        } else if(m.kind == Method.Kind.Predicate || m.kind == Method.Kind.Pure) {
           m.getBody match {
             case o : OperatorExpression =>
               result = create.method_kind(m.kind, m.getReturnType, rewrite(m.getContract), m.name, m.getArgs,
@@ -49,17 +84,17 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
             case _ => Fail("VeyMont Fail: OperatorExpression expected! %s", m.getBody)
           }
         } else if(m.name == chanWriteMethodName) {
-          val cb = new ContractBuilder()
-          rewrite(m.getContract,cb)
+        /*  val cb = new ContractBuilder()
+          rewrite(m.getContract,cb) */
           val newArgs = m.getArgs.map(rewrite(_))
-          cb.context(getFieldPerms(cl,create.argument_name(newArgs.head.name)))
-          result = create.method_kind(m.kind, rewrite(m.getReturnType), cb.getContract, m.name, newArgs, rewrite(m.getBody))
+          // cb.context(getFieldPerms(cl,create.argument_name(newArgs.head.name)))
+          result = create.method_kind(m.kind, rewrite(m.getReturnType), rewrite(m.getContract), m.name, newArgs, rewrite(m.getBody))
         } else if(m.name == chanReadMethodName) {
-          val cb = new ContractBuilder()
+         /* val cb = new ContractBuilder()
           rewrite(m.getContract,cb)
-          cb.ensures(getFieldPerms(cl,create.reserved_name(ASTReserved.Result)))
+          cb.ensures(getFieldPerms(cl,create.reserved_name(ASTReserved.Result))) */
           val newArgs = m.getArgs.map(rewrite(_))
-          val res = create.method_kind(m.kind, rewrite(m.getReturnType), cb.getContract, m.name, newArgs, rewrite(m.getBody))
+          val res = create.method_kind(m.kind, rewrite(m.getReturnType), rewrite(m.getContract), m.name, newArgs, rewrite(m.getBody))
           result = res
         } else Fail("VeyMont Fail: unexpected method %s in channel class %s!",m.name,cl.name)
       }
@@ -104,16 +139,16 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   override def visit(l : LoopStatement) : Unit = sort match {
     case Left(_) => super.visit(l)
     case Right(cl) => {
-      val cb = new ContractBuilder()
+     /* val cb = new ContractBuilder()
       rewrite(l.getContract,cb)
-      cb.appendInvariant(getFieldPerms(cl,create.field_name(chanValueFieldName)))
-      val res = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),cb.getContract)
+      cb.appendInvariant(getFieldPerms(cl,create.field_name(chanValueFieldName))) */
+      val res = create.while_loop(rewrite(l.getEntryGuard),rewrite(l.getBody),rewrite(l.getContract))
       result = res
     }
   }
 
   override def visit(c : ASTClass) : Unit = {
-    val res = create.new_class(getTypeName, null, null)
+    val res = create.ast_class(getTypeName,c.kind,c.parameters,c.super_classes,c.implemented_classes)
     for (item <- c.asScala) {
       res.add(rewrite(item))
     }
@@ -121,7 +156,7 @@ class GenerateTypedChannel(override val source: ProgramUnit, val sort : Either[P
   }
 
   private def getTypeName : String = (sort match {
-    case Left(s) => s.sort.toString
+    case Left(s) => getPrimitiveTypeName(s)
     case Right(cl) => cl.getName
   }) + channelClassName
 

@@ -740,7 +740,7 @@ case class Printer(out: Appendable,
       (phrase("removeFromMap(", map, ",", space, k, ")"), 100)
     case Let(binding, value, main) =>
       (phrase("(", "\\let", space, binding, space, "=", space, value, ";", space, main, ")"), 120)
-    case InlinePattern(inner) =>
+    case InlinePattern(inner, parent, group) =>
       (phrase("{:", space, inner, space, ":}"), 120)
     case Local(ref) =>
       (phrase(name(ref.decl)), 110)

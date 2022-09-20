@@ -652,13 +652,13 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       // the predicate entry type is set as dispatch of an invokation
       ??(predicateEntryType)
     case Expression9(obj, ".", method, None, args, maybeWithThen) =>
-      val res = create invokation(expr(obj), null, convertID(method), exprList(args).asJava)
-      maybeWithThen match {
-        case None =>
-        case Some(block) =>
-          res.set_after(create block(convertValWithThen(block):_*))
-      }
-      res
+        val res = create invokation(expr(obj), null, convertID(method), exprList(args).asJava)
+        maybeWithThen match {
+          case None =>
+          case Some(block) =>
+            res.set_after(create block (convertValWithThen(block): _*))
+        }
+        res
     case Expression10("new", Creator0(typeArgs, _, _), _) =>
       ??(typeArgs) // generics are unsupported
     case Expression10("new", Creator1(name, creator), maybeWithThen) => (name, creator) match {
@@ -773,7 +773,7 @@ case class JavaJMLtoCOL(fileName: String, tokens: CommonTokenStream, parser: Jav
       maybeWithThen match {
         case None =>
         case Some(block) =>
-          res.set_after(create block(convertValWithThen(block):_*))
+          res.set_after(create block (convertValWithThen(block): _*))
       }
       res
     case Primary6(t, ".", "class") =>
