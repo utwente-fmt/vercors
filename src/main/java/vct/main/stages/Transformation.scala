@@ -6,6 +6,7 @@ import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, V
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite._
+import vct.col.newrewrite.adt.{ImportADT, ImportADTImporter}
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang.NoSupportSelfLoop
 import vct.col.origin.FileSpanningOrigin
