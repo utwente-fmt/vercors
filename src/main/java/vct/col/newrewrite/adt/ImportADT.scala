@@ -21,7 +21,7 @@ abstract class ImportADTBuilder(adt: String) extends RewriterBuilderArg[ImportAD
   override def desc: String = s"Import types into vercors that are defined externally, usually via an axiomatic datatype. This pass imports $adt."
 }
 
-case object AImportADT {
+case object ImportADT {
   def typeText(t: Type[_]): String = t match {
     case _: TNotAValue[_] => throw ExtraNode
     case TVoid() => "void"
@@ -65,7 +65,7 @@ case object AImportADT {
   }
 }
 
-abstract class AImportADT[Pre <: Generation](importer: ImportADTImporter) extends CoercingRewriter[Pre] {
+abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends CoercingRewriter[Pre] {
   val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {

@@ -20,6 +20,10 @@ case class PinCollectionTypes[Pre <: Generation]() extends Rewriter[Pre] {
     case UntypedLiteralBag(values) =>
       val t = Types.leastCommonSuperType(values.map(_.t))
       LiteralBag[Post](dispatch(t), values.map(dispatch))(e.o)
+
+    case OptNone() => OptNoneTyped[Post](TNothing()(e.o))(e.o)
+    case OptSome(e) => OptSomeTyped[Post](dispatch(e.t), dispatch(e))(e.o)
+
     case other => rewriteDefault(other)
   }
 }

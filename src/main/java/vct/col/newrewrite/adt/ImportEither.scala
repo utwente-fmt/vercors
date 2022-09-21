@@ -16,7 +16,7 @@ case object ImportEither extends ImportADTBuilder("either") {
   }
 }
 
-case class ImportEither[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportEither[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   import ImportEither._
 
   private lazy val eitherFile = parse("either")
@@ -77,7 +77,7 @@ case class ImportEither[Pre <: Generation](importer: ImportADTImporter) extends 
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
       case EitherLeft(e) =>

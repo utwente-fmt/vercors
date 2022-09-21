@@ -1,7 +1,7 @@
 package vct.col.newrewrite.adt
 
 import vct.col.ast._
-import vct.col.newrewrite.adt.AImportADT.typeText
+import vct.col.newrewrite.adt.ImportADT.typeText
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
@@ -32,7 +32,7 @@ case object ImportArray extends ImportADTBuilder("array") {
   }
 }
 
-case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   import ImportArray._
 
   private lazy val arrayFile = parse("array")
@@ -75,7 +75,7 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends A
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
       case sub@ArraySubscript(arr, index) =>

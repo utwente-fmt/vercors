@@ -22,7 +22,7 @@ case object ImportFrac extends ImportADTBuilder("frac") {
   }
 }
 
-case class ImportFrac[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportFrac[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   import ImportFrac._
 
   private lazy val fracFile = parse("frac")
@@ -63,10 +63,6 @@ case class ImportFrac[Pre <: Generation](importer: ImportADTImporter) extends AI
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case TFraction() => TAxiomatic[Post](fracAdt.ref, Nil)(t.o)
     case TZFraction() => TAxiomatic(zfracAdt.ref, Nil)
-    case other => rewriteDefault(other)
-  }
-
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case other => rewriteDefault(other)
   }
 }

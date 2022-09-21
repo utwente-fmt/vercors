@@ -11,7 +11,7 @@ case object ImportOption extends ImportADTBuilder("option") {
   }
 }
 
-case class ImportOption[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportOption[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   import ImportOption._
 
   private lazy val optionFile = parse("option")
@@ -43,11 +43,17 @@ case class ImportOption[Pre <: Generation](importer: ImportADTImporter) extends 
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = e match {
+    case OptEmpty(opt) =>
+      Eq(dispatch(opt), optNone(dispatch(opt.t.asOption.get.element))(e.o))(e.o)
     case OptNone() =>
       optNone(TNothing())(e.o)
+    case OptNoneTyped(t) =>
+      optNone(dispatch(t))(e.o)
     case OptSome(element) =>
       optSome(dispatch(element), dispatch(element.t))(e.o)
+    case OptSomeTyped(t, element) =>
+      optSome(dispatch(element), dispatch(t))(e.o)
     case access@OptGet(opt) =>
       optGet(dispatch(opt), dispatch(opt.t.asOption.get.element), OptionNonePreconditionFailed(access))(e.o)
     case get@OptGetOrElse(opt, alt) =>

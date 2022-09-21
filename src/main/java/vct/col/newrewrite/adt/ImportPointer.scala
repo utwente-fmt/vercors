@@ -1,7 +1,7 @@
 package vct.col.newrewrite.adt
 
 import vct.col.ast._
-import vct.col.newrewrite.adt.AImportADT.typeText
+import vct.col.newrewrite.adt.ImportADT.typeText
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
@@ -32,7 +32,7 @@ case object ImportPointer extends ImportADTBuilder("pointer") {
   }
 }
 
-case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   import ImportPointer._
 
   private lazy val pointerFile = parse("pointer")
@@ -80,7 +80,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = {
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
       case sub@PointerSubscript(pointer, index) =>
@@ -126,6 +126,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends
           ref = pointerOffset.ref,
           args = Seq(OptGet(dispatch(pointer))(PointerNullOptNone(off.blame, pointer)))
         )
+      case other => rewriteDefault(other)
     }
   }
 }

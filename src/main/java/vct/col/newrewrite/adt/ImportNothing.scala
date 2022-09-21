@@ -6,7 +6,7 @@ import vct.col.rewrite.Generation
 
 case object ImportNothing extends ImportADTBuilder("nothing")
 
-case class ImportNothing[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportNothing[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   private lazy val nothingFile = parse("nothing")
 
   private lazy val nothingAdt = find[AxiomaticDataType[Post]](nothingFile, "nothing")

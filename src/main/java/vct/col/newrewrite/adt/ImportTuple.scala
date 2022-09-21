@@ -6,7 +6,7 @@ import vct.col.rewrite.Generation
 
 case object ImportTuple extends ImportADTBuilder("tuple")
 
-case class ImportTuple[Pre <: Generation](importer: ImportADTImporter) extends AImportADT[Pre](importer) {
+case class ImportTuple[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
   private lazy val tupleFile = parse("tuple")
 
   private lazy val tupleAdt = find[AxiomaticDataType[Post]](tupleFile, "tuple")
@@ -37,7 +37,7 @@ case class ImportTuple[Pre <: Generation](importer: ImportADTImporter) extends A
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = e match {
     case LiteralTuple(Seq(t1, t2), Seq(v1, v2)) =>
       tup(dispatch(v1), dispatch(t1), dispatch(v2), dispatch(t2))(e.o)
     case TupGet(tup, 0) =>

@@ -6,7 +6,7 @@ import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, V
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite._
-import vct.col.newrewrite.adt.{ImportADT, ImportADTImporter}
+import vct.col.newrewrite.adt._
 import vct.col.newrewrite.exc._
 import vct.col.newrewrite.lang.NoSupportSelfLoop
 import vct.col.origin.FileSpanningOrigin
@@ -176,7 +176,18 @@ case class SilverTransformation
     RejoinQuantifiers,
 
     // Translate internal types to domains
-    ImportADT.withArg(adtImporter),
+    ImportArray.withArg(adtImporter),
+    ImportPointer.withArg(adtImporter),
+    ImportMapCompat.withArg(adtImporter),
+    ImportEither.withArg(adtImporter),
+    ImportTuple.withArg(adtImporter),
+    ImportOption.withArg(adtImporter),
+    ImportFrac.withArg(adtImporter),
+    ImportNothing.withArg(adtImporter),
+    ImportVoid.withArg(adtImporter),
+    ImportNull.withArg(adtImporter),
+    ImportAny.withArg(adtImporter),
+    ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
