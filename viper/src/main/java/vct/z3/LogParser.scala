@@ -20,7 +20,7 @@ object LogParser {
 
 class LogParser extends NamedPipeListener {
   val log = new Z3Log
-  val f = new PrintWriter("/home/pieter/z3.log")
+  val f = new PrintWriter("/home/bobe/z3.log")
 
   override def onNewLine(line: String): Unit = {
     f.println(line)

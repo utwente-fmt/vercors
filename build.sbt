@@ -13,9 +13,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("hg:https://bitbucket.org/viperproject/silver#1a2059df2fc348a6a777e73e00ad10a4c129da0f")
-val carbon_url = uri("hg:https://bitbucket.org/viperproject/carbon#1565055c99f3b07d71f02f99de092d3077491d66")
-val silicon_url = uri("hg:https://bitbucket.org/viperproject/silicon#44fda0b4d7d8fb5c8cb9cd04216bb849003ae8c7")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#822407e2100ef73a9aca3986926b473d21a4205f")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#286463549169c4c6c7eacb20db262f5f4955ddb5")
+val silicon_url = uri("git:https://github.com/niomaster/silicon.git#839dd10788eb6484e708544cf8f74a51b5856c60")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -26,7 +26,7 @@ the relevant project. Instead, we replace those dependencies by a reference to t
 buildDependencies in Global := {
   val log = sLog.value
   val oldDeps = (buildDependencies in Global).value
-  def fixDep(dep: ClasspathDep[ProjectRef]): ClasspathDep[ProjectRef] = dep.project.project match {
+  def fixDep(dep: ClasspathDep[ProjectRef]) = dep.project.project match {
     case "silver" =>
       ResolvedClasspathDependency(ProjectRef(silver_url, "silver"), dep.configuration)
     case "silicon" =>

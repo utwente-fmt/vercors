@@ -1,4 +1,4 @@
-package viper.api.util
+package viper.api.config
 
 import hre.config.{BooleanSetting, OptionParser}
 

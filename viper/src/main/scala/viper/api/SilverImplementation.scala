@@ -21,7 +21,7 @@ import viper.silver.parser.PLocalVarDecl
 
 import scala.collection.mutable.WrappedArray
 import hre.lang.System.Output
-import viper.api.util.Configuration
+import viper.api.config.Configuration
 
 class SilverImplementation[O](o:OriginFactory[O])
   extends viper.api.ViperAPI[O,Type,Exp,Stmt,DomainFunc,DomainAxiom,Prog](o,

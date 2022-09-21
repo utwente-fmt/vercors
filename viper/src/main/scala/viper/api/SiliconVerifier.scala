@@ -4,7 +4,7 @@ import java.nio.file.Path
 import java.util.Properties
 
 import hre.ast.OriginFactory
-import viper.api.util.Configuration
+import viper.api.config.Configuration
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
