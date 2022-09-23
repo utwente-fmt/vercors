@@ -158,7 +158,7 @@ SEP_CONJ: '**';
 IMPLIES: '==>';
 WAND: '-*';
 RANGE_TO: '..';
-TRIGGER_OPEN: '{:';
+TRIGGER_OPEN: '{:' ('<'* [0-9]* ':')?;
 TRIGGER_CLOSE: ':}';
 LITERAL_BAG_OPEN: 'b{';
 EMPTY_SEQ_OPEN: '[t:';
