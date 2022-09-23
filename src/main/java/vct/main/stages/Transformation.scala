@@ -175,10 +175,13 @@ case class SilverTransformation
     ResolveExpressionSideChecks,
     RejoinQuantifiers,
 
+    DesugarCollectionOperators,
+
     // Translate internal types to domains
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
-    ImportMapCompat.withArg(adtImporter),
+    ImportMap.withArg(adtImporter),
+    ImportSeq.withArg(adtImporter),
     ImportEither.withArg(adtImporter),
     ImportTuple.withArg(adtImporter),
     ImportOption.withArg(adtImporter),
@@ -197,7 +200,6 @@ case class SilverTransformation
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
     BranchToIfElse,
-    DesugarCollectionOperators,
     EvaluationTargetDummy,
 
     // Final translation to rigid silver nodes

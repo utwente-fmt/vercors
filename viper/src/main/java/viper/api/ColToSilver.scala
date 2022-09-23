@@ -62,6 +62,28 @@ case class ColToSilver(program: col.Program[_]) {
     if(index == 0) name
     else s"$name$index"
 
+  def sanitize(name: String): String = {
+    val sanitized = name.flatMap {
+      case '$' => "$"
+      case '_' => "_"
+      case '\'' => "'"
+      case '@' => "@"
+      case c if c.isLetterOrDigit => c.toString
+
+      // Add as desired
+      case '+' => "plus"
+      case '-' => "minus"
+
+      case _ => "_"
+    }
+
+    sanitized.head match {
+      case c if c.isLetter => sanitized
+      case '_' | '$' => sanitized
+      case _ => "_" + sanitized
+    }
+  }
+
   /**
    * Give the declaration a silver-appropriate name that is as close as possible to the preferred name
    */
@@ -70,6 +92,7 @@ case class ColToSilver(program: col.Program[_]) {
       ???
     } else {
       var (name, index) = unpackName(decl.o.preferredName)
+      name = sanitize(name)
       while(names.values.exists(_ == (name, index)) || silver.utility.Consistency.reservedNames.contains(packName(name, index))) {
         index += 1
       }
@@ -173,8 +196,9 @@ case class ColToSilver(program: col.Program[_]) {
         name = ref(adt),
         typVars = adt.typeArgs.map(v => silver.TypeVar(ref(v))),
         functions = adt.decls.collect {
-          case func: col.ADTFunction[_] =>
+          case func: col.ADTFunction[_] => scoped {
             silver.DomainFunc(ref(func), func.args.map(variable), typ(func.returnType), unique = false)(pos=pos(func), info=NodeInfo(func), domainName=ref(adt))
+          }
         },
         axioms = adt.decls.collect {
           case ax: col.ADTAxiom[_] =>

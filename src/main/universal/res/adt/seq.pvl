@@ -1,8 +1,8 @@
 adt `seq`<T> {
   pure int seq_length(`seq`<T> xs);
   pure T seq_index(`seq`<T> xs, int i);
-  pure boolean seq_contains(`seq`<T>, T t);
-  pure int seq_idx_skolem(`seq`<T>, T t);
+  pure boolean seq_contains(`seq`<T> xs, T t);
+  pure int seq_idx_skolem(`seq`<T> xs, T t);
 
   pure boolean seq_equal(`seq`<T> xs, `seq`<T> ys);
   pure int seq_diff_skolem(`seq`<T> xs, `seq`<T> ys);
@@ -16,9 +16,9 @@ adt `seq`<T> {
   pure `seq`<T> seq_take(`seq`<T> xs, int n);
   pure `seq`<T> seq_drop(`seq`<T> xs, int n);
 
-  pure `seq`<T> `seq_+`(int x, int y);
+  pure int `seq_+`(int x, int y);
   axiom (∀int i, int j; `seq_+`(i, j) == i + j);
-  pure `seq`<T> `seq_-`(int x, int y);
+  pure int `seq_-`(int x, int y);
   axiom (∀int i, int j; `seq_-`(i, j) == i - j);
 
   // length and seq_empty/identity
@@ -27,10 +27,10 @@ adt `seq`<T> {
   axiom (∀`seq`<T> xs; {:seq_length(xs):} == 0 ==> xs == seq_empty());
   axiom (∀T t; seq_length({:seq_singleton(t):}) == 1);
   axiom (∀`seq`<T> xs, `seq`<T> ys; xs != seq_empty() && ys != seq_empty() ==>
-    {:seq_length(seq_append(xs, ys)):} == seq_length(xs) + seq_length(ys));
+    {:seq_length(seq_concat(xs, ys)):} == seq_length(xs) + seq_length(ys));
   axiom (∀`seq`<T> xs, `seq`<T> ys;
-    (xs == seq_empty() ==> {:seq_append(xs, ys):} == ys) &&
-    (ys == seq_empty() ==> seq_append(xs, ys) == xs));
+    (xs == seq_empty() ==> {:seq_concat(xs, ys):} == ys) &&
+    (ys == seq_empty() ==> seq_concat(xs, ys) == xs));
   axiom (∀`seq`<T> xs, int i, T t;
     0 <= i && i < seq_length(xs) ==> {:1:seq_length({:2:seq_update(xs, i, t):}):} == {:2:seq_length(xs):}
   );
@@ -54,7 +54,7 @@ adt `seq`<T> {
   axiom (∀`seq`<T> xs, `seq`<T> ys, int i;
     xs != seq_empty() && ys != seq_empty() && seq_length(xs) <= i && i < seq_length(seq_concat(xs, ys)) ==>
       `seq_+`(`seq_-`(i, seq_length(xs)), seq_length(xs)) == i &&
-      {:seq_index(seq_append(xs, ys), i):} == seq_index(ys, `seq_-`(i, seq_length(xs)))
+      {:seq_index(seq_concat(xs, ys), i):} == seq_index(ys, `seq_-`(i, seq_length(xs)))
   );
   axiom (∀`seq`<T> xs, `seq`<T> ys, int i;
     xs != seq_empty() && ys != seq_empty() && 0 <= i && i < seq_length(ys) ==>
@@ -141,9 +141,9 @@ adt `seq`<T> {
   // range
   axiom (∀int min, int max;
     min < max
-      ? {:seq_length(seq_range(min, max)):} == max-min
+      ? {:`seq`<int>.seq_length(seq_range(min, max)):} == max-min
       : seq_range(min, max) == `seq`<int>.seq_empty()
   );
-  axiom (∀int min, int max, int i; 0 <= i && i < max-min ==> {:seq_index(seq_range(min, max), i):} == min + i);
-  axiom (∀int min, int max, int v; {:seq_contains(seq_range(min, max), v):} == (min <= v && v < max));
+  axiom (∀int min, int max, int i; 0 <= i && i < max-min ==> {:`seq`<int>.seq_index(seq_range(min, max), i):} == min + i);
+  axiom (∀int min, int max, int v; {:`seq`<int>.seq_contains(seq_range(min, max), v):} == (min <= v && v < max));
 }

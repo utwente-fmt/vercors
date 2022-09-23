@@ -10,13 +10,14 @@ adt `map`<K, V> {
   pure V map_apply(`map`<K, V> m, K k);
   pure `map`<K, V> map_empty();
   pure `map`<K, V> map_update(`map`<K, V> m, K k, V v);
+  pure `map`<K, V> map_remove(`map`<K, V> m, K k);
 
   axiom (∀`map`<K, V> m; {:map_size(m):} >= 0);
-  axiom (∀map<K, V> m; |{:map_items(m):}| == map_size(m));
-  axiom (∀map<K, V> m; |{:map_domain(m):}| == map_size(m));
-  axiom (∀map<K, V> m; |{:map_values(m):}| == map_size(m));
+  axiom (∀`map`<K, V> m; |{:map_items(m):}| == map_size(m));
+  axiom (∀`map`<K, V> m; |{:map_domain(m):}| == map_size(m));
+  axiom (∀`map`<K, V> m; |{:map_values(m):}| == map_size(m));
 
-  axiom (∀map<K, V> m1, map<K, V> m2; {:map_disjoint(m1, m2):} == (∀K k; !(k \in m1) || !(k \in m2)));
+  axiom (∀`map`<K, V> m1, `map`<K, V> m2; {:map_disjoint(m1, m2):} == (∀K k; !(k \in map_domain(m1)) || !(k \in map_domain(m2))));
 
   axiom (∀K k; !{:k \in map_domain(map_empty()):});
   axiom (∀`map`<K, V> m;
@@ -24,7 +25,7 @@ adt `map`<K, V> {
     (map_size(m) != 0 ==> (∃tuple<K, V> i; i \in map_items(m))) &&
     (map_size(m) != 0 ==> (∃K k; k \in map_domain(m))) &&
     (map_size(m) != 0 ==> (∃V v; v \in map_values(m))) &&
-    (∀tupe<K, V> i; {:i \in map_items(m):} ==> map_size(m) != 0) &&
+    (∀tuple<K, V> i; {:i \in map_items(m):} ==> map_size(m) != 0) &&
     (∀K k; {:k \in map_domain(m):} ==> map_size(m) != 0) &&
     (∀V v; {:v \in map_values(m):} ==> map_size(m) != 0)
   );
@@ -54,10 +55,10 @@ adt `map`<K, V> {
 
   axiom (∀`map`<K, V> m, K k; k \in map_domain(m) ==> map_apply(m, k) \in map_values(m));
 
-  axiom (∀map<K, V> m, K k; !(k \in {:map_remove(m, k):}));
-  axiom (∀map<K, V> m, K k1, K k2; k1 != k2 ==> {:map_remove(m, k1)[k2]:} == m[k2]);
-  axiom (∀map<K, V> m, K k1, K k2; k1 != k2 ==> ({:k2 \in map_remove(m, k1):} == k2 \in m));
-  axiom (∀map<K, V> m, K k; k \in m ==> {:map_remove(m, k).size:} == m.size - 1);
-  axiom (∀map<K, V> m, K k; k \in m ==> {:map_remove(m, k).size:} == m.size);
-  axiom (∀map<K, V> m, K k; !(k \in m) ==> {:map_remove(m, k):} == m);
+  axiom (∀`map`<K, V> m, K k; !(k \in {:map_domain(map_remove(m, k)):}));
+  axiom (∀`map`<K, V> m, K k1, K k2; k1 != k2 ==> {:map_apply(map_remove(m, k1), k2):} == map_apply(m, k2));
+  axiom (∀`map`<K, V> m, K k1, K k2; k1 != k2 ==> ({:k2 \in map_domain(map_remove(m, k1)):} == k2 \in map_domain(m)));
+  axiom (∀`map`<K, V> m, K k; k \in map_domain(m) ==> {:map_size(map_remove(m, k)):} == map_size(m) - 1);
+  axiom (∀`map`<K, V> m, K k; k \in map_domain(m) ==> {:map_size(map_remove(m, k)):} == map_size(m));
+  axiom (∀`map`<K, V> m, K k; !(k \in map_domain(m)) ==> {:map_remove(m, k):} == m);
 }
