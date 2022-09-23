@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast.Declaration
-import vct.col.ref.{LazyRef, Ref}
+import vct.col.ref.{LazyRef, MistypedRef, Ref}
 
 import scala.reflect.ClassTag
 
@@ -9,5 +9,5 @@ trait SuccessorProvider[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Decl
   def computeSucc(decl: PreDecl): Option[PostDecl]
 
   def succ[RefDecl <: Declaration[Post]](decl: PreDecl)(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
-    new LazyRef[Post, RefDecl](computeSucc(decl).get)
+    new LazyRef(computeSucc(decl).get)
 }

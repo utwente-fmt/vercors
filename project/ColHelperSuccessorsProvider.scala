@@ -6,7 +6,8 @@ case class ColHelperSuccessorsProvider(info: ColDescription) {
     import scala.reflect.ClassTag
     import vct.col.ref.LazyRef
 
-    trait SuccessorsProvider[Pre, Post] {
+    trait SuccessorsProvider[Pre, Post]
+    {
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         def computeSucc(decl: ${Type.Name(decl)}[Pre]): Option[${Type.Name(decl)}[Post]]
       """).toList}
