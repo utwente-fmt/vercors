@@ -13,7 +13,7 @@ adt `bag`<T> {
   pure `bag`<T> bag_intersection(`bag`<T> xs, `bag`<T> ys);
   pure `bag`<T> bag_difference(`bag`<T> xs, `bag`<T> ys);
 
-  pure boolean bag_subbat(`bag`<T> xs, `bag`<T> ys);
+  pure boolean bag_subbag(`bag`<T> xs, `bag`<T> ys);
   pure boolean bag_equal(`bag`<T> xs, `bag`<T> ys);
   pure T bag_skolem(`bag`<T> xs, `bag`<T> ys);
 

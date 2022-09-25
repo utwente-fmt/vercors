@@ -182,6 +182,7 @@ case class SilverTransformation
     ImportPointer.withArg(adtImporter),
     ImportMap.withArg(adtImporter),
     ImportSeq.withArg(adtImporter),
+    ImportBag.withArg(adtImporter),
     ImportSet.withArg(adtImporter),
     ImportEither.withArg(adtImporter),
     ImportTuple.withArg(adtImporter),
