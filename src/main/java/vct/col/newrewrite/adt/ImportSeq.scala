@@ -73,17 +73,6 @@ case class ImportSeq[Pre <: Generation](importer: ImportADTImporter) extends Imp
         args = Seq(dispatch(xs), dispatch(ys)),
       )(e.o))(e.o)
 
-    case cons @ Cons(x, xs) =>
-      ADTFunctionInvocation[Post](
-        typeArgs = typeArgs(cons.t.asSeq.get.element),
-        ref = seqConcat.ref,
-        args = Seq(ADTFunctionInvocation[Post](
-          typeArgs = typeArgs(cons.t.asSeq.get.element),
-          ref = seqSingleton.ref,
-          args = Seq(dispatch(x)),
-        )(e.o), dispatch(xs))
-      )(e.o)
-
     case concat @ Concat(xs, ys) =>
       ADTFunctionInvocation[Post](
         typeArgs = typeArgs(concat.t.asSeq.get.element),
