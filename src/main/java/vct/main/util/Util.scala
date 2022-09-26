@@ -2,7 +2,7 @@ package vct.main.util
 
 import hre.io.Readable
 import vct.col.ast.Program
-import vct.col.newrewrite.Disambiguate
+import vct.col.rewrite.Disambiguate
 import vct.col.origin.{Blame, VerificationFailure}
 import vct.main.stages.Resolution
 import vct.parsers.ColPVLParser

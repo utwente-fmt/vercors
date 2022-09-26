@@ -3,7 +3,7 @@ package vct.newrewrite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
-import vct.col.newrewrite.ResolveExpressionSideEffects
+import vct.col.rewrite.ResolveExpressionSideEffects
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.rewrite.InitialGeneration
 import vct.col.util.AstBuildHelpers._

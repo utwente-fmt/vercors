@@ -2,7 +2,7 @@ package vct.main.stages
 
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{FileSpanningOrigin, Origin}
 import vct.col.resolve.{C, Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation

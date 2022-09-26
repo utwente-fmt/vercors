@@ -5,9 +5,9 @@ import hre.progress.Progress
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
-import vct.col.newrewrite._
-import vct.col.newrewrite.exc._
-import vct.col.newrewrite.lang.NoSupportSelfLoop
+import vct.col.rewrite._
+import vct.col.rewrite.exc._
+import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.FileSpanningOrigin
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}

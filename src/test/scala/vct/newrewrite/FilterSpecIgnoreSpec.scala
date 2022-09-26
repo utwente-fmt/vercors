@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers._
-import vct.col.newrewrite.FilterSpecIgnore
+import vct.col.rewrite.FilterSpecIgnore
 import vct.col.ref.{DirectRef, LazyRef}
 import vct.col.rewrite.{InitialGeneration, Rewritten}
 import vct.helper.{ColHelper, SimpleProgramGenerator}
