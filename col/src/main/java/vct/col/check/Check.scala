@@ -1,7 +1,7 @@
 package vct.col.check
 
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.util.Declarator
 import vct.col.err.ASTStateError
 import vct.col.origin.Origin
 import vct.col.ref.Ref

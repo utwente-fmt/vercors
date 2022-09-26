@@ -2,7 +2,7 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
 

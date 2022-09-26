@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.statement.composite.LoopImpl.IterationContractData
+import vct.col.ast.statement.composite.LoopImpl.IterationContractData
 import vct.col.rewrite.EncodeSendRecv.{DuplicateRecv, SendFailedExhaleFailed, WrongSendRecvPosition}
 import vct.col.origin.{Blame, DiagnosticOrigin, ExhaleFailed, Origin, SendFailed}
 import vct.col.ref.Ref

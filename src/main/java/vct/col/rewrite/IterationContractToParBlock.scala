@@ -4,7 +4,7 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import RewriteHelpers._
 import hre.util.ScopedStack
-import vct.col.ast.temporaryimplpackage.statement.composite.LoopImpl.IterationContractData
+import vct.col.ast.statement.composite.LoopImpl.IterationContractData
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}

@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.coerce.CoercingRewriter
 import vct.col.rewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatFracPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
