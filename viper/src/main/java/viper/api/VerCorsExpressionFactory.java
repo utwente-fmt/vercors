@@ -8,6 +8,7 @@ import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import hre.lang.HREError;
 import hre.util.Triple;
+import scala.math.BigInt;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.stmt.decl.DeclarationStatement;
@@ -134,6 +135,13 @@ public class VerCorsExpressionFactory implements
     return res;
   }
 
+  @Override
+  public ASTNode Constant(Origin o, BigInt bi) {
+    enter(o);
+    ASTNode res = create.constant(bi);
+    leave();
+    return res;
+  }
 
   @Override
   public ASTNode current_perm(Origin o, ASTNode expr){
@@ -210,9 +218,9 @@ public class VerCorsExpressionFactory implements
 
   @Override
   public ASTNode exists(Origin o, java.util.List<Triple<Origin,String,Type>> vars,
-      ASTNode e) {
+        java.util.List<java.util.List<ASTNode>> triggers, ASTNode e) {
     enter(o);
-    ASTNode res=create.exists(e, vars);
+    ASTNode res=create.exists(toAofA(triggers), create.constant(true), e, create.to_decls(vars));
     leave();
     return res;
   }

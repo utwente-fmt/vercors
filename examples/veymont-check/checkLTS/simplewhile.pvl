@@ -1,8 +1,8 @@
-// -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases SimpleWhile
-//:: suite session-generate
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Pass
+//:: tool veymont
 
 class Role {
 	
@@ -45,6 +45,7 @@ class Main {
 		loop_invariant Perm(a.left, 1) ** Perm(b.left, 1) ** Perm(c.left, 1);
 		loop_invariant b.x - c.x == c.x - a.x;
 		loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
+		loop_invariant (a.left != a.x) == (b.left != b.x) && (b.left != b.x) == (c.left != c.x);
 		while(a.left != a.x && b.left != b.x && c.left != c.x) {
 				a.x = a.x + 1;
 		}

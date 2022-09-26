@@ -2,11 +2,16 @@ package vct.col.ast.stmt.composite
 
 import vct.col.ast.`type`.Type
 import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.DeclarationStatement
 import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, VisitorHelper}
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
+
+
+/*This method is explicitly provide because Intellij has a bug regarding resolving methods of parameters in Scala classes */
+trait IntellijExplicitGetterTryCatchBlock {
+  def main():BlockStatement;
+}
 
 /**
  * AST node that represents a try-catch-finally block.
@@ -16,7 +21,7 @@ import scala.collection.mutable.ArrayBuffer
  * @param after The body of the "finally" clause.
  * @param catchClauses An (ordered) list of "catch" clauses.
  */
-class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[this] val catchClauses:ArrayBuffer[CatchClause]) extends ASTNode with VisitorHelper {
+class TryCatchBlock(val main:BlockStatement, val after:BlockStatement, private[this] val catchClauses:ArrayBuffer[CatchClause]) extends ASTNode with VisitorHelper with IntellijExplicitGetterTryCatchBlock {
   /** Initialises a try-catch-finally block without any catch-clauses. */
   def this(main:BlockStatement, after:BlockStatement) = this(main, after, new ArrayBuffer[CatchClause]())
   

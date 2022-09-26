@@ -1,10 +1,7 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package hre.ast;
 
-import static hre.lang.System.Output;
-import static hre.lang.System.Debug;
-
-/** 
+/**
  * This interface allows tracking the origin of
  * AST nodes through transformations to the original file(s).
  */

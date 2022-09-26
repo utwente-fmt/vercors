@@ -4,6 +4,7 @@ package vct.col.ast.util;
 import java.util.*;
 import java.util.Map.Entry;
 
+import scala.math.BigInt;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -70,42 +71,6 @@ public class ASTFactory<E> implements FrameControl {
     this.copy_rw=new AbstractRewriter(null,null);
   }
 
-  /**
-   * Create a new abstract class.
-   */
-  public ASTClass abstract_class(String name, DeclarationStatement parameters[], ClassType super_class, ClassType ... supports) {
-    ClassType bases[]={super_class};
-    if (super_class==null) bases=null;
-    return ast_class(name,ClassKind.Abstract,parameters,bases,supports);
-  }
-  
-  public void addRandomConstructor(ASTClass cl){
-    enter();
-    setOrigin(cl.getOrigin());
-    ContractBuilder cb=new ContractBuilder();
-    for(DeclarationStatement field : cl.dynamicFields()){
-      cb.requires(expression(
-          StandardOperator.Perm,
-          field_name(field.name()),
-          constant(100)
-      ));
-      cb.ensures(expression(
-          StandardOperator.Perm,
-          field_name(field.name()),
-          constant(100)
-     ));
-    }
-    Method cons=method_kind(
-        Method.Kind.Constructor,
-        primitive_type(PrimitiveSort.Void),
-        cb.getContract(),
-        cl.getName(),
-        new DeclarationStatement[0],
-        block()
-    );
-    cl.add_dynamic(cons);
-    leave();
-  }
  
   public ASTNode fullPermission(){
     return reserved_name(ASTReserved.FullPerm);
@@ -268,6 +233,9 @@ public class ASTFactory<E> implements FrameControl {
   public ConstantExpression constant(int i) {
     return constant(origin_stack.get(),i);
   }
+  public ConstantExpression constant(BigInt i) {
+    return constant(origin_stack.get(),i);
+  }
   public ConstantExpression constant(long i) {
     return constant(origin_stack.get(),i);
   }
@@ -278,6 +246,14 @@ public class ASTFactory<E> implements FrameControl {
     ConstantExpression res=new ConstantExpression(b,origin);
     res.accept_if(post);
     return res;    
+  }
+  /**
+   * Create a new biginteger constant
+   */
+  public ConstantExpression constant(Origin origin, BigInt bi) {
+    ConstantExpression res=new ConstantExpression(bi,origin);
+    res.accept_if(post);
+    return res;
   }
   /**
    * Create a new double constant.
@@ -511,19 +487,22 @@ public class ASTFactory<E> implements FrameControl {
     }
           
     public BindingExpression exists(ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
+      return exists(null, guard, claim, decl);
+    }
+    public BindingExpression exists(ASTNode triggers[][], ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
       BindingExpression res=new BindingExpression(
-          Binder.Exists,
-          primitive_type(PrimitiveSort.Boolean),
-          decl,
-          null,
-          guard,
-          claim
+              Binder.Exists,
+              primitive_type(PrimitiveSort.Boolean),
+              decl,
+              triggers,
+              guard,
+              claim
       );
       res.setOrigin(origin_stack.get());
       res.accept_if(post);
       return res;
     }
-    public BindingExpression summation(ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
+  public BindingExpression summation(ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
       int i=decl.length-1;
       BindingExpression res=new BindingExpression(
           Binder.Sum,
@@ -719,20 +698,6 @@ public class ASTFactory<E> implements FrameControl {
     res.setOrigin(origin_stack.get());
     res.accept_if(post);
     return res;
-  }
-
-  /**
-   * Create a name expression referring to a method name.
-   */
-  public NameExpression method_name(Origin origin,String name){
-    NameExpression res=new NameExpression(name);
-    res.setKind(NameExpressionKind.Method);
-    res.setOrigin(origin);
-    res.accept_if(post);
-    return res;
-  }
-  public NameExpression method_name(String name) {
-    return method_name(origin_stack.get(),name);
   }
 
   /**
@@ -978,15 +943,6 @@ public ASTSpecial special(Origin origin, ASTSpecial.Kind kind, ASTNode ... args)
  public ASTSpecial special(ASTSpecial.Kind kind, ASTNode ... args) {
   return special(origin_stack.get(),kind,args);
 }
- public ASTSpecial special_decl(Origin origin, ASTSpecial.Kind kind, ASTNode ... args) {
-   ASTSpecial res=new ASTSpecial(kind,args);
-   res.setOrigin(origin);
-   res.accept_if(post);
-   return res;
- }
-  public ASTSpecial special_decl(ASTSpecial.Kind kind, ASTNode ... args) {
-   return special_decl(origin_stack.get(),kind,args);
- }
 
   public ASTNode starall(ASTNode[][] triggers, ASTNode guard, ASTNode claim, DeclarationStatement ... decl) {
     if (decl.length==0){
@@ -1160,33 +1116,6 @@ public LoopStatement while_loop(ASTNode test,ASTNode body,Contract contract){
   return res;    
 }
 
-public Type tuple_type(Type ... t) {
-  Type res=new TupleType(t);
-  res.setOrigin(origin_stack.get());
-  res.accept_if(post);
-  return res;
-}
-
-public Type arrow_type(Type src, Type tgt) {
-  Type res=new FunctionType(src, tgt);
-  res.setOrigin(origin_stack.get());
-  res.accept_if(post);
-  return res;
-}
-
-public Type arrow_type(Type[] types, Type tgt) {
-  Type res=new FunctionType(types,tgt);
-  res.setOrigin(origin_stack.get());
-  res.accept_if(post);
-  return res;
-}
-
-public Type arrow_type(List<Type> types, Type tgt) {
-  Type res=new FunctionType(types, tgt);
-  res.setOrigin(origin_stack.get());
-  res.accept_if(post);
-  return res;
-}
 
 public ASTNode new_array(Type t, ASTNode size) {
   return expression(StandardOperator.NewArray,t,size);
@@ -1228,10 +1157,6 @@ public Axiom axiom(String name, ASTNode exp){
     return res;
   }
   
-  public Type __const(Type type) {
-    return type_expression(TypeOperator.Const,type);
-  }
-  
   public Type __extern(Type type) {
     return type_expression(TypeOperator.Extern,type);
   }
@@ -1248,24 +1173,7 @@ public Axiom axiom(String name, ASTNode exp){
   public Type __kernel(Type type) {
     return type_expression(TypeOperator.Kernel,type);
   }
-  public Type __global(Type type) {
-    return type_expression(TypeOperator.Global,type);
-  }
-  public Type __local(Type type) {
-    return type_expression(TypeOperator.Local,type);
-  }
-  public Type __short(Type type) {
-    return type_expression(TypeOperator.Short,type);
-  }
-  public Type __signed(Type type) {
-    return type_expression(TypeOperator.Signed,type);
-  }
-  public Type __unsigned(Type type) {
-    return type_expression(TypeOperator.Unsigned,type);
-  }
-  public Type __long(Type type) {
-    return type_expression(TypeOperator.Long,type);
-  }
+
 
   public ForEachLoop foreach(DeclarationStatement[] decls, ASTNode guard, ASTNode body) {
     ForEachLoop res=new ForEachLoop(decls,guard,body);
@@ -1469,43 +1377,7 @@ public Axiom axiom(String name, ASTNode exp){
     return res;
   }
   
-  /**
-   * Creates an AST structure for the postfix statement: `x%op%` for some unary operator `%op%`.
-   * The statement is then rewritten to `x := x %op% 1` for a binary variant of the operator `%op%`.
-   * @param varname The variable name that is subject to `%op%`.
-   * @param operator The binary operator `%op%`. 
-   * @return The AST structure that represents the incrementation.
-   */
-  private ASTNode postfix_operator(String varname, StandardOperator operator) {
-	  NameExpression location = identifier(varname);
-	  ASTNode arguments[] = new ASTNode[] { location, new ConstantExpression(1) };
-	  OperatorExpression incr = new OperatorExpression(operator, arguments);
-	  AssignmentStatement res = new AssignmentStatement(location, incr);
-	  
-	  res.setOrigin(origin_stack.get());
-	  res.accept_if(post);
-	  return res;
-  }
 
-  /**
-   * Creates an AST structure for the postfix incremental statement: `x++`. However,
-   * the statement is rewritten to `x := x + 1`.
-   * @param varname The variable name that is subject to incrementation. 
-   * @return The AST structure that represents the incrementation.
-   */
-  public ASTNode postfix_increment(String varname) {
-    return postfix_operator(varname, StandardOperator.Plus);
-  }
-  
-  /**
-   * Creates an AST structure for the postfix decremental statement: `x--`. However,
-   * the statement is rewritten to `x := x - 1`.
-   * @param varname The variable name that is subject to decrementation. 
-   * @return The AST structure that represents the decrementation.
-   */
-  public ASTNode postfix_decrement(String varname) {
-    return postfix_operator(varname, StandardOperator.Minus); 
-  }
 
   public Synchronized syncBlock(ASTNode expr, ASTNode statement) {
     return syncBlock(origin_stack.get(), expr, statement);

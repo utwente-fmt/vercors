@@ -123,15 +123,6 @@ newExpr
  : 'new' identifier tuple
  | 'new' nonArrayType newDims
  | nonTarget
- | target
- ;
-
-target
- : target '.' gen_id
- | target '[' expr ']'
- | nonTarget '.' gen_id
- | nonTarget '[' expr ']'
- | targetUnit
  ;
 
 nonTarget
@@ -243,7 +234,7 @@ allowedForStatement
  : type declList
  | expr
  | identifier ('++'|'--')
- | target '=' expr
+ | expr '=' expr
  ;
 
 declList

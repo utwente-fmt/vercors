@@ -1,11 +1,12 @@
 //:: cases NoMainConstructor
-//:: suite session-check
-//:: tools session
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
 //:: verdict Error
+//:: tool veymont
 class Main {
 
 
 	void run() {
-	
+
 	}
 }

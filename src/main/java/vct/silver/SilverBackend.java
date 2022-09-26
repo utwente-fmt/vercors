@@ -48,14 +48,14 @@ public class SilverBackend {
   }
   
   public static
-  PassReport TestSilicon(PassReport given, String tool) {
+  PassReport TestSilicon(PassReport given, String tool, List<String> backendOptions) {
     ViperAPI<Origin, ?, ?, ?, ?, ?, ?> verifier=getVerifier(tool);
     // We redirect through a new method, because we need to convince java the program type is consistent. The most brief
     // way to capture a  wildcard ("?") type is via a method.
-    return TestSilicon(given, tool, verifier);
+    return TestSilicon(given, tool, verifier, backendOptions);
   }
 
-  public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier) {
+  public static <Program> PassReport TestSilicon(PassReport given, String tool, ViperAPI<Origin, ?, ?, ?, ?, ?, Program> verifier, List<String> backendOptions) {
     //hre.System.Output("verifying with %s backend",silver_module.get());
     ProgramUnit arg=given.getOutput();
     PassReport report=new PassReport(arg);
@@ -64,7 +64,6 @@ public class SilverBackend {
     MessageFactory log=new MessageFactory(new PassAddVisitor(report));
     TaskBegin verification=log.begin("Viper verification");
 
-    hre.lang.System.Progress("verifying with %s %s backend", "builtin", tool);
     //verifier.set_detail(Configuration.detailed_errors.get());
     VerCorsViperAPI vercors=VerCorsViperAPI.get();
     Program program = vercors.prog.convert(verifier,arg);
@@ -93,10 +92,14 @@ public class SilverBackend {
     }*/
     ViperControl control=new ViperControl(log);
     try {
+      SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+      hre.lang.System.Progress("Verification with %s %s backend starting at %s", "builtin", tool, dateFormat.format(new Date()));
+
       // Call into Viper to verify!
       List<? extends ViperError<Origin>> rawErrors = verifier.verify(
               Configuration.getZ3Path().toPath(),
               settings,
+              backendOptions,
               program,
               control
       );

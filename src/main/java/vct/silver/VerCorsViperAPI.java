@@ -50,7 +50,7 @@ public class VerCorsViperAPI extends ViperAPI<
 
   @Override
   public List<? extends ViperError<Origin>> verify(Path z3Path,
-      Properties z3Settings, ProgramUnit program,
+      Properties z3Settings, List<String> backendOptions, ProgramUnit program,
       VerificationControl<Origin> control) {
     throw new Error("Using VerCors backends for Viper is not implemented.");
   }

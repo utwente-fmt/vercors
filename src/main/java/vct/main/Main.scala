@@ -1,32 +1,38 @@
 package vct.main
 
 import java.io._
-import java.time.Instant
+import java.time.{Instant, ZoneId}
 import java.util
 import hre.ast.FileOrigin
-import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, LinearCollectSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.{ASTClass, Method, ProgramUnit, SpecificationFormat}
-import vct.col.util.FeatureScanner
+import vct.col.ast.stmt.decl.ProgramUnit
 import vct.experiments.learn.SpecialCountVisitor
 import vct.logging.PassReport
 import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
+import vct.col.veymont.{Preprocessor, Util}
+import vct.main.Main.backend_option
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
-import java.net.URLClassLoader
 import scala.jdk.CollectionConverters._
 import java.nio.file.Paths
+import java.time.format.DateTimeFormatter
+import java.util.TimeZone
 
 object Main {
+  val backend_option = new LinearCollectSetting
+
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]): Unit = System.exit(new Main().run(args))
+  def main(args: Array[String]): Unit =
+    new Main().run(args)
+  //def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 
 class Main {
@@ -58,7 +64,6 @@ class Main {
   private val check_axioms = new BooleanSetting(false)
   private val check_history = new BooleanSetting(false)
   private val separate_checks = new BooleanSetting(false)
-  private val sequential_spec = new BooleanSetting(false)
   private val global_with_field = new BooleanSetting(false)
   private val no_context = new BooleanSetting(false)
   private val gui_context = new BooleanSetting(false)
@@ -83,7 +88,6 @@ class Main {
     clops.add(check_history.getEnable("Check if the program correctly implements the process-algebraic specification."), "check-history")
     clops.add(separate_checks.getEnable("validate classes separately"), "separate")
     clops.add(help_passes.getEnable("print help on available passes"), "help-passes")
-    clops.add(sequential_spec.getEnable("sequential specification instead of concurrent"), "sequential")
     clops.add(pass_list_option, "passes")
     clops.add(show_before.getAppendOption("Show source code before given passes"), "show-before")
     clops.add(show_after.getAppendOption("Show source code after given passes"), "show-after")
@@ -102,9 +106,13 @@ class Main {
     clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions")
     clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers")
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
+    clops.add(backend_option.getAddOption("Options to pass to the backend"), "backend-option")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
-    clops.parse(args) ++ (if (Configuration.veymont_file.get() != null) Configuration.getVeyMontFiles.map(_.getAbsolutePath()) else Array.empty[String])
+    val parseres = clops.parse(args)
+    if (Configuration.veymont.is(Configuration.veymont_decompose))
+      parseres :+ Configuration.getVeyMontFiles.getAbsolutePath()
+    else parseres
   }
 
   private def setupLogging(): Unit = {
@@ -137,13 +145,7 @@ class Main {
 
   private def checkOptions(): Unit = {
     if (version.get) {
-      Output("%s %s", BuildInfo.name, BuildInfo.version)
-      Output("Built by sbt %s, scala %s at %s", BuildInfo.sbtVersion, BuildInfo.scalaVersion, Instant.ofEpochMilli(BuildInfo.builtAtMillis))
-      if (BuildInfo.currentBranch != "master")
-        Output("On branch %s, commit %s, %s",
-          BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
-
-      throw new HREExitException(0)
+      printVersions()
     }
 
     if (help_passes.get) {
@@ -154,11 +156,11 @@ class Main {
       throw new HREExitException(0)
     }
 
-    if(Seq(
+    if (Seq(
       CommandLineTesting.enabled,
       silver.used,
       pass_list.asScala.nonEmpty,
-      Configuration.veymont_file.used()
+      Configuration.veymont.get() != null,
     ).forall(!_)) {
       Fail("no back-end or passes specified")
     }
@@ -173,51 +175,106 @@ class Main {
       case _ =>
         Fail("unknown silver backend: %s", silver.get)
     }
-
-    val vFile = Configuration.veymont_file.get()
-    if(vFile != null) {
-      val nonPVL = inputPaths.filter(!_.endsWith(".pvl"))
-      if(nonPVL.nonEmpty)
-        Fail("VeyMont cannot use non-PVL files %s",nonPVL.mkString(", "))
-      if(!vFile.endsWith(".pvl"))
-        Fail("VeyMont cannot output to non-PVL file %s",vFile)
+    if (Configuration.veymont.get() != null) {
+      val vFile = inputPaths.headOption
+      if (vFile.isDefined) {
+        val nonPVL = inputPaths.filter(p => !p.endsWith(".pvl"))
+        if (nonPVL.nonEmpty && !nonPVL.forall(_.endsWith(Configuration.javaChannelFile)))
+          Fail("VeyMont cannot use non-PVL files %s", nonPVL.mkString(", "))
+        if (!(vFile.get.endsWith(".pvl") || vFile.get.endsWith(".java")))
+          Fail("VeyMont can only output to file %s, it only accepts files ending with '.pvl' or '.java'", vFile)
+      }
     }
   }
 
+  private def printVersions(): Unit = {
+    Output("%s %s", BuildInfo.name, BuildInfo.version)
+
+    val timestamp = {
+      val instance = Instant.ofEpochMilli(BuildInfo.builtAtMillis)
+      val localDateTime = java.time.LocalDateTime
+        .ofInstant(instance, ZoneId.systemDefault())
+      localDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    }
+
+    Output("Built at %s", timestamp)
+    if (BuildInfo.currentBranch != "master")
+      Output("On branch %s, commit %s, %s",
+        BuildInfo.currentBranch, BuildInfo.currentShortCommit, BuildInfo.gitHasChanges)
+
+    val z3VersionLine = {
+      val z3 = Configuration.getZ3
+      z3.addArg("--version")
+      val mp = z3.startProcess()
+      mp.recv().getArg(0)
+    }
+
+    val boogieVersionLine = {
+      val boogie = Configuration.getBoogie
+      boogie.addArg("/version")
+      val mp = boogie.startProcess()
+      mp.recv().getArg(0)
+    }
+
+    val viperVersions = if (Set(BuildInfo.silverCommit, BuildInfo.siliconCommit, BuildInfo.carbonCommit).size == 1) {
+      Seq(("viper", BuildInfo.silverCommit))
+    } else {
+      Seq(("silver", BuildInfo.silverCommit),
+        ("silicon", BuildInfo.siliconCommit),
+        ("carbon", BuildInfo.carbonCommit))
+    }
+    val viperVersionsTxt = viperVersions.map {
+      case (name, commitId) => s"- $name: ${commitId.getOrElse("unknown")}"
+    }
+
+    val allVersions = viperVersionsTxt ++ Seq(
+      s"- z3: $z3VersionLine",
+      s"- boogie: $boogieVersionLine"
+    )
+
+    val allVersionsTxt = ("Versions:" +: allVersions).mkString("\n")
+
+    Output("%s", allVersionsTxt)
+
+    throw new HREExitException(0)
+  }
+
   private def parseInputs(inputPaths: Array[String]): Unit = {
-    Progress("parsing inputs...")
+    Progress("Parsing inputs...")
     report = new PassReport(new ProgramUnit)
     report.setOutput(report.getInput)
     report.add(new ErrorDisplayVisitor)
 
     tk.show
     for (pathName <- inputPaths) {
-      val path = Paths.get(pathName);
+      val path = Paths.get(pathName)
       if (!no_context.get) FileOrigin.add(path, gui_context.get)
       report.getOutput.add(Parsers.parseFile(path))
     }
 
     Progress("Parsed %d file(s) in: %dms", Int.box(inputPaths.length), Long.box(tk.show))
 
-    if (sequential_spec.get)
-      report.getOutput.setSpecificationFormat(SpecificationFormat.Sequential)
   }
 
 
-  private def collectPassesForVeyMont : Seq[AbstractPass] = Seq(
-    BY_KEY("VeyMontStructCheck"),
-    BY_KEY("VeyMontTerminationCheck"),
-  //  BY_KEY("VeyMontGlobalLTS"),
-    BY_KEY("VeyMontDecompose"),
-    BY_KEY("VeyMontLocalLTS"),
-    BY_KEY("removeTaus"),
-    BY_KEY("removeEmptyBlocks"),
-    BY_KEY("VeyMontBarrier"),
-    BY_KEY("VeyMontLocalProgConstr"),
-    BY_KEY("VeyMontAddChannelPerms"),
-    BY_KEY("VeyMontAddStartThreads"),
-    BY_KEY("printPVL"),
-  )
+  private def collectPassesForVeyMontPre : Seq[AbstractPass] = {
+    silver.set("silicon")
+    Seq(
+      BY_KEY("VeyMontStructCheck"),
+      BY_KEY("VeyMontTerminationCheck"),
+      BY_KEY("VeyMontGlobalProgPerms"),
+      BY_KEY("VeyMontPrintAnnotatedProg"))
+  }
+
+  private def collectPassesForVeyMontPost : Seq[AbstractPass] = {
+    silver.set("silicon")
+    Seq(
+      BY_KEY("VeyMontDecompose"),
+      BY_KEY("removeEmptyBlocks"),
+      BY_KEY("VeyMontLocalProgConstr"),
+      BY_KEY("VeyMontAddStartThreads"),
+      BY_KEY("VeyMontPrintOutput"))
+  }
 
   object ChainPart {
     def inflate(parts: Seq[ChainPart]): Seq[Seq[String]] =
@@ -410,6 +467,7 @@ class Main {
       Seq()
     } else {
       computeGoal(features).get
+      computeGoal(features).get
     }
 
     if (stopBeforeBackend.get()) {
@@ -428,7 +486,8 @@ class Main {
       }).toSeq
     }
     else if (silver.used) collectPassesForSilver
-    else if (Configuration.veymont_file.used()) collectPassesForVeyMont
+    else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) collectPassesForSilver
+    else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_decompose)) collectPassesForVeyMontPost
     else { Fail("no back-end or passes specified"); ??? }
   }
 
@@ -447,7 +506,8 @@ class Main {
     }
   }
 
-  private def doPasses(passes: Seq[AbstractPass]): Unit = {
+  private def doPasses(passes: Seq[AbstractPass]): Int = {
+    report = BY_KEY("checkTypesJava").apply_pass(report, Array())
     for((pass, i) <- passes.zipWithIndex) {
       if (debugBefore.has(pass.key)) report.getOutput.dump()
       if (show_before.contains(pass.key)) show(pass)
@@ -457,11 +517,11 @@ class Main {
       } else { Set.empty }
 
       tk.show
-      report = pass.apply_pass(report, Array())
+      report = pass.apply_pass(report, if(Configuration.veymont.get() != null) inputPaths else Array())
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
-        return
+        return report.getFatal
       }
 
       Progress("[%02d%%] %s took %d ms", Int.box(100 * (i+1) / passes.size), pass.key, Long.box(tk.show))
@@ -474,7 +534,7 @@ class Main {
 
       if(report.getFatal > 0) {
         Verdict("The final verdict is Fail")
-        return
+        return report.getFatal
       }
 
       if(strictInternalConditions.get()) {
@@ -514,9 +574,10 @@ class Main {
     }
 
     Verdict("The final verdict is Pass")
+    0
   }
 
-  private def run(args: Array[String]): Int = {
+  def run(args: Array[String]): Int = {
     var exit = 0
     val wallStart = System.currentTimeMillis
     tk = new TimeKeeper
@@ -528,8 +589,15 @@ class Main {
       checkOptions()
       if (CommandLineTesting.enabled) CommandLineTesting.runTests()
       else {
+        var newArgs = Array[String]()
+        if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          newArgs = runVeyMontPrePasses(args)
+        }
         parseInputs(inputPaths)
-        doPasses(getPasses)
+        exit = doPasses(getPasses)
+        if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          runVeyMontPostPasses(newArgs)
+        }
       }
     } catch {
       case e: HREExitException =>
@@ -537,6 +605,7 @@ class Main {
         if(exit != 0)
           Verdict("The final verdict is Error")
       case e: Throwable =>
+        exit = -180614
         DebugException(e)
         Warning("An unexpected error occured in VerCors! "
               + "Please report an issue at https://github.com/utwente-fmt/vercors/issues/new. "
@@ -549,5 +618,30 @@ class Main {
       }
     }
     exit
+  }
+
+  private def runVeyMontPrePasses(args: Array[String]) : Array[String] = {
+    parseInputs(inputPaths)
+    doPasses(collectPassesForVeyMontPre)
+    val veymontIndex = Configuration.getVeyMontArgIndex(args);
+    args.update(veymontIndex + 1, Util.getAnnotatedFileName(args(veymontIndex + 1)))
+    var removeIndex = -1; //remove other files than new -glob file in arguments
+    for(i <- veymontIndex+2 until args.length) {
+      if(args(i).endsWith(".pvl"))
+        removeIndex = i
+    }
+    val newArgs = if(removeIndex == -1) args else args.slice(0,veymontIndex+2) ++ args.slice(removeIndex+1,args.length)
+    inputPaths = parseOptions(newArgs)
+    checkOptions()
+    newArgs
+  }
+
+  private def runVeyMontPostPasses(args: Array[String]) : Unit = {
+    val veymontIndex = Configuration.getVeyMontArgIndex(args);
+    args.update(veymontIndex, "--" + Configuration.veymont_decompose)
+    inputPaths = parseOptions(args)
+    checkOptions()
+    parseInputs(inputPaths)
+    doPasses(collectPassesForVeyMontPost)
   }
 }

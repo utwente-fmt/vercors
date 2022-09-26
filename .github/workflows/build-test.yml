@@ -1,4 +1,4 @@
-name: Vercors build and test workflow
+name: Build and test
 # Only run the workflow when pushed to master, dev, or on pull requests.
 on: 
   push:
@@ -10,16 +10,35 @@ on:
     branches:
       - '**'
 jobs:
+  pre_build_test:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          # Never allow two runs of this workflow to exist
+          concurrent_skipping: 'always'
+          # Except, never skip a PR, scheduled, or manually dispatch run
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+          # Skip if we can find a duplicate run with the same everything
+          skip_after_successful_duplicate: 'true'
+          # Do not run on changes only to these files
+          paths_ignore: '["**/README.md", "**/LICENSE*"]'
+
   build-test:
+    needs: pre_build_test
+    if: ${{ needs.pre_build_test.outputs.should_skip != 'true' }}
+
     runs-on: ubuntu-latest
     environment: Default
     steps:
       # This should automatically cancel any previous workflows that are still
       # running when for example new commits are pushed.
-      - uses: technote-space/auto-cancel-redundant-workflow@v1
+      #- uses: technote-space/auto-cancel-redundant-workflow@v1
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - uses: actions/setup-java@v1
         with:
           java-version: "11"
@@ -98,7 +117,7 @@ jobs:
         uses: mikepenz/action-junit-report@v2
         with:
           report_paths: '**/target/test-reports/TEST-*.xml'
-      
+
   integration-test-linux:
     needs: build-test
     runs-on: ubuntu-latest
@@ -121,7 +140,7 @@ jobs:
           name: vercors-debian-package
       - run: "sudo dpkg -i *.deb"
       - run: vercors --silicon examples/manual/fibonacci.pvl
-      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
+      - run: SPLIT=${{ matrix.testID }}/${{ env.maxTestID }} vercors --test=examples --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output --enable-test-coverage --coverage-output-file=jacoco_${{ matrix.testID }}_${{ env.maxTestID }}.xml
       - name: Archive Java Code Coverage (jacoco_n_m.xml)
         uses: actions/upload-artifact@v2
         with:
@@ -164,7 +183,7 @@ jobs:
       # - One layer gets peeled of by the .bat script
       # - Another layer gets peeled of by powershell
       # This prevents the commas from being interpreted as array separators, a marvelous powershell feature.
-      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail,skip-travis""" --progress --actions-test-output
+      - run: vercorszip\bin\vercors.bat --test=examples\basic --test-workers=2 --tool carbon --tool silicon """--exclude-suite=slow,medium,problem-fail""" --progress --actions-test-output
 
   integration-test-mac:
     runs-on: macos-latest
@@ -186,7 +205,50 @@ jobs:
       # By stripping the first component of the path when extracting this directory this is not a problem
       # --directory extracts to a given directory, ensuring the current directory is not cluttered.
       - run: tar --strip-components=1 --directory vercorszip -xf vercors.zip
-      - run: vercorszip/bin/vercors --test=examples/basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail,skip-travis --progress --actions-test-output
+      - run: vercorszip/bin/vercors --test=examples/basic --test-workers=2 --tool carbon --tool silicon --exclude-suite=slow,medium,problem-fail --progress --actions-test-output
+
+  integration-test-veymont:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      # Need to check out the repo for the "examples" directory and the veymont 2stage testing script
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-debian-package
+      - run: "sudo dpkg -i *.deb"
+      - run: ./util/veymontTesting/veymont-2stage-tests.sh
+  
+  integration-test-wiki:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      # Need to check out the repo for the "examples" directory
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11"
+          java-package: jre
+      - name: Install wiki script dependencies
+        working-directory: util/wiki
+        run: |
+          sudo apt install pandoc
+          pip3 install -r requirements.txt
+      - name: Extract test cases from wiki
+        run: "python3 util/wiki/generate_wiki_pdf.py -c wiki_cases"
+      - name: Download VerCors binary
+        uses: actions/download-artifact@v2
+        with:
+          name: vercors-debian-package
+      - run: "sudo dpkg -i *.deb"
+      - run: vercors --silicon examples/manual/fibonacci.pvl
+        # Be sure to propagate any changes to this line below to the appropriate invocation in wiki-snippet-test.yml
+      - run: vercors --test=wiki_cases --test-workers=2 --tool carbon --tool silicon --tool veymont --exclude-suite=slow,medium,problem-fail --progress --actions-test-output
 
   sonar:
     needs:
@@ -196,6 +258,15 @@ jobs:
     environment: Default
     steps:
       - uses: actions/checkout@v2
+        with:
+          #fetch-depth is needed to checkout the git history otherwise only the last commit is downloaded. The git history is used by analyses of sonar.
+          fetch-depth: 0
+      # The target branches are used in a pull request analysis which is why dev and ast are downloaded.
+      # The command "git checkout -" checkout the previous branch.
+      - run: git checkout dev
+      - run: git checkout -
+      - run: git checkout ast
+      - run: git checkout -
       - uses: actions/setup-java@v1
         with:
           java-version: "11"

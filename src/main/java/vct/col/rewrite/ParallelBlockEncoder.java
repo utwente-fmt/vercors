@@ -432,14 +432,14 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   
   private int ConstantExpToInt(ConstantExpression e)
   { 
-    return ((IntegerValue)e.value()).value();
+    return (int) ((IntegerValue)e.value()).toInt().get();
     
   }  
   private boolean sidecondition_check(ASTSpecial e)  {
      ///1. check the distance of dependence constant expressions    
       if(e.getArg(2) instanceof ConstantExpression)
-      {                                                           
-        return ConstantExpToInt((ConstantExpression)e.getArg(2)) > 0 ;            
+      {
+        return ConstantExpToInt((ConstantExpression)e.getArg(2)) > 0 ;
       } else{
         return false;       
       }                     
@@ -920,7 +920,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
   
   private int getConstant(ASTNode arg) {
     IntegerValue v = (IntegerValue)((ConstantExpression)arg).value();
-    return v.value();
+    return (int) v.toInt().get();
   }
 
   @Override
@@ -939,7 +939,7 @@ public class ParallelBlockEncoder extends AbstractRewriter {
       guard_stack.pop();
       res.addClause(guard,body);
     }
-    result=res; return ;
+    result=res;
   }
 
   @Override

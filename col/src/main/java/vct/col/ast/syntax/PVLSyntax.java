@@ -3,13 +3,10 @@ package vct.col.ast.syntax;
 
 import hre.ast.TrackingOutput;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.print.JavaPrinter;
 import vct.col.ast.print.PVLPrinter;
 import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.util.Parenthesize;
-
-import java.io.PrintWriter;
 
 import static vct.col.ast.expr.StandardOperator.*;
 import static vct.col.ast.type.ASTReserved.*;
@@ -114,6 +111,7 @@ public class PVLSyntax extends Syntax {
       syntax.addPrimitiveType(PrimitiveSort.Fraction,"frac");
       syntax.addPrimitiveType(PrimitiveSort.Void,"void");
       syntax.addPrimitiveType(PrimitiveSort.Resource,"resource");
+      syntax.addReserved(Inline,"inline");
       syntax.addPrimitiveType(PrimitiveSort.Boolean,"boolean");
       syntax.addPrimitiveType(PrimitiveSort.Process,"process");
       syntax.addPrimitiveType(PrimitiveSort.String,"string");
@@ -126,6 +124,7 @@ public class PVLSyntax extends Syntax {
       syntax.addReserved(CurrentThread,"current_thread");
       syntax.addReserved(Null,"null");
       syntax.addReserved(This,"this");
+      syntax.addReserved(Protected,"");
       
       syntax.addOperator(Unfolding,140,"unfolding","in","");
       

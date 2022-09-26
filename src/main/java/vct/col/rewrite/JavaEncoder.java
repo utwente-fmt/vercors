@@ -5,14 +5,12 @@ import java.util.Hashtable;
 import java.util.List;
 
 import hre.ast.MessageOrigin;
-import vct.col.ast.expr.Dereference$;
 import vct.col.ast.stmt.decl.ASTClass;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTFlags;
 import vct.col.ast.type.*;
 import vct.col.ast.stmt.decl.ASTSpecial;
 import vct.col.ast.stmt.decl.AxiomaticDataType;
-import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.expr.Dereference;
 import vct.col.ast.stmt.decl.Method.Kind;
@@ -27,7 +25,6 @@ import vct.col.ast.util.AbstractRewriter;
 
 public class JavaEncoder extends AbstractRewriter {
 
-  public static final String GLOBALS = "globals";
   public static final String INTERNAL = "internal_";
   
   
@@ -170,20 +167,22 @@ public class JavaEncoder extends AbstractRewriter {
               Fail("Automatic inheritance of method with contract not supported");
             }
             Contract external_contract=rewrite(m.getContract());
-            internal_mode=true;
             Contract internal_contract=rewrite(m.getContract());
-            internal_mode=false;
             Type returns=rewrite(m.getReturnType());
             String external_name = m.name();
             String internal_name = INTERNAL + m.name();
             boolean varArgs=m.usesVarArgs();
-            res.add(create.method_kind(m.kind, returns, external_contract, external_name, parameters, varArgs, null));
+            Method resMethod0 = create.method_kind(m.kind, returns, rewrite(m.signals), external_contract, external_name, parameters, varArgs, null);
+            resMethod0.setFlag(ASTFlags.FINAL,true);
+            res.add(resMethod0);
             // We leave body empty, as the method is guaranteed to have no contract
             // Therefore no extra proof steps (unfolding predicates, checking pre/post conditions for implications)
             // are not necessary and we can leave the method abstract. However, when the empty contract check is
             // removed, a call to super or something similar should be added, such that the static/dynamic contract
             // implication is checked.
-            res.add(create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null));
+            Method resMethod = create.method_kind(m.kind, returns, internal_contract, internal_name, parameters, varArgs, null);
+            resMethod.setFlag(ASTFlags.FINAL,true);
+            res.add(resMethod);
             break;
           }
           case Predicate:{
@@ -303,18 +302,10 @@ public class JavaEncoder extends AbstractRewriter {
     }
     Method.Kind kind=m.kind;
     Type returns=rewrite(m.getReturnType());
-    internal_mode=true;
     Contract internal_contract=rewrite(m.getContract());
-    internal_mode=false;
     Contract external_contract=rewrite(m.getContract());
     String name= m.name();
     ArrayList<DeclarationStatement> args=gen_pars(m);
-    int N=m.getArity();
-    Type arg_type[]=new Type[N];
-    DeclarationStatement pars[]=m.getArgs();
-    for(int i=0;i<N;i++){
-      arg_type[i]=pars[i].getType();
-    }
     boolean varArgs=m.usesVarArgs();
     Type[] signals = rewrite(m.signals);
     if (m.getParent() instanceof ASTClass){
@@ -331,7 +322,6 @@ public class JavaEncoder extends AbstractRewriter {
       Method base=m;
       if (cls.super_classes.length>0){
         Debug("    super class is %s",cls.super_classes[0]);
-        ASTClass parent=source().find(cls.super_classes[0]);
         base=get_initial_definition(m);
         if (base!=m){
           isInitial=false;
@@ -366,9 +356,7 @@ public class JavaEncoder extends AbstractRewriter {
           currentTargetClass.add(abstractMethod);
 
           args=copy_rw.rewrite(args);
-          internal_mode=true;
           ASTNode body=rewrite(m.getBody());
-          internal_mode=false;
 
           Method implementedMethod = create.method_kind(kind, returns, signals, internal_contract, internal_name, args, varArgs, body);
           implementedMethod.setFlag(ASTFlags.FINAL, true);
@@ -391,9 +379,7 @@ public class JavaEncoder extends AbstractRewriter {
           currentTargetClass.add(abstractMethod);
 
           args=copy_rw.rewrite(args);
-          internal_mode=true;
           ASTNode body=rewrite(m.getBody());
-          internal_mode=false;
           if (!isInitial){
             ASTNode args_names[]=new ASTNode[args.size()];
             for(int i=0;i<args_names.length;i++){
@@ -419,13 +405,7 @@ public class JavaEncoder extends AbstractRewriter {
       result=create.method_kind(kind, returns, signals, external_contract, name, args, varArgs, body);
     }
   }
-  
-  /**
-   * This variable shall be set to true when rewriting a contract in
-   * internal mode. It must be false otherwise. 
-   */
-  private boolean internal_mode=false;
-  
+
   @Override
   public void visit(MethodInvokation s){
     Method m=s.getDefinition();
@@ -441,10 +421,6 @@ public class JavaEncoder extends AbstractRewriter {
     }
     ClassType dispatch=rewrite(s.dispatch());
     String method;
-    Type ot=null;
-    if (s.object()!=null){
-      ot=s.object().getType();
-    }
     if (s.object()!=null && s.object().isReserved(ASTReserved.Super)
         && get_initial_definition(m)==get_initial_definition(current_method())){
       method = INTERNAL + m.name();

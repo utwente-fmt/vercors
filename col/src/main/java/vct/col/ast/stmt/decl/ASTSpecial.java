@@ -1,13 +1,13 @@
 package vct.col.ast.stmt.decl;
 
 import java.util.Arrays;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import hre.util.ScalaHelper;
 import scala.collection.Iterable;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
-import vct.col.ast.stmt.decl.ASTDeclaration;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ClassName;
 
@@ -35,7 +35,7 @@ public class ASTSpecial extends ASTDeclaration {
     return ScalaHelper.toIterable("kind");
   }
 
-  public static enum Kind {
+  public enum Kind {
     Expression,
     With,
     Then,
@@ -120,9 +120,20 @@ public class ASTSpecial extends ASTDeclaration {
     /**
      * Represents unobservable action
      */
-    TauAction(0)
+    TauAction(0),
+    /**
+     * Declare executor service from java.util.concurrent
+     */
+    ThreadPoolExecutor(1),
+    /**
+     * Use executorservice to execute via ExecutorService
+     */
+    ThreadExecute(1),
+    /**
+     * Shut down executor from java.util.concurrent
+     */
+    ThreadPoolExecutorShutDown(0)
     ;
-
     
     
     private final int arity;
@@ -137,7 +148,7 @@ public class ASTSpecial extends ASTDeclaration {
     public int arity(){ return arity; }
 
 
-  };
+  }
 
   public final Kind kind;
   

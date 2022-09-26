@@ -9,7 +9,7 @@ import vct.col.ast.util.{ASTFactory, ContractBuilder}
 
 import java.nio.file.Paths
 
-abstract class ToCOL(fileName: String, tokens: CommonTokenStream, parser: org.antlr.v4.runtime.Parser) {
+abstract class ToCOL(fileName: String) {
   val create = new ASTFactory[ParserRuleContext]()
 
   private def fileOrigin(tree: ParserRuleContext): FileOrigin = {

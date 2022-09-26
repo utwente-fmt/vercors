@@ -1,24 +1,18 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
-//:: cases TicTacToeInt TicTacToeMatrix
-//:: tools veymont
+//:: cases TicTacToeInt
 //:: verdict Pass
 
-class Main {
+class SeqProgram {
 	
 	Player p1,p2;
 	
 	inline resource ticTacToeAnnotations() = 
-	   Perm(p1,read) ** Perm(p2,read)
-	** p1.gridWritePerm() ** p2.gridWritePerm()
-	** Perm(p1.move,1) ** Perm(p2.move,1)
-	** Perm(p1.myToken,read) ** Perm(p2.myToken,read)
-	** Perm(p1.turn,1) ** Perm(p2.turn,1)
-	** p1.myToken == 0 ** p2.myToken == 1
+	    p1.myToken == 0 ** p2.myToken == 1
 	** p1.turn != p2.turn
 	** p1.equalGrid(p2); 
 	
 	ensures (ticTacToeAnnotations());
-	Main() {
+	SeqProgram() {
 		p1 = new Player(0,true);
 		p2 = new Player(1,false);	
 	}
@@ -32,10 +26,10 @@ class Main {
 			assert p1.turn == !p2.turn;
 			if(p1.turn && !p2.turn) {
 				p1.createNewMove();
-				p2.move = p1.move;
+				p2.move = p1.move.clone();
 			} else {
 				p2.createNewMove();
-				p1.move = p2.move;
+				p1.move = p2.move.clone();
 			}
 			p1.doMove();
 			p2.doMove();
@@ -45,7 +39,7 @@ class Main {
 	}
 	
 	void main() {
-		Main m = new Main();
+		SeqProgram m = new SeqProgram();
 		m.run();
 	}
 

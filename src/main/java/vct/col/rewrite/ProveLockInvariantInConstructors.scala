@@ -2,7 +2,6 @@ package vct.col.rewrite
 
 import hre.ast.BranchOrigin
 import vct.col.ast.`type`.Type
-import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, Method, ProgramUnit}
 import vct.col.ast.util.AbstractRewriter
 
@@ -25,6 +24,16 @@ case class ProveLockInvariantInConstructors(override val source: ProgramUnit) ex
 
     if(lockInvariants.size == 1 && lockInvariants.head.getArgs.nonEmpty) {
       lockInvariants.head.getOrigin.report("error", "The lock invariant predicate may not have arguments (other than 'this')")
+      throw new Error()
+    }
+
+    val constructors = cls.asScala.toSeq.filter {
+      case method: Method => method.kind == Method.Kind.Constructor
+      case _ => false
+    }
+
+    if (constructors.isEmpty && lockInvariants.nonEmpty) {
+      lockInvariants.head.getOrigin.report("error", "cannot generate implicit constructor for class with lock invariant")
       throw new Error()
     }
 

@@ -97,7 +97,7 @@ public class System {
         }
 
         @Override
-        public void flush() throws IOException {
+        public void flush() {
             // Refuse, as flushing in this context may cause an additional unwanted newline.
         }
 
@@ -260,7 +260,7 @@ public class System {
         StringWriter sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));
         for (String line : sw.toString().split("\\r?\\n")) {
-            Debug("%s", line);
+            Output("%s", line);
         }
     }
 

@@ -28,12 +28,6 @@ public final class ErrorCounter implements ANTLRErrorListener {
     file.add(main);
     src.add(0);
   }
-    
-  public void mark_ofs(int ofs,String name,int src){
-    this.ofs.add(ofs);
-    file.add(name);
-    this.src.add(src);
-  }
 
   @Override
   public void syntaxError(Recognizer<?, ?> arg0, Object arg1, int arg2,

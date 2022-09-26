@@ -3,25 +3,18 @@ package viper.api
 import viper.silver.ast._
 
 import scala.jdk.CollectionConverters._
-import scala.jdk.CollectionConverters._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
-import java.util.Properties
-import java.util.SortedMap
 
 import scala.math.BigInt.int2bigInt
 import viper.silver.ast.SeqAppend
-import java.nio.file.Path
 
 import hre.util
-import viper.silver.parser.PLocalVarDecl
-
-import scala.collection.mutable.WrappedArray
 
 
 class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with FactoryUtils[O] {
    
   override def Constant(o:O, i:Int): Exp = IntLit(i)(NoPosition,new OriginInfo(o))
+  override def Constant(o:O, bi:BigInt): Exp = IntLit(bi)(NoPosition,new OriginInfo(o))
   override def Constant(o:O, b:Boolean): Exp =
     if(b) TrueLit()(NoPosition,new OriginInfo(o)) else FalseLit()(NoPosition,new OriginInfo(o))
  
@@ -147,9 +140,9 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
 
   def perm_exp(e:Exp):Boolean = {
     e match {
-      case LocalVar(n, typ) => typ==Perm
-      case e:PermExp => true
-      case CondExp(g,x,y) => perm_exp(x) || perm_exp(y)
+      case LocalVar(_, typ) => typ==Perm
+      case _:PermExp => true
+      case CondExp(_,x,y) => perm_exp(x) || perm_exp(y)
       case _  => false
     }
   }
@@ -182,11 +175,11 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   override def mod(o:O,e1:Exp,e2:Exp) :Exp = Mod(e1,e2)(NoPosition,new OriginInfo(o))
   override def add(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
+      case LocalVar(_, typ) => if (typ==Perm)
           PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Add(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
+      case _:PermExp => PermAdd(e1,e2)(NoPosition,new OriginInfo(o))
       case _  => Add(e1,e2)(NoPosition,new OriginInfo(o))
     }
   }
@@ -195,11 +188,11 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
   }
   override def sub(o:O,e1:Exp,e2:Exp) :Exp = {
     e1 match {
-      case LocalVar(n, typ) => if (typ==Perm)
+      case LocalVar(_, typ) => if (typ==Perm)
           PermSub(e1,e2)(NoPosition,new OriginInfo(o))
         else
           Sub(e1,e2)(NoPosition,new OriginInfo(o))
-      case e:PermExp => PermSub(e1,e2)(NoPosition,new OriginInfo(o))
+      case _:PermExp => PermSub(e1,e2)(NoPosition,new OriginInfo(o))
       case _  => Sub(e1,e2)(NoPosition,new OriginInfo(o))
     }
   }
@@ -216,8 +209,11 @@ class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with Fact
     Forall(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   
-  override def exists(o:O, vars:List[util.Triple[O,String,Type]], e:Exp):Exp = {
-    Exists(to_decls(o,vars),Seq(),e)(NoPosition,new OriginInfo(o))
+  override def exists(o:O, vars:List[util.Triple[O,String,Type]], triggers: List[List[Exp]], e:Exp):Exp = {
+    val tmp=triggers.asScala map {
+      l => Trigger(l.asScala.toSeq)(NoPosition,new OriginInfo(o))
+    }
+    Exists(to_decls(o,vars),tmp.toSeq,e)(NoPosition,new OriginInfo(o))
   }
   override def old(o:O,e:Exp):Exp = Old(e)(NoPosition,new OriginInfo(o))
  

@@ -30,7 +30,7 @@ class IfStatement extends ASTNode with VisitorHelper {
   }
   
   def addClause(guard:ASTNode, stmt:ASTNode) : Unit = {
-		val body : ASTNode = if (stmt == null) new BlockStatement() else stmt;
+		val body : ASTNode = if (stmt == null) new BlockStatement() else stmt
     body.setParent(this)
     if (guard != IfStatement.elseGuard) guard.setParent(this)
     cases += new IfStatementCase(guard, body)

@@ -1,22 +1,9 @@
 package viper.api
 
 import viper.silver.ast._
-
 import scala.jdk.CollectionConverters._
-import scala.jdk.CollectionConverters._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
-import java.util.Properties
-import java.util.SortedMap
-
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
-import java.nio.file.Path
-
 import hre.util.Triple
-import viper.silver.parser.PLocalVarDecl
-
-import scala.collection.mutable.WrappedArray
 
 trait FactoryUtils[O] {
   def to_decls(o:O, map:List[Triple[O,String,Type]]) : Seq[LocalVarDecl] = {

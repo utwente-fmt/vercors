@@ -3,7 +3,6 @@ package vct.col.ast.stmt.decl;
 import java.util.*;
 
 import hre.util.ScalaHelper;
-import scala.collection.JavaConverters;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.generic.ASTSequence;
 import vct.col.ast.generic.DebugNode;
@@ -26,7 +25,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
 
     private boolean defaultFlag;
 
-    private LanguageFlag(boolean defaultFlag) {
+    LanguageFlag(boolean defaultFlag) {
       this.defaultFlag = defaultFlag;
     }
 
@@ -38,17 +37,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   public String toString(){
     return Configuration.getDiagSyntax().print(this).toString();
   }
-  
-  private SpecificationFormat format=SpecificationFormat.Concurrent;
-  
-  public void setSpecificationFormat(SpecificationFormat format){
-    this.format=format;
-  }
-  
-  public SpecificationFormat getSpecificationFormat(){
-    return format;
-  }
-  
+
   private EnumMap<LanguageFlag, Boolean> languageFlags = new EnumMap<>(LanguageFlag.class);
 
   /**
@@ -131,9 +120,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
   public void add(String prefix[],ASTDeclaration n){
     ClassName n1=n.getDeclName();
     if (n1==null){
-      if (n instanceof ASTSpecial){
-        
-      } else {
+      if (!(n instanceof ASTSpecial)){
         Debug("null named declaration");
         Debug("%s", Configuration.getDiagSyntax().print(n));
       }
@@ -177,10 +164,6 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
     return classes.values();
   }
 
-  public Iterable<ClassName> classNames() {
-    return classes.keySet();
-  }
-
   public <T> void accept(ASTVisitor<T> visitor) {
     for(ASTDeclaration decl:program){
       decl.accept(visitor);
@@ -222,8 +205,7 @@ public class ProgramUnit implements ASTSequence<ProgramUnit>, DebugNode {
 
   public ASTDeclaration find_decl(String[] nameFull) {
     ClassName class_name=new ClassName(nameFull);
-    ASTDeclaration res=decl_map.get(class_name);
-    return res;
+    return decl_map.get(class_name);
   }
   
   public Method find_adt(String ... nameFull) {

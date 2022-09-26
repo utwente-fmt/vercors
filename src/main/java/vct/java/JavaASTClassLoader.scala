@@ -1,11 +1,12 @@
 package vct.java
 
 import java.io.File
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 import hre.ast.{FileOrigin, MessageOrigin}
-import vct.col.ast.`type`.{ClassType, PrimitiveSort, Type}
+import hre.config.Configuration
+import vct.col.ast.`type`.{ PrimitiveSort, Type}
 import vct.col.ast.stmt.decl.{ASTClass, DeclarationStatement, Method, NameSpace}
-import vct.col.ast.util.{ASTFactory, ClassName, ExternalClassLoader, SequenceUtils}
+import vct.col.ast.util.{ASTFactory, ClassName, ContractBuilder, ExternalClassLoader, SequenceUtils}
 import vct.parsers.ColJavaParser
 import vct.parsers.rewrite.RemoveBodies
 
@@ -25,6 +26,9 @@ object JavaASTClassLoader extends ExternalClassLoader {
   val METHOD_ALLOW_LIST: Set[String] = Set(
     "printStackTrace",
     "getMessage",
+    "wait",
+    "notify",
+    "notifyAll",
   )
 
   private val REFLECTION_CACHE = mutable.Map[Seq[String], Option[ASTClass]]()
@@ -67,11 +71,12 @@ object JavaASTClassLoader extends ExternalClassLoader {
 
         if(name.size == 1) {
           // If it's one name and it's not defined, it must be imported or package-local
-          potentialImportsOfNamespace(name.head, ns)
-            .to(LazyList).flatMap(loadFile(basePath, _)).headOption
+          val potentialImports = potentialImportsOfNamespace(name.head, ns)
+          (potentialImports.to(LazyList).flatMap(loadFile(basePath, _)) ++
+            potentialImports.to(LazyList).flatMap(loadFile(Configuration.getVercorsJREBasePath.toPath, _))).headOption
         } else {
           // If it's multiple names, it must be fully qualified
-          loadFile(basePath, name)
+          loadFile(basePath, name).orElse(loadFile(Configuration.getVercorsJREBasePath.toPath, name))
         }
       case _ => None
     }
@@ -141,7 +146,7 @@ object JavaASTClassLoader extends ExternalClassLoader {
             Method.Kind.Plain,
             jvmTypeToCOL(create)(m.getReturnType),
             m.getExceptionTypes.map(jvmTypeToCOL(create)),
-            null,
+            ContractBuilder.emptyContract(),
             m.getName,
             m.getParameters.map(jvmParameterToCOL(create)),
             false,
@@ -169,7 +174,8 @@ object JavaASTClassLoader extends ExternalClassLoader {
           potentialImportsOfNamespace(name.head, ns)
             .to(LazyList).flatMap(loadReflectively).headOption
             .orElse(loadReflectively(Seq("java", "lang") :+ name.head))
-        case _ => None
+        case None =>
+          loadReflectively(Seq("java", "lang") :+ name.head)
       }
     } else {
       loadReflectively(name)

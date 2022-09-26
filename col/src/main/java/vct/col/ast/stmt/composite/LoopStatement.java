@@ -4,7 +4,6 @@ package vct.col.ast.stmt.composite;
 import hre.ast.MessageOrigin;
 import hre.lang.HREError;
 import hre.util.ScalaHelper;
-import scala.collection.JavaConverters;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
@@ -14,9 +13,6 @@ import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.util.ASTVisitor;
 import vct.col.ast.util.ContractBuilder;
 import vct.col.ast.util.ASTUtils;
-
-import java.util.Arrays;
-import java.util.Collections;
 
 import static hre.lang.System.Debug;
 

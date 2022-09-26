@@ -10,14 +10,12 @@ import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.decl.*;
 import vct.col.ast.type.ASTReserved;
-import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
-import vct.col.ast.util.ContractBuilder;
 import vct.logging.ErrorMapping;
 
 public class CSLencoder extends AbstractRewriter {
  
-  public CSLencoder(ProgramUnit source, ErrorMapping map) {
+  public CSLencoder(ProgramUnit source, ErrorMapping errorMapping) {
     super(source);
   }
   
@@ -40,15 +38,6 @@ public class CSLencoder extends AbstractRewriter {
     }
   }
 
-  private boolean has_csl_inv(ASTClass cl){
-    for(Method m:cl.dynamicMethods()){
-      if (m.name().equals("csl_invariant")){
-        return true;
-      }
-    }
-    return false;
-  }
-  
   @Override
   public void visit(Method m){
     // TODO PB: disabling this is unsound, but this logic cannot be combined with JavaEncoder: it was already disabled accidentally.

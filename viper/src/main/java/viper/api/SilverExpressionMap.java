@@ -10,6 +10,7 @@ import hre.lang.HREError;
 import static hre.lang.System.Abort;
 
 import hre.util.Triple;
+import scala.math.BigInt;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -59,15 +60,20 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   @Override
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue) {
-      int v = ((IntegerValue) e.value()).value();
+      boolean isInIntRange = ((IntegerValue) e.value()).toInt().isDefined();
+      BigInt v = ((IntegerValue) e.value()).value();
       if (e.getType().isFraction()) {
-        switch (v) {
-          case 0:
-            return create.no_perm(e.getOrigin());
-          case 1:
-            return create.write_perm(e.getOrigin());
-          default:
-            return create.frac(e.getOrigin(), create.Constant(e.getOrigin(), v), create.Constant(e.getOrigin(), 1));
+        if (isInIntRange && (v.intValue() == 0 || v.intValue() == 1)) {
+          switch (v.intValue()) {
+            case 0:
+              return create.no_perm(e.getOrigin());
+            case 1:
+              return create.write_perm(e.getOrigin());
+            default:
+              return null;
+          }
+        } else {
+          return create.frac(e.getOrigin(), create.Constant(e.getOrigin(), v), create.Constant(e.getOrigin(), 1));
         }
       } else {
         return create.Constant(e.getOrigin(), v);
@@ -351,26 +357,44 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
     Origin o = e.getOrigin();
     switch (e.binder()) {
     case Star:
-    case Forall:
+    case Forall: {
       E expr;
-      if (e.select().isConstant(true)){
-        expr=e.main().apply(this);
+      if (e.select().isConstant(true)) {
+        expr = e.main().apply(this);
       } else {
-        expr=create.implies(o, e.select().apply(this), e.main().apply(this));
+        expr = create.implies(o, e.select().apply(this), e.main().apply(this));
       }
-      List<List<E>> triggers=new ArrayList<List<E>>();
-      if (e.triggers()!=null){
-        for (ASTNode trigger[]:e.javaTriggers()){
-          List<E> tmp=new ArrayList<E>();
-          for (ASTNode node:trigger){
+      List<List<E>> triggers = new ArrayList<List<E>>();
+      if (e.triggers() != null) {
+        for (ASTNode trigger[] : e.javaTriggers()) {
+          List<E> tmp = new ArrayList<E>();
+          for (ASTNode node : trigger) {
             tmp.add(node.apply(this));
           }
           triggers.add(tmp);
         }
       }
-      return create.forall(o, convert(e.getDeclarations()),triggers ,expr);
-    case Exists:
-      return create.exists(o, convert(e.getDeclarations()),create.and(o, e.select().apply(this), e.main().apply(this)));
+      return create.forall(o, convert(e.getDeclarations()), triggers, expr);
+    }
+    case Exists: {
+      E expr;
+      if (e.select().isConstant(true)) {
+        expr = e.main().apply(this);
+      } else {
+        expr = create.and(o, e.select().apply(this), e.main().apply(this));
+      }
+      List<List<E>> triggers = new ArrayList<List<E>>();
+      if (e.triggers() != null) {
+        for (ASTNode trigger[] : e.javaTriggers()) {
+          List<E> tmp = new ArrayList<E>();
+          for (ASTNode node : trigger) {
+            tmp.add(node.apply(this));
+          }
+          triggers.add(tmp);
+        }
+      }
+      return create.exists(o, convert(e.getDeclarations()), triggers, expr);
+    }
     case Let:{
       DeclarationStatement decls[]=e.getDeclarations();
       E res=e.main().apply(this);

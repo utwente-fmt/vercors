@@ -1,6 +1,5 @@
 // -*- tab-width:4 ; indent-tabs-mode:nil -*-
 //:: cases PaperScissorsRock
-//:: tools veymont
 //:: verdict Pass
 
 class Role {
@@ -8,12 +7,10 @@ class Role {
 	int i,x,y,z;
 	// 0 == paper, 1 == rock, 2 == scissors
 	
-	ensures Perm(i,1) ** Perm(x,1) ** Perm(y,1) ** Perm(z,1);
 	ensures (draw());
 	ensures i == j;
 	Role(int j);
 	
-	requires Perm(x,1\2) ** Perm(y,1\2) ** Perm(z,1\2);
 	pure boolean draw() = 
 		(x == y && y == z) ||
 		(x != y && y != z && z != x);
@@ -22,36 +19,24 @@ class Role {
 
 
 
-class Main {
+class SeqProgram {
 
 	Role a,b,c;
 
 	
 
-	ensures Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-	ensures Perm(a.i,1) ** Perm(a.x,1) ** Perm(a.y,1) ** Perm(a.z,1);
-	ensures Perm(b.i,1) ** Perm(b.x,1) ** Perm(b.y,1) ** Perm(b.z,1);
-	ensures Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
 	ensures a.i == 0 && b.i == 1;
 	ensures a.draw() && b.draw() && c.draw();
-	Main() {	
+	SeqProgram() {	
 		a = new Role(0);
 		b = new Role(1);
 		c = new Role(0);
 	}
 	
-	context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-	context Perm(a.i,1) ** Perm(a.x,1) ** Perm(a.y,1) ** Perm(a.z,1);
-	context Perm(b.i,1) ** Perm(b.x,1) ** Perm(b.y,1) ** Perm(b.z,1);
-	context Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
 	requires a.i == 0 && b.i == 1;
 	requires a.draw() && b.draw() && c.draw();
 	ensures a.i == -2 && b.i == 3;
 	void run() {
-		loop_invariant Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-		loop_invariant Perm(a.i,1) ** Perm(a.x,1) ** Perm(a.y,1) ** Perm(a.z,1);
-		loop_invariant Perm(b.i,1) ** Perm(b.x,1) ** Perm(b.y,1) ** Perm(b.z,1);
-		loop_invariant Perm(c.x,1) ** Perm(c.y,1) ** Perm(c.z,1);
 		loop_invariant a.i <= 0 && b.i >= 1;
 		loop_invariant a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw();
 		loop_invariant a.i == b.i*(-1) + 1;
@@ -65,8 +50,6 @@ class Main {
 		loop_invariant a.draw() == b.draw() && b.draw() == c.draw();
 		while(a.draw() && b.draw() && c.draw()) {
 			par 
-			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-			context Perm(a.i,1) ** Perm(a.x,1) ** Perm(b.x,1) ** Perm(c.x,1);
 			ensures a.i == \old(a.i) - 1;
 			ensures a.x == (\old(a.i) % 2 == 1 ? 1 : 0);
 			ensures b.x == a.x && c.x == a.x; 
@@ -76,8 +59,6 @@ class Main {
 				b.x = a.x;
 				c.x = a.x;
 			} and
-			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-			context Perm(b.i,1) ** Perm(a.y,1) ** Perm(b.y,1) ** Perm(c.y,1);
 			ensures b.i == \old(b.i) + 1;
 			ensures b.y == (\old(b.i) == 5 ? 0 : 1);
 			ensures b.y == a.y && b.y == c.y;
@@ -87,8 +68,7 @@ class Main {
 				a.y = b.y;
 				c.y = b.y;
 			} and
-			context Perm(a,read) ** Perm(b,read) ** Perm(c,read);
-			context Perm(a.z,1) ** Perm(b.z,1) ** Perm(c.z,1);
+			context Perm( c.i , 1 );
 			ensures c.z == 2;
 			ensures c.z == a.z && c.z == b.z;
 			{
@@ -100,7 +80,7 @@ class Main {
 	}
 	
     void main() {
-		Main m = new Main();
+		SeqProgram m = new SeqProgram();
 		m.run();
 	}
 

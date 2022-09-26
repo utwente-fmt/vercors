@@ -2,26 +2,25 @@ package vct.col.features
 
 import hre.ast.MessageOrigin
 import hre.lang.System.{LogLevel, Output, getLogLevelOutputWriter}
-import vct.col.ast.`type`.{ASTReserved, ClassType, PrimitiveSort, PrimitiveType, TypeExpression, TypeOperator, TypeVariable}
-import vct.col.ast.stmt
-import vct.col.ast.stmt.composite.{BlockStatement, CatchClause, ForEachLoop, IfStatement, LoopStatement, ParallelBarrier, ParallelBlock, ParallelInvariant, ParallelRegion, TryCatchBlock}
-import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, ASTFlags, ASTSpecial, AxiomaticDataType, Contract, DeclarationStatement, Method, NameSpace, ProgramUnit, VariableDeclaration}
-import vct.col.ast.expr.{Binder, BindingExpression, KernelInvocation, MethodInvokation, NameExpression, NameExpressionKind, OperatorExpression, StandardOperator}
-import vct.col.ast.expr
+import vct.col.ast.`type`._
 import vct.col.ast.expr.constant.{ConstantExpression, StructValue}
-import vct.col.ast.util.{AbstractVisitor, RecursiveVisitor, SequenceUtils}
+import vct.col.ast.expr._
 import vct.col.ast.generic.{ASTNode, BeforeAfterAnnotations}
-import vct.col.ast.langspecific.c.{OMPFor, OMPForSimd, OMPParallel, OMPParallelFor, OMPSection, OMPSections}
+import vct.col.ast.langspecific.c._
+import vct.col.ast.{expr, stmt}
+import vct.col.ast.stmt.composite._
 import vct.col.ast.stmt.decl.ASTClass.ClassKind
-import vct.col.ast.stmt.terminal.{AssignmentStatement, ReturnStatement}
+import vct.col.ast.stmt.decl._
+import vct.col.ast.stmt.terminal.AssignmentStatement
+import vct.col.ast.util.{RecursiveVisitor, SequenceUtils}
 import vct.col.rewrite.{AddTypeADT, IntroExcVar, PVLEncoder}
 import vct.parsers.rewrite.InferADTTypes
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters._
 
-class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
+class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source) {
   val features: mutable.Set[Feature] = mutable.Set()
   val blames: mutable.Map[Feature, ArrayBuffer[ASTNode]] = mutable.Map()
 
@@ -82,6 +81,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(v)
   }
 
+
   override def visit(c: ASTClass): Unit = {
     super.visit(c)
     if(c.kind != ClassKind.Record && c.methods().asScala.nonEmpty)
@@ -109,8 +109,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
             case _ => addFeature(NoLockInvariantProof, c)
           }
         case None =>
+          addFeature(NoLockInvariantProof, c)
       }
     }
+    if(c.super_classes.exists(_.getName == "RecursiveAction"))
+      addFeature(RecursiveActionInheritance,c)
   }
 
   private def isPure(m: Method): Boolean =
@@ -611,6 +614,7 @@ object Feature {
     SubscriptRange,
     Dereference,
     Inheritance,
+    RecursiveActionInheritance,
     Null,
     This,
     JavaAtomic,
@@ -739,6 +743,7 @@ object Feature {
     SubscriptRange,
     Dereference,
     Inheritance,
+    RecursiveActionInheritance,
     Null,
     This,
     JavaAtomic,
@@ -841,6 +846,7 @@ case object ImproperlySortedBeforeAfter extends ScannableFeature
 case object SubscriptRange extends ScannableFeature // no pass
 case object Dereference extends ScannableFeature
 case object Inheritance extends ScannableFeature
+case object RecursiveActionInheritance extends ScannableFeature
 case object Null extends ScannableFeature
 case object This extends ScannableFeature
 case object JavaAtomic extends ScannableFeature

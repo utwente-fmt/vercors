@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 class simplify_quant_pass1 {
   _AnyTypeForSimplificationRules g1,g2,g3,g4,g5;
   int e1,e2,e3,e4,e5,e6,e7,e8;
@@ -8,6 +6,7 @@ class simplify_quant_pass1 {
   int i,j,k;
   rational p1,p2;
   int tid;
+  frac f1;
 
   axiom aunitr { e1+0 == e1 }
   axiom aunitl { 0+e1 == e1 }
@@ -18,6 +17,7 @@ class simplify_quant_pass1 {
   axiom I2 {
     0 * e1 == 0
   }
+
   axiom I3 {
     e1 * 0 == 0
   }
@@ -32,8 +32,6 @@ class simplify_quant_pass1 {
   axiom div_1 { ( 1 / e1 ) * e2 == e2 / e1 }
   axiom div_2 { e2 * ( 1 / e1 ) == e2 / e1 }
 
-  // SJ: div_3 is not true for e1 == 0
-  // axiom div_3 { e1 / e1 == 1 }
   axiom div_4 { e1 / 1 == e1 }
 
   axiom B1 {
@@ -140,26 +138,15 @@ class simplify_quant_pass1 {
     (e1 < e2 && b2) ==> b1
   }
 
-/*
-// SJ: the more generic version of the above, as shown below, can make it harder to solve things
-  axiom A1 {
-    (\forall int i; b1 ; (b2!i))
-    ==
-    ((\exists int i; true ; b1 ) ==> b2)
-  }
-*/
-
   int ar[];
+  boolean ar_b[];
 
+  axiom perm_any_int {
+    Perm(ar[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],f1))
+  }
 
-//  axiom deindex2 {
-//    (\forall* int i; e1 ; Perm(ar[ this.multidim_index_2(e2,e3,e4,e5) ], e6 ))
-//    ==
-//    (\forall* int i; e1 ; Perm(ar[ e4*e3 + e5 ], e6 ))
-//  }
-
-  axiom perm_any {
-    Perm(ar[*],e1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar.length ; Perm(ar[i_fresh],e1))
+  axiom perm_any_bool {
+    Perm(ar_b[*],f1) == (\forall* int i_fresh ; 0 <= i_fresh && i_fresh < ar_b.length ; Perm(ar_b[i_fresh],f1))
   }
 
   axiom array_perm {
@@ -171,120 +158,65 @@ class simplify_quant_pass1 {
   axiom single_b { (\forall int i; b1 ; (i == (e1!i)) ==> b2 )
                ==
                  (\let int i=e1 ; b1 ==> b2 ) }
-  /* // SJ: these are already matched by axiom A2
-   axiom inlist { (\forall* int i; e1 <= i && i < e2 ; r1 )
-                 ==
-                 (\forall* int i;  ( i \memberof { e1 .. e2 }) ; r1 ) }
 
-   axiom inlistb { (\forall int i; e1 <= i && i < e2 ; b1 )
-                 ==
-                 (\forall int i;  ( i \memberof { e1 .. e2 }) ; b1 ) }
-*/
-   axiom LEFTPLUS { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ (e3!i)+i ] , (p1!i) ) )
-                 ==
-                 (\forall* int i;  ( i \memberof { e3+e1 .. e3+e2 }) ; Perm( ar [ i ] , p1 ) ) }
+  axiom LEFTPLUS { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ (e3!i)+i ] , (p1!i) ) )
+                ==
+                (\forall* int i;  ( i \memberof { e3+e1 .. e3+e2 }) ; Perm( ar [ i ] , p1 ) ) }
 
-   axiom LEFTPLUS2 { (\forall* int i;( i \memberof { e1 .. e2 }) ;
-                        (\forall* int j ; (j \memberof {(e5!i)..(e6!i)}) ;
-                        Perm( ar [ (e3!i)+i ] , e4 ) ))
-                 ==
-                   (\forall* int j ; (j \memberof {e5..e6}) ;
-                 (\forall* int i;  ( i \memberof { e3+e1 .. e3+e2 }) ; Perm( ar [ i ] , e4 ) ))
-                  }
+  axiom LEFTPLUS2 { (\forall* int i;( i \memberof { e1 .. e2 }) ;
+                       (\forall* int j ; (j \memberof {(e5!i)..(e6!i)}) ;
+                       Perm( ar [ (e3!i)+i ] , e4 ) ))
+                ==
+                  (\forall* int j ; (j \memberof {e5..e6}) ;
+                (\forall* int i;  ( i \memberof { e3+e1 .. e3+e2 }) ; Perm( ar [ i ] , e4 ) ))
+                 }
 
-   axiom constant { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( (e3!i) , (e4!i) ) )
-                 ==
-                   e1 < e2 ==> Perm(e3,e4*(e2-e1)) }
+  axiom constant { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( (e3!i) , (e4!i) ) )
+                ==
+                  e1 < e2 ==> Perm(e3,e4*(e2-e1)) }
 
-   axiom constant_2 {
-      (\forall* int i; (i \memberof {e1 .. e2});
-          (\forall* int j; (j \memberof {(e3!i) .. (e4!i)}); Perm((e5!i), (p1!i))))
-      ==
-      (e1 < e2) ==> (\forall* int j; (j \memberof {e3 .. e4}); Perm(e5, (e2 - e1) * p1))
-   }
+  axiom constant_2 {
+     (\forall* int i; (i \memberof {e1 .. e2});
+         (\forall* int j; (j \memberof {(e3!i) .. (e4!i)}); Perm((e5!i), (p1!i))))
+     ==
+     (e1 < e2) ==> (\forall* int j; (j \memberof {e3 .. e4}); Perm(e5, (e2 - e1) * p1))
+  }
 
-   axiom right_plus { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ i+(e3!i) ] , (p1!i) ) )
-                 ==
-                 (\forall* int i;  ( i \memberof { e1+e3 .. e2+e3 }) ; Perm( ar [ i ] , p1 ) ) }
+  axiom right_plus { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ i+(e3!i) ] , (p1!i) ) )
+                ==
+                (\forall* int i;  ( i \memberof { e1+e3 .. e2+e3 }) ; Perm( ar [ i ] , p1 ) ) }
 
-   axiom minus { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ i-(e3!i) ] , (e4!i) ) )
-                 ==
-                 (\forall* int i;  ( i \memberof { e1-e3 .. e2-e3 }) ; Perm( ar [ i ] , e4 ) ) }
+  axiom minus { (\forall* int i;( i \memberof { e1 .. e2 }) ; Perm( ar [ i-(e3!i) ] , (e4!i) ) )
+                ==
+                (\forall* int i;  ( i \memberof { e1-e3 .. e2-e3 }) ; Perm( ar [ i ] , e4 ) ) }
 
-   axiom left_plusb { (\forall int i;( i \memberof { e1 .. e2 }) ; ar [ (e3!i) + i ] == (e4!i) )
-                 ==
-                 (\forall int i;  ( i \memberof { e3+e1 .. e3+e2 }) ; ar [ i ] == e4 ) }
+  axiom left_plusb { (\forall int i;( i \memberof { e1 .. e2 }) ; ar [ (e3!i) + i ] == (e4!i) )
+                ==
+                (\forall int i;  ( i \memberof { e3+e1 .. e3+e2 }) ; ar [ i ] == e4 ) }
 
-
-  /* // SJ: Tried to fix this, but still unsure if this holds... Removing it didn't destroy any tests so I'll keep it commented
-   axiom nested_bool_1_a_00 {
-        (\forall int i;( i \memberof { 0 .. e1 }) ;
-           (\forall int j;( j \memberof { 0 .. (e2!i) }) ;
-              ar[ i * ((e3!i)!j) + j ] == \old(ar[ i * e3 + j ]) ))
-    ==
-       (0 <= e1 && 0 <= e2) ==>
-       (\forall int k_fresh;(k_fresh \memberof { 0 .. e1*e3}) && (k_fresh % e3 < e2);
-          ar[k_fresh] == \old(ar[k_fresh]) )
-   }
-   */
-
-
-// SJ: I repaired this from something that was clearly false. Unsure if it helps.
-   axiom nested_bool_1 {
-        (\forall int i;( i \memberof { 0 .. e1 }) ;
-           (\forall int j;( j \memberof { 0 .. (e2!i) }) ;
-              ar[ e3 + j ] == ((e4!i)!j) ))
-    ==
-       e1 > 0 && e2 > 0 ==>
-       (\forall int k_fresh;(k_fresh \memberof {0 .. e1*e2});
-          (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
-             ar[ e3 + j ] == e4 )))
-   }
-
-// SJ: same as above, but with i and j flipped
-   axiom nested_bool_2 {
-        (\forall int j;( j \memberof { 0 .. e2 }) ;
-          (\forall int i;( i \memberof { 0 .. (e1!j) }) ;
-              ar[ e3 + j ] == e4 ))
-    ==
-       e1 > 0 && e2 > 0 ==>
-       (\forall int k_fresh;(k_fresh \memberof { 0 .. e1*e2});
-          (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
-//            ( i \memberof [ 0 .. e1 )) && ( j \memberof { 0 .. e2 }) && ar[ e3 + j ] == e4 )))
+  // SJ: I repaired this from something that was clearly false. Unsure if it helps.
+  axiom nested_bool_1 {
+       (\forall int i;( i \memberof { 0 .. e1 }) ;
+          (\forall int j;( j \memberof { 0 .. (e2!i) }) ;
+             ar[ e3 + j ] == ((e4!i)!j) ))
+   ==
+      e1 > 0 && e2 > 0 ==>
+      (\forall int k_fresh;(k_fresh \memberof {0 .. e1*e2});
+         (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
             ar[ e3 + j ] == e4 )))
-   }
+  }
 
-   /*
-   // SJ: Does not hold if e1 <= 0 or if e2 > e3, did not try to fix: rule didn't seem all that needed
-   axiom nested_bool_1_a_0 {
-        (\forall int i;( i \memberof { 0 .. e1 }) ;
-           (\forall int j;( j \memberof { 0 .. e2 }) ;
-              (ar[ i * ((e3!i)!j) + j ] \memberof ((e4!i)!j)) ))
-    ==
-       e2 <= e3 &&
-       (\forall int k_fresh;(k_fresh \memberof { 0 .. e1*e3}) && (k_fresh % e3 < e2);
-          (ar[k_fresh] \memberof e4))
-   }
-
-//   axiom nested_bool_1_a {
-//        (\forall int i;( i \memberof {0 .. e1 }) ;
-//           (\forall int j;( j \memberof {0 .. e2}) ;
-//              (ar[ e3 + j ] \memberof e4) ))
-//    ==
-//       (\forall int k_fresh;(k_fresh \memberof {0 .. e1*e2});
-//          (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
-//             (ar[ e3 + j ] \memberof e4) )))
-//   }
-
-   axiom nested_bool_2_a {
-        (\forall int j;( j \memberof {0 .. e2}) ;
-          (\forall int i;( i \memberof {0 .. e1}) ;
-              (ar[ e3 + j ] \memberof e4) ))
-    ==
-       (\forall int k_fresh;(k_fresh \memberof {0 .. e1*e2});
-          (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
-            (ar[ e3 + j ] \memberof e4) )))
-   } */
+  // SJ: same as above, but with i and j flipped
+  axiom nested_bool_2 {
+       (\forall int j;( j \memberof { 0 .. e2 }) ;
+         (\forall int i;( i \memberof { 0 .. (e1!j) }) ;
+             ar[ e3 + j ] == e4 ))
+   ==
+      (e1 > 0 && e2 > 0 ==>
+      (\forall int k_fresh;(k_fresh \memberof { 0 .. e1*e2});
+         (\let int i=k_fresh/e2 ; (\let int j=k_fresh%e2 ;
+           ar[ e3 + j ] == e4 ))))
+  }
 
    // SJ: given that e1 / 0 = 0, this implies that e1 % 0 = e1, violating e1 % d < d (and acceptably so..)
    axiom div_mod {
@@ -298,18 +230,6 @@ class simplify_quant_pass1 {
      ( j \memberof {i * e3 .. (i + 1) * e3})
    }
 
-   /*
-   // SJ: fixed this slightly, trying to see if removing this breaks anything..
-   axiom triple_1 {
-     (\forall* int i;( i \memberof {0 .. e1} );
-       (\forall* int j;( j \memberof {0 .. (e2!i)} );
-         (\forall* int k;( k \memberof {((e3!i)!j) .. ((e4!i)!j)} );
-           Perm(ar[k * ( e1 * e2 ) + ( j * e1 + i) ],e5) )))
-      ==
-     e1 > 0 && e2 > 0 && e3 < e4 ==> (\forall* int i;( i \memberof {e1 * e2 * e3 .. e1 * e2 * e4});Perm(ar[i],e5))
-   }
-   */
-
    // SJ: I added the requirement that e3 should not depend on i.
    // This rule is probably useful for paralel blocks
    axiom nested_1 {
@@ -320,33 +240,7 @@ class simplify_quant_pass1 {
         e3 > 0 ==> (\forall* int j;( j \memberof {e1 * e3 .. e2 * e3} ); r1 )
         }
 
-   /* // SJ: I guess these are allready taken care of by the rule nested_1, plus they are wrong..
-   axiom nested_Z1 {
-        (\forall* int i;( i \memberof {e1 .. e2} );
-            (\forall* int j;( j \memberof {0 .. e3} );
-                Perm( ar[e5 + (i*e3+j) ] , ((e4!i)!j) ) ))
-        ==
-        (\forall* int j;( j \memberof {e1 * e3 .. e2 * e3} ); Perm(ar[e5+j],e4) )
-        }
 
-   axiom nested_Z1_x {
-        (\forall* int i;( i \memberof {e1 .. e2} ) && e6;
-            (\forall* int j;( j \memberof {0 .. e3} );
-                Perm( ar[e5 + (i*e3+j) ] , ((e4!i)!j) ) ))
-        ==
-        (\forall* int j;( j \memberof {e1 * e3 .. e2 * e3} ) && e6; Perm(ar[e5+j],e4) )
-        }
-   */
-
-   /* // SJ: the following only works if e4 <= e3, the other case is missing
-   axiom nested_x1 {
-        (\forall* int i;( i \memberof {e1 .. e2} );
-            (\forall* int j;( j \memberof {i * (e3!i) .. i * e3 + (e4!i)} );
-                (r1!i) ))
-        ==
-          (e4 <= e3) ==>
-        (\forall* int j;( j \memberof {e1 * e3 .. e2 * e3} ) && (j % e3 < e4); r1 )
-        } */
 
    // SJ: same as in nested_1: I don't see where this would be useful, but it's nice to have the symmetry
    axiom nested_1b {
@@ -357,36 +251,6 @@ class simplify_quant_pass1 {
         e3 > 0 ==> (\forall int j;( j \memberof {e1 * e3 .. e2 * e3} ); b1 )
         }
 
-   /* // SJ: same comment as for nested_x1, so also commented
-   axiom nested_x1b {
-        (\forall int i;( i \memberof { e1 .. e2 } );
-            (\forall int j;( j \memberof {i * e3 .. i * e3 + e4} );
-                (b1!i) ))
-        ==
-          (e4 <= e3) **
-        (\forall int j;( j \memberof {e1 * e3 .. e2 * e3} ) && (j % e3 < e4); b1 )
-        }
-   */
-
-   /* // SJ: not repaired yet, fortunately, this is not really needed either
-   axiom nested_2 {
-        (\forall* int i;( i \memberof { e1 .. e2 } );
-            (\forall* int j;( j \memberof {((e4!i) + i) * e3 .. (e4 + i + 1) * e3} );
-                (r1!i) ))
-        ==
-        (\forall* int j;( j \memberof {(e4 + e1) * e3 .. (e4 + e2) * e3} ); r1 )
-        }
-
-   axiom nested_2x {
-        (\forall* int i;( i \memberof { e1 .. e2 } );
-          (\forall* int k ; (b1!i) ;
-            (\forall* int j;( j \memberof {((e4!i) + i) * e3 .. (e4 + i + 1) * e3} );
-                (r1!i) )))
-        ==
-          (\forall* int k ; b1 ;
-        (\forall* int j;( j \memberof {(e4 + e1) * e3 .. (e4 + e2) * e3} ); r1 ))
-        }
-    */
 
     axiom lin1 {
         (\forall* int i;( i \memberof {e1 * (e2!i) * (e3!i) .. e4}) ; r1 )
@@ -407,18 +271,10 @@ class simplify_quant_pass1 {
     }
 
     axiom split2 {
-       (\forall* int i;b1;PointsTo(e2,e3,e4))
+       (\forall* int i;b1;PointsTo(e2,f1,e4))
          ==
-       (\forall* int i;b1;Perm(e2,e3)) ** (\forall int i;b1;e2==e4)
+       (\forall* int i;b1;Perm(e2,f1)) ** (\forall int i;b1;e2==e4)
     }
-
-    /* // SJ: unfortunately, this introduces an existential quantifier which is not always a good thing...
-    axiom nested_value {
-      (\forall* int i ; e1 ; (\forall* int j ; (e2!i) ; Value((e3!i))))
-        ==
-      (\exists int i; true ; e1 ) ==> (\forall* int j ; e2 ; Value(e3))
-    }
-    */
 
   axiom resource_independent_quant {
     (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, p1)!tid))
@@ -432,23 +288,13 @@ class simplify_quant_pass1 {
     (e1 < e2) ==> (\forall* int i; (i \memberof {e3 .. e4}); Perm(e5, (p1 * (e2 - e1))\p2))
   }
 
-  // We keep the expression around, because it must trigger an error when it is not well formed, but we don't use it
-  // We're counting on the backend to not optimize it away if it contains an error
-  axiom read_spreads_l {
-    read * i
+  axiom compress_implies {
+    (b1 ==> (b1 ==> r1))
     ==
-    (\let int canary = i; i == 0 ? read : read)
+    (b1 ==> r1)
   }
 
-  axiom read_spreads_r {
-    i * read
-    ==
-    (\let int canary = i; i == 0 ? read : read)
-  }
-
-  axiom resource_independent_read_quant {
-    (\forall* int tid; (tid \memberof {e1..e2}); (Perm(g1, read)!tid))
-    ==
-    (e1<e2) ==> Perm(g1, read)
-  }
+  // Using an int for the second argument of a perm is not allowed.
+  // Hence, we divide by 1 to turn it into a frac again.
+  axiom perm_fix_frac { Perm(g1, e1) == Perm(g1, e1 \ 1) }
 }
