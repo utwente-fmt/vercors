@@ -1,6 +1,5 @@
 package vct.parsers
 import com.typesafe.scalalogging.LazyLogging
-import hre.config.Configuration
 import hre.io.{RWFile, Readable}
 import org.antlr.v4.runtime.{CharStream, CharStreams}
 import vct.parsers.CParser.PreprocessorError

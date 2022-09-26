@@ -4,7 +4,6 @@ import hre.util.FuncTools
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
-import vct.col.features.MemberOfRange
 import vct.col.newrewrite.util.Comparison
 import vct.col.origin.Origin
 import vct.col.ref.Ref

@@ -1,6 +1,6 @@
 package vct.col.newrewrite
 
-import hre.lang.System.Warning
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Star, _}
 import vct.col.origin._
@@ -17,7 +17,7 @@ case object CheckProcessAlgebra extends RewriterBuilder {
   override def desc: String = "TODO description"
 }
 
-case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
+case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   case class ModelPostconditionFailed(process: ModelProcess[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case post: PostconditionFailed => process.blame.blame(post)
@@ -56,7 +56,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
               val parallelCompositionElems = processPar.unfoldProcessPar.toSet
               if (parallelCompositionElems.forall(_.isInstanceOf[ProcessApply[Pre]])) {
                 if (compositeMap.contains(parallelCompositionElems)) {
-                  Warning(
+                  logger.warn(
                     "Collision detected: %s vs. %s have same set of process elements composed in parallel",
                     process.o.preferredName,
                     compositeMap(parallelCompositionElems).o.preferredName
@@ -66,7 +66,7 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] {
                 }
               } else {
                 // TODO: Should this be done by typechecking?
-                Warning("Process detected that composes non-process elements in parallel")
+                logger.warn("Process detected that composes non-process elements in parallel")
               }
             case _ =>
           }

@@ -1,6 +1,5 @@
 package vct.parsers
 
-import hre.lang.System.Warning
 import org.antlr.v4.runtime
 import org.antlr.v4.runtime.{ANTLRErrorListener, RecognitionException, Recognizer, Token}
 import org.antlr.v4.runtime.atn.ATNConfigSet

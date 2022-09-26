@@ -4,7 +4,6 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
-import vct.col.ast.expr.MethodInvokation
 import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
 import vct.col.ref.Ref
@@ -124,6 +123,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         }
       case other => rewriteDefault(other)
     }
+
+    /**
+      * In case we want to reinline a declaration, we do not want to rewrite it, because it has already been rewritten
+      *   by the root rewriter.
+      */
+    override def dispatch(decl: Declaration[Post]): Unit = allScopes.anyDeclare(decl)
+
   }
 
   def evaluateOne(e: Expr[Pre]): (Seq[Variable[Post]], Seq[Statement[Post]], Expr[Post]) = {
@@ -210,7 +216,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           assignLocal(currentResultVar.top, e),
           Return(Void()),
         )))
-      case ass @ Assign(target, value) => frame(target, value, Assign(_, _)(ass.blame))
+      case ass @ Assign(target, value) =>
+        frame(target, value, Assign(_, _)(ass.blame))
       case block: Block[Pre] => rewriteDefault(block)
       case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
