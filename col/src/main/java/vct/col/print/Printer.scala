@@ -38,7 +38,7 @@ sealed trait PrinterState {
 case class InLine(lastWasSpace: Boolean, specDepth: Int, banNewlinesDepth: Int, indent: Int) extends PrinterState {
   override def say(text: String)(implicit printer: Printer): PrinterState = {
     printer.out.append(text)
-    InLine(text.last == ' ', specDepth, banNewlinesDepth, indent)
+    InLine(if(text.nonEmpty) text.last == ' ' else false, specDepth, banNewlinesDepth, indent)
   }
 
   override def space()(implicit printer: Printer): PrinterState = {
@@ -412,7 +412,7 @@ case class Printer(out: Appendable,
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
     case CDeclarationStatement(decl) =>
-      statement(syntax(C -> phrase(decl.decl.specs, commas(decl.decl.inits.map(NodePhrase)))))
+      statement(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
       statement(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
     case GpgpuBarrier(requires, ensures, specifier) =>
@@ -1128,6 +1128,10 @@ case class Printer(out: Appendable,
       statement(field.t, space, name(field))
     case variable: Variable[_] =>
       phrase(variable.t, space, name(variable))
+    case decl: CLocalDeclaration[_] =>
+      phrase(decl.decl)
+    case decl: CGlobalDeclaration[_] =>
+      phrase(decl.decl)
     case decl: LabelDecl[_] =>
       ???
     case decl: ParBlockDecl[_] =>
@@ -1185,7 +1189,9 @@ case class Printer(out: Appendable,
   def printCDeclarator(node: CDeclarator[_]): Unit = node match {
     case CPointerDeclarator(pointers, inner) =>
       say("*".repeat(pointers.size), inner)
-    case CArrayDeclarator(qualifiers, size, inner) =>
+    case CArrayDeclarator(qualifiers, Some(size), inner) =>
+      say(inner, "[", size ,"]")
+    case CArrayDeclarator(qualifiers, None, inner) =>
       say(inner, "[]")
     case CTypedFunctionDeclarator(params, varargs, inner) =>
       say(inner, "(", commas(params.map(NodePhrase)), ")")
@@ -1220,7 +1226,7 @@ case class Printer(out: Appendable,
     ))
     case GPUGlobal() => say(syntax(
       OpenCL -> phrase("__global"),
-      ))
+    ))
   }
 
   def printCTypeQualifier(node: CTypeQualifier[_]): Unit = node match {
@@ -1295,6 +1301,16 @@ case class Printer(out: Appendable,
     print(node.program)
   }
 
+  def printCDeclaration(node: CDeclaration[_]): Unit = {
+    say(newline, node.contract, newline)
+    node.kernelInvariant match {
+      case BooleanValue(true) =>
+      case _ => say("kernel_invariant: ", node.kernelInvariant, space)
+    }
+    say(spaced(node.specs.map(NodePhrase)), space)
+    say(spaced(node.inits.map(NodePhrase)))
+  }
+
   def print(node: Node[_]): Unit = node match {
     case program: Program[_] => printProgram(program)
     case stat: Statement[_] => printStatement(stat)
@@ -1319,6 +1335,7 @@ case class Printer(out: Appendable,
     case node : Location[_] => printLocation(node)
     case node: Verification[_] => printVerification(node)
     case node: VerificationContext[_] => printVerificationContext(node)
+    case node: CDeclaration[_] => printCDeclaration(node)
     case x =>
       say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
   }

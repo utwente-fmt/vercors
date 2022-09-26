@@ -2,6 +2,7 @@ package vct.col.ast.temporaryimplpackage.expr.ambiguous
 
 import vct.col.ast.{AmbiguousSubscript, Type}
 import vct.col.coerce.CoercionUtils
+import vct.result.VerificationError.{Unreachable}
 
 trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(collection.t).isDefined
@@ -13,5 +14,6 @@ trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
     if (isSeqOp) collection.t.asSeq.get.element
     else if (isArrayOp) collection.t.asArray.get.element
     else if (isPointerOp) collection.t.asPointer.get.element
-    else collection.t.asMap.get.value
+    else if (isMapOp) collection.t.asMap.get.value
+    else throw Unreachable(s"Trying to subscript ($this) a non subscriptable variable with type $collection.t")
 }

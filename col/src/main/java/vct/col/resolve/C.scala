@@ -49,7 +49,7 @@ case object C {
     case CArrayDeclarator(_, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       // TODO PB: I think pointer is not correct here.
-      DeclaratorInfo(innerInfo.params, t => TPointer(innerInfo.typeOrReturnType(t)), innerInfo.name)
+      DeclaratorInfo(innerInfo.params, t => TArray(innerInfo.typeOrReturnType(t)), innerInfo.name)
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)

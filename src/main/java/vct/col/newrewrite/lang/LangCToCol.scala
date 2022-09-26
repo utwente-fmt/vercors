@@ -27,6 +27,11 @@ case object LangCToCol {
       example.o.messageInContext("Global variables in C are not supported.")
   }
 
+  case class MultipleSharedMemoryDeclaration(decl: Node[_]) extends UserError {
+    override def code: String = "multipleSharedMemoryDeclaration"
+    override def text: String = s"We don't support declaring multiple shared memory variables at a single line: '$decl'."
+  }
+
   case class WrongGPUKernelParameterType(param: CParam[_]) extends UserError {
     override def code: String = "wrongParameterType"
     override def text: String = s"The parameter `$param` has a type that is not allowed`as parameter in a GPU kernel."
@@ -34,12 +39,23 @@ case object LangCToCol {
 
   case class WrongGPUType(param: CParam[_]) extends UserError {
     override def code: String = "wrongGPUType"
-    override def text: String = s"The parameter `$param` has a type that is not allowed`outside of a GPU kernel."
+    override def text: String = s"The parameter `$param` has a type that is not allowed outside of a GPU kernel."
+  }
+
+  case class WrongCType(decl: CLocalDeclaration[_]) extends UserError {
+    override def code: String = "wrongCType"
+    override def text: String = s"The declaration `$decl` has a type that is not supported."
+  }
+
+  // TODO: LvdH: How do I get prettier error messages that refer to the origin and etc?
+  case class WrongGPULocalType(local: CLocalDeclaration[_]) extends UserError {
+    override def code: String = "wrongGPULocalType"
+    override def text: String = s"The local declaration `$local` has a type that is not allowed inside a GPU kernel."
   }
 
   case class NotDynamicSharedMem(e: Expr[_]) extends UserError {
     override def code: String = "notDynamicSharedMem"
-    override def text: String = s"The expression \\shared_mem_size(`$e`) is not referencing to a shared memory location."
+    override def text: String = s"The expression `\\shared_mem_size($e)` is not referencing to a dynamic shared memory location."
   }
 
   case class WrongBarrierSpecifier(b: GpgpuBarrier[_]) extends UserError {
@@ -86,9 +102,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
   val cudaCurrentGrid: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
   val cudaCurrentBlock: ScopedStack[ParBlockDecl[Post]] = ScopedStack()
 
-  private val dynamicSharedMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
+  private val dynamicSharedMemNames: mutable.Set[CNameTarget[Pre]] = mutable.Set()
   private val dynamicSharedMemLengthVar: mutable.Map[CNameTarget[Pre], Variable[Post]] = mutable.Map()
-  private val staticSharedMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
+  private val staticSharedMemNames: mutable.Map[CNameTarget[Pre], BigInt] = mutable.Map()
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var inKernel: Boolean = false
 
@@ -113,7 +129,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
 
     def varIsNotShared(l: CLocal[Pre]): Boolean = {
       l.ref match {
-        case Some(ref: RefCParam[Pre])
+        case Some(ref: CNameTarget[Pre])
           if dynamicSharedMemNames.contains(ref) || staticSharedMemNames.contains(ref) => return false
         case None => if (!allowedNonRefs.contains(l.name)) ???
         case _ =>
@@ -149,45 +165,25 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     cParam.drop()
     val varO = InterpretedOriginVariable(C.getDeclaratorInfo(cParam.declarator).name, cParam.o)
     implicit val o: Origin = cParam.o
-
-    var arrayOrPointer = false
-    var global = false
-    var shared = false
-    var extern = false
-    var innerType: Option[Type[Pre]] = None
-
     val cRef = RefCParam(cParam)
-
-    cParam.specifiers.foreach{
-      case GPULocal() => shared = true
-      case GPUGlobal() => global = true
-      case CSpecificationType(TPointer(t)) =>
-        arrayOrPointer = true
-        innerType = Some(t)
-      case CSpecificationType(TArray(t)) =>
-        arrayOrPointer = true
-        innerType = Some(t)
-      case CExtern() => extern = true
-      case _ =>
-    }
+    val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
 
     language match {
       case Some(Language.C) =>
-        if(global && !shared && arrayOrPointer && !extern) globalMemNames.add(cRef)
-        else if(shared && !global && arrayOrPointer && !extern) {
-          dynamicSharedMemNames.add(cRef)
-          // Create Var with array type here and return
-          val v = new Variable[Post](TArray[Post](rw.dispatch(innerType.get)) )(varO)
-          cNameSuccessor(cRef) = v
+        if(tp.isGlobal && tp.arrayOrPointer && !tp.extern) globalMemNames.add(cRef)
+        else if(tp.isShared && tp.arrayOrPointer && !tp.extern && tp.innerType.isDefined) {
+          addDynamicShared(cRef, tp.innerType.get, varO)
+          // Return, since shared memory locations are declared and initialized at thread block level, not kernel level
           return
         }
-        else if(!shared && !global && !arrayOrPointer && !extern) ()
+        else if(!tp.shared && !tp.global && !tp.arrayOrPointer && !tp.extern) ()
         else throw WrongGPUKernelParameterType(cParam)
       case Some(Language.CUDA) =>
-        if(!global && !shared && arrayOrPointer && !extern) globalMemNames.add(cRef)
-        else if(!shared && !global && !arrayOrPointer && !extern) ()
+        if(!tp.global && !tp.shared && tp.arrayOrPointer && !tp.extern) globalMemNames.add(cRef)
+        else if(!tp.shared && !tp.global && !tp.arrayOrPointer && !tp.extern) ()
         else throw WrongGPUKernelParameterType(cParam)
-      case _ => throw Unreachable(f"The language '$language' should not have GPU kernels.'")
+      case Some(l) => throw Unreachable(f"The language '$l' should not have GPU kernels.")
+      case None => throw Unreachable(f"We have GPU kernels, but the source code language could not be determined.")
     }
 
     val v = new Variable[Post](cParam.specifiers.collectFirst
@@ -295,6 +291,50 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     cudaCurrentBlockIdx.having(block) { all(block, cudaCurrentGridDim.top, allThreadsInBlock(e)) }
   }
 
+  def getCDecl(d: CNameTarget[Pre]): CDeclarator[Pre] = d match {
+    case RefCParam(decl) => decl.declarator
+    case RefCFunctionDefinition(decl) => decl.declarator
+    case RefCGlobalDeclaration(decls, initIdx) => decls.decl.inits(initIdx).decl
+    case RefCLocalDeclaration(decls, initIdx) => decls.decl.inits(initIdx).decl
+    case _ => throw Unreachable("Should not happen")
+  }
+
+  def getInnerType(t: Type[Post]): Type[Post] = t match {
+    case TArray(element) => element
+    case TPointer(element) => element
+    case _ => throw Unreachable("Already checked on pointer or array type")
+  }
+
+  def declareSharedMemory(): (Seq[Variable[Post]], Seq[Statement[Post]]) = {
+    rw.variables.collect {
+      var result: Seq[Statement[Post]] = Seq()
+      dynamicSharedMemNames.foreach(d =>
+      {
+        implicit val o: Origin = getCDecl(d).o
+        val varO: Origin = InterpretedOriginVariable(s"${C.getDeclaratorInfo(getCDecl(d)).name}_size", o)
+        val v = new Variable[Post](TInt())(varO)
+        dynamicSharedMemLengthVar(d) = v
+        rw.variables.declare(v)
+        val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
+        val assign: Statement[Post] = Assign[Post](Local(cNameSuccessor(d).ref)
+          , NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0))(PanicBlame("Assign should work"))
+        result ++= Seq(decl, assign)
+      })
+      staticSharedMemNames.foreach{case (d,size) =>
+      {
+        implicit val o: Origin = getCDecl(d).o
+        val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
+        val assign: Statement[Post] = Assign[Post](Local(cNameSuccessor(d).ref)
+          , NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0))(PanicBlame("Assign should work"))
+        result ++= Seq(decl, assign)
+      }}
+
+      result
+    }
+
+
+  }
+
   def kernelProcedure(o: Origin, contract: ApplicableContract[Pre], info: C.DeclaratorInfo[Pre], body: Option[Statement[Pre]]): Procedure[Post] = {
     dynamicSharedMemNames.clear()
     staticSharedMemNames.clear()
@@ -306,22 +346,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
       cudaCurrentGridDim.having(gridDim) {
         val args = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
         rw.variables.collect { dynamicSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d)) ) }
-        val (sharedMemSizes, sharedMemInit: Seq[Statement[Post]]) = rw.variables.collect {
-          var result: Seq[Statement[Post]] = Seq()
-          dynamicSharedMemNames.foreach(d =>
-          {
-            implicit val o: Origin = d.decl.o
-            val varO: Origin = InterpretedOriginVariable(s"${C.getDeclaratorInfo(d.decl.declarator).name}_size", d.decl.o)
-            val v = new Variable[Post](TInt())(varO)
-            dynamicSharedMemLengthVar(d) = v
-            rw.variables.declare(v)
-            val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
-            val assign: Statement[Post] = Assign[Post](Local(cNameSuccessor(d).ref)
-              , NewArray[Post](v.t, Seq(Local(v.ref)), 0))(PanicBlame("Assign should work"))
-            result ++= Seq(decl, assign)
-          })
-          result
-        }
+        rw.variables.collect { staticSharedMemNames.foreach(d => rw.variables.declare(cNameSuccessor(d._1)) ) }
+        val implFiltered = body.map(init => filterSharedDecl(init))
+        val (sharedMemSizes, sharedMemInit: Seq[Statement[Post]]) = declareSharedMemory()
 
         val newArgs = blockDim.indices.values.toSeq ++ gridDim.indices.values.toSeq ++ args ++ sharedMemSizes
         val newGivenArgs = rw.variables.dispatch(contract.givenArgs)
@@ -356,7 +383,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
                       context_everywhere = Star(nonZeroThreads, rw.dispatch(contract.contextEverywhere)),
                       requires = rw.dispatch(contractRequires),
                       ensures = rw.dispatch(contractEnsures),
-                      content = rw.dispatch(impl),
+                      content = rw.dispatch(implFiltered.get),
                     )(PanicBlame("where blame?")))
                   ParStatement(ParBlock(
                     decl = gridDecl,
@@ -420,6 +447,100 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     }
   }
 
+  class TypeProperties(specs: Seq[CDeclarationSpecifier[Pre]], decl: CDeclarator[Pre]){
+    var arrayOrPointer = false
+    var global = false
+    var shared = false
+    var extern = false
+    var innerType: Option[Type[Pre]] = None
+    var maybeInnerType: Option[Type[Pre]] = None
+
+    specs.foreach {
+      case GPULocal() => shared = true
+      case GPUGlobal() => global = true
+      case CSpecificationType(TPointer(t)) =>
+        arrayOrPointer = true
+        innerType = Some(t)
+      case CSpecificationType(TArray(t)) =>
+        arrayOrPointer = true
+        innerType = Some(t)
+      case CSpecificationType(t) => maybeInnerType = Some(t)
+      case CExtern() => extern = true
+      case _ =>
+    }
+
+    decl match {
+      case _ :CArrayDeclarator[Pre] =>
+        arrayOrPointer = true
+        innerType = maybeInnerType
+      case _ =>
+    }
+
+    def isShared: Boolean = shared && !global
+    def isGlobal: Boolean = !shared && global
+  }
+
+  def addDynamicShared(cRef: CNameTarget[Pre], t: Type[Pre], o: Origin): Unit = {
+    dynamicSharedMemNames.add(cRef)
+    val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
+    cNameSuccessor(cRef) = v
+  }
+
+  def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin, declStatement: CLocalDeclaration[Pre]): Unit = decl match {
+      case CArrayDeclarator(Seq(), Some(IntegerValue(size)), _) =>
+        val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
+        staticSharedMemNames(cRef) = size
+        cNameSuccessor(cRef) = v
+      case _ => throw WrongGPULocalType(declStatement)
+  }
+
+
+  def isShared(s: Statement[Pre]): Boolean = {
+    if(!s.isInstanceOf[CDeclarationStatement[Pre]])
+      return false
+
+    val CDeclarationStatement(decl) = s
+
+    if (decl.decl.inits.size != 1)
+      throw MultipleSharedMemoryDeclaration(decl)
+
+    val prop = new TypeProperties(decl.decl.specs, decl.decl.inits.head.decl)
+    if (!prop.shared) return false
+    val init: CInit[Pre] = decl.decl.inits.head
+    val varO = InterpretedOriginVariable(C.getDeclaratorInfo(init.decl).name, decl.o)
+    val cRef = RefCLocalDeclaration(decl, 0)
+
+    language match {
+      case Some(Language.CUDA) =>
+        if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && prop.extern) {
+          addDynamicShared(cRef, prop.innerType.get, varO)
+          return true
+        }
+        if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && !prop.extern) {
+          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl)
+          return true
+        }
+      case Some(Language.C) =>
+        if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && !prop.extern) {
+          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl)
+          return true
+        }
+      case Some(l) => throw Unreachable(f"It should not be possible for the language '$l' to have GPU kernels.")
+      case None => throw Unreachable(f"We have GPU kernels, but the source code language could not be determined.")
+    }
+
+    // We are shared, but couldn't add it
+    throw WrongGPULocalType(decl)
+  }
+
+  def filterSharedDecl(s: Statement[Pre]): Statement[Pre] = {
+    s match {
+      case Scope(locals, block@Block(stats)) =>
+        Scope(locals, Block(stats.filterNot(isShared))(block.o))(s.o)
+      case _ => s
+    }
+  }
+
   def rewriteGlobalDecl(decl: CGlobalDeclaration[Pre]): Unit = {
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
     for((init, idx) <- decl.decl.inits.zipWithIndex if init.ref.isEmpty) {
@@ -451,12 +572,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], language: O
     decl.drop()
     // PB: this is correct because Seq[CInit]'s are flattened, but the structure is a bit stupid.
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.getOrElse(???)
+    decl.decl.specs.foreach {
+      case _: CSpecificationType[Pre] =>
+      case _ => throw WrongCType(decl)
+    }
     Block(for((init, idx) <- decl.decl.inits.zipWithIndex) yield {
       val info = C.getDeclaratorInfo(init.decl)
-      info.params match {
-        case Some(params) => ???
-        case None =>
-          val varO: Origin = InterpretedOriginVariable(C.getDeclaratorInfo(init.decl).name, init.o)
+      val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+      (info.params, init) match {
+        case (Some(params), _) => ???
+        case (None, CInit(CArrayDeclarator(qualifiers, size, inner), _)) =>
+          if(qualifiers.nonEmpty || init.init.isDefined) throw WrongCType(decl)
+          implicit val o: Origin = init.o
+          val v = new Variable[Post](TArray(t))(varO)
+          cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
+          val newArr = NewArray[Post](t, Seq(rw.dispatch(size.get)), 0)
+          Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
+        case (None, CInit(d, _)) =>
           val v = new Variable[Post](t)(varO)
           cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
           implicit val o: Origin = init.o

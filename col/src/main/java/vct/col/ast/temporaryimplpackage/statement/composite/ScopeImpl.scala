@@ -6,5 +6,5 @@ import vct.col.resolve.ResolveReferences
 
 trait ScopeImpl[G] { this: Scope[G] =>
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    context.withScope((locals ++ ResolveReferences.scanScope(body)).toSet)
+    context.withScope((locals ++ ResolveReferences.scanScope(body, inGPUKernel = false)).toSet)
 }
