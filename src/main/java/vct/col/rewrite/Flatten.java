@@ -510,4 +510,9 @@ public class Flatten extends AbstractRewriter {
       result = create.dereference(obj, e.field());
     }
   }
+
+  @Override
+  public void visit(AxiomaticDataType adt){
+    result = copy_rw.rewrite(adt);
+  }
 }
