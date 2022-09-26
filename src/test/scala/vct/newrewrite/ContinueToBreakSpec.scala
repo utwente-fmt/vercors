@@ -3,7 +3,7 @@ package vct.newrewrite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers._
 import vct.col.ast._
-import vct.col.newrewrite.exc.ContinueToBreak
+import vct.col.rewrite.exc.ContinueToBreak
 import vct.col.origin._
 import vct.col.rewrite.InitialGeneration
 import vct.helper.ColHelper

@@ -13,7 +13,7 @@ MAKE = {
 def package_to_path(package):
     return package.replace('.', os.path.sep)
 
-IMPL_PACKAGE = "vct.col.ast.temporaryimplpackage"
+IMPL_PACKAGE = "vct.col.ast"
 AST_PACKAGE = "vct.col.ast"
 
 VERCORS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

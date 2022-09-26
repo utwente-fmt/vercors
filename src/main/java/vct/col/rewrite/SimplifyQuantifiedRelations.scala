@@ -1,297 +1,189 @@
 package vct.col.rewrite
 
-import scala.annotation.nowarn
-import vct.col.ast.expr.StandardOperator.{And, Div, EQ, FloorDiv, GT, GTE, ITE, Implies, LT, LTE, Member, Minus, Mult, Plus, RangeSeq, UMinus}
-import vct.col.ast.expr._
-import vct.col.ast.expr.constant.ConstantExpression
-import vct.col.ast.generic.ASTNode
-import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.{AbstractRewriter, NameScanner}
+import hre.util.FuncTools
+import vct.col.ast.RewriteHelpers._
+import vct.col.ast._
+import vct.col.util.AstBuildHelpers._
+import vct.col.rewrite.util.Comparison
+import vct.col.origin.Origin
+import vct.col.ref.Ref
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  * This rewrite pass simplifies expressions of roughly this form:
-  * forall i: Int . lower <= i <= higher ==> left {<=|<|==|>|>=} right
-  * where left or right is independent of all quantified names
-  */
-class SimplifyQuantifiedRelations(source: ProgramUnit) extends AbstractRewriter(source) {
-  class Bounds(val names: Set[String]) {
-    val lowerBounds: mutable.Map[String, Seq[ASTNode]] = mutable.Map()
-    val upperBounds: mutable.Map[String, Seq[ASTNode]] = mutable.Map()
+case object SimplifyQuantifiedRelations extends RewriterBuilder {
+  override def key: String = "simplifyQuantifiedRelations"
+  override def desc: String = "Simplify comparisons of integers that are inside a quantifier."
+}
 
-    def addLowerBound(name: String, bound: ASTNode): Unit =
-      lowerBounds(name) = lowerBounds.getOrElse(name, Seq()) :+ bound
-
-    def addUpperBound(name: String, bound: ASTNode): Unit =
-      upperBounds(name) = upperBounds.getOrElse(name, Seq()) :+ bound
-
-    def extremeValue(name: String, maximizing: Boolean): Option[ASTNode] =
-      (if(maximizing) upperBounds else lowerBounds).get(name) match {
-        case None => None
-        case Some(bounds) => Some(SimplifyQuantifiedRelations.this.extremeValue(bounds, !maximizing))
-      }
-
-    def selectNonEmpty: Seq[ASTNode] =
-      lowerBounds.flatMap {
-        case (name, lowerBounds) =>
-          upperBounds.getOrElse(name, Seq()).flatMap(upperBound =>
-            lowerBounds.map(lowerBound => create.expression(StandardOperator.LTE, lowerBound, upperBound))
-          )
-      }.toSeq
+case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
+  case object SimplifyQuantifiedRelationsOrigin extends Origin {
+    override def preferredName: String = "unknown"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At generated expression for the simplification of quantified integer relations]"
+    override def inlineContext: String = "[Simplified expression]"
   }
 
-  def getNames(node: ASTNode): Set[String] = {
-    val scanner = new NameScanner()
-    node.accept(scanner)
-    scanner.accesses
-  }
+  private implicit val o: Origin = SimplifyQuantifiedRelationsOrigin
+  private def one: IntegerValue[Pre] = IntegerValue(1)
 
-  /**
-    * a && b && c --> Seq(a, b, c)
-    */
-  def getConjuncts(node: ASTNode): Seq[ASTNode] = node match {
-    case op: OperatorExpression if op.operator == And =>
-      getConjuncts(op.first) ++ getConjuncts(op.second)
-    case other => Seq(other)
-  }
+  def indepOf[G](bindings: Seq[Variable[G]], e: Expr[G]): Boolean =
+    e.transSubnodes.collectFirst { case Local(ref) if bindings.contains(ref.decl) => () }.isEmpty
 
-  def splitSelect(select: ASTNode, main: ASTNode): (Seq[ASTNode], ASTNode) = {
-    var left: ArrayBuffer[ASTNode] = ArrayBuffer()
-    var right = main
-
-    left ++= getConjuncts(select)
-
-    while(right.isa(StandardOperator.Implies)) {
-      left ++= getConjuncts(right.asInstanceOf[OperatorExpression].first)
-      right = right.asInstanceOf[OperatorExpression].second
-    }
-
-    (left.toSeq, right)
-  }
-
-  def indepOf(names: Set[String], node: ASTNode): Boolean =
-    getNames(node).intersect(names).isEmpty
-
-  def isNameIn(names: Set[String], node: ASTNode): Boolean = node match {
-    case name: NameExpression if names.contains(name.getName) => true
-    case _ => false
-  }
-
-  def mapOp(op: StandardOperator, args: Option[ASTNode]*): Option[ASTNode] = {
-    if(args.forall(_.isDefined)) {
-      Some(create expression(op, args.map(_.get):_*))
-    } else {
-      None
-    }
-  }
-
-  /**
-   * If we want the maximum/minimum of a list of nodes, that is encoded as an ITE. If we want to compose with our own
-   * pass (i.e. have nested foralls) it is nice to be able to transform something like (a < b ? a : b) back to min(a,b)
-   * if we encounter it again. We could/should make nodes min/max(a, b, c, ...), but this also works for now.
-   */
-  val extremeOfListNode: mutable.Map[ASTNode, (Seq[ASTNode], Boolean)] = mutable.Map()
-
-  def extremeValue(values: Seq[ASTNode], maximizing: Boolean): ASTNode = {
-    val result = if(values.size == 1) {
-      values.head
-    } else {
-      val preferFirst = if(maximizing) GT else LT
-      create.expression(ITE,
-        create.expression(preferFirst, values(0), values(1)),
-        extremeValue(values(0) +: values.drop(2), maximizing),
-        extremeValue(values(1) +: values.drop(2), maximizing),
-      )
-    }
-    extremeOfListNode(result) = (values, maximizing)
-    result
-  }
-
-  def indepBounds(bounds: Bounds, nodes: ASTNode*): Boolean = {
-    nodes.map(getNames(_).intersect(bounds.names)).foldLeft[Either[Unit, Set[String]]](Right(Set.empty)) {
-      case (Right(used), nameSet) =>
-        if(nameSet.intersect(used).nonEmpty) {
-          Left(())
-        } else {
-          Right(nameSet ++ used)
-        }
-      case (Left(()), _) => Left(())
-    }.isRight
-  }
-
-  def extremeValue(bounds: Bounds, node: ASTNode, maximizing: Boolean): Option[ASTNode] = node match {
-    case op: OperatorExpression => op.operator match {
-      case Plus =>
-        if(!indepBounds(bounds, op.first, op.second)) None
-        else mapOp(Plus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, maximizing))
-      case Minus =>
-        if(!indepBounds(bounds, op.first, op.second)) None
-        else mapOp(Minus, extremeValue(bounds, op.first, maximizing), extremeValue(bounds, op.second, !maximizing))
-      case Mult | Div | FloorDiv =>
-        val (left, right) = (op.first, op.second)
-        if(!indepBounds(bounds, left, right)) return None
-
-        val leftA = extremeValue(bounds, left, maximizing)
-        val leftB = extremeValue(bounds, left, !maximizing)
-        val rightA = extremeValue(bounds, right, maximizing)
-        val rightB = extremeValue(bounds, right, !maximizing)
-        val maybeValues = Seq(
-          mapOp(op.operator, leftA, rightA),
-          mapOp(op.operator, leftB, rightB),
+  case class ExtremeValue(bindings: Seq[Variable[Pre]],
+                          inclusiveLowerBound: Map[Variable[Pre], ArrayBuffer[Expr[Pre]]],
+                          exclusiveUpperBound: Map[Variable[Pre], ArrayBuffer[Expr[Pre]]])
+  {
+    def extremeValue(exprs: Seq[Expr[Pre]], maximizing: Boolean): Expr[Pre] = exprs match {
+      case expr :: Nil => expr
+      case left :: right :: tail =>
+        Select(
+          condition = if(maximizing) left > right else left < right,
+          whenTrue = extremeValue(left :: tail, maximizing),
+          whenFalse = extremeValue(right :: tail, maximizing),
         )
-        if(maybeValues.exists(_.isEmpty)) return None
-        // We take distinct here in case both sides are constant
-        val values = maybeValues.map(_.get).distinct
-        Some(extremeValue(values, maximizing))
-      case UMinus => extremeValue(bounds, node, !maximizing)
-      case ITE if extremeOfListNode.contains(node) =>
-        val (nodes, nodeIsMaximizing) = extremeOfListNode(node)
-
-        /* When maximizing == nodeIsMaximizing, e.g.:
-         * max_i { max(f(i), g(i)) | bounds }
-         * = max(max_i { f(i) | bounds }, max_i { g(i) | bounds })
-         *
-         * When maximizing == !nodeIsMaximizing, e.g.:
-         * max_{i,j} { min(f(i), g(j)) | bounds }
-         * = min(max_{i,j} { f(i) }, max_{i,j} { g(j) })
-         * check that the arguments to inner function are mutually independent over the bound variables
-         */
-
-        if(maximizing != nodeIsMaximizing && !indepBounds(bounds, nodes:_*)) {
-          return None
-        }
-
-        val extremeNodes = nodes.map(extremeValue(bounds, _, maximizing))
-        if(extremeNodes.exists(_.isEmpty)) return None
-        Some(extremeValue(extremeNodes.map(_.get), nodeIsMaximizing))
-      case _ => None
     }
-    case name: NameExpression if bounds.names.contains(name.getName) => bounds.extremeValue(name.getName, maximizing)
-    case other: NameExpression => Some(other)
-    case const: ConstantExpression => Some(const)
-    case _ => None
+
+    def extremeValue(expr: Expr[Pre], maximizing: Boolean): Option[Expr[Pre]] = {
+      val max = (e: Expr[Pre]) => extremeValue(e, maximizing).getOrElse(return None)
+      val min = (e: Expr[Pre]) => extremeValue(e, !maximizing).getOrElse(return None)
+
+      Some(expr match {
+        case e if indepOf(bindings, e) => e
+        case Local(Ref(v)) =>
+          if(bindings.contains(v)) {
+            val bounds = if(maximizing) exclusiveUpperBound(v) else inclusiveLowerBound(v)
+            if(bounds.isEmpty) return None
+            else if(maximizing) extremeValue(bounds.toSeq, !maximizing) - one
+            else extremeValue(bounds.toSeq, !maximizing)
+          } else {
+            Local(v.ref)
+          }
+        case UMinus(inner) => min(inner)
+        case Plus(left, right) => max(left) + max(right)
+        case Minus(left, right) => max(left) - min(right)
+        case Mult(left, right) =>
+          extremeValue(Seq(
+            max(left) * max(right),
+            max(left) * min(right),
+            min(left) * max(right),
+            min(left) * min(right)
+          ).distinct, maximizing)
+        case Div(left, right) =>
+          extremeValue(Seq(
+            max(left) /:/ max(right),
+            max(left) /:/ min(right),
+            min(left) /:/ max(right),
+            min(left) /:/ min(right)
+          ).distinct, maximizing)
+        case FloorDiv(left, right) =>
+          extremeValue(Seq(
+            max(left) / max(right),
+            max(left) / min(right),
+            min(left) / max(right),
+            min(left) / min(right)
+          ).distinct, maximizing)
+        case Select(condition, whenTrue, whenFalse) => ???
+        case _ => return None
+      })
+    }
+
+    def maximize(expr: Expr[Pre]): Option[Expr[Pre]] = extremeValue(expr, maximizing = true)
+    def minimize(expr: Expr[Pre]): Option[Expr[Pre]] = extremeValue(expr, maximizing = false)
   }
 
-  /**
-    * Try to derive set bounds for all the quantified variables
-    * @param decls The names for which to derive bounds
-    * @param select The "select" portion of a BindingExpression, e.g. of the form 0 <= i && i < n && 0 <= j && j < m
-    * @return When succesful, a map of each name in `decls` to its inclusive lower bound and exclusive upper bound
-    */
-  def getBounds(decls: Set[String], select: Seq[ASTNode]): Option[Bounds] = {
-    val bounds = new Bounds(decls)
+  def trySimplify(bindings: Seq[Variable[Pre]], originalBody: Expr[Pre]): Option[Expr[Pre]] = {
+    if(bindings.exists(_.t != TInt())) return None
 
-    select.foreach {
-      case expr: OperatorExpression if Set(LT, LTE, GT, GTE, EQ).contains(expr.operator) =>
-        val (quant, op, bound) = if(isNameIn(decls, expr.first) && indepOf(decls, expr.second)) {
-          // If the quantified variable is the first argument: keep it as is
-          (expr.first, expr.operator, expr.second)
-        } else if(isNameIn(decls, expr.second) && indepOf(decls, expr.first)) {
-          // If the quantified variable is the second argument: flip the relation
-          @nowarn("msg=xhaust")
-          val op = expr.operator match {
-            case LT => GT
-            case LTE => GTE
-            case GT => LT
-            case GTE => LTE
-            case EQ => EQ
-          }
-          (expr.second, op, expr.first)
-        } else {
-          return None
-        }
+    // We split the body of the quantifier into its conditions (lhs of implies) and the body (rhs of implies)
+    val (allConditions, body) = AstBuildHelpers.unfoldImplies(originalBody)
+    // We filter the conditions by whether or not they contain any quantified variable
+    val (globalConditions, bounds) = allConditions.partition(indepOf(bindings, _))
 
-        val name = quant.asInstanceOf[NameExpression].getName
+    // The hope is now that *every* condition in bounds is in the form `i (<|<=|==|>=|>) (bound!i)`
+    val inclusiveLowerBound = bindings.map(_ -> mutable.ArrayBuffer[Expr[Pre]]()).toMap
+    val exclusiveUpperBound = bindings.map(_ -> mutable.ArrayBuffer[Expr[Pre]]()).toMap
 
-        @nowarn("msg=xhaust")
-        val x = op match {
-          case LT =>
-            bounds.addUpperBound(name, create expression(Minus, bound, create constant 1))
-          case LTE =>
-            bounds.addUpperBound(name, bound)
-          case GT =>
-            bounds.addLowerBound(name, create expression(Plus, bound, create constant 1))
-          case GTE =>
-            bounds.addLowerBound(name, bound)
-          case EQ =>
-            bounds.addUpperBound(name, bound)
-            bounds.addLowerBound(name, bound)
-        }
-        x
-      case OperatorExpression(Member, List(elem, OperatorExpression(RangeSeq, List(low, high)))) =>
-        val name = elem match {
-          case expr: NameExpression if decls.contains(expr.getName) =>
-            expr.getName
+    for(bound <- bounds) {
+      // First try to match a simple comparison
+      Comparison.of(bound) match {
+        case Some((left, comp, right)) =>
+          if(comp == Comparison.NEQ) return None
+
+          // If we have a simple comparison, one side should be independent of bindings, and the other should be
+          // exactly a binding.
+          if(indepOf(bindings, left)) {
+            right match {
+              case Local(Ref(v)) if bindings.contains(v) =>
+                if(!comp.less) inclusiveLowerBound(v) += (if(comp.eq) left else left + one)
+                if(!comp.greater) exclusiveUpperBound(v) += (if(comp.eq) left + one else left)
+              case _ => return None
+            }
+          } else if(indepOf(bindings, right)) {
+            left match {
+              case Local(Ref(v)) if bindings.contains(v) =>
+                if(!comp.less) exclusiveUpperBound(v) += (if(comp.eq) right + one else right)
+                if(!comp.greater) inclusiveLowerBound(v) += (if(comp.eq) right else right + one)
+              case _ => return None
+            }
+          } else return None
+        case None => bound match {
+          // If we do not have a simple comparison, we support one special case: i \in {a..b}
+          case SeqMember(Local(Ref(v)), Range(from, to))
+            if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
+            inclusiveLowerBound(v) += from
+            exclusiveUpperBound(v) += to
           case _ => return None
         }
+      }
+    }
 
-        if(indepOf(decls, low) && indepOf(decls, high)) {
-          bounds.addUpperBound(name, create expression(Minus, high, create constant 1))
-          bounds.addLowerBound(name, low)
+    // We can now simplify the quantified expression, if the body is a relation (<|<=|==|>=|>) and one side is constant
+    // with respect to the bindings
+
+    val newBody = Comparison.of(body) match {
+      case Some((left, baseComp, right)) if Comparison.CONTIGUOUS.contains(baseComp) =>
+        val (const, comp, value) = if(indepOf(bindings, left)) {
+          (left, baseComp, right)
+        } else if(indepOf(bindings, right)) {
+          (right, baseComp.flip, left)
         } else {
           return None
         }
+
+        val maker = ExtremeValue(bindings, inclusiveLowerBound, exclusiveUpperBound)
+
+        val gt = if(!comp.less) Seq(comp.make(const, maker.maximize(value).getOrElse(return None))) else Nil
+        val lt = if(!comp.greater) Seq(comp.make(const, maker.minimize(value).getOrElse(return None))) else Nil
+
+        AstBuildHelpers.foldAnd(gt ++ lt)
       case _ => return None
     }
 
-    Some(bounds)
+    // Success!
+
+    Some(Implies(
+      AstBuildHelpers.foldAnd(globalConditions ++ bindings.flatMap(binding =>
+        inclusiveLowerBound(binding).flatMap(lower =>
+          exclusiveUpperBound(binding).map(upper =>
+            lower < upper
+          )
+        )
+      )),
+      newBody
+    ))
   }
 
-  def rewriteMain(bounds: Bounds, main: ASTNode): Option[ASTNode] = {
-    val (left, op, right) = main match {
-      case exp: OperatorExpression if Set(LT, LTE, GT, GTE).contains(exp.operator) =>
-        (exp.first, exp.operator, exp.second)
-      case _ => return None
-    }
-
-    /* If one side is independent of the quantified variables, only emit the strongest statement.
-     * e.g. forall i: 0<=i<n ==> len > i
-     * equivalent to: (0<n) ==> len >= n
-     */
-    if(indepOf(bounds.names, left)) {
-      if(Set(LT, LTE).contains(op)) {
-        // constant <= right
-        extremeValue(bounds, right, maximizing = false)
-          .map(min => create expression(op, left, min))
-      } else /* GT, GTE */ {
-        // constant >= right
-        extremeValue(bounds, right, maximizing = true)
-          .map(max => create expression(op, left, max))
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+    case e @ Forall(bindings, _, body) =>
+      trySimplify(bindings, body) match {
+        case None => e.rewrite()
+        case Some(e) =>
+          bindings.foreach(_.drop())
+          dispatch(e)
       }
-    } else if(indepOf(bounds.names, right)) {
-      if(Set(LT, LTE).contains(op)) {
-        // left <= constant
-        extremeValue(bounds, left, maximizing = true)
-          .map(max => create expression(op, max, right))
-      } else /* GT, GTE */ {
-        // left >= constant
-        extremeValue(bounds, left, maximizing = false)
-          .map(min => create expression(op, min, right))
-      }
-    } else {
-      None
-    }
-  }
-
-  override def visit(expr: BindingExpression): Unit = {
-    expr.binder match {
-      case Binder.Forall =>
-        val bindings = expr.getDeclarations.map(_.name).toSet
-        val (select, main) = splitSelect(rewrite(expr.select), rewrite(expr.main))
-        val (indepSelect, potentialBounds) = select.partition(indepOf(bindings, _))
-        val bounds = getBounds(bindings, potentialBounds) match {
-          case None => super.visit(expr); return
-          case Some(bounds) => bounds
-        }
-        val claim = rewriteMain(bounds, main) match {
-          case None => super.visit(expr); return
-          case Some(main) => main
-        }
-        result = create expression(Implies, (indepSelect ++ bounds.selectNonEmpty).reduce(and), claim)
-      case _ =>
-        super.visit(expr)
-    }
+    case other => rewriteDefault(other)
   }
 }

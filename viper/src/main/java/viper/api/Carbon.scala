@@ -1,6 +1,4 @@
 package viper.api
-import hre.config.Configuration
-import hre.util.FileHelper
 import org.slf4j.LoggerFactory.getLogger
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
