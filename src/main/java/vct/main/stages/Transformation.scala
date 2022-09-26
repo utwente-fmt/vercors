@@ -149,14 +149,21 @@ case class SilverTransformation
     EncodeSendRecv,
     ParBlockEncoder,
 
-    // Encode proof helpers
-    EncodeProofHelpers,
-
     // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SpecifyImplicitLabels,
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,
+
+    SplitQuantifiers,
+    ) ++ simplifyBeforeRelations ++ Seq(
+    SimplifyQuantifiedRelations,
+    SimplifyNestedQuantifiers,
+    ) ++ simplifyAfterRelations ++ Seq(
+
+    // Encode proof helpers
+    EncodeProofHelpers,
+
     // Resolve side effects including method invocations, for encodetrythrowsignals.
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
@@ -167,10 +174,6 @@ case class SilverTransformation
 
     CheckContractSatisfiability.withArg(checkSat),
 
-    SplitQuantifiers,
-  ) ++ simplifyBeforeRelations ++ Seq(
-    SimplifyQuantifiedRelations,
-  ) ++ simplifyAfterRelations ++ Seq(
     ResolveExpressionSideChecks,
     RejoinQuantifiers,
 

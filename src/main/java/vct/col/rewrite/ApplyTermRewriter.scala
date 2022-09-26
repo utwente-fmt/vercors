@@ -50,6 +50,14 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
           "of which the body is an equality.")
   }
 
+  case class MalformedSimplificationRuleBinders(body: Expr[_]) extends UserError {
+    override def code: String = "malformedSimpRuleBinders"
+    override def text: String =
+      body.o.messageInContext(
+        "The body of a simplification rule with nested \\forall predicates, " +
+          "must have consistent order of forall binders indicators (e.g. not (r1!t1,t2) and (r2!t2,t1)")
+  }
+
   val rules: Seq[(Seq[Variable[Rule]], Expr[Rule], Expr[Rule], Origin)] = ruleNodes.map(node => (node.o, consumeForalls(node.axiom))).map {
     case (o, (free, body)) => body match {
       case Eq(left, right) => (free, left, right, o)
@@ -85,7 +93,38 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       allScopes.anyDeclare(decl)
   }
 
-  case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]], defaultOrigin: Origin) extends NonLatchingRewriter[Rule, Pre] {
+  case class ApplyRule(inst: Map[Variable[Rule], (Expr[Pre], Seq[Variable[Pre]])], typeInst: Map[Variable[Rule], Type[Pre]],
+                       defaultOrigin: Origin, rule: Expr[Rule]) extends NonLatchingRewriter[Rule, Pre] {
+    val binderOrigins: mutable.Map[Variable[Rule], Origin] = mutable.Map.empty
+
+    def addBinderOrigin(newVar: Ref[Rule,Variable[Rule]], originalVar: Variable[Pre]): Unit = {
+      val newOrigin = originalVar.o
+      if (binderOrigins.contains(newVar.decl) && binderOrigins(newVar.decl) != newOrigin) {
+        throw MalformedSimplificationRuleBinders(rule)
+      }
+      else {
+        binderOrigins(newVar.decl) = newOrigin
+      }
+    }
+
+    /* We want to reuse the names of forall binders, we do this by how the binders are captured, e.g.:
+    * axiom starall_star {
+    *   (∀type<any> T, resource r1, resource r2;
+    *     (∀* T t1; (r1!t1) ** (r2!t1)) ==
+    *     ((∀* T t2; (r1!t2)) ** (∀* T t3; (r2!t3))))
+    * }
+    * we capture the name "t1" by the pattern "(r1!t1)" and "(r1!t2) and (r2!t3) to name "t2" and "t3" the same
+    * as we have no other way to relate the forall's since they internally bind to different variables.
+    */
+    def findBinderOrigin(e: Node[Rule]): Unit = {
+      e match {
+        case FunctionOf(Ref(v), ruleVars) =>
+          val (_, vars) = inst(v)
+          ruleVars.zip(vars).foreach(t => addBinderOrigin(t._1, t._2))
+        case _ => e.subnodes.foreach(findBinderOrigin)
+      }
+    }
+
     override def dispatch(o: Origin): Origin = defaultOrigin
 
     override def dispatch(e: Expr[Rule]): Expr[Pre] = e match {
@@ -95,6 +134,15 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       case FunctionOf(Ref(v), ruleVars) =>
         val (replacement, vars) = inst(v)
         ApplyParametricBindings(vars.zip(ruleVars.map(ruleVar => succ[Variable[Pre]](ruleVar.decl))).toMap).dispatch(replacement)
+      case e: Binder[Rule] =>
+        findBinderOrigin(e)
+        rewriteDefault(e)
+      case other => rewriteDefault(other)
+    }
+
+    override def dispatch(d: Declaration[Rule]): Unit = d match {
+      case v: Variable[Rule] =>
+        variables.succeed(v, new Variable(dispatch(v.t))(binderOrigins.getOrElse(v,defaultOrigin)))
       case other => rewriteDefault(other)
     }
 
@@ -215,7 +263,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
         return None
     }
 
-    val result = ApplyRule(inst.toMap, typeInst.toMap, subject.o).dispatch(substitute)
+    val result = ApplyRule(inst.toMap, typeInst.toMap, subject.o, substitute).dispatch(substitute)
 
     if(debugMatch && debugFilter) {
       if(debugMatchShort) {

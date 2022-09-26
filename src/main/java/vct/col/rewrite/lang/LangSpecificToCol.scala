@@ -86,8 +86,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
-    case barrier: GpgpuLocalBarrier[Pre] => c.localBarrier(barrier)
-    case barrier: GpgpuGlobalBarrier[Pre] => c.globalBarrier(barrier)
+    case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
     case other => rewriteDefault(other)
   }
@@ -101,6 +100,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
+        case RefJavaAnnotationMethod(decL) => ???
         case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
       }
@@ -124,6 +124,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case local: CLocal[Pre] => c.local(local)
     case deref: CStructAccess[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
+    case shared: SharedMemSize[Pre] => c.sharedSize(shared)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)

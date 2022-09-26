@@ -12,7 +12,7 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
-import vct.parsers.ParseResult
+import vct.parsers.{ParseResult}
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError

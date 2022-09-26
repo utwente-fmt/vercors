@@ -578,6 +578,8 @@ case class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends Coe
             typeArgs = Seq(TAxiomatic[Post](pointerAdt.ref, Nil)), Nil, Nil,
           )(NoContext(PointerNullPreconditionFailed(off.blame, pointer))))
         )
+      case len @ PointerLength(pointer) =>
+        dispatch(Minus(PointerBlockLength(pointer)(len.blame), PointerBlockOffset(pointer)(len.blame)))
       case other => rewriteDefault(other)
     }
   }

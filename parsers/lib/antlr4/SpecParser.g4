@@ -177,6 +177,7 @@ valPrimaryPermission
  | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')' # valPointerIndex
  | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
  | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
+ | '\\pointer_length' '(' langExpr ')' # valPointerLength
  ;
 
 valPrimaryBinder
@@ -253,6 +254,7 @@ valPrimary
  | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
  | LANG_ID_ESCAPE # valIdEscape
+ | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
  ;
 
 // Out spec: defined meaning: a language local

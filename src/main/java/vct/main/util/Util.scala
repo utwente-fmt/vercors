@@ -5,7 +5,7 @@ import vct.col.ast.Program
 import vct.col.rewrite.Disambiguate
 import vct.col.origin.{Blame, VerificationFailure}
 import vct.main.stages.Resolution
-import vct.parsers.ColPVLParser
+import vct.parsers.{ColPVLParser, Language}
 import vct.parsers.transform.{BlameProvider, ConstantBlameProvider, ReadableOriginProvider}
 import vct.result.VerificationError.UserError
 

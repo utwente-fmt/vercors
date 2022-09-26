@@ -36,7 +36,7 @@ case object Verify extends LazyLogging {
   def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
     val stages = Stages.ofOptions(options, ConstantBlameProvider(collector))
-    logger.debug(stages.toString)
+    logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)

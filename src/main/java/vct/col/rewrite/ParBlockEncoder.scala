@@ -104,32 +104,148 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   def from(v: Variable[Pre]): Expr[Post] = range(v)._1
   def to(v: Variable[Pre]): Expr[Post] = range(v)._2
 
-  def quantify(block: ParBlock[Pre], expr: Expr[Pre])(implicit o: Origin): Expr[Post] = {
-    val quantVars = block.iters.map(_.variable).map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
-    val body = Substitute(quantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]).dispatch(expr)
-    block.iters.foldLeft(dispatch(body))((body, iter) => {
-      val v = quantVars(iter.variable)
-      Starall[Post](
-        Seq(variables.dispatch(v)),
-        Nil,
-        (from(iter.variable) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter.variable)) ==> body
-      )(ParBlockNotInjective(block, expr))
-    })
+  def depVars[G](bindings: Set[Variable[G]], e: Expr[G]): Set[Variable[G]] = {
+    val result: mutable.Set[Variable[G]] = mutable.Set()
+    e.transSubnodes.foreach {
+      case Local(ref) if bindings.contains(ref.decl) => result.addOne(ref.decl)
+      case _ => }
+    result.toSet
   }
 
-  def requires(region: ParRegion[Pre])(implicit o: Origin): Expr[Post] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires))
-    case ParSequential(regions) => regions.headOption.map(requires).getOrElse(tt)
-    case block: ParBlock[Pre] =>
-      quantify(block, block.context_everywhere &* block.requires)
+  def quantify(block: ParBlock[Pre], expr: Expr[Pre], nonEmpty: Boolean)(implicit o: Origin): Expr[Post] = {
+    val exprs = AstBuildHelpers.unfoldStar(expr)
+    val vars = block.iters.map(_.variable).toSet
+
+    val rewrittenExpr = exprs.map(
+      e => {
+        val quantVars = if (nonEmpty) depVars(vars, e) else vars
+        val nonQuantVars = vars.diff(quantVars)
+        val newQuantVars = quantVars.map(v => v -> new Variable[Pre](v.t)(v.o)).toMap
+        var body = dispatch(Substitute(
+            newQuantVars.map { case (l, r) => Local[Pre](l.ref) -> Local[Pre](r.ref) }.toMap[Expr[Pre], Expr[Pre]]
+          ).dispatch(e))
+        body = if (e.t == TResource[Pre]()) {
+          // Scale the body if it contains permissions
+          nonQuantVars.foldLeft(body)((body, iter) => {
+            val scale = to(iter) - from(iter)
+            Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))
+          })
+        } else {
+          body
+        }
+        // Result, quantify over all the relevant variables
+        quantVars.foldLeft(body)((body, iter) => {
+          val v: Variable[Pre] = newQuantVars(iter)
+          Starall[Post](
+            Seq(variables.dispatch(v)),
+            Nil,
+            (from(iter) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter)) ==> body
+          )(ParBlockNotInjective(block, e))
+        })
+      }
+    )
+    AstBuildHelpers.foldStar(rewrittenExpr)
   }
 
-  def ensures(region: ParRegion[Pre])(implicit o: Origin): Expr[Post] = region match {
-    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures))
-    case ParSequential(regions) => regions.lastOption.map(ensures).getOrElse(tt)
+  def requires(region: ParRegion[Pre], nonEmpty: Boolean)(implicit o: Origin): Expr[Post] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(requires(_, nonEmpty)))
+    case ParSequential(regions) => regions.headOption.map(requires(_, nonEmpty)).getOrElse(tt)
     case block: ParBlock[Pre] =>
-      quantify(block, block.context_everywhere &* block.ensures)
+      quantify(block, block.context_everywhere &* block.requires, nonEmpty)
   }
+
+  def ensures(region: ParRegion[Pre], nonEmpty: Boolean)(implicit o: Origin): Expr[Post] = region match {
+    case ParParallel(regions) => AstBuildHelpers.foldStar(regions.map(ensures(_, nonEmpty)))
+    case ParSequential(regions) => regions.lastOption.map(ensures(_, nonEmpty)).getOrElse(tt)
+    case block: ParBlock[Pre] =>
+      quantify(block, block.context_everywhere &* block.ensures, nonEmpty)
+  }
+
+  def constantExpression[A](e: Expr[A], nonConstVars: Set[Variable[A]]): Boolean = e match {
+    case _: Constant[_, _] => true
+    case op: BinExpr[_] => constantExpression(op.left, nonConstVars) && constantExpression(op.right, nonConstVars)
+    case Local(v) => !nonConstVars.contains(v.decl)
+    case _ => false
+  }
+
+  def applyFunc[A,B](f: A => Option[Set[B]], xs: Iterable[A]): Option[Set[B]] =
+    xs.foldLeft(Some(Set()): Option[Set[B]]){case (res, x) => res.flatMap(r => f(x).map(s => r ++ s))}
+
+  def combine[A](xs: Option[Set[A]], ys: Option[Set[A]]): Option[Set[A]] =
+    xs.flatMap(xs => ys.map(ys => xs ++ ys))
+
+  def scanIter(xs: Iterable[Statement[Pre]]): Option[Set[Variable[Pre]]] =
+    applyFunc(scanForAssign, xs)
+
+  def scanIterE(xs: Iterable[Expr[Pre]]): Option[Set[Variable[Pre]]] =
+    applyFunc(scanForAssignE, xs)
+
+  /* Scans statements and returns a set of variables, which will change value. Meaning other variables, did not change value.
+  * The analysis is conservative, if we are not sure, we return None, meaning we are not sure about any variable if it
+  * is potentially constant
+   */
+  def scanForAssign(s: Statement[Pre]): Option[Set[Variable[Pre]]] = s match {
+    case Block(statements) => scanIter(statements)
+    case Scope(_, statement) => scanForAssign(statement)
+    case Branch(branches) =>
+      for {
+        set1 <- scanIter(branches.map(_._2))
+        set2 <- scanIterE(branches.map(_._1))
+      } yield set1 ++ set2
+    case IndetBranch(statements) => scanIter(statements)
+    case Switch(expr, body) => combine(scanForAssignE(expr), scanForAssign(body))
+    case Loop(init, cond, update, _, body) =>
+      scanForAssign(init).flatMap(r1 => scanForAssignE(cond).flatMap(r2 => scanForAssign(update)
+        .flatMap(r3 => scanForAssign(body).map(r4 => r1 ++ r2 ++ r3 ++ r4))))
+    case Assign(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
+    case ParStatement(par) => scanForAssignP(par)
+    case ParBarrier(_, _, _, _, content) => scanForAssign(content)
+    case Eval(e) => scanForAssignE(e)
+    case _ => None
+  }
+
+  def scanForAssignP(par: ParRegion[Pre]): Option[Set[Variable[Pre]]] = par match {
+    case ParParallel(pars) => applyFunc(scanForAssignP, pars)
+    case ParSequential(pars) => applyFunc(scanForAssignP, pars)
+    case ParBlock(_, _, _, _, _, content) => scanForAssign(content)
+  }
+
+  def scanForAssignE(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
+    case _ : Constant[Pre, _] => Some(Set())
+    case Local(_) => Some(Set())
+    case op : BinExpr[Pre] => combine(scanForAssignE(op.left), scanForAssignE(op.right))
+    case ProcedureInvocation(_, args, outArgs, _, givenMap, yields) =>
+        // Primitive types cannot be changed due to a function call, so we filter them
+        // Other arguments can possibly be changed, so we collect them
+      applyFunc(scanAssignTarget, args.filterNot(e => isPrimitive(e.t)))
+        .flatMap(r1 => scanIterE(givenMap.map(_._2))
+          // TODO This is how yield works right? The first variable of a yield tupple gets assigned to?
+          .map(r2 => r1 ++ r2 ++ outArgs.map(a => a.decl) ++ yields.map(y => y._1.decl)))
+    case FunctionInvocation(_, args, _, givenMap, yields) =>
+      applyFunc(scanAssignTarget, args.filterNot(e => isPrimitive(e.t)))
+        .flatMap(r1 => scanIterE(givenMap.map(_._2))
+          .map(r2 => r1 ++ r2 ++ yields.map(y => y._1.decl)))
+    case PreAssignExpression(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
+    case PointerSubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
+    case ArraySubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
+    case SeqSubscript(seq, index) => combine(scanForAssignE(seq), scanForAssignE(index))
+    case _ => None
+  }
+
+  def scanAssignTarget(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
+    case Local(v) => Some(Set(v.decl))
+    case ArraySubscript(arr, index) => combine(scanAssignTarget(arr),  scanForAssignE(index))
+    case PointerSubscript(pointer, index) => combine(scanAssignTarget(pointer),  scanForAssignE(index))
+    case SeqSubscript(seq, index) => combine(scanAssignTarget(seq),  scanForAssignE(index))
+    case _ => None
+  }
+
+  def isPrimitive(t: Type[_]): Boolean = t match {
+    case _: PrimitiveType[_] => true
+    case _ => false
+  }
+
+  case class NonConstantVariables(vars: Set[Variable[Pre]])
 
   def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Statement[Post] = region match {
     case ParParallel(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
@@ -137,24 +253,31 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     case block @ ParBlock(decl, iters, _, _, _, _) =>
       decl.drop()
       blockDecl(decl) = block
-      Block(iters.map { v =>
+      Block(iters.foldLeft(Seq[Statement[Post]]()) { case(res,v) =>
         implicit val o: Origin = v.o
-        val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
-        val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
-        rangeValues(v.variable) = (lo.get, hi.get)
-
-        Block(Seq(
-          assignLocal(lo.get, dispatch(v.from)),
-          assignLocal(hi.get, dispatch(v.to)),
-        ))
+        val from = dispatch(v.from)
+        val to = dispatch(v.to)
+        val nonConstVars = scanForAssign(block.content)
+        if(nonConstVars.nonEmpty && constantExpression(v.from, nonConstVars.get) && constantExpression (v.to, nonConstVars.get)){
+          rangeValues(v.variable) = (from, to)
+        res
+        } else {
+          val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
+          val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
+          rangeValues(v.variable) = (lo.get, hi.get)
+          res ++ Seq(
+            assignLocal(lo.get, dispatch(v.from)),
+            assignLocal(hi.get, dispatch(v.to)),
+          )
+        }
       })(region.o)
   }
 
-  def execute(region: ParRegion[Pre]): Statement[Post] = {
+  def execute(region: ParRegion[Pre], nonEmpty: Boolean): Statement[Post] = {
     implicit val o: Origin = region.o
     Block(Seq(
-      Exhale(requires(region))(ParStatementExhaleFailed(region)),
-      Inhale(ensures(region)),
+      Exhale(requires(region, nonEmpty))(ParStatementExhaleFailed(region)),
+      Inhale(ensures(region, nonEmpty)),
     ))
   }
 
@@ -165,7 +288,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       IndetBranch(regions.map(check) ++ regions.zip(regions.tail).map {
         case (leftRegion, rightRegion) =>
           implicit val o: Origin = region.o
-          FramedProof(tt, Inhale(ensures(leftRegion)), requires(rightRegion))(ParSequenceProofFailed(rightRegion))
+          FramedProof(tt, Inhale(ensures(leftRegion, false)), requires(rightRegion, false))(ParSequenceProofFailed(rightRegion))
       })(region.o)
     case block @ ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
       implicit val o: Origin = region.o
@@ -173,9 +296,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         Block(iters.map { v =>
           dispatch(v.variable)
           assignLocal(Local[Post](succ(v.variable)), IndeterminateInteger(from(v.variable), to(v.variable)))
-        })
-      }
-
+        }) }
       Scope(vars, Block(Seq(
         init,
         FramedProof(
@@ -186,24 +307,32 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
       )))
   }
 
-  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = stat match {
+  def isParBlock(stat: ParRegion[Pre]): Boolean = stat match {
+    case _: ParBlock[Pre] => true
+    case _ => false
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case ParStatement(region) =>
+      val isSingleBlock: Boolean = isParBlock(region)
       implicit val o: Origin = stat.o
-
       val rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])] = mutable.Map()
-
       val (vars, evalRanges) = variables.collect {
         ranges(region, rangeValues)
       }
 
       currentRanges.having(rangeValues.toMap) {
-        Scope(vars, Block(Seq(
-          evalRanges,
+        var res: Statement[Post] =
           IndetBranch(Seq(
-            execute(region),
+            execute(region, isSingleBlock),
             Block(Seq(check(region), Inhale(ff)))
-          )),
-        )))
+          ))
+        if(isSingleBlock){
+          val condition: Expr[Post] = foldAnd(rangeValues.values.map{case (low, hi) => low < hi})
+          res = Branch(Seq((condition, res)))
+        }
+        Scope(vars,
+          Block(Seq(evalRanges,res)))
       }
 
     case inv @ ParInvariant(decl, dependentInvariant, body) =>
@@ -237,7 +366,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           FramedProof(
             pre = tt,
             body = Block(Seq(
-              Inhale(quantify(block, requires)),
+              Inhale(quantify(block, requires, false)),
               Block(suspendedInvariants.map { case Ref(decl) => Inhale(dispatch(invDecl(decl))) }),
               dispatch(hint),
               Block(suspendedInvariants.reverse.map {
@@ -246,7 +375,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
                 )(ParBarrierInvariantExhaleFailed(barrier))
               }),
             )),
-            post = quantify(block, ensures),
+            post = quantify(block, ensures, false),
           )(ParBarrierProofFailed(barrier)),
           Inhale(ff),
         )),
@@ -261,7 +390,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
-    case ScaleByParBlock(Ref(decl), res) =>
+    case ScaleByParBlock(Ref(decl), res) if e.t == TResource[Pre]() =>
       implicit val o: Origin = e.o
       val block = blockDecl(decl)
       block.iters.foldLeft(dispatch(res)) {
@@ -269,6 +398,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           val scale = to(v.variable) - from(v.variable)
           Implies(scale > const(0), Scale(const[Post](1) /:/ scale, res)(PanicBlame("framed positive")))
       }
+    case ScaleByParBlock(Ref(_), res) => dispatch(res)
     case other => rewriteDefault(other)
   }
 }

@@ -82,6 +82,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case StorageClassSpecifier3(_) => ??(storageClass)
     case StorageClassSpecifier4(_) => ??(storageClass)
     case StorageClassSpecifier5(_) => ??(storageClass)
+    case StorageClassSpecifier6(_) => GPULocal()
+    case StorageClassSpecifier7(_) => GPUGlobal()
   }
 
   def convert(implicit typeSpec: TypeSpecifierContext): CTypeSpecifier[G] = typeSpec match {
@@ -120,7 +122,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit kernel: GpgpuKernelSpecifierContext): CGpgpuKernelSpecifier[G] = kernel match {
-    case GpgpuKernelSpecifier0(_) => CKernel()
+    case GpgpuKernelSpecifier0(_) => CUDAKernel()
+    case GpgpuKernelSpecifier1(_) => OpenCLKernel()
   }
 
   def convert(implicit decls: InitDeclaratorListContext): Seq[CInit[G]] = decls match {
@@ -209,14 +212,23 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case BlockItem1(stat) => convert(stat)
     case BlockItem2(embedStats) => convert(embedStats)
     case BlockItem3(embedStat) => convert(embedStat)
-    case BlockItem4(GpgpuLocalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
-      GpgpuLocalBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures)))
+    case BlockItem4(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
+      GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
+        , convert(specifier))
     })
-    case BlockItem5(GpgpuGlobalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
-      GpgpuGlobalBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures)))
-    })
-    case BlockItem6(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
+    case BlockItem5(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
       GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
+  }
+
+  def convert(implicit spec: GpgpuMemFenceListContext): Seq[GpuMemoryFence[G]] = spec match {
+    case GpgpuMemFenceList0(argument) => Seq(convert(argument))
+    case GpgpuMemFenceList1(init, _, last) => convert(init) :+ convert(last)
+  }
+
+  def convert(implicit spec: GpgpuMemFenceContext): GpuMemoryFence[G] = spec match {
+    case GpgpuMemFence0(_) => GpuLocalMemoryFence()
+    case GpgpuMemFence1(_) => GpuGlobalMemoryFence()
+    case GpgpuMemFence2(i) => GpuZeroMemoryFence(Integer.parseInt(i))
   }
 
   def convert(implicit stat: LabeledStatementContext): Statement[G] = stat match {
@@ -956,6 +968,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
+    case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
@@ -1035,6 +1048,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
+    case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
   }
 
   def convert(implicit e: ValExprContext): Expr[G] = e match {

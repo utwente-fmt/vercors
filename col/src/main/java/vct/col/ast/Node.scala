@@ -536,6 +536,8 @@ final case class Length[G](arr: Expr[G])(val blame: Blame[ArrayNull])(implicit v
 final case class Size[G](obj: Expr[G])(implicit val o: Origin) extends Expr[G] with SizeImpl[G]
 final case class PointerBlockLength[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerBlockLengthImpl[G]
 final case class PointerBlockOffset[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerBlockOffsetImpl[G]
+final case class PointerLength[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerLengthtImpl[G]
+final case class SharedMemSize[G](pointer: Expr[G])(implicit val o: Origin) extends Expr[G] with SharedMemSizeImpl[G]
 
 final case class Cons[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with ConsImpl[G]
 final case class Head[G](xs: Expr[G])(val blame: Blame[SeqBoundFailure])(implicit val o: Origin) extends Expr[G] with HeadImpl[G]
@@ -633,6 +635,8 @@ sealed trait CStorageClassSpecifier[G] extends CDeclarationSpecifier[G] with CSt
 final case class CTypedef[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with CTypedefImpl[G]
 final case class CExtern[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with CExternImpl[G]
 final case class CStatic[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with CStaticImpl[G]
+final case class GPULocal[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with GPULocalImpl[G]
+final case class GPUGlobal[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with GPUGlobalImpl[G]
 
 sealed trait CTypeSpecifier[G] extends CDeclarationSpecifier[G] with CTypeSpecifierImpl[G]
 final case class CVoid[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CVoidImpl[G]
@@ -662,7 +666,8 @@ sealed trait CFunctionSpecifier[G] extends CDeclarationSpecifier[G] with CFuncti
 sealed trait CAlignmentSpecifier[G] extends CDeclarationSpecifier[G] with CAlignmentSpecifierImpl[G]
 
 sealed trait CGpgpuKernelSpecifier[G] extends CDeclarationSpecifier[G] with CGpgpuKernelSpecifierImpl[G]
-final case class CKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CKernelImpl[G]
+final case class CUDAKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CUDAKernelImpl[G]
+final case class OpenCLKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with OpenCLKernelImpl[G]
 
 final case class CPointer[G](qualifiers: Seq[CTypeQualifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPointerImpl[G]
 
@@ -697,8 +702,14 @@ final case class CGoto[G](label: String)(implicit val o: Origin) extends CStatem
   var ref: Option[LabelDecl[G]] = None
 }
 
-final case class GpgpuLocalBarrier[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends CStatement[G] with GpgpuLocalBarrierImpl[G]
-final case class GpgpuGlobalBarrier[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends CStatement[G] with GpgpuGlobalBarrierImpl[G]
+sealed trait GpuMemoryFence[G] extends NodeFamily[G] with GpuMemoryFenceImpl[G]
+
+final case class GpuLocalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuLocalMemoryFenceImpl[G]
+final case class GpuGlobalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuGlobalMemoryFenceImpl[G]
+final case class GpuZeroMemoryFence[G](value: BigInt)(implicit val o: Origin) extends GpuMemoryFence[G] with GpuZeroMemoryFenceImpl[G]
+
+
+final case class GpgpuBarrier[G](requires: Expr[G], ensures: Expr[G], specifiers: Seq[GpuMemoryFence[G]])(implicit val o: Origin) extends CStatement[G] with GpgpuBarrierImpl[G]
 final case class GpgpuAtomic[G](impl: Statement[G], before: Statement[G], after: Statement[G])(implicit val o: Origin) extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]
