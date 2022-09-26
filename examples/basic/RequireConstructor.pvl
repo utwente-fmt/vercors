@@ -1,0 +1,10 @@
+//:: cases RequireConstructor
+//:: tools silicon
+//:: verdict Error
+
+// This example should fail, since the default constructor in this case cannot establish the lock invariant (because the default value of f is 0).
+
+class Test {
+  int f;
+  resource lock_invariant() = Perm(f, write) ** f > 10;
+}
