@@ -17,7 +17,7 @@ import scala.io.Source
 @nowarn("msg=.*early initializers are deprecated.*")
 object SilverParserDummyFrontend extends {
   // early initializer: reporter must be populated before initialization of superclass SilFrontend
-  override val reporter: Reporter = HREViperReporter()
+  override val reporter: Reporter = NopViperReporter
 } with SilFrontend {
   private val noVerifier: viper.silver.verifier.NoVerifier = new viper.silver.verifier.NoVerifier
 

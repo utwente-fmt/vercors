@@ -4,7 +4,6 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
-import vct.col.ast.expr.MethodInvokation
 import vct.col.newrewrite.error.ExtraNode
 import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
 import vct.col.ref.Ref

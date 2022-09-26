@@ -7,7 +7,6 @@ import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.{ast => col}
 import vct.antlr4.generated.{PVLParserPatterns => parse}
-import vct.col.ast.stmt.composite.ParallelRegion
 import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 import vct.col.ref.{Ref, UnresolvedRef}
