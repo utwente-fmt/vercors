@@ -4,6 +4,7 @@ package vct.col.ast.util;
 import java.util.*;
 import java.util.Map.Entry;
 
+import scala.math.BigInt;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -232,6 +233,9 @@ public class ASTFactory<E> implements FrameControl {
   public ConstantExpression constant(int i) {
     return constant(origin_stack.get(),i);
   }
+  public ConstantExpression constant(BigInt i) {
+    return constant(origin_stack.get(),i);
+  }
   public ConstantExpression constant(long i) {
     return constant(origin_stack.get(),i);
   }
@@ -242,6 +246,14 @@ public class ASTFactory<E> implements FrameControl {
     ConstantExpression res=new ConstantExpression(b,origin);
     res.accept_if(post);
     return res;    
+  }
+  /**
+   * Create a new biginteger constant
+   */
+  public ConstantExpression constant(Origin origin, BigInt bi) {
+    ConstantExpression res=new ConstantExpression(bi,origin);
+    res.accept_if(post);
+    return res;
   }
   /**
    * Create a new double constant.
