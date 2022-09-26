@@ -1,10 +1,6 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 //:: cases relaxed_prefix
 //:: tools silicon
 //:: verdict Pass
-// fails due to https://github.com/viperproject/silicon/issues/512
-//:: suite problem-fail
 
 
 /*
@@ -82,7 +78,7 @@ class Relaxed {
   requires Perm(pat[*], read);
   requires Perm(a[*], read);
   requires len <= pat.length ** pat.length <= a.length;
-  pure boolean prefix(int[] pat, int[] a, int len) = (
+  boolean prefix(int[] pat, int[] a, int len) = (
     (\forall int j; 0 <= j && j < len; pat[j] == a[j])
   );
 
@@ -92,7 +88,7 @@ class Relaxed {
   requires len > 0 ** splitPoint >= 0;
   requires len <= pat.length ** pat.length <= a.length;
   requires splitPoint < pat.length;
-  pure boolean relaxed(int[] pat, int[] a, int len, int splitPoint) = (
+  boolean relaxed(int[] pat, int[] a, int len, int splitPoint) = (
     (\forall int j; 0 <= j && j < splitPoint; pat[j] == a[j]) &&
     (\forall int j; splitPoint+1 <= j && j < len; pat[j] == a[j-1])
   );
