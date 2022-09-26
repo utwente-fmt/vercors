@@ -3,8 +3,7 @@ package vct.parsers
 case object Language {
   def fromFilename(filename: String): Option[Language] =
     filename.split('.').last match {
-      case "cl" | "c" => Some(C)
-      case "cu" => Some(CUDA)
+      case "cl" | "c" | "cu" => Some(C)
       case "i" => Some(InterpretedC)
       case "java" => Some(Java)
       case "pvl" => Some(PVL)
@@ -13,7 +12,6 @@ case object Language {
     }
 
   case object C extends Language
-  case object CUDA extends Language
   case object InterpretedC extends Language
   case object Java extends Language
   case object PVL extends Language

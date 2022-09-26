@@ -1,7 +1,7 @@
 #ifndef OPENCL_H
 #define OPENCL_H
 
-#define __kernel __vercors_kernel__
+#define __kernel __opencl_kernel__
 
 #define CLK_GLOBAL_MEM_FENCE __vercors_global_mem_fence__
 #define CLK_LOCAL_MEM_FENCE __vercors_local_mem_fence__

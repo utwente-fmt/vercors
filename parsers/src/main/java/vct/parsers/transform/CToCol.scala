@@ -122,7 +122,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit kernel: GpgpuKernelSpecifierContext): CGpgpuKernelSpecifier[G] = kernel match {
-    case GpgpuKernelSpecifier0(_) => CKernel()
+    case GpgpuKernelSpecifier0(_) => CUDAKernel()
+    case GpgpuKernelSpecifier1(_) => OpenCLKernel()
   }
 
   def convert(implicit decls: InitDeclaratorListContext): Seq[CInit[G]] = decls match {

@@ -1,7 +1,7 @@
 #ifndef CUDA_H
 #define CUDA_H
 
-#define __global__ __vercors_kernel__
+#define __global__ __cuda_kernel__
 #define __shared__ __vercors_local_memory__
 
 #define bool _Bool

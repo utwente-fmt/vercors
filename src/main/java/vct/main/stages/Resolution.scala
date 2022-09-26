@@ -12,7 +12,7 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
-import vct.parsers.{Language, ParseResult}
+import vct.parsers.{ParseResult}
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
@@ -38,12 +38,11 @@ case class Resolution[G <: Generation]
   blameProvider: BlameProvider,
   withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
-) extends Stage[(ParseResult[G], Option[Language]), VerificationContext[_ <: Generation]] {
+) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
 
-  override def run(inLanguage: (ParseResult[G], Option[Language]) ): VerificationContext[_ <: Generation] = {
-    val (in, language) = inLanguage
+  override def run(in: ParseResult[G]): VerificationContext[_ <: Generation] = {
     in.decls.foreach(_.transSubnodes.foreach {
       case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
         if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
@@ -64,7 +63,7 @@ case class Resolution[G <: Generation]
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-    val resolvedProgram = LangSpecificToCol(language).dispatch(typedProgram)
+    val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       case some => throw TransformationCheckError(some)

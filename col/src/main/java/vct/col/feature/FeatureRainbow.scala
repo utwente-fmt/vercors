@@ -435,7 +435,8 @@ class FeatureRainbow[G] {
     case node: CRestrict[G] => return Nil
     case node: CVolatile[G] => return Nil
     case node: CAtomic[G] => return Nil
-    case node: CKernel[G] => return Nil
+    case node: CUDAKernel[G] => return Nil
+    case node: OpenCLKernel[G] => return Nil
     case node: CPointer[G] => return Nil
     case node: CParam[G] => return Nil
     case node: CPointerDeclarator[G] => return Nil

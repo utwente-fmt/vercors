@@ -666,7 +666,8 @@ sealed trait CFunctionSpecifier[G] extends CDeclarationSpecifier[G] with CFuncti
 sealed trait CAlignmentSpecifier[G] extends CDeclarationSpecifier[G] with CAlignmentSpecifierImpl[G]
 
 sealed trait CGpgpuKernelSpecifier[G] extends CDeclarationSpecifier[G] with CGpgpuKernelSpecifierImpl[G]
-final case class CKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CKernelImpl[G]
+final case class CUDAKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CUDAKernelImpl[G]
+final case class OpenCLKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with OpenCLKernelImpl[G]
 
 final case class CPointer[G](qualifiers: Seq[CTypeQualifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPointerImpl[G]
 

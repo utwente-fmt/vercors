@@ -23,7 +23,10 @@ gpgpuMemFence
     |   Constant
     ;
 
-gpgpuKernelSpecifier: GPGPU_KERNEL;
+gpgpuKernelSpecifier
+    : CUDA_KERNEL
+    | OPENCL_KERNEL
+    ;
 
 gpgpuLocalMemory: GPGPU_LOCAL_MEMORY;
 

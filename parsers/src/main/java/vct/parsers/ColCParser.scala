@@ -24,8 +24,7 @@ case class ColCParser(override val originProvider: OriginProvider,
                       cc: Path,
                       systemInclude: Path,
                       otherIncludes: Seq[Path],
-                      defines: Map[String, String],
-                      language: Language) extends Parser(originProvider, blameProvider) with LazyLogging {
+                      defines: Map[String, String]) extends Parser(originProvider, blameProvider) with LazyLogging {
   def interpret(localInclude: Seq[Path], input: String, output: String): Process = {
     var command = Seq(cc.toString, "-C", "-E")
 

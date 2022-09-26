@@ -7,11 +7,9 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.parsers.Language
 import vct.result.VerificationError.UserError
 
 case object LangSpecificToCol extends RewriterBuilder {
-  def apply[Pre <: Generation](): AbstractRewriter[Pre, _ <: Generation] = apply(None)
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -28,9 +26,9 @@ case object LangSpecificToCol extends RewriterBuilder {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation](language: Option[Language]) extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
-  val c: LangCToCol[Pre] = LangCToCol(this, language)
+  val c: LangCToCol[Pre] = LangCToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
 

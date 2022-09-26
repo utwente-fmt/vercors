@@ -80,7 +80,7 @@ case object ResolveReferences {
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
     val inGPU = inGPUKernel || (node match {
-      case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CKernel[G] => ()}.isDefined
+      case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
       case _ => false
     })
     val innerCtx = enterContext(node, ctx, inGPU)
@@ -151,7 +151,7 @@ case object ResolveReferences {
       var res = ctx
       .copy(currentResult=Some(RefCFunctionDefinition(func)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
-      if(func.specs.collectFirst{case CKernel() => ()}.isDefined)
+      if(func.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined)
         res = res.declare(scanShared(func.body))
       res
     case func: CGlobalDeclaration[G] => ctx

@@ -1219,7 +1219,8 @@ case class Printer(out: Appendable,
     case CSpecificationType(t) => say(t)
     case CTypeQualifierDeclarationSpecifier(typeQual) => say(typeQual)
     case CExtern() => say("extern")
-    case CKernel() => say("__kernel")
+    case OpenCLKernel() => say("__kernel")
+    case CUDAKernel() => say("__global__")
     case GPULocal() => say(syntax(
       Cuda -> phrase("__shared__"),
       OpenCL -> phrase("__local"),
