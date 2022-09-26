@@ -504,19 +504,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             AmbiguousLessEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
-      case AmbiguousMinus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set or a bag but got ${left.t} and ${right.t}.",
+      case minus @ AmbiguousMinus(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set or a bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
-          Minus(rat(left), rat(right)), {
+          Minus(rat(left), rat(right)),
+          AmbiguousMinus(pointer(left)._1, int(right))(minus.blame), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousMinus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+            AmbiguousMinus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))(minus.blame)
           }, {
             val (coercedLeft, TBag(elementLeft)) = bag(left)
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousMinus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+            AmbiguousMinus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(minus.blame)
           }
         )
       case AmbiguousMember(x, xs) =>
@@ -537,7 +538,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           AmbiguousMember(coerce(x, element), coercedXs)
         })
       case AmbiguousMult(left, right) =>
-        firstOk(e, s"Expected both operands to be numericm a process, a set or a bag but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
           AmbiguousMult(rat(left), rat(right)),
           AmbiguousMult(process(left), process(right)), {

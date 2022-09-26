@@ -258,7 +258,7 @@ case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def inlineDescWithSource(source: String): String = s"The divisor in `$source` may be zero."
 }
 sealed trait FrontendDerefError extends VerificationFailure
-sealed trait FrontendPlusError extends VerificationFailure
+sealed trait FrontendAdditiveError extends VerificationFailure
 sealed trait FrontendSubscriptError extends VerificationFailure
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
@@ -451,7 +451,7 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
 sealed trait PointerLocationError extends PointerDerefError
-sealed trait PointerAddError extends FrontendPlusError
+sealed trait PointerAddError extends FrontendAdditiveError
 case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."

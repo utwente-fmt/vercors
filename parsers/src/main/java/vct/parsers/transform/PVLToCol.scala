@@ -187,7 +187,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: AddExprContext): Expr[G] = expr match {
     case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AddExpr1(left, _, right) => AmbiguousMinus(convert(left), convert(right))
+    case AddExpr1(left, _, right) => AmbiguousMinus(convert(left), convert(right))(blame(expr))
     case AddExpr2(inner) => convert(inner)
   }
 
