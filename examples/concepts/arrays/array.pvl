@@ -1,0 +1,43 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ArrayValues
+//:: tools silicon
+//:: verdict Pass
+
+/**
+  This example show how to prove functional properties about
+  the contents of arrays using notation that avoids the problem
+  with functions ensuring quantified properties about
+  quantified permissions.
+ */
+
+inline resource ArrayPointsTo(int[] ar, frac p, seq<int> xs) =
+  p!=none ** ar!=null ** ar.length==|xs|
+  ** (\forall* int k ; 0 <= k && k < ar.length; Perm(ar[k],p))
+  ** (\forall int k ; 0 <= k && k < ar.length; ar[k]==xs[k]);
+
+class C {
+//begin(all)
+  given frac p;
+  given seq<int> xs;
+  requires ArrayPointsTo(t,p,xs);
+  yields seq<int> ys;
+  ensures  ArrayPointsTo(t,p,xs);
+  ensures  ArrayPointsTo(\result,write,ys);
+  ensures  ys==xs;
+  int[] copy(int[] t){
+    ys=xs;
+    int[] res=new int[t.length];
+    int i=0;
+    loop_invariant 0 <= i ** i <= t.length ** ys==xs ** res.length == t.length;
+    loop_invariant ArrayPointsTo(t,p,xs);
+    loop_invariant (\forall* int k ; 0 <= k && k < res.length; Perm(res[k],write));
+    loop_invariant (\forall int k ; 0 <= k && k < i; res[k]==ys[k]);
+    while(i < t.length){
+      res[i]=t[i];
+      i=i+1;
+    }
+    return res;
+  }
+//end(all)
+}
+

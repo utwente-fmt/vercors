@@ -1,0 +1,24 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case OptionTypeManual
+//:: tools silicon
+//:: verdict Pass
+
+/*
+  Note that None cannot be type checked. Type inference is needed
+  and is only implemented for assignment (=), and the equality
+  operators (!=, ==).
+
+  PB: sike!
+*/
+
+void test(){
+  option<int> x = None;
+  option<int> y = Some(37);
+
+  assert x != y;
+  assert x == None;
+  assert y != None;
+
+  assert y.get == 37;
+  assert x.getOrElse(21387) == 21387;
+}

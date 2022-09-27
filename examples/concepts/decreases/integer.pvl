@@ -1,0 +1,6 @@
+requires n >= 1;
+decreases n;
+pure int triangle_number(int n) =
+  n > 1 ?
+    n + triangle_number(n - 1) :
+    1;

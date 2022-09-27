@@ -3,12 +3,11 @@
 //:: tools silicon
 //:: verdict Pass
 
+lock_invariant Perm(this.sum, 1);
 class ArraySum {
 	int sum;
 	
-	resource lock_invariant() = Perm(this.sum, 1);
-	
-	ArraySum() {
+	constructor() {
 	}
 
 	context_everywhere A != null;

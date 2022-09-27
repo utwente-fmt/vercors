@@ -1,0 +1,83 @@
+name: 'Run ScalaTest'
+# Only run the workflow when pushed to master, dev, or on pull requests.
+on: 
+  push:
+    branches:
+      - '**'
+    tags-ignore: 
+      - dev-prerelease
+  pull_request:
+    branches:
+      - '**'
+jobs:
+  check_dupe:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          # Never allow two runs of this workflow to exist
+          concurrent_skipping: 'always'
+          # Except, never skip a PR, scheduled, or manually dispatch run
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+          # Skip if we can find a duplicate run with the same everything
+          skip_after_successful_duplicate: 'true'
+          # Do not run on changes only to these files
+          paths_ignore: '["**/README.md", "**/LICENSE*"]'
+
+  run-scalatest-vct:
+    needs: check_dupe
+    if: ${{ needs.check_dupe.outputs.should_skip != 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+          - os: macos-latest
+
+    runs-on: ${{matrix.os}}
+    environment: Default
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: 11
+          cache: sbt
+      - name: Compile
+        run: sbt compile
+
+      # Windows: LLVM/Clang
+      - name: Cache LLVM and Clang
+        if: matrix.os == 'windows-latest'
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: ${{ runner.temp }}/llvm
+          key: llvm-10.0
+      - name: Install LLVM and Clang
+        if: matrix.os == 'windows-latest'
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "10.0"
+          directory: ${{ runner.temp }}/llvm
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+
+      # MacOS: LLVM/Clang
+      - name: Install clang
+        if: matrix.os == 'macos-latest'
+        run: brew install llvm
+
+      - name: run scalatest
+        run: sbt "testOnly vct.*"
+        continue-on-error: true
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        with:
+          name: TestReport vct           # Name of the check run which will be created
+          path: '**/target/test-reports/TEST-*.xml'    # Path to test results
+          reporter: java-junit

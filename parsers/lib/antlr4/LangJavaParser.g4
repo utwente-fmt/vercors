@@ -59,6 +59,7 @@ typeDeclaration
     |   classOrInterfaceModifier* enumDeclaration
     |   classOrInterfaceModifier* interfaceDeclaration
     |   classOrInterfaceModifier* annotationTypeDeclaration
+    |   valEmbedGlobalDeclarationBlock
     |   ';'
     ;
 
@@ -69,7 +70,7 @@ modifier
         |   'transient'
         |   'volatile'
         )
-    |   valEmbedModifiers
+    |   valEmbedModifier
     ;
 
 classOrInterfaceModifier
@@ -90,7 +91,7 @@ variableModifier
     ;
 
 classDeclaration
-    :   'class' javaIdentifier typeParameters? ext? imp? classBody
+    :   valEmbedContract? 'class' javaIdentifier typeParameters? ext? imp? classBody
     ;
 ext: 'extends' type;
 imp: 'implements' typeList;
@@ -101,7 +102,7 @@ typeParameters
 
 typeParameterList
     :   typeParameter
-    |   typeParameterList ',' typeParameterList
+    |   typeParameter ',' typeParameterList
     ;
 
 typeParameter
@@ -154,8 +155,7 @@ classBodyDeclaration
     :   ';'
     |   'static'? block
     |   valEmbedContract? modifier* memberDeclaration
-    |   valEmbedDeclarationBlock
-    |   {specLevel>0}? valDeclaration
+    |   valEmbedClassDeclarationBlock
     ;
 
 memberDeclaration
@@ -201,8 +201,8 @@ fieldDeclaration
     ;
 
 interfaceBodyDeclaration
-    :   modifier* interfaceMemberDeclaration
-    |   valEmbedDeclarationBlock
+    :   valEmbedContract? modifier* interfaceMemberDeclaration
+    |   valEmbedClassDeclarationBlock
     |   ';'
     ;
 
@@ -471,12 +471,18 @@ localVariableDeclaration
     :   variableModifier* type variableDeclarators
     ;
 
+loopAmalgamation
+    : valEmbedContract loopAmalgamation
+    | loopLabel loopAmalgamation
+    | /* epsilon */
+    ;
+
 statement
     :   block
     |   ASSERT expression assertMessage? ';'
     |   'if' parExpression statement elseBlock?
-    |   valEmbedContract? 'for' '(' forControl ')' valEmbedContract? statement
-    |   valEmbedContract? 'while' parExpression valEmbedContract? statement
+    |   loopAmalgamation 'for' '(' forControl ')' valEmbedContract? statement
+    |   loopAmalgamation 'while' parExpression valEmbedContract? statement
     |   'do' statement 'while' parExpression ';'
     |   'try' block catchClause+ finallyBlock?
     |   'try' block finallyBlock
@@ -489,20 +495,24 @@ statement
     |   'continue' javaIdentifier? ';'
     |   ';'
     |   statementExpression ';'
-    |   valEmbedContract? javaIdentifier ':' statement
+    |   javaIdentifier ':' statement
     |   {specLevel>0}? valStatement
     ;
 
 assertMessage: ':' expression;
 elseBlock: 'else' statement;
 
+loopLabel
+    : javaIdentifier ':'
+    ;
+
 catchClause
     :   'catch' '(' variableModifier* catchType javaIdentifier ')' block
     ;
 
 catchType
-    :   qualifiedName
-    |   qualifiedName '|' catchType
+    :   classOrInterfaceType
+    |   classOrInterfaceType '|' catchType
     ;
 
 finallyBlock
@@ -573,40 +583,56 @@ constantExpression
     ;
 
 expression
-    :   {specLevel>0}? valPrimary
-    |   primary
-    |   expression '.' javaIdentifier
-    |   expression '.' 'this'
-    |   expression '.' 'new' nonWildcardTypeArguments? innerCreator
-    |   expression '.' 'super' superSuffix
-    |   expression '.' explicitGenericInvocation
-    |   expression '[' expression ']'
-    |   expression '->' javaIdentifier arguments
-    |   expression '.' javaIdentifier predicateEntryType? arguments valEmbedWithThen?
-    |   'new' creator valEmbedWithThen?
-    |   '(' type ')' expression
-    |   expression ('++' | '--')
-    |   ('+'|'-'|'++'|'--') expression
-    |   ('~'|'!') expression
-    |   expression mulOp expression
-    |   expression ('+'|'-') expression
-    |   expression shiftOp expression
-    |   expression ('<=' | '>=' | '>' | '<') expression
-    |   expression 'instanceof' type
-    |   expression ('==' | '!=') expression
-    |   expression '&' expression
-    |   expression '^' expression
-    |   expression '|' expression
-    |   expression andOp expression
-    |   expression '||' expression
-    |   expression impOp  expression
-    |   expression '?' expression ':' expression
-    |   <assoc=right> expression assignOp expression
+    : valEmbedWith? expr valEmbedThen?
+    ;
+
+expr
+    :   annotatedPrimary # javaPrimary
+    |   expr '.' javaIdentifier # javaDeref
+    |   expr '.' 'this' # javaPinnedThis
+    |   expr '.' 'new' nonWildcardTypeArguments? innerCreator # javaPinnedOuterClassNew
+    |   expr '.' 'super' superSuffix # javaSuper
+    |   expr '.' explicitGenericInvocation # javaGenericInvocation
+    |   expr '[' expr ']' # javaSubscript
+    |   expr '->' javaIdentifier arguments # javaNonNullInvocation
+    |   expr '.' javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields? # javaInvocation
+    |   expr postfixOp # javaValPostfix
+    |   'new' creator valEmbedGiven? valEmbedYields? # javaNew
+    |   '(' type ')' expr # javaCast
+    |   expr ('++' | '--') # javaPostfixIncDec
+    |   ('+'|'-'|'++'|'--') expr # javaPrefixOp
+    |   ('~'|'!') expr # javaPrefixOp2
+    |   <assoc=right> expr prependOp expr # javaValPrepend
+    |   expr mulOp expr # javaMul
+    |   expr ('+'|'-') expr # javaAdd
+    |   expr shiftOp expr # javaShift
+    |   expr relOp expr # javaRel
+    |   expr 'instanceof' type # javaInstanceOf
+    |   expr ('==' | '!=') expr # javaEquals
+    |   expr '&' expr # javaBitAnd
+    |   expr '^' expr # javaBitXor
+    |   expr '|' expr # javaBitOr
+    |   expr andOp expr # javaAnd
+    |   expr '||' expr # javaOr
+    |   <assoc=right> expr impOp  expr # javaValImp
+    |   expr '?' expr ':' expr # javaSelect
+    |   <assoc=right> expr assignOp expr # javaAssign
     ;
 predicateEntryType: '@' javaIdentifier; // TODO: Find correct class type
+prependOp
+    : {specLevel>0}? valPrependOp
+    ;
+postfixOp
+    : {specLevel>0}? valPostfix
+    ;
 mulOp
     : ('*'|'/'|'%')
     | {specLevel>0}? valMulOp
+    ;
+shiftOp
+    : '<' '<'
+    | '>' '>' '>'
+    | '>' '>'
     ;
 andOp
     : ('&&')
@@ -615,13 +641,17 @@ andOp
 impOp
     : {specLevel>0}? valImpOp
     ;
+relOp
+    : ('<=' | '>=' | '>' | '<')
+    | {specLevel>0}? valInOp
+    ;
 shiftOp
     :   '<' '<'
     |   '>' '>' '>'
     |   '>' '>'
     ;
 assignOp
-    :   '='
+    :   ('='
     |   '+='
     |   '-='
     |   '*='
@@ -632,7 +662,11 @@ assignOp
     |   '>>='
     |   '>>>='
     |   '<<='
-    |   '%='
+    |   '%=')
+    ;
+
+annotatedPrimary
+    : valEmbedWith? primary valEmbedThen?
     ;
 
 primary
@@ -641,11 +675,12 @@ primary
     |   'super'
     |   literal
     |   javaIdentifier
-    |   javaIdentifier predicateEntryType? arguments valEmbedWithThen?
+    |   javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields?
     |   type '.' 'class'
     |   'void' '.' 'class'
     |   nonWildcardTypeArguments constructorCall
-	;
+    |   valExpr
+	  ;
 
 constructorCall
     :   explicitGenericInvocationSuffix
@@ -722,7 +757,6 @@ arguments
     ;
 
 javaIdentifier
-    : {specLevel>0}? valReserved
-    | Identifier
-    | valReserved // allow reserved identifiers outside specification
+    : Identifier
+    | valIdentifier
     ;

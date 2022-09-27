@@ -1,0 +1,56 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases ParallelWhileSimplified
+//:: verdict Pass
+
+class Role {
+	
+	int x, left;
+	
+	ensures x == v;
+	constructor(int v) {
+		x = v;
+	}
+	
+}
+
+
+class SeqProgram {
+	
+	Role a, b, c;
+	
+	requires vb - vc == vc - va;
+	ensures b.x - c.x == c.x - a.x;
+	constructor(int va, int vb, int vc) {
+		a = new Role(va);
+		b = new Role(vb);
+		c = new Role(vc);
+	}
+
+	requires b.x - c.x == c.x - a.x;
+	ensures a.x == b.x && b.x == c.x; 
+	void run() {
+		b.left = a.x;
+		c.left = b.x;
+		a.left = c.x;
+		
+		loop_invariant b.x - c.x == c.x - a.x;
+		loop_invariant (a.left != a.x) == (b.left != b.x);
+		loop_invariant (b.left != b.x) == (c.left != c.x);
+		loop_invariant b.left == a.x && c.left == b.x && a.left == c.x;
+		while(a.left != a.x && b.left != b.x && c.left != c.x) {
+			a.x = a.x + 1;
+			b.left = a.x;
+			b.x = b.x - 1;
+			c.left = b.x;
+			a.left = c.x;
+		}
+	}
+
+    requires vb - vc == vc - va;
+	void main(int va, int vb, int vc) {
+		SeqProgram m = new SeqProgram(va,vb,vc);
+		m.run();
+	}
+	
+}
+

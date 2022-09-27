@@ -1,0 +1,72 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases SummationKernel1
+//:: tools silicon
+//:: verdict Pass
+
+class Ref {
+
+  int res;
+
+  context_everywhere ar != null ** N > 0 ** M > 0 ** \array(ar,M*N);
+  context Perm(res,write);
+  context (\forall* int i;0 <= i && i < M*N ; Perm(ar[i],1\2));
+  requires res==0;
+  ensures  (\forall int i;0 <= i && i < M*N ; ar[i]==\old(ar[i]));
+  void do_sum(int M,int N, int[M*N] ar){
+    int[M] temp=new int[M];
+    invariant outer(
+      Perm(res,write)
+    ){
+      par kern(int g = 0 .. M)
+        context (\forall* int k ; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));
+      {
+        int[1] temp=new int[1];
+        int[N] contrib=new int [N];
+        temp[0]=0;
+        par (int t=0..N)
+          context \array(contrib,N) ** Perm(contrib[t],write);
+          ensures contrib[t]==0;
+        { contrib[t] = 0; }
+        
+        invariant inner(
+          \array(temp,1) ** Perm(temp[0],1) **
+          \array(contrib,N) ** (\forall* int k; 0 <= k && k < N ; Perm(contrib[k],1\2))
+          // temp[0]==(\sum int k; 0 <= k && k < N ; contrib[k])
+        ){
+          par group(int t = 0 .. N)
+            context \array(contrib,N);
+            requires PointsTo(contrib[t],1\2,0);
+            requires Perm(ar[g*N+t],1\4);
+            ensures t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));
+          {
+            atomic(inner){
+              temp[0]=temp[0]+ar[g*N+t];
+              contrib[t]=ar[g*N+t];
+            }
+            barrier(group)
+              context  \array(contrib,N);
+							context 0 <= t && t < N;
+							context 0 <= g && g < M;
+              requires Perm(ar[g*N+t],1\4);
+              requires PointsTo(contrib[t],1\2,ar[g*N+t]);
+              ensures  t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(ar[g*N+k],1\4));
+              ensures  t==0 ==> (\forall* int k; 0 <= k && k < N ; Perm(contrib[k],1\4));
+              ensures  t==0 ==> (\forall int k; 0 <= k && k < N ; contrib[k]==ar[g*N+k]);
+            {
+            }
+            if(t==0){
+              int tmp;
+              atomic(inner){
+                tmp=temp[0];
+                // tmp==(\sum int k; 0 <= k && k < N ; ar[g*N+k])
+              }
+              atomic(outer){
+                res=res+tmp;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

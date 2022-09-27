@@ -1,0 +1,19 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases Goto1
+//:: tools silicon carbon
+//:: verdict Fail
+
+class Ref {
+   /*[/expect postFailed:false]*/
+   requires n > 0;
+   ensures \result > 0;
+   int t1(int n){
+     int r;
+     goto lbl;
+     r = n;
+     label lbl;
+     return r;
+   }
+   /*[/end]*/
+}
+

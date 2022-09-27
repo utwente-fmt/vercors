@@ -1,0 +1,18 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases OwickiGries
+class Worker {
+  OwickiGries store;
+  
+  ensures Value(store) ** store==og;
+  constructor(OwickiGries og){
+    store=og;
+  }
+  
+  requires Value(store);
+  ensures  Value(store);
+  run {
+    lock store;
+    store.x=store.x+1;
+    unlock store;
+  }
+}

@@ -1,0 +1,80 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case SimpleLockingProtocol
+//:: suite puptol
+//:: tool silicon
+//:: option --check-history
+
+model MLock {
+	boolean flag;
+	
+	modifies flag;
+	requires !flag;
+	ensures flag;
+	action acquire();
+	
+	modifies flag;
+	ensures !flag;
+	action release();
+
+	process Locked() = release() * Unlocked();
+	process Unlocked() = acquire() * Locked();
+}
+
+lock_invariant Value(m) ** HPerm(m.flag, write);
+class Lock {
+	MLock m;
+	
+	/** constructs a new lock (with associated model `m`). */
+	requires HPerm(m.flag, write);
+	constructor(MLock m) {
+		this.m = m;
+	} 
+	
+	/** atomically updates `m.flag` by `newval` when it holds the value `oldval`. */
+	given frac p;
+	given process P;
+	context Value(m) ** p != none;
+	requires m.state(p, P);
+	ensures  (\result && !oldval && newval && P == m.Unlocked()) ==> m.state(p, m.Locked());
+	ensures !(\result && !oldval && newval && P == m.Unlocked()) ==> m.state(p, P);
+	boolean atomic_cas(boolean oldval, boolean newval);
+	
+	/** atomically writes `val` to `m.flag`. */
+	given frac p;
+	given process P;
+	context Value(m) ** p != none;
+	requires m.state(p, P);
+	ensures  (!val && P == m.Locked()) ==> m.state(p, m.Unlocked());
+	ensures !(!val && P == m.Locked()) ==> m.state(p, P);
+	void atomic_set(boolean val);
+	
+	/** acquires the lock */
+	given frac p;
+	context Value(m) ** p != none;
+	requires m.state(p, m.Unlocked());
+	ensures m.state(p, m.Locked());
+	void acquire() {
+		boolean b = false;
+		loop_invariant Value(m);
+		loop_invariant !b ==> m.state(p, m.Unlocked());
+		loop_invariant b ==> m.state(p, m.Locked());
+		while (!b) {
+			b = atomic_cas(false, true) given {
+        P = m.Unlocked(),
+        p = p
+      };
+		}
+	}
+	
+	/** releases the lock */
+	given frac p;
+	context Value(m) ** p != none;
+	requires m.state(p, m.Locked());
+	ensures m.state(p, m.Unlocked());
+	void release() {
+		atomic_set(false) given {
+      P = m.Locked(),
+      p = p
+    };
+	}
+}

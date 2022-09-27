@@ -1,0 +1,20 @@
+adt `option`<T> {
+  // capitalized so it's short and does not collide with `none`
+  pure `option`<T> `None`();
+  pure `option`<T> some(T x);
+
+  pure T option_get(`option`<T> opt);
+
+  axiom (\forall T x; true; `None`() != {:some(x):});
+  axiom (\forall T x; true; option_get({:some(x):}) == x);
+  axiom (\forall `option`<T> opt; true; {:some(option_get(opt)):} == opt);
+}
+
+requires opt != `option`<T>.`None`();
+ensures `option`<T>.some(\result) == opt;
+pure T opt_get<T>(`option`<T> opt) = `option`<T>.option_get(opt);
+
+ensures opt == `option`<T>.`None`() ==> \result == alt;
+ensures opt != `option`<T>.`None`() ==> \result == opt_get<T>(opt);
+pure T opt_or_else<T>(`option`<T> opt, T alt) =
+  opt == `option`<T>.`None`() ? alt : opt_get<T>(opt);

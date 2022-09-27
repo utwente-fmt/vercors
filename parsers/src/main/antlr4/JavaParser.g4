@@ -8,10 +8,12 @@ import LangJavaParser, SpecParser;
 
 langExpr: expression;
 langId: javaIdentifier;
+langConstInt: IntegerLiteral;
 langType: type;
-langModifier: classOrInterfaceModifier;
 langStatement: blockStatement;
-langDecl: modifier* memberDeclaration;
+langStatic: 'static';
+langClassDecl: classBodyDeclaration;
+langGlobalDecl: typeDeclaration;
 
 startSpec
     : LineStartSpec {specLevel++;}

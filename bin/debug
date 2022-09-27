@@ -1,0 +1,5 @@
+set -e
+
+BIN=$(dirname $0)
+
+MORE_JAVA_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005 "$@"

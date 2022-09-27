@@ -1,0 +1,13 @@
+//:: cases MainConstructorArg
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+
+class Main {
+
+
+	constructor(int i) {
+	
+	}
+}

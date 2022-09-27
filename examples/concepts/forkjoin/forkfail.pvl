@@ -1,0 +1,28 @@
+//:: cases ForkPVLFail
+//:: tools silicon
+//:: verdict Fail
+
+class Test {
+
+  constructor() {}
+
+  requires true;
+  ensures  true;
+  run {
+    
+  }
+
+  void test2(){
+    Test t1=new Test();
+    fork t1;
+    fork t1;
+    
+  }
+
+  void test3(){
+    Test t1=new Test();
+    join t1;    
+  }
+
+}
+

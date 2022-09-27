@@ -1,0 +1,47 @@
+//:: case TestFuturePermsFail
+//:: tool silicon
+//:: option --check-history
+//:: verdict Fail
+
+model Model {
+  int x;
+  
+  modifies x;
+  ensures x == \old(x)+1;
+  action step();
+}
+
+requires HPerm(f.x, 1);
+void bad1(Model f) {
+  f.x = 1;
+}
+
+requires Perm(f.x, 1);
+void bad2(Model f) {
+  assert HPerm(f.x, 1);
+}
+
+requires Perm(f.x, 1);
+void bad3(Model f) {
+  assert APerm(f.x, 1);
+}
+
+requires HPerm(f.x, 1);
+void bad4(Model f) {
+  assert Perm(f.x, 1);
+}
+
+requires HPerm(f.x, 1);
+void bad5(Model f) {
+  assert APerm(f.x, 1);
+}
+
+requires APerm(f.x, 1);
+void bad6(Model f) {
+  assert Perm(f.x, 1);
+}
+
+requires APerm(f.x, 1);
+void bad7(Model f) {
+  assert HPerm(f.x, 1);
+}

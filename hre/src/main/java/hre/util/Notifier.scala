@@ -1,19 +1,18 @@
 package hre.util
 
-import hre.config.Configuration
+import hre.platform.Platform
 
 import java.io.{ByteArrayInputStream, File}
 import sys.process._
-
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Paths}
 import java.util.regex.Pattern
 
 object Notifier {
-  def notify(title: String, message: String): Boolean = Configuration.getOS() match {
-    case Configuration.OS.WINDOWS => notifyWindows10(title, message)
-    case Configuration.OS.MAC => notifyMacOS(title, message)
-    case Configuration.OS.UNIX => notifyLibnotify(title, message)
+  def notify(title: String, message: String): Boolean = Platform.getCurrent match {
+    case Platform.Windows => notifyWindows10(title, message)
+    case Platform.Mac => notifyMacOS(title, message)
+    case Platform.Unix => notifyLibnotify(title, message)
     case _ => false
   }
 

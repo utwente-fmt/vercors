@@ -1,0 +1,41 @@
+adt `block` {
+  pure int block_length(`block` b);
+  pure ref loc(`block` b, int i);
+
+  pure `block` loc_inv_1(ref r);
+  pure int loc_inv_2(ref r);
+
+  // block length is non-negative
+  axiom (\forall `block` b; true; block_length(b) >= 0);
+
+  // loc is injective: a (block, index) pair indicates a unique ref
+  axiom
+    (∀ `block` b, int i;
+      loc_inv_1(loc(b, i)) == b && loc_inv_2(loc(b, i)) == i);
+}
+
+adt `pointer` {
+  pure `pointer` pointer_of(`block` b, int offset);
+  pure `block` pointer_block(`pointer` p);
+  pure int pointer_offset(`pointer` p);
+
+  // the block offset is valid wrt the length of the block
+  axiom (∀ `pointer` p;
+    pointer_offset(p) >= 0 &&
+      pointer_offset(p) < `block`.block_length(pointer_block(p)));
+
+  // pointer_of is injective: a (block, offset) pair indicates a unique pointer value
+  axiom (∀`block` b, int offset;
+    {:pointer_block(pointer_of(b, offset)):} == b &&
+      {:pointer_offset(pointer_of(b, offset)):} == offset);
+}
+
+pure ref ptr_deref(`pointer` p) =
+  `block`.loc(`pointer`.pointer_block(p), `pointer`.pointer_offset(p));
+
+requires 0 <= `pointer`.pointer_offset(p) + offset;
+requires `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p));
+pure `pointer` ptr_add(`pointer` p, int offset) =
+  `pointer`.pointer_of(
+     `pointer`.pointer_block(p),
+     `pointer`.pointer_offset(p) + offset);

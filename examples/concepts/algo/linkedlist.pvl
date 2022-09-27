@@ -1,0 +1,198 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases LinkedList
+//:: tools silicon
+//:: verdict Pass
+
+/** Helper methods for integer sequences */
+/** appends an integer `v` to the front of the sequence `s` */
+pure seq<int> append(int v, seq<int> s) = seq<int> { v } + s;
+
+/** gives an empty integer sequence */
+pure seq<int> create_empty() = seq<int> { };
+
+/** tests whether the given sequence `s` is empty */
+pure boolean is_empty(seq<int> s) = s == create_empty();
+
+/** prepends an integer `v` to the back of the sequence `s` */
+pure seq<int> prepend(int v, seq<int> s) = s + seq<int> { v };
+
+/** removes the first occurence of `v` in `s`. */
+pure seq<int> `remove`(seq<int> s, int v) = is_empty(s) ? create_empty() :
+  (head(s) == v ? tail(s) : append(head(s), `remove`(tail(s), v)));
+
+/** gives the reverse of `s`. */
+pure seq<int> reverse(seq<int> s) = is_empty(s) ? create_empty() : reverse(tail(s)) + seq<int> { head(s) };
+
+
+/** tests whether `list` is empty. */
+pure boolean is_empty(List list) = list == null;
+
+/** yields a sequence containing the values of `list`. */
+requires p != none ** list?.state(p);
+pure seq<int> as_seq(List list, frac p) =
+  List.is_empty(list) ? create_empty() : \unfolding list.state(p) \in seq<int> { list.value } + as_seq(list.next, p);
+
+/** gives a new list equal to `list` but with `value` appended to the front. */
+given frac p;
+given seq<int> orig;
+context p != none ** list?.state(p);
+requires orig == as_seq(list, p);
+ensures \result != null;
+ensures \result.state(write);
+ensures value == \unfolding \result.state(write) \in \result.value;
+ensures as_seq(\result, write) == append(value, orig);
+List append(List list, int value) {
+  List tail_list = List.clone(list) given { orig = orig, p = p };
+
+  return new List(tail_list, value) given { orig = orig };
+}
+
+/** yields a clone (hard copy) of the input list `a`. */
+given frac p;
+given seq<int> orig;
+context p != none ** a?.state(p);
+requires orig == as_seq(a, p);
+ensures \result?.state(write);
+ensures as_seq(\result, write) == orig;
+List clone(List a) {
+  if (List.is_empty(a)) {
+    return null;
+  }
+
+  unfold a.state(p);
+
+  List rec = clone(a.next) given { orig = orig.tail, p = p };
+
+  List result = new List(rec, a.value) given { orig = as_seq(rec, write) };
+
+  fold a.state(p);
+  return result;
+}
+
+/** returns a list that represents the concatenation of `a` with `b`. */
+given frac p;
+given frac q;
+given seq<int> orig_a;
+given seq<int> orig_b;
+context p != none ** q != none ** a?.state(p) ** b?.state(q);
+requires orig_a == as_seq(a, p);
+requires orig_b == as_seq(b, q);
+ensures \result?.state(write);
+ensures as_seq(\result, write) == orig_a + orig_b;
+List concatenate(List a, List b) {
+  if (List.is_empty(a)) {
+    return List.clone(b) given { orig = orig_b, p = q };
+  }
+
+  unfold a.state(p);
+
+  List rec = concatenate(a.next, b) given {
+    orig_a = as_seq(a.next, p),
+    orig_b = as_seq(b, q),
+    p = p,
+    q = q
+  };
+
+  List result = new List(rec, a.value) given { orig = as_seq(rec, write) };
+
+  fold a.state(p);
+  return result;
+}
+
+/** prepends `value` to the back of `list`. */
+given frac p;
+given seq<int> orig;
+context p != none ** list?.state(p);
+requires as_seq(list, p) == orig;
+ensures \result != null;
+ensures \result.state(write);
+ensures as_seq(\result, write) == prepend(value, orig);
+List prepend(List list, int value) {
+  if (List.is_empty(list)) {
+    return new List(null, value) given { orig = create_empty() };
+  }
+
+  unfold list.state(p);
+
+  List rec = prepend(list.next, value) given { orig = tail(orig), p = p };
+
+  List result = new List(rec, list.value) given { orig = as_seq(rec, write) };
+
+  fold list.state(p);
+  return result;
+}
+
+
+/** gives a new list equal to `list` but with the first occurence of `value` removed. */
+given frac p;
+given seq<int> orig;
+context p != none ** list?.state(p);
+requires orig == as_seq(list, p);
+ensures \result?.state(write);
+ensures as_seq(\result, write) == `remove`(orig, value);
+List `remove`(List list, int value) {
+  if (List.is_empty(list)) {
+    return null;
+  }
+
+  unfold list.state(p);
+
+  if (list.value == value) {
+    List result = List.clone(list.next) given { orig = tail(orig), p = p };
+
+    fold list.state(p);
+    return result;
+  }
+
+  List rec = `remove`(list.next, value) given { orig = tail(orig), p = p };
+
+  List result = new List(rec, list.value) given { orig = as_seq(rec, write) };
+
+  fold list.state(p);
+  return result;
+}
+
+/** gives a new list equal to the reversed `list`. */
+given frac p;
+given seq<int> orig;
+context p != none ** list?.state(p);
+requires orig == as_seq(list, p);
+ensures \result?.state(write);
+ensures as_seq(\result, write) == reverse(orig);
+List reverse(List list) {
+  if (List.is_empty(list)) {
+    return null;
+  }
+
+  unfold list.state(p);
+
+  List rec = List.reverse(list.next) given { orig = tail(orig), p = p };
+
+  // this should be done nice when we have the non-static members!
+  List result = List.prepend(rec, list.value) given { orig = as_seq(rec, write), p = write };
+
+  fold list.state(p);
+  return result;
+}
+
+class List {
+	List next;
+	int value;
+	
+	resource state(frac p) = p != none ** Perm(value, p) ** Perm(next, p) ** next?.state(p);
+
+	/** constructs a new list with tail `n` and value `v` */
+	given seq<int> orig;
+	requires n?.state(write);
+	requires as_seq(n, write) == orig;
+	ensures state(write);
+	ensures \unfolding state(write) \in value == v;
+	ensures \unfolding state(write) \in next == n;
+	ensures \unfolding state(write) \in as_seq(next, write) == orig;
+	ensures as_seq(this, write) == append(v, orig);
+	constructor(List n, int v) {
+		next = n;
+		value = v;
+		fold state(write);
+	}
+}

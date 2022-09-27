@@ -1,0 +1,31 @@
+//:: cases ForkPVLPass
+//:: tools silicon
+//:: verdict Pass 
+
+class Test {
+  
+  constructor() {}
+
+
+  requires true;
+  ensures  true;
+  run {
+    
+  }
+
+
+  void test1(){
+    assert true;
+    Test t1=new Test();
+    assert idle(t1);
+    fork t1;
+    assert running(t1);
+    join t1;
+    assert idle(t1);
+    fork t1;
+    assert running(t1);
+    join t1;
+    assert idle(t1);    
+  }
+}
+

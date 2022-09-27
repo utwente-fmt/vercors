@@ -6,13 +6,21 @@ import SpecLexer, LangOMPLexer, LangGPGPULexer;
     private static boolean inLineSpec = false;
 }
 
+channels {
+  EXPECTED_ERROR_CHANNEL,
+  LINE_DIRECTIVE_CHANNEL
+}
+
 VAL_INLINE: EOF EOF;
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
 VAL_SIZEOF: EOF EOF;
+VAL_PACKAGE: 'package';
 
 Placeholder : EOF EOF ;
+
+Null : 'NULL';
 
 Auto : 'auto';
 Break : 'break';
@@ -345,17 +353,8 @@ SChar
     ;
 
 LineDirective
-    :   '#' Whitespace? DecimalConstant Whitespace? StringLiteral ~[\r\n]*
-        { setChannel(2); }
+    :   '#' Whitespace? DecimalConstant Whitespace? StringLiteral ~[\r\n]* -> channel(LINE_DIRECTIVE_CHANNEL)
     ;
-
-/*
-used by OMP
-PragmaDirective
-    :   '#' Whitespace? 'pragma' Whitespace ~[\r\n]*
-        { setChannel(2); }
-    ;
-*/
 
 BlockStartSpecImmediate: '/*' [ \t\u000C]* '@' {inBlockSpec = true;};
 BlockCommentStart: '/*' -> mode(COMMENT), skip;

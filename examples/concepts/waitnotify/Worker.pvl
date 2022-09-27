@@ -1,0 +1,29 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases WaitNotify
+class Worker {
+  Queue q1;
+  Queue q2;
+  
+  ensures Value(this.q1) ** this.q1==q1;
+  ensures Value(this.q2) ** this.q2==q2;
+  constructor(Queue q1,Queue q2){
+    this.q1=q1;
+    this.q2=q2;
+  }
+  
+  requires Value(q1) ** q1!=null;
+  requires Value(q2) ** q2!=null;
+  run {
+    int tmp;
+    int i=0;
+    loop_invariant 0 <= i && i <= 4;
+    loop_invariant Value(q1) ** q1!=null;
+    loop_invariant Value(q2) ** q2!=null;
+    while(i<4){
+      tmp=q1.take();
+      tmp=tmp+2;
+      q2.put(tmp);
+      i=i+1;
+    }
+  }
+}

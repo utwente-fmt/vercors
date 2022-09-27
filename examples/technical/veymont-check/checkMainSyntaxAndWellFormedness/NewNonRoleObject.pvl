@@ -1,0 +1,33 @@
+//:: cases NewNonRoleObject
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Pass
+//:: tool veymont
+class Main {
+
+	Role a,b;
+	
+	constructor() {
+		a = new Role();
+		b = new Role();
+	}
+	
+	void run() {
+		a.some = new Other();
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	Other some;
+}
+
+class Other {
+
+}

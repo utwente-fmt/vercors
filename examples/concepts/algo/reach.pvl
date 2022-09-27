@@ -1,0 +1,75 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case GraphReachability
+//:: tools silicon
+//:: verdict Pass
+
+/* Graph reahability, where the graph is represented as an adjacency matrix `G`.
+	 We prove soundness: if the `search` function returns positively, there is a path `P` from `x` to `y` in `G`. */
+
+/* Possible extension: if `search` returns negatively, there is no path from `x` to `y` (completeness). */
+
+class Graph {
+	// for now we say that `G` is a _graph_ if `G` is an `n*n` matrix.
+	pure boolean graph(int n, seq<seq<boolean>> G) = |G| == n && (\forall seq<boolean> e; e in G; |e| == n);
+	
+	requires graph(n, G);
+	pure boolean Path(int n, seq<seq<boolean>> G, seq<int> P) =
+		(\forall int j; 0 <= j && j < |P|; 0 <= P[j] && P[j] < n) && (\forall int j; 0 <= j && j < |P|-1; G[P[j]][P[j+1]]);
+	
+	yields seq<int> P;
+	requires 0 < n && graph(n, G);
+	requires 0 <= x && x < n && 0 <= y && y < n;
+	ensures \result ==> 0 < |P|;
+	ensures \result ==> P[0] == x && P[|P|-1] == y;
+	ensures \result ==> Path(n, G, P);
+	boolean search(int n, seq<seq<boolean>> G, int x, int y) {
+		boolean[n] marked = new boolean[n];
+	
+		int i = 0;
+		loop_invariant 0 <= i && i <= n;
+		loop_invariant (\forall* int j; 0 <= j && j < n; Perm(marked[j], write));
+		loop_invariant (\forall int j; 0 <= j && j < i; !marked[j]);
+		while (i < n) {
+			marked[i] = false;
+			i = i + 1;
+		}
+		
+		return explore(n, G, marked, x, y) yields { P = P };
+	}
+	
+	yields seq<int> P;
+	context_everywhere marked != null && marked.length == n;
+	context_everywhere 0 <= x && x < n && 0 <= y && y < n;
+	context 0 < n && graph(n, G);
+	context (\forall* int j; 0 <= j && j < n; Perm(marked[j], write));
+	ensures \result ==> 0 < |P|;
+	ensures \result ==> P[0] == x && P[|P|-1] == y;
+	ensures \result ==> Path(n, G, P);
+	boolean explore(int n, seq<seq<boolean>> G, boolean[n] marked, int x, int y) {
+		if (x == y) {
+			P = [x];
+			return true;
+		}
+	
+		marked[x] = true;
+	
+		int next = 0;
+		
+		loop_invariant 0 <= next && next <= n;
+		loop_invariant (\forall* int j; 0 <= j && j < n; Perm(marked[j], write));
+		while (next < n) {
+			if (G[x][next] && !marked[next]) {
+
+				boolean rec = explore(n, G, marked, next, y) yields { P = P };
+				if (rec) {
+					P = x :: P;
+					return true;
+				}
+			}
+		
+			next = next + 1;
+		}
+	
+		return false;
+	}
+}

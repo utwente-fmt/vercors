@@ -18,6 +18,8 @@ class Counter {
 	ensures count == \old(count) + 2 * n;
 	void incr2(int n) {
 		incr(n);
+		/*[/expect preFailed:perm]*/
 		incr(n); // problem
+		/*[/end]*/
 	}
 }

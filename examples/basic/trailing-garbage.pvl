@@ -1,8 +1,0 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: cases TrailingGarbage
-//:: tools silicon
-//:: verdict Error
-
-class MyClass {
-}
-}

@@ -4,11 +4,11 @@ set -e
 BIN=$(dirname $0)
 
 if [[ "$OSTYPE" == "darwin" ]]; then
-  Z3="$BIN/../src/main/universal/res/deps/z3/4.8.6/Darwin/x86_64/bin/z3"
-  BOOGIE_EXE="$BIN/../src/main/universal/res/deps/boogie/1.0.0.0-carbon/Darwin/Boogie"
+  Z3="$BIN/../src/main/universal/deps/darwin/z3/bin/z3"
+  BOOGIE_EXE="$BIN/../src/main/universal/deps/darwin/boogie/Boogie"
 else
-  Z3="$BIN/../src/main/universal/res/deps/z3/4.8.6/Linux/x86_64/bin/z3"
-  BOOGIE_EXE="$BIN/../src/main/universal/res/deps/boogie/1.0.0.0-carbon/Linux/Boogie"
+  Z3="$BIN/../src/main/universal/deps/unix/z3/bin/z3"
+  BOOGIE_EXE="$BIN/../src/main/universal/deps/unix/boogie/Boogie"
 fi
 
 BOOGIE_EXE=$BOOGIE_EXE $BIN/run-class viper.carbon.Carbon --z3Exe $Z3 "$@"

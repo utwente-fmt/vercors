@@ -23,13 +23,23 @@ parser grammar SpecParser;
  */
 
 valExpressionList
-    : langExpr
-    | langExpr ',' valExpressionList
-    ;
+ : langExpr
+ | langExpr ',' valExpressionList
+ ;
+
+valIdList
+ : langId
+ | langId ',' valIdList
+ ;
+
+valTypeList
+ : langType
+ | langType ',' valTypeList
+ ;
 
 valContractClause
- : 'modifies' valExpressionList ';'
- | 'accessible' valExpressionList ';'
+ : 'modifies' valIdList ';'
+ | 'accessible' valIdList ';'
  | 'requires' langExpr ';'
  | 'ensures' langExpr ';'
  | 'given' langType langId ';'
@@ -39,6 +49,13 @@ valContractClause
  | 'loop_invariant' langExpr ';'
  | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
+ | 'lock_invariant' langExpr ';'
+ | 'decreases' valDecreasesMeasure? ';'
+ ;
+
+valDecreasesMeasure
+ : 'assume'
+ | valExpressionList
  ;
 
 valBlock
@@ -46,183 +63,291 @@ valBlock
  ;
 
 valStatement
- : 'create' valBlock               // create a magic wand
- | 'qed' langExpr ';'
- | 'apply' langExpr ';'
- | 'use' langExpr ';'
- | 'create' langExpr ';'             // create empty history
- | 'create' langExpr ',' langExpr ';'   // create given future
- | 'destroy' langExpr ',' langExpr ';'  // destroy given
- | 'destroy' langExpr ';'           // destroy empty future
- | 'split' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ';'
- | 'merge' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ';'
- | 'choose' langExpr ',' langExpr ',' langExpr ',' langExpr ';'
- | 'fold' langExpr ';'
- | 'unfold' langExpr ';'
- | 'open' langExpr ';'
- | 'close' langExpr ';'
- | 'assert' langExpr ';'
- | 'assume' langExpr ';'
- | 'inhale' langExpr ';'
- | 'exhale' langExpr ';'
- | 'label' langId ';'
- | 'refute' langExpr ';'
- | 'witness' langExpr ';'
- | 'ghost' langStatement
- | 'send' langExpr 'to' langId ',' langExpr ';'
- | 'recv' langExpr 'from' langId ',' langExpr ';'
- | 'transfer' langExpr ';'
- | 'csl_subject' langExpr ';'
- | 'spec_ignore' '}'
- | 'spec_ignore' '{'
- | 'action' langExpr ',' langExpr ',' langExpr ',' langExpr valActionMap* ';'
- | 'atomic' '(' valExpressionList? ')' langStatement
+ : 'package' langExpr langStatement  # valPackage
+ | 'apply' langExpr ';' # valApplyWand
+ | 'fold' langExpr ';' # valFold
+ | 'unfold' langExpr ';' # valUnfold
+ | 'open' langExpr ';' # valOpen
+ | 'close' langExpr ';' # valClose
+ | 'assert' langExpr ';' # valAssert
+ | 'assume' langExpr ';' # valAssume
+ | 'inhale' langExpr ';' # valInhale
+ | 'exhale' langExpr ';' # valExhale
+ | 'label' langId ';' # valLabel
+ | 'refute' langExpr ';' # valRefute
+ | 'witness' langExpr ';' # valWitness
+ | 'ghost' langStatement # valGhost
+ | 'send' langId ',' langConstInt ':' langExpr ';' # valSend
+ | 'recv' langId ';' # valRecv
+ | 'transfer' langExpr ';' # valTransfer
+ | 'csl_subject' langExpr ';' # valCslSubject
+ | 'spec_ignore' '}' # valSpecIgnoreStart
+ | 'spec_ignore' '{' # valSpecIgnoreEnd
+ | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
+ | 'atomic' '(' langId ')' langStatement # valAtomic
  ;
 
-valActionMap: ',' langExpr ',' langExpr;
-
-valWithThen
- : 'with' langStatement
- | 'then' langStatement
+valActionImpl
+ : ';'
+ | langStatement
  ;
 
 valImpOp: '-*' | '==>';
 valAndOp: '**';
+valInOp: '\\in';
 valMulOp: '\\';
+valPrependOp : '::';
+valAppendOp : '++'; // postfix issues? maybe disable in spec - no side effects?
+valPostfix
+ : '[' '..' langExpr ']'
+ | '[' langExpr '..' langExpr? ']'
+ | '[' langExpr '->' langExpr ']' // C?
+ | '?.' langId '(' valExpressionList? ')'
+ ;
+valWith: 'with' langStatement;
+valThen: 'then' langStatement;
+valGiven: 'given' '{' valGivenMappings '}';
+valYields: 'yields' '{' valYieldsMappings '}';
 
-valPrimary
-    : langType '{' valExpressionList? '}'
-    | '[' langExpr ']' langExpr
-    | '|' langExpr '|'
-    | '\\unfolding' langExpr '\\in' langExpr
-    | '(' langExpr '!' langId ')'
-    | '(' langExpr '\\memberof' langExpr ')'
-    | '{'  langExpr '..' langExpr '}'
-    | '*'
-    | '\\current_thread'
-    | '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId '=' langExpr '..' langExpr ';' langExpr ')'
-    | '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId ';' langExpr ';' langExpr ')'
-    | '(' '\\let' langType langId '=' langExpr ';' langExpr ')'
-    | '(' '\\sum' langType langId ';' langExpr ';' langExpr ')'
-    | '\\length' '(' langExpr ')'
-    | '\\old' '(' langExpr ')'
-    | '\\typeof' '(' langExpr ')'
-    | '\\matrix' '(' langExpr ',' langExpr ',' langExpr ')'
-    | '\\array'  '(' langExpr ',' langExpr ')'
-    | '\\pointer' '(' langExpr ',' langExpr ',' langExpr ')'
-    | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')'
-    | '\\values' '(' langExpr ',' langExpr ',' langExpr ')'
-    | '\\sum' '(' langExpr ',' langExpr ')'
-    | '\\vcmp' '(' langExpr ',' langExpr ')'
-    | '\\vrep' '(' langExpr ')'
-    | '\\msum' '(' langExpr ',' langExpr ')'
-    | '\\mcmp' '(' langExpr ',' langExpr ')'
-    | '\\mrep' '(' langExpr ')'
-    | langId ':' langExpr
-    | '{:' langExpr ':}'
-    | 'Reducible' '(' langExpr ',' valReducibleOperator ')'
-    | 'AbstractState' '(' langExpr ',' langExpr ')'
-    | 'AddsTo' '(' langExpr ',' langExpr ')'
-    | 'APerm' '(' langExpr ',' langExpr ')'
-    | 'ArrayPerm' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ')'
-    | 'buildMap' '(' langExpr ',' langExpr ',' langExpr ')'
-    | 'cardMap' '(' langExpr ')'
-    | 'Contribution' '(' langExpr ',' langExpr ')'
-    | 'disjointMap' '(' langExpr ',' langExpr ')'
-    | 'equalsMap' '(' langExpr ',' langExpr ')'
-    | 'Future' '(' langExpr  ',' langExpr ',' langExpr ')'
-    | 'getFromMap' '(' langExpr ',' langExpr ')'
-    | 'getFst' '(' langExpr ')'
-    | 'getOption' '(' langExpr ')'
-    | 'getSnd' '(' langExpr ')'
-    | 'head' '(' langExpr ')'
-    | 'held' '(' langExpr ')'
-    | 'Hist' '(' langExpr ',' langExpr ',' langExpr ')'
-    | 'HPerm' '(' langExpr ',' langExpr ')'
-    | 'idle' '(' langExpr ')'
-    | 'isEmpty' '(' langExpr ')'
-    | 'itemsMap' '(' langExpr ')'
-    | 'keysMap' '(' langExpr ')'
-    | 'perm' '(' langExpr ')'
-    | 'Perm' '(' langExpr ',' langExpr ')'
-    | 'PointsTo' '(' langExpr ',' langExpr ',' langExpr ')'
-    | ('remove'|'removeAt') '(' langExpr ',' langExpr ')'
-    | 'removeFromMap' '(' langExpr ',' langExpr ')'
-    | 'running' '(' langExpr ')'
-    | 'Some' '(' langExpr ')'
-    | 'tail' '(' langExpr ')'
-    | 'Value' '(' langExpr ')'
-    | 'valuesMap' '(' langExpr ')'
-    | 'seq' '<' langType '>' '{' valExpressionList '}'
-    | 'set' '<' langType '>' '{' valExpressionList '}'
-    | '(' langExpr '[' '..' langExpr ']' ')'
-    | '(' langExpr '[' langExpr '..' langExpr? ']' ')'
-    | '(' langExpr '[' langExpr '->' langExpr ']' ')'
-    | '(' langExpr '::' langExpr ')'
-    | '(' langExpr '++' langExpr ')'
-    | '(' langExpr '\\in' langExpr ')'
-    | 'getOrElseOption' '(' langExpr ',' langExpr ')'
-    ;
+valGivenMappings
+ : langId '=' langExpr
+ | langId '=' langExpr ',' valGivenMappings
+ ;
+
+valYieldsMappings
+ : langId '=' langId
+ | langId '=' langId ',' valYieldsMappings
+ ;
+
+valPrimarySeq
+ : '|' langExpr '|' # valCardinality
+ | '\\values' '(' langExpr ',' langExpr ',' langExpr ')' # valArrayValues
+ ;
+
+valPrimaryOption
+ : 'Some' '(' langExpr ')' # valSome
+ ;
+
+valPrimaryEither
+ : 'Left' '(' langExpr ')' # valLeft
+ | 'Right' '(' langExpr ')' # valRight
+ ;
+
+valSetCompSelectors
+ : langType langId
+ | langType langId '<-' langId
+ | langType langId '<-' valPrimaryCollectionConstructor
+ | langType langId ',' valSetCompSelectors
+ | langType langId '<-' langId ',' valSetCompSelectors
+ | langType langId '<-' valPrimaryCollectionConstructor ',' valSetCompSelectors
+ ;
+
+valMapPairs
+ : langExpr '->' langExpr
+ | langExpr '->' langExpr ',' valMapPairs
+ ;
+
+valPrimaryCollectionConstructor
+ : 'seq' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSeq
+ | 'set' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralSet
+ | 'set' '<' langType '>' '{' langExpr '|' valSetCompSelectors ';' langExpr '}' # valSetComprehension
+ | 'bag' '<' langType '>' '{' valExpressionList? '}' # valTypedLiteralBag
+ | 'map' '<' langType ',' langType '>' '{' valMapPairs? '}' # valTypedLiteralMap
+ | 'tuple' '<' langType ',' langType '>' '{' langExpr ',' langExpr '}' # valTypedTuple
+ | '[' valExpressionList ']' # valLiteralSeq
+ | '{' valExpressionList '}' # valLiteralSet
+ | 'b{' valExpressionList '}' # valLiteralBag
+ | '[t:' langType ']' # valEmptySeq
+ | '{t:' langType '}' # valEmptySet
+ | 'b{t:' langType '}' # valEmptyBag
+ | '{' langExpr '..' langExpr '}' # valRange
+ ;
+
+valPrimaryPermission
+ : 'perm' '(' langExpr ')' # valCurPerm
+ | 'Perm' '(' langExpr ',' langExpr ')' # valPerm
+ | 'Value' '(' langExpr ')' # valValue
+ | 'PointsTo' '(' langExpr ',' langExpr ',' langExpr ')' #valPointsTo
+ | 'HPerm' '(' langExpr ',' langExpr ')' # valHPerm
+ | 'APerm' '(' langExpr ',' langExpr ')' # valAPerm
+ | 'ArrayPerm' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ',' langExpr ')' # valArrayPerm
+ | '\\matrix' '(' langExpr ',' langExpr ',' langExpr ')' # valMatrix
+ | '\\array'  '(' langExpr ',' langExpr ')' # valArray
+ | '\\pointer' '(' langExpr ',' langExpr ',' langExpr ')' # valPointer
+ | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')' # valPointerIndex
+ | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
+ | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
+ | '\\pointer_length' '(' langExpr ')' # valPointerLength
+ ;
+
+valPrimaryBinder
+ : '(' ('\\forall*'|'\\forall'|'\\exists')
+        langType langId '=' langExpr '..' langExpr ';' langExpr ')' # valRangeQuantifier
+ | '(' ('\\forall*'|'\\forall'|'\\exists')
+        valArgList ';' langExpr ';' langExpr ')' # valQuantifier
+ | '(' ('\u2200'|'\u2200*'|'\u2203') valArgList ';' langExpr ')' # valShortQuantifier
+ | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
+ ;
+
+valPrimaryVector
+ : '(' '\\sum' langType langId ';' langExpr ';' langExpr ')' # valSum
+ | '\\sum' '(' langExpr ',' langExpr ')' # valVectorSum
+ | '\\vcmp' '(' langExpr ',' langExpr ')' # valVectorCmp
+ | '\\vrep' '(' langExpr ')' # valVectorRep
+ | '\\msum' '(' langExpr ',' langExpr ')' # valMatrixSum
+ | '\\mcmp' '(' langExpr ',' langExpr ')' # valMatrixCmp
+ | '\\mrep' '(' langExpr ')' # valMatrixRep
+ ;
+
+valPrimaryReducible
+ : 'Reducible' '(' langExpr ',' valReducibleOperator ')' # valReducible
+ | 'Contribution' '(' langExpr ',' langExpr ')' # valContribution
+ ;
 
 valReducibleOperator
-    : '+'
-    | langId
-    ;
+ : '+'
+ | langId
+ ;
 
-valReserved
- : (VAL_INLINE | VAL_ASSERT | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_RATIONAL | VAL_SEQ
-    | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS | VAL_AXIOM | VAL_MODIFIES
-    | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT | VAL_LOOP_INVARIANT
-    | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_DESTROY | VAL_SPLIT | VAL_MERGE | VAL_CHOOSE | VAL_FOLD
-    | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS
-    | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE
-    | VAL_ACTION | VAL_ATOMIC | VAL_REDUCIBLE | VAL_SIGNALS | VAL_SET | VAL_BAG | VAL_LOC | VAL_ABSTRACT_STATE
-    | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_BUILD_MAP | VAL_CARD_MAP | VAL_CONTRIBUTION
-    | VAL_DISJOINT_MAP | VAL_EQUALS_MAP | VAL_FUTURE | VAL_GET_FROM_MAP | VAL_GET_FST | VAL_GET_OPTION | VAL_GET_SND
-    | VAL_HEAD | VAL_HELD | VAL_HIST | VAL_HPERM | VAL_IDLE | VAL_IS_EMPTY | VAL_ITEMS_MAP | VAL_KEYS_MAP | VAL_PERM_VAL
-    | VAL_PERM | VAL_POINTS_TO | VAL_REMOVE | VAL_REMOVE_AT | VAL_REMOVE_FROM_MAP | VAL_RUNNING | VAL_SOME | VAL_TAIL
-    | VAL_VALUE | VAL_VALUES_MAP | VAL_POINTER | VAL_KERNEL_INVARIANT | VAL_GETOPTELSE)
- | LANG_ID_ESCAPE
- | '\\result'
+valPrimaryThread
+ : 'idle' '(' langExpr ')' # valIdle
+ | 'running' '(' langExpr ')' # valRunning
+ ;
+
+valPrimaryContext
+ : '\\result'
  | '\\current_thread'
- | 'none' // No permission
- | 'write' // Full permission
- | 'read' // Any read permission
- | 'None' // The empty value of the option langType
- | 'empty' // The empty process in the context of Models
  | '\\ltid'
  | '\\gtid'
- | 'true'
- | 'false'
+ ;
+
+valExpr
+ : {specLevel>0}? valPrimary
+ | {specLevel>0}? valKeywordExpr
+ ;
+
+valIdentifier
+ : {specLevel==0}? valKeywordExpr
+ | {specLevel==0}? valKeywordNonExpr
+ | {specLevel>0}? LANG_ID_ESCAPE
+ ;
+
+valPrimary
+ : valPrimarySeq
+ | valPrimaryOption
+ | valPrimaryEither
+ | valPrimaryCollectionConstructor
+ | valPrimaryPermission
+ | valPrimaryBinder
+ | valPrimaryVector
+ | valPrimaryReducible
+ | valPrimaryThread
+ | valPrimaryContext
+ | '*' # valAny
+ | '(' langId '!' valIdList ')' # valFunctionOf
+ | '[' langExpr ']' langExpr # valScale
+ | TRIGGER_OPEN langExpr ':}' # valInlinePattern
+ | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
+ | '\\old' '(' langExpr ')' # valOld
+ | '\\old' '[' langId ']' '(' langExpr ')' #valOldLabeled
+ | '\\typeof' '(' langExpr ')' # valTypeof
+ | '\\type' '(' langType ')' # valTypeValue
+ | 'held' '(' langExpr ')' # valHeld
+ | LANG_ID_ESCAPE # valIdEscape
+ | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
+ ;
+
+// Out spec: defined meaning: a language local
+// In spec: defined meaning: the spec value
+valKeywordExpr
+ : 'none' # valNonePerm
+ | 'write' # valWrite
+ | 'read' # valRead
+ | 'None' # valNoneOption
+ | 'empty' # valEmpty
+ | 'true' # valTrue
+ | 'false' # valFalse
+ ;
+
+// Out spec: defined meaning: a language local
+// In spec: not parseable, use LANG_ID_ESCAPE instead.
+valKeywordNonExpr: (
+ // Frontend keywords
+   VAL_INLINE | VAL_ASSERT
+ // Type keywords
+ | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_REF | VAL_RATIONAL | VAL_SEQ | VAL_SET | VAL_BAG
+ | VAL_POINTER | VAL_MAP | VAL_OPTION | VAL_EITHER | VAL_TUPLE | VAL_TYPE | VAL_ANY | VAL_NOTHING
+ // Annotation keywords
+ | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS
+ // Declaration keywords
+ | VAL_AXIOM | VAL_MODEL | VAL_ADT
+ // Contract clause keywords
+ | VAL_MODIFIES | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT
+ | VAL_LOOP_INVARIANT | VAL_KERNEL_INVARIANT | VAL_LOCK_INVARIANT | VAL_SIGNALS | VAL_DECREASES
+ // Statement keywords
+ | VAL_CREATE | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
+ | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM
+ | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE | VAL_ACTION | VAL_ATOMIC
+ // Spec function keywords
+ | VAL_REDUCIBLE | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION | VAL_HELD | VAL_HPERM | VAL_IDLE
+ | VAL_PERM_VAL | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME | VAL_LEFT | VAL_RIGHT | VAL_VALUE
+);
+
+valGenericAdtInvocation
+ : langId '<' valTypeList '>' '.' langId '(' valExpressionList? ')'
  ;
 
 valType
- : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool')
- | 'seq' '<' langType '>'
- | 'set' '<' langType '>'
- | 'bag' '<' langType '>'
- | 'loc' '<' langType '>'
- | 'pointer' '<' langType '>'
+ : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing') # valPrimaryType
+ | 'seq' '<' langType '>' # valSeqType
+ | 'set' '<' langType '>' # valSetType
+ | 'bag' '<' langType '>' # valBagType
+ | 'option' '<' langType '>' # valOptionType
+ | 'map' '<' langType ',' langType '>' # valMapType
+ | 'tuple' '<' langType ',' langType '>' # valTupleType
+ | 'pointer' '<' langType '>' # valPointerType
+ | 'type' '<' langType '>' # valTypeType
+ | 'either' '<' langType ',' langType '>' # valEitherType
  ;
 
-valDeclaration
- : valContractClause* valModifier* langType langId '(' valArgList? ')' valPredicateDef
- | 'axiom' langId '{' langExpr '==' langExpr '}'
- | valContractClause* 'ghost' langDecl
+valGlobalDeclaration
+ : 'axiom' langId '{' langExpr '}' # valAxiom
+ | valModifier* 'resource' langId '(' valArgList? ')' valDef # valPredicate
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valFunction
+ | 'model' langId '{' valModelDeclaration* '}' # valModel
+ | 'ghost' langGlobalDecl # valGhostDecl
+ | 'adt' langId valTypeVars? '{' valAdtDeclaration* '}' # valAdtDecl
  ;
 
-valPredicateDef
- : ';'
- | '=' langExpr ';'
+valClassDeclaration
+ : valModifier* 'resource' langId '(' valArgList? ')' valDef # valInstancePredicate
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valInstanceFunction
+ | 'ghost' langClassDecl # valInstanceGhostDecl
+ ;
+
+valModelDeclaration
+ : valContractClause* 'process' langId '(' valArgList? ')' '=' langExpr ';' # valModelProcess
+ | valContractClause* 'action' langId '(' valArgList? ')' ';' # valModelAction
+ | langType valIdList ';' # valModelField
+ ;
+
+valTypeVars
+ : '<' valIdList '>'
+ ;
+
+valAdtDeclaration
+ : 'axiom' langExpr ';' # valAdtAxiom
+ | 'pure' langType langId '(' valArgList? ')' ';' # valAdtFunction
+ ;
+
+valDef
+ : ';' # valAbstractBody
+ | '=' langExpr ';' # valBody
  ;
 
 valModifier
- :('pure'
- | 'inline'
- | 'thread_local'
-)| langModifier
+ : ('pure' | 'inline' | 'thread_local')
+ | langStatic # valStatic
  ;
 
 valArgList
@@ -246,20 +371,22 @@ valEmbedStatementBlock
  | {specLevel>0}? valStatement+
  ;
 
-valEmbedWithThenBlock
- : startSpec valWithThen* endSpec
- | {specLevel>0}? valWithThen+
+valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
+valEmbedThen: startSpec valThen? endSpec | {specLevel>0}? valThen;
+valEmbedGiven: startSpec valGiven? endSpec | {specLevel>0}? valGiven;
+valEmbedYields: startSpec valYields? endSpec | {specLevel>0}? valYields;
+
+valEmbedGlobalDeclarationBlock
+ : startSpec valGlobalDeclaration* endSpec
+ | {specLevel>0}? valGlobalDeclaration+
  ;
 
-valEmbedWithThen
- : valEmbedWithThenBlock+
+valEmbedClassDeclarationBlock
+ : startSpec valClassDeclaration* endSpec
+ | {specLevel>0}? valClassDeclaration+
  ;
 
-valEmbedDeclarationBlock
- : startSpec valDeclaration* endSpec
- ;
-
-valEmbedModifiers
- : startSpec valModifier* endSpec
- | {specLevel>0}? valModifier+
+valEmbedModifier
+ : startSpec valModifier endSpec
+ | {specLevel>0}? valModifier
  ;

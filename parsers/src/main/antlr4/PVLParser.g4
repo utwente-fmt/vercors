@@ -4,10 +4,12 @@ import LangPVLParser, SpecParser;
 
 langExpr: expr;
 langId: identifier;
+langConstInt: NUMBER;
 langType: type;
-langModifier: modifier;
 langStatement: statement;
-langDecl: EOF EOF;
+langStatic: 'static';
+langGlobalDecl: EOF EOF;
+langClassDecl: EOF EOF;
 
 startSpec: EOF EOF;
 endSpec: EOF EOF;

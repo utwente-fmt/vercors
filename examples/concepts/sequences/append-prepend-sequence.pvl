@@ -1,0 +1,56 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case AppendPrepend
+//:: tool silicon
+//:: verdict Pass
+
+class AppendPrepend {
+
+    void main() {
+	seq<int> a = seq<int> {1, 8, 7, 5, 9};
+	int b = 17;
+	assert a + [20] == seq<int> {1, 8, 7, 5, 9, 20};
+	assert b :: a == seq<int> {17, 1, 8, 7, 5, 9};
+    }
+
+    requires N >= 0;
+    ensures (\forall int k; 0 <= k && k < |\result|; \result[k] == k*k*k);
+    seq<int> cubed(int N) {
+        int i = 0;
+        seq<int> result = seq<int> {};
+
+        loop_invariant 0 <= i && i <= N;
+        loop_invariant i == |result|;
+        loop_invariant (\forall int k; 0 <= k && k < i; result[k] == k*k*k);
+        while (i < N) {
+            result = result + [i*i*i];
+            i = i + 1;
+        }
+
+        return result;
+    }
+
+    requires N >= 0;
+    ensures (\forall int k; 0 <= k && k < |\result|-2; \result[k] == (\result[k+1] + \result[k+2]));
+    seq<int> reversefib(int N) {
+        if (N == 0) {
+            return seq<int> {};
+        } else if (N == 1) {
+            return seq<int> {0};
+        }
+
+        seq<int> fibonacci = seq<int> {1, 0};
+
+        int i = 2;
+
+        loop_invariant 2 <= i && i <= N;
+        loop_invariant i == |fibonacci|;
+        loop_invariant (\forall int k; 0 <= k && k < i-2; fibonacci[k] == (fibonacci[k+1] + fibonacci[k+2]));
+        while (i < N) {
+            fibonacci = (fibonacci[0] + fibonacci[1]):: fibonacci;
+            i = i + 1;
+        }
+
+        return fibonacci;
+    }
+
+}

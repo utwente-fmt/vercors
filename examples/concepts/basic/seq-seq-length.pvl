@@ -1,0 +1,16 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SeqSeqLength
+//:: tools silicon
+//:: verdict Pass
+
+class Test {
+    seq<seq<int>> sequence;
+
+    requires Perm(this.sequence, write);
+    requires this.sequence.size > 0;
+    void test() {
+        if(sequence[0].size == 0) {
+
+        }
+    }
+}
