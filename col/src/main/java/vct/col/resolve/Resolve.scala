@@ -159,8 +159,7 @@ case object ResolveReferences {
         throw MultipleForwardDeclarationContractError(func)
       }
       ctx
-      // PB: This is a bit dubious. It's like this because one global declaration can contain multiple forward function
-      // declarations, but the contract is before the whole declaration.
+      .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
       .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
         .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
     case par: ParStatement[G] => ctx
