@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CLocal, CPrimitiveType, CTCudaVec, Type}
-import vct.col.resolve.{C, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaVec, RefModelField, RefVariable}
+import vct.col.resolve.{C, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaVec, RefModelField, RefVariable, SpecInvocationTarget}
 import vct.col.util.Types
 
 trait CLocalImpl[G] { this: CLocal[G] =>
@@ -23,6 +23,7 @@ trait CLocalImpl[G] { this: CLocal[G] =>
         case None => declInfo.typeOrReturnType(CPrimitiveType(decls.decl.specs)) // Static declaration
       }
     case RefModelField(field) => field.t
+    case target: SpecInvocationTarget[G] => Types.notAValue(target)
     case _: RefCudaVec[G] => CTCudaVec()
   }
 }
