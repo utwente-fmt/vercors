@@ -1,7 +1,5 @@
 package viper.api
 
-import hre.lang.HREExitException
-import hre.lang.System.Warning
 import hre.util.ScopedStack
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref

@@ -2,7 +2,7 @@ package vct.col.resolve
 
 import hre.util.FuncTools
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
 
@@ -78,9 +78,13 @@ case object ResolveReferences {
     resolve(program, ReferenceResolutionContext[G]())
   }
 
-  def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Seq[CheckError] = {
-    val innerCtx = enterContext(node, ctx)
-    val childErrors = node.subnodes.flatMap(resolve(_, innerCtx))
+  def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
+    val inGPU = inGPUKernel || (node match {
+      case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
+      case _ => false
+    })
+    val innerCtx = enterContext(node, ctx, inGPU)
+    val childErrors = node.subnodes.flatMap(resolve(_, innerCtx, inGPU))
 
     if(childErrors.nonEmpty) childErrors
     else {
@@ -89,12 +93,14 @@ case object ResolveReferences {
     }
   }
 
-  def scanScope[G](node: Node[G]): Seq[Declaration[G]] = node match {
+  def scanScope[G](node: Node[G], inGPUKernel: Boolean): Seq[Declaration[G]] = node match {
     case _: Scope[G] => Nil
-    case CDeclarationStatement(decl) => Seq(decl)
+    // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
+    case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
+      => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
-    case other => other.subnodes.flatMap(scanScope)
+    case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
   }
 
   def scanLabels[G](node: Node[G]): Seq[Declaration[G]] = node.transSubnodes.collect {
@@ -108,7 +114,11 @@ case object ResolveReferences {
     case block: ParBlock[G] => Seq(block)
   }
 
-  def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G]): ReferenceResolutionContext[G] = (node match {
+  def scanShared[G](node: Node[G]): Seq[Declaration[G]] = node.transSubnodes.collect {
+    case decl: CLocalDeclaration[G] if decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined => decl
+  }
+
+  def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean = false): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
       .copy(currentJavaNamespace=Some(ns)).declare(ns.declarations)
     case cls: JavaClassOrInterface[G] => ctx
@@ -137,9 +147,13 @@ case object ResolveReferences {
         case TArray(elem) => elem
         case _ => throw WrongArrayInitializer(init)
       }))
-    case func: CFunctionDefinition[G] => ctx
+    case func: CFunctionDefinition[G] =>
+      var res = ctx
       .copy(currentResult=Some(RefCFunctionDefinition(func)))
       .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
+      if(func.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined)
+        res = res.declare(scanShared(func.body))
+      res
     case func: CGlobalDeclaration[G] => ctx
       // PB: This is a bit dubious. It's like this because one global declaration can contain multiple forward function
       // declarations, but the contract is before the whole declaration.
@@ -147,7 +161,7 @@ case object ResolveReferences {
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
-      .declare(locals ++ scanScope(body))
+      .declare(locals ++ scanScope(body, inGPUKernel))
     case app: Applicable[G] => ctx
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case declarator: Declarator[G] => ctx

@@ -135,6 +135,8 @@ POINTER: '\\pointer';
 POINTER_INDEX: '\\pointer_index';
 POINTER_BLOCK_LENGTH: '\\pointer_block_length';
 POINTER_BLOCK_OFFSET: '\\pointer_block_offset';
+POINTER_LENGTH: '\\pointer_length';
+SHARED_MEM_SIZE: '\\shared_mem_size';
 VALUES: '\\values';
 VCMP: '\\vcmp';
 VREP: '\\vrep';

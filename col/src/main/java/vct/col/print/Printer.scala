@@ -38,7 +38,7 @@ sealed trait PrinterState {
 case class InLine(lastWasSpace: Boolean, specDepth: Int, banNewlinesDepth: Int, indent: Int) extends PrinterState {
   override def say(text: String)(implicit printer: Printer): PrinterState = {
     printer.out.append(text)
-    InLine(text.last == ' ', specDepth, banNewlinesDepth, indent)
+    InLine(if(text.nonEmpty) text.last == ' ' else false, specDepth, banNewlinesDepth, indent)
   }
 
   override def space()(implicit printer: Printer): PrinterState = {
@@ -412,18 +412,14 @@ case class Printer(out: Appendable,
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
     case CDeclarationStatement(decl) =>
-      statement(syntax(C -> phrase(decl.decl.specs, commas(decl.decl.inits.map(NodePhrase)))))
+      statement(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
       statement(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
-    case GpgpuLocalBarrier(requires, ensures) =>
+    case GpgpuBarrier(requires, ensures, specifier) =>
       statement(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
         Cuda -> phrase("__syncthreads();"),
-        OpenCL -> phrase("barrier(CLK_LOCAL_MEM_FENCE);"),
+        OpenCL -> phrase("barrier(", intersperse(" | ", specifier.map(NodePhrase)), ");"),
       ))
-    case GpgpuGlobalBarrier(requires, ensures) =>
-      statement(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
-        OpenCL -> phrase("barrier(CLK_GLOBAL_MEM_FENCE);",
-      )))
     case GpgpuAtomic(impl, before, after) =>
       syntax(C -> statement("__vercors_atomic__", space, forceInline(impl), space,
         spec("with", space, before, space, "then", space, before)))
@@ -633,9 +629,9 @@ case class Printer(out: Appendable,
     case MapDisjoint(left, right) =>
       (phrase("disjointMap(", left, ",", space, right, ")"), 100)
     case Forall(bindings, triggers, body) =>
-      (phrase("(", "\\forall", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+      (phrase("(", "\\forall", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
     case Exists(bindings, triggers, body) =>
-      (phrase("(", "\\exists", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+      (phrase("(", "\\exists", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
     case ValidArray(arr, len) =>
       (phrase("\\array(", arr, ",", space, len, ")"), 100)
     case ValidMatrix(mat, w, h) =>
@@ -655,13 +651,15 @@ case class Printer(out: Appendable,
     case JoinToken(thread) =>
       (phrase("running", "(", thread, ")"), 100)
     case Starall(bindings, triggers, body) =>
-      (phrase("(", "\\forall*", space, phrase(bindings.map(NodePhrase):_*), "; true; ", body, ")"), 120)
+      (phrase("(", "\\forall*", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
     case Star(left, right) =>
       (phrase(assoc(40, left), space, "**", space, assoc(40, right)), 40)
     case Wand(left, right) =>
       (phrase(bind(30, left), space, "-*", space, assoc(30, right)), 30)
     case Scale(scale, res) =>
       (phrase("[", scale, "]", assoc(90, res)), 90)
+    case ScaleByParBlock(block, res) =>
+      (phrase("[", block.decl, "]", assoc(90, res)), 90)
     case Perm(loc, perm) =>
       (phrase("Perm(", loc, ",", space, perm, ")"), 100)
     case PointsTo(loc, perm, value) =>
@@ -752,6 +750,8 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
     case DerefPointer(pointer) =>
       (phrase("*", assoc(90, pointer)), 90)
+    case PointerAdd(pointer, offset) =>
+      (phrase(assoc(70, pointer), space, "+", space, assoc(70, offset)), 70)
     case AddrOf(e) =>
       (phrase("&", assoc(90, e)), 90)
     case PredicateApply(ref, args, perm) =>
@@ -849,6 +849,12 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, arr), "[", index, "]"), 100)
     case PointerSubscript(pointer, index) =>
       (phrase(assoc(100, pointer), "[", index, "]"), 100)
+    case PointerBlockOffset(pointer) =>
+      (phrase("pointer_block(", pointer ,")"), 100)
+    case PointerBlockLength(pointer) =>
+      (phrase("block_length(", pointer ,")"), 100)
+    case PointerLength(pointer) =>
+      (phrase("pointer_length(", pointer ,")"), 100)
     case Cons(x, xs) =>
       (phrase(bind(87, x), space, "::", space, assoc(87, xs)), 87)
     case Head(xs) =>
@@ -970,7 +976,6 @@ case class Printer(out: Appendable,
       phrase(spaced(local.modifiers.map(NodePhrase)), space, local.t, space, javaDecls(local.decls))
     case defn: CFunctionDefinition[_] =>
       control(phrase(spaced(defn.specs.map(NodePhrase)), space, defn.declarator), defn.body)
-    case decl: CGlobalDeclaration[_] => decl
     case ns: JavaNamespace[_] =>
       phrase(
         if(ns.pkg.nonEmpty) statement("package", space, ns.pkg.get) else phrase(),
@@ -1123,6 +1128,10 @@ case class Printer(out: Appendable,
       statement(field.t, space, name(field))
     case variable: Variable[_] =>
       phrase(variable.t, space, name(variable))
+    case decl: CLocalDeclaration[_] =>
+      phrase(decl.decl)
+    case decl: CGlobalDeclaration[_] =>
+      phrase(decl.decl)
     case decl: LabelDecl[_] =>
       ???
     case decl: ParBlockDecl[_] =>
@@ -1180,7 +1189,9 @@ case class Printer(out: Appendable,
   def printCDeclarator(node: CDeclarator[_]): Unit = node match {
     case CPointerDeclarator(pointers, inner) =>
       say("*".repeat(pointers.size), inner)
-    case CArrayDeclarator(qualifiers, size, inner) =>
+    case CArrayDeclarator(qualifiers, Some(size), inner) =>
+      say(inner, "[", size ,"]")
+    case CArrayDeclarator(qualifiers, None, inner) =>
       say(inner, "[]")
     case CTypedFunctionDeclarator(params, varargs, inner) =>
       say(inner, "(", commas(params.map(NodePhrase)), ")")
@@ -1207,7 +1218,16 @@ case class Printer(out: Appendable,
     case CTypedefName(name) => say(name)
     case CSpecificationType(t) => say(t)
     case CTypeQualifierDeclarationSpecifier(typeQual) => say(typeQual)
-    case CKernel() => say("__kernel")
+    case CExtern() => say("extern")
+    case OpenCLKernel() => say("__kernel")
+    case CUDAKernel() => say("__global__")
+    case GPULocal() => say(syntax(
+      Cuda -> phrase("__shared__"),
+      OpenCL -> phrase("__local"),
+    ))
+    case GPUGlobal() => say(syntax(
+      OpenCL -> phrase("__global"),
+    ))
   }
 
   def printCTypeQualifier(node: CTypeQualifier[_]): Unit = node match {
@@ -1225,6 +1245,12 @@ case class Printer(out: Appendable,
       case Some(value) => say(node.decl, space, "=", space, value)
       case None => say(node.decl)
     }
+
+  def printGpuMemoryFence(node: GpuMemoryFence[_]): Unit = node match {
+    case GpuLocalMemoryFence() => say("CLK_LOCAL_MEM_FENCE")
+    case GpuGlobalMemoryFence() => say("CLK_GLOBAL_MEM_FENCE")
+    case GpuZeroMemoryFence(i) => say(f"$i")
+  }
 
   def printJavaModifier(node: JavaModifier[_]): Unit = node match {
     case JavaPublic() => say("public")
@@ -1252,6 +1278,19 @@ case class Printer(out: Appendable,
   def printJavaName(node: JavaName[_]): Unit =
     say(node.names.mkString("."))
 
+  def printLocation(loc: Location[_]): Unit = loc match {
+//    case FieldLocation(obj, field) =>
+//    case ModelLocation(obj, field) =>
+//    case SilverFieldLocation(obj, field) =>
+    case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", subscript, "]"), 100)
+    case PointerLocation(pointer) => say(pointer)
+//    case PredicateLocation(predicate, args) =>
+//    case InstancePredicateLocation(predicate, obj, args) =>
+    case AmbiguousLocation(expr) => say(expr)
+    case x =>
+      say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
+  }
+
   def printVerification(node: Verification[_]): Unit =
     node.tasks.foreach(print)
 
@@ -1261,6 +1300,16 @@ case class Printer(out: Appendable,
       say(newline, s"""// Expected error "${ee.errorCode}" at ${ee.errorRegion.shortPosition}""", newline)
     }
     print(node.program)
+  }
+
+  def printCDeclaration(node: CDeclaration[_]): Unit = {
+    say(newline, node.contract, newline)
+    node.kernelInvariant match {
+      case BooleanValue(true) =>
+      case _ => say("kernel_invariant: ", node.kernelInvariant, space)
+    }
+    say(spaced(node.specs.map(NodePhrase)), space)
+    say(spaced(node.inits.map(NodePhrase)))
   }
 
   def print(node: Node[_]): Unit = node match {
@@ -1280,11 +1329,14 @@ case class Printer(out: Appendable,
     case node: CTypeQualifier[_] => printCTypeQualifier(node)
     case node: CPointer[_] => printCPointer(node)
     case node: CInit[_] => printCInit(node)
+    case node: GpuMemoryFence[_] => printGpuMemoryFence(node)
     case node: JavaModifier[_] => printJavaModifier(node)
     case node: JavaImport[_] => printJavaImport(node)
     case node: JavaName[_] => printJavaName(node)
+    case node : Location[_] => printLocation(node)
     case node: Verification[_] => printVerification(node)
     case node: VerificationContext[_] => printVerificationContext(node)
+    case node: CDeclaration[_] => printCDeclaration(node)
     case x =>
       say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
   }

@@ -23,13 +23,16 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   var branchConditions: List[Option[Exp]] = List()
 
   var timer = new Timer()
+  var currentTimerTask: Option[TimerTask] = None
 
   def progress(symbLog: SymbLog): Unit = {
-    timer.cancel()
-    timer = new Timer()
-    timer.schedule(new TimerTask {
+    currentTimerTask.foreach(_.cancel())
+    timer.purge()
+
+    currentTimerTask = Some(new TimerTask {
       override def run(): Unit = printDetailedState()
-    }, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
+    })
+    timer.schedule(currentTimerTask.get, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
   }
 
   def done(): Unit =

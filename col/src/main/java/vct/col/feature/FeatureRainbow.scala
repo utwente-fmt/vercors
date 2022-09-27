@@ -171,6 +171,7 @@ class FeatureRainbow[G] {
     case node: PointerSubscript[G] => Pointers
     case node: PointerBlockLength[G] => Pointers
     case node: PointerBlockOffset[G] => Pointers
+    case node: PointerLength[G] => Pointers
     case node: Length[G] => Arrays
     case node: Size[G] => return Nil
     case node: Cons[G] => SugarCollectionOperator
@@ -434,7 +435,8 @@ class FeatureRainbow[G] {
     case node: CRestrict[G] => return Nil
     case node: CVolatile[G] => return Nil
     case node: CAtomic[G] => return Nil
-    case node: CKernel[G] => return Nil
+    case node: CUDAKernel[G] => return Nil
+    case node: OpenCLKernel[G] => return Nil
     case node: CPointer[G] => return Nil
     case node: CParam[G] => return Nil
     case node: CPointerDeclarator[G] => return Nil
@@ -449,14 +451,16 @@ class FeatureRainbow[G] {
     case node: CGlobalDeclaration[G] => return Nil
     case node: CDeclarationStatement[G] => return Nil
     case node: CGoto[G] => return Nil
-    case node: GpgpuLocalBarrier[G] => return Nil
-    case node: GpgpuGlobalBarrier[G] => return Nil
+    case node: GpgpuBarrier[G] => return Nil
     case node: GpgpuAtomic[G] => return Nil
+    case node: GpuMemoryFence[G] => return Nil
     case node: CLocal[G] => return Nil
     case node: CInvocation[G] => return Nil
     case node: CStructAccess[G] => return Nil
     case node: CStructDeref[G] => return Nil
     case node: GpgpuCudaKernelInvocation[G] => return Nil
+    case node: LocalThreadId[G] => return Nil
+    case node: GlobalThreadId[G] => return Nil
     case node: CPrimitiveType[G] => return Nil
     case node: JavaName[G] => return Nil
     case node: JavaImport[G] => return Nil

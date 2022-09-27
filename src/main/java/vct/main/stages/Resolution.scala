@@ -2,7 +2,7 @@ package vct.main.stages
 
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{FileSpanningOrigin, Origin}
 import vct.col.resolve.{C, Java, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
@@ -12,7 +12,7 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
-import vct.parsers.ParseResult
+import vct.parsers.{ParseResult}
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError

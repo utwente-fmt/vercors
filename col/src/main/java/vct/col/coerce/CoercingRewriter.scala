@@ -211,6 +211,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: CPointer[Pre] => node
     case node: CInit[Pre] => node
     case node: CDeclaration[Pre] => node
+    case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
     case node: JavaName[Pre] => node
@@ -406,7 +407,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
     e match {
       case ApplyCoercion(_, _) =>
-        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.disptach.")
+        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.dispatch.")
 
       case ActionApply(action, args) =>
         ActionApply(action, coerceArgs(args, action.decl))
@@ -504,19 +505,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             AmbiguousLessEq(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
           },
         )
-      case AmbiguousMinus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a set or a bag but got ${left.t} and ${right.t}.",
+      case minus @ AmbiguousMinus(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, a set or a bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
-          Minus(rat(left), rat(right)), {
+          Minus(rat(left), rat(right)),
+          AmbiguousMinus(pointer(left)._1, int(right))(minus.blame), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousMinus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))
+            AmbiguousMinus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))(minus.blame)
           }, {
             val (coercedLeft, TBag(elementLeft)) = bag(left)
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousMinus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))
+            AmbiguousMinus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(minus.blame)
           }
         )
       case AmbiguousMember(x, xs) =>
@@ -537,7 +539,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           AmbiguousMember(coerce(x, element), coercedXs)
         })
       case AmbiguousMult(left, right) =>
-        firstOk(e, s"Expected both operands to be numericm a process, a set or a bag but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
           AmbiguousMult(rat(left), rat(right)),
           AmbiguousMult(process(left), process(right)), {
@@ -920,6 +922,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         PointerBlockLength(pointer(p)._1)(len.blame)
       case off @ PointerBlockOffset(p) =>
         PointerBlockOffset(pointer(p)._1)(off.blame)
+      case len @ PointerLength(p) =>
+        PointerLength(pointer(p)._1)(len.blame)
       case get @ PointerSubscript(p, index) =>
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
@@ -994,6 +998,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (right, TSet(rightT)) = set(ys)
         val sharedElement = Types.leastCommonSuperType(leftT, rightT)
         SetUnion(coerce(left, TSet(sharedElement)), coerce(right, TSet(sharedElement)))
+      case SharedMemSize(xs) =>
+        firstOk(e, s"Expected operand to be a pointer or array, but got ${xs.t}.",
+          SharedMemSize(array(xs)._1),
+          SharedMemSize(pointer(xs)._1),
+        )
       case SilverBagSize(xs) =>
         SilverBagSize(bag(xs)._1)
       case SilverCurFieldPerm(obj, field) =>
@@ -1139,8 +1148,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
       case Goto(lbl) => Goto(lbl)
       case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
-      case GpgpuGlobalBarrier(requires, ensures) => GpgpuGlobalBarrier(res(requires), res(ensures))
-      case GpgpuLocalBarrier(requires, ensures) => GpgpuLocalBarrier(res(requires), res(ensures))
+      case b @ GpgpuBarrier(requires, ensures, specifier) => GpgpuBarrier(res(requires), res(ensures), specifier)(b.blame)
       case Havoc(loc) => Havoc(loc)
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))

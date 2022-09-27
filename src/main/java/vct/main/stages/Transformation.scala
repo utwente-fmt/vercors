@@ -5,10 +5,10 @@ import hre.progress.Progress
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
-import vct.col.newrewrite._
-import vct.col.newrewrite.adt._
-import vct.col.newrewrite.exc._
-import vct.col.newrewrite.lang.NoSupportSelfLoop
+import vct.col.rewrite.adt.{ImportADTImporter, ImportAny, ImportArray, ImportBag, ImportEither, ImportFrac, ImportMap, ImportNothing, ImportNull, ImportOption, ImportPointer, ImportSeq, ImportSet, ImportTuple, ImportViperOrder, ImportVoid}
+import vct.col.rewrite._
+import vct.col.rewrite.exc._
+import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.FileSpanningOrigin
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
@@ -150,14 +150,21 @@ case class SilverTransformation
     EncodeSendRecv,
     ParBlockEncoder,
 
-    // Encode proof helpers
-    EncodeProofHelpers,
-
     // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SpecifyImplicitLabels,
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,
+
+    SplitQuantifiers,
+    ) ++ simplifyBeforeRelations ++ Seq(
+    SimplifyQuantifiedRelations,
+    SimplifyNestedQuantifiers,
+    ) ++ simplifyAfterRelations ++ Seq(
+
+    // Encode proof helpers
+    EncodeProofHelpers,
+
     // Resolve side effects including method invocations, for encodetrythrowsignals.
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
@@ -168,10 +175,6 @@ case class SilverTransformation
 
     CheckContractSatisfiability.withArg(checkSat),
 
-    SplitQuantifiers,
-  ) ++ simplifyBeforeRelations ++ Seq(
-    SimplifyQuantifiedRelations,
-  ) ++ simplifyAfterRelations ++ Seq(
     ResolveExpressionSideChecks,
     RejoinQuantifiers,
 

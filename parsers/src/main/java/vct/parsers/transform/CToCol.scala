@@ -82,6 +82,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case StorageClassSpecifier3(_) => ??(storageClass)
     case StorageClassSpecifier4(_) => ??(storageClass)
     case StorageClassSpecifier5(_) => ??(storageClass)
+    case StorageClassSpecifier6(_) => GPULocal()
+    case StorageClassSpecifier7(_) => GPUGlobal()
   }
 
   def convert(implicit typeSpec: TypeSpecifierContext): CTypeSpecifier[G] = typeSpec match {
@@ -120,7 +122,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit kernel: GpgpuKernelSpecifierContext): CGpgpuKernelSpecifier[G] = kernel match {
-    case GpgpuKernelSpecifier0(_) => CKernel()
+    case GpgpuKernelSpecifier0(_) => CUDAKernel()(blame(kernel))
+    case GpgpuKernelSpecifier1(_) => OpenCLKernel()(blame(kernel))
   }
 
   def convert(implicit decls: InitDeclaratorListContext): Seq[CInit[G]] = decls match {
@@ -209,14 +212,23 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case BlockItem1(stat) => convert(stat)
     case BlockItem2(embedStats) => convert(embedStats)
     case BlockItem3(embedStat) => convert(embedStat)
-    case BlockItem4(GpgpuLocalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
-      GpgpuLocalBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures)))
+    case BlockItem4(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
+      GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
+        , convert(specifier))(blame(stat))
     })
-    case BlockItem5(GpgpuGlobalBarrier0(contract, _, _, _, _)) => withContract(contract, c => {
-      GpgpuGlobalBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures)))
-    })
-    case BlockItem6(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
+    case BlockItem5(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
       GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
+  }
+
+  def convert(implicit spec: GpgpuMemFenceListContext): Seq[GpuMemoryFence[G]] = spec match {
+    case GpgpuMemFenceList0(argument) => Seq(convert(argument))
+    case GpgpuMemFenceList1(init, _, last) => convert(init) :+ convert(last)
+  }
+
+  def convert(implicit spec: GpgpuMemFenceContext): GpuMemoryFence[G] = spec match {
+    case GpgpuMemFence0(_) => GpuLocalMemoryFence()
+    case GpgpuMemFence1(_) => GpuGlobalMemoryFence()
+    case GpgpuMemFence2(i) => GpuZeroMemoryFence(Integer.parseInt(i))
   }
 
   def convert(implicit stat: LabeledStatementContext): Statement[G] = stat match {
@@ -305,7 +317,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         case "/=" => FloorDiv(target, value)(blame(expr))
         case "%=" => col.Mod(target, value)(blame(expr))
         case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
-        case "-=" => col.AmbiguousMinus(target, value)
+        case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
         case "<<=" => BitShl(target, value)
         case ">>=" => BitShr(target, value)
         case "&=" => BitAnd(target, value)
@@ -383,7 +395,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit expr: AdditiveExpressionContext): Expr[G] = expr match {
     case AdditiveExpression0(inner) => convert(inner)
     case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AdditiveExpression2(left, _, right) => col.AmbiguousMinus(convert(left), convert(right))
+    case AdditiveExpression2(left, _, right) => col.AmbiguousMinus(convert(left), convert(right))(blame(expr))
   }
 
   def convert(implicit expr: MultiplicativeExpressionContext): Expr[G] = expr match {
@@ -414,7 +426,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousMinus(target, const(1)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
       case "*" => DerefPointer(convert(arg))(blame(expr))
@@ -442,7 +454,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
     case PostfixExpression6(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousMinus(target, const(1)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
     case PostfixExpression7(e, SpecPostfix0(postfix)) => convert(postfix, convert(e))
     case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
@@ -956,6 +968,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
+    case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
@@ -1035,6 +1048,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
+    case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
   }
 
   def convert(implicit e: ValExprContext): Expr[G] = e match {

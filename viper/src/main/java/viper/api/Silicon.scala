@@ -3,8 +3,6 @@ package viper.api
 import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.AppenderBase
-import hre.config.Configuration
-import hre.io.Writeable
 import org.slf4j.LoggerFactory
 import vct.col.ast.{Expr, Node}
 import vct.col.origin.Origin

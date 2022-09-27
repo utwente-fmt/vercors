@@ -258,7 +258,7 @@ case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def inlineDescWithSource(source: String): String = s"The divisor in `$source` may be zero."
 }
 sealed trait FrontendDerefError extends VerificationFailure
-sealed trait FrontendPlusError extends VerificationFailure
+sealed trait FrontendAdditiveError extends VerificationFailure
 sealed trait FrontendSubscriptError extends VerificationFailure
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
@@ -317,6 +317,43 @@ case class RunnableNotRunning(node: Join[_]) extends JoinFailure with NodeVerifi
   override def inlineDescWithSource(source: String): String = s"The runnable in `$source` may not be running."
 }
 
+sealed trait KernelFailure extends VerificationFailure
+case class KernelPostconditionFailed(failure: ContractFailure, node: CGpgpuKernelSpecifier[_]) extends KernelFailure with WithContractFailure {
+  override def baseCode: String = "postFailed"
+  override def descInContext: String = "The postcondition of this kernel may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The postcondition of `$node` may not hold, since $failure."
+}
+case class KernelPredicateNotInjective(kernel: CGpgpuKernelSpecifier[_], predicate: Expr[_]) extends KernelFailure {
+  override def code: String = "kernelNotInjective"
+  override def position: String = predicate.o.shortPosition
+
+  override def desc: String =
+    Origin.messagesInContext(Seq(
+      (kernel.o, "This kernel causes the formulas in its body to be quantified over all threads, ..."),
+      (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." + errUrl),
+    ))
+
+  override def inlineDesc: String =
+    s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
+}
+
+sealed trait KernelBarrierFailure extends VerificationFailure
+case class KernelBarrierNotEstablished(failure: ContractFailure, node: GpgpuBarrier[_]) extends KernelBarrierFailure with WithContractFailure {
+  override def baseCode: String = "notEstablished"
+  override def descInContext: String = "The precondition of this barrier may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` may not hold, since $failure."
+}
+case class KernelBarrierInconsistent(failure: ContractFailure, node: GpgpuBarrier[_]) extends KernelBarrierFailure with WithContractFailure {
+  override def baseCode: String = "inconsistent"
+  override def descInContext: String = "The precondition of this barrier is not consistent with the postcondition, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` is not consistent with its postcondition, since $failure."
+}
+case class KernelBarrierInvariantBroken(failure: ContractFailure, node: GpgpuBarrier[_]) extends KernelBarrierFailure with WithContractFailure {
+  override def baseCode: String = "barrierInvariant"
+  override def descInContext: String = "The barrier may not re-establish the used invariants, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not re-established the used invariants, since $failure."
+}
+
 case class ParInvariantNotEstablished(failure: ContractFailure, node: ParInvariant[_]) extends WithContractFailure {
   override def baseCode: String = "notEstablished"
   override def descInContext: String = "This parallel invariant may not be established, since"
@@ -327,23 +364,23 @@ case class ParInvariantNotMaintained(failure: ContractFailure, node: ParAtomic[_
   override def descInContext: String = "The parallel invariant may not be maintained, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not be maintained, since $failure."
 }
-sealed trait ParBarrierFailed extends VerificationFailure
-case class ParBarrierNotEstablished(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+sealed trait ParBarrierFailure extends VerificationFailure
+case class ParBarrierNotEstablished(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailure with WithContractFailure {
   override def baseCode: String = "notEstablished"
   override def descInContext: String = "The precondition of this barrier may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` may not hold, since $failure."
 }
-case class ParBarrierInconsistent(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+case class ParBarrierInconsistent(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailure with WithContractFailure {
   override def baseCode: String = "inconsistent"
   override def descInContext: String = "The precondition of this barrier is not consistent with the postcondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of `$node` is not consistent with its postcondition, since $failure."
 }
-case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailed with NodeVerificationFailure {
+case class ParBarrierMayNotThrow(node: ParBarrier[_]) extends ParBarrierFailure with NodeVerificationFailure {
   override def code: String = "barrierThrows"
   override def descInContext: String = "The proof hint for this barrier may throw an exception."
   override def inlineDescWithSource(source: String): String = s"The proof hint of `$source` may throw an exception."
 }
-case class ParBarrierInvariantBroken(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailed with WithContractFailure {
+case class ParBarrierInvariantBroken(failure: ContractFailure, node: ParBarrier[_]) extends ParBarrierFailure with WithContractFailure {
   override def baseCode: String = "barrierInvariant"
   override def descInContext: String = "The barrier may not re-establish the used invariants, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may not re-established the used invariants, since $failure."
@@ -451,7 +488,7 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
 sealed trait PointerLocationError extends PointerDerefError
-sealed trait PointerAddError extends FrontendPlusError
+sealed trait PointerAddError extends FrontendAdditiveError
 case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."

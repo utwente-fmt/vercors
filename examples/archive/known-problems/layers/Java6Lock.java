@@ -1,8 +1,9 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases Java6LockImplementation
-//:: suite problem-fail
-//:: tools silicon
+//:: tools carbon
 //:: verdict Pass
+
+// RR: This test was in problem-fail but we are are not sure why. With carbon it seems to verify consistently and
+// relatively (39s) quickly, so it was removed from problem-fail.
 
 /*
     vct --silver=silicon Java6Lock.java
@@ -61,24 +62,24 @@ final class Thread {
       Value(ref)**PointsTo(ref.val,p,v);
     
     inline thread_local resource common()= Value(T) **
-      Value(L) ** L > 0 ** 0 <= \current_thread < T **
+      Value(L) ** L > 0 ** 0 <= \current_thread ** \current_thread < T **
       Value(locks) ** locks != null **
-      (\forall* int l ; 0 <= l < L ;
+      (\forall* int l = 0 .. L ;
         Value(locks[l]) ** Value(locks[l].count) **
         Value(locks[l].owner) ** Value(locks[l].subject)
         ** Value(locks[l].T) ** locks[l].T==T);
         
 // begin(lockset)
 thread_local resource lockset(bag<int> S)=
-  Value(T) ** 0 <= \current_thread < T **
+  Value(T) ** 0 <= \current_thread ** \current_thread < T **
   Value(L) ** L > 0 ** Value(locks) ** locks != null **
-  (\forall* int l ; 0 <= l < L ;
+  (\forall* int l = 0 .. L ;
      Value({:locks[l]:}) ** Value(locks[l].subject) **
      Value(locks[l].T) ** locks[l].T==T **
      Value(locks[l].`held`) ** locks[l].lockset_part() **
      Value(locks[l].count) ** Value(locks[l].count.dummy) ** // skip(lockset) silicon incompleteness
      Value(locks[l].owner) ** Value(locks[l].owner.dummy) ** // skip(lockset) silicon incompleteness
-     locks[l].`held`[\current_thread]==(l \in S)
+     locks[l].`held`[\current_thread]==(l \memberof S)
   );
     // end(lockset)
   @*/
@@ -86,14 +87,14 @@ thread_local resource lockset(bag<int> S)=
   /*@
     given bag<int> S;
     requires common();
-    requires 0 <= lock_id < L;
+    requires 0 <= lock_id && lock_id < L;
     requires lockset(S);
     ensures  common();
-    ensures  0 <= lock_id < L;
+    ensures  0 <= lock_id && lock_id < L;
     ensures  \result ==> lockset(S+bag<int>{lock_id});
-    ensures  \result && (lock_id \in S)==0 ==>
+    ensures  \result && (lock_id \memberof S)==0 ==>
                 locks[lock_id].subject.inv();
-    ensures  (lock_id \in S)>0 ==> \result;
+    ensures  (lock_id \memberof S)>0 ==> \result;
     ensures  !\result ==> lockset(S);
   @*/
   boolean trylock(int lock_id){
@@ -130,9 +131,9 @@ final class Lock {
   AtomicInteger owner;
 
   /*@
-    inline resource common()=
+    inline thread_local resource common()=
       Value(count) ** Value(owner) **
-      Value(T) ** 0 <= \current_thread < T **
+      Value(T) ** 0 <= \current_thread ** \current_thread < T **
       Value(`held`) ** `held` != null **
       Value(subject);
       
@@ -149,9 +150,9 @@ resource csl_invariant()= Value(T) ** T > 0 **
    MyAPerm(count,1\2) ** MyAPerm(owner,1\2) **
    (count.val == 0 ==> subject.inv() **
            MyAPerm(count,1\2) ** MyAPerm(owner,1\2)) **
-   Perm(holder,1) ** -1 <= holder < T **
+   Perm(holder,1) ** -1 <= holder ** holder < T **
    (holder == -1) == (count.val == 0) **
-   (\forall* int i; 0 <= i < T ;
+   (\forall* int i = 0 .. T ;
      Perm({:`held`[i]:},1\2) ** (i!=holder ==> `held`[i]==0)
      ** `held`[i] >= 0 ** (`held`[i]==0 ==> owner.val!=i)
    );
@@ -173,7 +174,7 @@ resource csl_invariant()= Value(T) ** T > 0 **
   /*@
     ensures \result==\current_thread;
   @*/
-  public /*@thread_local@*/ /*@pure@*/ static int currentThread();
+  public /*@ thread_local pure @*/ static int currentThread();
 
 // begin(tryacquire)
   /*@
