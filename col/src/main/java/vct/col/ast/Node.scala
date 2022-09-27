@@ -192,7 +192,7 @@ final case class TryCatchFinally[G](body: Statement[G], after: Statement[G], cat
 final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends CompositeStatement[G] with SynchronizedImpl[G]
 final case class ParInvariant[G](decl: ParInvariantDecl[G], inv: Expr[G], content: Statement[G])(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends CompositeStatement[G] with ParInvariantImpl[G]
 final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: Statement[G])(val blame: Blame[ParInvariantNotMaintained])(implicit val o: Origin) extends CompositeStatement[G] with ParAtomicImpl[G]
-final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends CompositeStatement[G] with ParBarrierImpl[G]
+final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailure])(implicit val o: Origin) extends CompositeStatement[G] with ParBarrierImpl[G]
 final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin) extends CompositeStatement[G] with ParStatementImpl[G]
 final case class VecBlock[G](iters: Seq[IterVariable[G]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with VecBlockImpl[G]
 final case class WandPackage[G](res: Expr[G], proof: Statement[G])(val blame: Blame[PackageFailure])(implicit val o: Origin) extends CompositeStatement[G] with WandCreateImpl[G]
@@ -666,8 +666,8 @@ sealed trait CFunctionSpecifier[G] extends CDeclarationSpecifier[G] with CFuncti
 sealed trait CAlignmentSpecifier[G] extends CDeclarationSpecifier[G] with CAlignmentSpecifierImpl[G]
 
 sealed trait CGpgpuKernelSpecifier[G] extends CDeclarationSpecifier[G] with CGpgpuKernelSpecifierImpl[G]
-final case class CUDAKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CUDAKernelImpl[G]
-final case class OpenCLKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with OpenCLKernelImpl[G]
+final case class CUDAKernel[G]()(val blame: Blame[KernelFailure])(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CUDAKernelImpl[G]
+final case class OpenCLKernel[G]()(val blame: Blame[KernelFailure])(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with OpenCLKernelImpl[G]
 
 final case class CPointer[G](qualifiers: Seq[CTypeQualifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPointerImpl[G]
 
@@ -703,13 +703,11 @@ final case class CGoto[G](label: String)(implicit val o: Origin) extends CStatem
 }
 
 sealed trait GpuMemoryFence[G] extends NodeFamily[G] with GpuMemoryFenceImpl[G]
-
 final case class GpuLocalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuLocalMemoryFenceImpl[G]
 final case class GpuGlobalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuGlobalMemoryFenceImpl[G]
 final case class GpuZeroMemoryFence[G](value: BigInt)(implicit val o: Origin) extends GpuMemoryFence[G] with GpuZeroMemoryFenceImpl[G]
 
-
-final case class GpgpuBarrier[G](requires: Expr[G], ensures: Expr[G], specifiers: Seq[GpuMemoryFence[G]])(implicit val o: Origin) extends CStatement[G] with GpgpuBarrierImpl[G]
+final case class GpgpuBarrier[G](requires: Expr[G], ensures: Expr[G], specifiers: Seq[GpuMemoryFence[G]])(val blame: Blame[KernelBarrierFailure])(implicit val o: Origin) extends CStatement[G] with GpgpuBarrierImpl[G]
 final case class GpgpuAtomic[G](impl: Statement[G], before: Statement[G], after: Statement[G])(implicit val o: Origin) extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]

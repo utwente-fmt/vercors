@@ -122,8 +122,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit kernel: GpgpuKernelSpecifierContext): CGpgpuKernelSpecifier[G] = kernel match {
-    case GpgpuKernelSpecifier0(_) => CUDAKernel()
-    case GpgpuKernelSpecifier1(_) => OpenCLKernel()
+    case GpgpuKernelSpecifier0(_) => CUDAKernel()(blame(kernel))
+    case GpgpuKernelSpecifier1(_) => OpenCLKernel()(blame(kernel))
   }
 
   def convert(implicit decls: InitDeclaratorListContext): Seq[CInit[G]] = decls match {
@@ -214,7 +214,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case BlockItem3(embedStat) => convert(embedStat)
     case BlockItem4(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
       GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
-        , convert(specifier))
+        , convert(specifier))(blame(stat))
     })
     case BlockItem5(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
       GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))

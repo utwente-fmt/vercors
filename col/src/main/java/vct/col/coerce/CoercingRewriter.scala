@@ -1142,7 +1142,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
       case Goto(lbl) => Goto(lbl)
       case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
-      case GpgpuBarrier(requires, ensures, specifier) => GpgpuBarrier(res(requires), res(ensures), specifier)
+      case b @ GpgpuBarrier(requires, ensures, specifier) => GpgpuBarrier(res(requires), res(ensures), specifier)(b.blame)
       case Havoc(loc) => Havoc(loc)
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))

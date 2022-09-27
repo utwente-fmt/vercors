@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, InterpretedOriginVariable, Origin, PanicBlame, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, C, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecInvocationTarget}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -84,6 +84,37 @@ case object LangCToCol {
         defn.o -> "This method has a non-empty contract at its definition, ...",
         decl.o -> "... but its forward declaration also has a contract.",
       ))
+  }
+
+  case class KernelNotInjective(kernel: CGpgpuKernelSpecifier[_]) extends Blame[ReceiverNotInjective] {
+    override def blame(error: ReceiverNotInjective): Unit =
+      kernel.blame.blame(KernelPredicateNotInjective(kernel, error.resource))
+  }
+
+  case class KernelParFailure(kernel: CGpgpuKernelSpecifier[_]) extends Blame[ParBlockFailure] {
+    override def blame(error: ParBlockFailure): Unit = error match {
+      case ParPredicateNotInjective(_, predicate) =>
+        kernel.blame.blame(KernelPredicateNotInjective(kernel, predicate))
+      case ParPreconditionFailed(_, _) =>
+        PanicBlame("Kernel parallel block precondition cannot fail, since an identical predicate is required before.").blame(error)
+      case ParBlockPostconditionFailed(failure, _) =>
+        kernel.blame.blame(KernelPostconditionFailed(failure, kernel))
+      case ParBlockMayNotThrow(_) =>
+        PanicBlame("Please don't throw exceptions from a gpgpu kernel, it's not polite.").blame(error)
+    }
+  }
+
+  case class KernelBarrierFailure(barrier: GpgpuBarrier[_]) extends Blame[ParBarrierFailure] {
+    override def blame(error: ParBarrierFailure): Unit = error match {
+      case ParBarrierNotEstablished(failure, _) =>
+        barrier.blame.blame(KernelBarrierNotEstablished(failure, barrier))
+      case ParBarrierInconsistent(failure, _) =>
+        barrier.blame.blame(KernelBarrierInconsistent(failure, barrier))
+      case ParBarrierMayNotThrow(_) =>
+        PanicBlame("Please don't throw exceptions from a gpgpu barrier, it's not polite.").blame(error)
+      case ParBarrierInvariantBroken(failure, _) =>
+        barrier.blame.blame(KernelBarrierInvariantBroken(failure, barrier))
+    }
   }
 }
 
@@ -255,11 +286,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
-  def all(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
-    foldStar(unfoldStar(e).map(allOneExpr(idx, dim, _)))(e.o)
+  def all(blame: Blame[ReceiverNotInjective])(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
+    foldStar(unfoldStar(e).map(allOneExpr(blame)(idx, dim, _)))(e.o)
   }
 
-  def allOneExpr(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
+  def allOneExpr(blame: Blame[ReceiverNotInjective])(idx: CudaVec, dim: CudaVec, e: Expr[Post]): Expr[Post] = {
     implicit val o: Origin = e.o
     val vars = findVars(e)
     val (filteredIdx, otherIdx) = idx.indices.values.zip(dim.indices.values).partition{ case (i, _) => vars.contains(i)}
@@ -273,7 +304,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
           case (idx, dim) => const[Post](0) <= idx.get && idx.get < dim.get
         }),
         body
-      ))(PanicBlame("Where blame"))
+      ))(blame)
     }
   }
 
@@ -282,14 +313,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case _ => e.transSubnodes.collect { case Local(Ref(v)) => v}.toSet
   }
 
-  def allThreadsInBlock(e: Expr[Pre]): Expr[Post] = {
+  def allThreadsInBlock(blame: Blame[ReceiverNotInjective])(e: Expr[Pre]): Expr[Post] = {
     val thread = new CudaVec(RefCudaThreadIdx())(e.o)
-    cudaCurrentThreadIdx.having(thread) { all(thread, cudaCurrentBlockDim.top, rw.dispatch(e)) }
+    cudaCurrentThreadIdx.having(thread) { all(blame)(thread, cudaCurrentBlockDim.top, rw.dispatch(e)) }
   }
 
-  def allThreadsInGrid(e: Expr[Pre]): Expr[Post] = {
+  def allThreadsInGrid(blame: Blame[ReceiverNotInjective])(e: Expr[Pre]): Expr[Post] = {
     val block = new CudaVec(RefCudaBlockIdx())(e.o)
-    cudaCurrentBlockIdx.having(block) { all(block, cudaCurrentGridDim.top, allThreadsInBlock(e)) }
+    cudaCurrentBlockIdx.having(block) { all(blame)(block, cudaCurrentGridDim.top, allThreadsInBlock(blame)(e)) }
   }
 
   def getCDecl(d: CNameTarget[Pre]): CDeclarator[Pre] = d match {
@@ -316,15 +347,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       dynamicSharedMemLengthVar(d) = v
       rw.variables.declare(v)
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
-      val assign: Statement[Post] = Assign[Post](Local(cNameSuccessor(d).ref)
-        , NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0))(PanicBlame("Assign should work"))
+      val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0))
       result ++= Seq(decl, assign)
     })
     staticSharedMemNames.foreach{case (d,size) =>
     implicit val o: Origin = getCDecl(d).o
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
-      val assign: Statement[Post] = Assign[Post](Local(cNameSuccessor(d).ref)
-        , NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0))(PanicBlame("Assign should work"))
+      val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0))
       result ++= Seq(decl, assign)
     }
 
@@ -370,7 +401,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
               cudaCurrentGrid.having(gridDecl) {
                 cudaCurrentBlock.having(blockDecl) {
                   val contextBlock = foldStar(unfoldStar(contract.contextEverywhere)
-                    .filter(hasNoSharedMemNames).map(allThreadsInBlock))
+                    .filter(hasNoSharedMemNames).map(allThreadsInBlock(KernelNotInjective(kernelSpec))))
                   val innerContent = ParStatement(ParBlock(
                       decl = blockDecl,
                       iters = threadIdx.indices.values.zip(blockDim.indices.values).map {
@@ -381,7 +412,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                       requires = rw.dispatch(contractRequires),
                       ensures = rw.dispatch(contractEnsures),
                       content = rw.dispatch(implFiltered.get),
-                    )(PanicBlame("where blame?")))
+                    )(KernelParFailure(kernelSpec)))
                   ParStatement(ParBlock(
                     decl = gridDecl,
                     iters = blockIdx.indices.values.zip(gridDim.indices.values).map {
@@ -394,18 +425,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                           foldStar(
                             unfoldStar(contractRequires)
                               .filter(hasNoSharedMemNames)
-                              .map(allThreadsInBlock)))
+                              .map(allThreadsInBlock(KernelNotInjective(kernelSpec)))))
                         ),
                     ensures = Star(nonZeroThreads,
                       Star(contextBlock,
                         foldStar(
                           unfoldStar(contractEnsures)
                             .filter(hasNoSharedMemNames)
-                            .map(allThreadsInBlock)) )
+                            .map(allThreadsInBlock(KernelNotInjective(kernelSpec)))) )
                       ),
                     // Add shared memory initialization before beginning of inner parallel block
                     content = Block[Post](sharedMemInit ++ Seq(innerContent))
-                  )(PanicBlame("where blame?")))
+                  )(KernelParFailure(kernelSpec)))
                 }
               }
             }
@@ -415,11 +446,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         val gridContext: Expr[Post] =
           foldStar(unfoldStar(contract.contextEverywhere)
             .filter(hasNoSharedMemNames)
-            .map(allThreadsInGrid))(o)
+            .map(allThreadsInGrid(KernelNotInjective(kernelSpec))))(o)
         val requires: Expr[Post] = foldStar(Seq(gridContext, nonZeroThreads)
-          ++ unfoldStar(contractRequires).filter(hasNoSharedMemNames).map(allThreadsInGrid) )(o)
+          ++ unfoldStar(contractRequires).filter(hasNoSharedMemNames).map(allThreadsInGrid(KernelNotInjective(kernelSpec))) )(o)
         val ensures: Expr[Post] = foldStar(Seq(gridContext, nonZeroThreads)
-          ++ unfoldStar(contractEnsures).filter(hasNoSharedMemNames).map(allThreadsInGrid) )(o)
+          ++ unfoldStar(contractEnsures).filter(hasNoSharedMemNames).map(allThreadsInGrid(KernelNotInjective(kernelSpec))) )(o)
         val result = new Procedure[Post](
           returnType = TVoid(),
           args = newArgs,
@@ -625,7 +656,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       requires = rw.dispatch(barrier.requires),
       ensures = rw.dispatch(barrier.ensures),
       content = Block(Nil),
-    )(PanicBlame("more panic"))
+    )(KernelBarrierFailure(barrier))
   }
 
   def isPointer(t: Type[Pre]) : Boolean = t match {
