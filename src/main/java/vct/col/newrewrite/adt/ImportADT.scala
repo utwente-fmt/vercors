@@ -17,7 +17,7 @@ trait ImportADTImporter {
 }
 
 abstract class ImportADTBuilder(adt: String) extends RewriterBuilderArg[ImportADTImporter] {
-  override def key: String = "adt" + adt.toUpperCase
+  override def key: String = "adt" + adt.capitalize
   override def desc: String = s"Import types into vercors that are defined externally, usually via an axiomatic datatype. This pass imports $adt."
 }
 

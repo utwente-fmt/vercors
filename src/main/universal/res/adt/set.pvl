@@ -30,7 +30,7 @@ adt `set`<T> {
     && set_size(set_difference(xs, ys)) == set_size(xs) - set_size(set_intersection(xs, ys))
   );
 
-  axiom (∀T t; !{:set_in(seq_empty(), t):});
+  axiom (∀T t; !{:set_in(set_empty(), t):});
   axiom (∀T t1, T t2; {:set_in(set_singleton(t1), t2):} == (t1 == t2));
   axiom (∀`set`<T> xs, T t1, T t2; {:set_in(set_union_one(xs, t1), t2):} == (t1 == t2 || set_in(xs, t2)));
   axiom (∀`set`<T> xs, T t; set_in({:set_union_one(xs, t):}, t));

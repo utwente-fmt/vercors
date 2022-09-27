@@ -197,14 +197,14 @@ case class ColToSilver(program: col.Program[_]) {
         typVars = adt.typeArgs.map(v => silver.TypeVar(ref(v))),
         functions = adt.decls.collect {
           case func: col.ADTFunction[_] => scoped {
-            silver.DomainFunc(ref(func), func.args.map(variable), typ(func.returnType), unique = false)(pos=pos(func), info=NodeInfo(func), domainName=ref(adt))
+            silver.DomainFunc(ref(func), func.args.map(variable), typ(func.returnType), unique = false)(pos = pos(func), info = NodeInfo(func), domainName = ref(adt))
           }
         },
         axioms = adt.decls.collect {
           case ax: col.ADTAxiom[_] =>
-            silver.AnonymousDomainAxiom(exp(ax.axiom))(pos=pos(ax), info=NodeInfo(ax), domainName=ref(adt))
+            silver.AnonymousDomainAxiom(exp(ax.axiom))(pos = pos(ax), info = NodeInfo(ax), domainName = ref(adt))
         },
-      )(pos=pos(adt), info=NodeInfo(adt))
+      )(pos = pos(adt), info = NodeInfo(adt))
     case other =>
       ??(other)
   }

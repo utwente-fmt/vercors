@@ -37,7 +37,7 @@ case class ImportBag[Pre <: Generation](importer: ImportADTImporter) extends Imp
   def typeArgs(t: Type[Pre]): Option[(Ref[Post, AxiomaticDataType[Post]], Seq[Type[Post]])] =
     Some((bagAdt.ref, Seq(dispatch(t))))
 
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = e match {
     case Size(xs) if xs.t.asBag.nonEmpty =>
       ADTFunctionInvocation[Post](
         typeArgs = typeArgs(xs),
@@ -98,7 +98,7 @@ case class ImportBag[Pre <: Generation](importer: ImportADTImporter) extends Imp
 
     case sub @ SubBagEq(xs, ys) =>
       ADTFunctionInvocation[Post](
-        typeArgs = typeArgs(sub.comparisonType.asBag.get),
+        typeArgs = typeArgs(sub.comparisonType.asBag.get.element),
         ref = bagSubbag.ref,
         args = Seq(dispatch(xs), dispatch(ys)),
       )(e.o)

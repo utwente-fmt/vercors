@@ -22,8 +22,8 @@ adt `bag`<T> {
 
   axiom (∀int n, int m; n <= m ==> {:bag_min(n, m):} == n);
   axiom (∀int n, int m; m <= n ==> {:bag_min(n, m):} == m);
-  axiom (∀int n; 0 <= n ==> {:math_clip(n):} == n);
-  axiom (∀int n; n <= 0 ==> {:math_clip(n):} == 0);
+  axiom (∀int n; 0 <= n ==> {:bag_clip(n):} == n);
+  axiom (∀int n; n <= 0 ==> {:bag_clip(n):} == 0);
 
   axiom (∀`bag`<T> xs; {:bag_size(xs):} >= 0);
   axiom (∀`bag`<T> xs; ({:bag_size(xs):} == 0) == (xs == bag_empty()));
@@ -34,7 +34,7 @@ adt `bag`<T> {
   axiom (∀`bag`<T> xs, T t; bag_size({:bag_union_one(xs, t):}) > 0);
   axiom (∀`bag`<T> xs, `bag`<T> ys;
     {:1: bag_size({:2: {:3: bag_union(xs, ys) :} :}) :} ==
-    {:2: bag_size(xs) :} + {:3: bag_size(ys :}
+    {:2: bag_size(xs) :} + {:3: bag_size(ys) :}
   );
   axiom (∀`bag`<T> xs, `bag`<T> ys;
     {:bag_size(bag_difference(xs, ys)):} + bag_size(bag_difference(ys, xs)) +
@@ -45,11 +45,11 @@ adt `bag`<T> {
     {:bag_size(bag_difference(xs, ys)):} == bag_size(xs) - bag_size(bag_intersection(xs, ys)));
 
   axiom (∀`bag`<T> xs, T t; {:bag_count(xs, t):} >= 0);
-  axiom (∀`bag`<T> xs, T t; {:bag_count(bag_empty(), t):} == 0);
+  axiom (∀T t; {:bag_count(bag_empty(), t):} == 0);
   axiom (∀`bag`<T> xs; {:bag_size(xs):} != 0 ==> (∃T t; {:bag_count(xs, t):} > 0));
   axiom (∀T t1, T t2;
     ({:bag_count(bag_singleton(t1), t2):} == 1) == (t1 == t2) &&
-    (bag_count(bag_singleton(t1), t2)) == (t1 != t2)
+    (bag_count(bag_singleton(t1), t2) == 0) == (t1 != t2)
   );
   axiom (∀`bag`<T> xs, T t1, T t2;
     {:1:bag_count({:2:bag_union_one(xs, t1):}, t2):} ==
@@ -67,15 +67,15 @@ adt `bag`<T> {
     {:bag_count(xs, t):} <= {:bag_count(ys, t):} ==> bag_count({:bag_difference(xs, ys):}, t) == 0);
 
   axiom (∀T t; {:bag_singleton(t):} == bag_union_one(bag_empty(), t));
-  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(bag_intersection(a, b), a):} == bag_intersection(a, b));
-  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(bag_intersection(a, b), b):} == bag_intersection(a, b));
-  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(a, bag_intersection(a, b)):} == bag_intersection(a, b));
-  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(b, bag_intersection(a, b)):} == bag_intersection(a, b));
+  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(bag_intersection(xs, ys), xs):} == bag_intersection(xs, ys));
+  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(bag_intersection(xs, ys), ys):} == bag_intersection(xs, ys));
+  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(xs, bag_intersection(xs, ys)):} == bag_intersection(xs, ys));
+  axiom (∀`bag`<T> xs, `bag`<T> ys; {:bag_intersection(ys, bag_intersection(xs, ys)):} == bag_intersection(xs, ys));
 
   axiom (∀`bag`<T> xs, `bag`<T> ys;
-    {:bag_subset(xs, ys):} == (∀T t; {:1:bag_count(xs, t):} <= {:2:bag_count(ys, t):}));
+    {:bag_subbag(xs, ys):} == (∀T t; {:1:bag_count(xs, t):} <= {:2:bag_count(ys, t):}));
   axiom (∀`bag`<T> xs, `bag`<T> ys;
-    !{:bag_subset(xs, ys):} ==> bag_count(xs, bag_skolem(xs, ys)) > bag_count(ys, bag_skolem(xs, ys)));
+    !{:bag_subbag(xs, ys):} ==> bag_count(xs, bag_skolem(xs, ys)) > bag_count(ys, bag_skolem(xs, ys)));
 
   axiom (∀`bag`<T> xs, `bag`<T> ys;
     {:bag_equal(xs, ys):} == (∀T t; {:1:bag_count(xs, t):} == {:2:bag_count(ys, t):}));
