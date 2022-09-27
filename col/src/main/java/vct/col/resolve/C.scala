@@ -69,6 +69,7 @@ case object C {
       case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
+      case Seq(CSpecificationType(typ)) => typ
       case _ => throw CTypeNotSupported(context)
     }
 

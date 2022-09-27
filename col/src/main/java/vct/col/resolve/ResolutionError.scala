@@ -6,6 +6,12 @@ import vct.result.VerificationError.{SystemError, UserError}
 
 trait ResolutionError extends UserError
 
+case class MultipleForwardDeclarationContractError(declaration: CGlobalDeclaration[_]) extends ResolutionError {
+  override def code: String = "multipleForwardDeclarationContract"
+
+  override def text: String = declaration.o.messageInContext("Cannot simultaneously bind a contract to multiple global declarations.")
+}
+
 case class NoSuchNameError(kind: String, name: String, use: Node[_]) extends ResolutionError {
   override def text: String = use.o.messageInContext(s"Could not find $kind named $name.")
   override def code: String = "noSuchName"

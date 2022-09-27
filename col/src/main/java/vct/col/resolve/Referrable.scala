@@ -130,6 +130,7 @@ sealed trait CInvocationTarget[G] extends Referrable[G]
 sealed trait PVLInvocationTarget[G] extends Referrable[G]
 sealed trait SpecInvocationTarget[G]
   extends JavaInvocationTarget[G]
+    with CNameTarget[G]
     with CDerefTarget[G] with CInvocationTarget[G]
     with PVLInvocationTarget[G]
 
