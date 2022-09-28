@@ -1,0 +1,18 @@
+adt mask<T> {
+  pure rational mask_perm(mask<T> m, T t);
+
+  pure mask<T> mask_empty();
+  pure mask<T> mask_singleton(T t, rational amount);
+  pure mask<T> mask_union(mask<T> left, mask<T> right);
+
+  axiom (∀mask<T> m, T t; {:mask_perm(m, t):} >= 0);
+
+  axiom (∀T t; {:mask_perm(mask_empty(), t):} == 0);
+
+  axiom (∀T t, rational p; mask_perm({:mask_singleton(t, p):}, t) == p);
+  axiom (∀T t1, T t2, rational p; {:mask_perm(mask_singleton(t1, p), t2):} == (t1 == t2 ? p : 0));
+
+  axiom (∀mask<T> left, mask<T> right, T t; {:mask_perm(mask_union(left, right), t):} >= mask_perm(left, t));
+  axiom (∀mask<T> left, mask<T> right, T t; {:mask_perm(mask_union(left, right), t):} >= mask_perm(right, t));
+  axiom (∀mask<T> left, mask<T> right, T t; {:mask_perm(mask_union(left, right), t):} == mask_perm(left, t) + mask_perm(right, t));
+}

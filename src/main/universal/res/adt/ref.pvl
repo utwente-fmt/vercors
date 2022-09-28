@@ -1,0 +1,3 @@
+adt ref {
+  pure ref null();
+}
