@@ -1,4 +1,4 @@
-package vct.options
+package vct.options.types
 
 sealed trait Backend
 

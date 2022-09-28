@@ -1,8 +1,8 @@
-package vct.options
+package vct.options.types
 
 import hre.io.{Readable, Writeable}
 
-import java.io.{FileReader, FileWriter, InputStreamReader, OutputStreamWriter, Reader, Writer}
+import java.io._
 import java.nio.charset.StandardCharsets
 
 sealed trait PathOrStd extends Readable with Writeable {

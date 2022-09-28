@@ -1,9 +1,8 @@
-package vct.parsers
+package vct.importer
 
 import hre.io.RWFile
 import vct.col.ast.Program
 import vct.col.rewrite.ImportADTImporter
-import vct.main.util.Util
 
 import java.nio.file.Path
 

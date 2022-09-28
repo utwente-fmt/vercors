@@ -1,9 +1,10 @@
-package vct.parsers
+package viper.api
+
+import hre.io.Readable
 import org.antlr.v4.runtime.CharStream
+import vct.parsers.{ParseResult, Parser}
 import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.Unreachable
-import viper.api.SilverToCol
-import hre.io.Readable
 
 case class ColSilverParser(override val originProvider: OriginProvider, override val blameProvider: BlameProvider) extends Parser(originProvider, blameProvider) {
   override def parse[G](stream: CharStream): ParseResult[G] =

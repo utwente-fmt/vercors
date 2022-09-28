@@ -1,16 +1,17 @@
 package vct.main.stages
 
 import hre.io.Writeable
-import vct.col.ast.{Program, Verification}
+import hre.stages.Stage
+import vct.col.ast.Verification
 import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
-import vct.options.Options
+import vct.options.{Options, types}
 import viper.api.{Carbon, Silicon}
 
 case object Backend {
 
   def ofOptions(options: Options): Backend = options.backend match {
-    case vct.options.Backend.Silicon =>
+    case types.Backend.Silicon =>
       val printRawQuantifier = options.siliconPrintQuantifierStats match {
         case Some(freq) => Seq(
           "smt.qi.profile" -> "true",
@@ -38,7 +39,7 @@ case object Backend {
         options = options.backendFlags,
       ), options.backendFile)
 
-    case vct.options.Backend.Carbon => SilverBackend(Carbon(
+    case types.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
       boogiePath = options.boogiePath,
       printFile = options.devViperProverLogFile,

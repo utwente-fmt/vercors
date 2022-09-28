@@ -9,7 +9,8 @@ import vct.col.origin.VerificationFailure
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
 import vct.options
-import vct.options.PathOrStd
+import vct.options.types
+import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.ParseError
 import vct.result.VerificationError
 import vct.result.VerificationError.UserError
@@ -35,14 +36,14 @@ abstract class VercorsSpec extends AnyFlatSpec {
   case class IncompleteVerdict(fromCode: String => Verdict)
   case object ErrorVerdict
 
-  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: options.Backend, inputs: Seq[Readable]): Unit = {
+  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable]): Unit = {
     registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
       matchVerdict(verdict, backend match {
-        case options.Backend.Silicon => Verify.verifyWithSilicon(inputs)
-        case options.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+        case types.Backend.Silicon => Verify.verifyWithSilicon(inputs)
+        case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
       })
     }
   }
@@ -118,10 +119,10 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class VerdictPhrase(val verdict: Verdict) {
-    def using(backend: Seq[options.Backend]): BackendPhrase = new BackendPhrase(verdict, backend)
+    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, backend)
   }
 
-  class BackendPhrase(val verdict: Verdict, val backends: Seq[options.Backend]) {
+  class BackendPhrase(val verdict: Verdict, val backends: Seq[Backend]) {
     def example(path: String): Unit = examples(path)
 
     def examples(examples: String*): Unit = {
@@ -137,7 +138,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc)
   }
 
-  class DescPhrase(val verdict: Verdict, val backends: Seq[options.Backend], val desc: String) {
+  class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String) {
     def pvl(data: String): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
@@ -165,7 +166,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
   val fail: IncompleteVerdict = IncompleteVerdict(Fail)
   val error: ErrorVerdict.type = ErrorVerdict
 
-  val silicon: Seq[options.Backend] = Seq(options.Backend.Silicon)
-  val carbon: Seq[options.Backend] = Seq(options.Backend.Carbon)
-  val anyBackend: Seq[options.Backend] = Seq(options.Backend.Silicon, options.Backend.Carbon)
+  val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
+  val carbon: Seq[Backend] = Seq(types.Backend.Carbon)
+  val anyBackend: Seq[Backend] = Seq(types.Backend.Silicon, types.Backend.Carbon)
 }

@@ -1,5 +1,6 @@
 package vct.main.stages
 
+import hre.stages.Stage
 import vct.col.origin.ExpectedError
 import vct.options.Options
 

@@ -8,7 +8,8 @@ import scopt.OParser
 import vct.col.ast.Node
 import vct.main.modes.Verify
 import vct.main.stages.Transformation
-import vct.options.{Mode, Options, Verbosity}
+import vct.options.types.{Mode, Verbosity}
+import vct.options.Options
 import vct.result.VerificationError.UserError
 
 case object Main extends LazyLogging {

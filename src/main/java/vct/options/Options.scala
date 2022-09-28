@@ -3,7 +3,8 @@ package vct.options
 import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
-import vct.parsers.Language
+import vct.main.stages.Parsing.Language
+import vct.options.types.{Backend, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
@@ -31,9 +32,9 @@ case object Options {
       parser
     }
 
-    import Backend.read
+    import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
-    import Verbosity.read
+    import vct.options.types.Verbosity.read
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] =
       scopt.Read.reads {

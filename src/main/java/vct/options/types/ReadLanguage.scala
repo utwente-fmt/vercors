@@ -1,6 +1,6 @@
-package vct.options
+package vct.options.types
 
-import vct.parsers.Language
+import vct.main.stages.Parsing.Language
 
 case object ReadLanguage extends ReadEnum[Language] {
   override val options: Map[String, Language] = Map(

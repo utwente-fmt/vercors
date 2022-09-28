@@ -1,4 +1,4 @@
-package vct.java
+package vct.importer
 
 import hre.io.RWFile
 import vct.col.ast.JavaNamespace

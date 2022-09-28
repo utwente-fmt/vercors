@@ -1,4 +1,4 @@
-package vct.options
+package vct.options.types
 
 trait ReadEnum[T] extends scopt.Read[T] {
   implicit def read: scopt.Read[T] = this
