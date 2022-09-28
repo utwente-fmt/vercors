@@ -3,8 +3,8 @@ package vct.col.newrewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, GuardPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
-import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
+import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, ForwardUnsatisfiableBlame, GuardPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, BipTransitionPreconditionUnsatisfiable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, NontrivialUnsatisfiable, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -85,6 +85,10 @@ case object EncodeBip extends RewriterBuilder {
       case failure: BipGuardFailure => ???
     }
   }
+
+  case class ForwardUnsatisfiableBlame(bt: BipTransition[_]) extends Blame[NontrivialUnsatisfiable] {
+    override def blame(error: NontrivialUnsatisfiable): Unit = bt.blame.blame(BipTransitionPreconditionUnsatisfiable(bt))
+  }
 }
 
 case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
@@ -107,7 +111,10 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
   var componentToClass: Map[BipComponent[Pre], Class[Pre]] = Map()
 
-  val incomingDataSucc: SuccessionMap[BipIncomingData[Pre], Variable[Post]]
+  val incomingDataSucc: SuccessionMap[BipIncomingData[Pre], Variable[Post]] = SuccessionMap()
+  val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val synchronSucc: SuccessionMap[BipSynchron[Pre], Procedure[Post]] = SuccessionMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -165,17 +172,20 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     case guard: BipGuard[Pre] =>
       implicit val o = guard.o
-      new InstanceMethod[Post](
-        TBool()(guard.o),
-        collectInScope(this.variableScopes) { guard.data.map(dispatch) },
-        Nil, Nil,
-        Some(dispatch(guard.body)),
-        contract[Post](
-          requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
-          ensures = UnitAccountedPredicate(dispatch(guard.ensures))
-        ),
-        pure = guard.pure
-      )(GuardPostconditionFailed(guard))(guard.o).succeedDefault(guard)
+      guard.drop()
+      labelDecls.scope {
+        guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
+          TBool()(guard.o),
+          variables.collect { guard.data.map(dispatch) }._1,
+          Nil, Nil,
+          Some(dispatch(guard.body)),
+          contract[Post](???,
+            requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
+            ensures = UnitAccountedPredicate(dispatch(guard.ensures))
+          ),
+          pure = guard.pure
+        )(GuardPostconditionFailed(guard))(guard.o)) // .succeedDefault(guard)
+      }
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
@@ -201,24 +211,26 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
             // Also include everything that was generated extra for the constructor
             dispatch(proc.contract.ensures)))
         )
-        proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(component, proc)).succeedDefault(proc)
+        globalDeclarations.succeed(proc,
+          proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(component, proc)))
       }
 
     case bt: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
       val component = currentComponent.top
-      new InstanceMethod[Post](
-        TVoid(),
-        collectInScope(variableScopes) { bt.data.foreach(dispatch) },
-        Nil,
-        Nil,
-        Some(dispatch(bt.body)),
-        contract[Post](
-          requires = UnitAccountedPredicate(
-            dispatch(component.invariant)
-              &** dispatch(bt.source.decl.expr)
-              &** dispatch(bt.requires)
-              &** (bt.guard.map { f =>
+      labelDecls.scope {
+        transitionSucc(bt) = classDeclarations.declare(new InstanceMethod[Post](
+          TVoid(),
+          variables.collect { bt.data.foreach(dispatch) }._1,
+          Nil,
+          Nil,
+          Some(dispatch(bt.body)),
+          contract[Post](ForwardUnsatisfiableBlame(bt),
+            requires = UnitAccountedPredicate(
+              dispatch(component.invariant)
+                &** dispatch(bt.source.decl.expr)
+                &** dispatch(bt.requires)
+                &** (bt.guard.map { f =>
                 val bg = f.decl
                 // For each @Data that the guard needs, find the appropriate @Data parameter from the transition
                 val vars = bg.data.map(guardData => bt.data.find(guardData.data == _.data).get)
@@ -228,8 +240,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
                   succ[InstanceMethod[Post]](f.decl),
                   args = vars.map(succ[Variable[Post]]).map(Local[Post](_)))
               }.getOrElse(tt))
-          ),
-          ensures =
+            ),
+            ensures =
             // Establish component invariant
             SplitAccountedPredicate(UnitAccountedPredicate(dispatch(component.invariant)),
             // Establish state invariant
@@ -237,8 +249,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
             // Establish update function postcondition
             UnitAccountedPredicate(dispatch(bt.ensures))))
           )
-        )(TransitionPostconditionFailed(bt))(bt.o).succeedDefault(bt)
-
+        )(TransitionPostconditionFailed(bt))(bt.o))
+      }
     case synchron: BipSynchron[Pre] =>
       val p1 = synchron.p1.decl
       val p2 = synchron.p2.decl
@@ -275,12 +287,13 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
     // Can do substitute, and then a plain dispatch. Or: just do it inline. Or: a nested rewriter.
     component1.invariant
 
-    procedure[Post](
+    synchronSucc(synchron) = globalDeclarations.declare(procedure[Post](
       args = ???,
       requires = UnitAccountedPredicate[Post]((c.get !== Null()) && (d.get !== Null())),
       ensures = ???,
       body = Some(???),
-      blame = ???
-    )(synchron.o).succeedDefault(synchron)
+      blame = ???,
+      contractBlame = ???
+    )(synchron.o))
   }
 }

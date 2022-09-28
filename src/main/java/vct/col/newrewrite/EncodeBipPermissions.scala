@@ -29,9 +29,10 @@ case class EncodeBipPermissions[Pre <: Generation]() extends Rewriter[Pre] {
       val fields = currentClass.top.declarations.collect { case f: InstanceField[Pre] => f }
       val diz = ThisObject(succ[Class[Post]](currentClass.top))
       val fieldPerms = AstBuildHelpers.foldStar(fields.map { f =>
-        Perm(Deref(diz, succ[InstanceField[Post]](f))(null), const(1))
+        Perm(FieldLocation(diz, succ[InstanceField[Post]](f))(null), const(1))
       })
-      component.rewrite(invariant = Star(fieldPerms, rewriteDefault(component.invariant))(DiagnosticOrigin)).succeedDefault(component)
+      classDeclarations.succeed(component,
+        component.rewrite(invariant = Star(fieldPerms, rewriteDefault(component.invariant))(DiagnosticOrigin)))
     case x => rewriteDefault(x)
   }
 }

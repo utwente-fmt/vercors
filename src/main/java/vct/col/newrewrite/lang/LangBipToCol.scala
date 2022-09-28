@@ -51,12 +51,15 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val ports: SuccessionMap[String, BipPort[Post]] = SuccessionMap()
   var dataTypes: ListMap[String, Type[Pre]] = ListMap()
 
+  val javaParamSucc: SuccessionMap[JavaParam[Pre], BipIncomingData[Post]] = SuccessionMap()
+  val javaMethodSuccTransition: SuccessionMap[JavaMethod[Pre], BipTransition[Post]] = SuccessionMap()
+  val javaMethodSuccGuard: SuccessionMap[JavaMethod[Pre], BipGuard[Post]] = SuccessionMap()
+  val javaMethodSuccOutgoingData: SuccessionMap[JavaMethod[Pre], BipOutgoingData[Post]] = SuccessionMap()
+
   def getJavaBipStatePredicate(t: JavaBipStatePredicateTarget[Pre]): Ref[Post, BipStatePredicate[Post]] = t match {
     case RefJavaBipStatePredicate(decl) => statePredicates.ref(decl.data.get.asInstanceOf[jad.BipStatePredicate[Pre]])
     case ImplicitDefaultJavaBipStatePredicate(state) => defaultStatePredicates.getOrElseUpdate(state, {
-      val bsp = new BipStatePredicate[Post](tt)(DiagnosticOrigin)
-      bsp.declareDefault(rw)
-      bsp
+      rw.classDeclarations.declare(new BipStatePredicate[Post](tt)(DiagnosticOrigin))
     }).ref
   }
 
@@ -71,14 +74,15 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         }
       case None =>
         dataTypes = dataTypes.updated(name, expectedType)
-        datas(name) = new BipData[Post](rw.dispatch(expectedType)).declareDefault(rw)
+        datas(name) = rw.classDeclarations.declare(new BipData[Post](rw.dispatch(expectedType)))
         datas(name).ref
     }
   }
 
   def rewriteParameter(p: JavaParam[Pre]): Unit = {
     val jad.BipData(name) = jad.BipData.get(p).get
-    new BipIncomingData(getBipData(name, p.t)(p.o))(p.o).succeedDefault(p)
+    javaParamSucc(p) =
+      rw.bipIncomingDatas.declare(new BipIncomingData(getBipData(name, p.t)(p.o))(p.o))
   }
 
   def rewriteTransition(m: JavaMethod[Pre]): Unit = {
@@ -86,17 +90,21 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
 
-    val trans = new BipTransition[Post](
-      ports.ref(portName),
-      getJavaBipStatePredicate(source),
-      getJavaBipStatePredicate(target),
-      rw.collectInScope(rw.bipIncomingDataScopes) { m.parameters.map(rewriteParameter) },
-      guard.map(rw.succ(_)),
-      rw.dispatch(requires),
-      rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
+    val trans = rw.bipIncomingDatas.scope {
+      new BipTransition[Post](
+        ports.ref(portName),
+        getJavaBipStatePredicate(source),
+        getJavaBipStatePredicate(target),
+        rw.bipIncomingDatas.collect {
+          m.parameters.map(rewriteParameter)
+        }._1,
+        guard.map(rw.succ(_)),
+        rw.dispatch(requires),
+        rw.dispatch(ensures),
+        rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
+    }
 
-    trans.succeedDefault(m)(rw)
+    javaMethodSuccTransition(m) = rw.classDeclarations.declare(trans)
   }
 
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {
@@ -111,22 +119,26 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     if (m.returnType != TBool[Pre]()) { throw WrongGuardReturnType(m) }
 
-    val guard = new BipGuard[Post](
-      rw.collectInScope(rw.bipIncomingDataScopes) { m.parameters.foreach(rewriteParameter) },
-      rw.dispatch(m.body.get),
-      tt, true
-    )(m.blame)(SourceNameOrigin(m.name, m.o))
-    guard.succeedDefault(m)
+    rw.bipIncomingDatas.scope {
+      javaMethodSuccGuard(m) = rw.classDeclarations.declare(new BipGuard[Post](
+        rw.bipIncomingDatas.collect {
+          m.parameters.foreach(rewriteParameter)
+        }._1,
+        rw.dispatch(m.body.get),
+        tt, true
+      )(m.blame)(SourceNameOrigin(m.name, m.o)))
+    }
   }
 
   def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
     val jad.BipData(name) = jad.BipData.get(m).get
 
-    new BipOutgoingData(
-      getBipData(name, m.returnType)(m.o),
-      rw.dispatch(m.body.get),
-      jad.BipPure.isPure(m)
-    )(m.blame)(SourceNameOrigin(m.name, m.o)).succeedDefault(m)
+    javaMethodSuccOutgoingData(m) = rw.classDeclarations.declare(
+      new BipOutgoingData(
+        getBipData(name, m.returnType)(m.o),
+        rw.dispatch(m.body.get),
+        jad.BipPure.isPure(m)
+      )(m.blame)(SourceNameOrigin(m.name, m.o)))
   }
 
   def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
@@ -140,25 +152,30 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
 
     // Create bip component marker declaration
-    components(name) = new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState)
-      )(cls.o).declareDefault(rw)
+    components(name) = rw.classDeclarations.declare(
+      new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState))(cls.o))
 
     // Create bip state predicates
     jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>
-      val bspNode = new BipStatePredicate[Post](rw.dispatch(expr))(SourceNameOrigin(name, bspData.o)).declareDefault(rw)
+      val bspNode = rw.classDeclarations.declare(
+        new BipStatePredicate[Post](rw.dispatch(expr))(SourceNameOrigin(name, bspData.o)))
       statePredicates(bspData) = bspNode
     }
 
     // Create bip ports
     allPorts.foreach { port =>
       assert(port.portType == BipEnforceable[Pre]())
-      ports(port.name) = new BipPort(rw.dispatch(port.portType))(SourceNameOrigin(port.name, port.o)).declareDefault(rw)
+      ports(port.name) = rw.classDeclarations.declare(
+        new BipPort(rw.dispatch(port.portType))(SourceNameOrigin(port.name, port.o)))
     }
   }
 
   def generateSynchron(port1: String, port2: String): Unit =
-    new BipSynchron[Post](ports.ref(port1), ports.ref(port2))(DiagnosticOrigin).declareDefault(rw)
+    rw.globalDeclarations.declare(
+      new BipSynchron[Post](ports.ref(port1), ports.ref(port2))(DiagnosticOrigin))
 
-  def generateDataBinding(data1: String, data2: String): Unit =
-    new BipDataBinding[Post](datas.ref(data1), datas.ref(data2))(DiagnosticOrigin).declareDefault(rw)
+  def generateDataBinding(data1: String, data2: String): Unit = {
+    rw.globalDeclarations.declare(
+      new BipDataBinding[Post](datas.ref(data1), datas.ref(data2))(DiagnosticOrigin))
+  }
 }

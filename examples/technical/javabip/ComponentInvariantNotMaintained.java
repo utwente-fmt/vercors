@@ -15,7 +15,7 @@ public class ComponentInvariantNotMaintained {
     public static final String NAME = "oneComponentOneTransition";
     public static final String GO = "go";
 
-    OneComponentOneTransition() {
+    ComponentInvariantNotMaintained() {
         x = 0;
     }
 

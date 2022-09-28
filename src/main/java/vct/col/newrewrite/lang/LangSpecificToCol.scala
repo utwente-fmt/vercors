@@ -70,12 +70,12 @@ case class LangSpecificToCol[Pre <: Generation](args: LangSpecificToColArgs) ext
       case _ =>
     }
 
-    program.rewrite(declarations = collectInScope(globalScopes) {
+    program.rewrite(declarations = globalDeclarations.collect {
       // TODO (RR): Assuming that all port & data names are unique, and are not shared between components. Keep it this way or...?
       args.bipSynchrons.foreach { case ((class1, port1), (class2, port2)) => bip.generateSynchron(port1, port2) }
       args.bipDatas.foreach { case ((class1, data1), (class2, data2)) => bip.generateDataBinding(data1, data2) }
       program.declarations.foreach(dispatch)
-    })
+    }._1)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {

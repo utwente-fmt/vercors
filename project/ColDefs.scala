@@ -89,7 +89,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
-    "BipIncomingData" -> Seq("BipTransition"),
+    "BipIncomingData" -> Seq("BipTransition", "BipGuard"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor")
   )
 

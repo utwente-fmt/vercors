@@ -4,9 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.newrewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, Java, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefJavaParam, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -98,6 +98,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
+  val javaParamSuccessor: SuccessionMap[JavaParam[Pre], Variable[Post]] = SuccessionMap()
 
   val javaMethod: SuccessionMap[JavaMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
   val javaConstructor: SuccessionMap[JavaConstructor[Pre], Procedure[Post]] = SuccessionMap()
@@ -191,7 +192,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
             new Procedure(
               returnType = t,
-              args = rw.variables.dispatch(cons.parameters),
+              args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
               outArgs = Nil, typeArgs = Nil,
               body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
                 assignLocal(res, NewObject(ref)),
@@ -213,22 +214,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ))
         }
       case method: JavaMethod[Pre] =>
-        rw.labelDecls.scope {
-          javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
-            returnType = rw.dispatch(method.returnType),
-            args = rw.variables.dispatch(method.parameters),
-            outArgs = Nil, typeArgs = Nil,
-            body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-              case None => method.body.map(rw.dispatch)
-            },
-            contract = method.contract.rewrite(
-              signals = method.contract.signals.map(rw.dispatch) ++
-                method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-            ),
-            pure = method.modifiers.contains(JavaPure[Pre]())
-          )(method.blame)(JavaMethodOrigin(method)))
-        }
+        rw.dispatch(method)
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -247,8 +233,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     if (BipData.get(param).isDefined) {
       rw.bip.rewriteParameter(param)
     } else {
-      val v = new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o))
-      v.succeedDefault(param)
+      javaParamSuccessor(param) =
+        rw.variables.declare(new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o)))
     }
 
   def rewriteMethod(method: JavaMethod[Pre]): Unit =
@@ -258,20 +244,24 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       rw.bip.rewriteGuard(method)
     } else {
       implicit val o = JavaInstanceClassOrigin(currentJavaClass.top)
-      new InstanceMethod(
-        returnType = rw.dispatch(method.returnType),
-        args = rw.collectInScope(rw.variableScopes) { method.parameters.foreach(rw.dispatch) },
-        outArgs = Nil, typeArgs = Nil,
-        body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-          case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-          case None => method.body.map(rw.dispatch)
-        },
-        contract = method.contract.rewrite(
-          signals = method.contract.signals.map(rw.dispatch) ++
-            method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-        ),
-        pure = method.modifiers.contains(JavaPure[Pre]())
-      )(method.blame)(JavaMethodOrigin(method)).succeedDefault(method)
+      javaMethod(method) = rw.labelDecls.scope {
+        rw.classDeclarations.declare(new InstanceMethod(
+          returnType = rw.dispatch(method.returnType),
+          args = rw.variables.collect {
+            method.parameters.foreach(rw.dispatch)
+          }._1,
+          outArgs = Nil, typeArgs = Nil,
+          body = method.modifiers.collectFirst { case sync@JavaSynchronized() => sync } match {
+            case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+            case None => method.body.map(rw.dispatch)
+          },
+          contract = method.contract.rewrite(
+            signals = method.contract.signals.map(rw.dispatch) ++
+              method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+          ),
+          pure = method.modifiers.contains(JavaPure[Pre]())
+        )(method.blame)(JavaMethodOrigin(method)))
+      }
     }
 
   //  def makeJavaBipComponent(oldCls: Class[Pre], cls: Class[Post]): JavaBipComponent[Post] = {
@@ -308,7 +298,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           // TODO (RR): Do bip components need to be classes? Or also interfaces?
           cls match {
             case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
-              rw.bip.generateComponent(cls, cls.decls.collect({ case c: JavaConstructor[Pre] => c }).map(rw.succ(_)))
+              rw.bip.generateComponent(cls, cls.decls.collect({ case c: JavaConstructor[Pre] => c }).map(javaConstructor.ref(_)))
             case _ =>
           }
         }._1, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch))(JavaInstanceClassOrigin(cls))
