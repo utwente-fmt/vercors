@@ -3,7 +3,7 @@ package vct.col.print
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.resolve.Referrable
+import vct.col.resolve.ctx.Referrable
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers.foldStar
 

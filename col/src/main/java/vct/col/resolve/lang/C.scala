@@ -1,9 +1,11 @@
-package vct.col.resolve
+package vct.col.resolve.lang
 
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.util.Types
+import vct.col.resolve._
+import vct.col.resolve.ctx._
+import vct.col.typerules.Types
 import vct.result.VerificationError.UserError
 
 case object C {

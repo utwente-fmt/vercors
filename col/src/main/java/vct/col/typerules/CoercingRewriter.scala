@@ -1,17 +1,14 @@
-package vct.col.coerce
+package vct.col.typerules
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.{FuncTools, ScopedStack}
+import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, Rewritten}
+import vct.col.rewrite.{Generation, Rewriter}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.{SuccessionMap, Types}
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable}
-
-import scala.collection.mutable.ArrayBuffer
-import scala.util.{Failure, Success, Try}
 
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
   override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = e

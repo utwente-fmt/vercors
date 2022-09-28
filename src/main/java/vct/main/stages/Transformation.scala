@@ -8,10 +8,9 @@ import vct.col.feature
 import vct.col.rewrite._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.lang.NoSupportSelfLoop
-import vct.col.origin.FileSpanningOrigin
+import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
-import vct.col.util.ExpectedError
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.main.util.Util

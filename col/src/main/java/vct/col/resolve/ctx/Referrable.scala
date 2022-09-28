@@ -1,7 +1,63 @@
-package vct.col.resolve
+package vct.col.resolve.ctx
 
 import vct.col.ast._
 import vct.col.origin.SourceNameOrigin
+import vct.col.resolve.NameLost
+import vct.col.resolve.lang.C
+
+sealed trait Referrable[G] {
+  def name: String = this match {
+    case RefCTranslationUnit(_) => ""
+    case RefCParam(decl) => C.nameFromDeclarator(decl.declarator)
+    case RefCFunctionDefinition(decl) => C.nameFromDeclarator(decl.declarator)
+    case RefCGlobalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
+    case RefCLocalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
+    case RefJavaNamespace(_) => ""
+    case RefUnloadedJavaNamespace(_) => ""
+    case RefJavaClass(decl) => decl.name
+    case RefSilverField(decl) => Referrable.originName(decl)
+    case RefSimplificationRule(decl) => Referrable.originName(decl)
+    case RefAxiomaticDataType(decl) => Referrable.originName(decl)
+    case RefFunction(decl) => Referrable.originName(decl)
+    case RefProcedure(decl) => Referrable.originName(decl)
+    case RefPredicate(decl) => Referrable.originName(decl)
+    case RefClass(decl) => Referrable.originName(decl)
+    case RefModel(decl) => Referrable.originName(decl)
+    case RefJavaSharedInitialization(decl) => ""
+    case RefJavaField(decls, idx) => decls.decls(idx).name
+    case RefJavaLocalDeclaration(decls, idx) => decls.decls(idx).name
+    case RefJavaConstructor(decl) => decl.name
+    case RefJavaMethod(decl) => decl.name
+    case RefJavaAnnotationMethod(decl) => decl.name
+    case RefInstanceFunction(decl) => Referrable.originName(decl)
+    case RefInstanceMethod(decl) => Referrable.originName(decl)
+    case RefInstancePredicate(decl) => Referrable.originName(decl)
+    case RefField(decl) => Referrable.originName(decl)
+    case RefVariable(decl) => Referrable.originName(decl)
+    case RefLabelDecl(decl) => Referrable.originName(decl)
+    case RefSendDecl(decl) => Referrable.originName(decl)
+    case RefRunMethod(_) => ""
+    case RefParBlockDecl(decl) => Referrable.originNameOrEmpty(decl)
+    case RefParInvariantDecl(decl) => Referrable.originNameOrEmpty(decl)
+    case RefADTAxiom(decl) => Referrable.originName(decl)
+    case RefADTFunction(decl) => Referrable.originName(decl)
+    case RefModelField(decl) => Referrable.originName(decl)
+    case RefModelProcess(decl) => Referrable.originName(decl)
+    case RefModelAction(decl) => Referrable.originName(decl)
+    case BuiltinField(_) => ""
+    case BuiltinInstanceMethod(_) => ""
+    case RefPVLConstructor(decl) => ""
+    case ImplicitDefaultJavaConstructor() => ""
+    case ImplicitDefaultPVLConstructor() => ""
+    case RefCudaThreadIdx() => "threadIdx"
+    case RefCudaBlockDim() => "blockDim"
+    case RefCudaBlockIdx() => "blockIdx"
+    case RefCudaGridDim() => "gridDim"
+    case RefCudaVecX(_) => "x"
+    case RefCudaVecY(_) => "y"
+    case RefCudaVecZ(_) => "z"
+  }
+}
 
 case object Referrable {
   def from[G](decl: Declaration[G]): Seq[Referrable[G]] = Seq[Referrable[G]](decl match {
@@ -57,59 +113,7 @@ case object Referrable {
   }
 }
 
-sealed trait Referrable[G] {
-  def name: String = this match {
-    case RefCTranslationUnit(_) => ""
-    case RefCParam(decl) => C.nameFromDeclarator(decl.declarator)
-    case RefCFunctionDefinition(decl) => C.nameFromDeclarator(decl.declarator)
-    case RefCGlobalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
-    case RefCLocalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
-    case RefJavaNamespace(_) => ""
-    case RefUnloadedJavaNamespace(_) => ""
-    case RefJavaClass(decl) => decl.name
-    case RefSilverField(decl) => Referrable.originName(decl)
-    case RefSimplificationRule(decl) => Referrable.originName(decl)
-    case RefAxiomaticDataType(decl) => Referrable.originName(decl)
-    case RefFunction(decl) => Referrable.originName(decl)
-    case RefProcedure(decl) => Referrable.originName(decl)
-    case RefPredicate(decl) => Referrable.originName(decl)
-    case RefClass(decl) => Referrable.originName(decl)
-    case RefModel(decl) => Referrable.originName(decl)
-    case RefJavaSharedInitialization(decl) => ""
-    case RefJavaField(decls, idx) => decls.decls(idx).name
-    case RefJavaLocalDeclaration(decls, idx) => decls.decls(idx).name
-    case RefJavaConstructor(decl) => decl.name
-    case RefJavaMethod(decl) => decl.name
-    case RefJavaAnnotationMethod(decl) => decl.name
-    case RefInstanceFunction(decl) => Referrable.originName(decl)
-    case RefInstanceMethod(decl) => Referrable.originName(decl)
-    case RefInstancePredicate(decl) => Referrable.originName(decl)
-    case RefField(decl) => Referrable.originName(decl)
-    case RefVariable(decl) => Referrable.originName(decl)
-    case RefLabelDecl(decl) => Referrable.originName(decl)
-    case RefSendDecl(decl) => Referrable.originName(decl)
-    case RefRunMethod(_) => ""
-    case RefParBlockDecl(decl) => Referrable.originNameOrEmpty(decl)
-    case RefParInvariantDecl(decl) => Referrable.originNameOrEmpty(decl)
-    case RefADTAxiom(decl) => Referrable.originName(decl)
-    case RefADTFunction(decl) => Referrable.originName(decl)
-    case RefModelField(decl) => Referrable.originName(decl)
-    case RefModelProcess(decl) => Referrable.originName(decl)
-    case RefModelAction(decl) => Referrable.originName(decl)
-    case BuiltinField(_) => ""
-    case BuiltinInstanceMethod(_) => ""
-    case RefPVLConstructor(decl) => ""
-    case ImplicitDefaultJavaConstructor() => ""
-    case ImplicitDefaultPVLConstructor() => ""
-    case RefCudaThreadIdx() => "threadIdx"
-    case RefCudaBlockDim() => "blockDim"
-    case RefCudaBlockIdx() => "blockIdx"
-    case RefCudaGridDim() => "gridDim"
-    case RefCudaVecX(_) => "x"
-    case RefCudaVecY(_) => "y"
-    case RefCudaVecZ(_) => "z"
-  }
-}
+
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
 sealed trait CTypeNameTarget[G] extends Referrable[G]
 sealed trait PVLTypeNameTarget[G] extends Referrable[G]

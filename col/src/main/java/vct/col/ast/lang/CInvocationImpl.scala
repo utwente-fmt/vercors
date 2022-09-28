@@ -1,7 +1,8 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CInvocation, CStructAccess, Type}
-import vct.col.resolve.{BuiltinInstanceMethod, C, RefADTFunction, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.C
 import vct.result.VerificationError.Unreachable
 
 trait CInvocationImpl[G] { this: CInvocation[G] =>

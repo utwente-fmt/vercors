@@ -4,10 +4,9 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.rewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, CheckSatOrigin}
 import vct.col.rewrite.util.Extract
-import vct.col.origin.{Blame, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare}
+import vct.col.origin.{Blame, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{ff, foldStar, procedure, unfoldStar}
-import vct.col.util.ExpectedError
 
 import scala.collection.mutable.ArrayBuffer
 

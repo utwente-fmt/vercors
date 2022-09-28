@@ -1,7 +1,7 @@
-package vct.col.resolve
+package vct.col.resolve.ctx
 
-import hre.util.ScopedStack
-import vct.col.ast.{GlobalDeclaration, JavaClass, JavaNamespace}
+import vct.col.ast.{GlobalDeclaration, JavaNamespace}
+import vct.col.resolve.ExternalJavaLoader
 
 import scala.collection.mutable
 

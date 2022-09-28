@@ -1,6 +1,6 @@
-package vct.col.resolve
+package vct.col.resolve.ctx
 
-import vct.col.ast.{CTranslationUnit, Declaration, GlobalDeclaration, JavaClassOrInterface, JavaNamespace, Type}
+import vct.col.ast._
 import vct.col.check.CheckContext
 
 import scala.collection.mutable

@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.collection
 
 import vct.col.ast.{BagLargestCommon, TBag}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait BagLargestCommonImpl[G] { this: BagLargestCommon[G] =>
   def xsType: TBag[G] = xs.t.asBag.get

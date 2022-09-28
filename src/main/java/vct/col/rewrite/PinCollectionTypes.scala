@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 case object PinCollectionTypes extends RewriterBuilder {
   override def key: String = "pinCollectionType"

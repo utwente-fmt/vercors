@@ -1,8 +1,7 @@
-package vct.col.coerce
+package vct.col.typerules
 
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
-import vct.col.util.Types
 
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin

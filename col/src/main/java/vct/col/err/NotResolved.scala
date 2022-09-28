@@ -1,7 +1,7 @@
-package vct.col.ref
+package vct.col.err
 
 import vct.col.ast.Declaration
-import vct.col.err.ASTStateError
+import vct.col.ref.UnresolvedRef
 
 import scala.reflect.ClassTag
 

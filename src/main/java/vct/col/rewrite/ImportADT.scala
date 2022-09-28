@@ -5,12 +5,12 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
-import vct.col.coerce.CoercingRewriter
 import vct.col.rewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatFracPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, RewriterBuilderArg, Rewritten}
+import vct.col.typerules.CoercingRewriter
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
 

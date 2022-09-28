@@ -2,7 +2,6 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.result.VerificationError
-import vct.col.util.ExpectedError
 import vct.col.ast._
 import vct.result.VerificationError.SystemError
 

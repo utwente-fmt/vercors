@@ -1,7 +1,6 @@
-package vct.col.resolve
+package vct.col.resolve.lang
 
-import vct.col.ast.Type
-import vct.col.ast.{ContractApplicable, Expr, Variable}
+import vct.col.ast.{ContractApplicable, Expr, Type, Variable}
 
 case object Util {
   def compat[G](args: Seq[Expr[G]], params: Seq[Variable[G]]): Boolean =

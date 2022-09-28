@@ -1,7 +1,6 @@
-package vct.col.ref
+package vct.col.err
 
 import vct.col.ast.Declaration
-import vct.col.err.ASTStateError
 
 import scala.reflect.ClassTag
 

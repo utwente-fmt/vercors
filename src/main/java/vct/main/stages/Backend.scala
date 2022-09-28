@@ -2,8 +2,8 @@ package vct.main.stages
 
 import hre.io.Writeable
 import vct.col.ast.{Program, Verification}
+import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
-import vct.col.util.ExpectedError
 import vct.options.Options
 import viper.api.{Carbon, Silicon}
 

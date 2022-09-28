@@ -2,7 +2,8 @@ package vct.col.ast.expr.context
 
 import vct.col.ast.{AmbiguousResult, Type}
 import vct.col.err
-import vct.col.resolve._
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.C
 
 trait AmbiguousResultImpl[G] { this: AmbiguousResult[G] =>
   override def t: Type[G] = ref.getOrElse(

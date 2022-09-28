@@ -1,8 +1,7 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast.{AmbiguousMinus, TInt, TRational, Type}
-import vct.col.coerce.CoercionUtils
-import vct.col.util.Types
+import vct.col.typerules.{CoercionUtils, Types}
 
 trait AmbiguousMinusImpl[G] { this: AmbiguousMinus[G] =>
   def isBagOp: Boolean = CoercionUtils.getAnyBagCoercion(left.t).isDefined

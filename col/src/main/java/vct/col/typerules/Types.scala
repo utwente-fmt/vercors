@@ -1,8 +1,8 @@
-package vct.col.util
+package vct.col.typerules
 
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.resolve.Referrable
+import vct.col.resolve.ctx.Referrable
 
 object Types {
   def notAValue[G](ref: Referrable[G])(implicit o: Origin): TNotAValue[G] = {

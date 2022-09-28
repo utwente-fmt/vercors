@@ -1,9 +1,10 @@
-package vct.col.resolve
+package vct.col.resolve.lang
 
-import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
+import vct.col.resolve._
+import vct.col.resolve.ctx._
 import vct.result.VerificationError.UserError
 
 case object Spec {

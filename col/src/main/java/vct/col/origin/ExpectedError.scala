@@ -1,7 +1,6 @@
-package vct.col.util
+package vct.col.origin
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.origin._
 
 object ExpectedError {
   def apply(errorCode: String, errorRegion: Origin, blame: Blame[ExpectedErrorFailure]): ExpectedError =

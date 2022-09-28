@@ -3,7 +3,7 @@ package vct.col.ast.expr
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{Expr, ProcessPar, Star, Type}
 import vct.col.check.{CheckError, TypeError}
-import vct.col.coerce.CoercionUtils
+import vct.col.typerules.CoercionUtils
 
 trait ExprImpl[G] extends NodeFamilyImpl[G] { this: Expr[G] =>
   def checkSubType(other: Type[G]): Seq[CheckError] =

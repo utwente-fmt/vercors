@@ -1,9 +1,9 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.coerce.CoercingRewriter
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, RewriterBuilder}
+import vct.col.typerules.CoercingRewriter
 
 case object SilverIntRatCoercion extends RewriterBuilder {
   override def key: String = "silverIntRat"

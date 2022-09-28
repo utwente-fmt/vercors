@@ -1,6 +1,7 @@
 package vct.col.ref
 
 import vct.col.ast.Declaration
+import vct.col.err.MistypedRef
 
 import scala.reflect.ClassTag
 

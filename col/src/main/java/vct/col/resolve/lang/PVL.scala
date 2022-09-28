@@ -1,9 +1,9 @@
-package vct.col.resolve
+package vct.col.resolve.lang
 
 import vct.col.ast._
-import vct.col.ast
 import vct.col.origin._
 import vct.col.ref.Ref
+import vct.col.resolve.ctx._
 
 case object PVL {
   def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[PVLConstructorTarget[G]] =
