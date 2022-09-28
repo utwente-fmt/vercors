@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{PVLInvocation, TProcess, TResource, Type}
-import vct.col.resolve.{BuiltinInstanceMethod, RefADTFunction, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
+import vct.col.resolve.ctx._
 
 trait PVLInvocationImpl[G] { this: PVLInvocation[G] =>
   override def t: Type[G] = ref.get match {

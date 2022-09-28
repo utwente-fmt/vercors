@@ -3,7 +3,7 @@ package vct.parsers
 import hre.io.Readable
 import org.antlr.v4.runtime
 import org.antlr.v4.runtime.{CharStreams, CommonTokenStream, Token}
-import vct.col.util.ExpectedError
+import vct.col.origin.ExpectedError
 import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.UserError
 

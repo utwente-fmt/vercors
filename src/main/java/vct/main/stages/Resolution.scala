@@ -1,18 +1,19 @@
 package vct.main.stages
 
+import hre.stages.Stage
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
-import vct.col.origin.{FileSpanningOrigin, Origin}
-import vct.col.resolve.{C, Java, ResolveReferences, ResolveTypes}
+import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
+import vct.col.resolve.lang.{C, Java}
+import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
-import vct.col.util.ExpectedError
-import vct.java.JavaLibraryLoader
+import vct.importer.JavaLibraryLoader
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
-import vct.parsers.{ParseResult}
+import vct.parsers.ParseResult
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError

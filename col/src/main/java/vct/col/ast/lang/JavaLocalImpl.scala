@@ -2,8 +2,8 @@ package vct.col.ast.lang
 
 import hre.util.FuncTools
 import vct.col.ast.{JavaLocal, TArray, TNotAValue, Type}
-import vct.col.resolve.{RefAxiomaticDataType, RefJavaClass, RefJavaField, RefJavaLocalDeclaration, RefModelField, RefUnloadedJavaNamespace, RefVariable}
-import vct.col.util.Types
+import vct.col.resolve.ctx._
+import vct.col.typerules.Types
 
 trait JavaLocalImpl[G] { this: JavaLocal[G] =>
   override def t: Type[G] = ref.get match {

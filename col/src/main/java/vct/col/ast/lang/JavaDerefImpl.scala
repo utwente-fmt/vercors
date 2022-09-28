@@ -2,8 +2,8 @@ package vct.col.ast.lang
 
 import hre.util.FuncTools
 import vct.col.ast.{JavaDeref, TArray, TNotAValue, Type}
-import vct.col.resolve.{BuiltinField, RefAxiomaticDataType, RefJavaClass, RefJavaField, RefModel, RefModelField, RefUnloadedJavaNamespace, RefVariable}
-import vct.col.util.Types
+import vct.col.resolve.ctx._
+import vct.col.typerules.Types
 
 trait JavaDerefImpl[G] { this: JavaDeref[G] =>
   override def t: Type[G] = ref.get match {

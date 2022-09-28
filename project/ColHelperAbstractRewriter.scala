@@ -42,7 +42,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       )).toList}
     }
 
-    abstract class AbstractRewriter[Pre, Post] extends $SCOPE_CONTEXT() {
+    abstract class AbstractRewriter[Pre, Post] {
       implicit val rewriter: AbstractRewriter[Pre, Post] = this
 
       def dispatch(o: Origin): Origin = o

@@ -4,7 +4,7 @@ import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers.tt
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.util.AstBuildHelpers
 import vct.parsers.ParseError
 
 import scala.annotation.nowarn

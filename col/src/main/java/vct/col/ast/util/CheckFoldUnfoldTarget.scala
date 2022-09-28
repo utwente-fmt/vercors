@@ -4,7 +4,7 @@ import vct.col.ast
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast._
 import vct.col.check.{AbstractPredicate, CheckContext, CheckError, NotAPredicateApplication}
-import vct.col.resolve.{RefInstancePredicate, RefPredicate}
+import vct.col.resolve.ctx._
 
 import scala.annotation.tailrec
 

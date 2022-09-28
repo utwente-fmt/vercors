@@ -1,8 +1,8 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{PVLLocal, TNotAValue, Type}
-import vct.col.resolve.{RefAxiomaticDataType, RefClass, RefField, RefModelField, RefVariable}
-import vct.col.util.Types
+import vct.col.resolve.ctx._
+import vct.col.typerules.Types
 
 trait PVLLocalImpl[G] { this: PVLLocal[G] =>
   override def t: Type[G] = ref.get match {

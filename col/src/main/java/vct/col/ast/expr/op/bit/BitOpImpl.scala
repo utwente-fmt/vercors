@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.bit
 
 import vct.col.ast.{BitOp, TBool, TInt, Type}
-import vct.col.coerce.CoercionUtils
+import vct.col.typerules.CoercionUtils
 
 trait BitOpImpl[G] { this: BitOp[G] =>
   def isBoolOp: Boolean = CoercionUtils.getCoercion(left.t, TBool()).isDefined

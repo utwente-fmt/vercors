@@ -8,7 +8,7 @@ import vct.col.ast._
 import vct.col.{ast => col}
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable

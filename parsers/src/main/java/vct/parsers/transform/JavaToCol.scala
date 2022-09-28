@@ -10,8 +10,8 @@ import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.resolve.Java
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.resolve.lang.Java
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable

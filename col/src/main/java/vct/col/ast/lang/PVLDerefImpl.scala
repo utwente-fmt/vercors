@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{PVLDeref, Type}
-import vct.col.resolve.{BuiltinField, RefField, RefModelField}
+import vct.col.resolve.ctx._
 
 trait PVLDerefImpl[G] { this: PVLDeref[G] =>
   override def t: Type[G] = ref.get match {

@@ -1,7 +1,7 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast._
-import vct.col.coerce.CoercionUtils
+import vct.col.typerules.CoercionUtils
 
 trait AmbiguousMultImpl[G] { this: AmbiguousMult[G] =>
   def isProcessOp: Boolean = CoercionUtils.getCoercion(left.t, TProcess()).isDefined

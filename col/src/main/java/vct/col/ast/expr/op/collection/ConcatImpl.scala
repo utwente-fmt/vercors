@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.collection
 
 import vct.col.ast.{Concat, TSeq, Type}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait ConcatImpl[G] { this: Concat[G] =>
   def leftType: TSeq[G] = xs.t.asSeq.get

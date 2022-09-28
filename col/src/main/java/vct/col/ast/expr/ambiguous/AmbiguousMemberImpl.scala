@@ -1,7 +1,7 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast.{AmbiguousMember, TBool, TInt, Type}
-import vct.col.coerce.CoercionUtils
+import vct.col.typerules.CoercionUtils
 
 trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(xs.t).isDefined

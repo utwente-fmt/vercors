@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.bool
 
 import vct.col.ast.{Select, Type}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait SelectImpl[G] { this: Select[G] =>
   override def t: Type[G] =
