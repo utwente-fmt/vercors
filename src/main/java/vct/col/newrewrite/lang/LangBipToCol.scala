@@ -98,7 +98,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         rw.bipIncomingDatas.collect {
           m.parameters.map(rewriteParameter)
         }._1,
-        guard.map(rw.succ(_)),
+        guard.map(javaMethodSuccGuard.ref(_)),
         rw.dispatch(requires),
         rw.dispatch(ensures),
         rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
@@ -109,7 +109,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {
     val jad.BipData(_) = jad.BipData.get(decl).get
-    BipLocalIncomingData(rw.succ[BipIncomingData[Post]](decl))(local.o)
+    BipLocalIncomingData(javaParamSucc.ref[Post, BipIncomingData[Post]](decl))(local.o)
   }
 
   def rewriteGuard(m: JavaMethod[Pre]): Unit = {

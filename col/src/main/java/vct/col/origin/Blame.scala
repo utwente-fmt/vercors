@@ -571,6 +571,11 @@ case class BipTransitionPreconditionUnsatisfiable(node: BipTransition[_]) extend
 }
 
 sealed trait BipGuardFailure extends CallableFailure
+case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends BipGuardFailure with NodeVerificationFailure {
+  override def code: String = "bipGuardPreconditionUnsatisfiable"
+  override def descInContext: String = "The precondition of this guard (consisting of only the component invariant) is unsatisfiable"
+  override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for guard `$source`"
+}
 case class BipGuardPostconditionFailure(failure: ContractFailure, node: BipGuard[_]) extends BipGuardFailure with NodeVerificationFailure {
   override def code: String = ???
   override def descInContext: String = ???

@@ -4,10 +4,11 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.newrewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, ForwardUnsatisfiableBlame, GuardPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
-import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, BipTransitionPreconditionUnsatisfiable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, NontrivialUnsatisfiable, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipGuardPreconditionUnsatisfiable, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, BipTransitionPreconditionUnsatisfiable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, NontrivialUnsatisfiable, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.result.VerificationError
 import vct.result.VerificationError.Unreachable
 
 import scala.collection.immutable.ListMap
@@ -86,8 +87,16 @@ case object EncodeBip extends RewriterBuilder {
     }
   }
 
-  case class ForwardUnsatisfiableBlame(bt: BipTransition[_]) extends Blame[NontrivialUnsatisfiable] {
-    override def blame(error: NontrivialUnsatisfiable): Unit = bt.blame.blame(BipTransitionPreconditionUnsatisfiable(bt))
+  case class ForwardUnsatisfiableBlame(node: Node[_]) extends Blame[NontrivialUnsatisfiable] {
+    node match {
+      case _: BipGuard[_] | _: BipTransition[_] =>
+      case _ => throw Unreachable("Can only construct this blame with bip guard, bip transition")
+    }
+
+    override def blame(error: NontrivialUnsatisfiable): Unit = node match {
+      case g: BipGuard[_] => g.blame.blame(BipGuardPreconditionUnsatisfiable(g))
+      case t: BipTransition[_] => t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
+    }
   }
 }
 
@@ -172,14 +181,13 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
 
     case guard: BipGuard[Pre] =>
       implicit val o = guard.o
-      guard.drop()
       labelDecls.scope {
         guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
           TBool()(guard.o),
           variables.collect { guard.data.map(dispatch) }._1,
           Nil, Nil,
           Some(dispatch(guard.body)),
-          contract[Post](???,
+          contract[Post](ForwardUnsatisfiableBlame(guard),
             requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
             ensures = UnitAccountedPredicate(dispatch(guard.ensures))
           ),
@@ -230,14 +238,14 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
               dispatch(component.invariant)
                 &** dispatch(bt.source.decl.expr)
                 &** dispatch(bt.requires)
-                &** (bt.guard.map { f =>
-                val bg = f.decl
+                &** (bt.guard.map { guardRef =>
+                val bipGuard = guardRef.decl
                 // For each @Data that the guard needs, find the appropriate @Data parameter from the transition
-                val vars = bg.data.map(guardData => bt.data.find(guardData.data == _.data).get)
+                val vars = bipGuard.data.map(guardData => bt.data.find(guardData.data == _.data).get)
                 methodInvocation(
                   BipGuardInvocationFailed(bt),
                   ThisObject(succ[Class[Post]](currentClass.top)),
-                  succ[InstanceMethod[Post]](f.decl),
+                  guardSucc.ref[Post, InstanceMethod[Post]](bipGuard),
                   args = vars.map(succ[Variable[Post]]).map(Local[Post](_)))
               }.getOrElse(tt))
             ),
