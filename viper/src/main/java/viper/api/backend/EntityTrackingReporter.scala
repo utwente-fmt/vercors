@@ -1,8 +1,8 @@
-package viper.api
+package viper.api.backend
 
 import hre.progress.Progress
 import viper.silver.ast.{Member, Program}
-import viper.silver.reporter.{AstConstructionResultMessage, BackendSubProcessReport, CachedEntityMessage, EntityFailureMessage, EntitySuccessMessage, ExceptionReport, ExecutionTraceReport, ExternalDependenciesReport, InvalidArgumentsReport, Message, OverallFailureMessage, OverallSuccessMessage, ProgramDefinitionsReport, ProgramOutlineReport, Reporter, SimpleMessage, StatisticsReport, VerificationResultMessage, WarningsDuringParsing, WarningsDuringTypechecking}
+import viper.silver.reporter.{EntityFailureMessage, EntitySuccessMessage, Message, Reporter}
 
 import scala.collection.mutable
 

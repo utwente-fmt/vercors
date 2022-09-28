@@ -1,6 +1,6 @@
-package viper.api
+package viper.api.transform
 
-import vct.col.ast.{Expr, LoopInvariant, Node, SeqSubscript, Starall}
+import vct.col.ast._
 import vct.col.origin.AccountedDirection
 import viper.silver.ast.Info
 

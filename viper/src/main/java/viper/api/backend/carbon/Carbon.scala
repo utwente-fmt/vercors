@@ -1,15 +1,17 @@
-package viper.api
+package viper.api.backend.carbon
+
 import org.slf4j.LoggerFactory.getLogger
+import vct.col.{ast => col}
+import viper.api.Resources
+import viper.api.backend.SilverBackend
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
-import vct.col.{ ast => col }
 
 import java.nio.file.Path
 
 case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resources.getBoogiePath, printFile: Option[Path] = None, proverLogFile: Option[Path] = None, options: Seq[String] = Nil) extends SilverBackend {
   override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (viper.carbon.CarbonVerifier, SilverPluginManager) = {
-    val reporter = EntityTrackingReporter()
     val carbon = viper.carbon.CarbonVerifier(reporter)
 
     val carbonConfig = Seq(

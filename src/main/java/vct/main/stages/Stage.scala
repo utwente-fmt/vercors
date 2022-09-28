@@ -8,7 +8,8 @@ import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError
 import hre.io.Readable
 import hre.stages.Stages
-import viper.api.{Carbon, Silicon}
+import viper.api.backend.carbon.Carbon
+import viper.api.backend.silicon.Silicon
 
 case object Stages {
   def silicon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {

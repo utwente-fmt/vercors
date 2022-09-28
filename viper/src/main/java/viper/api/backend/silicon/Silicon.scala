@@ -1,13 +1,15 @@
-package viper.api
+package viper.api.backend.silicon
 
-import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.core.AppenderBase
 import org.slf4j.LoggerFactory
+import org.slf4j.LoggerFactory.getLogger
 import vct.col.ast.{Expr, Node}
 import vct.col.origin.Origin
+import viper.api.Resources
+import viper.api.backend.SilverBackend
 import viper.silicon.logger.SymbExLogger
-import org.slf4j.LoggerFactory.getLogger
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier.Verifier
@@ -15,8 +17,8 @@ import viper.silver.verifier.Verifier
 import java.nio.file.Path
 import java.util.{Timer, TimerTask}
 import scala.annotation.nowarn
-import scala.sys.ShutdownHookThread
 import scala.collection.mutable
+import scala.sys.ShutdownHookThread
 import scala.util.matching.{Regex, UnanchoredRegex}
 
 final class ConcurrentListAppender[E] extends AppenderBase[E] {

@@ -1,4 +1,4 @@
-package viper.api
+package viper.api.transform
 
 import hre.util.ScopedStack
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
@@ -6,12 +6,12 @@ import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.api.ColToSilver.NotSupported
+import viper.api.transform.ColToSilver.NotSupported
 import viper.silver.ast.TypeVar
 import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesTuple, DecreasesWildcard}
 import viper.silver.{ast => silver}
 
-import scala.collection.immutable.{ListMap, SortedMap}
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 

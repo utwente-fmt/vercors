@@ -1,7 +1,6 @@
-package viper.api
+package viper.api.backend.silicon
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.Expr
 import viper.silicon.logger.records.data.DataRecord
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord, ScopingRecord}
 import viper.silicon.logger.records.structural.BranchingRecord

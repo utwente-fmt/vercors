@@ -10,6 +10,7 @@ import vct.parsers._
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 import viper.api
+import viper.api.transform.ColSilverParser
 
 import java.nio.file.Path
 
@@ -75,7 +76,7 @@ case class Parsing[G <: Generation]
         case Language.InterpretedC => ColIParser(originProvider, blameProvider)
         case Language.Java => ColJavaParser(originProvider, blameProvider)
         case Language.PVL => ColPVLParser(originProvider, blameProvider)
-        case Language.Silver => api.ColSilverParser(originProvider, blameProvider)
+        case Language.Silver => ColSilverParser(originProvider, blameProvider)
       }
 
       parser.parse[G](readable)

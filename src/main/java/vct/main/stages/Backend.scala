@@ -6,7 +6,9 @@ import vct.col.ast.Verification
 import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
 import vct.options.{Options, types}
-import viper.api.{Carbon, Silicon}
+import viper.api.{backend => viper}
+import viper.carbon.Carbon
+import viper.silicon.Silicon
 
 case object Backend {
 
@@ -54,7 +56,7 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   override def progressWeight: Int = 5
 }
 
-case class SilverBackend(backend: viper.api.SilverBackend, output: Option[Writeable] = None) extends Backend {
+case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
     input.tasks.foreach { task =>
       backend.submit(task.program, output)

@@ -1,18 +1,19 @@
-package viper.api
+package viper.api.backend
+
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.Writeable
-import org.slf4j.LoggerFactory.getLogger
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
-import viper.silver.ast.ConsInfo
+import viper.api.transform.{ColToSilver, NodeInfo, SilverParserDummyFrontend}
+import viper.api.SilverTreeCompare
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
-import viper.silver.verifier.errors._
 import viper.silver.verifier._
+import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
-import java.io.{File, FileOutputStream, PrintWriter}
+import java.io.{File, FileOutputStream}
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 

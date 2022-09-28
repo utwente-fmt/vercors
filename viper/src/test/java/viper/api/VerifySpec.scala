@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers._
 import org.scalatest.flatspec.AnyFlatSpec
+import viper.api.backend.Backend
 
 sealed trait G
 

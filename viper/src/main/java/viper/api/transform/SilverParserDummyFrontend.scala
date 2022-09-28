@@ -1,14 +1,12 @@
-package viper.api
+package viper.api.transform
 
+import hre.io.Readable
 import viper.silver.ast.Program
 import viper.silver.frontend.{DefaultStates, SilFrontend, SilFrontendConfig}
+import viper.silver.reporter.Reporter
 import viper.silver.verifier.{AbstractError, Verifier}
 
 import java.nio.file.{Files, Path, Paths}
-import hre.io.Readable
-import viper.silver.reporter.Reporter
-
-import java.util.Scanner
 import scala.annotation.nowarn
 import scala.io.Source
 

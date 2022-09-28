@@ -1,16 +1,16 @@
-package viper.api
+package viper.api.transform
 
-import vct.col.origin.{Blame, DerefPerm, InputOrigin, Origin, ReadableOrigin, SourceNameOrigin, VerificationFailure}
+import hre.io.{RWFile, Readable}
+import vct.col.origin._
 import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers._
-import viper.silver.{ast => silver}
 import vct.col.{ast => col}
 import vct.result.VerificationError.UserError
-import viper.api.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
-import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
-import viper.silver.verifier.AbstractError
-import hre.io.{RWFile, Readable}
+import viper.api.transform.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
+import viper.silver.ast.{AbstractSourcePosition, NoPosition}
 import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesStar, DecreasesTuple, DecreasesWildcard}
+import viper.silver.verifier.AbstractError
+import viper.silver.{ast => silver}
 
 import java.nio.file.{Path, Paths}
 
