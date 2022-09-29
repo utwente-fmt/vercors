@@ -158,7 +158,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       case Some((otherThis, res)) if thisObj == otherThis => res
       case None => thisObj.rewrite()
     }
-    case BipLocalIncomingData(ref) => Local[Post](succ(ref.decl))(expr.o)
+    case BipLocalIncomingData(ref) => Local[Post](incomingDataSucc.ref(ref.decl))(expr.o)
     case _ => rewriteDefault(expr)
   }
 
@@ -167,7 +167,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
     case data: BipData[Pre] => data.drop()
     case port: BipPort[Pre] => port.drop()
 
-    case id: BipIncomingData[Pre] => incomingDataSucc(id) = new Variable(dispatch(id.t))(id.o)
+    case id: BipIncomingData[Pre] =>
+      incomingDataSucc(id) = new Variable(dispatch(id.t))(id.o)
       variables.declare(incomingDataSucc(id))
     case od: BipOutgoingData[Pre] =>
       // TODO (RR): Encode as instance function
@@ -192,7 +193,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
             ensures = UnitAccountedPredicate(dispatch(guard.ensures))
           ),
           pure = guard.pure
-        )(GuardPostconditionFailed(guard))(guard.o)) // .succeedDefault(guard)
+        )(GuardPostconditionFailed(guard))(guard.o))
       }
 
     case cls: Class[Pre] =>
@@ -246,7 +247,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
                   BipGuardInvocationFailed(bt),
                   ThisObject(succ[Class[Post]](currentClass.top)),
                   guardSucc.ref[Post, InstanceMethod[Post]](bipGuard),
-                  args = vars.map(succ[Variable[Post]]).map(Local[Post](_)))
+                  args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)))
               }.getOrElse(tt))
             ),
             ensures =
