@@ -157,23 +157,31 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     // 3. the body of the constructor
 
     val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
-      val cons = new JavaConstructor(
+      val fieldPerms: UnitAccountedPredicate[Pre] = if (BipComponent.get(currentJavaClass.top).isDefined) {
+        // Permissions are managed by bip permission generation & the bip component invariant, so
+        // don't generate permissions here
+        UnitAccountedPredicate(tt)
+      } else {
+        UnitAccountedPredicate(foldStar(decls.collect {
+          case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
+            fields.decls.indices.map(decl => {
+              val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
+              local.ref = Some(RefJavaField[Pre](fields, decl))
+              Perm(AmbiguousLocation(local)(PanicBlame("Field location is not a pointer.")), WritePerm())
+            })
+        }.flatten))
+      }
+
+      val cons = new JavaConstructor[Pre](
         modifiers = Nil,
         name = prefName,
         parameters = Nil,
         typeParameters = Nil,
         signals = Nil,
         body = Block(Nil),
-        contract = ApplicableContract(
+        contract = ApplicableContract[Pre](
           requires = UnitAccountedPredicate(tt),
-          ensures = UnitAccountedPredicate(foldStar(decls.collect {
-            case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
-              fields.decls.indices.map(decl => {
-                val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
-                local.ref = Some(RefJavaField[Pre](fields, decl))
-                Perm(AmbiguousLocation(local)(PanicBlame("Field location is not a pointer.")), WritePerm())
-              })
-          }.flatten)),
+          ensures = fieldPerms,
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
