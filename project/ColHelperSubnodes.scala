@@ -23,7 +23,7 @@ case class ColHelperSubnodes(info: ColDescription) {
           case Nil => None
           case x :: xs => Some(arg => xs.foldLeft(x(arg))((init, next) => q"$init ++ ${next(arg)}"))
         }
-      case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if info.supports("NodeFamily")(typ) || info.supports(DECLARATION)(typ) =>
+      case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if info.supports("NodeFamily")(typ) || info.supports("Declaration")(typ) =>
         Some(node => q"Seq($node)")
       case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Apply(Type.Name("Ref"), _) | Type.Name("ExpectedError") =>
         None

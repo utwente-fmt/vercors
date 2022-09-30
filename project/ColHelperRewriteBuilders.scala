@@ -19,18 +19,18 @@ case class ColHelperRewriteBuilders(info: ColDescription) {
   def rewriteBuilder(cls: ClassDef): Stat = q"""
     class ${cls.rewriteBuilderName}[Pre, Post](subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
       def build(): ${cls.typ}[Post] = {
-        ${cls.make(cls.params.map(builderMakeArg), q"$BLAME_TERM.getOrElse(subject.$BLAME_TERM)", q"$ORIGIN_TERM.getOrElse(rewriter.dispatch(subject.$ORIGIN_TERM))")}
+        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(subject.blame)", q"o.getOrElse(rewriter.dispatch(subject.o))")}
       }
 
-      var $ORIGIN_PAT: Option[Origin] = None
-      def $ORIGIN_TERM(replacementValue: Origin): this.type = { $ORIGIN_TERM = Some(replacementValue); this }
+      var o: Option[Origin] = None
+      def o(replacementValue: Origin): this.type = { o = Some(replacementValue); this }
 
       ..${
         cls.blameType match {
           case Some(t) =>
             q"""
-            var $BLAME_PAT: Option[$t] = None
-            def $BLAME_TERM(replacementValue: $t): this.type = { $BLAME_TERM = Some(replacementValue); this }
+            var blame: Option[$t] = None
+            def blame(replacementValue: $t): this.type = { blame = Some(replacementValue); this }
             """.stats
           case None => List()
         }

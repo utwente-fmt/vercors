@@ -30,9 +30,9 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       }
 
       ${Defn.Val(Nil,
-        List(Pat.Var(Term.Name(s"rewriteDefault${DECLARATION}LookupTable"))),
-        Some(t"Map[java.lang.Class[_], RWFunc[$DECLARATION_TYPE]]"),
-        q"Map(..${rewriteDefaultCases(DECLARATION)})",
+        List(Pat.Var(Term.Name(s"rewriteDefaultDeclarationLookupTable"))),
+        Some(t"Map[java.lang.Class[_], RWFunc[Declaration]]"),
+        q"Map(..${rewriteDefaultCases("Declaration")})",
       )}
 
       ..${info.families.map(family => Defn.Val(Nil,
@@ -47,10 +47,10 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
 
       def dispatch(o: Origin): Origin = o
 
-      def dispatch(decl: $DECLARATION_TYPE[Pre]): Unit
+      def dispatch(decl: Declaration[Pre]): Unit
 
-      def rewriteDefault(decl: $DECLARATION_TYPE[Pre]): Unit =
-        AbstractRewriter.${Term.Name(s"rewriteDefault${DECLARATION}LookupTable")}(decl.getClass)(decl, this)
+      def rewriteDefault(decl: Declaration[Pre]): Unit =
+        AbstractRewriter.${Term.Name(s"rewriteDefaultDeclarationLookupTable")}(decl.getClass)(decl, this)
 
       def porcelainRefSucc[RefDecl <: Declaration[Post]](ref: Ref[Pre, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Post, RefDecl]] = None
       def porcelainRefSeqSucc[RefDecl <: Declaration[Post]](refs: Seq[Ref[Pre, _]])(implicit tag: ClassTag[RefDecl]): Option[Seq[Ref[Post, RefDecl]]] = None

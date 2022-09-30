@@ -29,11 +29,11 @@ case class ColHelperJavaRewriter(info: ColDescription) {
 
   def make(): List[Stat] = List(q"""
     abstract class JavaRewriter[Pre, Post] extends AbstractRewriter[Pre, Post] {
-      def dispatch(decl: $DECLARATION_TYPE[Pre]): Unit =
-        ${NonemptyMatch("declaration dispatch", q"decl", info.defs.filter(cls => info.supports(DECLARATION)(cls.baseName)).map(dispatchCase).toList)}
+      def dispatch(decl: Declaration[Pre]): Unit =
+        ${NonemptyMatch("declaration dispatch", q"decl", info.defs.filter(cls => info.supports("Declaration")(cls.baseName)).map(dispatchCase).toList)}
 
       ..${
-        val elems = info.defs.filter(cls => info.supports(DECLARATION)(cls.baseName))
+        val elems = info.defs.filter(cls => info.supports("Declaration")(cls.baseName))
         elems.map(javaRewriteDecl).toList ++ elems.map(javaRewriteBuilder).toList
       }
 
