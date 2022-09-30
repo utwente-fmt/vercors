@@ -729,6 +729,7 @@ final case class CStructDeref[G](struct: Expr[G], field: String)(implicit val o:
 final case class GpgpuCudaKernelInvocation[G](kernel: String, blocks: Expr[G], threads: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])])(implicit val o: Origin) extends CExpr[G] with GpgpuCudaKernelInvocationImpl[G] {
   var ref: Option[CInvocationTarget[G]] = None
 }
+final case class CFloatLiteral[G](value: BigDecimal, floatType: Seq[CDeclarationSpecifier[G]] /* CFloat or CDouble or Long CDouble*/)(implicit val o: Origin) extends CExpr[G] with CFloatLiteralImpl[G]
 
 sealed trait CType[G] extends Type[G] with CTypeImpl[G]
 final case class CPrimitiveType[G](specifiers: Seq[CDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CPrimitiveTypeImpl[G]

@@ -5,9 +5,11 @@ import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.{ast => col}
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.resolve.lang.C
 import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
@@ -470,10 +472,23 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
   }
 
+  def parseFloat(numFlag: String)(implicit o: Origin): Option[Expr[G]] = {
+    try {
+      Some(numFlag.last match {
+        case 'f' | 'F' => CFloatLiteral(BigDecimal(numFlag.init), Seq(CFloat[G]()))
+        case 'l' | 'L' => CFloatLiteral(BigDecimal(numFlag.init), Seq(CDouble[G]()))
+        case _ => CFloatLiteral(BigDecimal(numFlag), Seq(CDouble[G]()))
+      })
+    } catch {
+        case _: NumberFormatException => None
+    }
+  }
+
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {
     case PrimaryExpression0(inner) => convert(inner)
     case PrimaryExpression1(inner) => local(expr, convert(inner))
-    case PrimaryExpression2(const) => IntegerValue(Integer.parseInt(const))
+    case PrimaryExpression2(const) =>
+      parseFloat(const).getOrElse(IntegerValue(Integer.parseInt(const)))
     case PrimaryExpression3(_) => ??(expr)
     case PrimaryExpression4(_, inner, _) => convert(inner)
     case PrimaryExpression5(_) => ??(expr)
