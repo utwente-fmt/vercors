@@ -1,6 +1,7 @@
 package vct.col.resolve.lang
 
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
@@ -78,4 +79,7 @@ case object PVL {
       case ref: RefModelProcess[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelAction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
+
+  def float32[G](implicit o: Origin): TFloat[G] = TFloats.ieee754_32bit
+  def float64[G](implicit o: Origin): TFloat[G] = TFloats.ieee754_64bit
 }

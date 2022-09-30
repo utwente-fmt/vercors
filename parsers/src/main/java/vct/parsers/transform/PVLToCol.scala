@@ -10,6 +10,7 @@ import vct.antlr4.generated.{PVLParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.resolve.lang.PVL
 import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
@@ -238,12 +239,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit1(_) => AmbiguousThis()
     case Unit2(_) => Null()
     case Unit3(n) => const(Integer.parseInt(n))
-    case Unit4(_, inner, _) => convert(inner)
-    case Unit5(id, None) => local(id, convert(id))
-    case Unit5(id, Some(Call0(typeArgs, args, given, yields))) =>
+    case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
+    case Unit5(_, inner, _) => convert(inner)
+    case Unit6(id, None) => local(id, convert(id))
+    case Unit6(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case Unit6(inner) => convert(inner)
+    case Unit7(inner) => convert(inner)
   }
 
   def convert(implicit stat: StatementContext): Statement[G] = stat match {
@@ -441,6 +443,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       case "int" => TInt()
       case "boolean" => TBool()
       case "void" => TVoid()
+      case "float32" => PVL.float32
+      case "float64" => PVL.float64
     }
     case NonArrayType2(inner) => convert(inner)
   }

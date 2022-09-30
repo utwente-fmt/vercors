@@ -95,8 +95,11 @@ BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
 STRING: 'string';
+FLOAT32: 'float32';
+FLOAT64: 'float64';
 
 NUMBER : ('0'..'9')+;
+DECIMAL_NUMBER : ('0'..'9')+ '.' ('0'..'9')+;
 
 mode DEFAULT_MODE;
 Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;

@@ -467,8 +467,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "short" => TInt()
       case "int" => TInt()
       case "long" => TInt()
-      case "float" => TFloat()
-      case "double" => TFloat()
+      case "float" => Java.float
+      case "double" => Java.double
     }
   }
 

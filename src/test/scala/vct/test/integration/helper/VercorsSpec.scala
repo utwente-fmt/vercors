@@ -2,8 +2,9 @@ package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
 import hre.io.Readable
-import org.scalatest.Tag
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalactic.source.Position
+import org.scalatest.{Resources, Tag, Transformer}
+import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
 import vct.main.Main.TemporarilyUnsupported
@@ -139,7 +140,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String) {
-    def pvl(data: String): Unit = {
+    def pvl: String => Unit = { data =>
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)

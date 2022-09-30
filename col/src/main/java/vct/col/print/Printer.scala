@@ -930,7 +930,7 @@ case class Printer(out: Appendable,
       PVL -> phrase("boolean"),
       Silver -> phrase("Bool"),
     )
-    case TFloat() => phrase("float")
+    case TFloat(exponent, mantissa) => phrase(s"float[$exponent, $mantissa]")
     case TChar() => phrase("char")
     case TString() => phrase("String")
     case TRef() => phrase("Ref")
