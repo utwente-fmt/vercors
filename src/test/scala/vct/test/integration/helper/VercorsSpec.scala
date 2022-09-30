@@ -169,5 +169,6 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
   val carbon: Seq[Backend] = Seq(types.Backend.Carbon)
+  val someBackend: Seq[Backend] = Seq(types.Backend.Silicon)
   val anyBackend: Seq[Backend] = Seq(types.Backend.Silicon, types.Backend.Carbon)
 }

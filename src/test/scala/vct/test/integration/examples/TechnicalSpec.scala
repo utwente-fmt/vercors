@@ -2,15 +2,18 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
-class TechnicalFloatSpec extends VercorsSpec {
-  vercors should error withCode "?" in "float something" pvl """
-      float32 m() {
-        return 0.0;
+class TechnicalSpec extends VercorsSpec {
+  vercors should verify using someBackend in "basic usage of floats" pvl """
+      float64 m() {
+        assert 0.5 > 0.0;
+        float64 highNum = 0.5;
+        float32 lowNum = highNum.toFloat32();
+        float64 otherHighNum = lowNum.toFloat64();
+        float32 num = 0.5f;
+        return num;
       }
     """
-}
 
-class TechnicalSpec extends VercorsSpec {
   vercors should error withCode "?" in "constructor using `this`" pvl """
     class err {
       int x;

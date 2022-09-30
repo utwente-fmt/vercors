@@ -240,12 +240,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit2(_) => Null()
     case Unit3(n) => const(Integer.parseInt(n))
     case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
-    case Unit5(_, inner, _) => convert(inner)
-    case Unit6(id, None) => local(id, convert(id))
-    case Unit6(id, Some(Call0(typeArgs, args, given, yields))) =>
+    case Unit5(n) => FloatValue(BigDecimal(n.init /* take off final "f" */), PVL.float32)
+    case Unit6(_, inner, _) => convert(inner)
+    case Unit7(id, None) => local(id, convert(id))
+    case Unit7(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case Unit7(inner) => convert(inner)
+    case Unit8(inner) => convert(inner)
   }
 
   def convert(implicit stat: StatementContext): Statement[G] = stat match {

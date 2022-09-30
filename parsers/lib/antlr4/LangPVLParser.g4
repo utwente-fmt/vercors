@@ -133,6 +133,7 @@ unit
  | 'null'
  | NUMBER
  | DECIMAL_NUMBER
+ | DECIMAL_NUMBER_F
  | '(' expr ')'
  | identifier call?
  | valGenericAdtInvocation

@@ -15,6 +15,7 @@ object TFloats {
         one where it is implicit. Since we don't have a semantics that we want to check a distinction is not made now.
    */
   def x86extended_80bit[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = vct.col.ast.TFloat(11, 62)
+  def max[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = vct.col.ast.TFloat(999, 999)
 }
 
 trait TFloatImpl[G] { this: TFloat[G] =>

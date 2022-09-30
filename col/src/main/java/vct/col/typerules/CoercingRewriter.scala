@@ -3,6 +3,7 @@ package vct.col.typerules
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter}
@@ -276,6 +277,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
@@ -1059,6 +1061,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         ThisModel(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
+      case CastFloat(e, t) =>
+        CastFloat(float(e), t)
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>
@@ -1087,6 +1091,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
       case value: IntegerValue[Pre] => e
+      case value: FloatValue[Pre] => e
       case value @ Value(loc) =>
         Value(loc)
       case values @ Values(arr, from, to) =>

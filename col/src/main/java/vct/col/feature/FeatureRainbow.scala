@@ -504,5 +504,7 @@ class FeatureRainbow[G] {
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
     case node: FramedProof[G] => return Nil
+    case node: FloatValue[G] => return Nil
+    case node: CastFloat[G] => return Nil
   })
 }

@@ -311,6 +311,8 @@ final case class CoerceZFracRat[G]()(implicit val o: Origin) extends Coercion[G]
 final case class CoerceFloatRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFloatRatImpl[G]
 final case class CoerceIntRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceIntRatImpl[G]
 
+final case class CoerceIncreasePrecision[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G]
+
 final case class CoerceWidenBound[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceWidenBoundImpl[G]
 final case class CoerceUnboundInt[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceUnboundIntImpl[G]
 
@@ -582,6 +584,8 @@ final case class VectorRepeat[G](e: Expr[G])(implicit val o: Origin) extends Exp
 final case class MatrixSum[G](indices: Expr[G], mat: Expr[G])(implicit val o: Origin) extends Expr[G] with MatrixSumImpl[G]
 final case class MatrixCompare[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with MatrixCompareImpl[G]
 final case class MatrixRepeat[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with MatrixRepeatImpl[G]
+
+final case class CastFloat[G](e: Expr[G], t: Type[G] /* TFloat */)(implicit val o: Origin) extends Expr[G] with CastFloatImpl[G]
 
 final case class TypeValue[G](value: Type[G])(implicit val o: Origin) extends Expr[G] with TypeValueImpl[G]
 final case class TypeOf[G](expr: Expr[G])(implicit val o: Origin) extends Expr[G] with TypeOfImpl[G]
