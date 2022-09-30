@@ -1,5 +1,5 @@
 import ColDefs._
-import MetaUtil.NonemptyMatch
+import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
@@ -29,7 +29,7 @@ case class ColHelperComparator(info: ColDescription) {
   }
 
   def refEqual(t: Type, left: Term, right: Term): Term = t match {
-    case Type.Apply(Type.Name("Ref"), _) => q"LazyList(MatchingReference($left.decl, $right.decl))"
+    case Type.Apply(Type.Name("Ref"), _) => q"LazyList(Comparator.MatchingReference($left.decl, $right.decl))"
 
     case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"LazyList.empty"
     case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"LazyList.empty"
@@ -51,7 +51,7 @@ case class ColHelperComparator(info: ColDescription) {
   }
 
   def nodeEqual(t: Type, left: Term, right: Term): Term = t match {
-    case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"compare($left, $right)"
+    case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"Comparator.compare($left, $right)"
 
     case Type.Apply(Type.Name("Ref"), _) => q"LazyList.empty"
     case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"LazyList.empty"
@@ -94,10 +94,10 @@ case class ColHelperComparator(info: ColDescription) {
     case q"$inner.to(LazyList)" => q"${simplify(inner)}.to(LazyList)"
     case q"$l.zip($r)" => q"${simplify(l)}.zip(${simplify(r)})"
     case _: Term.Name | q"true" | q"false" => term
-    case q"compare(..$_)" => term
-    case q"MatchingDeclaration(..$_)" => term
-    case q"MatchingReference(..$_)" => term
-    case q"StructuralDifference(..$_)" => term
+    case q"Comparator.compare(..$_)" => term
+    case q"Comparator.MatchingDeclaration(..$_)" => term
+    case q"Comparator.MatchingReference(..$_)" => term
+    case q"Comparator.StructuralDifference(..$_)" => term
     case other =>
       println(s"Warning: Not recursing simplifier into unknown term $term")
       other
@@ -138,7 +138,7 @@ case class ColHelperComparator(info: ColDescription) {
   def simplify(term: Term): Term =
      simplifyFlatly(recurse(term))
 
-  def makeCase(defn: ClassDef): Term = {
+  def makeCase(defn: ClassDef): (String, List[Stat]) = {
     val left = Term.Name("left")
     val right = Term.Name("right")
     val paramEquals = (param: Term.Param) => valueEqual(
@@ -167,23 +167,24 @@ case class ColHelperComparator(info: ColDescription) {
 
     val impl = simplify(
       if(info.supports("Declaration")(defn.baseName))
-        q"if($equal) MatchingDeclaration(left, right) #:: $refCmp #::: $subnodesCmp else LazyList(StructuralDifference(left, right))"
+        q"if($equal) Comparator.MatchingDeclaration(left, right) #:: $refCmp #::: $subnodesCmp else LazyList(Comparator.StructuralDifference(left, right))"
       else
-        q"if($equal) $refCmp #::: $subnodesCmp else LazyList(StructuralDifference(left, right))"
+        q"if($equal) $refCmp #::: $subnodesCmp else LazyList(Comparator.StructuralDifference(left, right))"
     )
 
-    q"""classOf[${defn.typ}[_]] ->
-      new Compare {
-        def apply[L, R](anyLeft: Node[L], anyRight: Node[R]): LazyList[Difference[L, R]] = {
-          val left = anyLeft.asInstanceOf[${defn.typ}[L]]
-          val right = anyRight.asInstanceOf[${defn.typ}[R]]
-          $impl
-        }
-      }
-    """
+    val apply = q"""def apply[L, R](anyLeft: Node[L], anyRight: Node[R]): LazyList[Comparator.Difference[L, R]] = {
+      val left = anyLeft.asInstanceOf[${defn.typ}[L]]
+      val right = anyRight.asInstanceOf[${defn.typ}[R]]
+      $impl
+    }"""
+
+    val objectName = "Compare" + defn.baseName
+
+    objectName -> List(Defn.Object(Nil, Term.Name(objectName),
+      Template(Nil, List(Init(t"Comparator.Compare", Name.Anonymous(), Nil)), Self(Name.Anonymous(), None), List(apply))))
   }
 
-  def make(): List[Stat] = List(q"""
+  def makeComparator(): (String, List[Stat]) = "Comparator" -> List(q"""
     object Comparator {
       sealed trait Difference[L, R]
       case class MatchingDeclaration[L, R](left: Declaration[L], right: Declaration[R]) extends Difference[L, R]
@@ -194,11 +195,16 @@ case class ColHelperComparator(info: ColDescription) {
         def apply[L, R](anyLeft: Node[L], anyRight: Node[R]): LazyList[Difference[L, R]]
       }
 
-      val compareLookupTable: Map[java.lang.Class[_], Compare] = Map(..${info.defs.map(makeCase).toList})
+      val compareLookupTable: Map[java.lang.Class[_], Compare] =
+        Map(..${info.defs.map(defn =>
+          q"classOf[${defn.typ}[_]] -> ${Term.Name("Compare" + defn.baseName)}").toList})
 
       def compare[L, R](left: Node[L], right: Node[R]): LazyList[Difference[L, R]] =
         if(left.getClass == right.getClass) compareLookupTable(left.getClass)(left, right)
         else LazyList(StructuralDifference(left, right))
     }
   """)
+
+  def make(): List[(String, List[Stat])] =
+    List(makeComparator()) ++ info.defs.map(makeCase)
 }

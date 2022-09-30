@@ -1,6 +1,6 @@
 import scala.meta._
 
-object MetaUtil {
+object ColHelperUtil {
   def NonemptyMatch(context: String, expr: Term, cases: List[Case]): Term.Match = {
     if(cases.nonEmpty) Term.Match(expr, cases)
     else {

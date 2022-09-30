@@ -18,7 +18,7 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
   for(param <- params) {
     // PB: sorry if this breaks; can't find the list of keywords elsewhere...
     if(internal.tokenizers.keywords.contains(param.name.value)) {
-      MetaUtil.fail(
+      ColHelperUtil.fail(
         s"Class ${names.mkString(".")} has a parameter named ${param.name.value}, which is a keyword in Scala.\n" +
           "Although this is possible, this leads to incorrectly generated patterns in match statements, so please pick a different name.\n" +
           "(The keyword may be a soft keyword, or only a keyword as of Scala 3, but will be generated incorrectly nonetheless.)",
@@ -87,7 +87,7 @@ class ColDescription {
     case Type.Tuple(List(t1, t2, t3)) =>
       q"(${rewriteDefault(q"$term._1", t1)}, ${rewriteDefault(q"$term._2", t2)}, ${rewriteDefault(q"$term._3", t3)})"
     case Type.Tuple(other) =>
-      MetaUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
+      ColHelperUtil.fail(s"Oops, this tuple is too long for me! size=${other.size}", node=Some(typ))
 
     case Type.Apply(Type.Name(declKind), List(Type.Name("G"))) if DECLARATION_KINDS.contains(declKind) =>
       q"rewriter.${ColDefs.scopes(declKind)}.dispatch($term)"
@@ -103,7 +103,7 @@ class ColDescription {
       term
 
     case _ =>
-      MetaUtil.fail(
+      ColHelperUtil.fail(
         s"Encountered an unknown type while generating default rewriters: $typ\n" +
           "Perhaps there is an 'extends Expr' or so missing, or ColDefs.DECLARATION_KINDS is incomplete?",
         node=Some(typ)
@@ -141,7 +141,7 @@ class ColDescription {
         case _ =>
       }
     case otherCls: Defn.Class if otherCls.mods.collectFirst { case Mod.Abstract() => () }.isEmpty =>
-      MetaUtil.fail("Could not parse the following class. Is the class in the right format?", node = Some(otherCls))
+      ColHelperUtil.fail("Could not parse the following class. Is the class in the right format?", node = Some(otherCls))
     case Defn.Object(_, name, Template(_, _, _, stats)) =>
       stats.foreach(collectNode(path :+ name.value))
     case _ =>
@@ -198,7 +198,7 @@ class ColDescription {
         stats.foreach(collectBases)
         stats.foreach(collectFamily)
       case other =>
-        MetaUtil.fail(
+        ColHelperUtil.fail(
           s"Source file $file did not parse in the expected pattern Source(List(Pkg(_, stats))), but instead as:\n" +
             other.toString,
           node=Some(other)

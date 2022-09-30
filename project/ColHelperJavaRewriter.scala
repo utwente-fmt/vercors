@@ -1,15 +1,24 @@
 import ColDefs._
-import MetaUtil.NonemptyMatch
+import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
 case class ColHelperJavaRewriter(info: ColDescription) {
-  def dispatchCase(cls: ClassDef): Case =
-    Case(Pat.Typed(Pat.Var(q"node"), t"${cls.typ}[Pre]"), None, q"rewrite(node)")
+  def makeMapEntry(family: String)(cls: ClassDef): Term =
+    q"""classOf[${cls.typ}[_]] -> new RWFunc[${Type.Name(family)}] {
+      def apply[Pre, Post](node: ${Type.Name(family)}[Pre], rw: JavaRewriter[Pre, Post]): ${Type.Name(family)}[Post] =
+        rw.rewrite(node.asInstanceOf[${cls.typ}[Pre]])
+    }"""
+
+  def makeDeclMapEntry(cls: ClassDef): Term =
+    q"""classOf[${cls.typ}[_]] -> new DeclRWFunc {
+      def apply[Pre, Post](node: Declaration[Pre], rw: JavaRewriter[Pre, Post]): Unit =
+        rw.rewrite(node.asInstanceOf[${cls.typ}[Pre]])
+    }"""
 
   def javaRewrite(ret: Type.Name)(cls: ClassDef): Stat = q"""
     def rewrite(node: ${cls.typ}[Pre]): $ret[Post] = {
-      val builder = new RewriteBuilders.${cls.rewriteBuilderName}(node)
+      val builder = new ${cls.rewriteBuilderName}(node)
       rewrite(builder)
       builder.build()
     }
@@ -17,7 +26,7 @@ case class ColHelperJavaRewriter(info: ColDescription) {
 
   def javaRewriteDecl(cls: ClassDef): Stat = q"""
     def rewrite(node: ${cls.typ}[Pre]): Unit = {
-      val builder = new RewriteBuilders.${cls.rewriteBuilderName}[Pre, Post](node)
+      val builder = new ${Init(cls.rewriteBuilderName, Name.Anonymous(), Nil)}[Pre, Post](node)
       rewrite(builder)
       ${ColDefs.scopes(ColDefs.DECLARATION_KINDS.find(info.supports(_)(cls.baseName)).get)}
         .succeed(node, builder.build())
@@ -25,12 +34,34 @@ case class ColHelperJavaRewriter(info: ColDescription) {
   """
 
   def javaRewriteBuilder(cls: ClassDef): Stat =
-    q"def rewrite(builder: RewriteBuilders.${cls.rewriteBuilderName}[Pre, Post]): Unit = {}"
+    q"def rewrite(builder: ${cls.rewriteBuilderName}[Pre, Post]): Unit = {}"
 
-  def make(): List[Stat] = List(q"""
+  def make(): List[(String, List[Stat])] = List("JavaRewriter" -> q"""
+    object JavaRewriter {
+      trait RWFunc[N[_] <: Node[_]] {
+        def apply[Pre, Post](node: N[Pre], rw: JavaRewriter[Pre, Post]): N[Post]
+      }
+
+      trait DeclRWFunc {
+        def apply[Pre, Post](node: Declaration[Pre], rw: JavaRewriter[Pre, Post]): Unit
+      }
+
+      ${Defn.Val(Nil,
+        List(Pat.Var(Term.Name(s"rewriteDefaultDeclarationLookupTable"))),
+        Some(t"Map[java.lang.Class[_], DeclRWFunc]"),
+        q"Map(..${info.defs.filter(cls => info.supports("Declaration")(cls.baseName)).map(makeDeclMapEntry).toList})",
+      )}
+
+      ..${info.families.map(family => Defn.Val(Nil,
+        List(Pat.Var(Term.Name(s"rewriteDefault${family}LookupTable"))),
+        Some(t"Map[java.lang.Class[_], RWFunc[${Type.Name(family)}]]"),
+        q"Map(..${info.defs.filter(cls => info.supports(family)(cls.baseName)).map(makeMapEntry(family)).toList})",
+      )).toList}
+    }
+
     abstract class JavaRewriter[Pre, Post] extends AbstractRewriter[Pre, Post] {
       def dispatch(decl: Declaration[Pre]): Unit =
-        ${NonemptyMatch("declaration dispatch", q"decl", info.defs.filter(cls => info.supports("Declaration")(cls.baseName)).map(dispatchCase).toList)}
+        JavaRewriter.rewriteDefaultDeclarationLookupTable(decl.getClass)(decl, this)
 
       ..${
         val elems = info.defs.filter(cls => info.supports("Declaration")(cls.baseName))
@@ -39,7 +70,7 @@ case class ColHelperJavaRewriter(info: ColDescription) {
 
       ..${info.families.map(family => q"""
         def dispatch(node: ${Type.Name(family)}[Pre]): ${Type.Name(family)}[Post] =
-          ${NonemptyMatch(s"$family dispatch", q"node", info.defs.filter(cls => info.supports(family)(cls.baseName)).map(dispatchCase).toList)}
+          JavaRewriter.${Term.Name(s"rewriteDefault${family}LookupTable")}(node.getClass)(node, this)
       """).toList}
 
       ..${info.families.flatMap(family => {
@@ -47,5 +78,5 @@ case class ColHelperJavaRewriter(info: ColDescription) {
         elems.map(javaRewrite(Type.Name(family))).toList ++ elems.map(javaRewriteBuilder).toList
       }).toList}
     }
-  """)
+  """.stats)
 }

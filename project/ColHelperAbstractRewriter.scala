@@ -1,5 +1,5 @@
 import ColDefs._
-import MetaUtil.NonemptyMatch
+import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
@@ -18,7 +18,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
     """}.toList
   }
 
-  def make(): List[Stat] = q"""
+  def make(): List[(String, List[Stat])] = List("AbstractRewriter" -> q"""
     import scala.reflect.ClassTag
     import RewriteHelpers._
     import vct.col.util.Scopes
@@ -59,7 +59,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       def succProvider: SuccessorsProvider[Pre, Post] = allScopes.freeze
 
       def anySucc[RefDecl <: Declaration[Post]](decl: Declaration[Pre])(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
-        ${MetaUtil.NonemptyMatch("decl succ kind cases", q"decl", ColDefs.DECLARATION_KINDS.map(decl =>
+        ${ColHelperUtil.NonemptyMatch("decl succ kind cases", q"decl", ColDefs.DECLARATION_KINDS.map(decl =>
           Case(p"decl: ${Type.Name(decl)}[Pre]", None, q"succ(decl)")
         ).toList)}
 
@@ -81,5 +81,5 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
           AbstractRewriter.${Term.Name(s"rewriteDefault${family}LookupTable")}(node.getClass)(node, this)
       """)).toList}
     }
-  """.stats
+  """.stats)
 }

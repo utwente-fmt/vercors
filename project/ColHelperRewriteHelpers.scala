@@ -6,11 +6,11 @@ case class ColHelperRewriteHelpers(info: ColDescription) {
   def rewriteHelperParam(param: Term.Param): Term.Param =
     Term.Param(List(),
       param.name,
-      Some(Type.ByName(MetaUtil.substituteTypeName("G", Type.Name("Post"))(param.decltpe.get))),
+      Some(Type.ByName(ColHelperUtil.substituteTypeName("G", Type.Name("Post"))(param.decltpe.get))),
       Some(info.rewriteDefault(Term.Select(q"subject", Term.Name(param.name.value)), param.decltpe.get)))
 
-  def makeRewriteHelper(cls: ClassDef): Stat = q"""
-    implicit class ${cls.rewriteHelperName}[Pre, Post](val subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
+  def makeRewriteHelperImpl(cls: ClassDef): (String, List[Stat]) = ("Rewrite" + cls.baseName + "Impl") -> List(q"""
+    trait ${Type.Name("Rewrite" + cls.baseName + "Impl")}[Pre, Post] { this: RewriteHelpers.${cls.rewriteHelperName}[Pre, Post] =>
       def rewrite(..${cls.params.map(rewriteHelperParam) ++
         cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"subject.blame"))) :+
         Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = {
@@ -23,11 +23,16 @@ case class ColHelperRewriteHelpers(info: ColDescription) {
         }}
       }
     }
+  """)
+
+  def makeRewriteHelper(cls: ClassDef): Stat = q"""
+    implicit class ${cls.rewriteHelperName}[Pre, Post](val subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post])
+      extends ${Template(Nil, List(Init(t"${Type.Name("Rewrite" + cls.baseName + "Impl")}[Pre, Post]", Name.Anonymous(), Nil)), Self(Name.Anonymous(), None), Nil)}
   """
 
-  def make(): List[Stat] = List(q"""
+  def make(): List[(String, List[Stat])] = List("RewriteHelpers" -> List(q"""
     object RewriteHelpers {
       ..${info.defs.map(makeRewriteHelper).toList}
     }
-  """)
+  """)) ++ info.defs.map(makeRewriteHelperImpl).toList
 }
