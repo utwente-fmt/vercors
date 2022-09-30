@@ -6,6 +6,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 
@@ -115,6 +116,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case arr: JavaNewLiteralArray[Pre] => java.newLiteralArray(arr)
     case arr: JavaNewDefaultArray[Pre] => java.newDefaultArray(arr)
     case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
+
+    case Cast(inner, TypeValue(t)) if t == Java.float[Pre] || t == Java.double[Pre] =>
+      CastFloat(dispatch(inner), dispatch(t))(e.o)
 
     case local: PVLLocal[Pre] => pvl.local(local)
     case deref: PVLDeref[Pre] => pvl.deref(deref)

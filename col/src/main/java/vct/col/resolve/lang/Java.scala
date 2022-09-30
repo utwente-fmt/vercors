@@ -376,6 +376,6 @@ case object Java {
     case _: TNotAValue[G] => throw WrongDefaultElementArrayType(t)
   }
 
-  def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
-  def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
+  def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
+  def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
 }
