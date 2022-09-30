@@ -2,10 +2,10 @@ package vct.col.rewrite.adt
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.util.Declarator
 import vct.col.ast.{CType, Declaration, GlobalDeclaration, JavaType, PVLType, Program, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type}
-import vct.col.coerce.CoercingRewriter
-import vct.col.newrewrite.error.ExtraNode
+import vct.col.typerules.CoercingRewriter
+import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{Blame, SourceNameOrigin, UnsafeCoercion}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, RewriterBuilderArg}

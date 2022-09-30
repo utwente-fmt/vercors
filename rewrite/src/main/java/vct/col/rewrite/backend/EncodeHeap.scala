@@ -1,7 +1,8 @@
 package vct.col.rewrite.backend
 
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewriter}
+import vct.col.rewrite.adt.{ImportADT, ImportADTBuilder, ImportADTImporter}
+import vct.col.rewrite.Generation
 
 case object EncodeHeap extends ImportADTBuilder("heap")
 
