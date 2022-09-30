@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{JavaInvocation, Type}
-import vct.col.resolve.{BuiltinInstanceMethod, RefADTFunction, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaMethod, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
+import vct.col.resolve.ctx._
 
 trait JavaInvocationImpl[G] { this: JavaInvocation[G] =>
   override def t: Type[G] = ref.get match {

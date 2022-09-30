@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{JavaClass, JavaFields, JavaMethod, Type}
-import vct.col.resolve.{RefJavaField, RefJavaMethod}
+import vct.col.resolve.ctx._
 
 trait JavaClassImpl[G] { this: JavaClass[G] =>
   override def supports: Seq[Type[G]] = ext +: imp

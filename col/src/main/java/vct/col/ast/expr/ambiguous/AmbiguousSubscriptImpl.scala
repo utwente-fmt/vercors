@@ -1,8 +1,8 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast.{AmbiguousSubscript, Type}
-import vct.col.coerce.CoercionUtils
-import vct.result.VerificationError.{Unreachable}
+import vct.col.typerules.CoercionUtils
+import vct.result.VerificationError.Unreachable
 
 trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(collection.t).isDefined

@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.collection
 
 import vct.col.ast.{BagAdd, TBag}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait BagAddImpl[G] { this: BagAdd[G] =>
   def xsType: TBag[G] = xs.t.asBag.get

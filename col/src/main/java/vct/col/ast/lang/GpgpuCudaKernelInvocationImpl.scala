@@ -1,7 +1,8 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{GpgpuCudaKernelInvocation, Type}
-import vct.col.resolve.{BuiltinInstanceMethod, C, RefADTFunction, RefCFunctionDefinition, RefCGlobalDeclaration, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelProcess, RefPredicate, RefProcedure}
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.C
 
 trait GpgpuCudaKernelInvocationImpl[G] { this: GpgpuCudaKernelInvocation[G] =>
   override def t: Type[G] = ref.get match {

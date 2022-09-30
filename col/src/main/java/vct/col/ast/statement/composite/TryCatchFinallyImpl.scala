@@ -3,7 +3,7 @@ package vct.col.ast.statement.composite
 import vct.col.ast.{TNothing, TryCatchFinally, Type}
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.check.{CheckContext, CheckError, RedundantCatchClause}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait TryCatchFinallyImpl[G] extends NodeFamilyImpl[G] { this: TryCatchFinally[G] =>
   def checkOverlappingCatches: Seq[CheckError] = {

@@ -2,10 +2,10 @@ package vct.col.ast.declaration
 
 import vct.col.ast.Declaration
 import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
-import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
 import vct.col.debug.Dropped
 import vct.col.ref.{DirectRef, Ref}
-import vct.col.rewrite.{InitialGeneration, ScopeContext}
+import vct.col.rewrite.InitialGeneration
+import vct.col.typerules.{CoercingRewriter, NopCoercingRewriter}
 
 import scala.reflect.ClassTag
 

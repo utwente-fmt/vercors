@@ -1,6 +1,7 @@
 package vct.col.ref
 
 import vct.col.ast.Declaration
+import vct.col.err.MistypedRef
 import vct.col.ref
 
 import scala.reflect.ClassTag
@@ -25,7 +26,7 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G], val eqMeas
     computeDecl = null
     result match {
       case decl: /*tagged*/ Decl => decl
-      case other => throw ref.MistypedRef(other, tag)
+      case other => throw MistypedRef(other, tag)
     }
   }
 

@@ -2,8 +2,8 @@ package vct.col.ast.node
 
 import vct.col.ast.NodeFamily
 import vct.col.check._
-import vct.col.coerce.{CoercingRewriter, NopCoercingRewriter}
 import vct.col.rewrite.InitialGeneration
+import vct.col.typerules.{CoercingRewriter, NopCoercingRewriter}
 
 /*
   Marker trait to indicate this node, or this hierarchy of nodes, always rewrites to itself. This is for example for

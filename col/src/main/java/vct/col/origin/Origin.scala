@@ -2,7 +2,6 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
-import vct.col.util.ExpectedError
 import hre.io.Readable
 
 import java.nio.file.Paths

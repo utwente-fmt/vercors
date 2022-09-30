@@ -1,8 +1,8 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CStructAccess, TInt, TNotAValue, Type}
-import vct.col.resolve.{BuiltinField, BuiltinInstanceMethod, RefADTFunction, RefCudaVecDim, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure}
-import vct.col.util.Types
+import vct.col.resolve.ctx._
+import vct.col.typerules.Types
 
 trait CStructAccessImpl[G] { this: CStructAccess[G] =>
   override def t: Type[G] = ref.get match {

@@ -1,8 +1,9 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CLocal, CPrimitiveType, CTCudaVec, Type}
-import vct.col.resolve.{C, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaVec, RefModelField, RefVariable}
-import vct.col.util.Types
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.C
+import vct.col.typerules.Types
 
 trait CLocalImpl[G] { this: CLocal[G] =>
   override def t: Type[G] = ref.get match {

@@ -10,7 +10,7 @@ import vct.antlr4.generated.{PVLParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable
