@@ -398,9 +398,9 @@ elementValuePair
     ;
 
 elementValue
-    :   expression
-    |   annotation
-    |   elementValueArrayInitializer
+    : elementValueArrayInitializer
+    | expression
+    | annotation
     ;
 
 elementValueArrayInitializer

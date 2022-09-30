@@ -1,5 +1,6 @@
 package vct.parsers.transform
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
@@ -18,7 +19,7 @@ import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](originProvider, blameProvider, errors) {
+  extends ToCol[G](originProvider, blameProvider, errors) with LazyLogging {
 
   val currentPackage: ScopedStack[Option[JavaName[G]]] = ScopedStack()
 
@@ -67,7 +68,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit default: DefaultValueContext): Expr[G] = default match {
-    case DefaultValue0(_, ElementValue0(expr)) => convert(expr)
+    case DefaultValue0(_, ElementValue1(expr)) => convert(expr)
     case DefaultValue0(_, elementValue) => ??(elementValue)
   }
 
@@ -116,18 +117,21 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit annotationArgs: AnnotationArgsContext): Seq[(String, Expr[G])] = annotationArgs match {
     case AnnotationArgs0(_, None, _ ) => Seq()
     case AnnotationArgs0(_, Some(AnnotationArgsElems0(pairs)), _ ) => convert(pairs)
-    case AnnotationArgs0(_, Some(AnnotationArgsElems1(ElementValue0(expr))), _) => Seq(("value", convert(expr)))
+    case AnnotationArgs0(_, Some(AnnotationArgsElems1(ElementValue1(expr))), _) => Seq(("value", convert(expr)))
     case _ => ??(annotationArgs)
   }
 
   def convert(implicit pairs: ElementValuePairsContext): Seq[(String, Expr[G])] = pairs match {
-    case ElementValuePairs0(pair) => Seq(convert(pair))
-    case ElementValuePairs1(more, _, pair) => convert(more) :+ convert(pair)
+    case ElementValuePairs0(pair) => convert(pair)
+    case ElementValuePairs1(more, _, pair) => convert(more) ++ convert(pair)
     case _ => ???
   }
 
-  def convert(implicit pair: ElementValuePairContext): (String, Expr[G]) = pair match {
-    case ElementValuePair0(name, _, ElementValue0(expr)) => (convert(name), convert(expr))
+  def convert(implicit pair: ElementValuePairContext): Seq[(String, Expr[G])] = pair match {
+    case ElementValuePair0(name, _, ElementValue1(expr)) => Seq((convert(name), convert(expr)))
+    case ElementValuePair0(name, _, ElementValue0(expr)) =>
+      logger.warn(originProvider(pair).messageInContext("Warning: Discarding part of java annotation"))
+      Seq()
     case x => ??(x)
   }
 
