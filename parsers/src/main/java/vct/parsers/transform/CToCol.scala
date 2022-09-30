@@ -462,7 +462,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression11(_, _, _, _, _, _, _, _) => ??(expr)
     case PostfixExpression12(GpgpuCudaKernelInvocation0(name, _, blocks, _, threads, _, _, args, _, given, yields)) =>
       GpgpuCudaKernelInvocation(convert(name), convert(blocks), convert(threads), convert(args),
-        convertEmbedGiven(given), convertEmbedYields(yields))
+        convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
   }
 
   def convert(implicit expr: AnnotatedPrimaryExpressionContext): Expr[G] = expr match {

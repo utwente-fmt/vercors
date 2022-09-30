@@ -790,6 +790,29 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
+  /**
+    * Rewrites a CudaKernelInvocation to a procedure.
+    * @param kernel - the invocation we want to rewrite
+    * @return a Procedure[Post]
+    */
+  def cudaKernelInvocation(kernel: GpgpuCudaKernelInvocation[Pre]): Expr[Post] = {
+    val GpgpuCudaKernelInvocation(ker, blocks, threads, args, givenMap, yields) = kernel
+    implicit val o: Origin = kernel.o
+    val one = const[Post](1)
+    kernel.ref.get match {
+      case target: SpecInvocationTarget[_] => ???
+      case ref: RefCFunctionDefinition[Pre] =>
+        ProcedureInvocation[Post](cFunctionSuccessor.ref(ref.decl),
+          rw.dispatch(blocks) +: one +:  one
+            +: rw.dispatch(threads) +: one +: one +: args.map(rw.dispatch),
+          Nil, Nil,
+          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(kernel.blame)
+      case e: RefCGlobalDeclaration[Pre] => ???
+    }
+  }
+
+
   def globalInvocation(e: RefCGlobalDeclaration[Pre], inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(_, args, givenMap, yields) = inv
     val RefCGlobalDeclaration(decls, initIdx) = e
