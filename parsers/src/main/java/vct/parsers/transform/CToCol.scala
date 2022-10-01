@@ -415,8 +415,19 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PrependExpression1(inner) => convert(inner)
   }
 
+  def convert(implicit typeName: TypeNameContext): Type[G] = typeName match {
+    case TypeName0(specifiers, None) => CPrimitiveType(convert(specifiers))
+    case TypeName0(_, _) => ??(typeName)
+  }
+
+  def convert(implicit specifiers: SpecifierQualifierListContext): Seq[CDeclarationSpecifier[G]] = specifiers match {
+    case SpecifierQualifierList0(t, tail) => convert(t) +: tail.map((e: SpecifierQualifierListContext) => convert(e)).getOrElse(Nil)
+    case SpecifierQualifierList1(_, _) => ??(specifiers)
+  }
+
   def convert(implicit expr: CastExpressionContext): Expr[G] = expr match {
     case CastExpression0(inner) => convert(inner)
+    case CastExpression1(_, typeName, _, e) => CCast(convert(e), convert(typeName))
     case CastExpression1(_, _, _, _) => ??(expr)
     case CastExpression2(_, _, _, _, _) => ??(expr)
   }

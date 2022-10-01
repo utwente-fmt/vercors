@@ -27,8 +27,8 @@ case object FloatToRat extends RewriterBuilder {
 
 case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
   def name(t: Type[_]) = t match {
-    case t if t == PVL.float64 => "f32"
-    case t if t == PVL.float32 => "f64"
+    case t if t == PVL.float64 => "f64"
+    case t if t == PVL.float32 => "f32"
     case TFloat(e, m) => s"f${e}_$m"
   }
 
@@ -43,13 +43,14 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
   val casts: mutable.Map[(Type[Pre], Type[Pre]), Function[Post]] = mutable.Map()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case CastFloat(e, t) => if (e.t == t) {
-      dispatch(e)
-    } else {
-      val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t, t))
-      implicit val o: Origin = expr.o
-      FunctionInvocation(f.ref[Function[Post]], Seq(dispatch(e)), Nil, Nil, Nil)(PanicBlame("Can always call cast on float"))
-    }
+    case CastFloat(e, t) =>
+      if (e.t == t) {
+        dispatch(e)
+      } else {
+        val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t, t))
+        implicit val o: Origin = expr.o
+        FunctionInvocation(f.ref[Function[Post]], Seq(dispatch(e)), Nil, Nil, Nil)(PanicBlame("Can always call cast on float"))
+      }
 
     case f @ FloatValue(num, _) =>
       implicit val o = f.o

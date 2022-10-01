@@ -731,6 +731,8 @@ final case class GpgpuCudaKernelInvocation[G](kernel: String, blocks: Expr[G], t
 }
 final case class CFloatLiteral[G](value: BigDecimal, floatType: Seq[CDeclarationSpecifier[G]] /* CFloat or CDouble or Long CDouble*/)(implicit val o: Origin) extends CExpr[G] with CFloatLiteralImpl[G]
 
+final case class CCast[G](expr: Expr[G], t: Type[G])(implicit val o: Origin) extends CExpr[G]
+
 sealed trait CType[G] extends Type[G] with CTypeImpl[G]
 final case class CPrimitiveType[G](specifiers: Seq[CDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CPrimitiveTypeImpl[G]
 final case class CTCudaVec[G]()(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTCudaVecImpl[G]

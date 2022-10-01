@@ -129,6 +129,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case deref: CStructAccess[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
+    case float: CFloatLiteral[Pre] => c.float(float)
+    case cast: CCast[Pre] => c.cast(cast)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
