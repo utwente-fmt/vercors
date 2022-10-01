@@ -561,6 +561,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case plus @ AmbiguousPlus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
@@ -578,7 +579,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          }
+          },
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
