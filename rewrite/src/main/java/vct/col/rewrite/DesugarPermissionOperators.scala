@@ -2,7 +2,6 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
-import RewriteBuilders._
 import vct.col.rewrite.DesugarPermissionOperators.{FramedArraySubscriptBlame, FramedPointerDerefBlame, PredicateValueError}
 import vct.col.origin.{ArrayInsufficientPermission, ArrayLocationError, ArraySubscriptError, Blame, FramedArrIndex, FramedArrLength, FramedArrLoc, IteratedArrayInjective, Origin, PointerBounds, PointerDerefError, PointerInsufficientPermission, PointerLocationError, PointerSubscriptError, PointsToDeref}
 import vct.col.origin.{FramedArrIndex, FramedArrLength, FramedPtrBlockLength, FramedPtrBlockOffset, FramedPtrOffset, IteratedArrayInjective, IteratedPtrInjective, Origin}
