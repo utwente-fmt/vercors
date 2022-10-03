@@ -56,7 +56,7 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o = f.o
       var numerator = num
       var denominator = BigInt(1)
-      while (numerator.toBigIntExact.isEmpty) {
+      while (!numerator.isWhole) {
         numerator = numerator * 10
         denominator = denominator * 10
       }

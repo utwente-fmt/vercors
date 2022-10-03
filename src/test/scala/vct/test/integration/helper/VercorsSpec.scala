@@ -140,7 +140,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String) {
-    def pvl: String => Unit = { data =>
+    def pvl(data: String): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
@@ -169,6 +169,5 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
   val carbon: Seq[Backend] = Seq(types.Backend.Carbon)
-  val someBackend: Seq[Backend] = Seq(types.Backend.Silicon)
   val anyBackend: Seq[Backend] = Seq(types.Backend.Silicon, types.Backend.Carbon)
 }

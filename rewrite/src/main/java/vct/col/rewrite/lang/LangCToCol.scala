@@ -119,11 +119,6 @@ case object LangCToCol {
     }
   }
 
-  case class InvalidFloatLiteral(e: Expr[_]) extends UserError {
-    override def code: String = "invalidFloatLiteral"
-    override def text: String = e.o.messageInContext("Float literal can only be float or double")
-  }
-
   case class UnsupportedCast(c: CCast[_]) extends UserError {
     override def code: String = "unsupportedCast"
     override def text: String = c.o.messageInContext("This cast is not supported")
