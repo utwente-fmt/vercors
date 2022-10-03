@@ -61,7 +61,6 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TFloat() => TRational()
     case TChar() => TInt()
     case TBoundedInt(_, _) => TInt()
     case TUnion(Seq(t)) => dispatch(t)

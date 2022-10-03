@@ -5,9 +5,11 @@ import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.{ast => col}
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.resolve.lang.C
 import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
@@ -93,8 +95,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       case "short" => CShort()
       case "int" => CInt()
       case "long" => CLong()
-      case "float" => CFloat()
-      case "double" => CDouble()
+      case "float" => CSpecificationType(TFloats.ieee754_32bit)
+      case "double" => CSpecificationType(TFloats.ieee754_64bit)
       case "signed" => CSigned()
       case "unsigned" => CUnsigned()
       case "_Bool" => CBool()
@@ -413,8 +415,19 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PrependExpression1(inner) => convert(inner)
   }
 
+  def convert(implicit typeName: TypeNameContext): Type[G] = typeName match {
+    case TypeName0(specifiers, None) => CPrimitiveType(convert(specifiers))
+    case TypeName0(_, _) => ??(typeName)
+  }
+
+  def convert(implicit specifiers: SpecifierQualifierListContext): Seq[CDeclarationSpecifier[G]] = specifiers match {
+    case SpecifierQualifierList0(t, tail) => convert(t) +: tail.map((e: SpecifierQualifierListContext) => convert(e)).getOrElse(Nil)
+    case SpecifierQualifierList1(_, _) => ??(specifiers)
+  }
+
   def convert(implicit expr: CastExpressionContext): Expr[G] = expr match {
     case CastExpression0(inner) => convert(inner)
+    case CastExpression1(_, typeName, _, e) => CCast(convert(e), convert(typeName))
     case CastExpression1(_, _, _, _) => ??(expr)
     case CastExpression2(_, _, _, _, _) => ??(expr)
   }
@@ -470,10 +483,23 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       convertEmbedWith(pre, convertEmbedThen(post, convert(inner)))
   }
 
+  def parseFloat(numFlag: String)(implicit o: Origin): Option[Expr[G]] = {
+    try {
+      Some(numFlag.last match {
+        case 'f' | 'F' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_32bit)
+        case 'l' | 'L' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_64bit)
+        case _ => FloatValue(BigDecimal(numFlag), TFloats.ieee754_32bit)
+      })
+    } catch {
+        case _: NumberFormatException => None
+    }
+  }
+
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {
     case PrimaryExpression0(inner) => convert(inner)
     case PrimaryExpression1(inner) => local(expr, convert(inner))
-    case PrimaryExpression2(const) => IntegerValue(Integer.parseInt(const))
+    case PrimaryExpression2(const) =>
+      parseFloat(const).getOrElse(IntegerValue(Integer.parseInt(const)))
     case PrimaryExpression3(_) => ??(expr)
     case PrimaryExpression4(_, inner, _) => convert(inner)
     case PrimaryExpression5(_) => ??(expr)

@@ -132,6 +132,8 @@ unit
  | 'this'
  | 'null'
  | NUMBER
+ | DECIMAL_NUMBER
+ | DECIMAL_NUMBER_F
  | '(' expr ')'
  | identifier call?
  | valGenericAdtInvocation
@@ -221,7 +223,7 @@ invariant: 'loop_invariant' expr ';';
 
 nonArrayType
  : valType
- | ('string' | 'int' | 'boolean' | 'void')
+ | ('string' | 'int' | 'boolean' | 'void' | 'float32' | 'float64')
  | classType
  ;
 

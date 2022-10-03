@@ -184,6 +184,7 @@ case class SilverTransformation
     RejoinQuantifiers,
 
     // Translate internal types to domains
+    FloatToRat,
     ImportADT.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,

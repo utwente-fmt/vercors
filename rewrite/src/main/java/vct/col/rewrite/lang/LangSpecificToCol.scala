@@ -154,6 +154,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case str: JavaStringLiteral[Pre] => java.stringLiteral(str)
     case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
 
+    case Cast(inner, TypeValue(t)) if t == Java.float[Pre] || t == Java.double[Pre] =>
+      CastFloat(dispatch(inner), dispatch(t))(e.o)
+
     case local: PVLLocal[Pre] => pvl.local(local)
     case deref: PVLDeref[Pre] => pvl.deref(deref)
     case inv: PVLNew[Pre] => pvl.newClass(inv)
@@ -163,6 +166,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case deref: CStructAccess[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
+    case cast: CCast[Pre] => c.cast(cast)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)

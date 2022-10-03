@@ -3,6 +3,7 @@ package vct.col.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
 import vct.col.ref.Ref
@@ -117,6 +118,11 @@ case object LangCToCol {
         barrier.blame.blame(KernelBarrierInvariantBroken(failure, barrier))
     }
   }
+
+  case class UnsupportedCast(c: CCast[_]) extends UserError {
+    override def code: String = "unsupportedCast"
+    override def text: String = c.o.messageInContext("This cast is not supported")
+  }
 }
 
 case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -194,6 +200,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case _ => None
     }
     res.getOrElse(throw NotDynamicSharedMem(pointer))
+  }
+
+  def cast(c: CCast[Pre]): Expr[Post] = c.t match {
+    case t if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
+      CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
+    case _ => throw UnsupportedCast(c)
   }
 
   def rewriteGPUParam(cParam: CParam[Pre], kernelSpecifier: CGpgpuKernelSpecifier[Pre]): Unit = {
