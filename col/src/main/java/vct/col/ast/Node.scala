@@ -490,9 +490,6 @@ final case class InstancePredicateLocation[G](predicate: Ref[G, InstancePredicat
 final case class AmbiguousLocation[G](expr: Expr[G])(val blame: Blame[PointerLocationError])(implicit val o: Origin) extends Location[G] with AmbiguousLocationImpl[G]
 
 
-final case class Chunk[G](test: Expr[G])(implicit val o: Origin) extends Expr[G] {
-  override def t: Type[G] = TInt()
-}
 final case class Perm[G](loc: Location[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermImpl[G]
 final case class PointsTo[G](loc: Location[G], perm: Expr[G], value: Expr[G])(implicit val o: Origin) extends Expr[G] with PointsToImpl[G]
 final case class CurPerm[G](loc: Location[G])(implicit val o: Origin) extends Expr[G] with CurPermImpl[G]

@@ -66,8 +66,8 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
 
 class ColDescription {
   val defs: ArrayBuffer[ClassDef] = ArrayBuffer()
-  val bases: mutable.Map[String, List[String]] = mutable.Map()
-  val families: mutable.Set[String] = mutable.Set()
+  val bases: mutable.ListMap[String, List[String]] = mutable.ListMap()
+  val families: ArrayBuffer[String] = ArrayBuffer()
 
   def supports(baseType: String)(cls: String): Boolean = {
     baseType == cls || bases.getOrElse(cls, Seq()).exists(supports(baseType))

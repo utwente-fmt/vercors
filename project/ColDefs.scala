@@ -1,3 +1,4 @@
+import scala.collection.mutable
 import scala.meta._
 
 /**
@@ -40,7 +41,7 @@ object ColDefs {
   def scopes(kind: String): Term.Name =
     Term.Name(kind.charAt(0).toLower + kind.substring(1) + "s")
 
-  val DECLARATION_NAMESPACE: Map[String, Seq[String]] = Map(
+  val DECLARATION_NAMESPACE: mutable.ListMap[String, Seq[String]] = mutable.ListMap(
     "GlobalDeclaration" -> Seq("Program"),
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),

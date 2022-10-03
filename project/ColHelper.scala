@@ -1,6 +1,8 @@
 import java.io.File
 import java.nio.file.{Files, Path}
 import scala.meta._
+import scala.meta.internal.prettyprinters.TreeSyntax
+import scala.meta.prettyprinters.Show
 
 case class ColHelper() {
   import ColDefs._
@@ -31,9 +33,10 @@ case class ColHelper() {
     ).flatten.map {
       case (fileName, stats) =>
         val out = packageOutput.resolve(fileName + ".scala").toFile
+        val pkg = Pkg(packageName, ColDefs.IMPORTS /*++ List(warner)*/ ++ stats)
         i += 1
 //        val warner = q"class ${Type.Name("Warner" + i.toString)}{ 1 == 'c' }"
-        writer(out, Pkg(packageName, ColDefs.IMPORTS /*++ List(warner)*/ ++ stats).toString())
+        writer(out, pkg.toString())
         out
     }
   }
