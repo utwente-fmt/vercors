@@ -1,6 +1,7 @@
 package vct.col.resolve.lang
 
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
@@ -63,7 +64,7 @@ case object PVL {
         case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, typeArgs, ref.decl) => ref
         case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       }
-      case _ => Spec.builtinInstanceMethod(obj, method, blame)
+      case _ => PVL.builtinInstanceMethod(obj, method, args).orElse(Spec.builtinInstanceMethod(obj, method, blame))
     }
 
   def findMethod[G](method: String, args: Seq[Expr[G]], typeArgs: Seq[Type[G]], ctx: ReferenceResolutionContext[G]): Option[PVLInvocationTarget[G]] =
@@ -78,4 +79,16 @@ case object PVL {
       case ref: RefModelProcess[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelAction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
+
+  def builtinInstanceMethod[G](obj: Expr[G], method: String, args: Seq[Expr[G]]): Option[PVLBuiltinInstanceMethod[G]] = {
+    implicit val o: Origin = obj.o
+    Some((obj.t, method, args) match {
+      case (TFloat(_, _), "toFloat32", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => CastFloat(obj, PVL.float32))
+      case (TFloat(_, _), "toFloat64", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => CastFloat(obj, PVL.float64))
+      case _ => return None
+    })
+  }
+
+  def float32[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
+  def float64[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
 }

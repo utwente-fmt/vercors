@@ -3,6 +3,7 @@ package vct.col.typerules
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter}
@@ -285,6 +286,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
   def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TPinnedDecl[Pre](JavaLangString[Pre](), Nil))
+  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
@@ -388,8 +390,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
                   alt5: => T = throw IncoercibleDummy,
                   alt6: => T = throw IncoercibleDummy,
                   alt7: => T = throw IncoercibleDummy,
-                  alt8: => T = throw IncoercibleDummy) : T = {
-    Left(Nil)
+                  alt8: => T = throw IncoercibleDummy,
+                  alt9: => T = throw IncoercibleDummy,
+                  alt10: => T = throw IncoercibleDummy,
+                  alt11: => T = throw IncoercibleDummy) : T = {
+      Left(Nil)
       .onCoercionError(alt1)
       .onCoercionError(alt2)
       .onCoercionError(alt3)
@@ -568,6 +573,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case plus @ AmbiguousPlus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
           AmbiguousPlus(javaString(left), javaString(right))(plus.blame),
@@ -586,7 +592,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          }
+          },
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
@@ -638,6 +644,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         BitXor(int(left), int(right))
       case Cast(value, typeValue) =>
         Cast(value, typeValue)
+      case CastFloat(e, t) =>
+        CastFloat(float(e), t)
+      case CCast(e, t) => CCast(e, t)
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
@@ -1105,6 +1114,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
       case value: IntegerValue[Pre] => e
+      case value: FloatValue[Pre] => e
       case value @ Value(loc) =>
         Value(loc)
       case values @ Values(arr, from, to) =>

@@ -9,7 +9,7 @@ case class ColHelperComparator(info: ColDescription) {
 
     case Type.Apply(Type.Name("Ref"), _) => q"true"
 
-    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"$left == $right"
+    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("BigDecimal") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"$left == $right"
 
     case Type.Apply(Type.Name("Seq"), List(inner)) =>
       q"$left.size == $right.size && $left.zip($right).forall { case (left, right) => ${valueEqual(inner, q"left", q"right")} }"
@@ -43,7 +43,7 @@ case class ColHelperComparator(info: ColDescription) {
     case Type.Apply(Type.Name("Ref"), _) => q"LazyList(MatchingReference($left.decl, $right.decl))"
 
     case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"LazyList.empty"
-    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"LazyList.empty"
+    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("BigDecimal") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"LazyList.empty"
 
     case Type.Apply(Type.Name("Seq"), List(inner)) =>
       q"$left.zip($right).to(LazyList).flatMap { case (left, right) => ${refEqual(inner, q"left", q"right")} }"
@@ -76,7 +76,7 @@ case class ColHelperComparator(info: ColDescription) {
     case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"compare($left, $right)"
 
     case Type.Apply(Type.Name("Ref"), _) => q"LazyList.empty"
-    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"LazyList.empty"
+    case Type.Name("Int") | Type.Name("BigInt") | Type.Name("BigDecimal") | Type.Name("String") | Type.Name("Boolean") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") => q"LazyList.empty"
 
     case Type.Apply(Type.Name("Seq"), List(inner)) =>
       q"$left.zip($right).to(LazyList).flatMap { case (left, right) => ${nodeEqual(inner, q"left", q"right")} }"

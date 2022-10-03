@@ -2,6 +2,7 @@ package vct.col.resolve.lang
 
 import hre.util.FuncTools
 import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.ast.`type`.TFloats
 import vct.col.ast.{ApplicableContract, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ast.{ApplicableContract, BipPortType, Block, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaVariableDeclaration, Node, TArray, TBool, TChar, TFloat, TInt, TModel, TNotAValue, TPinnedDecl, TUnion, TVoid, Type, UnitAccountedPredicate, Variable}
@@ -110,8 +111,8 @@ case object Java {
     case java.lang.Short.TYPE => TInt()
     case java.lang.Integer.TYPE => TInt()
     case java.lang.Long.TYPE => TInt()
-    case java.lang.Float.TYPE => TFloat()
-    case java.lang.Double.TYPE => TFloat()
+    case java.lang.Float.TYPE => float
+    case java.lang.Double.TYPE => double
     case java.lang.Void.TYPE => TVoid()
     case arr if arr.isArray => TArray(translateRuntimeType(arr.getComponentType))
     case cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)
@@ -419,6 +420,9 @@ case object Java {
     case t: PVLType[G] => throw WrongDefaultElementArrayType(t)
     case _: TNotAValue[G] => throw WrongDefaultElementArrayType(t)
   }
+
+  def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
+  def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
 }
 
 sealed trait JavaAnnotationData[G]
