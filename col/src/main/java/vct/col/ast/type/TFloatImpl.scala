@@ -11,10 +11,10 @@ object TFloats {
   def ieee754_64bit[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = vct.col.ast.TFloat(11, 53)
   def max[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = vct.col.ast.TFloat(999, 999)
 
-  def mostPrecise[G](l: TFloat[G], r: TFloat[G]) = if (l.exponent < r.exponent && l.mantissa < r.mantissa) {
+  def max[G](l: TFloat[G], r: TFloat[G]) = if (l.exponent < r.exponent && l.mantissa < r.mantissa) {
     r
   } else {
-    assert(l.exponent > r.exponent && l.mantissa > r.mantissa)
+    assert((l.exponent > r.exponent && l.mantissa > r.mantissa) || l == r)
     l
   }
 }

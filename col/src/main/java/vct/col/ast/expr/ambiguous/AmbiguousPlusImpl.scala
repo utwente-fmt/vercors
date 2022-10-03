@@ -20,9 +20,8 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
     if(isProcessOp) TProcess()
     else if(isSeqOp || isBagOp || isSetOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isPointerOp) left.t
-    else if(isFloatOp) {
-      TFloats.mostPrecise[G](left.t.asInstanceOf[TFloat[G]], right.t.asInstanceOf[TFloat[G]])
-    }
+    else if(isFloatOp)
+      TFloats.max[G](left.t.asInstanceOf[TFloat[G]], right.t.asInstanceOf[TFloat[G]])
     else if(isIntOp) TInt()
     else TRational()
 }

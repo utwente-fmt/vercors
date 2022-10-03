@@ -95,8 +95,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       case "short" => CShort()
       case "int" => CInt()
       case "long" => CLong()
-      case "float" => CFloat()
-      case "double" => CDouble()
+      case "float" => CSpecificationType(TFloats.ieee754_32bit)
+      case "double" => CSpecificationType(TFloats.ieee754_64bit)
       case "signed" => CSigned()
       case "unsigned" => CUnsigned()
       case "_Bool" => CBool()
@@ -486,9 +486,9 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def parseFloat(numFlag: String)(implicit o: Origin): Option[Expr[G]] = {
     try {
       Some(numFlag.last match {
-        case 'f' | 'F' => CFloatLiteral(BigDecimal(numFlag.init), Seq(CFloat[G]()))
-        case 'l' | 'L' => CFloatLiteral(BigDecimal(numFlag.init), Seq(CDouble[G]()))
-        case _ => CFloatLiteral(BigDecimal(numFlag), Seq(CDouble[G]()))
+        case 'f' | 'F' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_32bit)
+        case 'l' | 'L' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_64bit)
+        case _ => FloatValue(BigDecimal(numFlag), TFloats.ieee754_32bit)
       })
     } catch {
         case _: NumberFormatException => None

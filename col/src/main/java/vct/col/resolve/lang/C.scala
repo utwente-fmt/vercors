@@ -69,9 +69,7 @@ case object C {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
       case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
-      case Seq(CFloat()) => TFloats.ieee754_32bit
-      case Seq(CDouble()) => TFloats.ieee754_64bit
-      case Seq(CLong(), CDouble()) => TFloats.ieee754_64bit // Standard: if nothing extended is available, take 64bit
+      case Seq(CSpecificationType(t @ TFloat(_, _))) => t
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case _ => throw CTypeNotSupported(context)

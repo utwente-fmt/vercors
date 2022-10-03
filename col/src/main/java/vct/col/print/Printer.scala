@@ -1210,8 +1210,6 @@ case class Printer(out: Appendable,
     case CShort() => say("short")
     case CInt() => say("int")
     case CLong() => say("long")
-    case CFloat() => say("float")
-    case CDouble() => say("double")
     case CSigned() => say("signed")
     case CUnsigned() => say("unsigned")
     case CBool() => say("bool")

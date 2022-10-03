@@ -207,12 +207,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     res.getOrElse(throw NotDynamicSharedMem(pointer))
   }
 
-  def float(e: CFloatLiteral[Pre]): Expr[Post] = e.floatType match {
-    case Seq(CFloat()) => FloatValue[Post](e.value, TFloats.ieee754_32bit)(e.o)
-    case Seq(CDouble()) => FloatValue[Post](e.value, TFloats.ieee754_64bit)(e.o)
-    case _ => throw InvalidFloatLiteral(e)
-  }
-
   def cast(c: CCast[Pre]): Expr[Post] = c.t match {
     case t if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)

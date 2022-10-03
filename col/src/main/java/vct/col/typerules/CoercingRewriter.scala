@@ -633,7 +633,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Cast(value, typeValue)
       case CastFloat(e, t) =>
         CastFloat(float(e), t)
-      case CFloatLiteral(e, t) => CFloatLiteral(e, t)
       case CCast(e, t) => CCast(e, t)
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
