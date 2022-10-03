@@ -1,7 +1,10 @@
 #ifndef CUDA_H
 #define CUDA_H
 
-#define __global__ __vercors_kernel__
+#define __global__ __cuda_kernel__
+#define __shared__ __vercors_local_memory__
+
+#define bool _Bool
 
 #define cudaEvent_t int
 #define cudaMemcpyHostToDevice 0
@@ -43,7 +46,7 @@ extern /*@ pure @*/ int get_enqueued_num_sub_groups (); //
 
 extern /*@ pure @*/ int get_sub_group_id (); // Sub-group ID
 
-#define __syncthreads() __vercors_barrier__(__vercors_local_barrier__)
+#define __syncthreads() __vercors_barrier__(__vercors_local_mem_fence__ | __vercors_global_mem_fence__)
 
 extern /*@ pure @*/ int get_sub_group_local_id (); // Unique work-item ID
 

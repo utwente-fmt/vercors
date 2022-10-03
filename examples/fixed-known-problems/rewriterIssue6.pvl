@@ -1,0 +1,26 @@
+//:: cases RW6
+//:: tools silicon
+//:: verdict Pass
+
+// this test shows an example of a bug in VerCors. It is (to be) included in the test-suite to make sure we don't prove any nonsense
+// The listed verdict is what sound behavior should be.
+
+// The bug incompleteness: the forall in the contract below does not have a proper trigger.
+// By adding id(y) around y a trigger is allowed (id(y)), so viper can instantiatie the forall.
+// This might be a bad solution in a bigger example: id(y) can probably occur in lots of places, so it might slow
+// down verification.
+
+class rewriterIssue {
+  int x;
+
+  pure int myId(int i) {
+    return i;
+  }
+
+  // assume something identical to what we ensure
+  context (\forall int y;(i + 1) * i <= y && y < (i+1) * (i+1); myId(y) == i);
+  // It passes because of myId(y). Just "y" would not be verifiable.
+  void m(int i){
+  }
+}
+

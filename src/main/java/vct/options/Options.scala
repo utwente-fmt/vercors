@@ -3,7 +3,8 @@ package vct.options
 import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
-import vct.parsers.Language
+import vct.main.stages.Parsing.Language
+import vct.options.types.{Backend, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
@@ -31,9 +32,9 @@ case object Options {
       parser
     }
 
-    import Backend.read
+    import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
-    import Verbosity.read
+    import vct.options.types.Verbosity.read
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] =
       scopt.Read.reads {
@@ -132,7 +133,7 @@ case object Options {
         .text("Debug matched expressions in simplifications"),
       opt[Unit]("dev-simplify-debug-match-long").maybeHidden()
         .action((_, c) => c.copy(devSimplifyDebugMatchShort = false))
-        .text("Use long form to print matched expressions in sipmlifications"),
+        .text("Use long form to print matched expressions in simplifications"),
       opt[Unit]("dev-simplify-debug-no-match").maybeHidden()
         .action((_, c) => c.copy(devSimplifyDebugNoMatch = true))
         .text("Debug expressions that do not match in simplifications"),

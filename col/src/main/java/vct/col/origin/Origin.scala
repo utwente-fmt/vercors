@@ -2,7 +2,6 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
-import vct.col.util.ExpectedError
 import hre.io.Readable
 
 import java.nio.file.Paths
@@ -258,6 +257,17 @@ case class ReadableOrigin(readable: Readable,
       f"(non-rereadable source ${readable.fileName})"
 
   override def toString: String = f"$startText - $endText"
+}
+
+case class InterpretedOriginVariable(name: String, original: Origin)
+  extends InputOrigin {
+  override def preferredName: String = name
+
+  override def context: String = original.context
+
+  override def inlineContext: String = original.inlineContext
+
+  override def shortPosition: String = original.shortPosition
 }
 
 case class InterpretedOrigin(interpreted: Readable,
