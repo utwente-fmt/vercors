@@ -114,7 +114,7 @@ final case class TProcess[G]()(implicit val o: Origin = DiagnosticOrigin) extend
 sealed trait NumericType[G] extends PrimitiveType[G] with NumericTypeImpl[G]
 final case class TInt[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TIntImpl[G]
 final case class TBoundedInt[G](gte: BigInt, lt: BigInt)(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TBoundedIntImpl[G]
-final case class TFloat[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TFloatImpl[G]
+final case class TFloat[G](exponent: Int, mantissa: Int)(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TFloatImpl[G]
 final case class TRational[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TRationalImpl[G]
 final case class TFraction[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TFractionImpl[G]
 final case class TZFraction[G]()(implicit val o: Origin = DiagnosticOrigin) extends NumericType[G] with TZFractionImpl[G]
@@ -311,6 +311,8 @@ final case class CoerceZFracRat[G]()(implicit val o: Origin) extends Coercion[G]
 final case class CoerceFloatRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFloatRatImpl[G]
 final case class CoerceIntRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceIntRatImpl[G]
 
+final case class CoerceIncreasePrecision[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G]
+
 final case class CoerceWidenBound[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceWidenBoundImpl[G]
 final case class CoerceUnboundInt[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceUnboundIntImpl[G]
 
@@ -341,6 +343,7 @@ sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 sealed abstract class Constant[G, T] extends Expr[G] with ConstantImpl[G, T]
 final case class IntegerValue[G](value: BigInt)(implicit val o: Origin) extends Constant[G, BigInt] with Expr[G] with IntegerValueImpl[G]
 final case class BooleanValue[G](value: Boolean)(implicit val o: Origin) extends Constant[G, Boolean] with BooleanValueImpl[G]
+final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */)(implicit val o: Origin) extends Constant[G, BigDecimal] with FloatValueImpl[G]
 final case class LiteralSeq[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralSeqImpl[G]
 final case class LiteralSet[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralSetImpl[G]
 final case class LiteralBag[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralBagImpl[G]
@@ -582,6 +585,8 @@ final case class MatrixSum[G](indices: Expr[G], mat: Expr[G])(implicit val o: Or
 final case class MatrixCompare[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with MatrixCompareImpl[G]
 final case class MatrixRepeat[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with MatrixRepeatImpl[G]
 
+final case class CastFloat[G](e: Expr[G], t: Type[G] /* TFloat */)(implicit val o: Origin) extends Expr[G] with CastFloatImpl[G]
+
 final case class TypeValue[G](value: Type[G])(implicit val o: Origin) extends Expr[G] with TypeValueImpl[G]
 final case class TypeOf[G](expr: Expr[G])(implicit val o: Origin) extends Expr[G] with TypeOfImpl[G]
 final case class InstanceOf[G](value: Expr[G], typeValue: Expr[G])(implicit val o: Origin) extends Expr[G] with InstanceOfImpl[G]
@@ -644,8 +649,6 @@ final case class CChar[G]()(implicit val o: Origin) extends CTypeSpecifier[G] wi
 final case class CShort[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CShortImpl[G]
 final case class CInt[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CIntImpl[G]
 final case class CLong[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CLongImpl[G]
-final case class CFloat[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CFloatImpl[G]
-final case class CDouble[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CDoubleImpl[G]
 final case class CSigned[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CSignedImpl[G]
 final case class CUnsigned[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CUnsignedImpl[G]
 final case class CBool[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CBoolImpl[G]
@@ -724,6 +727,8 @@ final case class CStructDeref[G](struct: Expr[G], field: String)(implicit val o:
 final case class GpgpuCudaKernelInvocation[G](kernel: String, blocks: Expr[G], threads: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])])(implicit val o: Origin) extends CExpr[G] with GpgpuCudaKernelInvocationImpl[G] {
   var ref: Option[CInvocationTarget[G]] = None
 }
+
+final case class CCast[G](expr: Expr[G], t: Type[G])(implicit val o: Origin) extends CExpr[G]
 
 sealed trait CType[G] extends Type[G] with CTypeImpl[G]
 final case class CPrimitiveType[G](specifiers: Seq[CDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CPrimitiveTypeImpl[G]

@@ -3,6 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.rewrite.ImportADT.{ArrayBoundsPreconditionFailed, ArrayField, ArrayFieldInsufficientPermission, ArrayNullPreconditionFailed, InvalidImportedAdt, MapKeyErrorPreconditionFailed, NotLeftPreconditionFailed, NotRightPreconditionFailed, OptionNonePreconditionFailed, PointerBoundsPreconditionFailed, PointerField, PointerFieldInsufficientPermission, PointerNullPreconditionFailed, RatFracPreconditionFailed, RatZFracPreconditionFailed, ZFracFracPreconditionFailed}
@@ -29,7 +30,9 @@ case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
     case _: TNotAValue[_] => throw ExtraNode
     case TVoid() => "void"
     case TBool() => "bool"
-    case TFloat() => "float"
+    case single: TFloat[_] if single == TFloats.ieee754_32bit => s"float32"
+    case double: TFloat[_] if double == TFloats.ieee754_32bit => s"float64"
+    case TFloat(exponent, mantissa) => s"float${exponent}m$mantissa"
     case TChar() => "char"
     case TString() => "string"
     case TRef() => "ref"

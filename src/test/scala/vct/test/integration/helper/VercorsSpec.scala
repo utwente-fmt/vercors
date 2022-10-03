@@ -2,8 +2,9 @@ package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
 import hre.io.Readable
-import org.scalatest.Tag
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalactic.source.Position
+import org.scalatest.{Resources, Tag, Transformer}
+import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
 import vct.main.Main.TemporarilyUnsupported

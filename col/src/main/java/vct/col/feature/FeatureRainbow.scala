@@ -423,8 +423,6 @@ class FeatureRainbow[G] {
     case node: CShort[G] => return Nil
     case node: CInt[G] => return Nil
     case node: CLong[G] => return Nil
-    case node: CFloat[G] => return Nil
-    case node: CDouble[G] => return Nil
     case node: CSigned[G] => return Nil
     case node: CUnsigned[G] => return Nil
     case node: CBool[G] => return Nil
@@ -504,5 +502,7 @@ class FeatureRainbow[G] {
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
     case node: FramedProof[G] => return Nil
+    case node: FloatValue[G] => return Nil
+    case node: CastFloat[G] => return Nil
   })
 }

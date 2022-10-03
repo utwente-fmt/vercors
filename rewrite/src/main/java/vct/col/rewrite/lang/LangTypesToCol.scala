@@ -1,6 +1,6 @@
 package vct.col.rewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CArrayDeclarator, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CDouble, CFloat, CFunctionDefinition, CGlobalDeclaration, CInit, CLocalDeclaration, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CArrayDeclarator, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CFunctionDefinition, CGlobalDeclaration, CInit, CLocalDeclaration, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.origin.Origin
 import vct.col.resolve.ctx.{RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
