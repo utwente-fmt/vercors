@@ -1,7 +1,8 @@
 package vct.options
 
 import scopt.OptionDef
-import vct.parsers.Language
+import vct.main.stages.Parsing.Language
+import vct.options.types.{Backend, PathOrStd, ReadLanguage}
 
 import java.nio.file.Path
 import scala.reflect.ClassTag

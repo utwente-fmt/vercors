@@ -15,9 +15,8 @@ object ColDefs {
   val IMPORTS: List[Stat] = List(
     q"import vct.col.origin._",
     q"import vct.col.ref.Ref",
-    q"import vct.col.resolve.Referrable",
-    q"import vct.col.rewrite.ScopeContext",
-    q"import vct.col.util.ExpectedError",
+    q"import vct.col.resolve.ctx.Referrable",
+    q"import vct.col.origin.ExpectedError",
   )
 
   /**
@@ -100,7 +99,6 @@ object ColDefs {
    */
   val PRE: Type.Name = Type.Name("Pre")
   val POST: Type.Name = Type.Name("Post")
-  val SCOPE_CONTEXT: Type.Apply = Type.Apply(Type.Name("ScopeContext"), List(PRE, POST))
 
   /**
    * The fields that occupy blame and the origin of the node respectively.

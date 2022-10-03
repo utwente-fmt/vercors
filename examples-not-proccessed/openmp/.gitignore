@@ -1,9 +1,0 @@
-*~
-*.o
-*.omp
-
-main
-other
-tmp/
-tmp.sil
-

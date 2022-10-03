@@ -1,14 +1,15 @@
 package vct.main.stages
 
+import hre.stages.Stage
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangSpecificToColArgs, LangTypesToCol}
-import vct.col.origin.{FileSpanningOrigin, Origin}
-import vct.col.resolve.{C, Java, Resolve, ResolveReferences, ResolveTypes}
+import vct.col.rewrite.lang.{LangSpecificToCol, LangSpecificToColArgs, LangTypesToCol}
+import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
+import vct.col.resolve.lang.{C, Java}
+import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
-import vct.col.util.ExpectedError
-import vct.java.JavaLibraryLoader
+import vct.importer.JavaLibraryLoader
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError

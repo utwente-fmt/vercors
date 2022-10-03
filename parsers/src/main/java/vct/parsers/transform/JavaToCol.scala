@@ -11,8 +11,8 @@ import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.resolve.Java
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.resolve.lang.Java
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable
@@ -613,7 +613,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
     case JavaAdd(left, op, right) => op match {
       case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-      case "-" => AmbiguousMinus(convert(left), convert(right))
+      case "-" => AmbiguousMinus(convert(left), convert(right))(blame(expr))
     }
     case JavaShift(left, shift, right) => shift match {
       case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
@@ -651,7 +651,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       PreAssignExpression(target, op match {
         case "=" => value
         case "+=" => AmbiguousPlus(target, value)(blame(right))
-        case "-=" => AmbiguousMinus(target, value)
+        case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
         case "/=" => FloorDiv(target,  value)(blame(expr))
         case "&=" => AmbiguousComputationalAnd(target, value)
@@ -1285,7 +1285,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
-    case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
+    case ValInlinePattern(open, pattern, _) =>
+      val groupText = open.filter(_.isDigit)
+      InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))

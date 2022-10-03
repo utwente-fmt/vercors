@@ -1,6 +1,7 @@
 package vct.col.ref
 
 import vct.col.ast.Declaration
+import vct.col.err.{MistypedRef, NotResolved}
 import vct.col.ref
 
 import scala.reflect.ClassTag
@@ -16,6 +17,6 @@ class UnresolvedRef[G, Decl <: Declaration[G]](val name: String)(implicit tag: C
     case None =>
       throw NotResolved(this, tag)
     case Some(decl: /*tagged*/ Decl) => decl
-    case Some(other) => throw ref.MistypedRef(other, tag)
+    case Some(other) => throw MistypedRef(other, tag)
   }
 }

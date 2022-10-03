@@ -7,11 +7,10 @@ import vct.antlr4.generated.PVLParser._
 import vct.antlr4.generated.PVLParserPatterns._
 import vct.col.{ast => col}
 import vct.antlr4.generated.{PVLParserPatterns => parse}
-import vct.col.ast.stmt.composite.ParallelRegion
 import vct.col.util.AstBuildHelpers._
 import hre.util.FuncTools
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable
@@ -187,7 +186,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: AddExprContext): Expr[G] = expr match {
     case AddExpr0(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AddExpr1(left, _, right) => AmbiguousMinus(convert(left), convert(right))
+    case AddExpr1(left, _, right) => AmbiguousMinus(convert(left), convert(right))(blame(expr))
     case AddExpr2(inner) => convert(inner)
   }
 
@@ -1012,7 +1011,9 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
-    case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
+    case ValInlinePattern(open, pattern, _) =>
+      val groupText = open.filter(_.isDigit)
+      InlinePattern(convert(pattern), open.count(_ == '<'), if(groupText.isEmpty) 0 else groupText.toInt)
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))

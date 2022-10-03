@@ -1,0 +1,32 @@
+//:: cases MainConstructorWithArgs2
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+class Main {
+
+	Role a;
+
+	Main(Role v) {
+		a = new Role(v.i);
+	}
+
+	void run() {
+	
+	}
+	
+	void main(Role v) {
+		Main m = new Main(v);
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int i;
+	
+	Role(int v) {
+		i = v;
+	}
+}
+

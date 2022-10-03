@@ -5,6 +5,7 @@ import vct.col.ast._
 
 import java.nio.file.Paths
 import vct.col.origin.DiagnosticOrigin
+import viper.api.backend.silicon.Silicon
 
 class TestSilicon extends VerifySpec(Silicon(Map.empty, Resources.getZ3Path)) {
   vercors should "verify an empty program" in program {

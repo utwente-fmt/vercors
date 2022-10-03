@@ -1,12 +1,19 @@
 #ifndef OPENCL_H
 #define OPENCL_H
 
-#define __kernel __vercors_kernel__
+#define __kernel __opencl_kernel__
 
-#define CLK_GLOBAL_MEM_FENCE __vercors_global_barrier__
-#define CLK_LOCAL_MEM_FENCE __vercors_local_barrier__
+#define CLK_GLOBAL_MEM_FENCE __vercors_global_mem_fence__
+#define CLK_LOCAL_MEM_FENCE __vercors_local_mem_fence__
 
 #define barrier(locality) __vercors_barrier__(locality)
+
+#define __global __vercors_global_memory__
+#define global __vercors_global_memory__
+#define __local __vercors_local_memory__
+#define local __vercors_local_memory__
+
+#define bool _Bool
 
 extern /*@ pure @*/ int get_work_dim(); // Number of dimensions in use
 

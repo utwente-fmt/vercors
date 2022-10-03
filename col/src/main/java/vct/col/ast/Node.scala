@@ -1,69 +1,69 @@
 package vct.col.ast
 
-import vct.col.ast.temporaryimplpackage.`type`._
-import vct.col.ast.temporaryimplpackage.`type`.typeclass._
-import vct.col.ast.temporaryimplpackage.declaration._
-import vct.col.ast.temporaryimplpackage.declaration.adt._
-import vct.col.ast.temporaryimplpackage.declaration.category._
-import vct.col.ast.temporaryimplpackage.declaration.cls._
-import vct.col.ast.temporaryimplpackage.declaration.global._
-import vct.col.ast.temporaryimplpackage.declaration.model._
-import vct.col.ast.temporaryimplpackage.declaration.singular._
-import vct.col.ast.temporaryimplpackage.expr._
-import vct.col.ast.temporaryimplpackage.expr.`type`._
-import vct.col.ast.temporaryimplpackage.expr.ambiguous._
-import vct.col.ast.temporaryimplpackage.expr.apply._
-import vct.col.ast.temporaryimplpackage.expr.binder._
-import vct.col.ast.temporaryimplpackage.family.coercion._
-import vct.col.ast.temporaryimplpackage.expr.context._
-import vct.col.ast.temporaryimplpackage.expr.heap.alloc._
-import vct.col.ast.temporaryimplpackage.expr.heap.read._
-import vct.col.ast.temporaryimplpackage.expr.literal.build._
-import vct.col.ast.temporaryimplpackage.expr.literal.constant._
-import vct.col.ast.temporaryimplpackage.expr.lock._
-import vct.col.ast.temporaryimplpackage.expr.misc._
-import vct.col.ast.temporaryimplpackage.expr.model._
-import vct.col.ast.temporaryimplpackage.expr.op._
-import vct.col.ast.temporaryimplpackage.expr.op.bit._
-import vct.col.ast.temporaryimplpackage.expr.op.bool._
-import vct.col.ast.temporaryimplpackage.expr.op.cmp._
-import vct.col.ast.temporaryimplpackage.expr.op.collection._
-import vct.col.ast.temporaryimplpackage.expr.op.either._
-import vct.col.ast.temporaryimplpackage.expr.op.map._
-import vct.col.ast.temporaryimplpackage.expr.op.num._
-import vct.col.ast.temporaryimplpackage.expr.op.option._
-import vct.col.ast.temporaryimplpackage.expr.op.process._
-import vct.col.ast.temporaryimplpackage.expr.op.tuple._
-import vct.col.ast.temporaryimplpackage.expr.op.vec._
-import vct.col.ast.temporaryimplpackage.expr.resource._
-import vct.col.ast.temporaryimplpackage.expr.sideeffect._
-import vct.col.ast.temporaryimplpackage.family.accountedpredicate._
-import vct.col.ast.temporaryimplpackage.family.catchclause._
-import vct.col.ast.temporaryimplpackage.family.coercion._
-import vct.col.ast.temporaryimplpackage.family.contract._
-import vct.col.ast.temporaryimplpackage.family.decreases._
-import vct.col.ast.temporaryimplpackage.family.fieldflag._
-import vct.col.ast.temporaryimplpackage.family.invoking._
-import vct.col.ast.temporaryimplpackage.family.itervariable._
-import vct.col.ast.temporaryimplpackage.family.javavar.JavaVariableDeclarationImpl
-import vct.col.ast.temporaryimplpackage.family.location._
-import vct.col.ast.temporaryimplpackage.family.loopcontract._
-import vct.col.ast.temporaryimplpackage.family.parregion._
-import vct.col.ast.temporaryimplpackage.family.signals._
-import vct.col.ast.temporaryimplpackage.lang._
-import vct.col.ast.temporaryimplpackage.node._
-import vct.col.ast.temporaryimplpackage.statement._
-import vct.col.ast.temporaryimplpackage.statement.composite._
-import vct.col.ast.temporaryimplpackage.statement.exceptional._
-import vct.col.ast.temporaryimplpackage.statement.nonexecutable._
-import vct.col.ast.temporaryimplpackage.statement.terminal._
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.`type`._
+import vct.col.ast.`type`.typeclass._
+import vct.col.ast.declaration._
+import vct.col.ast.declaration.adt._
+import vct.col.ast.declaration.category._
+import vct.col.ast.declaration.cls._
+import vct.col.ast.declaration.global._
+import vct.col.ast.declaration.model._
+import vct.col.ast.declaration.singular._
+import vct.col.ast.expr._
+import vct.col.ast.expr.`type`._
+import vct.col.ast.expr.ambiguous._
+import vct.col.ast.expr.apply._
+import vct.col.ast.expr.binder._
+import vct.col.ast.family.coercion._
+import vct.col.ast.expr.context._
+import vct.col.ast.expr.heap.alloc._
+import vct.col.ast.expr.heap.read._
+import vct.col.ast.expr.literal.build._
+import vct.col.ast.expr.literal.constant._
+import vct.col.ast.expr.lock._
+import vct.col.ast.expr.misc._
+import vct.col.ast.expr.model._
+import vct.col.ast.expr.op._
+import vct.col.ast.expr.op.bit._
+import vct.col.ast.expr.op.bool._
+import vct.col.ast.expr.op.cmp._
+import vct.col.ast.expr.op.collection._
+import vct.col.ast.expr.op.either._
+import vct.col.ast.expr.op.map._
+import vct.col.ast.expr.op.num._
+import vct.col.ast.expr.op.option._
+import vct.col.ast.expr.op.process._
+import vct.col.ast.expr.op.tuple._
+import vct.col.ast.expr.op.vec._
+import vct.col.ast.expr.resource._
+import vct.col.ast.expr.sideeffect._
+import vct.col.ast.family.accountedpredicate._
+import vct.col.ast.family.catchclause._
+import vct.col.ast.family.coercion._
+import vct.col.ast.family.contract._
+import vct.col.ast.family.decreases._
+import vct.col.ast.family.fieldflag._
+import vct.col.ast.family.invoking._
+import vct.col.ast.family.itervariable._
+import vct.col.ast.family.javavar.JavaVariableDeclarationImpl
+import vct.col.ast.family.location._
+import vct.col.ast.family.loopcontract._
+import vct.col.ast.family.parregion._
+import vct.col.ast.family.signals._
+import vct.col.ast.lang._
+import vct.col.ast.node._
+import vct.col.ast.statement._
+import vct.col.ast.statement.composite._
+import vct.col.ast.statement.exceptional._
+import vct.col.ast.statement.nonexecutable._
+import vct.col.ast.statement.terminal._
+import vct.col.ast.util.Declarator
 import vct.col.debug._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
-import vct.col.rewrite.ScopeContext
-import vct.col.util.ExpectedError
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.JavaAnnotationData
 
 sealed trait Node[G] extends NodeImpl[G]
 
@@ -193,7 +193,7 @@ final case class TryCatchFinally[G](body: Statement[G], after: Statement[G], cat
 final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends CompositeStatement[G] with SynchronizedImpl[G]
 final case class ParInvariant[G](decl: ParInvariantDecl[G], inv: Expr[G], content: Statement[G])(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends CompositeStatement[G] with ParInvariantImpl[G]
 final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: Statement[G])(val blame: Blame[ParInvariantNotMaintained])(implicit val o: Origin) extends CompositeStatement[G] with ParAtomicImpl[G]
-final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailed])(implicit val o: Origin) extends CompositeStatement[G] with ParBarrierImpl[G]
+final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailure])(implicit val o: Origin) extends CompositeStatement[G] with ParBarrierImpl[G]
 final case class ParStatement[G](impl: ParRegion[G])(implicit val o: Origin) extends CompositeStatement[G] with ParStatementImpl[G]
 final case class VecBlock[G](iters: Seq[IterVariable[G]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with VecBlockImpl[G]
 final case class WandPackage[G](res: Expr[G], proof: Statement[G])(val blame: Blame[PackageFailure])(implicit val o: Origin) extends CompositeStatement[G] with WandCreateImpl[G]
@@ -400,7 +400,7 @@ final case class Exists[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]
 final case class Sum[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with SumImpl[G]
 final case class Product[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with ProductImpl[G]
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with LetImpl[G]
-final case class InlinePattern[G](inner: Expr[G])(implicit val o: Origin) extends Expr[G] with InlinePatternImpl[G]
+final case class InlinePattern[G](inner: Expr[G], parent: Int, group: Int)(implicit val o: Origin) extends Expr[G] with InlinePatternImpl[G]
 
 final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(implicit val o: Origin) extends Declarator[G] with Expr[G] with ScopedExprImpl[G]
 
@@ -447,8 +447,8 @@ sealed trait NumericBinExpr[G] extends BinExpr[G] with NumericBinExprImpl[G]
 sealed trait DividingExpr[G] extends Expr[G] with DividingExprImpl[G]
 
 final case class AmbiguousMult[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with AmbiguousMultImpl[G]
-final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendPlusError])(implicit val o: Origin) extends Expr[G] with AmbiguousPlusImpl[G]
-final case class AmbiguousMinus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with AmbiguousMinusImpl[G]
+final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousPlusImpl[G]
+final case class AmbiguousMinus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousMinusImpl[G]
 final case class AmbiguousOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with AmbiguousOrImpl[G]
 
 sealed trait BitOp[G] extends BinExpr[G] with BitOpImpl[G]
@@ -547,6 +547,8 @@ final case class Length[G](arr: Expr[G])(val blame: Blame[ArrayNull])(implicit v
 final case class Size[G](obj: Expr[G])(implicit val o: Origin) extends Expr[G] with SizeImpl[G]
 final case class PointerBlockLength[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerBlockLengthImpl[G]
 final case class PointerBlockOffset[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerBlockOffsetImpl[G]
+final case class PointerLength[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerLengthtImpl[G]
+final case class SharedMemSize[G](pointer: Expr[G])(implicit val o: Origin) extends Expr[G] with SharedMemSizeImpl[G]
 
 final case class Cons[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with ConsImpl[G]
 final case class Head[G](xs: Expr[G])(val blame: Blame[SeqBoundFailure])(implicit val o: Origin) extends Expr[G] with HeadImpl[G]
@@ -644,6 +646,8 @@ sealed trait CStorageClassSpecifier[G] extends CDeclarationSpecifier[G] with CSt
 final case class CTypedef[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with CTypedefImpl[G]
 final case class CExtern[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with CExternImpl[G]
 final case class CStatic[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with CStaticImpl[G]
+final case class GPULocal[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with GPULocalImpl[G]
+final case class GPUGlobal[G]()(implicit val o: Origin) extends CStorageClassSpecifier[G] with GPUGlobalImpl[G]
 
 sealed trait CTypeSpecifier[G] extends CDeclarationSpecifier[G] with CTypeSpecifierImpl[G]
 final case class CVoid[G]()(implicit val o: Origin) extends CTypeSpecifier[G] with CVoidImpl[G]
@@ -673,7 +677,8 @@ sealed trait CFunctionSpecifier[G] extends CDeclarationSpecifier[G] with CFuncti
 sealed trait CAlignmentSpecifier[G] extends CDeclarationSpecifier[G] with CAlignmentSpecifierImpl[G]
 
 sealed trait CGpgpuKernelSpecifier[G] extends CDeclarationSpecifier[G] with CGpgpuKernelSpecifierImpl[G]
-final case class CKernel[G]()(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CKernelImpl[G]
+final case class CUDAKernel[G]()(val blame: Blame[KernelFailure])(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with CUDAKernelImpl[G]
+final case class OpenCLKernel[G]()(val blame: Blame[KernelFailure])(implicit val o: Origin) extends CGpgpuKernelSpecifier[G] with OpenCLKernelImpl[G]
 
 final case class CPointer[G](qualifiers: Seq[CTypeQualifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPointerImpl[G]
 
@@ -708,8 +713,12 @@ final case class CGoto[G](label: String)(implicit val o: Origin) extends CStatem
   var ref: Option[LabelDecl[G]] = None
 }
 
-final case class GpgpuLocalBarrier[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends CStatement[G] with GpgpuLocalBarrierImpl[G]
-final case class GpgpuGlobalBarrier[G](requires: Expr[G], ensures: Expr[G])(implicit val o: Origin) extends CStatement[G] with GpgpuGlobalBarrierImpl[G]
+sealed trait GpuMemoryFence[G] extends NodeFamily[G] with GpuMemoryFenceImpl[G]
+final case class GpuLocalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuLocalMemoryFenceImpl[G]
+final case class GpuGlobalMemoryFence[G]()(implicit val o: Origin) extends GpuMemoryFence[G] with GpuGlobalMemoryFenceImpl[G]
+final case class GpuZeroMemoryFence[G](value: BigInt)(implicit val o: Origin) extends GpuMemoryFence[G] with GpuZeroMemoryFenceImpl[G]
+
+final case class GpgpuBarrier[G](requires: Expr[G], ensures: Expr[G], specifiers: Seq[GpuMemoryFence[G]])(val blame: Blame[KernelBarrierFailure])(implicit val o: Origin) extends CStatement[G] with GpgpuBarrierImpl[G]
 final case class GpgpuAtomic[G](impl: Statement[G], before: Statement[G], after: Statement[G])(implicit val o: Origin) extends CStatement[G] with GpgpuAtomicImpl[G]
 
 sealed trait CExpr[G] extends Expr[G] with CExprImpl[G]

@@ -1,7 +1,6 @@
 package vct.col.ref
 
 import vct.col.ast.Declaration
-import vct.col.rewrite.ScopeContext
 
 import scala.reflect.ClassTag
 import scala.runtime.ScalaRunTime

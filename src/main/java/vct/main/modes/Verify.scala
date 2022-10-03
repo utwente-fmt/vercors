@@ -9,7 +9,7 @@ import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
-import viper.api.SiliconLogListener
+import viper.api.backend.silicon.SiliconLogListener
 import viper.silicon.logger.SymbExLogger
 
 case object Verify extends LazyLogging {
@@ -36,7 +36,7 @@ case object Verify extends LazyLogging {
   def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
     val stages = Stages.ofOptions(options, ConstantBlameProvider(collector))
-    logger.debug(stages.toString)
+    logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)

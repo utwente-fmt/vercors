@@ -1,6 +1,7 @@
 package vct.main.stages
 
-import vct.col.util.ExpectedError
+import hre.stages.Stage
+import vct.col.origin.ExpectedError
 import vct.options.Options
 
 case object ExpectedErrors {

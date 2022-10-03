@@ -1,7 +1,7 @@
 package vct.parsers
 
 import vct.col.ast.{GlobalDeclaration, VerificationContext}
-import vct.col.util.ExpectedError
+import vct.col.origin.ExpectedError
 
 case object ParseResult {
   def reduce[G](parses: Seq[ParseResult[G]]): ParseResult[G] =
