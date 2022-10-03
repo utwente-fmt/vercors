@@ -6,6 +6,7 @@ import hre.stages.Stage
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
+import vct.col.newrewrite.{EncodeJavaLangString, EncodeString}
 import vct.col.rewrite._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.lang.NoSupportSelfLoop

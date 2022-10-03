@@ -2,7 +2,7 @@ package vct.col.util
 
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.expr.apply.FunctionInvocationImpl
+import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 
