@@ -11,6 +11,8 @@ case class ColHelperRewriteHelpers(info: ColDescription) {
 
   def makeRewriteHelperImpl(cls: ClassDef): (String, List[Stat]) = ("Rewrite" + cls.baseName + "Impl") -> List(q"""
     trait ${Type.Name("Rewrite" + cls.baseName + "Impl")}[Pre, Post] { this: RewriteHelpers.${cls.rewriteHelperName}[Pre, Post] =>
+      def rewriteDefault(): ${cls.typ}[Post] = rewrite()
+
       def rewrite(..${cls.params.map(rewriteHelperParam) ++
         cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"subject.blame"))) :+
         Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = {

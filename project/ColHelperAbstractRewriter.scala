@@ -11,8 +11,8 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       classOf[${cls.typ}[_]] -> new RWFunc[${Type.Name(baseType)}] {
         def apply[Pre, Post](node: ${Type.Name(baseType)}[Pre], rw: AbstractRewriter[Pre, Post]): ${Type.Name(baseType)}[Post] =
           ${ColDefs.DECLARATION_KINDS.find(info.supports(_)(cls.baseName)) match {
-            case None => q"new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewrite()"
-            case Some(decl) => q"rw.${ColDefs.scopes(decl)}.succeed(node.asInstanceOf[${cls.typ}[Pre]], new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewrite())"
+            case None => q"new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewriteDefault()"
+            case Some(decl) => q"rw.${ColDefs.scopes(decl)}.succeed(node.asInstanceOf[${cls.typ}[Pre]], new ${cls.rewriteHelperName}(node.asInstanceOf[${cls.typ}[Pre]])(rw).rewriteDefault())"
           }}
       }
     """}.toList
