@@ -3,7 +3,7 @@ package vct.col.print
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.resolve.Referrable
+import vct.col.resolve.ctx.Referrable
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers.foldStar
 
@@ -930,7 +930,7 @@ case class Printer(out: Appendable,
       PVL -> phrase("boolean"),
       Silver -> phrase("Bool"),
     )
-    case TFloat() => phrase("float")
+    case TFloat(exponent, mantissa) => phrase(s"float[$exponent, $mantissa]")
     case TChar() => phrase("char")
     case TString() => phrase("String")
     case TRef() => phrase("Ref")
@@ -1210,8 +1210,6 @@ case class Printer(out: Appendable,
     case CShort() => say("short")
     case CInt() => say("int")
     case CLong() => say("long")
-    case CFloat() => say("float")
-    case CDouble() => say("double")
     case CSigned() => say("signed")
     case CUnsigned() => say("unsigned")
     case CBool() => say("bool")

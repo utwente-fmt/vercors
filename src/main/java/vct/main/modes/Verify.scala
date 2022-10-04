@@ -9,7 +9,7 @@ import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
-import viper.api.SiliconLogListener
+import viper.api.backend.silicon.SiliconLogListener
 import viper.silicon.logger.SymbExLogger
 
 case object Verify extends LazyLogging {

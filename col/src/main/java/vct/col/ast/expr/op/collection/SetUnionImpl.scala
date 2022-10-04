@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.collection
 
 import vct.col.ast.{SetUnion, TSet}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait SetUnionImpl[G] { this: SetUnion[G] =>
   def xsType: TSet[G] = xs.t.asSet.get

@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{Expr, SilverUntypedNonemptyLiteralMap, TMap, Type}
-import vct.col.util.Types
+import vct.col.typerules.Types
 
 trait SilverUntypedNonemptyLiteralMapImpl[G] { this: SilverUntypedNonemptyLiteralMap[G] =>
   def mapKeys: Seq[Expr[G]] = values.map(_._1)

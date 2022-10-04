@@ -44,8 +44,9 @@ lazy val carbon_ref = ProjectRef(carbon_url, "carbon")
 lazy val silicon_ref = ProjectRef(silicon_url, "silicon")
 lazy val hre = project in file("hre")
 lazy val col = (project in file("col")).dependsOn(hre)
+lazy val rewrite = (project in file("rewrite")).dependsOn(hre, col)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
-lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
+lazy val viper = (project in file("viper")).dependsOn(hre, col, parsers, silver_ref, carbon_ref, silicon_ref)
 
 // We fix the scalaVersion of all viper components to be silver's scalaVersion, because
 // it seems that in some cases the scalaVersion of the other components is lost.
@@ -72,8 +73,8 @@ lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors ex
 lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
 
 lazy val vercors: Project = (project in file("."))
-  .dependsOn(hre, col, viper_api, parsers)
-  .aggregate(hre, col, viper_api, parsers)
+  .dependsOn(hre, col, rewrite, viper, parsers)
+  .aggregate(hre, col, rewrite, viper, parsers)
   .settings(
     fork := true,
     name := "Vercors",
@@ -108,7 +109,7 @@ lazy val vercors: Project = (project in file("."))
       "-feature",
       "-unchecked",
 //      "-Xno-patmat-analysis",
-//      "-Ystatistics",
+//      "-Ystatistics:typer",
 //      "-Xprint:typer",
 //      "-Ycache-plugin-class-loader:last-modified",
 //      "-Xplugin:/home/pieter/.cache/coursier/v1/https/repo1.maven.org/maven2/io/leonard/scalac-profiling_2.13/0.0.1/scalac-profiling_2.13-0.0.1.jar",

@@ -2,9 +2,9 @@ package vct.col.ast.`type`.typeclass
 
 import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError}
-import vct.col.coerce.CoercionUtils
 import vct.col.ref.Ref
 import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
+import vct.col.typerules.CoercionUtils
 
 import scala.reflect.ClassTag
 

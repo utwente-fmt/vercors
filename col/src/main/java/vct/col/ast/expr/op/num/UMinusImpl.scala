@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.num
 
 import vct.col.ast.{TInt, TRational, Type, UMinus}
-import vct.col.coerce.CoercionUtils
+import vct.col.typerules.CoercionUtils
 
 trait UMinusImpl[G] { this: UMinus[G] =>
   override def t: Type[G] =

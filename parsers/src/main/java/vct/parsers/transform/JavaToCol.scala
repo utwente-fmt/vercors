@@ -10,8 +10,8 @@ import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.resolve.Java
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.resolve.lang.Java
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable
@@ -467,8 +467,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "short" => TInt()
       case "int" => TInt()
       case "long" => TInt()
-      case "float" => TFloat()
-      case "double" => TFloat()
+      case "float" => Java.float
+      case "double" => Java.double
     }
   }
 
@@ -700,7 +700,13 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit expr: LiteralContext): Expr[G] = expr match {
     case Literal0(i) => const(Integer.parseInt(i))
-    case Literal1(_) => ??(expr)
+    case Literal1(n) if n.length > 1 =>
+      val (num, t) = n.last match {
+        case 'f' | 'F' => (n.init, Java.float[G])
+        case 'd' | 'D' => (n.init, Java.double[G])
+        case _ => (n, Java.double[G])
+      }
+      FloatValue(BigDecimal(num), t)
     case Literal2(_) => ??(expr)
     case Literal3(_) => ??(expr)
     case Literal4(value) => value match {

@@ -1,16 +1,19 @@
 package vct.main.stages
 
 import hre.io.Writeable
-import vct.col.ast.{Program, Verification}
+import hre.stages.Stage
+import vct.col.ast.Verification
+import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
-import vct.col.util.ExpectedError
-import vct.options.Options
-import viper.api.{Carbon, Silicon}
+import vct.options.{Options, types}
+import viper.api.{backend => viper}
+import viper.carbon.Carbon
+import viper.silicon.Silicon
 
 case object Backend {
 
   def ofOptions(options: Options): Backend = options.backend match {
-    case vct.options.Backend.Silicon =>
+    case types.Backend.Silicon =>
       val printRawQuantifier = options.siliconPrintQuantifierStats match {
         case Some(freq) => Seq(
           "smt.qi.profile" -> "true",
@@ -38,7 +41,7 @@ case object Backend {
         options = options.backendFlags,
       ), options.backendFile)
 
-    case vct.options.Backend.Carbon => SilverBackend(Carbon(
+    case types.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
       boogiePath = options.boogiePath,
       printFile = options.devViperProverLogFile,
@@ -53,7 +56,7 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   override def progressWeight: Int = 5
 }
 
-case class SilverBackend(backend: viper.api.SilverBackend, output: Option[Writeable] = None) extends Backend {
+case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
     input.tasks.foreach { task =>
       backend.submit(task.program, output)

@@ -5,6 +5,8 @@ import vct.col.ast._
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.{C, Java, PVL, Spec}
 
 case object Resolve {
   def resolve(program: Program[_], externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[CheckError] = {
