@@ -274,4 +274,13 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
   """
+
+  vercors should verify using silicon in "example that requires correct associativity of scale" pvl """
+    resource p();
+
+    requires [1\2]p() ** [1\2]p();
+    void test() {
+      assert perm(p()) == write;
+    }
+  """
 }

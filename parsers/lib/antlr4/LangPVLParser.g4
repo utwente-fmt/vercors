@@ -111,6 +111,7 @@ seqAddExpr
 unaryExpr
  : '!' unaryExpr
  | '-' unaryExpr
+ | valPrefix unaryExpr
  | newExpr
  ;
 

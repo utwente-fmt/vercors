@@ -95,6 +95,11 @@ unaryExpression
     |   'sizeof' '(' typeName ')'
     |   '_Alignof' '(' typeName ')'
     |   '&&'  clangIdentifier // GCC extension address of label
+    |   specPrefix unaryExpression
+    ;
+
+specPrefix
+    :   {specLevel>0}? valPrefix
     ;
 
 unaryOperator

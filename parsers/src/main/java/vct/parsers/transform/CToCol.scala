@@ -452,6 +452,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case UnaryExpression5(_, _, _, _) => ??(expr)
     case UnaryExpression6(_, _, _, _) => ??(expr)
     case UnaryExpression7(_, _) => ??(expr)
+    case UnaryExpression8(SpecPrefix0(op), inner) => convert(op, convert(inner))
   }
 
   def convert(implicit expr: PostfixExpressionContext): Expr[G] = expr match {
@@ -773,6 +774,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
+  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+    case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
+  }
+
   def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
     case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
     case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
@@ -1070,7 +1075,6 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
       InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)

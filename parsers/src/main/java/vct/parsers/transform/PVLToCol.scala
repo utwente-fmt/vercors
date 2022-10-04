@@ -214,7 +214,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit expr: UnaryExprContext): Expr[G] = expr match {
     case UnaryExpr0(_, inner) => Not(convert(inner))
     case UnaryExpr1(_, inner) => UMinus(convert(inner))
-    case UnaryExpr2(inner) => convert(inner)
+    case UnaryExpr2(op, inner) => convert(op, convert(inner))
+    case UnaryExpr3(inner) => convert(inner)
   }
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
@@ -719,6 +720,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
+  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+    case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
+  }
+
   def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
     case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
     case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
@@ -1015,7 +1020,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
       InlinePattern(convert(pattern), open.count(_ == '<'), if(groupText.isEmpty) 0 else groupText.toInt)
