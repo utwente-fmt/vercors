@@ -109,7 +109,7 @@ lazy val vercors: Project = (project in file("."))
       "-feature",
       "-unchecked",
 //      "-Xno-patmat-analysis",
-//      "-Ystatistics",
+//      "-Ystatistics:typer",
 //      "-Xprint:typer",
 //      "-Ycache-plugin-class-loader:last-modified",
 //      "-Xplugin:/home/pieter/.cache/coursier/v1/https/repo1.maven.org/maven2/io/leonard/scalac-profiling_2.13/0.0.1/scalac-profiling_2.13-0.0.1.jar",
