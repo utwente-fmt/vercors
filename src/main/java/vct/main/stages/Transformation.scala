@@ -179,6 +179,7 @@ case class SilverTransformation
 
     // Translate internal types to domains
     FloatToRat,
+    EnumToDomain,
     ImportADT.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,

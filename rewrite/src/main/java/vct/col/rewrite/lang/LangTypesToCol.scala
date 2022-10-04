@@ -1,8 +1,8 @@
 package vct.col.rewrite.lang
 
-import vct.col.ast.{AxiomaticDataType, CArrayDeclarator, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CFunctionDefinition, CGlobalDeclaration, CInit, CLocalDeclaration, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
+import vct.col.ast.{AxiomaticDataType, CArrayDeclarator, CBool, CChar, CDeclaration, CDeclarationSpecifier, CDeclarator, CFunctionDefinition, CGlobalDeclaration, CInit, CLocalDeclaration, CLong, CName, CParam, CPrimitiveType, CSpecificationType, CTypeSpecifier, CTypedFunctionDeclarator, CTypedefName, CVoid, Declaration, JavaNamedType, JavaTClass, Model, Node, PVLNamedType, SilverPartialTAxiomatic, TAxiomatic, TBool, TChar, TClass, TEnum, TFloat, TInt, TModel, TNotAValue, TUnion, TVar, TVoid, Type}
 import vct.col.origin.Origin
-import vct.col.resolve.ctx.{RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
+import vct.col.resolve.ctx.{RefAxiomaticDataType, RefClass, RefEnum, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
@@ -52,6 +52,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case RefModel(decl) => TModel(succ(decl))
           case RefVariable(decl) => TVar(succ(decl))
           case RefClass(decl) => TClass(succ(decl))
+          case RefEnum(decl) => TEnum(succ(decl))
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))

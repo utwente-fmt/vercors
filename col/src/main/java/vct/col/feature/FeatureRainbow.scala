@@ -504,5 +504,6 @@ class FeatureRainbow[G] {
     case node: FramedProof[G] => return Nil
     case node: FloatValue[G] => return Nil
     case node: CastFloat[G] => return Nil
+    case _ => return Nil
   })
 }

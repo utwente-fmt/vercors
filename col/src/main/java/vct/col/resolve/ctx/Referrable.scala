@@ -23,6 +23,8 @@ sealed trait Referrable[G] {
     case RefPredicate(decl) => Referrable.originName(decl)
     case RefClass(decl) => Referrable.originName(decl)
     case RefModel(decl) => Referrable.originName(decl)
+    case RefEnum(decl) => Referrable.originName(decl)
+    case RefEnumConstant(decl) => Referrable.originName(decl)
     case RefJavaSharedInitialization(decl) => ""
     case RefJavaField(decls, idx) => decls.decls(idx).name
     case RefJavaLocalDeclaration(decls, idx) => decls.decls(idx).name
@@ -77,6 +79,8 @@ case object Referrable {
     case decl: Predicate[G] => RefPredicate(decl)
     case decl: Class[G] => RefClass(decl)
     case decl: Model[G] => RefModel(decl)
+    case decl: Enum[G] => RefEnum(decl)
+    case decl: EnumConstant[G] => RefEnumConstant(decl)
     case decl: JavaSharedInitialization[G] => RefJavaSharedInitialization(decl)
     case decl: JavaFields[G] => return decl.decls.indices.map(RefJavaField(decl, _))
     case decl: JavaConstructor[G] => RefJavaConstructor(decl)
@@ -160,6 +164,8 @@ case class RefProcedure[G](decl: Procedure[G]) extends Referrable[G] with SpecIn
 case class RefPredicate[G](decl: Predicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefClass[G](decl: Class[G]) extends Referrable[G] with PVLTypeNameTarget[G] with PVLNameTarget[G] with ThisTarget[G]
 case class RefModel[G](decl: Model[G]) extends Referrable[G] with SpecTypeNameTarget[G] with ThisTarget[G] with PVLConstructorTarget[G] with JavaConstructorTarget[G]
+case class RefEnum[G](decl: Enum[G]) extends Referrable[G] with PVLTypeNameTarget[G] with PVLNameTarget[G]
+case class RefEnumConstant[G](decl: EnumConstant[G]) extends Referrable[G] with PVLDerefTarget[G]
 case class RefJavaSharedInitialization[G](decl: JavaSharedInitialization[G]) extends Referrable[G]
 case class RefJavaField[G](decls: JavaFields[G], idx: Int) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaLocalDeclaration[G](decls: JavaLocalDeclaration[G], idx: Int) extends Referrable[G] with JavaNameTarget[G]

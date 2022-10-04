@@ -7,6 +7,7 @@ import vct.col.typerules.Types
 trait PVLLocalImpl[G] { this: PVLLocal[G] =>
   override def t: Type[G] = ref.get match {
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
+    case ref: RefEnum[G] => Types.notAValue(ref)
     case ref: RefVariable[G] => ref.decl.t
     case ref: RefClass[G] => Types.notAValue(ref)
     case ref: RefField[G] => ref.decl.t

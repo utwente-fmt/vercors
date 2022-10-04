@@ -677,6 +677,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case Empty(obj) =>
         Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
+      case use @ EnumUse(enum, const) => use
       case Eq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
@@ -1200,6 +1201,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         dataType
       case clazz: Class[Pre] =>
         new Class[Pre](clazz.declarations, clazz.supports, res(clazz.intrinsicLockInvariant))
+      case enum: Enum[Pre] =>
+        enum
+      case enumConstant: EnumConstant[Pre] =>
+        enumConstant
       case model: Model[Pre] =>
         model
       case function: Function[Pre] =>
