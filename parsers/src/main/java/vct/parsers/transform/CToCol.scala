@@ -497,7 +497,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      Some(Integer.parseInt(i))
+      Some(IntegerValue(Integer.parseInt(i)))
     } catch {
       case e: NumberFormatException => return None
     }
