@@ -44,6 +44,9 @@ axiom zero_mod { (∀int i; 0 % i == (0 then 1 % i;)) }
 
 axiom mod_def { (∀int num, int denom; (num/denom)*denom + (num%denom) == (num then 1/denom;)) }
 
+axiom not_true { !true == false }
+axiom not_false { !false == true }
+
 axiom true_and { (∀boolean b; (true && b) == b) }
 axiom and_true { (∀boolean b; (b && true) == b) }
 axiom false_and { (∀boolean b; (false && b) == false) }
@@ -188,6 +191,12 @@ axiom starall_star {
   (∀type<any> T, resource r1, resource r2;
     (∀* T t; (r1!t) ** (r2!t)) ==
     ((∀* T t; (r1!t)) ** (∀* T t; (r2!t))))
+}
+
+axiom starall_select {
+  (∀type<any> X, boolean cond, resource t, resource f;
+    (∀* X x; (cond!x) ? (t!x) : (f!x)) ==
+    ((∀* X x; (cond!x) ==> (t!x)) ** (∀* X x; !(cond!x) ==> (f!x))))
 }
 
 axiom forall_indep_cond_left {
