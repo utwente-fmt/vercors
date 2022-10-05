@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaEnumConstant, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefEnum, RefEnumConstant, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaEnumConstant, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -377,6 +377,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaEnumConstant(constant) => deref.obj.t match {
         case TNotAValue(RefJavaClass(enum: JavaEnum[Pre])) =>
           OptSome(EnumUse(javaEnumSuccessor.ref(enum), javaEnumConstantSuccessor.ref(constant)))
+      }
+      case RefEnumConstant(constant) => deref.obj.t match {
+        case TNotAValue(RefEnum(enum: Enum[Pre])) =>
+          EnumUse(rw.succ(enum), rw.succ(constant))
       }
       case BuiltinField(f) => rw.dispatch(f(deref.obj))
       case RefVariable(v) => ???

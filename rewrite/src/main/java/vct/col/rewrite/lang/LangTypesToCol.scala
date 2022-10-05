@@ -45,6 +45,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case RefModel(decl) => TModel[Post](succ(decl))
           case RefJavaClass(decl) => JavaTClass[Post](succ(decl), Nil /* TODO */)
           case RefVariable(v) => TVar[Post](succ(v))
+          case RefEnum(enum) => TEnum[Post](succ(enum))
         }
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {

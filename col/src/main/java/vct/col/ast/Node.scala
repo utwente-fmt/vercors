@@ -222,7 +222,7 @@ final class Procedure[G](val returnType: Type[G],
 final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
                 val threadLocal: Boolean = false, val inline: Boolean = false)(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
-final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with EnumImpl[G]
 final class EnumConstant[G]()(implicit val o: Origin) extends Declaration[G]
 
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]

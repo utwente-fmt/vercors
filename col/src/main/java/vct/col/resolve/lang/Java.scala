@@ -258,6 +258,8 @@ case object Java {
             case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic[G]()) => ref
             case ref @ RefJavaEnumConstant(constant) if constant.name == name => ref
           }
+        case RefEnum(enum) =>
+          enum.getConstant(name)
         case _ => None
       }
       case TModel(Ref(model)) => model.declarations.flatMap(Referrable.from).collectFirst {
@@ -382,6 +384,7 @@ case object Java {
     case t: TModel[G] => throw WrongDefaultElementArrayType(t)
     case TClass(_) => Null()
     case JavaTClass(_, _) => Null()
+    case TEnum(_) => Null()
 
     case t: TAxiomatic[G] => throw WrongDefaultElementArrayType(t)
     case t: TType[G] => throw WrongDefaultElementArrayType(t)
