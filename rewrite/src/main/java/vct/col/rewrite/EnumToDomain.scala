@@ -2,9 +2,9 @@ package vct.col.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast
-import vct.col.ast.{ADTAxiom, ADTFunction, ADTFunctionInvocation, Assign, AxiomaticDataType, Block, BooleanValue, Branch, Declaration, Enum, EnumConstant, EnumUse, Expr, Function, FunctionInvocation, Local, Statement, TAxiomatic, TBool, TEnum, Type, UnitAccountedPredicate, Variable}
-import vct.col.origin.{BlameUnreachable, Origin, PanicBlame}
-import vct.col.rewrite.EnumToDomain.OracleOrigin
+import vct.col.ast._
+import vct.col.origin.{Origin, PreferredNameOrigin}
+import vct.col.rewrite.EnumToDomain.{EqOrigin, ToIntOrigin}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 
@@ -14,82 +14,107 @@ case object EnumToDomain extends RewriterBuilder {
   override def key: String = "enumToDomain"
   override def desc: String = "Encodes COL enum as a domain"
 
-  case class OracleOrigin(inner: Origin) extends Origin {
-    override def preferredName: String = "knowledge" + inner.preferredName.capitalize
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
+  case class EqOrigin(inner: Origin) extends PreferredNameOrigin {
+    val name: String = s"${inner.preferredName}_eq"
+  }
+
+  case class ToIntOrigin(inner: Origin) extends PreferredNameOrigin {
+    val name: String = s"${inner.preferredName}_toInt"
   }
 }
 
 case class EnumToDomain[Pre <: Generation]() extends Rewriter[Pre] {
-  val enumSucc: SuccessionMap[ast.Enum[Pre], AxiomaticDataType[Post]] = SuccessionMap()
+  val enumSucc: SuccessionMap[Enum[Pre], AxiomaticDataType[Post]] = SuccessionMap()
   val constSucc: SuccessionMap[EnumConstant[Pre], ADTFunction[Post]] = SuccessionMap()
-  val oracles: mutable.Map[ast.Enum[Pre], ast.Function[Post]] = mutable.Map()
+  val eqDefs: SuccessionMap[Enum[Pre], ADTFunction[Post]] = SuccessionMap()
 
-  val currentEnum: ScopedStack[ast.Enum[Pre]] = ScopedStack()
-  val currentAssign: ScopedStack[Assign[Pre]] = ScopedStack()
+  val oracles: mutable.Map[Enum[Pre], Function[Post]] = mutable.Map()
+
+  val currentEnum: ScopedStack[Enum[Pre]] = ScopedStack()
+
+  def enumEq(a: Expr[Post], b: Expr[Post])(implicit enum: Enum[Pre], o: Origin): Expr[Post] =
+    ADTFunctionInvocation(None, eqDefs.ref[Post, ADTFunction[Post]](enum), Seq(a, b))(o)
+
+  def getConst(c: EnumConstant[Pre])(implicit o: Origin): Expr[Post] =
+    ADTFunctionInvocation(None, constSucc.ref[Post, ADTFunction[Post]](c), Seq())
+
+  def T(enum: Enum[Pre])(implicit o: Origin): Type[Post] =
+    TAxiomatic(enumSucc.ref[Post, AxiomaticDataType[Post]](enum), Seq())
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case enum: ast.Enum[Pre] =>
       implicit val o = enum.o
+      implicit val enumImp: Enum[Pre] = enum
       currentEnum.having(enum) {
         aDTDeclarations.scope {
           enumSucc(enum) = globalDeclarations.declare(new AxiomaticDataType(
             aDTDeclarations.collect {
               enum.constants.foreach(dispatch)
+
+              val eqDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum)), new Variable(T(enum))), TBool())(EqOrigin(enum.o)))
+              eqDefs(enum) = eqDef
+              val toIntDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum))), TInt())(ToIntOrigin(enum.o)))
+              val toInt: Expr[Post] => Expr[Post] = e => ADTFunctionInvocation(None, toIntDef.ref[ADTFunction[Post]], Seq(e))
+
+              // eqDef
+              aDTDeclarations.declare(new ADTAxiom(
+                foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
+                  (InlinePattern(enumEq(a, b))
+                  ===
+                  (toInt(a) === toInt(b)))
+                })))
+
+              // eqPost
+              aDTDeclarations.declare(new ADTAxiom(
+                foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
+                  (InlinePattern(enumEq(a, b))
+                    ==>
+                    (a === b))
+                })))
+
+              /// toIntAlts
+              aDTDeclarations.declare(new ADTAxiom(
+                foldAnd(
+                  enum.constants.zipWithIndex.map { case (eConst, i) =>
+                    (toInt(getConst(eConst)) === const(i))
+                  }
+                )
+              ))
+
+              // toIntRange
+              aDTDeclarations.declare(new ADTAxiom(
+                forall[Post](T(enum), e => (const(0) <= InlinePattern(toInt(e))) && (toInt(e) < const(enum.constants.length)))
+              ))
             }._1, Seq()))
         }
       }
     case const: EnumConstant[Pre] =>
-      constSucc(const) = aDTDeclarations.declare(
-        new ADTFunction(Seq(), TAxiomatic(enumSucc.ref[Post, AxiomaticDataType[Post]](currentEnum.top), Seq()))(const.o)
-      )
+      constSucc(const) = aDTDeclarations.declare(new ADTFunction(Seq(), T(currentEnum.top)(const.o))(const.o))
     case _ => rewriteDefault(decl)
   }
 
-  def getOracle(enum: Enum[Pre]): Function[Post] = {
-    oracles.getOrElseUpdate(enum, {
-      implicit val o = enum.o
-      val e = new Variable[Post](TAxiomatic(enumSucc.ref(enum), Seq()))
-      globalDeclarations.declare(withResult[Post, Function[Post]](result => function[Post](
-        args = Seq(e),
-        returnType = TAxiomatic(enumSucc.ref(enum), Seq()),
-        ensures = UnitAccountedPredicate(
-          (result === e.get) &&
-          foldOr(enum.constants.map { someConst =>
-            e.get ===
-              ADTFunctionInvocation(None, constSucc.ref[Post, ADTFunction[Post]](someConst), Seq())
-          })),
-        blame = PanicBlame(""),
-        contractBlame = PanicBlame("")
-      )(OracleOrigin(o))))
-    })
+  def isEnum(t: Type[_]): Boolean = t match {
+    case TEnum(_) => true
+    case _ => false
+  }
+
+  object EqTL {
+    def unapply[G](e: Expr[G]): Option[(Expr[G], Type[G])] = e match {
+      case Eq(a, _) => Some((e, a.t))
+      case Neq(a, _) => Some((e, a.t))
+      case _ => None
+    }
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case EnumUse(_, const) =>
-      ADTFunctionInvocation(None, constSucc.ref[Post, ADTFunction[Post]](const.decl), Seq())(e.o)
-    case other =>
-      // TODO: Rework all this with own equality function trigger on that. See: https://github.com/utwente-fmt/vercors/blob/ast-backend-experiment/src/main/universal/res/adt/seq.pvl, seq_equal
-      val newOther = rewriteDefault(other)
-      e.t match {
-        case TEnum(enum) if currentAssign.isEmpty => FunctionInvocation[Post](
-          getOracle(enum.decl).ref[Function[Post]], Seq(newOther), Nil, Nil, Nil
-      )(PanicBlame("Cannot fail precondition"))(e.o)
-        case _ => newOther
-      }
-  }
-
-  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case s: Assign[Pre] => currentAssign.having(s) {
-      rewriteDefault(s)
-    }
-    case _ => rewriteDefault(stat)
+    case EnumUse(_, const) => getConst(const.decl)(e.o)
+    case EqTL(Eq(a, b), TEnum(enum)) => enumEq(dispatch(a), dispatch(b))(enum.decl, e.o)
+    case EqTL(Neq(a, b), TEnum(enum)) => implicit val o = e.o; !enumEq(dispatch(a), dispatch(b))(enum.decl, e.o)
+    case other => rewriteDefault(other)
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
-    case TEnum(enum) => TAxiomatic(enumSucc.ref(enum.decl), Seq())
+    case TEnum(enum) => T(enum.decl)(t.o)
     case other => rewriteDefault(other)
   }
 }
