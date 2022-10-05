@@ -40,7 +40,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
           imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
       })
-    case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
+    case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, constants, _, None, _)) => Seq(new JavaEnum(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ENUM, constants.map(convert(_)).getOrElse(Seq()), Nil))
+    case TypeDeclaration1(mods, enum) => fail(enum, "Enums with implements or class declarations are not supported")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
@@ -48,6 +49,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION, decls.map(convert(_)).flatten))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
+  }
+
+  def convert(implicit constants: EnumConstantsContext): Seq[JavaEnumConstant[G]] = constants match {
+    case EnumConstants0(constant) => Seq(convert(constant))
+    case EnumConstants1(constants, _, constant) => convert(constants) :+ convert(constant)
+  }
+
+  def convert(implicit constant: EnumConstantContext): JavaEnumConstant[G] = constant match {
+    case EnumConstant0(Nil, name, None, None) => new JavaEnumConstant(convert(name), Nil)
+    case constant => fail(constant, "Arguments, annotations, or class body on enum alternatives not supported")
   }
 
   def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[JavaAnnotationMethod[G]] = decl match {
@@ -184,9 +195,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaConstructor(mods, convert(name), convert(params), convert(typeParams),
         signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
-    case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
+    case MemberDeclaration6(annotation) => fail(annotation, "Inner annotations are not supported.")
     case MemberDeclaration7(cls) => fail(cls, "Inner classes are not supported.")
-    case MemberDeclaration8(enum) => fail(enum, "Enums are not supported.")
+    case MemberDeclaration8(enum) => fail(enum, "Inner enums are not supported.")
   }
 
   def convert(implicit decl: InterfaceMemberDeclarationContext, mods: Seq[JavaModifier[G]], c: ContractCollector[G]): Seq[ClassDeclaration[G]] = decl match {
@@ -203,9 +214,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
         None, c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case InterfaceMemberDeclaration3(interface) => fail(interface, "Inner interfaces are not supported.")
-    case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Annotations are not supported.")
+    case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Inner annotations are not supported.")
     case InterfaceMemberDeclaration5(cls) => fail(cls, "Inner classes are not supported.")
-    case InterfaceMemberDeclaration6(enum) => fail(enum, "Enums are not supported.")
+    case InterfaceMemberDeclaration6(enum) => fail(enum, "Inner enums are not supported.")
   }
 
   def convert(implicit decls: VariableDeclaratorsContext): Seq[JavaVariableDeclaration[G]] = decls match {

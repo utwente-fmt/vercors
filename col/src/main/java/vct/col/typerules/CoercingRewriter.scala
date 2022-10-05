@@ -1225,6 +1225,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         interface
       case interface: JavaAnnotationInterface[Pre] =>
         interface
+      case enum: JavaEnum[Pre] =>
+        enum
       case field: SilverField[Pre] =>
         field
       case function: InstanceFunction[Pre] =>
@@ -1251,6 +1253,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         method
       case method: JavaAnnotationMethod[Pre] =>
         method
+      case constant: JavaEnumConstant[Pre] =>
+        constant
       case constructor: PVLConstructor[Pre] =>
         constructor
       case field: ModelField[Pre] =>

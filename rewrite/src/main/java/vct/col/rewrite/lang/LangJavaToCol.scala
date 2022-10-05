@@ -12,7 +12,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.col.resolve.lang.Java
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -95,6 +95,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Function[Post]] = SuccessionMap()
+  val javaEnumSuccessor: SuccessionMap[JavaEnum[Pre], Enum[Post]] = SuccessionMap()
+  val javaEnumConstantSuccessor: SuccessionMap[JavaEnumConstant[Pre], EnumConstant[Post]] = SuccessionMap()
 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
@@ -239,6 +241,21 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case _: JavaFields[Pre] =>
       case other => rw.dispatch(other)
     }
+  }
+
+  def rewriteEnum(enum: JavaEnum[Pre]): Unit = {
+    rw.enumConstants.scope {
+      javaEnumSuccessor(enum) = new Enum(rw.enumConstants.collect {
+        enum.constants.foreach {
+          case c: JavaEnumConstant[Pre] => rewriteEnumConstant(c)
+          case _ => throw Unreachable("Should not happen")
+        }
+      }._1)(enum.o)
+    }
+  }
+
+  def rewriteEnumConstant(enumConstant: JavaEnumConstant[Pre]): Unit = {
+    javaEnumConstantSuccessor(enumConstant) = rw.enumConstants.declare(new EnumConstant()(enumConstant.o))
   }
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {

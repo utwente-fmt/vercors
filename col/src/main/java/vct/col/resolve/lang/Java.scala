@@ -24,6 +24,7 @@ case object Java {
 
   private implicit val o: Origin = DiagnosticOrigin
   def JAVA_LANG_OBJECT[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
+  def JAVA_LANG_ENUM[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Enum", None)))
   def JAVA_LANG_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
