@@ -405,9 +405,7 @@ final case class InlinePattern[G](inner: Expr[G], parent: Int = 0, group: Int = 
 final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(implicit val o: Origin) extends Declarator[G] with Expr[G] with ScopedExprImpl[G]
 
 final case class Local[G](ref: Ref[G, Variable[G]])(implicit val o: Origin) extends Expr[G] with LocalImpl[G]
-final case class EnumUse[G](enum: Ref[G, Enum[G]], const: Ref[G, EnumConstant[G]])(implicit val o: Origin) extends Expr[G] {
-  override def t: Type[G] = TEnum(enum)
-}
+final case class EnumUse[G](enum: Ref[G, Enum[G]], const: Ref[G, EnumConstant[G]])(implicit val o: Origin) extends Expr[G] with EnumUseImpl[G]
 sealed trait HeapDeref[G] extends Expr[G] with HeapDerefImpl[G]
 final case class Deref[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr[G] with HeapDeref[G] with DerefImpl[G]
 final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(val blame: Blame[ModelInsufficientPermission])(implicit val o: Origin) extends Expr[G] with ModelDerefImpl[G]

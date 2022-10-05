@@ -2,7 +2,7 @@ package vct.col.resolve.lang
 
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ApplicableContract, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ApplicableContract, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaEnum, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
@@ -214,17 +214,30 @@ case object Java {
       case target: JavaNameTarget[G] if target.name == name => target
     }.orElse(ctx.currentJavaNamespace.flatMap(ns => {
       // First find all classes that belong to each import that we can use
-      val potentialClasses: Seq[JavaTypeNameTarget[G]] = ns.imports.collect {
-        case JavaImport(true, importName, /* star = */ false) if importName.names.last == name => importName.names.init
-        case JavaImport(true, importName, /* star = */ true) => importName.names
-      }.flatMap(findJavaTypeName(_, ctx.asTypeResolutionContext))
+      val potentialRefs: Seq[JavaNameTarget[G]] = ns.imports.collect {
+        case JavaImport(true, importName, /* star = */ false) if importName.names.last == name =>
+          findJavaTypeName(importName.names.init, ctx.asTypeResolutionContext).flatMap {
+            case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+            case _ => ??? // TODO (RR): ...
+          }
+        case JavaImport(true, importName, /* star = */ true) =>
+          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).flatMap {
+            case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+            case _ => ??? // TODO (RR): ...
+          }
+        case JavaImport(false, importName, /* star = */ false) if importName.names.last == name =>
+          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).map {
+            case r @ RefJavaClass(cls) => r
+          }
+        case JavaImport(false, importName, /* star = */ true) => // importName.names :+ name
+          findJavaTypeName(importName.names :+ name, ctx.asTypeResolutionContext).map {
+            case r @ RefJavaClass(cls) => r
+          }
+      }.collect { case Some(x) => x }
 
-      // From each class, get the field we are looking for
-      potentialClasses.collect({
-        case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
-      }).flatten match {
+      potentialRefs match {
         // If we find only one, or none, then that's good
-        case Seq(field) => Some(field)
+        case Seq(ref) => Some(ref)
         case Nil => None
         // Otherwise there is ambiguity: abort
         // Currently we do not support duplicate imports. E.g. "import static A.X; import static B.*;", given that B
@@ -243,6 +256,7 @@ case object Java {
         case RefJavaClass(decl) =>
           decl.decls.flatMap(Referrable.from).collectFirst {
             case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic[G]()) => ref
+            case ref @ RefJavaEnumConstant(constant) if constant.name == name => ref
           }
         case _ => None
       }

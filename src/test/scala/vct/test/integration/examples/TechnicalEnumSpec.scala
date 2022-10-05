@@ -2,6 +2,29 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
+class TechnicalEnumSpecJ extends VercorsSpec {
+  vercors should verify using silicon in "java/enums" java """
+enum AB { A, B }
+
+class C {
+    void foo(AB ab) {
+        AB noAB = null;
+        AB ab = AB.A;
+        //@ assert AB.A != null;
+        //@ assert ab != AB.B;
+    }
+
+    //@ requires ab != null;
+    void bar(AB ab) {
+        //@ assert ab == AB.A || ab == AB.B;
+        AB[] abs = new AB[2];
+        abs[0] = ab;
+        abs[1] = AB.A;
+    }
+}
+  """
+}
+
 class TechnicalEnumSpec extends VercorsSpec {
   vercors should verify using silicon in "pvl/enums" pvl """
     enum AB { A, B }
@@ -46,6 +69,9 @@ class TechnicalEnumSpec extends VercorsSpec {
       if (ab[0] != AB.A) {
         assert ab[0] == AB.B;
       }
+
+      AB[] abs = new AB[1];
+      abs[0] = ab[0];
 
       return seq<AB>{AB.A, AB.B};
     }
