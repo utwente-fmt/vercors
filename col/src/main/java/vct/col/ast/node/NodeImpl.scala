@@ -7,6 +7,32 @@ import vct.col.print.Printer
 
 import scala.runtime.ScalaRunTime
 
+/**
+ * [[Node]] is the root type for all nodes in the abstract syntax tree. The family is sealed, meaning the compiler
+ * guarantees that all node definitions occur in one file; Node.scala.
+ *
+ * Note that the structure of the Node file is restricted: helpers are generated based on the definitions in the file,
+ * so you cannot write arbitrary code in the file. Please refer to the developer documentation in the
+ * <a href="https://github.com/utwente-fmt/vercors/wiki">VerCors wiki</a> for details.
+ *
+ * [[Node]] is subdivided into categories. The root of each category extends the marker trait [[NodeFamily]]; the code
+ * generation looks for this trait to determine the node categories. Some of the bigger categories include:
+ *
+ * <ul>
+ *   <li>[[Type]] contains all the types that can be declared and stored, as well as some helper types.</li>
+ *   <li>[[Statement]] contains nodes that are executable, and may change the state.</li>
+ *   <li>[[Expr]] contains nodes that have a defined value and type, given a state.</li>
+ * </ul>
+ *
+ * The [[Declaration]] family has a special status, and is hence not marked as a [[NodeFamily]]. All direct descendants
+ * of [[Declaration]] together constitute the "declaration kinds".
+ *
+ * For each node `equals` must be implemented in such a way that equality means they are semantically equivalent. For
+ * most nodes that means simple structural equality, while for (references to) declarations this means identity
+ * (reference) equality.
+ *
+ * @tparam G The generation marker: not used as a concrete type.
+ */
 trait NodeImpl[G] { this: Node[G] =>
   def check(context: CheckContext[G]): Seq[CheckError]
   def o: Origin

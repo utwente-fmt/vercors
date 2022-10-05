@@ -64,7 +64,7 @@ import vct.col.ref.Ref
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 
-sealed trait Node[G] extends NodeImpl[G]
+/** @inheritdoc */ sealed trait Node[G] extends NodeImpl[G]
 
 sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
