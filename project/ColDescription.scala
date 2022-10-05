@@ -73,6 +73,33 @@ class ColDescription {
     baseType == cls || bases.getOrElse(cls, Seq()).exists(supports(baseType))
   }
 
+  def checkSanity(): Unit = {
+    for(defn <- defs) {
+      if(supports("Declaration")(defn.baseName)) {
+        DECLARATION_KINDS.filter(supports(_)(defn.baseName)) match {
+          case Nil =>
+            ColHelperUtil.fail(
+              s"Definition ${defn.baseName} supports Declaration, but it does not support any declaration kind.\n" +
+                s"If ${defn.baseName} is meant to be a declaration kind, it should be in ColDefs.DECLARATION_KINDS\n" +
+                s"Otherwise, make sure that ${defn.baseName} extends a kind of declaration, instead of Declaration directly."
+            )
+          case _ :: Nil =>
+          case x :: y :: _ =>
+            ColHelperUtil.fail(s"Definition ${defn.baseName} supports multiple declaration kinds, such as $x and $y. Only one declaration kind is allowed.")
+        }
+      } else if(supports("NodeFamily")(defn.baseName)) {
+        families.toSeq.filter(supports(_)(defn.baseName)) match {
+          case x :: y :: _ =>
+            ColHelperUtil.fail(s"Definition ${defn.baseName} supports multiple node families, such as $x and $y. Only one node family is allowed.")
+          case _ =>
+        }
+      } else {
+        ColHelperUtil.fail(s"Definition ${defn.baseName} does not support Declaration or NodeFamily.\n" +
+          "Concrete classes in Node.scala must support either a node family or a declaration kind.")
+      }
+    }
+  }
+
   /**
    * Provides the default way to rewrite a term with a fixed type
    */
@@ -94,6 +121,13 @@ class ColDescription {
     case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if families.contains(typ) =>
       q"rewriter.dispatch($term)"
 
+    case Type.Apply(Type.Name(typeName), List(Type.Name("G"))) if supports("Node")(typeName) =>
+      ColHelperUtil.fail(
+        s"Type $typeName supports Node, but it is not a NodeFamily or DECLARATION_KIND.\n" +
+          "Nodes may only refer to node families and declaration kinds directly.",
+        node = Some(typ),
+      )
+
     case Type.Apply(Type.Name("Ref"), List(_, Type.Apply(decl @ Type.Name(tDecl), _))) =>
       if(ColDefs.DECLARATION_KINDS.exists(kind => supports(kind)(tDecl)))
         q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl))"
@@ -105,7 +139,7 @@ class ColDescription {
     case _ =>
       ColHelperUtil.fail(
         s"Encountered an unknown type while generating default rewriters: $typ\n" +
-          "Perhaps there is an 'extends Expr' or so missing, or ColDefs.DECLARATION_KINDS is incomplete?",
+          s"Perhaps you meant to have $typ extend a node family or declaration kind, such as Expr[G] or GlobalDeclaration[G]?",
         node=Some(typ)
       )
   }

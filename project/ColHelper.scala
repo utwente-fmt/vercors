@@ -11,6 +11,7 @@ case class ColHelper() {
   def generate(input: Seq[File], output: File, writer: (File, String) => Unit): Seq[File] = {
     // Collect the structure of COL into ColDescription
     input.foreach(info.collectInfo)
+    info.checkSanity()
     println(s"Generating helpers for ${info.defs.size} node types")
 
     // Construct the output path using the col ast package, as well as the name for the package declaration

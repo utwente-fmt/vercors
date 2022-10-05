@@ -63,6 +63,10 @@ object Transformation {
 
 /**
  * Executes a sequence of rewriters. Currently the only concrete implementation is [[SilverTransformation]].
+ *
+ * Refer to [[RewriterBuilder]] and [[RewriterBuilderArg]] for information on how to use a [[Rewriter]] in the
+ * pass chain.
+ *
  * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
  * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
  *                       before the side effect is performed.
@@ -116,7 +120,7 @@ class Transformation
 }
 
 /**
- * Defines the rewrite chain appropriate for the Viper backends: Silicon and Carbon
+ * Defines the rewrite chain appropriate for the Viper backends: Silicon and Carbon.
  *
  * @param adtImporter Decides how to import the definition of the built-in axiomatically-defined datatypes.
  * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
