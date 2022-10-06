@@ -213,30 +213,26 @@ case object Java {
     ctx.stack.flatten.collectFirst {
       case target: JavaNameTarget[G] if target.name == name => target
     }.orElse(ctx.currentJavaNamespace.flatMap(ns => {
+      def memberOf(target: JavaTypeNameTarget[G]): Option[JavaNameTarget[G]] = target match {
+        case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+        case RefEnum(enum) => enum.getConstant(name)
+        case _ => None
+      }
+      def classOrEnum(target: JavaTypeNameTarget[G]): JavaNameTarget[G] = target match {
+        case r @ RefJavaClass(decl) => r
+        case r @ RefEnum(decl) => r
+      }
+      // Apply above below, and also for class/enum case
       // First find all classes that belong to each import that we can use
       val potentialRefs: Seq[JavaNameTarget[G]] = ns.imports.collect {
         case JavaImport(true, importName, /* star = */ false) if importName.names.last == name =>
-          findJavaTypeName(importName.names.init, ctx.asTypeResolutionContext).flatMap {
-            case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
-            case RefEnum(enum) => enum.getConstant(name)
-            case _ => ??? // TODO (RR): ...
-          }
+          findJavaTypeName(importName.names.init, ctx.asTypeResolutionContext).flatMap(memberOf)
         case JavaImport(true, importName, /* star = */ true) =>
-          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).flatMap {
-            case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
-            case RefEnum(enum) => enum.getConstant(name)
-            case _ => ??? // TODO (RR): ...
-          }
+          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).flatMap(memberOf)
         case JavaImport(false, importName, /* star = */ false) if importName.names.last == name =>
-          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).map {
-            case r @ RefJavaClass(_) => r
-            case r @ RefEnum(_) => r
-          }
-        case JavaImport(false, importName, /* star = */ true) => // importName.names :+ name
-          findJavaTypeName(importName.names :+ name, ctx.asTypeResolutionContext).map {
-            case r @ RefJavaClass(cls) => r
-            case r @ RefEnum(_) => r
-          }
+          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).map(classOrEnum)
+        case JavaImport(false, importName, /* star = */ true) =>
+          findJavaTypeName(importName.names :+ name, ctx.asTypeResolutionContext).map(classOrEnum)
       }.collect { case Some(x) => x }
 
       potentialRefs match {
