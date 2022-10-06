@@ -50,6 +50,7 @@ case object CoercionUtils {
       case (TNull(), TClass(target)) => CoerceNullClass(target)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
+      case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()

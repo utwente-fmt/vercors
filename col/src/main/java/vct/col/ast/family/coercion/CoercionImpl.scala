@@ -1,6 +1,6 @@
 package vct.col.ast.family.coercion
 
-import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceColToCPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIntRat, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullArray, CoerceNullClass, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
+import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceColToCPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIntRat, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullArray, CoerceNullClass, CoerceNullEnum, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
 
 trait CoercionImpl[G] { this: Coercion[G] =>
   def target: Type[G]
@@ -18,6 +18,7 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceNullClass(_) => true
     case CoerceNullJavaClass(_) => true
     case CoerceNullPointer(_) => true
+    case CoerceNullEnum(_) => true
     case CoerceFracZFrac() => true
     case CoerceZFracRat() => true
     case CoerceFloatRat() => true
