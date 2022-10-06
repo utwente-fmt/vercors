@@ -68,7 +68,8 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
       globalDeclarations.succeed(cls, cls.rewrite(declarations = classDeclarations.collect {
-        invariant(cls) = classDeclarations.declare(new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls)))
+        invariant(cls) = classDeclarations.declare(
+          new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls)))
         held(cls) = classDeclarations.declare(new InstancePredicate(Nil, None)(HeldTokenOrigin(cls)))
         cls.declarations.foreach(dispatch)
       }._1, intrinsicLockInvariant = tt))
