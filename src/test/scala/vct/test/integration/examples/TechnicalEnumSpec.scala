@@ -2,10 +2,35 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
+class TechnicalEnumSpecX extends VercorsSpec {
+  vercors should verify using silicon in "java/use builtin enums" java
+    """
+import java.lang.annotation.*;
+
+class Test {
+    void m() {
+        RetentionPolicy r = RetentionPolicy.SOURCE;
+    }
+}
+
+"""
+}
+
 class TechnicalEnumSpec extends VercorsSpec {
   vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB1.java")
   vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB2.java")
   vercors should verify using silicon example "technical/enums/Enums.java"
+
+  vercors should verify using silicon in "java/use builtin enums" java
+    """
+      |import java.lang.annotation.RetentionPolicy;
+      |
+      |class Test {
+      |    void m() {
+      |        RetentionPolicy R = RetentionPolicy.SOURCE;
+      |    }
+      |}
+      |""".stripMargin
 
   vercors should verify using silicon in "pvl/enums" pvl """
     enum AB { A, B }
