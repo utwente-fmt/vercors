@@ -363,8 +363,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         Local(javaLocalsSuccessor.ref((decls, idx)))
       case RefEnumConstant(Some(enum), constant) =>
         EnumUse(rw.succ(enum), rw.succ(constant))
-      case RefEnumConstant(_, _) =>
-        throw JavaLocalImpl.IncompleteRef(local)
     }
   }
 

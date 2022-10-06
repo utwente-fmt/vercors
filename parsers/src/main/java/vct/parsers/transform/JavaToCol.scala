@@ -40,7 +40,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
           imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
       })
-    case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, Some(constants), _, None, _)) =>
+    case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, Some(constants), _, None | Some(EnumBodyDeclarations0(_, Seq())), _)) =>
       mods.map(convert(_)).foreach {
         case JavaPublic() =>
         case _ => fail(decl, "only public modifier allowed")
