@@ -64,7 +64,7 @@ import vct.col.ref.Ref
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 
-sealed trait Node[G] extends NodeImpl[G]
+/** @inheritdoc */ sealed trait Node[G] extends NodeImpl[G]
 
 sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
@@ -281,7 +281,7 @@ final case class ApplicableContract[G](requires: AccountedPredicate[G], ensures:
                                        signals: Seq[SignalsClause[G]], givenArgs: Seq[Variable[G]], yieldsArgs: Seq[Variable[G]], decreases: Option[DecreasesClause[G]])
                                       (val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin) extends NodeFamily[G] with ApplicableContractImpl[G]
 
-sealed trait AccountedPredicate[G] extends NodeFamily[G] with AccountedPredicateImpl[G]
+/** @inheritdoc */ sealed trait AccountedPredicate[G] extends NodeFamily[G] with AccountedPredicateImpl[G]
 case class UnitAccountedPredicate[G](pred: Expr[G])(implicit val o: Origin) extends AccountedPredicate[G] with UnitAccountedPredicateImpl[G]
 case class SplitAccountedPredicate[G](left: AccountedPredicate[G], right: AccountedPredicate[G])(implicit val o: Origin) extends AccountedPredicate[G] with SplitAccountedPredicateImpl[G]
 

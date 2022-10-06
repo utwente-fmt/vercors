@@ -5,6 +5,13 @@ import vct.col.origin.SourceNameOrigin
 import vct.col.resolve.NameLost
 import vct.col.resolve.lang.C
 
+/**
+ * Collection of all things that can be cross-referenced in the AST. This includes all declarations, indices at
+ * multi-declarations, references to implicitly defined constructs, built-in fields and methods, etc. Referrables are
+ * briefly used while resolving the AST, and are almost immediately replaced by instances of [[vct.col.ref.Ref]]. See
+ * also [[vct.col.resolve.ResolveTypes]] and [[vct.col.resolve.ResolveReferences]].
+ * @tparam G The generation marker
+ */
 sealed trait Referrable[G] {
   def name: String = this match {
     case RefCTranslationUnit(_) => ""
@@ -113,6 +120,10 @@ case object Referrable {
   }
 }
 
+/*
+The *Target traits enable, in combination with [[Referrable.name]], very lazy name resolution. If we e.g. encounter a
+name in Java, we can just search for in-scope JavaNameTarget's with the correct _.name.
+ */
 
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
 sealed trait CTypeNameTarget[G] extends Referrable[G]

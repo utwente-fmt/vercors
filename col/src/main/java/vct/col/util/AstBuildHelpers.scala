@@ -5,10 +5,36 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 
+/**
+ * Collection of general AST building utilities. This is meant to organically grow, so add helpers as you see fit.
+ */
 object AstBuildHelpers {
   val ZERO: BigInt = BigInt(0)
   val ONE: BigInt = BigInt(1)
 
+  /**
+   * <strong>IMPORTANT</strong>: operators that end with a colon (`:`) are <strong>right-associative</strong>. For example:
+   *
+   * {{{
+   * trait Exp {
+   *   // wrong assumption: this /: right is Divide(this, right)
+   *   def /:(right: Exp) = Divide(this, right)
+   * }
+   *
+   * case class Number(x: Int) extends Exp
+   * case class Divide(left: Exp, right: Exp)
+   *
+   * val one = Number(1)
+   * val two = Number(2)
+   * assert( (one /: two) == Divide(two, one) ) // !!!
+   * assert( (one /: two) == two./:(one) )
+   * }}}
+   *
+   * Also take into account how scala defines
+   * <a href="https://docs.scala-lang.org/tour/operators.html#precedence">operator precedence</a>
+   * when using or defining operators here. The precedence generally does <strong>not</strong> match e.g. the syntax
+   * of PVL.
+   */
   implicit class ExprBuildHelpers[G](left: Expr[G]) {
     def +(right: Expr[G])(implicit origin: Origin): Plus[G] = Plus(left, right)
     def -(right: Expr[G])(implicit origin: Origin): Minus[G] = Minus(left, right)

@@ -43,6 +43,14 @@ case object Verify extends LazyLogging {
     }
   }
 
+  /**
+   * Runs a normal verification run from the command line options.
+   *
+   * After some setup, most of the meat is in [[Stages.ofOptions]].
+   *
+   * @param options The command line options.
+   * @return The exit code, zero on verification success.
+   */
   def runOptions(options: Options): Int = {
     try {
       // Wrapped in try because this seems to crash on windows
