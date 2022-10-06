@@ -38,6 +38,15 @@ case object ResolveTypes {
     case _ => ctx
   }
 
+  // On static import: _definitely_ resolve type.
+  // - If single: add one name to stack
+  // - Otherwise: add all static fields/methods/enum constants to stack
+  // On JavaLocal:
+  // - If variable, param, or field: leave empty.
+  // - If available as static (wildcard) import: do not try to resolve as class
+  // - If available as already imported type: done
+  // - Otherwise: resolve, must be type that is not yet imported
+
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit = node match {
     case javaClass @ JavaNamedType(genericNames) =>
       val names = genericNames.map(_._1)
@@ -64,15 +73,15 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-    case imp @ JavaImport(/* static = */ true, name, /* star = */ false) =>
-      Java.findJavaTypeName(name.names.init, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-    case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
-      Java.findJavaTypeName(name.names, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
-      Java.findJavaTypeName(name.names, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+//    case imp @ JavaImport(/* static = */ true, name, /* star = */ false) =>
+//      Java.findJavaTypeName(name.names.init, ctx)
+//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+//    case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
+//      Java.findJavaTypeName(name.names, ctx)
+//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+//    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
+//      Java.findJavaTypeName(name.names, ctx)
+//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
 //    case imp@JavaImport(/* static = */ false, pkg, /* star = */ true) =>
 //      // TODO (RR): Pulls in everything, even though we prefer on demand...?
 //      Java.findJavaTypeNamesInPackage(pkg.names, ctx)
