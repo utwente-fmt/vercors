@@ -9,7 +9,6 @@ trait PVLDerefImpl[G] { this: PVLDeref[G] =>
     case ref: RefField[G] => ref.decl.t
     case ref: RefEnumConstant[G] => obj.t match {
       case TNotAValue(RefEnum(enum)) => TEnum(enum.ref[Enum[G]])
-      case _ => ???
     }
     case ref: BuiltinField[G] => ref.f(obj).t
   }

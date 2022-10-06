@@ -7,6 +7,4 @@ trait EnumImpl[G] { this: Enum[G] =>
   def getConstant(name: String): Option[RefEnumConstant[G]] = constants.collectFirst {
     case c if c.o.preferredName == name => RefEnumConstant(Some(this), c)
   }
-
-
 }

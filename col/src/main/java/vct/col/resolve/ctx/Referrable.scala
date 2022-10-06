@@ -71,7 +71,6 @@ case object Referrable {
     case decl: JavaClass[G] => RefJavaClass(decl)
     case decl: JavaInterface[G] => RefJavaClass(decl)
     case decl: JavaAnnotationInterface[G] => RefJavaClass(decl)
-    case decl: JavaEnum[G] => RefJavaClass(decl)
     case decl: SilverField[G] => RefSilverField(decl)
     case decl: SimplificationRule[G] => RefSimplificationRule(decl)
     case decl: AxiomaticDataType[G] => RefAxiomaticDataType(decl)
@@ -87,7 +86,6 @@ case object Referrable {
     case decl: JavaConstructor[G] => RefJavaConstructor(decl)
     case decl: JavaMethod[G] => RefJavaMethod(decl)
     case decl: JavaAnnotationMethod[G] => RefJavaAnnotationMethod(decl)
-    case decl: JavaEnumConstant[G] => RefJavaEnumConstant(decl)
     case decl: InstanceFunction[G] => RefInstanceFunction(decl)
     case decl: InstanceMethod[G] => RefInstanceMethod(decl)
     case decl: InstancePredicate[G] => RefInstancePredicate(decl)
@@ -174,7 +172,6 @@ case class RefJavaLocalDeclaration[G](decls: JavaLocalDeclaration[G], idx: Int) 
 case class RefJavaConstructor[G](decl: JavaConstructor[G]) extends Referrable[G] with JavaConstructorTarget[G]
 case class RefJavaMethod[G](decl: JavaMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
 case class RefJavaAnnotationMethod[G](decl: JavaAnnotationMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
-case class RefJavaEnumConstant[G](decl: JavaEnumConstant[G]) extends Referrable[G] with JavaDerefTarget[G]
 case class RefInstanceFunction[G](decl: InstanceFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceMethod[G](decl: InstanceMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefInstancePredicate[G](decl: InstancePredicate[G]) extends Referrable[G] with SpecInvocationTarget[G]

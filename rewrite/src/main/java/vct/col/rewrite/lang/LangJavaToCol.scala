@@ -6,12 +6,11 @@ import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefEnum, RefEnumConstant, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaEnumConstant, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefEnum, RefEnumConstant, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.col.ast.lang.JavaLocalImpl
 import vct.col.resolve.lang.Java
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -96,8 +95,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Function[Post]] = SuccessionMap()
-  val javaEnumSuccessor: SuccessionMap[JavaEnum[Pre], Enum[Post]] = SuccessionMap()
-  val javaEnumConstantSuccessor: SuccessionMap[JavaEnumConstant[Pre], EnumConstant[Post]] = SuccessionMap()
 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
@@ -244,21 +241,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
   }
 
-  def rewriteEnum(enum: JavaEnum[Pre]): Unit = {
-    rw.enumConstants.scope {
-      javaEnumSuccessor(enum) = rw.globalDeclarations.declare(new Enum(rw.enumConstants.collect {
-        enum.constants.foreach {
-          case c: JavaEnumConstant[Pre] => rewriteEnumConstant(c)
-          case _ => throw Unreachable("Should not happen")
-        }
-      }._1)(SourceNameOrigin(enum.name, enum.o)))
-    }
-  }
-
-  def rewriteEnumConstant(enumConstant: JavaEnumConstant[Pre]): Unit = {
-    javaEnumConstantSuccessor(enumConstant) = rw.enumConstants.declare(new EnumConstant()(SourceNameOrigin(enumConstant.name, enumConstant.o)))
-  }
-
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
@@ -377,10 +359,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
       case RefJavaField(decls, idx) =>
         Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
-      case RefJavaEnumConstant(constant) => deref.obj.t match {
-        case TNotAValue(RefJavaClass(enum: JavaEnum[Pre])) =>
-          OptSome(EnumUse(javaEnumSuccessor.ref(enum), javaEnumConstantSuccessor.ref(constant)))
-      }
       case RefEnumConstant(_, constant) => deref.obj.t match {
         case TNotAValue(RefEnum(enum: Enum[Pre])) =>
           EnumUse(rw.succ(enum), rw.succ(constant))
@@ -488,7 +466,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
-    case enum: JavaEnum[Pre] => TOption(TEnum(javaEnumSuccessor.ref(enum)))
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
 }

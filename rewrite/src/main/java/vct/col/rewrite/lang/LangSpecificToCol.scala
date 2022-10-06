@@ -44,8 +44,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       }
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
-    case enum: JavaEnum[Pre] => java.rewriteEnum(enum)
-    case enumConstant: JavaEnumConstant[Pre] => java.rewriteEnumConstant(enumConstant)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
