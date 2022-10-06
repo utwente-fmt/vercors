@@ -26,6 +26,10 @@ class C {
 }
 
 class TechnicalEnumSpec extends VercorsSpec {
+  vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB1.java")
+  vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB2.java")
+  vercors should verify using silicon example "technical/enums/Enums.java"
+
   vercors should verify using silicon in "pvl/enums" pvl """
     enum AB { A, B }
   """
@@ -49,12 +53,14 @@ class TechnicalEnumSpec extends VercorsSpec {
   vercors should verify using silicon in "pvl/enum exclusivity" pvl """
     enum AB { A, B }
 
+    requires ab != null;
     void foo(AB ab) {
       if (ab != AB.A) {
         assert ab == AB.B;
       }
     }
 
+    requires ab != null;
     void bar(AB ab) {
       assert ab == AB.A || ab == AB.B;
     }
@@ -64,6 +70,7 @@ class TechnicalEnumSpec extends VercorsSpec {
     enum AB { A, B }
 
     requires |ab| > 0;
+    requires (\forall int i = 0 .. |ab|; ab[i] != null);
     ensures (\forall int i, int j; 0 <= i && i < j && j < |\result|; \result[i] != \result[j]);
     seq<AB> foo(seq<AB> ab) {
       if (ab[0] != AB.A) {

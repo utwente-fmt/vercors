@@ -11,6 +11,7 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
+import vct.col.ast.lang.JavaLocalImpl
 import vct.col.resolve.lang.Java
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -360,6 +361,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ModelDeref[Post](rw.currentThis.top, rw.succ(field))(local.blame)
       case RefJavaLocalDeclaration(decls, idx) =>
         Local(javaLocalsSuccessor.ref((decls, idx)))
+      case RefEnumConstant(Some(enum), constant) =>
+        EnumUse(rw.succ(enum), rw.succ(constant))
+      case RefEnumConstant(_, _) =>
+        throw JavaLocalImpl.IncompleteRef(local)
     }
   }
 
@@ -378,7 +383,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         case TNotAValue(RefJavaClass(enum: JavaEnum[Pre])) =>
           OptSome(EnumUse(javaEnumSuccessor.ref(enum), javaEnumConstantSuccessor.ref(constant)))
       }
-      case RefEnumConstant(constant) => deref.obj.t match {
+      case RefEnumConstant(_, constant) => deref.obj.t match {
         case TNotAValue(RefEnum(enum: Enum[Pre])) =>
           EnumUse(rw.succ(enum), rw.succ(constant))
       }

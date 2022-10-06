@@ -87,7 +87,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case RefModelField(decl) => ModelDeref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
       case BuiltinField(f) => rw.dispatch(f(deref.obj))
       case RefField(decl) => Deref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
-      case RefEnumConstant(const) => deref.obj.t match {
+      case RefEnumConstant(_, const) => deref.obj.t match {
         case TNotAValue(RefEnum(enum)) => EnumUse(rw.succ(enum), rw.succ(const))
       }
     }

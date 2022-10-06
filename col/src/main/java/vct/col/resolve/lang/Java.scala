@@ -218,20 +218,24 @@ case object Java {
         case JavaImport(true, importName, /* star = */ false) if importName.names.last == name =>
           findJavaTypeName(importName.names.init, ctx.asTypeResolutionContext).flatMap {
             case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+            case RefEnum(enum) => enum.getConstant(name)
             case _ => ??? // TODO (RR): ...
           }
         case JavaImport(true, importName, /* star = */ true) =>
           findJavaTypeName(importName.names, ctx.asTypeResolutionContext).flatMap {
             case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
+            case RefEnum(enum) => enum.getConstant(name)
             case _ => ??? // TODO (RR): ...
           }
         case JavaImport(false, importName, /* star = */ false) if importName.names.last == name =>
           findJavaTypeName(importName.names, ctx.asTypeResolutionContext).map {
-            case r @ RefJavaClass(cls) => r
+            case r @ RefJavaClass(_) => r
+            case r @ RefEnum(_) => r
           }
         case JavaImport(false, importName, /* star = */ true) => // importName.names :+ name
           findJavaTypeName(importName.names :+ name, ctx.asTypeResolutionContext).map {
             case r @ RefJavaClass(cls) => r
+            case r @ RefEnum(_) => r
           }
       }.collect { case Some(x) => x }
 

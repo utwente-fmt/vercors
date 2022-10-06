@@ -17,7 +17,7 @@ trait JavaDerefImpl[G] { this: JavaDeref[G] =>
     case RefJavaEnumConstant(decl) => obj.t match {
       case TNotAValue(RefJavaClass(enum: JavaEnum[G])) => JavaTClass(enum.asInstanceOf[JavaClassOrInterface[G]].ref, Seq())
     }
-    case RefEnumConstant(decl) => obj.t match {
+    case RefEnumConstant(_, decl) => obj.t match {
       case TNotAValue(RefEnum(enum: Enum[G])) => TEnum(enum.ref[Enum[G]])
     }
     case BuiltinField(f) => f(obj).t
