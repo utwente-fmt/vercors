@@ -19,4 +19,19 @@ case class JavaLibraryLoader(base: Path, blameProvider: BlameProvider) extends E
   } catch {
     case _: FileNotFound => None
   }
+
+  override def loadPkg[G](pkg: Seq[String]): Seq[JavaNamespace[G]] = {
+    var resolved = base
+    for(elem <- pkg) {
+      resolved = resolved.resolve(elem)
+    }
+    resolved.toFile.listFiles().map { f =>
+      f.getName match {
+        case s"${className}.java" =>
+          val fqn = pkg :+ className
+          load[G](fqn)
+        case _ => None
+      }
+    }.collect { case Some(ns) => ns }.toSeq
+  }
 }

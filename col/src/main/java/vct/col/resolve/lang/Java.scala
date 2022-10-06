@@ -44,6 +44,14 @@ case object Java {
     None
   }
 
+  def findLoadedJavaTypeNamesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] =
+    (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).collect {
+      case RefJavaNamespace(ns: JavaNamespace[G]) if ns.pkg.map(_.names).getOrElse(Nil) == pkg =>
+        ns.declarations.flatMap(Referrable.from(_)).collect {
+          case target: JavaTypeNameTarget[G] => target
+        }
+    }.flatten
+
   private val currentlyLoading = mutable.Map[Seq[String], mutable.ArrayBuffer[JavaNamedType[_ <: Any]]]()
 
   def lazyType[G](name: Seq[String], ctx: TypeResolutionContext[G]): JavaNamedType[G] = {
@@ -85,6 +93,11 @@ case object Java {
         currentlyLoading.remove(potentialFQName)
         None
     }
+  }
+
+  def findRuntimeJavaTypesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaClassOrInterface[G]] = {
+    // TODO...
+    Nil
   }
 
   def translateRuntimeType[G](t: Class[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): Type[G] = t match {
@@ -181,6 +194,22 @@ case object Java {
       case None => None
     }
 
+  def findLibraryJavaTypesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] =
+    ctx.externalJavaLoader match {
+      case Some(loader) =>
+        loader.loadPkg[G](pkg).flatMap { ns =>
+          ctx.externallyLoadedElements += ns
+          ResolveTypes.resolve(ns, ctx)
+          ns.declarations.map {
+            case cls: JavaClass[G] => RefJavaClass(cls)
+            case cls: JavaInterface[G] => RefJavaClass(cls)
+            case cls: JavaAnnotationInterface[G] => RefJavaClass(cls)
+            case enum: Enum[G] => RefEnum(enum)
+          }
+        }
+      case None => Seq()
+    }
+
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     val potentialFQNames: Seq[Seq[String]] = names match {
       case Seq(singleName) =>
@@ -206,6 +235,12 @@ case object Java {
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
+  }
+
+  def findJavaTypeNamesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] = {
+    (findLoadedJavaTypeNamesInPackage[G](pkg, ctx)
+      ++ findLibraryJavaTypesInPackage[G](pkg, ctx)
+      ++ findRuntimeJavaTypesInPackage[G](pkg, ctx).map(RefJavaClass[G]))
   }
 
   def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] = {

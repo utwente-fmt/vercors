@@ -3,7 +3,14 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalEnumSpecX extends VercorsSpec {
-  vercors should verify using silicon in "java/use builtin enums" java
+}
+
+class TechnicalEnumSpec extends VercorsSpec {
+  vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB1.java")
+  vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB2.java")
+  vercors should verify using silicon example "technical/enums/Enums.java"
+
+  vercors should verify using silicon in "java/use builtin enums through wildcard" java
     """
 import java.lang.annotation.*;
 
@@ -14,12 +21,6 @@ class Test {
 }
 
 """
-}
-
-class TechnicalEnumSpec extends VercorsSpec {
-  vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB1.java")
-  vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB2.java")
-  vercors should verify using silicon example "technical/enums/Enums.java"
 
   vercors should verify using silicon in "java/use builtin enums" java
     """
