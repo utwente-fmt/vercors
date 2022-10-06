@@ -129,6 +129,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case deref: CStructAccess[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
+    case kernel: GpgpuCudaKernelInvocation[Pre] => c.cudaKernelInvocation(kernel)
+    case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
+    case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)

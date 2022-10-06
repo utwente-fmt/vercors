@@ -156,10 +156,14 @@ case object ResolveReferences {
       if(func.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined)
         res = res.declare(scanShared(func.body))
       res
-    case func: CGlobalDeclaration[G] => ctx
-      // PB: This is a bit dubious. It's like this because one global declaration can contain multiple forward function
-      // declarations, but the contract is before the whole declaration.
-      .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl).params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
+    case func: CGlobalDeclaration[G] =>
+      if(func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
+        throw MultipleForwardDeclarationContractError(func)
+      }
+      ctx
+      .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
+      .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
+        .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
