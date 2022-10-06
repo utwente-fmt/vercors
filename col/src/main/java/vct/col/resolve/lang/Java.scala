@@ -82,8 +82,6 @@ case object Java {
     implicit val o: Origin = JavaSystemOrigin("unknown_jre")
     currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
 
-    println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
-
     try {
       val classLoader = this.getClass.getClassLoader
       val cls = classLoader.loadClass(potentialFQName.mkString("."))
@@ -95,6 +93,8 @@ case object Java {
       for(t <- currentlyLoading.remove(potentialFQName).get) {
         ((t : JavaNamedType[_]).unsafeTransmuteGeneration[JavaNamedType, G] : JavaNamedType[G]).ref = Some(RefJavaClass(colClass))
       }
+
+      println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
 
       Some(colClass)
     } catch {
