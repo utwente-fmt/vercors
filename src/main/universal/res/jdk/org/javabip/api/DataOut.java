@@ -20,7 +20,7 @@
 
 package org.javabip.api;
 
-import java.util.Set;
+// import java.util.Set;
 
 /**
  * It specifies the interface for data being provided by BIP component.
@@ -28,7 +28,7 @@ import java.util.Set;
  * @param <T>
  *            the generic type
  */
-public interface DataOut<T> extends Data<T> {
+public interface DataOut /* <T> extends Data<T> */ {
 
 	/**
 	 * It specifies the ports for which the specification of output data applies, i.e. which are allowed to export the
@@ -36,7 +36,7 @@ public interface DataOut<T> extends Data<T> {
 	 * 
 	 * @return the ports if type requires a list of ports.
 	 */
-	public Set<Port> allowedPorts();
+	// public Set<Port> allowedPorts();
 
 	/**
 	 * It specifies the type of data accessibility.

@@ -34,5 +34,5 @@ public /*@ bip_annotation @*/ @interface Invariant {
 	 * it must hold after construction of the component, can be assumed to hold before a transition, and must hold after a transition
 	 * @return expr
 	 */
-	String expr();
+	String value();
 }

@@ -196,6 +196,7 @@ case object ResolveReferences extends LazyLogging {
       /* TODO (RR): JavaBIP _name keys_ of guard annotations cut in line because transitions need to refer to them,
           _by string value_, so they are fully resolved directly... That's probably bad. */
       newCtx.javaBipGuards.keys.map(resolve(_, newCtx))
+      newCtx.javaBipStatePredicates.keys.map(resolve(_, newCtx))
       newCtx
     }
     case cls: Class[G] => ctx
@@ -454,7 +455,7 @@ case object ResolveReferences extends LazyLogging {
       val y = ann.data
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
-      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("expr")), ann.expect("expr").o)
+      val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("value")), ann.expect("value").o)
       resolve(expr, ctx)
       ann.data = Some(BipInvariant(expr))
 

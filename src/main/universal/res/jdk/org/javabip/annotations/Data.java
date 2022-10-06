@@ -20,8 +20,8 @@
 
 package org.javabip.annotations;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+// import java.lang.annotation.Retention;
+// import java.lang.annotation.RetentionPolicy;
 
 /**
  * It is used to annotated data sent between BIP components. It can be used as annotation on the code directly or

@@ -20,8 +20,8 @@
 
 package org.javabip.annotations;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+// import java.lang.annotation.Retention;
+// import java.lang.annotation.RetentionPolicy;
 
 /**
  * It specifies the type of the BIP component.
