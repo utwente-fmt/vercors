@@ -193,6 +193,7 @@ case class RefModelProcess[G](decl: ModelProcess[G]) extends Referrable[G] with 
 case class RefModelAction[G](decl: ModelAction[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] with PVLConstructorTarget[G]
 case class RefJavaBipStatePredicate[G](decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
+case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 
 case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
 case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]

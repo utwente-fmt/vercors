@@ -5,7 +5,7 @@ import vct.col.ast._
 import vct.col.lang.LangBipToCol.{InconsistentBipDataType, WrongTransitionReturnType}
 import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipStatePredicate}
+import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -105,6 +105,12 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
 
     javaMethodSuccTransition(m) = rw.classDeclarations.declare(trans)
+  }
+
+  def local(local: JavaLocal[Pre]): Expr[Post] = {
+    val RefJavaBipGuard(method) = local.ref
+    // FunctionInvocation!
+    ???
   }
 
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {

@@ -390,6 +390,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         } else {
           Deref[Post](rw.currentThis.top, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
         }
+      case RefJavaBipGuard(_) => rw.bip.local(local)
       case RefModelField(field) =>
         ModelDeref[Post](rw.currentThis.top, rw.succ(field))(local.blame)
       case RefJavaLocalDeclaration(decls, idx) =>

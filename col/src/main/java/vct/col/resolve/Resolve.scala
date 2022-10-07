@@ -261,7 +261,10 @@ case object ResolveReferences extends LazyLogging {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@JavaLocal(name) =>
-      local.ref = Some(Java.findJavaName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+      val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
+        Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
+      } else { None }
+      local.ref = Some(start.orElse(Java.findJavaName(name, ctx)).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
@@ -440,8 +443,11 @@ case object ResolveReferences extends LazyLogging {
     case ann@JavaAnnotation(_, _) if isBip(ann, "Transition") =>
       logger.info(s"BIP Transition @ ${ann.o}")
 
-      val guard = ann.get("guard").map { g =>
-        Java.findJavaBipGuard(ctx, getLit(g)).getOrElse(throw MalformedBipAnnotation(ann, "Guard name does not exist"))
+      val guard: Option[Expr[G]] = ann.get("guard").map { g =>
+        val expr: Expr[G] = ctx.javaParser.parse(getLit(g), g.o)
+        resolve(expr, ctx)
+        expr
+//        Java.findJavaBipGuard(ctx, getLit(g)).getOrElse(throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
 
       def extractExpr(s: Option[Expr[_]]): (String, Origin) = s match {
