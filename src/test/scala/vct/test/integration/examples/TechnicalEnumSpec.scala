@@ -2,9 +2,6 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
-class TechnicalEnumSpecX extends VercorsSpec {
-}
-
 class TechnicalEnumSpec extends VercorsSpec {
   vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB1.java")
   vercors should verify using silicon examples("technical/enums/AB.java", "technical/enums/UseAB2.java")

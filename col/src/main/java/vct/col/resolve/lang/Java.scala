@@ -2,7 +2,7 @@ package vct.col.resolve.lang
 
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast._
+import vct.col.ast.{Any => _, Class => _, _}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._

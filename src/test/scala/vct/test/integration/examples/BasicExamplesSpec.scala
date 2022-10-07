@@ -22,8 +22,6 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/frac2.pvl"
   vercors should verify using anyBackend example "concepts/basic/fraction-comparison.pvl"
   vercors should verify using anyBackend example "concepts/basic/InlineFunctions.pvl"
-  vercors should verify using anyBackend example "concepts/basic/JavaAnnotation.java"
-  vercors should verify using anyBackend example "concepts/basic/JavaString.java"
   vercors should verify using anyBackend example "concepts/basic/MultiDimArray.java"
   vercors should verify using anyBackend example "concepts/basic/NewClassGhost.java"
   vercors should verify using anyBackend example "concepts/basic/pointer.c"

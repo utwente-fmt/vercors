@@ -95,7 +95,6 @@ ID: 'id';
 BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
-STRING: 'string';
 FLOAT32: 'float32';
 FLOAT64: 'float64';
 

@@ -389,7 +389,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
                   alt5: => T = throw IncoercibleDummy,
                   alt6: => T = throw IncoercibleDummy,
                   alt7: => T = throw IncoercibleDummy,
-                  alt8: => T = throw IncoercibleDummy) : T = {
+                  alt8: => T = throw IncoercibleDummy,
+                  alt9: => T = throw IncoercibleDummy,
+                  alt10: => T = throw IncoercibleDummy,
+                  alt11: => T = throw IncoercibleDummy) : T = {
     Left(Nil)
       .onCoercionError(alt1)
       .onCoercionError(alt2)
