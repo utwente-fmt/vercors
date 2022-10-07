@@ -593,6 +593,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit expr: ExprContext): Expr[G] = {
     if (isThrowAwayExpr(expr)) {
+      logger.warn(originProvider(expr).messageInContext("Warning: Replacing this java expression with 0"))
       const(0)
     } else {
       expr match {
