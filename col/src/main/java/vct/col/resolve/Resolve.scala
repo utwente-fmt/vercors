@@ -133,9 +133,9 @@ case object ResolveTypes {
     case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
       Java.findJavaTypeName(name.names, ctx)
         .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
-//      Java.findJavaTypeName(name.names, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
+      Java.findJavaTypeName(name.names, ctx)
+        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
 //    case imp@JavaImport(/* static = */ false, pkg, /* star = */ true) =>
 //      // TODO (RR): Pulls in everything, even though we prefer on demand...?
 //      Java.findJavaTypeNamesInPackage(pkg.names, ctx)
