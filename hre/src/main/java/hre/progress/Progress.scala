@@ -1,6 +1,5 @@
 package hre.progress
 
-import hre.platform.Platform
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
 case object Progress {
