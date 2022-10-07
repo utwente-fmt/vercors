@@ -20,8 +20,8 @@ case class ColHelper() {
     Seq[(String, () => List[Stat])](
       ("AbstractRewriter", ColHelperAbstractRewriter(info).make),
       ("RewriteHelpers", ColHelperRewriteHelpers(info).make),
-      ("RewriteBuilders", ColHelperRewriteBuilders(info).make),
-      ("JavaRewriter", ColHelperJavaRewriter(info).make),
+//      ("RewriteBuilders", ColHelperRewriteBuilders(info).make),
+//      ("JavaRewriter", ColHelperJavaRewriter(info).make),
       ("Subnodes", ColHelperSubnodes(info).make),
       ("Comparator", ColHelperComparator(info).make),
       ("AllScopes", ColHelperAllScopes(info).make),

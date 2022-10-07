@@ -1,7 +1,11 @@
 package java.lang.annotation;
 
+// TODO: Turn this into *
+import java.lang.annotation.RetentionPolicy;
+
 class MyClass {
     void m() {
-        assert 2 == 3;
+        RetentionPolicy rp = RetentionPolicy.SOURCE;
+        //@ assert rp != null;
     }
 }
