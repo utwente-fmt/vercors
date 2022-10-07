@@ -7,7 +7,7 @@ import org.javabip.api.PortType;
 /*[/expect bipComponentInvariantNotEstablished:false]*/
 @ComponentType(initial = INIT, name = NAME)
 @StatePredicate(state = "xyz", expr = "true")
-@Invariant(expr = "false")
+@Invariant("false")
 @Port(name = GO)
 public class GuardIsUsed {
     public static final String INIT = "initialState";

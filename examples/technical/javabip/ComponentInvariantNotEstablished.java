@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
-@Invariant(expr = "x > 0")
+@Invariant("x > 0")
 public class ComponentInvariantNotEstablished {
     public static final String INIT = "initialState";
     public static final String NAME = "oneComponentOneTransition";

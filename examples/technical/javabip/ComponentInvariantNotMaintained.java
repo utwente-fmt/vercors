@@ -8,7 +8,7 @@ import java.util.List;
 
 @Port(name = GO)
 @ComponentType(initial = INIT, name = NAME)
-@Invariant(expr = "x >= 0")
+@Invariant("x >= 0")
 public class ComponentInvariantNotMaintained {
     public static final String INIT = "initialState";
     public static final String DONE = "doneState";

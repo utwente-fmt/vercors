@@ -8,7 +8,7 @@ import java.util.List;
 
 @ComponentType(initial = INIT, name = NAME)
 @Port(name = GO)
-@Invariant(expr = "true")
+@Invariant("true")
 public class TransitionPostconditionFailed {
     public static final String INIT = "initialState";
     public static final String DONE = "doneState";
