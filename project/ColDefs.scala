@@ -33,6 +33,7 @@ object ColDefs {
     "ClassDeclaration",
     "ADTDeclaration",
     "ModelDeclaration",
+    "EnumConstant",
     "Variable",
     "LabelDecl",
     "SendDecl",
@@ -51,6 +52,7 @@ object ColDefs {
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
     "ModelDeclaration" -> Seq("Program"),
+    "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
       "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
