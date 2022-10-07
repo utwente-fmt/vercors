@@ -29,6 +29,10 @@ case object PureMethodsToFunctions extends RewriterBuilder {
 case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
   import PureMethodsToFunctions._
 
+  def assignedOnlyOnce(v: Variable[Pre], s: Statement[Pre]): Boolean = {
+    ???
+  }
+
   def toExpression(stat: Statement[Pre], alt: => Option[Expr[Post]]): Option[Expr[Post]] = {
     implicit val o: Origin = DiagnosticOrigin
     stat match {
@@ -42,7 +46,8 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
         Some(Select(dispatch(cond),
           toExpression(impl, alt).getOrElse(return None),
           toExpression(Branch(branches), alt).getOrElse(return None)))
-      case Scope(_, impl) => toExpression(impl, alt)
+      case Scope(_, impl) =>
+        toExpression(impl, alt)
       case _ => None
     }
   }

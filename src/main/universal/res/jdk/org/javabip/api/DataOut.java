@@ -45,4 +45,3 @@ public interface DataOut /* <T> extends Data<T> */ {
 	 */
 	// public AccessType portAccessType();
 }
-

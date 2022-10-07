@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.lang.LangBipToCol.{InconsistentBipDataType, WrongTransitionReturnType}
 import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
+import vct.col.print.Printer
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.rewrite.{Generation, Rewritten}
@@ -34,7 +35,10 @@ case object LangBipToCol {
 
   case class InconsistentBipDataType(data: BipData[_], expectedOrigin: Origin, expectedType: Type[_]) extends UserError {
     override def code: String = "bipInconsistentDataType"
-    override def text: String = ???
+    override def text: String = Origin.messagesInContext(Seq(
+      (data.o, s"The data defined here..."),
+      (expectedOrigin, s"... is expected to have type $expectedType by the usage here")
+    ))
   }
 }
 
@@ -98,7 +102,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         rw.bipIncomingDatas.collect {
           m.parameters.map(rewriteParameter)
         }._1,
-        guard.map(javaMethodSuccGuard.ref(_)),
+//        guard.map(javaMethodSuccGuard.ref(_)),
+        guard.map(rw.dispatch),
         rw.dispatch(requires),
         rw.dispatch(ensures),
         rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
@@ -108,9 +113,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def local(local: JavaLocal[Pre]): Expr[Post] = {
-    val RefJavaBipGuard(method) = local.ref
-    // FunctionInvocation!
-    ???
+    val Some(RefJavaBipGuard(method)) = local.ref
+    BipGuardInvocation(javaMethodSuccGuard.ref[Post, BipGuard[Post]](method))(local.o)
   }
 
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {

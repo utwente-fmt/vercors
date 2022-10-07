@@ -4,10 +4,10 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipGuardPreconditionUnsatisfiable, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, BipTransitionPreconditionUnsatisfiable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, NontrivialUnsatisfiable, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
-import vct.col.rewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, ForwardUnsatisfiableBlame, GuardPostconditionFailed, IsBipComponent, TransitionPostconditionFailed}
+import vct.col.rewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, ForwardUnsatisfiableBlame, GuardPostconditionFailed, IsBipComponent, MissingData, TransitionPostconditionFailed}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.Unreachable
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -95,6 +95,17 @@ case object EncodeBip extends RewriterBuilder {
       case t: BipTransition[_] => t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
     }
   }
+
+  case class MissingData(guard: BipGuard[_], transition: BipTransition[_]) extends UserError {
+    // Guard at POS needs data that transition at POS is not supplying!
+    override def code: String = "bipMissingData"
+    override def text: String = {
+      Origin.messagesInContext(Seq(
+        (guard.o, "Data required by this guard..."),
+        (transition.o, "... is not supplied by this transition")
+      ))
+    }
+  }
 }
 
 case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
@@ -112,6 +123,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+  val currentBipTransition: ScopedStack[BipTransition[Pre]] = ScopedStack()
   // TODO (RR): Make these vars lazy so construction only happens if there's bip stuff present in the ast?
   var portToComponent: Map[BipPort[Pre], BipComponent[Pre]] = Map()
   var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
@@ -156,6 +168,25 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       case None => thisObj.rewrite()
     }
     case BipLocalIncomingData(ref) => Local[Post](incomingDataSucc.ref(ref.decl))(expr.o)
+    case BipGuardInvocation(ref) =>
+      // // For each @Data that the guard needs, find the appropriate @Data parameter from the transition
+      // val vars = bipGuard.data.map(guardData => bt.data.find(guardData.data == _.data).get)
+      // methodInvocation(
+      //   BipGuardInvocationFailed(bt),
+      //   ThisObject(succ[Class[Post]](currentClass.top)),
+      //   guardSucc.ref[Post, InstanceMethod[Post]](bipGuard),
+      //   args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)))
+      val bipGuard = ref.decl
+      val vars = bipGuard.data.map { guardData =>
+        currentBipTransition.top.data.find(guardData.data == _.data)
+          .getOrElse(throw MissingData(bipGuard, currentBipTransition.top))
+      }
+      MethodInvocation(
+        obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
+        ref = guardSucc.ref[Post, InstanceMethod[Post]](ref.decl),
+        args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)(expr.o)),
+        Nil, Nil, Nil, Nil
+      )(BipGuardInvocationFailed(currentBipTransition.top))(expr.o)
     case _ => rewriteDefault(expr)
   }
 
@@ -236,16 +267,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
               dispatch(component.invariant)
                 &** dispatch(bt.source.decl.expr)
                 &** dispatch(bt.requires)
-                &** (bt.guard.map { guardRef =>
-                val bipGuard = guardRef.decl
-                // For each @Data that the guard needs, find the appropriate @Data parameter from the transition
-                val vars = bipGuard.data.map(guardData => bt.data.find(guardData.data == _.data).get)
-                methodInvocation(
-                  BipGuardInvocationFailed(bt),
-                  ThisObject(succ[Class[Post]](currentClass.top)),
-                  guardSucc.ref[Post, InstanceMethod[Post]](bipGuard),
-                  args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)))
-              }.getOrElse(tt))
+//                &** bt.guard.map { guardExpr => currentBipTransition.having(bt) { dispatch(guardExpr) } }.getOrElse(tt)
+                &** currentBipTransition.having(bt) { bt.guard.map(dispatch) }.getOrElse(tt)
             ),
             ensures =
             // Establish component invariant

@@ -147,7 +147,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit pair: ElementValuePairContext): Seq[(String, Expr[G])] = pair match {
     case ElementValuePair0(name, _, ElementValue1(expr)) => Seq((convert(name), convert(expr)))
     case ElementValuePair0(name, _, ElementValue0(expr)) =>
-      logger.warn(originProvider(pair).messageInContext("Warning: Discarding part of java annotation"))
+      logger.warn(s"Annotation array initializer at ${originProvider(pair).shortPosition} is discarded")
+//      logger.warn(originProvider(pair).messageInContext("
       Seq()
     case x => ??(x)
   }
@@ -593,7 +594,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit expr: ExprContext): Expr[G] = {
     if (isThrowAwayExpr(expr)) {
-      logger.warn(originProvider(expr).messageInContext("Warning: Replacing this java expression with 0"))
+      logger.warn(s"Unsupported expression at ${originProvider(expr).shortPosition}, replacing with 0")
       const(0)
     } else {
       expr match {
@@ -1347,6 +1348,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit e: ValExprContext): Expr[G] = e match {
     case ValExpr0(inner) => convert(inner)
     case ValExpr1(inner) => convert(inner)
+    case ValExpr2(_, _, _, inner, _, _, ignore, _, _, _) =>
+      logger.warn(s"The expression at ${origin(ignore).shortPosition} is replaced with: ${origin(inner).inlineContext}")
+      convert(inner)
   }
 
   def convert(implicit id: ValIdentifierContext): String = id match {

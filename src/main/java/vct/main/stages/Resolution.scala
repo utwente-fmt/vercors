@@ -101,7 +101,7 @@ case class Resolution[G <: Generation]
     val resolvedProgram = LangSpecificToCol.withArg(LangSpecificToColArgs(bipSynchrons, bipDatas))().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
-      case some => throw TransformationCheckError(some)
+      case some => throw TransformationCheckError("langSpecific", some)
     }
 
     VerificationContext(resolvedProgram, in.expectedErrors)

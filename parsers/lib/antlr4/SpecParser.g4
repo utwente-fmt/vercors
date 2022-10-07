@@ -224,6 +224,7 @@ valPrimaryContext
 valExpr
  : {specLevel>0}? valPrimary
  | {specLevel>0}? valKeywordExpr
+ | startSpec '\\replacing' '(' langExpr ')' endSpec langExpr startSpec '\\replacing_done' endSpec
  ;
 
 valIdentifier

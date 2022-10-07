@@ -16,6 +16,7 @@ trait JavaLocalImpl[G] { this: JavaLocal[G] =>
     case RefJavaField(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
     case RefJavaLocalDeclaration(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
     case RefJavaParam(decl) => decl.t
+    case RefJavaBipGuard(_) => TBool()
     case RefModelField(field) => field.t
   }
 }

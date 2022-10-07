@@ -445,7 +445,7 @@ case object ResolveReferences extends LazyLogging {
 
       val guard: Option[Expr[G]] = ann.get("guard").map { g =>
         val expr: Expr[G] = ctx.javaParser.parse(getLit(g), g.o)
-        resolve(expr, ctx)
+        resolve(expr, ctx.enableJavaBipGuards())
         expr
 //        Java.findJavaBipGuard(ctx, getLit(g)).getOrElse(throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
