@@ -46,6 +46,7 @@ INC: '++';
 DEC: '--';
 CONS: '::';
 
+ENUM: 'enum';
 CLASS: 'class';
 KERNEL: 'kernel';
 BARRIER: 'barrier';

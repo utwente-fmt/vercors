@@ -50,6 +50,7 @@ case object CoercionUtils {
       case (TNull(), TClass(target)) => CoerceNullClass(target)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
+      case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
       case (cls: JavaTClass[G], TPinnedDecl(pin, typeArgs)) if cls.ref.decl.isPin(pin) && cls.typeArgs == typeArgs => CoerceJavaTClassTPinnedDecl(cls, pin)
       case (TPinnedDecl(pin, typeArgs), cls: JavaTClass[G]) if cls.ref.decl.isPin(pin) && cls.typeArgs == typeArgs => CoerceTPinnedDeclJavaTClass(pin, cls)

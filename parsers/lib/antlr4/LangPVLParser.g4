@@ -6,7 +6,9 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | method;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method;
+
+enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass : contract 'class' identifier '{' classDecl* '}' ;
 classDecl : valClassDeclaration | constructor | method | field | runMethod;

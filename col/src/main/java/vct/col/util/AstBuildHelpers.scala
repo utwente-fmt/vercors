@@ -321,6 +321,35 @@ object AstBuildHelpers {
     )
   }
 
+  def foralls[G]
+            (ts: Seq[Type[G]],
+             body: Seq[Local[G]] => Expr[G],
+             triggers: Seq[Local[G]] => Seq[Seq[Expr[G]]] = (_: Seq[Local[G]]) => Nil,
+            ): Forall[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_vars: Seq[Variable[G]] = ts.map(new Variable[G](_))
+    val is: Seq[Local[G]] = i_vars.map((x: Variable[G]) => Local[G](x.ref))
+    Forall(
+      bindings = i_vars,
+      triggers = triggers(is),
+      body = body(is),
+    )
+  }
+
+  case object GeneratedLet extends Origin {
+    override def preferredName: String = "x"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At generated let]"
+    override def inlineContext: String = "[Generated let]"
+  }
+
+  def let[G](t: Type[G], x: Expr[G], body: Local[G] => Expr[G]): Let[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val x_var: Variable[G] = new Variable[G](t)
+    val x_local: Local[G] = Local(x_var.ref)
+    Let(x_var, x, body(x_local))
+  }
+
   def assignLocal[G](local: Local[G], value: Expr[G])(implicit o: Origin): Assign[G] =
     Assign(local, value)(AssignLocalOk)
 

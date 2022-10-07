@@ -1027,7 +1027,7 @@ case class Printer(out: Appendable,
     case rule: SimplificationRule[_] =>
       statement("axiom", space, name(rule), space, "{", newline, indent(rule.axiom), "}")
     case dataType: AxiomaticDataType[_] =>
-      ???
+      statement(s"axiomatic datatype ${dataType.o.preferredName} { ... omitted ... }")
     case function: Function[_] =>
       phrase(
         doubleline,

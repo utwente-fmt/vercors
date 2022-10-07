@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefJavaParam, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.ctx._
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -377,7 +377,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefAxiomaticDataType(decl) => throw NotAValue(local)
       case RefVariable(decl) => Local(rw.succ(decl))
       case RefJavaParam(decl) if BipData.get(decl).isDefined => rw.bip.local(local, decl)
-      case RefJavaParam(decl) => Local(rw.succ(decl))
+      case RefJavaParam(decl) => Local(javaParamSuccessor.ref(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
       case RefJavaClass(decl) => throw NotAValue(local)
       case RefJavaField(decls, idx) =>
@@ -394,6 +394,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ModelDeref[Post](rw.currentThis.top, rw.succ(field))(local.blame)
       case RefJavaLocalDeclaration(decls, idx) =>
         Local(javaLocalsSuccessor.ref((decls, idx)))
+      case RefEnumConstant(Some(enum), constant) =>
+        EnumUse(rw.succ(enum), rw.succ(constant))
     }
   }
 
@@ -408,6 +410,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
       case RefJavaField(decls, idx) =>
         Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
+      case RefEnumConstant(_, constant) => deref.obj.t match {
+        case TNotAValue(RefEnum(enum: Enum[Pre])) =>
+          EnumUse(rw.succ(enum), rw.succ(constant))
+      }
       case BuiltinField(f) => rw.dispatch(f(deref.obj))
       case RefVariable(v) => ???
     }
@@ -516,6 +522,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     ), array.get))
   }
 
-  def classType(t: JavaTClass[Pre]): Type[Post] =
-    TClass(javaInstanceClassSuccessor.ref(t.ref.decl))
+  def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
+    case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
+  }
 }

@@ -4,12 +4,9 @@ import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
 import vct.col.origin.RedirectOrigin.StringReadable
-
 import java.io.{Reader, StringReader}
-import java.nio.file.Path
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
 
 case object Origin {
   val BOLD_HR = "======================================\n"
@@ -359,4 +356,17 @@ case class RedirectOrigin(o: Origin, textualOrigin: String, startLine: Int, endL
   }
 
   override def context: String = transposedOrigin.context
+}
+
+trait PreferredNameOrigin extends Origin {
+  def name: String
+  def inner: Origin
+
+  def preferredName: String = name
+  def shortPosition: String = inner.shortPosition
+  def context: String = inner.context
+  def inlineContext: String = inner.inlineContext
+
+  override def toString: String =
+    s"$name at $inner"
 }

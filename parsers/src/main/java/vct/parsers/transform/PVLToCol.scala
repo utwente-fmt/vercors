@@ -26,7 +26,18 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit decl: ProgramDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case ProgramDecl0(valDecl) => convert(valDecl)
     case ProgramDecl1(cls) => Seq(convert(cls))
-    case ProgramDecl2(method) => Seq(convertProcedure(method))
+    case ProgramDecl2(enum) => Seq(convert(enum))
+    case ProgramDecl3(method) => Seq(convertProcedure(method))
+  }
+
+  def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
+    case EnumDecl0(_, name, _, constants, _, _) =>
+      new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(Nil))(SourceNameOrigin(convert(name), origin(enum)))
+  }
+
+  def convertConstants(implicit identifierList: IdentifierListContext): Seq[EnumConstant[G]] = identifierList match {
+    case IdentifierList0(id) => Seq(new vct.col.ast.EnumConstant[G]()(SourceNameOrigin(convert(id), origin(identifierList))))
+    case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(SourceNameOrigin(convert(id), origin(identifierList))) +: convertConstants(tail)
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {

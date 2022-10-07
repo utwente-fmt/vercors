@@ -109,7 +109,7 @@ lazy val vercors: Project = (project in file("."))
       "-feature",
       "-unchecked",
       "-Xno-patmat-analysis",
-      "-Ywarn-unused",
+//      "-Ywarn-unused",
 //      "-Ystatistics",
 //      "-Xprint:typer",
 //      "-Ycache-plugin-class-loader:last-modified",

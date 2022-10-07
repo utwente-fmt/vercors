@@ -518,5 +518,6 @@ class FeatureRainbow[G] {
     case _: BipPortType[G] => return Nil
     case node: FloatValue[G] => return Nil
     case node: CastFloat[G] => return Nil
+    case _ => return Nil
   })
 }
