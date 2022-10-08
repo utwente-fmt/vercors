@@ -29,6 +29,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     case IntegerValue(_) => true
     case LiteralSeq(_, vals) => vals.forall(isAllowedValue)
     case FunctionInvocation(_, args, _, givenMap, _) => args.forall(isAllowedValue) && givenMap.forall { case (_, e) => isAllowedValue(e) }
+    case _ => false
   }
 
   override def dispatch(decl: Program[Pre]): Program[Post] = {
@@ -69,8 +70,11 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Deref(obj, Ref(field)) =>
       implicit val o: Origin = e.o
-      if(isFinal(field)) FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing"))
+      if(isFinal(field))
+        FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing"))
       else rewriteDefault(e)
+    // TODO (RR): Lhs of FieldLocation should not be discarded!
+    case Perm(FieldLocation(_, ref), _) if isFinal(ref.decl) => BooleanValue(true)(e.o)
     case other => rewriteDefault(other)
   }
 

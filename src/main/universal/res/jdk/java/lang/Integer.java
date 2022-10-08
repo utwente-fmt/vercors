@@ -6,8 +6,5 @@ class Integer {
         //@ inhale false;
     }
 
-    /*@ pure @*/
-    public int intValue() {
-        //@ inhale false;
-    }
+    /*@ ghost pure public int intValue(); @*/
 }
