@@ -104,6 +104,9 @@ valPostfix
  | '[' langExpr '->' langExpr ']' // C?
  | '?.' langId '(' valExpressionList? ')'
  ;
+valPrefix
+ : '[' langExpr ']' # valScale
+ ;
 valWith: 'with' langStatement;
 valThen: 'then' langStatement;
 valGiven: 'given' '{' valGivenMappings '}';
@@ -245,7 +248,6 @@ valPrimary
  | valPrimaryContext
  | '*' # valAny
  | '(' langId '!' valIdList ')' # valFunctionOf
- | '[' langExpr ']' langExpr # valScale
  | TRIGGER_OPEN langExpr ':}' # valInlinePattern
  | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
  | '\\old' '(' langExpr ')' # valOld

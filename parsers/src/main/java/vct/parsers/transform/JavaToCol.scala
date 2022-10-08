@@ -606,6 +606,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "~" => BitNot(convert(inner))
       case "!" => Not(convert(inner))
     }
+    case JavaValPrefix(PrefixOp0(op), inner) =>
+      convert(op, convert(inner))
     case JavaValPrepend(left, PrependOp0(op), right) =>
       convert(op, convert(left), convert(right))
     case JavaMul(leftNode, mul, rightNode) =>
@@ -999,6 +1001,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
+  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+    case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
+  }
+
   def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
     case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
     case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
@@ -1296,7 +1302,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
       InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)

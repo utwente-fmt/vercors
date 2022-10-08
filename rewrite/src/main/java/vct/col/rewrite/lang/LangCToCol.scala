@@ -803,6 +803,111 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
+  /**
+    * Rewrites a CudaKernelInvocation to a procedure.
+    * @param kernel - the invocation we want to rewrite
+    * @return a Procedure[Post]
+    */
+  def cudaKernelInvocation(kernel: GpgpuCudaKernelInvocation[Pre]): Expr[Post] = {
+    val GpgpuCudaKernelInvocation(ker, blocks, threads, args, givenMap, yields) = kernel
+    implicit val o: Origin = kernel.o
+    val one = const[Post](1)
+    kernel.ref.get match {
+      case target: SpecInvocationTarget[_] => ???
+      case ref: RefCFunctionDefinition[Pre] =>
+        ProcedureInvocation[Post](cFunctionSuccessor.ref(ref.decl),
+          rw.dispatch(blocks) +: one +:  one
+            +: rw.dispatch(threads) +: one +: one +: args.map(rw.dispatch),
+          Nil, Nil,
+          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(kernel.blame)
+      case e: RefCGlobalDeclaration[Pre] => ???
+    }
+  }
+
+  /**
+    * Returns the local id of a thread in a given dimension.
+    * @param index - the dimension for which we want the thread id
+    * @param origin - the origin of the expr node
+    * @return the value of the thread ID in the given dimension
+    */
+  def getCudaLocalThread(index: Int, origin: Origin): Expr[Post]  = {
+    implicit val o: Origin = origin
+    cudaCurrentThreadIdx.top.indices.values.toSeq.apply(index).get
+  }
+
+  /**
+    * Returns the group id of a thread in a given dimension.
+    * @param index - the dimension for which we want the thread id
+    * @param origin - the origin of the expr node
+    * @return the value of the thread ID in the given dimension
+    */
+  def getCudaGroupThread(index: Int, origin: Origin): Expr[Post]  = {
+    implicit val o: Origin = origin
+    cudaCurrentBlockIdx.top.indices.values.toSeq.apply(index).get
+  }
+
+  /**
+    * Returns the local size of a given dimension.
+    * @param index - the dimension for which we query its size
+    * @param origin - the origin of the expr node
+    * @return the value of the size of the given dimension.
+    */
+  def getCudaLocalSize(index: Int, origin: Origin): Expr[Post] = {
+    implicit val o: Origin = origin
+    cudaCurrentBlockDim.top.indices.values.toSeq.apply(index).get
+  }
+
+  /**
+    * Returns the global size of a given dimension.
+    * @param index - the dimension for which we query the global size.
+    * @param o - the origin of the expr node
+    * @return the value of the global size of the given dimension.
+    */
+  def getCudaGroupSize(index: Int, o: Origin): Expr[Post] = {
+    implicit val origin: Origin = o
+    cudaCurrentGridDim.top.indices.values.toSeq.apply(index).get
+  }
+
+  /**
+    * Rewrites a LocalThreadId and translates it to a linear ID value. The expression is equivalent to the openCL
+    *   method "get_local_linear_id".
+    * @param local - the node we want to rewrite
+    * @return an expression equal to the linear ID of the local thread
+    */
+  def cudaLocalThreadId(local: LocalThreadId[Pre]): Expr[Post] = {
+    implicit val o: Origin = local.o
+    Plus(
+      Mult(
+        Mult(getCudaLocalThread(2, o), getCudaLocalSize(1, o)), // get_local_id(2) * get_local_size(1)
+      getCudaLocalSize(0, o)                                           //  * get_local_size(0)
+      ),                                                                      //  +
+      Plus(
+        Mult(getCudaLocalThread(1, o), getCudaLocalSize(0, o)), //  get_local_id(1) * get_local_size(0)
+        getCudaLocalThread(0, o)                                       //  + get_local_id(0)
+      )
+    )
+  }
+
+  /**
+    * Rewrites a GlobalThreadId into a linear ID value. The expression is equivalent to the openCL
+    *   method "get_global_linear_id".
+    * We assume the global_offset is 0 in our calculation.
+    * @param global - the node we want to rewrite
+    * @return an expression equal to the linear global id of the thread.
+    */
+  def cudaGlobalThreadId(global: GlobalThreadId[Pre]): Expr[Post] = {
+    implicit val o: Origin = global.o
+    Plus(
+      Plus(
+        Mult(
+          Mult(getCudaGroupThread(2, o), getCudaGroupSize(1, o)),   // (get_global_id(2) * get_global_size(1)
+          getCudaGroupSize(0, o)),                                         //   * get_global_size(0)
+        Mult(getCudaGroupThread(1, o), getCudaGroupSize(0, o))),    //   + get_global_id(1) * get_global_size(0)
+      getCudaGroupThread(0, o)                                             //   + get_global_id(0)
+    )
+  }
+
   def globalInvocation(e: RefCGlobalDeclaration[Pre], inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(_, args, givenMap, yields) = inv
     val RefCGlobalDeclaration(decls, initIdx) = e
@@ -815,10 +920,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       }
     } else None
     (e.name, arg) match {
-      case ("get_local_id", Some(i)) => cudaCurrentThreadIdx.top.indices.values.toSeq.apply(i).get
-      case ("get_group_id", Some(i)) => cudaCurrentBlockIdx.top.indices.values.toSeq.apply(i).get
-      case ("get_local_size", Some(i)) => cudaCurrentBlockDim.top.indices.values.toSeq.apply(i).get
-      case ("get_num_groups", Some(i)) => cudaCurrentGridDim.top.indices.values.toSeq.apply(i).get
+      case ("get_local_id", Some(i)) => getCudaLocalThread(i, o)
+      case ("get_group_id", Some(i)) => getCudaGroupThread(i, o)
+      case ("get_local_size", Some(i)) => getCudaLocalSize(i, o)
+      case ("get_num_groups", Some(i)) => getCudaGroupSize(i, o)
       case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
         givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
         yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)

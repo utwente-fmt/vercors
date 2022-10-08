@@ -18,7 +18,7 @@ generateHelpersTask := {
 
   val compile = FileFunction.cached(streams.value.cacheDirectory / "removeThisToGenerate-src_managed", FilesInfo.hash)(changedSet => {
     if(changedSet.nonEmpty) {
-      ColHelper().generate(files, gen).toSet
+      ColHelper().generate(files, gen, (f: File, c: String) => IO.write(f, c)).toSet
     } else {
       Set()
     }
