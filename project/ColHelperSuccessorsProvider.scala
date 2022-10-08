@@ -1,7 +1,7 @@
 import scala.meta._
 
 case class ColHelperSuccessorsProvider(info: ColDescription) {
-  def make(): List[Stat] = q"""
+  def make(): List[(String, List[Stat])] = List("SuccessorsProvider" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag
     import vct.col.ref.LazyRef
@@ -33,5 +33,5 @@ case class ColHelperSuccessorsProvider(info: ColDescription) {
           preTransform(decl).orElse(postTransform(decl, inner.computeSucc(decl)))
       """).toList}
     }
-  """.stats
+  """.stats)
 }

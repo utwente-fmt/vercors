@@ -3,9 +3,6 @@ package org.javabip.spec.deviation;
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 @ComponentType(initial = INIT, name = NAME)
 @Port(name = GO)
 @Invariant("true")

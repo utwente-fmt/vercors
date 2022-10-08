@@ -265,4 +265,22 @@ class TechnicalSpec extends VercorsSpec {
   """
   vercors should verify using silicon example "technical/TestFuturePermsFail.pvl"
   vercors should verify using silicon example "technical/TestFuturePermsPass.pvl"
+
+  vercors should error withCode "resolutionError" in "example writing to variable within par-block" pvl """
+    void test() {
+      int x = 0;
+      par {
+        x = 1;
+      }
+    }
+  """
+
+  vercors should verify using silicon in "example that requires correct associativity of scale" pvl """
+    resource p();
+
+    requires [1\2]p() ** [1\2]p();
+    void test() {
+      assert perm(p()) == write;
+    }
+  """
 }

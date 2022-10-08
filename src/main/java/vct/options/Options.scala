@@ -269,6 +269,13 @@ case object Options {
     OParser.parse(parser(), args, Options())
 }
 
+/**
+ * Stores all command line options values, nicely parsed.
+ *
+ * Components of VerCors, in particular rewrite passes, must not be passed this object directly. Instead, duplicate
+ * the option as a parameter to e.g. the rewrite pass class, then pass in the option in
+ * [[vct.main.stages.SilverTransformation]].
+ */
 case class Options
 (
   help: Boolean = false,

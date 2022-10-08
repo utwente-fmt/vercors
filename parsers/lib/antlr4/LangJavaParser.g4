@@ -602,6 +602,7 @@ expr
     |   expr ('++' | '--') # javaPostfixIncDec
     |   ('+'|'-'|'++'|'--') expr # javaPrefixOp
     |   ('~'|'!') expr # javaPrefixOp2
+    |   prefixOp expr # javaValPrefix
     |   <assoc=right> expr prependOp expr # javaValPrepend
     |   expr mulOp expr # javaMul
     |   expr ('+'|'-') expr # javaAdd
@@ -624,6 +625,9 @@ prependOp
     ;
 postfixOp
     : {specLevel>0}? valPostfix
+    ;
+prefixOp
+    : {specLevel>0}? valPrefix
     ;
 mulOp
     : ('*'|'/'|'%')

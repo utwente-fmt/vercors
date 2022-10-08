@@ -205,6 +205,7 @@ case class PrependAfterWhitespace(inner: PrinterState, prepend: PrinterState => 
 }
 
 //PB TODO: make printer complete once we're nearing the end of making new nodes.
+//PB TODO: document the printer once it's not terrible.
 //@nowarn("msg=xhaust")
 case class Printer(out: Appendable,
                    syntax: Syntax = Java,

@@ -1,3 +1,4 @@
+import scala.collection.mutable
 import scala.meta._
 
 /**
@@ -18,12 +19,6 @@ object ColDefs {
     q"import vct.col.resolve.ctx.Referrable",
     q"import vct.col.origin.ExpectedError",
   )
-
-  /**
-   * The root type of declarations
-   */
-  val DECLARATION: String = "Declaration"
-  val DECLARATION_TYPE: Type.Name = Type.Name(DECLARATION)
 
   /**
    * The different kinds of declaration that exist, as well as a mapping to their corresponding default scope.
@@ -49,7 +44,7 @@ object ColDefs {
   def scopes(kind: String): Term.Name =
     Term.Name(kind.charAt(0).toLower + kind.substring(1) + "s")
 
-  val DECLARATION_NAMESPACE: Map[String, Seq[String]] = Map(
+  val DECLARATION_NAMESPACE: mutable.ListMap[String, Seq[String]] = mutable.ListMap(
     "GlobalDeclaration" -> Seq("Program"),
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
@@ -95,20 +90,4 @@ object ColDefs {
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)
-
-  /**
-   * The type that is the direct superclass of AbstractRewriter, and contains the default scopes mentioned above.
-   */
-  val PRE: Type.Name = Type.Name("Pre")
-  val POST: Type.Name = Type.Name("Post")
-
-  /**
-   * The fields that occupy blame and the origin of the node respectively.
-   */
-  val BLAME: String = "blame"
-  val BLAME_TERM: Term.Name = Term.Name(BLAME)
-  val BLAME_PAT: Pat.Var = Pat.Var(BLAME_TERM)
-  val ORIGIN: String = "o"
-  val ORIGIN_TERM: Term.Name = Term.Name(ORIGIN)
-  val ORIGIN_PAT: Pat.Var = Pat.Var(ORIGIN_TERM)
 }

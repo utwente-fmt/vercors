@@ -595,114 +595,113 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit expr: ExprContext): Expr[G] = {
     if (isThrowAwayExpr(expr)) {
       logger.warn(s"Unsupported expression at ${originProvider(expr).shortPosition}, replacing with 0")
-      const(0)
-    } else {
-      expr match {
-        case JavaPrimary(inner) => convert(inner)
-        case parse.JavaDeref(obj, _, field) => col.JavaDeref(convert(obj), convert(field))(blame(expr))
-        case JavaPinnedThis(innerOrOuterClass, _, _) => ??(expr)
-        case JavaPinnedOuterClassNew(pinnedOuterClassObj, _, _, _, _) => ??(expr)
-        case JavaSuper(_, _, _, _) => ??(expr)
-        case JavaGenericInvocation(obj, _, ExplicitGenericInvocation0(typeArgs, invocation)) =>
-          convert(invocation, Some(convert(obj)), convert(typeArgs))
-        case JavaSubscript(ar, _, idx, _) => AmbiguousSubscript(convert(ar), convert(idx))(blame(expr))
-        case JavaNonNullInvocation(obj, _, name, args) =>
-          Implies(
-            Neq(convert(obj), Null()),
-            col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args), Nil, Nil)(blame(expr)),
-          )
-        case parse.JavaInvocation(obj, _, name, familyType, args, given, yields) =>
-          failIfDefined(familyType, "Predicate families not supported (for now)")
-          col.JavaInvocation(
-            Some(convert(obj)), Nil, convert(name), convert(args),
-            convertEmbedGiven(given), convertEmbedYields(yields))(
-            blame(expr))
-        case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
-        case JavaNew(_, creator, given, yields) =>
-          convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
-        case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
-        case JavaPostfixIncDec(inner, postOp) =>
-          val target = convert(inner)
-          postOp match {
-            case "++" => PostAssignExpression(target, Plus(target, const(1)))(blame(expr))
-            case "--" => PostAssignExpression(target, Minus(target, const(1)))(blame(expr))
-          }
-        case JavaPrefixOp(preOp, inner) =>
-          val target = convert(inner)
-          preOp match {
-            case "+" => target // TODO PB: not sure if this is true for IEEE floats
-            case "-" => UMinus(target)
-            case "++" => PreAssignExpression(target, Plus(target, const(1)))(blame(expr))
-            case "--" => PreAssignExpression(target, Minus(target, const(1)))(blame(expr))
-          }
-        case JavaPrefixOp2(preOp, inner) => preOp match {
-          case "~" => BitNot(convert(inner))
-          case "!" => Not(convert(inner))
+      return const(0)
+    }
+    expr match {
+      case JavaPrimary(inner) => convert(inner)
+      case parse.JavaDeref(obj, _, field) => col.JavaDeref(convert(obj), convert(field))(blame(expr))
+      case JavaPinnedThis(innerOrOuterClass, _, _) => ??(expr)
+      case JavaPinnedOuterClassNew(pinnedOuterClassObj, _, _, _, _) => ??(expr)
+      case JavaSuper(_, _, _, _) => ??(expr)
+      case JavaGenericInvocation(obj, _, ExplicitGenericInvocation0(typeArgs, invocation)) =>
+        convert(invocation, Some(convert(obj)), convert(typeArgs))
+      case JavaSubscript(ar, _, idx, _) => AmbiguousSubscript(convert(ar), convert(idx))(blame(expr))
+      case JavaNonNullInvocation(obj, _, name, args) =>
+        Implies(
+          Neq(convert(obj), Null()),
+          col.JavaInvocation(Some(convert(obj)), Nil, convert(name), convert(args), Nil, Nil)(blame(expr)),
+        )
+      case parse.JavaInvocation(obj, _, name, familyType, args, given, yields) =>
+        failIfDefined(familyType, "Predicate families not supported (for now)")
+        col.JavaInvocation(
+          Some(convert(obj)), Nil, convert(name), convert(args),
+          convertEmbedGiven(given), convertEmbedYields(yields))(
+          blame(expr))
+      case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
+      case JavaNew(_, creator, given, yields) =>
+        convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
+      case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
+      case JavaPostfixIncDec(inner, postOp) =>
+        val target = convert(inner)
+        postOp match {
+          case "++" => PostAssignExpression(target, Plus(target, const(1)))(blame(expr))
+          case "--" => PostAssignExpression(target, Minus(target, const(1)))(blame(expr))
         }
-        case JavaValPrepend(left, PrependOp0(op), right) =>
-          convert(op, convert(left), convert(right))
-        case JavaMul(leftNode, mul, rightNode) =>
-          val (left, right) = (convert(leftNode), convert(rightNode))
-          mul match {
-            case MulOp0(op) => op match {
-              case "*" => AmbiguousMult(left, right)
-              case "/" => FloorDiv(left, right)(blame(expr))
-              case "%" => Mod(left, right)(blame(expr))
-            }
-            case MulOp1(specOp) => convert(specOp, left, right)
-          }
-        case JavaAdd(left, op, right) => op match {
-          case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-          case "-" => AmbiguousMinus(convert(left), convert(right))(blame(expr))
+      case JavaPrefixOp(preOp, inner) =>
+        val target = convert(inner)
+        preOp match {
+          case "+" => target // TODO PB: not sure if this is true for IEEE floats
+          case "-" => UMinus(target)
+          case "++" => PreAssignExpression(target, Plus(target, const(1)))(blame(expr))
+          case "--" => PreAssignExpression(target, Minus(target, const(1)))(blame(expr))
         }
-        case JavaShift(left, shift, right) => shift match {
-          case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
-          case ShiftOp1(_, _, _) => BitUShr(convert(left), convert(right))
-          case ShiftOp2(_, _) => BitShr(convert(left), convert(right))
-        }
-        case JavaRel(left, comp, right) => comp match {
-          case RelOp0("<=") => AmbiguousLessEq(convert(left), convert(right))
-          case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
-          case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
-          case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
-          case RelOp1(valOp) => convert(valOp, convert(left), convert(right))
-        }
-        case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
-        case JavaEquals(left, eq, right) => eq match {
-          case "==" => Eq(convert(left), convert(right))
-          case "!=" => Neq(convert(left), convert(right))
-        }
-        case JavaBitAnd(left, _, right) => AmbiguousComputationalAnd(convert(left), convert(right))
-        case JavaBitXor(left, _, right) => AmbiguousComputationalXor(convert(left), convert(right))
-        case JavaBitOr(left, _, right) => AmbiguousComputationalOr(convert(left), convert(right))
-        case JavaAnd(left, and, right) => and match {
-          case AndOp0(_) => And(convert(left), convert(right))
-          case AndOp1(specOp) => convert(specOp, convert(left), convert(right))
-        }
-        case JavaOr(left, _, right) => AmbiguousOr(convert(left), convert(right))
-        case JavaValImp(left, imp, right) => imp match {
-          case ImpOp0(specOp) => convert(specOp, convert(left), convert(right))
-        }
-        case JavaSelect(cond, _, whenTrue, _, whenFalse) =>
-          Select(convert(cond), convert(whenTrue), convert(whenFalse))
-        case JavaAssign(left, AssignOp0(op), right) =>
-          val target = convert(left)
-          val value = convert(right)
-          PreAssignExpression(target, op match {
-            case "=" => value
-            case "+=" => AmbiguousPlus(target, value)(blame(right))
-            case "-=" => AmbiguousMinus(target, value)(blame(right))
-            case "*=" => AmbiguousMult(target, value)
-            case "/=" => FloorDiv(target, value)(blame(expr))
-            case "&=" => AmbiguousComputationalAnd(target, value)
-            case "|=" => BitOr(target, value)
-            case "^=" => BitXor(target, value)
-            case ">>=" => BitShr(target, value)
-            case ">>>=" => BitUShr(target, value)
-            case "<<=" => BitShl(target, value)
-            case "%=" => Mod(target, value)(blame(expr))
-          })(blame(expr))
+      case JavaPrefixOp2(preOp, inner) => preOp match {
+        case "~" => BitNot(convert(inner))
+        case "!" => Not(convert(inner))
       }
+      case JavaValPrepend(left, PrependOp0(op), right) =>
+        convert(op, convert(left), convert(right))
+      case JavaMul(leftNode, mul, rightNode) =>
+        val (left, right) = (convert(leftNode), convert(rightNode))
+        mul match {
+          case MulOp0(op) => op match {
+            case "*" => AmbiguousMult(left, right)
+            case "/" => FloorDiv(left, right)(blame(expr))
+            case "%" => Mod(left, right)(blame(expr))
+          }
+          case MulOp1(specOp) => convert(specOp, left, right)
+        }
+      case JavaAdd(left, op, right) => op match {
+        case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
+        case "-" => AmbiguousMinus(convert(left), convert(right))(blame(expr))
+      }
+      case JavaShift(left, shift, right) => shift match {
+        case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
+        case ShiftOp1(_, _, _) => BitUShr(convert(left), convert(right))
+        case ShiftOp2(_, _) => BitShr(convert(left), convert(right))
+      }
+      case JavaRel(left, comp, right) => comp match {
+        case RelOp0("<=") => AmbiguousLessEq(convert(left), convert(right))
+        case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
+        case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
+        case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
+        case RelOp1(valOp) => convert(valOp, convert(left), convert(right))
+      }
+      case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
+      case JavaEquals(left, eq, right) => eq match {
+        case "==" => Eq(convert(left), convert(right))
+        case "!=" => Neq(convert(left), convert(right))
+      }
+      case JavaBitAnd(left, _, right) => AmbiguousComputationalAnd(convert(left), convert(right))
+      case JavaBitXor(left, _, right) => AmbiguousComputationalXor(convert(left), convert(right))
+      case JavaBitOr(left, _, right) => AmbiguousComputationalOr(convert(left), convert(right))
+      case JavaAnd(left, and, right) => and match {
+        case AndOp0(_) => And(convert(left), convert(right))
+        case AndOp1(specOp) => convert(specOp, convert(left), convert(right))
+      }
+      case JavaOr(left, _, right) => AmbiguousOr(convert(left), convert(right))
+      case JavaValImp(left, imp, right) => imp match {
+        case ImpOp0(specOp) => convert(specOp, convert(left), convert(right))
+      }
+      case JavaSelect(cond, _, whenTrue, _, whenFalse) =>
+        Select(convert(cond), convert(whenTrue), convert(whenFalse))
+      case JavaAssign(left, AssignOp0(op), right) =>
+        val target = convert(left)
+        val value = convert(right)
+        PreAssignExpression(target, op match {
+          case "=" => value
+          case "+=" => AmbiguousPlus(target, value)(blame(right))
+          case "-=" => AmbiguousMinus(target, value)(blame(right))
+          case "*=" => AmbiguousMult(target, value)
+          case "/=" => FloorDiv(target, value)(blame(expr))
+          case "&=" => AmbiguousComputationalAnd(target, value)
+          case "|=" => BitOr(target, value)
+          case "^=" => BitXor(target, value)
+          case ">>=" => BitShr(target, value)
+          case ">>>=" => BitUShr(target, value)
+          case "<<=" => BitShl(target, value)
+          case "%=" => Mod(target, value)(blame(expr))
+        })(blame(expr))
     }
   }
 
@@ -1035,6 +1034,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
+  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+    case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
+  }
+
   def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
     case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
     case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
@@ -1332,7 +1335,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
       InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)

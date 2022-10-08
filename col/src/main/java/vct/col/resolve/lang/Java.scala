@@ -422,52 +422,52 @@ case object Java {
   def findJavaBipGuard[G](ctx: ReferenceResolutionContext[G], name: String): Option[JavaMethod[G]] =
     ctx.javaBipGuards.map { case (k, v) => (getLit(k), v) }.get(name)
 
-  case class WrongDefaultElementArrayType(t: Type[_]) extends UserError {
-    override def code: String = "wrongArrElement"
+  case class WrongTypeForDefaultValue(t: Type[_]) extends UserError {
+    override def code: String = "wrongDefaultType"
     override def text: String =
-      s"It is not possible to initialize an array of which the elements are of type `$t` to default values."
+      t.o.messageInContext(s"The type `$t` has no defined default value in VerCors.")
   }
 
   def zeroValue[G](t: Type[G]): Expr[G] = t match {
-    case t: TUnion[G] => throw WrongDefaultElementArrayType(t)
-    case t: TVar[G] => throw WrongDefaultElementArrayType(t)
+    case t: TUnion[G] => throw WrongTypeForDefaultValue(t)
+    case t: TVar[G] => throw WrongTypeForDefaultValue(t)
     case TArray(_) => Null()
     case TPointer(_) => Null()
     case TSeq(element) => LiteralSeq(element, Nil)
     case TSet(element) => LiteralSet(element, Nil)
     case TBag(element) => LiteralBag(element, Nil)
     case TOption(_) => OptNone()
-    case t: TTuple[G] => throw WrongDefaultElementArrayType(t)
-    case t: TEither[G] => throw WrongDefaultElementArrayType(t)
-    case t: TMatrix[G] => throw WrongDefaultElementArrayType(t)
+    case t: TTuple[G] => throw WrongTypeForDefaultValue(t)
+    case t: TEither[G] => throw WrongTypeForDefaultValue(t)
+    case t: TMatrix[G] => throw WrongTypeForDefaultValue(t)
     case TMap(key, value) => LiteralMap(key, value, Nil)
-    case t: TAny[G] => throw WrongDefaultElementArrayType(t)
-    case t: TNothing[G] => throw WrongDefaultElementArrayType(t)
+    case t: TAny[G] => throw WrongTypeForDefaultValue(t)
+    case t: TNothing[G] => throw WrongTypeForDefaultValue(t)
     case TVoid() => Void()
     case TNull() => Null()
     case TBool() => ff
-    case t: TResource[G] => throw WrongDefaultElementArrayType(t)
-    case t: TChar[G] => throw WrongDefaultElementArrayType(t)
+    case t: TResource[G] => throw WrongTypeForDefaultValue(t)
+    case t: TChar[G] => throw WrongTypeForDefaultValue(t)
     case TString() => Null()
     case TRef() => Null()
     case TProcess() => EmptyProcess()
     case TInt() => const(0)
-    case t: TBoundedInt[G] => throw WrongDefaultElementArrayType(t)
-    case t: TFloat[G] => throw WrongDefaultElementArrayType(t)
+    case t: TBoundedInt[G] => throw WrongTypeForDefaultValue(t)
+    case t: TFloat[G] => throw WrongTypeForDefaultValue(t)
     case TRational() => const(0)
-    case t: TFraction[G] => throw WrongDefaultElementArrayType(t)
+    case t: TFraction[G] => throw WrongTypeForDefaultValue(t)
     case TZFraction() => const(0)
-    case t: TModel[G] => throw WrongDefaultElementArrayType(t)
+    case t: TModel[G] => throw WrongTypeForDefaultValue(t)
     case TClass(_) => Null()
     case JavaTClass(_, _) => Null()
     case TEnum(_) => Null()
 
-    case t: TAxiomatic[G] => throw WrongDefaultElementArrayType(t)
-    case t: TType[G] => throw WrongDefaultElementArrayType(t)
-    case t: CType[G] => throw WrongDefaultElementArrayType(t)
-    case t: JavaType[G] => throw WrongDefaultElementArrayType(t)
-    case t: PVLType[G] => throw WrongDefaultElementArrayType(t)
-    case _: TNotAValue[G] => throw WrongDefaultElementArrayType(t)
+    case t: TAxiomatic[G] => throw WrongTypeForDefaultValue(t)
+    case t: TType[G] => throw WrongTypeForDefaultValue(t)
+    case t: CType[G] => throw WrongTypeForDefaultValue(t)
+    case t: JavaType[G] => throw WrongTypeForDefaultValue(t)
+    case t: PVLType[G] => throw WrongTypeForDefaultValue(t)
+    case _: TNotAValue[G] => throw WrongTypeForDefaultValue(t)
   }
 
   def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit

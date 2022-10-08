@@ -722,8 +722,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() =>
         GlobalThreadId()
-      case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
-        GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
+      case e @ GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
+        GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)(e.blame)
       case Greater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Greater(int(left), int(right)),
