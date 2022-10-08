@@ -3,7 +3,7 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{IterationContract, Procedure, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.newrewrite.{EncodeJavaLangString, EncodeString}
@@ -103,6 +103,14 @@ class Transformation
       }
 
       result = pass().dispatch(result)
+
+      val nodes = result.tasks(0).program.subnodes.collect {
+        case p: Procedure[_] if p.toString.contains("secretNumber") => p
+      }
+
+      if (nodes.nonEmpty) {
+        println("Ok")
+      }
 
       result.check match {
         case Nil => // ok

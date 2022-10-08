@@ -50,6 +50,11 @@ case class MonomorphizeContractApplicables[Pre <: Generation]() extends Rewriter
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
     case inv: Invocation[Pre] if inv.ref.decl.typeArgs.nonEmpty =>
+      // e === nothing_as(opt_get(None()) is evaluated here
+      // TAxiomatic of inv is rewritten to a TAxiomatic with a lazyref that is not yet resolved
+      // This unresolvedness is triggered by getOrBuild, then crash
+      // AST (and expression in question) seemed completely fully resolved before the Monomorphize pass
+      // (Checked after my EnumToDomain pass and ImportADT pass)
       val typeValues = inv.typeArgs.map(dispatch)
       val ref = getOrBuild(inv.ref.decl, typeValues)
 

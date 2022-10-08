@@ -50,14 +50,35 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
   def T(enum: Enum[Pre])(implicit o: Origin): Type[Post] =
     TAxiomatic(enumSucc.ref[Post, AxiomaticDataType[Post]](enum), Seq())
 
+  override def postCoerce(stat: Statement[Pre]): Statement[Post] = {
+    super.postCoerce(stat)
+  }
+
   override def postCoerce(decl: Declaration[Pre]): Unit = decl match {
     case enum: ast.Enum[Pre] =>
       enum.drop()
+
       implicit val o = enum.o
       implicit val enumImp: Enum[Pre] = enum
+
+      // eqOptDef
+      val ax = new Variable(TOption(T(enum)))
+      val bx = new Variable(TOption(T(enum)))
+      eqOptDefs(enum) = globalDeclarations.declare(function[Post](
+        args = Seq(ax, bx),
+        returnType = TBool(),
+        body = Some(Select(
+          (ax.get === OptNone()) || (bx.get === OptNone()),
+          ax.get === bx.get,
+          enumEq(OptGet(ax.get)(PanicBlame("None check is done")), OptGet(bx.get)(PanicBlame("None check is done"))))),
+        blame = PanicBlame("Contract should be ok"),
+        contractBlame = PanicBlame("Contract should be satisfiable")
+      )(EqOptOrigin(enum.o)))
+
       currentEnum.having(enum) {
         enumSucc(enum) = globalDeclarations.declare(new AxiomaticDataType(
-          aDTDeclarations.collectScoped {
+          // Scoped, or, collectScoped? ADT decls are scoped by program so I guess no? I want these decls to leak out
+          aDTDeclarations.collect {
             enum.constants.foreach(dispatch)
 
             val eqDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum)), new Variable(T(enum))), TBool())(EqOrigin(enum.o)))
@@ -98,23 +119,9 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
         )
       }
 
-      // eqOptDef
-      val ax = new Variable(TOption(T(enum)))
-      val bx = new Variable(TOption(T(enum)))
-      eqOptDefs(enum) = globalDeclarations.declare(function[Post](
-        args = Seq(ax, bx),
-        returnType = TBool(),
-        body = Some(Select(
-          (ax.get === OptNone()) || (bx.get === OptNone()),
-          ax.get === bx.get,
-          enumEq(OptGet(ax.get)(PanicBlame("None check is done")), OptGet(bx.get)(PanicBlame("None check is done"))))),
-        blame = PanicBlame("Contract should be ok"),
-        contractBlame = PanicBlame("Contract should be satisfiable")
-      )(EqOptOrigin(enum.o)))
-
     case const: EnumConstant[Pre] =>
       constSucc(const) = aDTDeclarations.declare(new ADTFunction(Seq(), T(currentEnum.top)(const.o))(const.o))
-    case _ => rewriteDefault(decl)
+    case _ => super.postCoerce(decl)
   }
 
   object EqTL {
@@ -129,7 +136,7 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case EnumUse(_, const) => OptSome(getConst(const.decl)(e.o))(e.o)
     case EqTL(Eq(a, b), TEnum(enum)) => enumOptEq(dispatch(a), dispatch(b))(enum.decl, e.o)
     case EqTL(Neq(a, b), TEnum(enum)) => implicit val o = e.o; !enumOptEq(dispatch(a), dispatch(b))(enum.decl, e.o)
-    case other => rewriteDefault(other)
+    case other => super.postCoerce(other)
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
