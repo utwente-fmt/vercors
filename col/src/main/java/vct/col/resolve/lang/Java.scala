@@ -83,8 +83,6 @@ case object Java {
     implicit val o: Origin = JavaSystemOrigin("unknown_jre")
     currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
 
-    println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
-
     try {
       val classLoader = this.getClass.getClassLoader
       val cls = classLoader.loadClass(potentialFQName.mkString("."))
@@ -96,6 +94,8 @@ case object Java {
       for(t <- currentlyLoading.remove(potentialFQName).get) {
         ((t : JavaNamedType[_]).unsafeTransmuteGeneration[JavaNamedType, G] : JavaNamedType[G]).ref = Some(RefJavaClass(colClass))
       }
+
+      println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim was loaded from the JRE.")
 
       Some(colClass)
     } catch {
@@ -266,40 +266,26 @@ case object Java {
       ++ findRuntimeJavaTypesInPackage[G](pkg, ctx).map(RefJavaClass[G]))
   }
 
-  def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] = {
+  def findJavaName[G](name: String, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {
       case target: JavaNameTarget[G] if target.name == name => target
-    }.orElse(ctx.currentJavaNamespace.flatMap(ns => {
-      def memberOf(target: JavaTypeNameTarget[G]): Option[JavaNameTarget[G]] = target match {
-        case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
-        case RefEnum(enum) => enum.getConstant(name)
-        case _ => None
-      }
+    }.orElse(ctx.namespace.flatMap(ns => {
       def classOrEnum(target: JavaTypeNameTarget[G]): JavaNameTarget[G] = target match {
-        case r @ RefJavaClass(decl) => r
-        case r @ RefEnum(decl) => r
+        case r @ RefJavaClass(_) => r
+        case r @ RefEnum(_) => r
       }
-      // Apply above below, and also for class/enum case
-      // First find all classes that belong to each import that we can use
       val potentialRefs: Seq[JavaNameTarget[G]] = ns.imports.collect {
-        case JavaImport(true, importName, /* star = */ false) if importName.names.last == name =>
-          findJavaTypeName(importName.names.init, ctx.asTypeResolutionContext).flatMap(memberOf)
-        case JavaImport(true, importName, /* star = */ true) =>
-          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).flatMap(memberOf)
-        case JavaImport(false, importName, /* star = */ false) if importName.names.last == name =>
-          findJavaTypeName(importName.names, ctx.asTypeResolutionContext).map(classOrEnum)
-        case JavaImport(false, importName, /* star = */ true) =>
-          findJavaTypeName(importName.names :+ name, ctx.asTypeResolutionContext).map(classOrEnum)
-      }.collect { case Some(x) => x }
+        case JavaImport(/* static = */ false, JavaName(fqn), /* star = */ false) if fqn.last == name =>
+          findJavaTypeName(fqn, ctx).map(classOrEnum)
+        case JavaImport(/* static = */ false, JavaName(pkg), /* star = */ true) =>
+          findJavaTypeName(pkg :+ name, ctx).map(classOrEnum)
+      }.flatten
 
       potentialRefs match {
         // If we find only one, or none, then that's good
         case Seq(ref) => Some(ref)
         case Nil => None
-        // Otherwise there is ambiguity: abort
-        // Currently we do not support duplicate imports. E.g. "import static A.X; import static B.*;", given that B
-        // would also define a static X, would technically be allowed.
-        case _ => throw OverlappingJavaImports(ns, "field", name)
+        case _ => throw OverlappingJavaImports(ns, "type", name)
       }
     }))
   }
@@ -344,6 +330,7 @@ case object Java {
         case ref: RefModelProcess[G] if ref.name == method => ref
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
+      case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G])) => findMethodInClass(cls, method, args)
       case TPinnedDecl(JavaLangString(), Nil) =>
         findJavaTypeName[G](Java.JAVA_LANG_STRING, ctx.asTypeResolutionContext).flatMap {
           case cls: RefJavaClass[G] => findMethodInClass[G](cls.decl, method, args)
@@ -406,6 +393,16 @@ case object Java {
       Some(RefModel(model))
     case _ => None
   }
+
+  def getStaticMembers[G](javaTypeName: JavaTypeNameTarget[G]): Seq[Referrable[G]] = javaTypeName match {
+    case RefJavaClass(cls) => cls.decls.collect {
+      case decl: JavaClassDeclaration[G] if decl.isStatic => Referrable.from(decl)
+    }.flatten
+    case RefEnum(enum) => enum.constants.map(RefEnumConstant(Some(enum), _))
+  }
+
+  def findStaticMember[G](javaTypeName: JavaTypeNameTarget[G], name: String): Option[Referrable[G]] =
+    getStaticMembers(javaTypeName).find(_.name == name)
 
   case class WrongTypeForDefaultValue(t: Type[_]) extends UserError {
     override def code: String = "wrongDefaultType"
