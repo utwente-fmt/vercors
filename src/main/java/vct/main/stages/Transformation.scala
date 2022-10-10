@@ -104,14 +104,6 @@ class Transformation
 
       result = pass().dispatch(result)
 
-      val nodes = result.tasks(0).program.subnodes.collect {
-        case p: Procedure[_] if p.toString.contains("secretNumber") => p
-      }
-
-      if (nodes.nonEmpty) {
-        println("Ok")
-      }
-
       result.check match {
         case Nil => // ok
         case errors => throw TransformationCheckError(pass.key, errors)
