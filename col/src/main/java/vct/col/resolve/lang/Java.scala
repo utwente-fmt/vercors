@@ -1,5 +1,6 @@
 package vct.col.resolve.lang
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.{Any => _, Class => _, _}
@@ -15,7 +16,7 @@ import java.lang.reflect.{Modifier, Parameter}
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-case object Java {
+case object Java extends LazyLogging {
   case class UnexpectedJreDefinition(expectedKind: String, fullyQualifiedName: Seq[String]) extends UserError {
     override def text: String = s"Did not get a $expectedKind when resolving $fullyQualifiedName"
     override def code: String = "unexpectedJreDefinition"
@@ -95,7 +96,7 @@ case object Java {
         ((t : JavaNamedType[_]).unsafeTransmuteGeneration[JavaNamedType, G] : JavaNamedType[G]).ref = Some(RefJavaClass(colClass))
       }
 
-      println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim was loaded from the JRE.")
+      logger.warn(s"No specification was found for class ${potentialFQName.mkString(".")}, so a shim was loaded from the JRE.")
 
       Some(colClass)
     } catch {

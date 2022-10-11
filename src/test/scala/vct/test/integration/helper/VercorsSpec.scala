@@ -38,18 +38,6 @@ abstract class VercorsSpec extends AnyFlatSpecLike {
   case object ErrorVerdict
 
   private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable]): Unit = {
-    // Reflection use for registertest!
-//    val fTrait = new AnyFlatSpecLike{}.getClass.getDeclaredFields.toList.find(_.getName.contains("engine")).get
-//    val f = this.getClass.getSuperclass.getDeclaredField(fTrait.getName)
-//    f.setAccessible(true)
-//    val engine = f.get(this)
-//    val engineClass = engine.getClass
-//    val method = engineClass.getSuperclass.getDeclaredMethods.toList.find(_.getName.contains("registerTest")).get
-//    method.setAccessible(true)
-//    method.invoke(engine,
-//      null
-//    )
-
     registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
