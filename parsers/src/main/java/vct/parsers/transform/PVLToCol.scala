@@ -140,7 +140,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: UnfoldingExprContext): Expr[G] = expr match {
-    case UnfoldingExpr0(_, pred, _, body) => Unfolding(convert(pred), convert(body))
+    case UnfoldingExpr0(_, pred, _, body) => Unfolding(convert(pred), convert(body))(blame(expr))
     case UnfoldingExpr1(inner) => convert(inner)
   }
 
@@ -1023,7 +1023,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
       InlinePattern(convert(pattern), open.count(_ == '<'), if(groupText.isEmpty) 0 else groupText.toInt)
-    case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
+    case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))(blame(e))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))

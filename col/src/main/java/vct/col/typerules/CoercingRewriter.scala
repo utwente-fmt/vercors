@@ -1076,8 +1076,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           UMinus(int(arg)),
           UMinus(rat(arg)),
         )
-      case Unfolding(pred, body) =>
-        Unfolding(res(pred), body)
+      case u @ Unfolding(pred, body) =>
+        Unfolding(res(pred), body)(u.blame)
       case UntypedLiteralBag(values) =>
         val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralBag(values.map(coerce(_, sharedType)))
