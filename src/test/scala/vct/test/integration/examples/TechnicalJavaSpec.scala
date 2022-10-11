@@ -1,5 +1,6 @@
 package vct.test.integration.examples
 
+import org.scalatest.flatspec.AnyFlatSpecLike
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalJavaSpec extends VercorsSpec {
