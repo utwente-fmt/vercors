@@ -263,6 +263,12 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       dispatch(typeValue),
     ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing"))(e.o)
     case Cast(value, typeValue) => dispatch(value) // Discard for now, should assert instanceOf(value, typeValue)
+    case Result(Ref(app)) => app match {
+      case function: Function[Pre] => Result[Post](succ(function))(e.o)
+      case function: InstanceFunction[Pre] => Result[Post](functionSucc.ref(function))(e.o)
+      case procedure: Procedure[Pre] => Result[Post](succ(procedure))(e.o)
+      case method: InstanceMethod[Pre] => Result[Post](methodSucc.ref(method))(e.o)
+    }
     case _ => rewriteDefault(e)
   }
 
