@@ -13,6 +13,8 @@ case object Resolve {
     ResolveTypes.resolve(program, externalJavaLoader)
     ResolveReferences.resolve(program)
   }
+
+
 }
 
 case object ResolveTypes {
@@ -28,6 +30,20 @@ case object ResolveTypes {
     resolveOne(node, ctx)
   }
 
+  def scanImport[G](imp: JavaImport[G], ctx: TypeResolutionContext[G]): Seq[Referrable[G]] /* importable? */ = imp match {
+    case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName :+ staticMember), /* star = */ false) =>
+      val staticType = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
+        .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
+      Seq(Java.findStaticMember(staticType, staticMember)
+        .getOrElse(throw NoSuchNameError("static member", (fullyQualifiedTypeName :+ staticMember).mkString("."), imp)))
+    case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName), /* star = */ true) =>
+      val typeName = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
+        .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
+      Java.getStaticMembers(typeName)
+    // Non-static imports are resolved on demand
+    case _ => Seq()
+  }
+
   def enterContext[G](node: Node[G], ctx: TypeResolutionContext[G]): TypeResolutionContext[G] = node match {
     case Program(decls, _) =>
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
@@ -36,33 +52,13 @@ case object ResolveTypes {
       // E.g.: in the expressio f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
       // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
       // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
-      val staticallyImportedTypes: Seq[Referrable[G]] = ns.imports.collect {
-        case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName :+ staticMember), /* star = */ false) =>
-          val staticType = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
-            .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
-          Seq(Java.findStaticMember(staticType, staticMember)
-            .getOrElse(throw NoSuchNameError("static member", (fullyQualifiedTypeName :+ staticMember).mkString("."), imp)))
-        case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName), /* star = */ true) =>
-          val typeName = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
-            .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
-          Java.getStaticMembers(typeName)
-        // Non-static imports are resolved on demand
-      }.flatten
-      ctx.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ staticallyImportedTypes) +: ctx.stack, namespace=Some(ns))
+      ctx.copy(
+        namespace=Some(ns),
+        stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctx))) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
   }
-
-  // On static import: _definitely_ resolve type.
-  // - If single: add one name to stack
-  // - If wildcard: resolve, then add all static fields/methods/enum constants to stack
-  // On JavaLocal:
-  // - If variable, param, or field: leave empty.
-  // - If available as static (wildcard) import: do not try to resolve as class
-  // - If available as already imported type: done
-  // - Otherwise: resolve, must be type that is not yet imported
-  // - Final otherwise: start of package name!
 
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit = node match {
     case javaClass @ JavaNamedType(genericNames) =>
@@ -109,24 +105,6 @@ case object ResolveTypes {
           // Unknown what this local refers though. Try importing it as a type; otherwise, it's the start of a package
           Java.findJavaTypeName(Seq(local.name), ctx)
       }
-//    case imp @ JavaImport(/* static = */ true, name, /* star = */ false) =>
-//      val javaTypeName = Java.findJavaTypeName(name.names.init, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//      val staticDecls = javaTypeName match {
-//        case RefJavaClass(cls) => cls.decls.collect {
-//          case decl: JavaClassDeclaration[G] if decl.isStatic => decl
-//        }
-//      }
-//
-//    case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
-//      Java.findJavaTypeName(name.names, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
-//      Java.findJavaTypeName(name.names, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//    case imp@JavaImport(/* static = */ false, pkg, /* star = */ true) =>
-//      // TODO (RR): Pulls in everything, even though we prefer on demand...?
-//      Java.findJavaTypeNamesInPackage(pkg.names, ctx)
     case _ =>
   }
 }
@@ -179,17 +157,7 @@ case object ResolveReferences {
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean = false): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
       .copy(currentJavaNamespace=Some(ns))
-      .copy(stack = ns.imports.collect {
-        case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName :+ staticMember), /* star = */ false) =>
-          val staticType = Java.findJavaTypeName(fullyQualifiedTypeName, ctx.asTypeResolutionContext)
-            .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
-          Seq(Java.findStaticMember(staticType, staticMember)
-            .getOrElse(throw NoSuchNameError("static member", (fullyQualifiedTypeName :+ staticMember).mkString("."), imp)))
-        case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName), /* star = */ true) =>
-          val typeName = Java.findJavaTypeName(fullyQualifiedTypeName, ctx.asTypeResolutionContext)
-            .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
-          Java.getStaticMembers(typeName)
-      }.flatten +: ctx.stack)
+      .copy(stack = ns.imports.flatMap(ResolveTypes.scanImport[G](_, ctx.asTypeResolutionContext)) +: ctx.stack)
       .declare(ns.declarations)
     case cls: JavaClassOrInterface[G] => ctx
       .copy(currentJavaClass=Some(cls))
