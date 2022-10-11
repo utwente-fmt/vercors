@@ -217,7 +217,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           Return(Void()),
         )))
       case ass @ Assign(target, value) =>
-        frame(target, value, Assign(_, _)(ass.blame))
+        frame(PostAssignExpression[Pre](target, value)(ass.blame), Eval(_))
       case block: Block[Pre] => rewriteDefault(block)
       case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
