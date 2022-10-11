@@ -18,7 +18,7 @@ import vct.result.VerificationError.UserError
 
 import java.nio.file.{Path, Paths}
 
-abstract class VercorsSpec extends AnyFlatSpec {
+abstract class VercorsSpec extends AnyFlatSpecLike {
   var coveredExamples: Seq[Path] = Nil
 
   sealed trait Verdict {

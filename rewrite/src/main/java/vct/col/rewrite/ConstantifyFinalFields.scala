@@ -37,6 +37,7 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     case IntegerValue(_) => true
     case LiteralSeq(_, vals) => vals.forall(isAllowedValue)
     case FunctionInvocation(_, args, _, givenMap, _) => args.forall(isAllowedValue) && givenMap.forall { case (_, e) => isAllowedValue(e) }
+    case _ => false
   }
 
   override def dispatch(decl: Program[Pre]): Program[Post] = {

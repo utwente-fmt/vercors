@@ -331,7 +331,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefAxiomaticDataType(decl) => throw NotAValue(local)
       case RefVariable(decl) => Local(rw.succ(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
-      case RefJavaClass(decl) => throw NotAValue(local)
+      case RefJavaClass(decl) =>
+        FunctionInvocation(javaStaticsFunctionSuccessor.ref[Post, Function[Post]](decl), Seq(),
+          Seq(), Seq(), Seq())(TrueSatisfiable)
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
           val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decls)))
