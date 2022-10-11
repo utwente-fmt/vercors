@@ -49,7 +49,7 @@ trait SilverBackend extends Backend with LazyLogging {
       writer.write(silverProgram.toString())
     })
 
-    silverProgram.check match {
+    silverProgram.checkTransitively match {
       case Nil =>
       case some => throw ConsistencyErrors(some)
     }
