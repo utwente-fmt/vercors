@@ -73,7 +73,7 @@ case object Verify extends LazyLogging {
         logger.info("Verification completed successfully.")
         EXIT_CODE_SUCCESS
       case Right(fails) =>
-        if(fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
+        if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
         EXIT_CODE_VERIFICATION_FAILURE
     }
