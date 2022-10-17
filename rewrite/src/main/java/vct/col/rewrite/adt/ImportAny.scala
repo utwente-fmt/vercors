@@ -16,7 +16,7 @@ case class ImportAny[Pre <: Generation](importer: ImportADTImporter) extends Imp
   private lazy val anyAdt = find[AxiomaticDataType[Post]](anyFile, "any")
   private lazy val anyFrom = find[Function[Post]](anyFile, "as_any")
 
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceSomethingAny(source) =>
       FunctionInvocation[Post](anyFrom.ref, Seq(e), Seq(dispatch(source)), Nil, Nil)(PanicBlame("coercing to any requires nothing."))
     case other => super.applyCoercion(e, other)

@@ -12,7 +12,7 @@ case class ImportNull[Pre <: Generation](importer: ImportADTImporter) extends Im
   private lazy val nullAdt = find[AxiomaticDataType[Post]](nullFile, "t_null")
   private lazy val nullValue = find[ADTFunction[Post]](nullAdt, "v_null")
 
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceNullRef() =>
       SilverNull()
     case other => super.applyCoercion(e, other)
