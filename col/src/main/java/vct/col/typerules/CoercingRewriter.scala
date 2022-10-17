@@ -63,8 +63,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
-      case CoerceMapOption(inner, _, _) =>
-        Select(Eq(e, OptNone()), OptNone(), OptSome(applyCoercion(OptGet(e)(NeverNone), inner)))
+      case CoerceMapOption(inner, _, target) =>
+        Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
         Select(IsRight(e),
           EitherRight(applyCoercion(GetRight(e)(FramedGetRight), innerRight)),
@@ -885,6 +885,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         Null()
       case old @ Old(expr, at) =>
         Old(expr, at)(old.blame)
+      case OptEmpty(opt) =>
+        OptEmpty(option(opt)._1)
       case get @ OptGet(opt) =>
         OptGet(option(opt)._1)(get.blame)
       case OptGetOrElse(opt, alt) =>
@@ -893,8 +895,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         OptGetOrElse(coerce(coercedOpt, TOption(sharedType)), coerce(alt, sharedType))
       case OptNone() =>
         OptNone()
+      case OptNoneTyped(t) =>
+        OptNoneTyped(t)
       case OptSome(e) =>
         OptSome(e)
+      case OptSomeTyped(t, e) =>
+        OptSomeTyped(t, coerce(e, t))
       case Or(left, right) =>
         Or(bool(left), bool(right))
       case Perm(loc, perm) =>

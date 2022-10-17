@@ -361,7 +361,9 @@ final case class Null[G]()(implicit val o: Origin) extends Expr[G] with NullImpl
 final case class NoPerm[G]()(implicit val o: Origin) extends Expr[G] with NoPermImpl[G]
 final case class WritePerm[G]()(implicit val o: Origin) extends Expr[G] with WritePermImpl[G]
 final case class OptSome[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with OptSomeImpl[G]
+final case class OptSomeTyped[G](element: Type[G], e: Expr[G])(implicit val o: Origin) extends Expr[G] with OptSomeTypedImpl[G]
 final case class OptNone[G]()(implicit val o: Origin) extends Expr[G] with OptNoneImpl[G]
+final case class OptNoneTyped[G](element: Type[G])(implicit val o: Origin) extends Expr[G] with OptNoneTypedImpl[G]
 final case class Range[G](from: Expr[G], to: Expr[G])(implicit val o: Origin) extends Expr[G] with RangeImpl[G]
 final case class EitherLeft[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherLeftImpl[G]
 final case class EitherRight[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherRightImpl[G]
@@ -571,6 +573,7 @@ final case class MapMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) e
 final case class BagMemberCount[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with BagMemberCountImpl[G]
 
 final case class Permutation[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with PermutationImpl[G]
+final case class OptEmpty[G](opt: Expr[G])(implicit val o: Origin) extends Expr[G] with OptEmptyImpl[G]
 final case class OptGet[G](opt: Expr[G])(val blame: Blame[OptionNone])(implicit val o: Origin) extends Expr[G] with OptGetImpl[G]
 final case class OptGetOrElse[G](opt: Expr[G], alt: Expr[G])(implicit val o: Origin) extends Expr[G] with OptGetOrElseImpl[G]
 final case class MapGet[G](map: Expr[G], k: Expr[G])(val blame: Blame[MapKeyError])(implicit val o: Origin) extends Expr[G] with MapGetImpl[G]
