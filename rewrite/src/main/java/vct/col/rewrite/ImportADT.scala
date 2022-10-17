@@ -63,6 +63,7 @@ case object ImportADT extends RewriterBuilderArg[ImportADTImporter] {
     case TZFraction() => "zfract"
     case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
     case TClass(Ref(cls)) => cls.o.preferredName
+    case TAnyClass() => "cls"
     case TVar(Ref(v)) => v.o.preferredName
     case TUnion(ts) => "union$" + ts.map(typeText).mkString("__") + "$"
     case _: JavaType[_] => throw ExtraNode

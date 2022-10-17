@@ -1,6 +1,6 @@
 package vct.col.ast.family.coercion
 
-import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceColToCPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIntRat, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullArray, CoerceNullClass, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
+import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceClassAnyClass, CoerceColToCPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIncreasePrecision, CoerceIntRat, CoerceJavaClassAnyClass, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullAnyClass, CoerceNullArray, CoerceNullClass, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
 
 trait CoercionImpl[G] { this: Coercion[G] =>
   def target: Type[G]
@@ -17,10 +17,12 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceNullArray(_) => true
     case CoerceNullClass(_) => true
     case CoerceNullJavaClass(_) => true
+    case CoerceNullAnyClass() => true
     case CoerceNullPointer(_) => true
     case CoerceFracZFrac() => true
     case CoerceZFracRat() => true
     case CoerceFloatRat() => true
+    case CoerceIncreasePrecision(_, _) => true
     case CoerceIntRat() => true
     case CoerceWidenBound(_, _) => true
     case CoerceUnboundInt(_) => true
@@ -28,6 +30,8 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceBoundIntZFrac(_) => true
     case CoerceSupports(_, _) => true
     case CoerceJavaSupports(_, _) => true
+    case CoerceClassAnyClass(_) => true
+    case CoerceJavaClassAnyClass(_) => true
     case CoerceCPrimitiveToCol(_, _) => true
     case CoerceColToCPrimitive(_, _) => true
     case CoerceMapOption(inner, _, _) => inner.isPromoting
