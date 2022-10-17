@@ -112,19 +112,8 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
   val signalsBinding: ScopedStack[(Variable[Pre], Expr[Post])] = ScopedStack()
   val catchBindings: mutable.Set[Variable[Pre]] = mutable.Set()
 
-  val rootClass: ScopedStack[Ref[Post, Class[Post]]] = ScopedStack()
-
   def getExc(implicit o: Origin): Local[Post] =
     currentException.top.get
-
-  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] =
-    program.rootClass match {
-      case Some(TClass(Ref(cls))) =>
-        program.rewrite(declarations = rootClass.having(succ[Class[Post]](cls)) {
-          globalDeclarations.dispatch(program.declarations)
-        })
-      case _ => throw Unreachable("Root class unknown or not a class.")
-    }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = stat.o
@@ -168,7 +157,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         ))
 
         val (store: Statement[Post], restore: Statement[Post], vars: Seq[Variable[Post]]) = if (needCurrentExceptionRestoration.top) {
-          val tmp = new Variable[Post](TClass(rootClass.top))(CurrentlyHandling)
+          val tmp = new Variable[Post](TAnyClass())(CurrentlyHandling)
           (
             Block[Post](Seq(
               assignLocal(tmp.get, getExc),
@@ -214,7 +203,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         ))
 
       case loop: Loop[Pre] =>
-        val beforeLoop = new Variable[Post](TClass(rootClass.top))(ExcBeforeLoop)
+        val beforeLoop = new Variable[Post](TAnyClass())(ExcBeforeLoop)
 
         Scope(Seq(beforeLoop), Block[Post](Seq(
           assignLocal(beforeLoop.get, getExc),
@@ -226,7 +215,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         )))
 
       case w@WandPackage(wand, proof) =>
-        val exc = new Variable[Post](TClass(rootClass.top))(ExcVar)
+        val exc = new Variable[Post](TAnyClass())(ExcVar)
         val labelHandler = new LabelDecl[Post]()
         val labelDone = new LabelDecl[Post]()
         exceptionalHandlerEntry.having(labelHandler) {
@@ -261,7 +250,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
     case method: AbstractMethod[Pre] =>
       implicit val o: Origin = method.o
 
-      val exc = new Variable[Post](TClass(rootClass.top))(ExcVar)
+      val exc = new Variable[Post](TAnyClass())(ExcVar)
 
       currentException.having(exc) {
         lazy val body = method.body.map(body => {

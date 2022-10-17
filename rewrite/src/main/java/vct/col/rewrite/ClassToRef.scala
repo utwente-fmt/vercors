@@ -274,6 +274,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case TClass(_) => TRef()
+    case TAnyClass() => TRef()
     case t => rewriteDefault(t)
   }
 
