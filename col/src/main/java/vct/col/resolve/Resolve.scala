@@ -29,7 +29,7 @@ case object ResolveTypes {
   }
 
   def enterContext[G](node: Node[G], ctx: TypeResolutionContext[G]): TypeResolutionContext[G] = node match {
-    case Program(decls, _) =>
+    case Program(decls) =>
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
       ctx.copy(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))

@@ -86,7 +86,6 @@ case class SilverToCol[G](program: silver.Program) {
           program.functions.map(transform) ++
           program.predicates.map(transform) ++
           program.methods.map(transform),
-      rootClass = None,
     )(blame(program))(origin(program))
 
   def transform(domain: silver.Domain): col.AxiomaticDataType[G] =

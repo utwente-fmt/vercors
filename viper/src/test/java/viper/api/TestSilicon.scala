@@ -9,7 +9,7 @@ import viper.api.backend.silicon.Silicon
 
 class TestSilicon extends VerifySpec(Silicon(Map.empty, Resources.getZ3Path)) {
   vercors should "verify an empty program" in program {
-    Program(Nil, None)(noErrors)
+    Program(Nil)(noErrors)
   }
 
   vercors should "not verify a method with postcondition false" in procedure(

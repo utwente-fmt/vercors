@@ -8,6 +8,7 @@ import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.rewrite._
 import vct.col.rewrite.exc._
+import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
@@ -201,9 +202,22 @@ case class SilverTransformation
     ResolveExpressionSideChecks,
     RejoinQuantifiers,
 
+    DesugarCollectionOperators,
+
     // Translate internal types to domains
     FloatToRat,
-    ImportADT.withArg(adtImporter),
+    ImportArray.withArg(adtImporter),
+    ImportPointer.withArg(adtImporter),
+    ImportMapCompat.withArg(adtImporter),
+    ImportEither.withArg(adtImporter),
+    ImportTuple.withArg(adtImporter),
+    ImportOption.withArg(adtImporter),
+    ImportFrac.withArg(adtImporter),
+    ImportNothing.withArg(adtImporter),
+    ImportVoid.withArg(adtImporter),
+    ImportNull.withArg(adtImporter),
+    ImportAny.withArg(adtImporter),
+    ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
@@ -213,7 +227,6 @@ case class SilverTransformation
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
     BranchToIfElse,
-    DesugarCollectionOperators,
     EvaluationTargetDummy,
 
     // Final translation to rigid silver nodes
