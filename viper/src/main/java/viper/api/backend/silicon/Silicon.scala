@@ -39,7 +39,7 @@ final class ConcurrentListAppender[E] extends AppenderBase[E] {
 
 @nowarn("any") // due to be removed
 case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None,
-                   proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false,
+                   proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false, timeoutValue: Int = 30,
                    options: Seq[String] = Nil) extends SilverBackend {
 
   var la: ConcurrentListAppender[ILoggingEvent] = null
@@ -76,6 +76,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     val z3Config = z3Settings.map{case (k, v) => s"$k=$v"}.mkString(" ")
 
     var siliconConfig = Seq(
+      "--assertTimeout", (timeoutValue*1000).toString,
       "--z3Exe", z3Path.toString,
       "--z3ConfigArgs", z3Config,
       "--ideModeAdvanced",

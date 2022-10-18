@@ -62,7 +62,11 @@ class C {
       par(int tid = 0..N)
         context N > 0;
         context Perm(contrib, 1\(N+1)) ** contrib != null;
-        context Perm(contrib[tid], 1\2);
+        requires(contrib.length == N);
+        requires(tid < N && tid >= 0);
+        requires Perm(contrib[tid], 1\2);
+        ensures(contrib.length == N);
+        ensures Perm(contrib[tid], 1\2);
       {
         if (p(tid)) {
           // Models: atomic_set(b);
@@ -78,7 +82,6 @@ class C {
         assert 0 < perm(this.contrib);
       }
     }
-
     assert b == (\exists int i = 0..N; contrib[i]);
   }
 }

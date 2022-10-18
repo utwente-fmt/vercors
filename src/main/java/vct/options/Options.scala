@@ -150,6 +150,12 @@ case object Options {
       opt[Int]("dev-silicon-num-verifiers").hidden()
         .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
         .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+
+      opt[Int]("dev-assert-timeout").hidden()
+        .action((amount, c) => c.copy(devSiliconAssertTimeout = amount))
+        .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
+          "on a single SMT check for longer than this timeout, the verification will fail."),
+
       opt[Path]("dev-silicon-z3-log-file").hidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -313,6 +319,8 @@ case class Options
 
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
+  devSiliconAssertTimeout: Int = 30,
+
 
   devCarbonBoogieLogFile: Option[Path] = None,
 
