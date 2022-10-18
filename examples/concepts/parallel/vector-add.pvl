@@ -18,8 +18,9 @@ class Ref {
       context Perm(a[tid], write);
       context Perm(b[tid], read);
       context Perm(c[tid], read);
-      ensures b[tid]==\old(b[tid]); // already encapsulated by read permission (requires) on b[tid]
-      ensures c[tid]==\old(c[tid]); // already encapsulated by read permission (requires) on c[tid]
+      context b[tid]==\old(b[tid]); // already encapsulated by read permission (requires) on b[tid]
+      context c[tid]==\old(c[tid]); // already encapsulated by read permission (requires) on c[tid]
+      require a[tid]==\old(a[tid]);
       ensures a[tid]==b[tid]+c[tid];
     {
       a[tid]=b[tid]+c[tid];
