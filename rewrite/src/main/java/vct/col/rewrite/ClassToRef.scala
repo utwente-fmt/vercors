@@ -223,8 +223,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     PredicateApply[Post](predicateSucc.ref(inv.ref.decl), dispatch(inv.obj) +: inv.args.map(dispatch), dispatch(inv.perm))(inv.o)
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case Unfolding(inv: InstancePredicateApply[Pre], e) =>
-      Unfolding(rewriteInstancePredicateApply(inv), dispatch(e))(e.o)
+    case u @ Unfolding(inv: InstancePredicateApply[Pre], e) =>
+      Unfolding(rewriteInstancePredicateApply(inv), dispatch(e))(u.blame)(e.o)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       ProcedureInvocation[Post](
         ref = methodSucc.ref(method),
@@ -274,6 +274,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case TClass(_) => TRef()
+    case TAnyClass() => TRef()
     case t => rewriteDefault(t)
   }
 

@@ -78,6 +78,9 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.Verify))
         .text("Enable verification mode: instruct VerCors to verify the given files (default)"),
 
+      opt[Unit]("more").abbr("m")
+        .action((_, c) => c.copy(more = true))
+        .text("Always print the maximum amount of information about errors."),
       opt[Language]("lang").valueName(ReadLanguage.valueName)
         .action((lang, c) => c.copy(language = Some(lang)))
         .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
@@ -274,6 +277,7 @@ case class Options
     ("viper.api", Verbosity.Info),
   ),
   progress: Boolean = false,
+  more: Boolean = false,
 
   // Verify Options
   language: Option[Language] = None,

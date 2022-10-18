@@ -147,7 +147,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
 
         case Break(Some(Ref(label))) =>
           val cls = breakLabelException.getOrElseUpdate(label,
-            globalDeclarations.declare(new Class[Post](Nil, Seq(rootClass.top), tt)(BreakException)))
+            globalDeclarations.declare(new Class[Post](Nil, Nil, tt)(BreakException)))
 
           Throw(NewObject[Post](cls.ref))(PanicBlame("The result of NewObject is never null"))
 
@@ -164,19 +164,6 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  val rootClass: ScopedStack[Ref[Post, Class[Post]]] = ScopedStack()
-
-  override def dispatch(program: Program[Pre]): Program[Post] =
-    program.rootClass match {
-      case Some(TClass(Ref(cls))) =>
-        program.rewrite(
-          declarations = rootClass.having(succ(cls)) {
-            globalDeclarations.dispatch(program.declarations)
-          },
-        )
-      case _ => ???
-    }
-
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case method: AbstractMethod[Pre] =>
       method.body match {
@@ -186,7 +173,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
             if (hasFinally(body)) {
               implicit val o: Origin = body.o
               val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
-              val returnClass = new Class[Post](Seq(returnField), Seq(rootClass.top), tt)(ReturnClass)
+              val returnClass = new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
               globalDeclarations.declare(returnClass)
 
               val caughtReturn = new Variable[Post](TClass(returnClass.ref))

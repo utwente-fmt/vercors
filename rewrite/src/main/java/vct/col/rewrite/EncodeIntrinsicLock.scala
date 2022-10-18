@@ -8,6 +8,7 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import scala.collection.mutable
 
 case object EncodeIntrinsicLock extends RewriterBuilder {
   override def key: String = "intrinsicLock"
@@ -53,11 +54,34 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
   val invariant: SuccessionMap[Class[Pre], InstancePredicate[Post]] = SuccessionMap()
   val held: SuccessionMap[Class[Pre], InstancePredicate[Post]] = SuccessionMap()
+  val needsHeld: mutable.Set[Class[Pre]] = mutable.Set()
 
   def getClass(obj: Expr[Pre]): Class[Pre] = obj.t match {
     case TClass(Ref(cls)) => cls
     case _ => throw UnreachableAfterTypeCheck("This argument is not a class type.", obj)
   }
+
+  def needHeld(e: Expr[Pre]): Unit = needsHeld += getClass(e)
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    program.transSubnodes.foreach {
+      case Lock(obj) => needHeld(obj)
+      case Unlock(obj) => needHeld(obj)
+      case Wait(obj) => needHeld(obj)
+      case Notify(obj) => needHeld(obj)
+      case Synchronized(obj, _) => needHeld(obj)
+      case Held(obj) => needHeld(obj)
+      case _ =>
+    }
+
+    rewriteDefault(program)
+  }
+
+  def needsInvariant(cls: Class[Pre]): Boolean =
+    cls.intrinsicLockInvariant != tt[Pre]
+
+  def needsInvariant(e: Expr[Pre]): Boolean =
+    needsInvariant(getClass(e))
 
   def getInvariant(obj: Expr[Pre])(implicit o: Origin): InstancePredicateApply[Post] =
     InstancePredicateApply(dispatch(obj), invariant.ref(getClass(obj)), Nil, WritePerm())
@@ -68,9 +92,15 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case cls: Class[Pre] =>
       globalDeclarations.succeed(cls, cls.rewrite(declarations = classDeclarations.collect {
-        invariant(cls) = classDeclarations.declare(
-          new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls)))
-        held(cls) = classDeclarations.declare(new InstancePredicate(Nil, None)(HeldTokenOrigin(cls)))
+        if(needsInvariant(cls)) {
+          invariant(cls) = classDeclarations.declare(
+            new InstancePredicate(Nil, Some(dispatch(cls.intrinsicLockInvariant)))(LockInvariantOrigin(cls)))
+        }
+
+        if(needsHeld.contains(cls)) {
+          held(cls) = classDeclarations.declare(new InstancePredicate(Nil, None)(HeldTokenOrigin(cls)))
+        }
+
         cls.declarations.foreach(dispatch)
       }._1, intrinsicLockInvariant = tt))
     case other => rewriteDefault(other)
@@ -94,17 +124,25 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
           after = dispatch(Unlock(obj)(sync.blame)),
         )
 
-      case Lock(obj) => Block(Seq(
-        Inhale(getInvariant(obj)),
-        Unfold(getInvariant(obj))(PanicBlame("Unfolding a predicate immediately after inhaling it should never fail.")),
-        Inhale(getHeld(obj)),
-      ))
+      case Lock(obj) =>
+        if(needsInvariant(obj))
+          Block(Seq(
+            Inhale(getInvariant(obj)),
+            Unfold(getInvariant(obj))(PanicBlame("Unfolding a predicate immediately after inhaling it should never fail.")),
+            Inhale(getHeld(obj)),
+          ))
+        else
+          Inhale(getHeld(obj))
 
-      case unlock @ Unlock(obj) => Block(Seq(
-        Fold(getInvariant(obj))(UnlockInvariantFoldFailed(unlock)),
-        Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
-        Exhale(getHeld(obj))(UnlockHeldExhaleFailed(unlock)),
-      ))
+      case unlock @ Unlock(obj) =>
+        if(needsInvariant(obj))
+          Block(Seq(
+            Fold(getInvariant(obj))(UnlockInvariantFoldFailed(unlock)),
+            Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
+            Exhale(getHeld(obj))(UnlockHeldExhaleFailed(unlock)),
+          ))
+        else
+          Exhale(getHeld(obj))(UnlockHeldExhaleFailed(unlock))
 
       case wait @ Wait(obj) =>
         dispatch(Block(Seq(Unlock(obj)(wait.blame), Lock(obj))))
@@ -113,10 +151,13 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
         Assert(getHeld(obj))(NotifyAssertFailed(notify))
 
       case commit @ Commit(obj) =>
-        Block(Seq(
-          Fold(getInvariant(obj))(CommitFailedFoldFailed(commit)),
-          Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
-        ))
+        if(needsInvariant(obj))
+          Block(Seq(
+            Fold(getInvariant(obj))(CommitFailedFoldFailed(commit)),
+            Exhale(getInvariant(obj))(PanicBlame("Exhaling a predicate immediately after folding it should never fail.")),
+          ))
+        else
+          Block(Nil)
 
       case other => rewriteDefault(other)
     }

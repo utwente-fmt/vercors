@@ -183,12 +183,30 @@ valPrimaryPermission
  | '\\pointer_length' '(' langExpr ')' # valPointerLength
  ;
 
+valForall: '\\forall' | '\u2200';
+valStarall: '\\forall*' | '\u2200*';
+valExists: '\\exists' | '\u2203';
+
+valBinderSymbol
+ : valForall # valForallSymb
+ | valStarall # valStarallSymb
+ | valExists # valExistsSymb
+ ;
+
+valBinding
+ : langType langId '=' langExpr '..' langExpr # valRangeBinding
+ | valArg # valNormalBinding
+ ;
+
+valBindings
+ : valBinding
+ | valBinding ',' valBindings
+ ;
+
+valBinderCont: ';' langExpr;
+
 valPrimaryBinder
- : '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId '=' langExpr '..' langExpr ';' langExpr ')' # valRangeQuantifier
- | '(' ('\\forall*'|'\\forall'|'\\exists')
-        valArgList ';' langExpr ';' langExpr ')' # valQuantifier
- | '(' ('\u2200'|'\u2200*'|'\u2203') valArgList ';' langExpr ')' # valShortQuantifier
+ : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  ;
 

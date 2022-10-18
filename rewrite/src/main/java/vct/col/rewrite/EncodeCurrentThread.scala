@@ -43,7 +43,9 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
     case predicate: AbstractPredicate[Pre] => predicate.threadLocal
     case func: AbstractFunction[Pre] => func.threadLocal
 
-    case _: AbstractMethod[Pre] => true
+    // PB: although a pure method will become a function, it should really be possible to mark a pure method as thread
+    // local.
+    case m: AbstractMethod[Pre] => !m.pure
 
     case _: ADTFunction[Pre] => false
     case _: ModelProcess[Pre] => false

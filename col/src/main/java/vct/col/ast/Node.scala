@@ -70,7 +70,7 @@ sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
 final case class Verification[G](tasks: Seq[VerificationContext[G]])(implicit val o: Origin) extends NodeFamily[G] with VerificationImpl[G]
 final case class VerificationContext[G](program: Program[G], expectedErrors: Seq[ExpectedError])(implicit val o: Origin) extends NodeFamily[G] with VerificationContextImpl[G]
-final case class Program[G](declarations: Seq[GlobalDeclaration[G]], rootClass: Option[Type[G]])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
+final case class Program[G](declarations: Seq[GlobalDeclaration[G]])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
 
 sealed trait Type[G] extends NodeFamily[G] with TypeImpl[G]
 
@@ -122,6 +122,7 @@ final case class TZFraction[G]()(implicit val o: Origin = DiagnosticOrigin) exte
 sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TModelImpl[G]
 final case class TClass[G](cls: Ref[G, Class[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TClassImpl[G]
+final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
 
 sealed trait ParRegion[G] extends NodeFamily[G] with ParRegionImpl[G]
@@ -304,6 +305,7 @@ final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] 
 final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
 final case class CoerceNullClass[G](targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullClassImpl[G]
 final case class CoerceNullJavaClass[G](targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullJavaClassImpl[G]
+final case class CoerceNullAnyClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullAnyClassImpl[G]
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullPointerImpl[G]
 
 final case class CoerceFracZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFracZFracImpl[G]
@@ -321,6 +323,8 @@ final case class CoerceBoundIntZFrac[G](source: Type[G])(implicit val o: Origin)
 
 final case class CoerceSupports[G](sourceClass: Ref[G, Class[G]], targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceSupportsImpl[G]
 final case class CoerceJavaSupports[G](sourceClass: Ref[G, JavaClassOrInterface[G]], targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaSupportsImpl[G]
+final case class CoerceClassAnyClass[G](sourceClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceClassAnyClassImpl[G]
+final case class CoerceJavaClassAnyClass[G](sourceClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaClassAnyClassImpl[G]
 
 final case class CoerceCPrimitiveToCol[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceCPrimitiveToColImpl[G]
 final case class CoerceColToCPrimitive[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceColToCPrimitiveImpl[G]
@@ -357,7 +361,9 @@ final case class Null[G]()(implicit val o: Origin) extends Expr[G] with NullImpl
 final case class NoPerm[G]()(implicit val o: Origin) extends Expr[G] with NoPermImpl[G]
 final case class WritePerm[G]()(implicit val o: Origin) extends Expr[G] with WritePermImpl[G]
 final case class OptSome[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with OptSomeImpl[G]
+final case class OptSomeTyped[G](element: Type[G], e: Expr[G])(implicit val o: Origin) extends Expr[G] with OptSomeTypedImpl[G]
 final case class OptNone[G]()(implicit val o: Origin) extends Expr[G] with OptNoneImpl[G]
+final case class OptNoneTyped[G](element: Type[G])(implicit val o: Origin) extends Expr[G] with OptNoneTypedImpl[G]
 final case class Range[G](from: Expr[G], to: Expr[G])(implicit val o: Origin) extends Expr[G] with RangeImpl[G]
 final case class EitherLeft[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherLeftImpl[G]
 final case class EitherRight[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherRightImpl[G]
@@ -480,7 +486,7 @@ final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) 
 final case class Scale[G](scale: Expr[G], res: Expr[G])(val blame: Blame[ScaleNegative])(implicit val o: Origin) extends Expr[G] with ScaleImpl[G]
 final case class ScaleByParBlock[G](block: Ref[G, ParBlockDecl[G]], res: Expr[G])(implicit val o: Origin) extends Expr[G] with ScaleByParBlockImpl[G]
 
-final case class Unfolding[G](res: Expr[G], body: Expr[G])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
+final case class Unfolding[G](res: Expr[G], body: Expr[G])(val blame: Blame[UnfoldFailed])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
 
 sealed trait Location[G] extends NodeFamily[G] with LocationImpl[G]
 final case class FieldLocation[G](obj: Expr[G], field: Ref[G, InstanceField[G]])(implicit val o: Origin) extends Location[G] with FieldLocationImpl[G]
@@ -567,6 +573,7 @@ final case class MapMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) e
 final case class BagMemberCount[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with BagMemberCountImpl[G]
 
 final case class Permutation[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with PermutationImpl[G]
+final case class OptEmpty[G](opt: Expr[G])(implicit val o: Origin) extends Expr[G] with OptEmptyImpl[G]
 final case class OptGet[G](opt: Expr[G])(val blame: Blame[OptionNone])(implicit val o: Origin) extends Expr[G] with OptGetImpl[G]
 final case class OptGetOrElse[G](opt: Expr[G], alt: Expr[G])(implicit val o: Origin) extends Expr[G] with OptGetOrElseImpl[G]
 final case class MapGet[G](map: Expr[G], k: Expr[G])(val blame: Blame[MapKeyError])(implicit val o: Origin) extends Expr[G] with MapGetImpl[G]

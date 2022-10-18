@@ -46,7 +46,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
   var nodeFromUniqueId: Map[Int, Node[_]] = Map()
   var shutdownHookThread: ShutdownHookThread = null
   var reportedQuantifiers = false
-  var intermediatePrinterTimer: Timer = new Timer()
+  var intermediatePrinterTimer: Timer = null
 
   override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, Node[_]]): (viper.silicon.Silicon, SilverPluginManager) = {
     this.nodeFromUniqueId = nodeFromUniqueId
@@ -60,6 +60,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
       l.setAdditive(false) // Prevent bubbling up
       l.addAppender(la)
 
+      intermediatePrinterTimer = new Timer()
       intermediatePrinterTimer.schedule(new TimerTask {
         override def run(): Unit = shortQuantifierReport()
       }, 5000, 5000)
