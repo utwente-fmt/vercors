@@ -57,7 +57,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends
     }).ref
   }
 
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceNullPointer(_) => OptNone()
     case other => super.applyCoercion(e, other)
   }

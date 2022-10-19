@@ -225,6 +225,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               signals = method.contract.signals.map(rw.dispatch) ++
                 method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
             ),
+            inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
+            pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
           )(method.blame)(JavaMethodOrigin(method)))
         }
       case method: JavaAnnotationMethod[Pre] =>

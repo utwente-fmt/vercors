@@ -36,6 +36,7 @@ case object Backend {
         z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
         z3Path = options.z3Path,
         numberOfParallelVerifiers = numberOfParallelVerifiers,
+        timeoutValue = options.devSiliconAssertTimeout,
         proverLogFile = options.devViperProverLogFile,
         printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
         options = options.backendFlags,

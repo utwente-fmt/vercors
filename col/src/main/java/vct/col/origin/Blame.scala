@@ -15,7 +15,7 @@ sealed trait ContractFailure {
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def code: String = "false"
   override def descCompletion: String = "this expression may be false"
-  override def inlineDescCompletion: String = s"${node.o.inlineContext} may be false"
+  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def code: String = "perm"
@@ -141,7 +141,7 @@ case class ExhaleFailed(failure: ContractFailure, node: Exhale[_]) extends WithC
   override def descInContext: String = "Exhale may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."
 }
-case class UnfoldFailed(failure: ContractFailure, node: Unfold[_]) extends WithContractFailure {
+case class UnfoldFailed(failure: ContractFailure, node: Node[_]) extends WithContractFailure {
   override def baseCode: String = "unfoldFailed"
   override def descInContext: String = "Unfold may fail, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"`$node` may fail, since $failure."

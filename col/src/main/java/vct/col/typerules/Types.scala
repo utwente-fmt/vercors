@@ -62,10 +62,13 @@ object Types {
       val nonBottom = leftArrows.intersect(rightArrows).map { case (sub, sup) => sup }
       val classes = (shared.toSet -- nonBottom.toSet).toSeq
       classes match {
-        case Nil => TAny()
+        case Nil => TAnyClass()
         case Seq(t) => TClass(t.ref)
         case other => TUnion(other.map(cls => TClass(cls.ref)))
       }
+
+    case (TClass(_), TAnyClass()) | (TAnyClass(), TClass(_)) =>
+      TAnyClass()
 
     // TODO similar stuff for JavaClass
 

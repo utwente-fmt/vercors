@@ -49,13 +49,17 @@ case object CoercionUtils {
       case (TNull(), TArray(target)) => CoerceNullArray(target)
       case (TNull(), TClass(target)) => CoerceNullClass(target)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
+      case (TNull(), TAnyClass()) => CoerceNullAnyClass()
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
 
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
       case (TZFraction(), TRational()) => CoerceZFracRat()
-      case (TFloat(), TRational()) => CoerceFloatRat()
+      case (TFloat(_, _), TRational()) => CoerceFloatRat()
+
+      case (source @ TFloat(exponentL, mantissaL), target @ TFloat(exponentR, mantissaR)) if exponentL <= exponentR && mantissaL <= mantissaR =>
+        CoerceIncreasePrecision(source, target)
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 => CoerceBoundIntFrac()
       case (source @ TBoundedInt(gte, lt), TZFraction()) if gte >= 0 && lt <= 2 => CoerceBoundIntZFrac(source)
@@ -70,10 +74,15 @@ case object CoercionUtils {
         if source.transSupportArrows.exists { case (_, supp) => supp == targetClass.decl } =>
         CoerceSupports(sourceClass, targetClass)
 
+      case (source @ TClass(sourceClass), TAnyClass()) =>
+        CoerceClassAnyClass(sourceClass)
+
       case (source @ JavaTClass(sourceClass, Nil), target @ JavaTClass(targetClass, Nil))
         if sourceClass.decl.transSupportArrows(Set.empty).exists { case (_, supp) => supp == targetClass.decl } =>
         CoerceJavaSupports(sourceClass, targetClass)
 
+      case (source @ JavaTClass(sourceClass, Nil), TAnyClass()) =>
+        CoerceJavaClassAnyClass(sourceClass)
 
       case (source @ TUnion(ts), target) =>
         CoerceJoinUnion(ts.map(getCoercion(_, target)).map {
@@ -226,15 +235,10 @@ case object CoercionUtils {
     case _ => None
   }
 
-  def getAnyEitherCoercion[G](source: Type[G]): Option[(Coercion[G], TEither[G])] = source match {
-    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyEitherCoercion)
-    case t: TEither[G] => Some((CoerceIdentity(source), t))
-    case _ => None
-  }
-  def getAnyClassCoercion[G](source: Type[G]): Option[(Coercion[G], Type[G])] = source match {
+  def getAnyClassCoercion[G](source: Type[G]): Option[(Coercion[G], TClass[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyClassCoercion)
     case t: TClass[G] => Some((CoerceIdentity(source), t))
-    case t: JavaTClass[G] => Some((CoerceIdentity(source), t))
+
     case t: TUnion[G] =>
       val superType = Types.leastCommonSuperType(t.types)
       getAnyClassCoercion(superType) match {
@@ -246,6 +250,13 @@ case object CoercionUtils {
           Some((joinedCoercion, target))
         case None => None
       }
+
+    case _ => None
+  }
+
+  def getAnyEitherCoercion[G](source: Type[G]): Option[(Coercion[G], TEither[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyEitherCoercion)
+    case t: TEither[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 }

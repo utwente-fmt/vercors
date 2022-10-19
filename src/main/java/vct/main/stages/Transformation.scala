@@ -10,6 +10,7 @@ import vct.col.origin.FileSpanningOrigin
 import vct.col.print.Printer
 import vct.col.rewrite.adt._
 import vct.col.rewrite.exc._
+import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite._
 import vct.importer.{PathAdtImporter, Util}
@@ -60,6 +61,17 @@ object Transformation {
     }
 }
 
+/**
+ * Executes a sequence of rewriters. Currently the only concrete implementation is [[SilverTransformation]].
+ *
+ * Refer to [[RewriterBuilder]] and [[RewriterBuilderArg]] for information on how to use a [[Rewriter]] in the
+ * pass chain.
+ *
+ * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
+ * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
+ *                       before the side effect is performed.
+ * @param passes The list of rewrite passes to execute.
+ */
 class Transformation
 (
   val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
@@ -107,6 +119,19 @@ class Transformation
   }
 }
 
+/**
+ * Defines the rewrite chain appropriate for the Viper backends: Silicon and Carbon.
+ *
+ * @param adtImporter Decides how to import the definition of the built-in axiomatically-defined datatypes.
+ * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
+ * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
+ *                       before the side effect is performed.
+ * @param simplifyBeforeRelations The list of passes to execute at the appropriate point for simplification, just before
+ *                                quantified integer relations are simplified.
+ * @param simplifyAfterRelations The list of passes to execute at the appropriate point for simplification, just after
+ *                               quantified integer relations are simplified.
+ * @param checkSat Check that non-trivial contracts are satisfiable.
+ */
 case class SilverTransformation
 (
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
@@ -177,6 +202,8 @@ case class SilverTransformation
     RejoinQuantifiers,
 
     DesugarCollectionOperators,
+
+    FloatToRat,
 
     // Translate internal types to domains
     ImportArray.withArg(adtImporter),

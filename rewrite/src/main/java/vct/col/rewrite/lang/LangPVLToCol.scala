@@ -8,7 +8,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, RefADTFunction, RefAxiomaticDataType, RefClass, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefVariable}
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefVariable}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
 case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -50,6 +50,10 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val res = Local[Post](resVar.ref)(ThisVar)
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
 
+      val checkRunnable = cls.declarations.collectFirst {
+        case _: RunMethod[Pre] => ()
+      }.nonEmpty
+
       pvlDefaultConstructor(cls) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure(
         t,
         Nil, Nil, Nil,
@@ -63,7 +67,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
             case field: InstanceField[Pre] =>
               fieldPerm[Post](result, rw.succ(field), WritePerm())
-          })), tt, Nil, Nil, Nil, None,
+          }) &* (if (checkRunnable) IdleToken(result) else tt)), tt, Nil, Nil, Nil, None,
         )(TrueSatisfiable)
       )(defaultBlame)))
     }
@@ -126,6 +130,8 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         ProcessApply[Post](rw.succ(decl), args.map(rw.dispatch))
       case RefModelAction(decl) =>
         ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
+      case PVLBuiltinInstanceMethod(f) =>
+        rw.dispatch(f(obj.get)(args))
       case BuiltinInstanceMethod(f) =>
         rw.dispatch(f(obj.get)(args))
     }

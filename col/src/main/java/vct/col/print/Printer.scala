@@ -205,6 +205,7 @@ case class PrependAfterWhitespace(inner: PrinterState, prepend: PrinterState => 
 }
 
 //PB TODO: make printer complete once we're nearing the end of making new nodes.
+//PB TODO: document the printer once it's not terrible.
 //@nowarn("msg=xhaust")
 case class Printer(out: Appendable,
                    syntax: Syntax = Java,
@@ -930,7 +931,7 @@ case class Printer(out: Appendable,
       PVL -> phrase("boolean"),
       Silver -> phrase("Bool"),
     )
-    case TFloat() => phrase("float")
+    case TFloat(exponent, mantissa) => phrase(s"float[$exponent, $mantissa]")
     case TChar() => phrase("char")
     case TString() => phrase("String")
     case TRef() => phrase("Ref")
@@ -1210,8 +1211,6 @@ case class Printer(out: Appendable,
     case CShort() => say("short")
     case CInt() => say("int")
     case CLong() => say("long")
-    case CFloat() => say("float")
-    case CDouble() => say("double")
     case CSigned() => say("signed")
     case CUnsigned() => say("unsigned")
     case CBool() => say("bool")

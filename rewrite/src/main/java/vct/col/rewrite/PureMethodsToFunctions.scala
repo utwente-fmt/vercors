@@ -19,10 +19,10 @@ case object PureMethodsToFunctions extends RewriterBuilder {
     override def inlineContext: String = "[Node generated for pure method]"
   }
 
-  case class MethodCannotIntoFunction(explanation: String) extends UserError {
+  case class MethodCannotIntoFunction(method: AbstractMethod[_], explanation: String) extends UserError {
     override def code: String = "notPure"
     override def text: String =
-      s"This method is marked as pure, but it cannot be converted to a function, since $explanation."
+      method.o.messageInContext(s"This method is marked as pure, but it cannot be converted to a function, since $explanation.")
   }
 }
 
@@ -51,25 +51,25 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
     implicit val o: Origin = decl.o
     decl match {
       case proc: Procedure[Pre] if proc.pure =>
-        if(proc.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
-        if(proc.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
+        if(proc.outArgs.nonEmpty) throw MethodCannotIntoFunction(proc,"the method has out parameters")
+        if(proc.contract.signals.nonEmpty) throw MethodCannotIntoFunction(proc,"the method contract contains a signals declaration")
         globalDeclarations.succeed(proc, new Function(
           returnType = dispatch(proc.returnType),
           args = variables.dispatch(proc.args),
           typeArgs = variables.dispatch(proc.typeArgs),
-          body = proc.body.map(toExpression(_, None).getOrElse(throw MethodCannotIntoFunction(
+          body = proc.body.map(toExpression(_, None).getOrElse(throw MethodCannotIntoFunction(proc,
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(proc.contract),
           inline = proc.inline
         )(proc.blame)(proc.o))
       case method: InstanceMethod[Pre] if method.pure =>
-        if(method.outArgs.nonEmpty) throw MethodCannotIntoFunction("the method has out parameters")
-        if(method.contract.signals.nonEmpty) throw MethodCannotIntoFunction("the method contract contains a signals declaration")
+        if(method.outArgs.nonEmpty) throw MethodCannotIntoFunction(method, "the method has out parameters")
+        if(method.contract.signals.nonEmpty) throw MethodCannotIntoFunction(method, "the method contract contains a signals declaration")
         classDeclarations.succeed(method, new InstanceFunction(
           returnType = dispatch(method.returnType),
           args = variables.dispatch(method.args),
           typeArgs = variables.dispatch(method.typeArgs),
-          body = method.body.map(toExpression(_, None).getOrElse(throw MethodCannotIntoFunction(
+          body = method.body.map(toExpression(_, None).getOrElse(throw MethodCannotIntoFunction(method,
             "the method implementation cannot be restructured into a pure expression"))),
           contract = dispatch(method.contract),
           inline = method.inline,

@@ -1,7 +1,7 @@
 import scala.meta._
 
 case class ColHelperAllScopes(info: ColDescription) {
-  def make(): List[Stat] = q"""
+  def make(): List[(String, List[Stat])] = List("AllScopes" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag
 
@@ -31,12 +31,12 @@ case class ColHelperAllScopes(info: ColDescription) {
       def freeze: AllFrozenScopes = new AllFrozenScopes
 
       def anyDeclare[T <: Declaration[Post]](decl1: T): T =
-        ${MetaUtil.NonemptyMatch("decl declare kind cases", q"decl1", ColDefs.DECLARATION_KINDS.map(decl =>
+        ${ColHelperUtil.NonemptyMatch("decl declare kind cases", q"decl1", ColDefs.DECLARATION_KINDS.map(decl =>
           Case(p"decl: ${Type.Name(decl)}[Post]", None, q"${ColDefs.scopes(decl)}.declare(decl); decl1")
         ).toList)}
 
       def anySucceedOnly[T <: Declaration[Post]](pre1: Declaration[Pre], post1: T)(implicit tag: ClassTag[T]): T =
-        ${MetaUtil.NonemptyMatch("decl succeed kind cases", q"(pre1, post1)", ColDefs.DECLARATION_KINDS.map(decl =>
+        ${ColHelperUtil.NonemptyMatch("decl succeed kind cases", q"(pre1, post1)", ColDefs.DECLARATION_KINDS.map(decl =>
           Case(p"(pre: ${Type.Name(decl)}[Pre], post: ${Type.Name(decl)}[Post])", None, q"${ColDefs.scopes(decl)}.succeedOnly(pre, post); post1")
         ).toList)}
 
@@ -49,5 +49,5 @@ case class ColHelperAllScopes(info: ColDescription) {
           ${ColDefs.scopes(decl)}.freeze.succ(decl)
       """).toList}
     }
-  """.stats
+  """.stats)
 }

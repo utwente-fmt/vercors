@@ -86,7 +86,6 @@ case class SilverToCol[G](program: silver.Program) {
           program.functions.map(transform) ++
           program.predicates.map(transform) ++
           program.methods.map(transform),
-      rootClass = None,
     )(blame(program))(origin(program))
 
   def transform(domain: silver.Domain): col.AxiomaticDataType[G] =
@@ -373,7 +372,7 @@ case class SilverToCol[G](program: silver.Program) {
       case silver.SeqUpdate(s, idx, elem) => col.SeqUpdate(f(s), f(idx), f(elem))
       case silver.Sub(left, right) => col.Minus(f(left), f(right))
       case silver.TrueLit() => col.BooleanValue(true)
-      case silver.Unfolding(acc, body) => col.Unfolding(f(acc), f(body))
+      case silver.Unfolding(acc, body) => col.Unfolding(f(acc), f(body))(blame(e))
       case silver.WildcardPerm() => col.ReadPerm()
 
       case silver.ForPerm(variables, resource, body) => ??(e)

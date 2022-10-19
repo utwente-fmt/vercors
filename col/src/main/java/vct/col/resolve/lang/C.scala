@@ -2,6 +2,7 @@ package vct.col.resolve.lang
 
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.resolve._
 import vct.col.resolve.ctx._
@@ -68,9 +69,10 @@ case object C {
       case Seq(CVoid()) => TVoid()
       case Seq(CChar()) => TChar()
       case t if C.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
-      case Seq(CFloat()) | Seq(CDouble()) | Seq(CLong(), CDouble()) => TFloat()
+      case Seq(CSpecificationType(t @ TFloat(_, _))) => t
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
+      case Seq(CSpecificationType(typ)) => typ
       case _ => throw CTypeNotSupported(context)
     }
 

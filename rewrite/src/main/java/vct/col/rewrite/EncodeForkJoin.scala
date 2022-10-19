@@ -7,8 +7,16 @@ import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
+import vct.result.VerificationError.UserError
 
 object EncodeForkJoin extends RewriterBuilder {
+
+  case class RunnableMethodMissingError(expr: Expr[_]) extends UserError {
+    override def code: String = "runnableMethodMissing"
+
+    override def text: String = expr.o.messageInContext("This class is missing a run method.")
+  }
+
   override def key: String = "forkJoin"
   override def desc: String = "Encode fork and join statements with the contract of the run method it refers to."
 
@@ -73,11 +81,11 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = stat match {
     case fork @ Fork(obj) =>
       implicit val o: Origin = stat.o
-      val cls = obj.t.asInstanceOf[TClass[Pre]].cls.decl
+      val cls = getRunnableClass(obj)
       InvokeMethod[Post](dispatch(obj), forkMethod.ref(cls), Nil, Nil, Nil, Nil, Nil)(ForkInstanceInvocation(fork))
     case join @ Join(obj) =>
       implicit val o: Origin = stat.o
-      val cls = obj.t.asInstanceOf[TClass[Pre]].cls.decl
+      val cls = getRunnableClass(obj)
       InvokeMethod[Post](dispatch(obj), joinMethod.ref(cls), Nil, Nil, Nil, Nil, Nil)(JoinInstanceInvocation(join))
 
     case other => rewriteDefault(other)
@@ -86,11 +94,11 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
     case vct.col.ast.IdleToken(obj) =>
       implicit val o: Origin = e.o
-      val cls = obj.t.asInstanceOf[TClass[Pre]].cls.decl
+      val cls = getRunnableClass(obj)
       InstancePredicateApply[Post](dispatch(obj), idleToken.ref(cls), Nil, WritePerm())
     case vct.col.ast.JoinToken(obj) =>
       implicit val o: Origin = e.o
-      val cls = obj.t.asInstanceOf[TClass[Pre]].cls.decl
+      val cls = getRunnableClass(obj)
       InstancePredicateApply[Post](dispatch(obj), runningToken.ref(cls), Nil, WritePerm())
 
     case NewObject(Ref(cls)) =>
@@ -137,4 +145,23 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
       classDeclarations.declare(new InstanceMethod[Post](TVoid(), Nil, Nil, Nil, m.body.map(dispatch), dispatch(m.contract))(m.blame))
     case other => rewriteDefault(other)
   }
+
+  /**
+    * Performs a check on whether a class has a runnable method to perform an expression that requires it.
+    *   Throws an exception if there is no runnable method.
+    * @param expr - the expression that requires the class to have a runnable method
+    * @return The class of a given object
+    * @throws \RunnableMethodMissingError if the class is detected not to have a Runnable method.
+    */
+  def getRunnableClass(expr: Expr[Pre]): Class[Pre] = {
+    val classType = expr.t.asInstanceOf[TClass[Pre]]
+    val check = classType.cls.decl.declarations.collectFirst {
+      case _: RunMethod[Pre] => () //return unit
+    }.nonEmpty
+    if (!check) {
+      throw RunnableMethodMissingError(expr)
+    }
+    classType.cls.decl
+  }
+
 }

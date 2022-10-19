@@ -47,7 +47,20 @@ case class QuantifySubscriptAny[Pre <: Generation]() extends Rewriter[Pre] {
             Perm(ArrayLocation(arr, i)(FramedArrIndex), perm)
           )
         )(any.blame)
-
+      case Value(ArrayLocation(arrIn, any @ Any())) =>
+        val i_var = new Variable[Post](TInt())
+        val i = Local[Post](i_var.ref)
+        val arr = dispatch(arrIn)
+        Starall(
+          bindings = Seq(i_var),
+          triggers = Seq(
+            Seq(ArraySubscript(arr, i)(TriggerPatternBlame))
+          ),
+          body = Implies(
+            const[Post](0) <= i && i < Length(arr)(any.blame),
+            Value(ArrayLocation(arr, i)(FramedArrIndex)),
+          )
+        )(any.blame)
       case node: Any[Pre] => throw InvalidAnyPosition(node)
 
       case other => rewriteDefault(other)

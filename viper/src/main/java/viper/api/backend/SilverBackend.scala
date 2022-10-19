@@ -49,7 +49,7 @@ trait SilverBackend extends Backend with LazyLogging {
       writer.write(silverProgram.toString())
     })
 
-    silverProgram.check match {
+    silverProgram.checkTransitively match {
       case Nil =>
       case some => throw ConsistencyErrors(some)
     }
@@ -260,6 +260,9 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(f@silver.FieldAccess(_, _)) =>
       val deref = get[col.SilverDeref[_]](f)
       deref.blame.blame(blame.InsufficientPermission(deref))
+    case reasons.InsufficientPermission(p@silver.PredicateAccess(_, _)) =>
+      val unfolding = info(p).unfolding.get
+      unfolding.blame.blame(blame.UnfoldFailed(getFailure(reason), unfolding))
     case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
       val starall = info(access).starall.get
       starall.blame.blame(blame.ReceiverNotInjective(starall, get(access)))

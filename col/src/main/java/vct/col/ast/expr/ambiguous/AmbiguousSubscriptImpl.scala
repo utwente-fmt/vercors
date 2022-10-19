@@ -15,5 +15,5 @@ trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
     else if (isArrayOp) collection.t.asArray.get.element
     else if (isPointerOp) collection.t.asPointer.get.element
     else if (isMapOp) collection.t.asMap.get.value
-    else throw Unreachable(s"Trying to subscript ($this) a non subscriptable variable with type $collection.t")
+    else throw Unreachable(s"Trying to subscript ($this) a non subscriptable variable with type ${collection.t}")
 }

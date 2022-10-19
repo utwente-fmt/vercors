@@ -35,7 +35,7 @@ case class ImportFrac[Pre <: Generation](importer: ImportADTImporter) extends Im
   private lazy val zfracVal = find[ADTFunction[Post]](zfracAdt, "zfrac_val")
   private lazy val zfracNew = find[Function[Post]](zfracFile, "new_zfrac")
 
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceZFracRat() =>
       ADTFunctionInvocation[Post](Some((zfracAdt.ref, Nil)), zfracVal.ref, Seq(e))
     case CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat())) =>

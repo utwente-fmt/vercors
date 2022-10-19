@@ -12,7 +12,7 @@ case class ImportNothing[Pre <: Generation](importer: ImportADTImporter) extends
   private lazy val nothingAdt = find[AxiomaticDataType[Post]](nothingFile, "nothing")
   private lazy val nothingAs = find[Function[Post]](nothingFile, "nothing_as")
 
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceNothingSomething(target) =>
       FunctionInvocation[Post](nothingAs.ref, Seq(e), Seq(dispatch(target)), Nil, Nil)(PanicBlame("coercing from nothing requires nothing."))
     case other => super.applyCoercion(e, other)

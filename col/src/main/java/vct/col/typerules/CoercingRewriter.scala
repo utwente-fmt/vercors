@@ -3,6 +3,7 @@ package vct.col.typerules
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter}
@@ -11,7 +12,7 @@ import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable}
 
 case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre]() {
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = e
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = e
 }
 
 case object CoercingRewriter {
@@ -56,7 +57,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     * @param coercion the coercion
     * @return the coerced expression
     */
-  def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = {
+  def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = {
     coercion match {
       case CoerceIdentity(_) => e
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
@@ -166,17 +167,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
 
       case CoerceSupports(_, _) => e
+      case CoerceClassAnyClass(_) => e
       case CoerceJavaSupports(_, _) => e
+      case CoerceJavaClassAnyClass(_) => e
       case CoerceCPrimitiveToCol(_, _) => e
       case CoerceColToCPrimitive(_, _) => e
       case CoerceNullRef() => e
       case CoerceNullArray(_) => e
       case CoerceNullClass(_) => e
       case CoerceNullJavaClass(_) => e
+      case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
       case CoerceFracZFrac() => e
       case CoerceZFracRat() => e
       case CoerceFloatRat() => e
+      case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
       case CoerceUnboundInt(_) => e
 
@@ -276,8 +281,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
+  def cls(e: Expr[Pre]): Expr[Pre] = coerce(e, TAnyClass[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
     CoercionUtils.getAnyOptionCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
@@ -327,11 +334,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"Expected a pointer here, but got ${e.t}")
-    }
-  def cls(e: Expr[Pre]): (Expr[Pre], Type[Pre]) =
-    CoercionUtils.getAnyClassCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a class here, but got ${e.t}")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
@@ -559,6 +561,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case plus @ AmbiguousPlus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
@@ -576,7 +579,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          }
+          },
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
@@ -628,6 +631,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         BitXor(int(left), int(right))
       case Cast(value, typeValue) =>
         Cast(value, typeValue)
+      case CastFloat(e, t) =>
+        CastFloat(float(e), t)
+      case CCast(e, t) => CCast(e, t)
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
@@ -655,7 +661,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CurrentThreadId() =>
         CurrentThreadId()
       case deref @ Deref(obj, ref) =>
-        Deref(cls(obj)._1, ref)(deref.blame)
+        Deref(cls(obj), ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case div @ Div(left, right) =>
@@ -697,8 +703,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() =>
         GlobalThreadId()
-      case GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
-        GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)
+      case e @ GpgpuCudaKernelInvocation(kernel, blocks, threads, args, givenArgs, yields) =>
+        GpgpuCudaKernelInvocation(kernel, int(blocks), int(threads), args, givenArgs, yields)(e.blame)
       case Greater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Greater(int(left), int(right)),
@@ -712,9 +718,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case head @ Head(xs) =>
         Head(seq(xs)._1)(head.blame)
       case Held(obj) =>
-        Held(cls(obj)._1)
+        Held(cls(obj))
       case IdleToken(thread) =>
-        IdleToken(cls(thread)._1)
+        IdleToken(cls(thread))
       case Implies(left, right) =>
         Implies(bool(left), res(right))
       case FunctionOf(e, ref) =>
@@ -724,13 +730,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
-        InstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
+        InstancePredicateApply(cls(obj), ref, coerceArgs(args, ref.decl), rat(perm))
       case CoalesceInstancePredicateApply(obj, ref, args, perm) =>
-        CoalesceInstancePredicateApply(cls(obj)._1, ref, coerceArgs(args, ref.decl), rat(perm))
+        CoalesceInstancePredicateApply(cls(obj), ref, coerceArgs(args, ref.decl), rat(perm))
       case IsLeft(e) =>
         IsLeft(either(e)._1)
       case IsRight(e) =>
@@ -744,7 +750,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case JoinToken(thread) =>
-        JoinToken(cls(thread)._1)
+        JoinToken(cls(thread))
       case length @ Length(arr) =>
         Length(array(arr)._1)(length.blame)
       case Less(left, right) =>
@@ -828,7 +834,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        MethodInvocation(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        MethodInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -1076,8 +1082,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           UMinus(int(arg)),
           UMinus(rat(arg)),
         )
-      case Unfolding(pred, body) =>
-        Unfolding(res(pred), body)
+      case u @ Unfolding(pred, body) =>
+        Unfolding(res(pred), body)(u.blame)
       case UntypedLiteralBag(values) =>
         val sharedType = Types.leastCommonSuperType(values.map(_.t))
         UntypedLiteralBag(values.map(coerce(_, sharedType)))
@@ -1093,6 +1099,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
       case value: IntegerValue[Pre] => e
+      case value: FloatValue[Pre] => e
       case value @ Value(loc) =>
         Value(loc)
       case values @ Values(arr, from, to) =>
@@ -1135,13 +1142,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case Case(pattern) => Case(pattern)
       case CDeclarationStatement(decl) => CDeclarationStatement(decl)
       case CGoto(label) => CGoto(label)
-      case c @ Commit(obj) => Commit(cls(obj)._1)(c.blame)
+      case c @ Commit(obj) => Commit(cls(obj))(c.blame)
       case Continue(label) => Continue(label)
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
       case f @ Fold(assn) => Fold(res(assn))(f.blame)
-      case f @ Fork(obj) => Fork(cls(obj)._1)(f.blame)
+      case f @ Fork(obj) => Fork(cls(obj))(f.blame)
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
       case Goto(lbl) => Goto(lbl)
       case GpgpuAtomic(impl, before, after) => GpgpuAtomic(impl, before, after)
@@ -1152,15 +1159,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
         InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeMethod(cls(obj)._1, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
+        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
-      case j @ Join(obj) => Join(cls(obj)._1)(j.blame)
+      case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
       case LocalDecl(local) => LocalDecl(local)
-      case Lock(obj) => Lock(cls(obj)._1)
+      case Lock(obj) => Lock(cls(obj))
       case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
       case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
-      case n @ Notify(obj) => Notify(cls(obj)._1)(n.blame)
+      case n @ Notify(obj) => Notify(cls(obj))(n.blame)
       case at @ ParAtomic(inv, content) => ParAtomic(inv, content)(at.blame)
       case bar @ ParBarrier(block, invs, requires, ensures, content) => ParBarrier(block, invs, res(requires), res(ensures), content)(bar.blame)
       case p @ ParInvariant(decl, inv, content) => ParInvariant(decl, res(inv), content)(p.blame)
@@ -1176,13 +1183,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case SpecIgnoreEnd() => SpecIgnoreEnd()
       case SpecIgnoreStart() => SpecIgnoreStart()
       case Switch(expr, body) => Switch(expr, body)
-      case s @ Synchronized(obj, body) => Synchronized(cls(obj)._1, body)(s.blame)
-      case t @ Throw(obj) => Throw(cls(obj)._1)(t.blame)
+      case s @ Synchronized(obj, body) => Synchronized(cls(obj), body)(s.blame)
+      case t @ Throw(obj) => Throw(cls(obj))(t.blame)
       case TryCatchFinally(body, after, catches) => TryCatchFinally(body, after, catches)
       case u @ Unfold(assn) => Unfold(res(assn))(u.blame)
-      case u @ Unlock(obj) => Unlock(cls(obj)._1)(u.blame)
+      case u @ Unlock(obj) => Unlock(cls(obj))(u.blame)
       case VecBlock(iters, requires, ensures, content) => VecBlock(iters, res(requires), res(ensures), content)
-      case w @ Wait(obj) => Wait(cls(obj)._1)(w.blame)
+      case w @ Wait(obj) => Wait(cls(obj))(w.blame)
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
     }

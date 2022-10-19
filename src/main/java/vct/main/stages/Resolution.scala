@@ -29,7 +29,6 @@ case object Resolution {
   def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =
     Resolution(
       blameProvider = blameProvider,
-      withJava = true,
       javaLibraryPath = options.jrePath,
     )
 }
@@ -37,7 +36,6 @@ case object Resolution {
 case class Resolution[G <: Generation]
 (
   blameProvider: BlameProvider,
-  withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
 ) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
@@ -56,9 +54,9 @@ case class Resolution[G <: Generation]
 
     implicit val o: Origin = FileSpanningOrigin
 
-    val parsedProgram = Program(in.decls, if(withJava) Some(Java.JAVA_LANG_OBJECT[G]) else None)(blameProvider())
-    val extraDecls = ResolveTypes.resolve(parsedProgram, if(withJava) Some(JavaLibraryLoader(javaLibraryPath, blameProvider)) else None)
-    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(blameProvider())
+    val parsedProgram = Program(in.decls)(blameProvider())
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(javaLibraryPath, blameProvider)))
+    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram) match {
       case Nil => // ok

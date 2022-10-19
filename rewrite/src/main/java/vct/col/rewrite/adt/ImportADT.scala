@@ -2,6 +2,7 @@ package vct.col.rewrite.adt
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
+import vct.col.ast.`type`.TFloats
 import vct.col.ast.util.Declarator
 import vct.col.ast.{CType, Declaration, GlobalDeclaration, JavaType, PVLType, Program, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type}
 import vct.col.typerules.CoercingRewriter
@@ -26,7 +27,9 @@ case object ImportADT {
     case _: TNotAValue[_] => throw ExtraNode
     case TVoid() => "void"
     case TBool() => "bool"
-    case TFloat() => "float"
+    case single: TFloat[_] if single == TFloats.ieee754_32bit => s"float32"
+    case double: TFloat[_] if double == TFloats.ieee754_32bit => s"float64"
+    case TFloat(exponent, mantissa) => s"float${exponent}m$mantissa"
     case TChar() => "char"
     case TString() => "string"
     case TRef() => "ref"

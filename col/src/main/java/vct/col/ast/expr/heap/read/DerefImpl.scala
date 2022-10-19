@@ -9,6 +9,6 @@ trait DerefImpl[G] extends ExprImpl[G] { this: Deref[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
     Check.inOrder(
       super.check(context),
-      obj.t.asClass.get.asInstanceOf[TClass[G]].cls.decl.checkDefines(ref.decl, this)
+      obj.t.asClass.get.cls.decl.checkDefines(ref.decl, this)
     )
 }

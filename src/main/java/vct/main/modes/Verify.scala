@@ -43,6 +43,14 @@ case object Verify extends LazyLogging {
     }
   }
 
+  /**
+   * Runs a normal verification run from the command line options.
+   *
+   * After some setup, most of the meat is in [[Stages.ofOptions]].
+   *
+   * @param options The command line options.
+   * @return The exit code, zero on verification success.
+   */
   def runOptions(options: Options): Int = {
     try {
       // Wrapped in try because this seems to crash on windows
@@ -65,7 +73,7 @@ case object Verify extends LazyLogging {
         logger.info("Verification completed successfully.")
         EXIT_CODE_SUCCESS
       case Right(fails) =>
-        if(fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
+        if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
         EXIT_CODE_VERIFICATION_FAILURE
     }
