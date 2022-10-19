@@ -15,13 +15,13 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError" in "example asserting read permission over argument" pvl """
+  vercors should error withCode "notALocation" in "example asserting read permission over argument" pvl """
     class C {}
     requires Value(arg);
     void main(C arg);
   """
 
-  vercors should error withCode "resolutionError" in "example asserting permission over argument" pvl """
+  vercors should error withCode "notALocation" in "example asserting permission over argument" pvl """
     class C {}
     requires Perm(arg, write);
     void main(C arg);
@@ -29,7 +29,7 @@ class TechnicalSpec extends VercorsSpec {
 
   vercors should verify using anyBackend in "example showing comparison of unrelated types" pvl """
     void test() {
-      /*[/expect failed]*/
+      /*[/expect assertFailed:false]*/
       assert 1 == false;
       /*[/end]*/
     }
@@ -57,11 +57,11 @@ class TechnicalSpec extends VercorsSpec {
     resource p();
 
     requires p();
-    pure int f() = \\unfolding p() \in 0;
+    pure int f() = \unfolding p() \in 0;
   """
 
   vercors should verify using anyBackend in "example with incorrect boolean logic" pvl """
-    /*[/expect postFailed]*/
+    /*[/expect postFailed:false]*/
     requires false || true;
     ensures false && true;
     void m(){}
@@ -72,7 +72,7 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
-      /*[/expect postFailed]*/
+      /*[/expect postFailed:perm]*/
       // assumes nothing
       requires (\forall* int i; false ; (\forall* int j; 0 <= j && j < 1; Value(x)));
       // yet ensures something, should fail
@@ -87,7 +87,7 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
-      /*[/expect postFailed]*/
+      /*[/expect postFailed:perm]*/
       // assumes nothing
       requires (\forall* int i; false ; Value(x));
       // yet ensures something
@@ -115,7 +115,7 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
-      /*[/expect postFailed]*/
+      /*[/expect postFailed:perm]*/
       // assume sanity of the array, but no permissions
       requires ar !=null && ar.length > 1;
       requires  (\forall* int i; 0 <= i && i < -1;
@@ -182,19 +182,19 @@ class TechnicalSpec extends VercorsSpec {
     int bar() { return 0; }
     int foo() { return 0; }
 
-    void action(int i) {
+    void act(int i) {
         return;
     }
 
     void test() {
       if(bar() == bar()) {
-          action(0);
+          act(0);
       } else if(bar() == foo()) {
-          action(1);
+          act(1);
       } else if(foo() == bar()) {
-          action(2);
+          act(2);
       } else {
-          action(3);
+          act(3);
       }
     }
   """
@@ -244,7 +244,7 @@ class TechnicalSpec extends VercorsSpec {
     requires Value(left.x) ** Value(right.x);
     void test(Test left, Test right) {
       if(left == right) {
-        /*[/expect failed]*/
+        /*[/expect assertFailed:false]*/
         assert false;
         /*[/end]*/
       }
