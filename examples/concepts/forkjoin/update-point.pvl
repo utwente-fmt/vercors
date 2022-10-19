@@ -21,7 +21,7 @@ class X {
   
   requires Perm(this.p,33) ** Perm(this.p.x,100);
   ensures Perm(this.p,33) ** PointsTo(this.p.x,100,\old(this.p.x)+1);
-  void run() {
+  run {
     Point q = this.p;
     q.x = q.x+1 ;
   }
