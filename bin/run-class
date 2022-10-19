@@ -8,11 +8,12 @@ set -e
 SCRIPT=$(realpath $0)
 BIN=$(dirname $SCRIPT)
 ROOT=$(dirname $BIN)
-if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
+CLASSPATH="$ROOT/target/streams/compile/fullClasspath/_global/streams/export"
+if [ ! -f "$CLASSPATH" ] || [ ! -s "$CLASSPATH" ]; then
     printf "Extracting classpath from SBT. This might take a moment.\n"
-    (cd $ROOT && sbt --error "Global / printMainClasspath" > "$BIN/.classpath")
+    (cd $ROOT && sbt --error "show Compile / fullClasspath")
     printf "Classpath extracted\n"
 fi
 
-CLASSPATH=$(cat "$BIN/.classpath" | tr -d "\n\r")
+CLASSPATH=$(cat "$CLASSPATH" | tr -d "\n\r")
 java $MORE_JAVA_OPTS -Xss128M -cp $CLASSPATH "$@"

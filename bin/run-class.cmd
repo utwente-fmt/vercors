@@ -3,7 +3,8 @@ setlocal
 
 rem %~dp0 is expanded pathname of the current script under NT, i.e. the "bin" directory
 set BIN=%~dp0
-set CPFILE=%BIN%.classpath
+set ROOT=%BIN%..\
+set CPFILE=%ROOT%target\streams\compile\fullClasspath\_global\streams\export
 
 rem remember current directory
 set cur=%cd%
@@ -13,7 +14,7 @@ if not exist "%CPFILE%" (
     echo Extracting classpath from SBT. This might take a moment.
     cd %~dp0..
     rem get classpath from SBT
-    call sbt --error "Global / printMainClasspath" > "%CPFILE%"
+    call sbt --error "show Compile / fullClasspath"
     cd %cur%
     echo Classpath extracted
 )
