@@ -2,14 +2,13 @@ package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
 import hre.io.Readable
-import org.scalactic.source.Position
-import org.scalatest.{Resources, Tag, Transformer}
-import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
+import org.scalactic.source
+import org.scalatest.Tag
+import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
-import vct.options
 import vct.options.types
 import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.ParseError
@@ -37,7 +36,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
   case class IncompleteVerdict(fromCode: String => Verdict)
   case object ErrorVerdict
 
-  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable]): Unit = {
+  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable])(implicit pos: source.Position): Unit = {
     registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
@@ -124,9 +123,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class BackendPhrase(val verdict: Verdict, val backends: Seq[Backend]) {
-    def example(path: String): Unit = examples(path)
+    def example(path: String)(implicit pos: source.Position): Unit = examples(path)
 
-    def examples(examples: String*): Unit = {
+    def examples(examples: String*)(implicit pos: source.Position): Unit = {
       val paths = examples.map(ex => Paths.get(s"examples/$ex"))
       coveredExamples ++= paths
       val inputs = paths.map(PathOrStd.Path)
@@ -140,21 +139,21 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String) {
-    def pvl(data: String): Unit = {
+    def pvl(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
       }
     }
 
-    def java(data: String): Unit = {
+    def java(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.java", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
       }
     }
 
-    def c(data: String): Unit = {
+    def c(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.c", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
