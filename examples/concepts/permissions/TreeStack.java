@@ -75,8 +75,8 @@ final public class Tree {
             loop_invariant stk!=null ==> stk.get_root()==t;
             while(stk!=null) {
                 unfold stk.state();
-                pp = stk.ref;
-                stk = stk.tail;
+                pp = stk.`ref`;
+                stk = stk.`tail`;
                 fold pp.state();
             }
             */
@@ -92,19 +92,19 @@ final class Stack {
 
     /*@
       resource state()=
-          Perm(ref,1) ** Perm(tail,1) ** Perm(root,1) ** tail->state() ** ref!=null **
-          Perm(ref.data,1) ** Perm(ref.left,1) ** Perm(ref.right,1) ** ref.right->state()
-          ** ((tail!=null)==>(ref==tail.get_ref_left() ** root==tail.get_root()))
-          ** (tail==null ==> ref==root);
+          Perm(`ref`,1) ** Perm(tail,1) ** Perm(root,1) ** tail->state() ** `ref`!=null **
+          Perm(`ref`.data,1) ** Perm(`ref`.left,1) ** Perm(`ref`.right,1) ** `ref`.right->state()
+          ** ((tail!=null)==>(`ref`==tail.get_ref_left() ** root==tail.get_root()))
+          ** (tail==null ==> `ref`==root);
 
     @*/
   /*@
-    requires ref!=null ** tail->state();
-    requires Perm(ref.data,1)**Perm(ref.left,1)**Perm(ref.right,1)**ref.right->state();
-    requires tail!=null ==> ref==tail.get_ref_left();
+    requires `ref`!=null ** tail->state();
+    requires Perm(`ref`.data,1)**Perm(`ref`.left,1)**Perm(`ref`.right,1)**`ref`.right->state();
+    requires tail!=null ==> `ref`==tail.get_ref_left();
     requires tail!=null ==> root==tail.get_root();
-    requires tail==null ==> ref==root;
-    ensures  state() ** get_root()==root ** get_ref_left()==\old(ref.left);
+    requires tail==null ==> `ref`==root;
+    ensures  state() ** get_root()==root ** get_ref_left()==\old(`ref`.left);
   @*/
     public Stack(Tree ref, Stack tail, Tree root) {
         this.ref = ref;
@@ -115,12 +115,12 @@ final class Stack {
 
     /*@
     requires state();
-    pure Tree get_ref() = \unfolding state() \in ref;
+    pure Tree get_ref() = \unfolding state() \in `ref`;
     @*/
 
     /*@
     requires state();
-    pure Tree get_ref_left() = \unfolding state() \in ref.left;
+    pure Tree get_ref_left() = \unfolding state() \in `ref`.left;
     @*/
 
     /*@
@@ -128,5 +128,3 @@ final class Stack {
     pure Tree get_root() = \unfolding state() \in root;
     @*/
 }
-
-

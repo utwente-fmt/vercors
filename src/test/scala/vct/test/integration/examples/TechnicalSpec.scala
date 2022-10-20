@@ -283,4 +283,43 @@ class TechnicalSpec extends VercorsSpec {
       assert perm(p()) == write;
     }
   """
+
+  vercors should verify using anyBackend in "example that shows given parameters clobber fields" java """
+    public class A {
+      int i;
+
+      public void main() {
+        B b = new B();
+
+        b.testA()/*@ given { a = 9 } @*/;
+        b.testI()/*@ given { i = 9 } @*/;
+      }
+    }
+
+    class B {
+      /*@
+        given int a;
+      @*/
+      public void testA() {
+      }
+
+      /*@
+        given int i;
+      @*/
+      public void testI() {
+      }
+    }
+  """
+
+  vercors should verify using anyBackend in "example that shows qualified names are equal types to their unqualified equivalent" java """
+    class QualifiedNames {
+      void foo() {
+          Exception e = new java.lang.Exception();
+      }
+
+      void bar () {
+          java.lang.Exception e = new Exception();
+      }
+    }
+  """
 }
