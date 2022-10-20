@@ -57,7 +57,7 @@ class TechnicalSpec extends VercorsSpec {
     resource p();
 
     requires p();
-    pure int f() = \unfolding p() \in 0;
+    pure int f() = \\unfolding p() \in 0;
   """
 
   vercors should verify using anyBackend in "example with incorrect boolean logic" pvl """
@@ -173,7 +173,7 @@ class TechnicalSpec extends VercorsSpec {
 
     void test() {
       par T0 {
-        call given { p = 1 } ();
+        call() given { p = 1 };
       }
     }
   """
