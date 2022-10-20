@@ -173,7 +173,7 @@ class TechnicalSpec extends VercorsSpec {
 
     void test() {
       par T0 {
-        call given { p = 1 } ();
+        call() given { p = 1 };
       }
     }
   """
