@@ -8,5 +8,6 @@ trait ResultImpl[G] extends NodeFamilyImpl[G] { this: Result[G] =>
   override def t: Type[G] = applicable.decl.returnType
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
-    if(context.inPostCondition) Nil else Seq(ResultOutsidePostcondition(this))
+    if(context.inPostCondition) super.check(context)
+    else Seq(ResultOutsidePostcondition(this))
 }

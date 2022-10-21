@@ -13,7 +13,7 @@ import vct.options.types
 import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.ParseError
 import vct.result.VerificationError
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{SystemError, UserError}
 
 import java.nio.file.{Path, Paths}
 
@@ -61,26 +61,35 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
     verdict match {
       case Pass => value match {
-        case Left(err) =>
+        case Left(err: UserError) =>
           println(err)
-          fail("Expected the test to pass, but it returned an error instead.")
+          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right(Nil) => // success
         case Right(fails) =>
           fails.foreach(f => println(f.toString))
           fail("Expected the test to pass, but it returned verification failures instead.")
       }
       case AnyFail => value match {
-        case Left(err) =>
+        case Left(err: UserError) =>
           println(err)
-          fail("Expected the test to fail, but it returned an error instead.")
+          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right(Nil) =>
           fail("Expected the test to fail, but it passed instead.")
         case Right(_) => // success
       }
       case Fail(code) => value match {
-        case Left(err) =>
+        case Left(err: UserError) =>
           println(err)
-          fail("Expected the test to fail, but it returned an error instead.")
+          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right(Nil) =>
           fail("Expected the test to fail, but it passed instead.")
         case Right(fails) => fails.filterNot(_.code == code) match {
@@ -93,11 +102,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case Error(code) => value match {
         case Left(err: UserError) if err.code == code => // success
         case Left(err: UserError) =>
-          println(err.toString)
+          println(err)
           fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
-        case Left(err) =>
-          println(err.toString)
-          fail(f"Expected the test to error with code $code, but got the above error instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(f"Expected the test to error with code $code, but it crahsed with the above error instead.")
         case Right(_) =>
           fail("Expected the test to error, but got a pass or fail instead.")
       }

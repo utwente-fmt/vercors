@@ -1,23 +1,17 @@
 package vct.col.ast.family.contract
 
-import vct.col.ast.{ApplicableContract, BooleanValue, UnitAccountedPredicate}
+import vct.col.ast.{ApplicableContract, BooleanValue, Node, UnitAccountedPredicate}
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.check.{CheckContext, CheckError}
 
 trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] { this: ApplicableContract[G] =>
-  override def checkTrans(context: CheckContext[G]): Seq[CheckError] =
+  override def checkContextRecursor[T](context: CheckContext[G], f: (CheckContext[G], Node[G]) => T): Seq[T] =
     this match {
       // Redundant match so this doesn't compile if we add a field to ApplicableContract
       case ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases) =>
-        val childErrors =
-          requires.checkTrans(context) ++ ensures.checkTrans(context.withPostcondition) ++ contextEverywhere.checkTrans(context) ++
-            signals.flatMap(_.checkTrans(context)) ++ givenArgs.flatMap(_.checkTrans(context)) ++ yieldsArgs.flatMap(_.checkTrans(context)) ++
-            decreases.toSeq.flatMap(_.checkTrans(context))
-
-        childErrors match {
-          case Nil => check(context)
-          case some => some
-        }
+        f(context, requires) +: f(context.withPostcondition, ensures) +: f(context, contextEverywhere) +:
+          (signals.map(f(context, _)) ++ givenArgs.map(f(context, _)) ++ yieldsArgs.map(f(context, _)) ++
+          decreases.toSeq.map(f(context, _)))
     }
 
   def isEmpty: Boolean = this match {

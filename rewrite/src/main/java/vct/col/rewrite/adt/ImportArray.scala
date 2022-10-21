@@ -52,7 +52,7 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends I
   }
 
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
-    case CoerceNullArray(_) => OptNone()
+    case CoerceNullArray(_) => OptNoneTyped(TAxiomatic(arrayAdt.ref, Nil))
     case other => super.applyCoercion(e, other)
   }
 

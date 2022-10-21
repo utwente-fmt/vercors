@@ -9,10 +9,8 @@ class AbruptExamplesSpec extends VercorsSpec {
 
   // Difference between carbon and silicon
   vercors should verify using silicon example "concepts/abrupt/KeYAbruptTerminationChallengeSilicon.java"
-  vercors should verify using carbon example "concepts/abrupt/KeYAbruptTerminationChallengeCarbon.java"
 
   // Technical examples
-  vercors should error withCode "?" example "concepts/abrupt/BadCustomException.java"
   vercors should error withCode "resolutionError" example "concepts/abrupt/CatchTypesIdenticalBad.java"
   vercors should error withCode "resolutionError" example "concepts/abrupt/CatchTypesSubtypeBad.java"
   vercors should verify using anyBackend example "concepts/abrupt/ContinueBreakFail.java"
@@ -24,15 +22,14 @@ class AbruptExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/abrupt/KnuthTabulate.java"
   vercors should verify using anyBackend example "concepts/abrupt/LabeledStatements.java"
   vercors should verify using anyBackend example "concepts/abrupt/NestedTryCatchFinally.java"
-  vercors should error withCode "?" example "concepts/abrupt/NoResultInSignals.java"
+  vercors should error withCode "resolutionError" example "concepts/abrupt/NoResultInSignals.java"
   vercors should verify using anyBackend example "concepts/abrupt/OnlyCatch.java"
   vercors should verify using anyBackend example "concepts/abrupt/OnlyReturn.java"
   vercors should verify using anyBackend example "concepts/abrupt/OnlyThrows.java"
   vercors should verify using anyBackend example "concepts/abrupt/OverloadedReturn.java"
-  vercors should error withCode "?" example "concepts/abrupt/PureSignalsBad.java"
-  vercors should error withCode "?" example "concepts/abrupt/PureThrowsBad.java"
+  vercors should error withCode "notPure" example "concepts/abrupt/PureSignalsBad.java"
+  vercors should error withCode "notPure" example "concepts/abrupt/PureThrowsBad.java"
   vercors should verify using anyBackend example "concepts/abrupt/ReturnFinally.java"
-  vercors should error withCode "?" example "concepts/abrupt/SignalsMustExtendThrowable.java"
   vercors should verify using anyBackend example "concepts/abrupt/SignalsMustPropagate.java"
   vercors should verify using anyBackend example "concepts/abrupt/SignalsThrowNoThrows.java"
   vercors should verify using anyBackend example "concepts/abrupt/SwitchVarious.java"
@@ -41,11 +38,18 @@ class AbruptExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/abrupt/ThrowsAndThrow.java"
   vercors should error withCode "resolutionError" example "concepts/abrupt/TypecheckSignalsBad.java"
   vercors should verify using anyBackend example "concepts/abrupt/TypecheckSignalsOk.java"
-  vercors should error withCode "?" example "concepts/abrupt/TypecheckThrowsMethodBad.java"
-  vercors should error withCode "?" example "concepts/abrupt/TypecheckThrowsThrowBad.java"
   vercors should verify using anyBackend example "concepts/abrupt/TypecheckTryCatch.java"
-  vercors should error withCode "?" example "concepts/abrupt/UnusedCheckedCatchBad.java"
   vercors should verify using anyBackend example "concepts/abrupt/WhileBreakFinally.java"
   vercors should verify using anyBackend example "concepts/abrupt/WhileFinally.java"
   vercors should verify using anyBackend example "concepts/abrupt/WhileInFinally.java"
+
+  // Examples that should be type-checked into an error (https://github.com/utwente-fmt/vercors/issues/790)
+  // vercors should error withCode "?" example "concepts/abrupt/BadCustomException.java"
+  // vercors should error withCode "?" example "concepts/abrupt/SignalsMustExtendThrowable.java"
+  // vercors should error withCode "?" example "concepts/abrupt/TypecheckThrowsMethodBad.java"
+  // vercors should error withCode "?" example "concepts/abrupt/TypecheckThrowsThrowBad.java"
+  // vercors should error withCode "?" example "concepts/abrupt/UnusedCheckedCatchBad.java"
+
+  // https://github.com/utwente-fmt/vercors/issues/834
+  // vercors should verify using carbon example "concepts/abrupt/KeYAbruptTerminationChallengeCarbon.java"
 }

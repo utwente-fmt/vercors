@@ -42,9 +42,8 @@ trait NodeImpl[G] { this: Node[G] =>
 
   /* Check children first, so that the check of nodes higher in the tree may depend on the type and correctness of
     subnodes */
-  def checkTrans(context: CheckContext[G]): Seq[CheckError] = {
-    val innerContext = enterCheckContext(context)
-    val childrenErrors = subnodes.flatMap(_.checkTrans(innerContext))
+  final def checkTrans(context: CheckContext[G]): Seq[CheckError] = {
+    val childrenErrors = checkContextRecursor(context, (ctx, node) => node.checkTrans(ctx)).flatten
 
     if(childrenErrors.nonEmpty) {
       childrenErrors
@@ -52,6 +51,17 @@ trait NodeImpl[G] { this: Node[G] =>
       check(context)
     }
   }
+
+  /**
+   * Applies a function to all subnodes, passing the appropriate context per subnode. By default, all subnodes get the
+   * same context, as defined by [[enterCheckContext]]
+   * @param context the initial context
+   * @param f the function to apply to all subnodes
+   * @tparam T the result type of the function
+   * @return the result of applying `f` with the appropriate context per subnode to all subnodes
+   */
+  def checkContextRecursor[T](context: CheckContext[G], f: (CheckContext[G], Node[G]) => T): Seq[T] =
+    subnodes.map(f(enterCheckContext(context), _))
 
   def subnodes: Seq[Node[G]] = Subnodes.subnodes(this)
 
