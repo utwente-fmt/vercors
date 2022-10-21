@@ -6,7 +6,6 @@ lock_invariant Perm(x,1);
 class OwickiGries {
   int x;
 
-  ensures idle(this);
   constructor(){
     x=0;
   }
