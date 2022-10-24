@@ -218,10 +218,11 @@ case class SilverToCol[G](program: silver.Program) {
     case silver.Unfold(acc) =>
       col.Unfold(transform(acc))(blame(s))(origin(s))
     case silver.Seqn(ss, scopedDecls) =>
-      val vars = scopedDecls.map {
-        case decl @ silver.LocalVarDecl(_, typ) => new col.Variable(transform(typ))(origin(decl))
-        case other: silver.Node => ??(other)
-        case other: silver.Declaration => ???
+      val vars = scopedDecls.flatMap {
+        case decl @ silver.LocalVarDecl(_, typ) => Seq(new col.Variable(transform(typ))(origin(decl)))
+        case _: silver.Label => Nil // scoped by the method for us
+        case other: silver.Declaration with silver.Node => ??(other)
+        case _: silver.Declaration => ??? // unreachable
       }
       col.Scope(vars, col.Block(ss.map(transform))(origin(s)))(origin(s))
     case silver.If(cond, thn, els) =>

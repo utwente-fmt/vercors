@@ -278,14 +278,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                 => kernelProcedure(namedO, contract, info, Some(func.body), k) }
               .getOrElse( {
                 val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
-                new Procedure[Post](
-                  returnType = returnType,
-                  args = params,
-                  outArgs = Nil,
-                  typeArgs = Nil,
-                  body = Some(rw.dispatch(func.body)),
-                  contract = rw.dispatch(contract),
-                )(func.blame)(namedO)
+                rw.labelDecls.scope {
+                  new Procedure[Post](
+                    returnType = returnType,
+                    args = params,
+                    outArgs = Nil,
+                    typeArgs = Nil,
+                    body = Some(rw.dispatch(func.body)),
+                    contract = rw.dispatch(contract),
+                  )(func.blame)(namedO)
+                }
               } )
         )
       }
