@@ -275,5 +275,8 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.SeqIndexExceedsLength(_, idx) =>
       val subscript = info(idx).seqIndexSubscriptNode.get
       subscript.blame.blame(blame.SeqBoundExceedsLength(subscript))
+    case reasons.MapKeyNotContained(_, key) =>
+      val get = info(key).mapGet.get
+      get.blame.blame(blame.MapKeyError(get))
   }
 }
