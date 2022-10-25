@@ -80,7 +80,10 @@ final class Tree {
         assert |prev_contents| > 0 ;
         assert |cur_contents| > 0 ;
         assert prev_contents == cur_contents + seq<int>{prev.data} + tolist(prev.right);
-        package cur.state_contains((cur_contents).tail) -* top.state_contains(target_contents) {}
+        package cur.state_contains((cur_contents).tail) -* top.state_contains(target_contents) {
+          fold prev.state();
+          apply prev.state_contains(prev_contents.tail) -* top.state_contains(target_contents);
+        }
         @*/
       }
       cur.left = left.right;
