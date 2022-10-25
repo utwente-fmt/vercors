@@ -56,7 +56,7 @@ final class Tree {
       Tree cur, left;
       cur = top;
       left = top.left;
-      //@ ghost seq<int> cur_contents=orig_contents;
+      //@ ghost seq<int> cur_contents = orig_contents;
       //@ assert cur_contents == tolist(left) + seq<int>{top.data} + tolist(top.right);
       //@ unfold left.state();
       //@ package top.state_contains(target_contents) -* top.state_contains(target_contents) {}
