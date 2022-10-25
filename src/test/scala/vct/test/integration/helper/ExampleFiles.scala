@@ -4,18 +4,36 @@ import java.io.File
 import java.nio.file.Paths
 
 case object ExampleFiles {
+  val IGNORE_DIRS: Seq[String] = Seq(
+    "examples/private/",
+    "examples/archive/",
+    "examples/technical/veymont-check/",
+  )
+
+  val IGNORE_EXTS: Seq[String] = Seq(
+    ".h",
+    ".bib",
+  )
+
+  val IGNORE_FILES: Set[String] = Set(
+    ".gitignore",
+    "package-info.java",
+    "Makefile",
+    "README",
+  )
+
+  val MAIN_FILES: Set[String] = Set(
+    "examples/concepts/forkjoin/TestOwickiGries.java",
+    "examples/concepts/waitnotify/Test.java",
+    "examples/openmp/test-main.c",
+    "examples/openmp/test-other.c",
+  )
+
   val EXCLUSIONS: Seq[File => Boolean] = Seq(
-    _.toString.startsWith("examples/archive/"),
-    _.toString.startsWith("examples/private/"),
-    _.toString.startsWith("examples/technical/veymont-check/"),
-    _.toString == "examples/concepts/forkjoin/TestOwickiGries.java",
-    _.toString == "examples/concepts/waitnotify/Test.java",
-    _.getName == ".gitignore",
-    _.getName == "package-info.java",
-    _.getName == "Makefile",
-    _.getName == "README",
-    _.getName.endsWith(".h"),
-    _.getName.endsWith(".bib"),
+    f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
+    f => MAIN_FILES.contains(f.toString),
+    f => IGNORE_FILES.contains(f.getName),
+    f => IGNORE_EXTS.exists(ext => f.getName.endsWith(ext)),
   )
 
   val FILES: Seq[File] = find(Paths.get("examples").toFile)
