@@ -12,6 +12,7 @@ class SeqProgram {
 	** p1.equalGrid(p2); 
 	
 	ensures (ticTacToeAnnotations());
+	ensures idle(this);
 	constructor() {
 		p1 = new Player(0,true);
 		p2 = new Player(1,false);	
@@ -19,7 +20,7 @@ class SeqProgram {
 	
 	context (ticTacToeAnnotations());		  
 	ensures p1.gameFinished() && p2.gameFinished();
-	void run() {	  
+	run {
 		loop_invariant (ticTacToeAnnotations());
 		loop_invariant !p1.gameFinished() == !p2.gameFinished();
 		while(!p1.gameFinished() && !p2.gameFinished()) {
@@ -40,7 +41,7 @@ class SeqProgram {
 	
 	void main() {
 		SeqProgram m = new SeqProgram();
-		m.run();
+		fork m;
 	}
 
 }

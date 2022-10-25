@@ -20,6 +20,7 @@ class SeqProgram {
 	
 	requires vb - vc == vc - va;
 	ensures b.x - c.x == c.x - a.x;
+	ensures idle(this);
 	constructor(int va, int vb, int vc) {
 		a = new Role(va);
 		b = new Role(vb);
@@ -28,16 +29,16 @@ class SeqProgram {
 
 	requires b.x - c.x == c.x - a.x;
 	ensures a.x == b.x && b.x == c.x; 
-	void run() {
+	run {
 		par
 		ensures b.left == a.x;
 		{
 				b.left = a.x;
-		} and 
+		} and
 		ensures c.left == b.x;
 		{
 				c.left = b.x;
-		} and 
+		} and
 		ensures a.left == c.x;
 		{
 				a.left = c.x;
@@ -71,7 +72,7 @@ class SeqProgram {
     requires vb - vc == vc - va;
 	void main(int va, int vb, int vc) {
 		SeqProgram m = new SeqProgram(va,vb,vc);
-		m.run();
+		fork m;
 	}
 	
 }

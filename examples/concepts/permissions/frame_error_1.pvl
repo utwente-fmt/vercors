@@ -10,7 +10,7 @@
 class err {
 
  int x;
- 
+
    requires [/expect perm]x[/end] == 1 ** Perm(x,1);
  void frame_error(){
  }

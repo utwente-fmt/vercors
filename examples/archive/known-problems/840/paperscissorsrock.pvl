@@ -27,6 +27,7 @@ class SeqProgram {
 
 	ensures a.i == 0 && b.i == 1;
 	ensures a.draw() && b.draw() && c.draw();
+	ensures idle(this);
 	constructor() {
 		a = new Role(0);
 		b = new Role(1);
@@ -36,7 +37,7 @@ class SeqProgram {
 	requires a.i == 0 && b.i == 1;
 	requires a.draw() && b.draw() && c.draw();
 	ensures a.i == -2 && b.i == 3;
-	void run() {
+	run {
 		loop_invariant a.i <= 0 && b.i >= 1;
 		loop_invariant a.i == 0 && b.i == 1 ==> a.draw() && b.draw() && c.draw();
 		loop_invariant a.i == b.i*(-1) + 1;
@@ -81,7 +82,7 @@ class SeqProgram {
 	
     void main() {
 		SeqProgram m = new SeqProgram();
-		m.run();
+		fork m;
 	}
 
 }
