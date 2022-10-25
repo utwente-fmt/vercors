@@ -106,7 +106,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
           fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
         case Left(err: SystemError) =>
           println(err)
-          fail(f"Expected the test to error with code $code, but it crahsed with the above error instead.")
+          fail(f"Expected the test to error with code $code, but it crashed with the above error instead.")
         case Right(_) =>
           fail("Expected the test to error, but got a pass or fail instead.")
       }

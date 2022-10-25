@@ -5,7 +5,8 @@ import vct.test.integration.helper.VercorsSpec
 class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/array_par.pvl"
   vercors should verify using silicon example "concepts/parallel/block-par.pvl"
-  vercors should verify using silicon example "concepts/parallel/forward-host.pvl"
+  // https://github.com/utwente-fmt/vercors/issues/469
+  // vercors should verify using silicon example "concepts/parallel/forward-host.pvl"
   vercors should verify using silicon example "concepts/parallel/ForWithinParallel.pvl"
   vercors should verify using silicon example "concepts/parallel/inv-test.pvl"
   vercors should verify using silicon example "concepts/parallel/inv-test-fail1.pvl"
@@ -21,8 +22,10 @@ class ParallelSpec extends VercorsSpec {
   vercors should error withCode "?" example "concepts/parallel/ParIterWrite.pvl"
   vercors should verify using silicon example "concepts/parallel/ParNestedInvariant.pvl"
   vercors should error withCode "?" example "concepts/parallel/ParNestedInvariantWrite.pvl"
-  vercors should verify using silicon example "concepts/parallel/summation-kernel-0.pvl"
-  vercors should verify using silicon example "concepts/parallel/summation-kernel-1.pvl"
+  // https://github.com/utwente-fmt/vercors/issues/815
+  // vercors should verify using silicon example "concepts/parallel/summation-kernel-0.pvl"
+  // vercors should verify using silicon example "concepts/parallel/summation-kernel-1.pvl"
+  // vercors should verify using silicon example "concepts/parallel/zero_mixed_array_2.pvl"
   vercors should verify using silicon example "concepts/parallel/vector-add.pvl"
   vercors should verify using silicon example "concepts/parallel/zero-kernel.pvl"
   vercors should verify using silicon example "concepts/parallel/zero-loop.c"
@@ -30,6 +33,5 @@ class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/zero-sub-array.c"
   vercors should verify using silicon example "concepts/parallel/zero_array_ic.pvl"
   vercors should verify using silicon example "concepts/parallel/zero_matrix_ic.pvl"
-  vercors should verify using silicon example "concepts/parallel/zero_mixed_array_2.pvl"
   vercors should verify using silicon example "concepts/parallel/ZeroArrayIC.java"
 }
