@@ -10,6 +10,7 @@
 
     The expected result is Fail.
 */
+
 /*@
     requires t->state();
     pure seq<int> tolist(Tree t)=(t==null)?seq<int>{}:
@@ -24,8 +25,6 @@
     requires t->state();
     pure boolean sorted(Tree t)=sorted_list(tolist(t));
   @*/
-
-
 
 final class Tree {
   public int data;
@@ -84,7 +83,9 @@ final class Tree {
         assert |prev_contents| > 0 ;
         assert |cur_contents| > 0 ;
         assert prev_contents == cur_contents + seq<int>{prev.data} + tolist(prev.right);
+        [/expect packageFailed:perm]
         package (cur.state_contains((cur_contents).tail) -* top.state_contains(target_contents)) {}
+        [/end]
         @*/
       }
       cur.left = left.right;
