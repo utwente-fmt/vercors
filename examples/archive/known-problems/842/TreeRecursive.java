@@ -12,39 +12,39 @@
 */
 
 public class Tree {
-
   public int data;
   public Tree left;
   public Tree right;
 
   /*@
-    resource state()=Perm(data,1) **
-    Perm(left,1) ** Perm(right,1) **
-    left->state() ** right->state();
+  resource state() =
+    Perm(data,1) ** Perm(left,1) ** Perm(right,1) **
+    left?.state() ** right?.state();
   @*/
 
   /*@
-    requires t->state();
-    ensures  t!=null ==> \result.length > 0;
-    ghost public pure seq<int> contents(Tree t) {
-      if(t==null){
-          return seq<int>{};
-      } else {
-          unfold t.state();
-          return contents(t.left)+seq<int>{t.data}+contents(t.right);
-      }
+  ghost
+  requires t->state();
+  ensures t!=null ==> \result.size > 0;
+  static public pure seq<int> contents(Tree t) {
+    if(t==null) {
+      return [t:int];
+    } else {
+      unfold t.state();
+      return contents(t.left)+seq<int>{t.data}+contents(t.right);
     }
+  }
   */
   
   /*@
-    requires t!=null ** t.state();
-    ensures  \result->state();
-    ensures  contents(\result)==tail(\old(contents(t)));
+  requires t!=null ** t.state();
+  ensures \result->state();
+  ensures contents(\result) == \old(contents(t)).tail;
   @*/
   public Tree del_min(Tree t){
     //@ unfold t.state();
     if (t.left==null) {
-      //@ assert contents(t.left) == seq<int>{};
+      //@ assert contents(t.left).isEmpty;
       return t.right;
     } else {
       t.left=del_min(t.left);

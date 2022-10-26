@@ -8,5 +8,6 @@ class PredicatesSpec extends VercorsSpec {
   vercors should error withCode "cyclicInline" example "concepts/predicates/MutuallyRecursiveInlinePredicates.pvl"
   vercors should error withCode "cyclicInline" example "concepts/predicates/RecursiveInlinePredicate.pvl"
   vercors should verify using silicon example "concepts/predicates/ScaleInlinePredicate.pvl"
-  vercors should verify using silicon example "concepts/predicates/TreeRecursive.java"
+  // https://github.com/utwente-fmt/vercors/discussions/842
+  // vercors should verify using silicon example "concepts/predicates/TreeRecursive.java"
 }
