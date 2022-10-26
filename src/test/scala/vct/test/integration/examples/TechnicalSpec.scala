@@ -3,7 +3,7 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalSpec extends VercorsSpec {
-  vercors should error withCode "?" in "constructor using `this`" pvl """
+  vercors should error withCode "resolutionError" in "constructor using `this`" pvl """
     class err {
       int x;
 
@@ -44,7 +44,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "?" in "example unfolding abstract predicate" pvl """
+  vercors should error withCode "resolutionError" in "example unfolding abstract predicate" pvl """
     resource p();
 
     requires p();
@@ -53,11 +53,11 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "?" in "example unfolding abstract predicate inline" pvl """
+  vercors should error withCode "resolutionError" in "example unfolding abstract predicate inline" pvl """
     resource p();
 
     requires p();
-    pure int f() = \\unfolding p() \in 0;
+    pure int f() = \Unfolding p() \in 0;
   """
 
   vercors should verify using anyBackend in "example with incorrect boolean logic" pvl """
@@ -102,12 +102,16 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
+      /*[/expect postFailed:perm]*/
+
       // assumes nothing
       requires (\forall* int i; 0 <= i && i < -5 ; Perm(x,1/-5));
       // yet ensures something
       ensures Perm(x,1);
       void m(boolean y){
       }
+
+      /*[/end]*/
     }
   """
 
@@ -121,7 +125,7 @@ class TechnicalSpec extends VercorsSpec {
       requires  (\forall* int i; 0 <= i && i < -1;
            (\forall* int j;0 <= j && j < -1;
              (\forall* int k;0 <= k && k < 1;
-               Perm(ar[k * ( -1 * -1 ) + ( j * -1 + i) ],1) )));
+               Perm(ar[k * ( -1 * -1 ) + ( j * -1 + i) ], 1) )));
       // ensure a permission
       ensures  Perm(ar[0],1);
       // yet it passes
@@ -257,7 +261,7 @@ class TechnicalSpec extends VercorsSpec {
     requires Value(left.t.t) ** Value(right.t.t);
     void test(Test left, Test right) {
       if(left == right) {
-        /*[/expect failed]*/
+        /*[/expect assertFailed:false]*/
         assert false;
         /*[/end]*/
       }

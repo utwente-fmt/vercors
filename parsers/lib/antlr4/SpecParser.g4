@@ -267,7 +267,7 @@ valPrimary
  | '*' # valAny
  | '(' langId '!' valIdList ')' # valFunctionOf
  | TRIGGER_OPEN langExpr ':}' # valInlinePattern
- | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
+ | ('\\unfolding'|'\\Unfolding') langExpr '\\in' langExpr # valUnfolding
  | '\\old' '(' langExpr ')' # valOld
  | '\\old' '[' langId ']' '(' langExpr ')' #valOldLabeled
  | '\\typeof' '(' langExpr ')' # valTypeof
