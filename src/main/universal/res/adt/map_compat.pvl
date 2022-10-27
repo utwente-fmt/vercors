@@ -6,6 +6,12 @@ adt map_compat<K, V> {
     !{:map_disjoint(m1, m2):} == (map_disjoint_skolem(m1, m2) \in m1 && map_disjoint_skolem(m1, m2) \in m2));
   axiom (∀map<K, V> m1, map<K, V> m2; {:map_disjoint(m1, m2):} == (∀K k; !{:1:(k \in m1):} || !{:2:(k \in m2):}));
 
+  axiom (∀map<K, V> m1; {:map_disjoint(m1, map<K, V>{}):});
+  axiom (∀map<K, V> m2; {:map_disjoint(map<K, V>{}, m2):});
+
+  axiom (∀map<K, V> m1, map<K, V> m2, K k, V v; {:map_disjoint(m1, m2.add(k, v)):} == (!(k \in m1) && map_disjoint(m1, m2)));
+  axiom (∀map<K, V> m1, map<K, V> m2, K k, V v; {:map_disjoint(m1.add(k, v), m2):} == (!(k \in m2) && map_disjoint(m1, m2)));
+
   pure set<tuple<K, V>> map_items(map<K, V> m);
 
   axiom (∀map<K, V> m; |{:map_items(m):}| == m.size);
