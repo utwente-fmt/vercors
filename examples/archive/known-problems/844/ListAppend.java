@@ -22,7 +22,7 @@ final class List {
   
   /*@
   resource list(seq<int> c) = Perm(val,1) ** Perm(next,1) **
-    (next==null ? c == [val] : |c| > 0) ** c.head == val ** next.list(c.tail);
+    (next==null ? c == [val] : |c| > 0) ** c.head == val ** next?.list(c.tail);
   @*/
 
   /*@
@@ -57,11 +57,12 @@ final class List {
   
   /*@
   given    seq<int> L;
-  requires list(L);
+  context list(L);
+  ensures \result == (\Unfolding list(L) \in next);
   @*/
-  public /*@ pure @*/ List get_next(){
+  public List get_next(){
     //@ unfold list(L);
-    return next;
+    return next /*@ then fold list(L); */;
   }
 
   /*@
@@ -76,7 +77,7 @@ final class List {
     //@ ghost seq<int> prefix = seq<int>{};
     //@ ghost seq<int> suffix = L1;
 
-    //@ create_wand { qed this.list(L1+L2) -* this.list(L1+L2); }
+    //@ package this.list(L1+L2) -* this.list(L1+L2) {}
 
     //@ loop_invariant cursor!=null;
     //@ loop_invariant cursor.list(suffix);
@@ -91,17 +92,20 @@ final class List {
         //@ ghost prefix = prefix + [cursor.val];
         //@ ghost suffix = suffix.tail;
         cursor=cursor.next;
-        /*@ create_wand {
-          use    Perm(tmp.val,1);
+        /*
+         use    Perm(tmp.val,1);
           use    Perm(tmp.next,1);
           use    tmp.next==cursor;
-          use    cursor!=null;
+          use cursor!=null;
           use    tmp_suffix==seq<int>{tmp.val}+suffix;
           use    tmp.list(tmp_suffix+L2) -* this.list(L1+L2);
+         */
+        /*@
+        package cursor.list(suffix+L2) -* this.list(L1+L2) {
           fold   tmp.list(tmp_suffix+L2);
           apply  tmp.list(tmp_suffix+L2) -* this.list(L1+L2);
-          qed    cursor.list(suffix+L2) -* this.list(L1+L2);
-        } @*/
+        }
+        @*/
     }
     //@ unfold cursor.list(suffix);
     cursor.next=l;

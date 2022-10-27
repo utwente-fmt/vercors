@@ -36,12 +36,12 @@ final class WandDemo {
         //@ unfold writeonly();
         x = v;
         //@ fold readonly();
-        /*@ create_wand {
-            unfold readonly();
-            use    Perm(this.x,3\4);
-            fold   writeonly();
-            qed    readonly() -* writeonly();
-        } @*/
+        /*@
+        package readonly() -* writeonly() {
+        unfold readonly();
+        fold writeonly();
+        }
+        @*/
     }
 
 
