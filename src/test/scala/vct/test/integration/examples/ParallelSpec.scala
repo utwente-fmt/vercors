@@ -15,7 +15,8 @@ class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/kernel-example.pvl"
   vercors should verify using silicon example "concepts/parallel/kernel-example-v2.pvl"
   vercors should verify using silicon example "concepts/parallel/kernel-example-v3.pvl"
-  vercors should verify using silicon example "concepts/parallel/monotonicBool.pvl"
+  // https://github.com/utwente-fmt/vercors/issues/819
+  // vercors should verify using silicon example "concepts/parallel/monotonicBool.pvl"
   vercors should verify using silicon example "concepts/parallel/parallel-example1.pvl"
   vercors should verify using silicon example "concepts/parallel/ParBothRead.pvl"
   vercors should error withCode "resolutionError" example "concepts/parallel/ParBothWrite.pvl"
