@@ -18,20 +18,23 @@ class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/monotonicBool.pvl"
   vercors should verify using silicon example "concepts/parallel/parallel-example1.pvl"
   vercors should verify using silicon example "concepts/parallel/ParBothRead.pvl"
-  vercors should error withCode "?" example "concepts/parallel/ParBothWrite.pvl"
-  vercors should error withCode "?" example "concepts/parallel/ParIterWrite.pvl"
+  vercors should error withCode "resolutionError" example "concepts/parallel/ParBothWrite.pvl"
+  vercors should error withCode "resolutionError" example "concepts/parallel/ParIterWrite.pvl"
   vercors should verify using silicon example "concepts/parallel/ParNestedInvariant.pvl"
-  vercors should error withCode "?" example "concepts/parallel/ParNestedInvariantWrite.pvl"
+  vercors should error withCode "resolutionError" example "concepts/parallel/ParNestedInvariantWrite.pvl"
   // https://github.com/utwente-fmt/vercors/issues/815
   // vercors should verify using silicon example "concepts/parallel/summation-kernel-0.pvl"
   // vercors should verify using silicon example "concepts/parallel/summation-kernel-1.pvl"
   // vercors should verify using silicon example "concepts/parallel/zero_mixed_array_2.pvl"
   vercors should verify using silicon example "concepts/parallel/vector-add.pvl"
   vercors should verify using silicon example "concepts/parallel/zero-kernel.pvl"
-  vercors should verify using silicon example "concepts/parallel/zero-loop.c"
+  // https://github.com/utwente-fmt/vercors/discussions/836
+  // vercors should verify using silicon example "concepts/parallel/zero-loop.c"
   vercors should verify using silicon example "concepts/parallel/zero-many.pvl"
-  vercors should verify using silicon example "concepts/parallel/zero-sub-array.c"
+  // https://github.com/utwente-fmt/vercors/issues/820
+  // vercors should verify using silicon example "concepts/parallel/zero-sub-array.c"
   vercors should verify using silicon example "concepts/parallel/zero_array_ic.pvl"
-  vercors should verify using silicon example "concepts/parallel/zero_matrix_ic.pvl"
+  // https://github.com/utwente-fmt/vercors/issues/791
+  // vercors should verify using silicon example "concepts/parallel/zero_matrix_ic.pvl"
   vercors should verify using silicon example "concepts/parallel/ZeroArrayIC.java"
 }

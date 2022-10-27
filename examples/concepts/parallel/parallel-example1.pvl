@@ -15,13 +15,14 @@ class test {
 
     sequential {
       block fst(int i=0..10)
-      context Perm(x[i],1) ** Perm(z[i],1\20);
+      context Perm(x[i],1) ** Perm(y[i],1) ** Perm(z[i],1);
       {
         x[i]=z[i];
         x[i]=0;
       }
       block snd(int j=0..10)
       context Perm(y[j],1);
+      context Perm(z[j],1);
       {
         y[j]=0;
         z[j]=y[j];
