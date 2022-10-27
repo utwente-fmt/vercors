@@ -114,26 +114,26 @@ class TechnicalSpec extends VercorsSpec {
       /*[/end]*/
     }
   """
-
-  vercors should verify using anyBackend in "example with vacuously quantified permission" pvl """
-    class rewriterIssue {
-      int x;
-
-      /*[/expect postFailed:perm]*/
-      // assume sanity of the array, but no permissions
-      requires ar !=null && ar.length > 1;
-      requires  (\forall* int i; 0 <= i && i < -1;
-           (\forall* int j;0 <= j && j < -1;
-             (\forall* int k;0 <= k && k < 1;
-               Perm(ar[k * ( -1 * -1 ) + ( j * -1 + i) ], 1) )));
-      // ensure a permission
-      ensures  Perm(ar[0],1);
-      // yet it passes
-      void m(int i,int[] ar){
-      }
-      /*[/end]*/
-    }
-  """
+//  https://github.com/utwente-fmt/vercors/issues/815
+//  vercors should verify using anyBackend in "example with vacuously quantified permission" pvl """
+//    class rewriterIssue {
+//      int x;
+//
+//      /*[/expect postFailed:perm]*/
+//      // assume sanity of the array, but no permissions
+//      requires ar !=null && ar.length > 1;
+//      requires  (\forall* int i; 0 <= i && i < -1;
+//           (\forall* int j;0 <= j && j < -1;
+//             (\forall* int k;0 <= k && k < 1;
+//               Perm(ar[k * ( -1 * -1 ) + ( j * -1 + i) ], 1) )));
+//      // ensure a permission
+//      ensures  Perm(ar[0],1);
+//      // yet it passes
+//      void m(int i,int[] ar){
+//      }
+//      /*[/end]*/
+//    }
+//  """
 
   vercors should verify using anyBackend example "technical/keywords/allowed-c.c"
   vercors should verify using anyBackend example "technical/keywords/allowed-java.java"
