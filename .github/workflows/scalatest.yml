@@ -45,12 +45,12 @@ jobs:
     - name: Compile
       run: sbt compile
     - name: Make tarball of repository
-      run: tar -cf all.tar . --exclude=.git
+      run: tar -cf /tmp/all.tar --exclude=.git ~
     - name: Upload precompiled repository
       uses: actions/upload-artifact@v3
       with:
         name: precompiled-repository
-        path: all.tar
+        path: /tmp/all.tar
 
   ScalaTest:
     needs: "Compile"
@@ -74,7 +74,7 @@ jobs:
         with:
           name: precompiled-repository
       - name: Untar precompiled repository
-        run: tar -xf all.tar
+        run: tar -xf all.tar -C ~
 
       # Windows: LLVM/Clang
       - name: Cache LLVM and Clang (windows)
