@@ -6,7 +6,12 @@ class EndPoint {
 	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(c, 1);
 	ensures rank == v && maxVal == v && c < v;
 	ensures Perm(n,1) ** n == 0;
-	EndPoint (int v);
+	constructor (int v) {
+	    rank = v;
+	    maxVal = v;
+	    c = v-1;
+	    n = 0;
+	}
 	
 	context Perm(maxVal, 1) ** Perm(c, 1\2) ** Perm(n,1);
 	ensures c > \old(maxVal) ? maxVal == c : maxVal == \old(maxVal);
@@ -22,7 +27,15 @@ class StarPoint {
 	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(a, 1) ** Perm(b, 1) ** Perm(d, 1);
 	ensures rank == v && maxVal == v && a < v && b < v && d < v;
 	ensures Perm(n,1) ** n == 0;
-	StarPoint (int v);
+	constructor(int v) {
+	    rank = v;
+	    maxVal = v;
+	    a = v-1;
+	    b = v-1;
+	    d = v-1;
+	    n = 0;
+	}
+
 	
 	context Perm(maxVal, 1) ** Perm(a, 1\2) ** Perm(b, 1\2) ** Perm(d, 1\2) ** Perm(n,1);
 	ensures maxVal == maxVal(a,b,d,\old(maxVal));
@@ -47,7 +60,7 @@ class SeqProgram {
 	ensures a.maxVal != a.c && b.maxVal != b.c && d.maxVal != d.c && c.maxVal != c.a && c.maxVal != c.b && c.maxVal != c.d;
 	ensures a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
 	ensures c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
-	SeqProgram() {
+	constructor() {
 		a = new EndPoint(0);
 		b = new EndPoint(8);
 		c = new StarPoint(4);
@@ -64,7 +77,7 @@ class SeqProgram {
 	ensures c.maxVal == a.maxVal && c.maxVal == b.maxVal && c.maxVal == d.maxVal;
 	ensures c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
 	ensures c.maxVal == a.rank || c.maxVal == b.rank || c.maxVal == c.rank || c.maxVal == d.rank;
-	void run() {
+	void `run`() {
 		loop_invariant Perm(a,read) ** Perm(a.rank, read) ** Perm(a.maxVal, 1) ** Perm(a.c, 1) ** Perm(a.n,1);
 		loop_invariant Perm(b,read) ** Perm(b.rank, read) ** Perm(b.maxVal, 1) ** Perm(b.c, 1) ** Perm(b.n,1);
 		loop_invariant Perm(d,read) ** Perm(d.rank, read) ** Perm(d.maxVal, 1) ** Perm(d.c, 1) ** Perm(d.n,1);
@@ -99,7 +112,7 @@ class SeqProgram {
 
 	void main() {
 		SeqProgram m = new SeqProgram();
-		m.run();
+		m.`run`();
 	}
 
 }

@@ -25,8 +25,8 @@ case object ExampleFiles {
   val MAIN_FILES: Set[String] = Set(
     "examples/concepts/forkjoin/TestOwickiGries.java",
     "examples/concepts/waitnotify/Test.java",
-    "examples/openmp/test-main.c",
-    "examples/openmp/test-other.c",
+    "examples/concepts/openmp/test-main.c",
+    "examples/concepts/openmp/test-other.c",
   )
 
   val EXCLUSIONS: Seq[File => Boolean] = Seq(

@@ -6,7 +6,12 @@ class Node {
 	ensures Perm(rank, read) ** Perm(maxVal, 1) ** Perm(left, 1);
 	ensures rank == v && maxVal == v && left < v;
 	ensures Perm(n,1) ** n == 0;
-	Node (int v);
+	constructor(int v) {
+	    rank = v;
+	    maxVal = v;
+	    left = v-1;
+	    n = 0;
+	}
 	
 	context Perm(maxVal, 1) ** Perm(left, 1\2) ** Perm(n,1);
 	ensures left > \old(maxVal) ? maxVal == left : maxVal == \old(maxVal);
@@ -35,7 +40,7 @@ class SeqProgram {
 	ensures a.maxVal != a.left && b.maxVal != b.left && c.maxVal != c.left && d.maxVal != d.left;
 	ensures a.maxVal == a.rank && b.maxVal == b.rank && c.maxVal == c.rank && d.maxVal == d.rank;
 	ensures c.n == 0 && a.n == c.n && b.n == c.n && d.n == c.n;
-	SeqProgram() {
+	constructor() {
 		a = new Node(0);
 		b = new Node(8);
 		c = new Node(4);
@@ -52,7 +57,7 @@ class SeqProgram {
 	ensures c.maxVal == a.maxVal && c.maxVal == b.maxVal && c.maxVal == d.maxVal;
 	ensures c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank);
 	ensures c.maxVal == a.rank || c.maxVal == b.rank || c.maxVal == c.rank || c.maxVal == d.rank;
-	void run() {
+	void `run`() {
 		loop_invariant Perm(a,read) ** Perm(a.rank, read) ** Perm(a.maxVal, 1) ** Perm(a.left, 1) ** Perm(a.n,1);
 		loop_invariant Perm(b,read) ** Perm(b.rank, read) ** Perm(b.maxVal, 1) ** Perm(b.left, 1) ** Perm(b.n,1);
 		loop_invariant Perm(c,read) ** Perm(c.rank, read) ** Perm(c.maxVal, 1) ** Perm(c.left, 1) ** Perm(c.n,1);
@@ -90,7 +95,7 @@ class SeqProgram {
 
 	void main() {
 		SeqProgram m = new SeqProgram();
-		m.run();
+		m.`run`();
 	}
 
 }
