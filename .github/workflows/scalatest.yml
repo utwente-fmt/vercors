@@ -31,7 +31,7 @@ jobs:
 
   Compile:
     runs-on: ubuntu-latest
-    needs: "Check for duplicate run"
+    needs: SkipDuplicate
     if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
 
     steps:
