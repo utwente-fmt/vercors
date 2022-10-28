@@ -14,8 +14,13 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.ParseError
 import vct.result.VerificationError
 import vct.result.VerificationError.{SystemError, UserError}
+import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
 
 import java.nio.file.{Path, Paths}
+
+object VercorsSpec {
+  val MATRIX_COUNT: Int = 8
+}
 
 abstract class VercorsSpec extends AnyFlatSpec {
   var coveredExamples: Seq[Path] = Nil
@@ -37,7 +42,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
   case object ErrorVerdict
 
   private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable])(implicit pos: source.Position): Unit = {
-    registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
+    val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with $backend".replaceAll("should", "shld")
+    // PB: note that object typically do not have a deterministic hashCode, but Strings do.
+    val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
+
+    registerTest(s"MATRIX[$matrixId] $fullDesc", tags: _*) {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
