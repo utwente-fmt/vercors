@@ -6,6 +6,7 @@ class ArrayExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/arrays/array-example.pvl"
 
   // https://github.com/utwente-fmt/vercors/issues/815
+  // vercors should verify using silicon example "concepts/arrays/fibSearch.java"
   // vercors should verify using silicon example "concepts/arrays/JavaArrayExamples.java"
 
   // https://github.com/utwente-fmt/vercors/issues/791
@@ -22,4 +23,5 @@ class ArrayExamplesSpec extends VercorsSpec {
 
   vercors should verify using silicon example "concepts/arrays/array.pvl"
   vercors should verify using silicon example "concepts/arrays/zero_array.pvl"
+  vercors should verify using silicon example "concepts/arrays/array-problem.pvl"
 }

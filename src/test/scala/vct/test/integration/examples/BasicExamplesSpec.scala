@@ -62,4 +62,11 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/LoopInvPass.java"
   vercors should verify using anyBackend example "concepts/basic/SimpleExamples.java"
   vercors should verify using anyBackend example "concepts/basic/nested-loops.pvl"
+  vercors should verify using anyBackend example "concepts/basic/BigInts.pvl"
+  // https://github.com/utwente-fmt/vercors/issues/851
+  // vercors should verify using anyBackend example "concepts/basic/RequireConstructor.pvl"
+  // https://github.com/utwente-fmt/vercors/issues/781
+  // vercors should verify using anyBackend example "concepts/basic/StaticImportA.java"
+  // vercors should verify using anyBackend example "concepts/basic/StaticImportB.java"
+  vercors should verify using anyBackend example "concepts/basic/par-pointer-simplification.c"
 }

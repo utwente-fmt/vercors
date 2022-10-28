@@ -230,7 +230,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit spec: GpgpuMemFenceContext): GpuMemoryFence[G] = spec match {
     case GpgpuMemFence0(_) => GpuLocalMemoryFence()
     case GpgpuMemFence1(_) => GpuGlobalMemoryFence()
-    case GpgpuMemFence2(i) => GpuZeroMemoryFence(Integer.parseInt(i))
+    case GpgpuMemFence2(i) => GpuZeroMemoryFence(BigInt(i))
   }
 
   def convert(implicit stat: LabeledStatementContext): Statement[G] = stat match {
@@ -498,9 +498,9 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      Some(IntegerValue(Integer.parseInt(i)))
+      Some(IntegerValue(BigInt(i)))
     } catch {
-      case e: NumberFormatException => return None
+      case e: NumberFormatException => None
     }
 
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {

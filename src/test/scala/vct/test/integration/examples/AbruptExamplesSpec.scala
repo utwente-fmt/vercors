@@ -42,6 +42,7 @@ class AbruptExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/abrupt/WhileBreakFinally.java"
   vercors should verify using anyBackend example "concepts/abrupt/WhileFinally.java"
   vercors should verify using anyBackend example "concepts/abrupt/WhileInFinally.java"
+  vercors should verify using anyBackend example "concepts/abrupt/SynchronizedReturn.java"
 
   // Examples that should be type-checked into an error (https://github.com/utwente-fmt/vercors/issues/790)
   // vercors should error withCode "?" example "concepts/abrupt/BadCustomException.java"

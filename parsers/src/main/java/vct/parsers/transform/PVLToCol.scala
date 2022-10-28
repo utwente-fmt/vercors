@@ -239,7 +239,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit0(inner) => convert(inner)
     case Unit1(_) => AmbiguousThis()
     case Unit2(_) => Null()
-    case Unit3(n) => const(Integer.parseInt(n))
+    case Unit3(n) => const(BigInt(n))
     case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
     case Unit5(n) => FloatValue(BigDecimal(n.init /* take off final "f" */), PVL.float32)
     case Unit6(_, inner, _) => convert(inner)
