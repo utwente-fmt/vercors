@@ -10,7 +10,7 @@ on:
     branches:
       - '**'
 jobs:
-  "Check for duplicate run":
+  SkipDuplicate:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
@@ -29,10 +29,10 @@ jobs:
           # Do not run on changes only to these files
           paths_ignore: '["**/README.md", "**/LICENSE*"]'
 
-  "Compile":
+  Compile:
     runs-on: ubuntu-latest
     needs: "Check for duplicate run"
-    if: ${{ needs."Check for duplicate run".outputs.should_skip != 'true' }}
+    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
 
     steps:
     - name: Checkout VerCors
@@ -50,7 +50,7 @@ jobs:
         name: precompiled-repository
         path: .
 
-  run-scalatest-vct:
+  ScalaTest:
     needs: "Compile"
 
     strategy:
