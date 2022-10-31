@@ -62,6 +62,8 @@ jobs:
     runs-on: ${{matrix.os}}
     environment: Default
     steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
       - name: Install Java
         uses: actions/setup-java@v1
         with:
@@ -71,8 +73,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: precompiled-repository
-      - name: Show files
-        run: find .
+          path: tmp/vercors-build-cache
       - name: Pull cached compilation into sbt
         run: sbt pullRemoteCache
 
