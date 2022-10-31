@@ -56,8 +56,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        batch: ["MATRIX[0]", "MATRIX[1]", "MATRIX[2]", "MATRIX[3]", "MATRIX[4]", "MATRIX[5]", "MATRIX[6]", "MATRIX[7]", "should"]
+        os: [ubuntu-latest] # , windows-latest, macos-latest]
+        batch: ["MATRIX[0]"] # , "MATRIX[1]", "MATRIX[2]", "MATRIX[3]", "MATRIX[4]", "MATRIX[5]", "MATRIX[6]", "MATRIX[7]", "should"]
 
     runs-on: ${{matrix.os}}
     environment: Default
@@ -71,6 +71,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: precompiled-repository
+      - name: Show files
+        run: find .
       - name: Pull cached compilation into sbt
         run: sbt pullRemoteCache
 
