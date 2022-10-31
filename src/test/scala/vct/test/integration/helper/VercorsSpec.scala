@@ -45,8 +45,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
     val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with $backend".replaceAll("should", "shld")
     // PB: note that object typically do not have a deterministic hashCode, but Strings do.
     val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
+    val matrixTag = Tag(s"MATRIX[$matrixId]")
 
-    registerTest(s"MATRIX[$matrixId] $fullDesc", tags: _*) {
+    registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 

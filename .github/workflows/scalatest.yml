@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest] # , windows-latest, macos-latest]
-        batch: ["MATRIX[0]"] # , "MATRIX[1]", "MATRIX[2]", "MATRIX[3]", "MATRIX[4]", "MATRIX[5]", "MATRIX[6]", "MATRIX[7]", "should"]
+        batch: ["-n MATRIX[0]", "-n MATRIX[1]", "-n MATRIX[2]", "-n MATRIX[3]", "-n MATRIX[4]", "-n MATRIX[5]", "-n MATRIX[6]", "-n MATRIX[7]", "-l MATRIX"]
 
     runs-on: ${{matrix.os}}
     environment: Default
@@ -75,7 +75,7 @@ jobs:
           name: precompiled-repository
           path: tmp/vercors-build-cache
       - name: Pull cached compilation into sbt
-        run: sbt pullRemoteCache
+        run: sbt pullRemoteCache compile
 
       # Windows: LLVM/Clang
       - name: Cache LLVM and Clang (windows)
@@ -99,7 +99,7 @@ jobs:
         run: brew install llvm
 
       - name: Run scalatest for label ${{matrix.batch}}
-        run: sbt "testOnly -z ${{matrix.batch}} vct.*"
+        run: sbt "testOnly vct.* -- ${{matrix.batch}}"
         continue-on-error: true
       - name: Test Report
         uses: dorny/test-reporter@v1
