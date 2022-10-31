@@ -19,6 +19,10 @@ import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
 import java.nio.file.{Path, Paths}
 
 object VercorsSpec {
+  /**
+   * Please note that this count is also reflected in /.github/scalatest.yml, so changing this value necessitates
+   * updating the CI definition.
+   */
   val MATRIX_COUNT: Int = 8
 }
 

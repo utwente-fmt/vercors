@@ -8,7 +8,7 @@ case object ExampleFiles {
     "examples/private/",
     "examples/archive/",
     "examples/technical/veymont-check/",
-  )
+  ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(
     ".h",
@@ -27,7 +27,7 @@ case object ExampleFiles {
     "examples/concepts/waitnotify/Test.java",
     "examples/concepts/openmp/test-main.c",
     "examples/concepts/openmp/test-other.c",
-  )
+  ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[File => Boolean] = Seq(
     f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
