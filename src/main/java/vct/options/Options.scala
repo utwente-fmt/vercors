@@ -1,37 +1,40 @@
 package vct.options
 
-import scopt.OParser
+import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
-import vct.parsers.Language
+import vct.main.stages.Parsing.Language
+import vct.options.types.{Backend, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
+import scala.collection.mutable
+import scala.reflect.ClassTag
 
 case object Options {
   private val builder = OParser.builder[Options]
 
-  def parser(hide: Boolean): OParser[Unit, Options] = {
+  def parser(hide: Boolean = true): OParser[Unit, Options] =
+    constructParser(hide)._1
+
+  def constructParser(hide: Boolean): (OParser[Unit, Options], Map[String, ClassTag[_]]) = {
     import builder._
 
     implicit class Hideable[A, C](opt: OParser[A, C]) {
       def maybeHidden(): OParser[A, C] = if(hide) opt.hidden() else opt
     }
 
-    implicit val readBackend: scopt.Read[Backend] =
-      scopt.Read.reads {
-        case "silicon" => Backend.Silicon
-        case "carbon" => Backend.Carbon
-      }
+    val tags: mutable.Map[String, ClassTag[_]] = mutable.Map()
 
-    implicit val readLanguage: scopt.Read[Language] =
-      scopt.Read.reads {
-        case "java" => Language.Java
-        case "c" => Language.C
-        case "i" => Language.InterpretedC
-        case "pvl" => Language.PVL
-        case "silver" => Language.Silver
-      }
+    def opt[T: scopt.Read](name: String)(implicit tag: ClassTag[T]): OParser[T, Options] = {
+      val parser = builder.opt[T](name)
+      tags(parser.toList.head.name) = tag
+      parser
+    }
+
+    import vct.options.types.Backend.read
+    implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    import vct.options.types.Verbosity.read
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] =
       scopt.Read.reads {
@@ -41,18 +44,7 @@ case object Options {
 
     implicit val readPath: scopt.Read[Path] = scopt.Read.reads(Paths.get(_))
 
-    implicit val readVerbosity: scopt.Read[Verbosity] =
-      scopt.Read.reads {
-        case "off" => Verbosity.Off
-        case "error" => Verbosity.Error
-        case "warning" => Verbosity.Warning
-        case "info" => Verbosity.Info
-        case "debug" => Verbosity.Debug
-        case "trace" => Verbosity.Trace
-        case "all" => Verbosity.All
-      }
-
-    OParser.sequence(
+    val parser = OParser.sequence(
       programName(BuildInfo.name),
       head(BuildInfo.name, BuildInfo.version),
 
@@ -86,14 +78,17 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.Verify))
         .text("Enable verification mode: instruct VerCors to verify the given files (default)"),
 
-      opt[Language]("lang").valueName("{java|c|i|pvl|silver}")
+      opt[Unit]("more").abbr("m")
+        .action((_, c) => c.copy(more = true))
+        .text("Always print the maximum amount of information about errors."),
+      opt[Language]("lang").valueName(ReadLanguage.valueName)
         .action((lang, c) => c.copy(language = Some(lang)))
         .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
-      opt[Backend]("backend").valueName("{silicon|carbon}")
+      opt[Backend]("backend").valueName(Backend.valueName)
         .action((backend, c) => c.copy(backend = backend))
         .text("Set the backend to verify with (default: silicon)"),
-      opt[Option[PathOrStd]]("backend-file").valueName("<path>")
-        .action((backendFile, c) => c.copy(backendFile = backendFile))
+      opt[PathOrStd]("backend-file").valueName("<path>")
+        .action((backendFile, c) => c.copy(backendFile = Some(backendFile)))
         .text("In addition to verification, output the resulting AST for the backend to a file"),
       opt[Unit]("backend-debug")
         .action((_, c) => c.copy(logLevels = c.logLevels :+ ("viper", Verbosity.Debug)))
@@ -122,6 +117,10 @@ case object Options {
         .action((pass, c) => c.copy(skipPass = c.skipPass + pass))
         .text("Skip the passes that have the supplied keys"),
 
+      opt[Int]("silicon-print-quantifier-stats").valueName("<amount>")
+        .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
+        .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds. Implies --dev-silicon-num-verifiers 1"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -137,7 +136,7 @@ case object Options {
         .text("Debug matched expressions in simplifications"),
       opt[Unit]("dev-simplify-debug-match-long").maybeHidden()
         .action((_, c) => c.copy(devSimplifyDebugMatchShort = false))
-        .text("Use long form to print matched expressions in sipmlifications"),
+        .text("Use long form to print matched expressions in simplifications"),
       opt[Unit]("dev-simplify-debug-no-match").maybeHidden()
         .action((_, c) => c.copy(devSimplifyDebugNoMatch = true))
         .text("Debug expressions that do not match in simplifications"),
@@ -147,6 +146,27 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").maybeHidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
+
+      opt[Int]("dev-silicon-num-verifiers").hidden()
+        .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
+        .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+
+      opt[Int]("dev-assert-timeout").hidden()
+        .action((amount, c) => c.copy(devSiliconAssertTimeout = amount))
+        .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
+          "on a single SMT check for longer than this timeout, the verification will fail."),
+
+      opt[Path]("dev-silicon-z3-log-file").hidden()
+        .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
+        .text("Path for z3 to write smt2 log file to"),
+
+      opt[Path]("dev-carbon-boogie-log-file").hidden()
+        .action((p, c) => c.copy(devCarbonBoogieLogFile = Some(p)))
+        .text("Path for boogie to write smt2 log file to"),
+
+      opt[Path]("dev-viper-prover-log-file").hidden()
+        .action((p, c) => c.copy(devViperProverLogFile = Some(p)))
+        .text("Path for viper to write boogie or smt2 input file to, depending on selected backend"),
 
       opt[Map[String, String]]("c-define").valueName("<macro>=<defn>,...")
         .action((defines, c) => c.copy(cDefine = defines))
@@ -229,12 +249,21 @@ case object Options {
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
         .text("List of input files to process")
     )
+
+    (parser, tags.toMap)
   }
 
   def parse(args: Array[String]): Option[Options] =
-    OParser.parse(parser(hide = true), args, Options())
+    OParser.parse(parser(), args, Options())
 }
 
+/**
+ * Stores all command line options values, nicely parsed.
+ *
+ * Components of VerCors, in particular rewrite passes, must not be passed this object directly. Instead, duplicate
+ * the option as a parameter to e.g. the rewrite pass class, then pass in the option in
+ * [[vct.main.stages.SilverTransformation]].
+ */
 case class Options
 (
   help: Boolean = false,
@@ -248,6 +277,7 @@ case class Options
     ("viper.api", Verbosity.Info),
   ),
   progress: Boolean = false,
+  more: Boolean = false,
 
   // Verify Options
   language: Option[Language] = None,
@@ -275,6 +305,8 @@ case class Options
   boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
 
+  siliconPrintQuantifierStats: Option[Int] = None,
+
   // Verify options - hidden
   devAbruptExc: Boolean = false,
   devCheckSat: Boolean = true,
@@ -284,6 +316,15 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
+
+  devSiliconNumVerifiers: Option[Int] = None,
+  devSiliconZ3LogFile: Option[Path] = None,
+  devSiliconAssertTimeout: Int = 30,
+
+
+  devCarbonBoogieLogFile: Option[Path] = None,
+
+  devViperProverLogFile: Option[Path] = None,
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required

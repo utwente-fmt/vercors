@@ -8,7 +8,8 @@ import scopt.OParser
 import vct.col.ast.Node
 import vct.main.modes.Verify
 import vct.main.stages.Transformation
-import vct.options.{Mode, Options, Verbosity}
+import vct.options.types.{Mode, Verbosity}
+import vct.options.Options
 import vct.result.VerificationError.UserError
 
 case object Main extends LazyLogging {
@@ -23,6 +24,14 @@ case object Main extends LazyLogging {
         s"The feature `$feature` is temporarily unsupported.")
   }
 
+  /**
+   * The main entry point of the VerCors verifier.
+   *
+   * Parses the options, and decides from there what to do.
+   * The exit code of VerCors determines the verification result: zero means all proof goals succeeded.
+   *
+   * @param args The command line argument
+   */
   def main(args: Array[String]): Unit = try {
     Options.parse(args) match {
       case None => System.exit(EXIT_CODE_ERROR)
@@ -34,14 +43,22 @@ case object Main extends LazyLogging {
       throw t
   }
 
+  /**
+   * Decide what to do from the parsed options.
+   *
+   * If the help flag is enabled, the usage is printed.
+   * Sets up the logging levels in slf4j, and enables progress logging.
+   * Finally the method switches on the mode enabled in the options, deferring to the appropriate object in [[vct.main.modes]]
+   *
+   * @param options The parsed command line arguments. VerCors is not meant to be invoked with e.g. a tweaked [[Options]]
+   *                object. Rather, refer to [[Verify.verifyWithSilicon]] or [[vct.main.stages.Stages]]
+   * @return The exit code, zero on verification success.
+   */
   def runOptions(options: Options): Int = {
     if(options.help) {
       println(OParser.usage(Options.parser(hide = !options.showHidden)))
       return 0
     }
-
-
-    Progress.forceProgress = options.progress
 
     for((key, logLevel) <- options.logLevels) {
       LoggerFactory.getLogger(key).asInstanceOf[Logger].setLevel(logLevel match {
@@ -54,6 +71,8 @@ case object Main extends LazyLogging {
         case Verbosity.All => Level.ALL
       })
     }
+
+    Progress.install(options.progress)
 
     options.mode match {
       case Mode.Verify =>

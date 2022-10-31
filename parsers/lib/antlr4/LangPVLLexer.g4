@@ -7,6 +7,7 @@ channels {
 
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
+VAL_PACKAGE: 'package';
 
 PAREN_OPEN: '(';
 PAREN_CLOSE: ')';
@@ -94,14 +95,18 @@ BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
 STRING: 'string';
+FLOAT32: 'float32';
+FLOAT64: 'float64';
 
 NUMBER : ('0'..'9')+;
+DECIMAL_NUMBER : ('0'..'9')+ '.' ('0'..'9')+;
+DECIMAL_NUMBER_F : ('0'..'9')+ '.' ('0'..'9')+ 'f';
 
 mode DEFAULT_MODE;
 Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 
 COMMENT : '/*' .*? '*/' -> skip;
-LINE_COMMENT : '//' .*? '\n' -> skip;
+LINE_COMMENT : '//' .*? ('\n'|EOF) -> skip;
 
 WS  :   (   ' '
         |   '\t'

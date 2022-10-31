@@ -1,13 +1,14 @@
 package vct.main.stages
 
+import hre.stages.Stage
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
-import vct.col.newrewrite.lang.{LangSpecificToCol, LangTypesToCol}
-import vct.col.origin.{FileSpanningOrigin, Origin}
-import vct.col.resolve.{C, Java, ResolveReferences, ResolveTypes}
+import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
+import vct.col.resolve.lang.{C, Java}
+import vct.col.resolve.{ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
-import vct.col.util.ExpectedError
-import vct.java.JavaLibraryLoader
+import vct.importer.JavaLibraryLoader
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
@@ -28,7 +29,6 @@ case object Resolution {
   def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =
     Resolution(
       blameProvider = blameProvider,
-      withJava = true,
       javaLibraryPath = options.jrePath,
     )
 }
@@ -36,7 +36,6 @@ case object Resolution {
 case class Resolution[G <: Generation]
 (
   blameProvider: BlameProvider,
-  withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
 ) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
@@ -50,15 +49,14 @@ case class Resolution[G <: Generation]
         }
       })
       case addrOf: AddrOf[_] => throw TemporarilyUnsupported("&", Seq(addrOf))
-      case ref: Refute[_] => throw TemporarilyUnsupported("Refute", Seq(ref))
       case _ =>
     })
 
     implicit val o: Origin = FileSpanningOrigin
 
-    val parsedProgram = Program(in.decls, if(withJava) Some(Java.JAVA_LANG_OBJECT[G]) else None)(blameProvider())
-    val extraDecls = ResolveTypes.resolve(parsedProgram, if(withJava) Some(JavaLibraryLoader(javaLibraryPath, blameProvider)) else None)
-    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(blameProvider())
+    val parsedProgram = Program(in.decls)(blameProvider())
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(javaLibraryPath, blameProvider)))
+    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram) match {
       case Nil => // ok

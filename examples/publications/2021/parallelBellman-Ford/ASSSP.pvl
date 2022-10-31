@@ -1,0 +1,770 @@
+  pure int inf() = -1; //100000000; any negative integer
+
+
+  /* ** Graphs */
+
+  pure boolean Graph(int V, int A, seq<int> start, seq<int> end, seq<int> weight) =
+  	0 < V &&
+  	0 < A && |start| == A && |end| == A && |weight| == A &&
+  	(\forall int i; 0 <= i && i < A;
+  		0 <= start[i] && start[i] < V &&
+  		0 <= end[i] && end[i] < V &&
+  		start[i] != end[i] &&
+  		(\forall int j; 0 <= j && j < A && i != j && start[i] == start[j]; end[i] != end[j]) &&
+       weight[i] > 0);
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int i; i >= 0 && i < A; Path(V, A, start, end, weight, start[i], end[i], seq<int> { i }));
+  pure boolean Path(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, seq<int> P) =
+  	0 <= x && x < V &&
+  	0 <= y && y < V &&
+  	(\forall int i; 0 <= i && i < |P|; 0 <= P[i] && P[i] < A) &&
+  	(0 == |P| ==> x == y) &&
+  	(0 < |P| ==> start[P[0]] == x && end[P[|P| - 1]] == y) &&
+  	(\forall int i; 0 <= i && i < |P| - 1; end[P[i]] == start[P[i + 1]]);
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int i; i >= 0 && i < A; SimplePath(V, A, start, end, weight, start[i], end[i], seq<int> { i }));
+  pure boolean SimplePath(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, seq<int> P) =
+    Path(V, A, start, end, weight, x, y, P) &&
+    (\forall int i; 0 <= i && i < |P| - 1; (\forall int j; i < j && j < |P|; start[P[i]] != end[P[j]]));
+
+
+
+  requires Graph(V, A, start, end, weight);
+  pure boolean ExPath(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, int len) =
+  	(\exists seq<int> P; Path(V, A, start, end, weight, x, y, P); |P| <= len);
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int i; i >= 0 && i < A; ExPathEqual(V, A, start, end, weight, start[i], end[i], weight[i]));
+  ensures ExPathEqual(V, A, start, end, weight, x, x, 0);
+  pure boolean ExPathEqual(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, int len) =
+  	(\exists seq<int> P; Path(V, A, start, end, weight, x, y, P); cost(V, A, start, end, weight, P) == len);
+
+
+  // Standard properties
+
+  requires Graph(V, A, start, end, weight);
+  requires (\forall int i; 0 <= i && i < |P|; 0 <= P[i] && P[i] < A);
+  ensures 0 <= \result;
+  ensures 0 == |P| ==> \result == 0;
+  ensures (P != seq<int>{}) ==> \result > 0;
+  ensures (\result == 0) ==> (P == seq<int>{});
+  ensures (\result != 0) ==> (P != seq<int>{});
+  ensures 1 == |P| ==> \result == weight[P[0]];
+  pure int cost(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> P) =
+    0 < |P| ? weight[P[0]] + cost(V, A, start, end, weight, P[1..]) : 0;
+
+
+  requires Graph(V, A, start, end, weight);
+  requires Path(V, A, start, end, weight, x, y, P);
+  requires 0 <= a && a < A;
+  requires end[a] == x;
+  ensures \result && Path(V, A, start, end, weight, start[a], y, seq<int> { a } + P);
+  pure boolean lemma_path_append(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, seq<int> P, int a);
+
+  requires Graph(V, A, start, end, weight);
+  requires Path(V, A, start, end, weight, s, t, P);
+  requires Path(V, A, start, end, weight, t, u, Q);
+  ensures \result && Path(V, A, start, end, weight, s, u, P + Q);
+  pure boolean lemma_path_trans(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int s, int t, int u, seq<int> P, seq<int> Q);
+  	/*0 < |P| ==> (
+  		lemma_path_trans(V, A, start, end, weight, end[P[0]], t, u, (P.tail), Q) &&
+  		lemma_path_append(V, A, start, end, weight, end[P[0]], u, (P.tail) + Q, P[0]) &&
+  		iseq_assoc(seq<int> { P[0] }, (P.tail), Q) &&
+  		seq<int> { P[0] } + (P.tail) == P
+  	); */
+
+
+  requires 0 < |xs|;
+  ensures (xs + ys)[0] == xs[0];
+  ensures (xs + ys)[1..] == xs[1..] + ys;
+  ensures \result;
+  pure boolean lemma_app_nonempty(seq<int> xs, seq<int> ys) = true;
+
+  ensures (xs + ys) + zs == xs + (ys + zs);
+  ensures \result;
+  pure boolean iseq_assoc(seq<int> xs, seq<int> ys, seq<int> zs) = true;
+
+  requires 0 < |ys|;
+  ensures ((xs + seq<int>{(ys.head)}) + (ys.tail)) == xs + (seq<int>{(ys.head)} + (ys.tail));
+  ensures ys == seq<int>{(ys.head)} + (ys.tail);
+  ensures \result && ((xs + seq<int>{(ys.head)}) + (ys.tail)) == xs + ys;
+  pure boolean lemma_app_append_right(seq<int> xs, seq<int> ys);
+    //iseq_assoc(xs, seq<int>{(ys.head)}, (ys.tail));
+
+
+  requires Graph(V, A, start, end, weight);
+  requires (\forall int i; 0 <= i && i < |P|; 0 <= P[i] && P[i] < A);
+  requires (\forall int i; 0 <= i && i < |Q|; 0 <= Q[i] && Q[i] < A);
+  ensures \result && cost(V, A, start, end, weight, P + Q) == cost(V, A, start, end, weight, P) + cost(V, A, start, end, weight, Q);
+  pure boolean lemma_cost_app(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> P, seq<int> Q);
+    //0 < |P| ==> lemma_app_nonempty(P, Q) && lemma_cost_app(V, A, start, end, weight, P[1..], Q);
+
+
+  requires Graph(V, A, start, end, weight);
+  requires Path(V, A, start, end, weight, s, t, P);
+  requires Path(V, A, start, end, weight, t, u, Q);
+  ensures \result && Path(V, A, start, end, weight, s, u, P + Q);
+  ensures \result && cost(V, A, start, end, weight, P + Q) == cost(V, A, start, end, weight, P) + cost(V, A, start, end, weight, Q);
+  pure boolean lemma_cost_path(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int s, int t, int u, seq<int> P, seq<int> Q);
+    /*lemma_path_trans(V, A, start, end, weight, s, t, u, P, Q) &&
+    lemma_cost_app(V, A, start, end, weight, P, Q);*/
+
+
+  requires b;
+  ensures \result == xs;
+  pure seq<int> assertSeq(seq<int> xs, boolean b) = xs;
+
+   /* ** Invariant 10 */
+
+    requires Graph(V, A, start, end, weight);
+    requires ExPathEqual(V, A, start, end, weight, s, t, len1);
+    requires ExPathEqual(V, A, start, end, weight, t, u, len2);
+    ensures \result && ExPathEqual(V, A, start, end, weight, s, u, len1+len2);
+    pure boolean lemma_expath_trans(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int s, int t, int u, int len1, int len2);
+    	/*(\forall seq<int> P; Path(V, A, start, end, weight, s, t, P);
+    		(\forall seq<int> Q; Path(V, A, start, end, weight, t, u, Q);
+    			lemma_cost_path(V, A, start, end, weight, s, t, u, P, Q)));*/
+
+
+    /* ** Invariant 12 */
+
+    requires Graph(V, A, start, end, weight);
+    requires |oldcost| == V && |cost| == V;
+    requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+    requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+    requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+    requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+    requires 0 <= i && i < V-1;
+    requires 0 <= src && src < V;
+    requires 0 <= vertex && vertex < V;
+    requires Path(V, A, start, end, weight, src, vertex, P);
+    requires |P| <= i + 1;
+    requires oldcost[src] == 0 && cost[src] == 0 && cost[vertex] == inf();
+    requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf());
+    requires (\forall int a; 0 <= a && a < A && oldcost[start[a]] != inf(); cost[end[a]] != inf());
+    ensures false;
+    pure boolean lemma_inv12_helper1(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i, int vertex, seq<int> P);
+      //vertex != src && 0 < |P| && Path(V, A, start, end, weight, src, start[P[|P| - 1]], P[0..|P| - 1]);
+
+    requires Graph(V, A, start, end, weight);
+    requires |oldcost| == V && |cost| == V;
+    requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+    requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+    requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+    requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+    requires 0 <= i && i < V-1;
+    requires 0 <= src && src < V;
+    requires 0 <= vertex && vertex < V;
+    requires oldcost[src] == 0 && cost[src] == 0 && cost[vertex] == inf();
+    requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf());
+    requires (\forall int a; 0 <= a && a < A && oldcost[start[a]] != inf(); cost[end[a]] != inf());
+    ensures (\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1; false);
+    pure boolean lemma_inv12_helper2(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i, int vertex);
+      //(\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1; lemma_inv12_helper1(V, A, start, end, weight, oldcost, cost, src, i, vertex, P));
+
+    requires Graph(V, A, start, end, weight);
+    requires |oldcost| == V && |cost| == V;
+    requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+    requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+    requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+    requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+    requires 0 <= i && i < V-1;
+    requires 0 <= src && src < V;
+    requires oldcost[src] == 0 && cost[src] == 0;
+    requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf());
+    requires (\forall int a; 0 <= a && a < A && oldcost[start[a]] != inf(); cost[end[a]] != inf());
+    ensures (\forall int vertex; 0 <= vertex && vertex < V; (\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1; vertex != inf()));
+    pure boolean lemma_inv12_helper3(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i);
+      //(\forall int vertex; 0 <= vertex && vertex < V && cost[vertex] == inf(); lemma_inv12_helper2(V, A, start, end, weight, oldcost, cost, src, i, vertex));
+
+
+/* ** Invariant 11 */
+
+  requires Graph(V, A, start, end, weight);
+  requires |oldcost| == V && |cost| == V;
+  requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+  requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+  requires 0 <= i && i < V-1;
+  requires 0 <= src && src < V;
+  requires 0 <= vertex && vertex < V;
+  requires Path(V, A, start, end, weight, src, vertex, P);
+  requires |P| <= i + 1;
+  requires oldcost[src] == 0 && cost[src] == 0 && cost[vertex] != inf();
+  requires cost(V, A, start, end, weight, P) < cost[vertex];
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf();
+            (\forall seq<int> t; Path(V, A, start, end, weight, src, v, t) &&
+             |t| <= i; oldcost[v] <= cost(V, A, start, end, weight, t))); // inv 11
+  requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf()); // inv 12
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf(); ExPathEqual(V, A, start, end, weight, src, v, oldcost[v])); // inv 10
+  requires (\forall int a; 0 <= a && a < A && (oldcost[start[a]] != inf()) &&
+             (oldcost[end[a]] == inf() || oldcost[start[a]] + weight[a] <= oldcost[end[a]]); cost[end[a]] <= oldcost[start[a]] + weight[a]);
+  ensures false;
+  pure boolean lemma_inv11_helper1(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i, int vertex, seq<int> P);
+       /*|P| > 0 &&
+       (P == P[0..|P| - 1] + seq<int>{P[|P| - 1]}) &&
+       lemma_cost_path(V, A, start, end, weight, src, start[P[|P| - 1]], vertex, P[0..|P| - 1], seq<int>{P[|P| - 1]});*/
+
+
+  requires Graph(V, A, start, end, weight);
+  requires |oldcost| == V && |cost| == V;
+  requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+  requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+  requires 0 <= i && i < V-1;
+  requires 0 <= src && src < V;
+  requires 0 <= vertex && vertex < V;
+  requires oldcost[src] == 0 && cost[src] == 0 && cost[vertex] != inf();
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf();
+            (\forall seq<int> t; Path(V, A, start, end, weight, src, v, t) &&
+             |t| <= i; oldcost[v] <= cost(V, A, start, end, weight, t))); // inv 11
+  requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf()); // inv 12
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf(); ExPathEqual(V, A, start, end, weight, src, v, oldcost[v])); // inv 10
+  requires (\forall int a; 0 <= a && a < A && (oldcost[start[a]] != inf()) &&
+             (oldcost[end[a]] == inf() || oldcost[start[a]] + weight[a] <= oldcost[end[a]]); cost[end[a]] <= oldcost[start[a]] + weight[a]);
+  ensures (\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1 && cost(V, A, start, end, weight, P) < cost[vertex]; false);
+  pure boolean lemma_inv11_helper2(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i, int vertex);
+    /*(\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1 && cost(V, A, start, end, weight, P) < cost[vertex];
+      lemma_inv11_helper1(V, A, start, end, weight, oldcost, cost, src, i, vertex, P));*/
+
+
+  requires Graph(V, A, start, end, weight);
+  requires |oldcost| == V && |cost| == V;
+  requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+  requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+  requires 0 <= i && i < V-1;
+  requires 0 <= src && src < V;
+  requires oldcost[src] == 0 && cost[src] == 0;
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf();
+            (\forall seq<int> t; Path(V, A, start, end, weight, src, v, t) &&
+             |t| <= i; oldcost[v] <= cost(V, A, start, end, weight, t))); // inv 11
+  requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf()); // inv 12
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf(); ExPathEqual(V, A, start, end, weight, src, v, oldcost[v])); // inv 10
+  requires (\forall int a; 0 <= a && a < A && (oldcost[start[a]] != inf()) &&
+             (oldcost[end[a]] == inf() || oldcost[start[a]] + weight[a] <= oldcost[end[a]]); cost[end[a]] <= oldcost[start[a]] + weight[a]);
+  ensures (\forall int vertex; 0 <= vertex && vertex < V && cost[vertex] != inf();
+              (\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1 && cost(V, A, start, end, weight, P) < cost[vertex]; vertex != inf()));
+  pure boolean lemma_inv11_helper3(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i);
+    //(\forall int vertex; 0 <= vertex && vertex < V && cost[vertex] != inf(); lemma_inv11_helper2(V, A, start, end, weight, oldcost, cost, src, i, vertex));
+
+
+//////////////////////////////////////////////////////////////////////////////////Lemma1_simple_path
+
+  ensures |\result| == 2;
+  ensures |\result[0]| + |\result[1]| == |xs|;
+  ensures (\forall int i; 0 <= i && i < |\result[0]|; idx <= \result[0][i] && \result[0][i] < |xs|+idx);
+  ensures (\forall int i; 0 <= i && i < |\result[1]|; idx <= \result[1][i] && \result[1][i] < |xs|+idx);
+  ensures (\forall int i; 0 <= i && i < |\result[0]|; xs[\result[0][i]-idx] != elem);
+  ensures (\forall int i; 0 <= i && i < |\result[1]|; xs[\result[1][i]-idx] == elem);
+  ensures (\forall int i; 0 <= i && i < |\result[0]|; (\forall int j; i < j && j < |\result[0]|; \result[0][i] != \result[0][j]));
+  ensures (\forall int i; 0 <= i && i < |\result[1]|; (\forall int j; i < j && j < |\result[1]|; \result[1][i] != \result[1][j]));
+  ensures |\result[1]| == 0 ==> (\forall int i; 0 <= i && i < |xs|; xs[i] != elem);
+  pure seq<seq<int>> groupBy(seq<int> xs, int elem, int idx) =
+    |xs| == 0 ? seq<seq<int>> {seq<int>{}, seq<int>{}} : seq<seq<int>>{
+      (xs[0] == elem ? seq<int>{} : seq<int>{idx}) + groupBy(xs[1..], elem, idx+1)[0],
+      (xs[0] == elem ? seq<int>{idx} : seq<int>{}) + groupBy(xs[1..], elem, idx+1)[1]
+      };
+
+
+  requires (\forall int i; 0 <= i && i < |idx|; 0 <= idx[i] && idx[i] < |xs|);
+  ensures |\result| == |idx|;
+  ensures (\forall int i; 0 <= i && i < |\result|; \result[i] == xs[idx[i]]);
+  pure seq<int> mapIndices(seq<int> xs, seq<int> idx) =
+    |idx| == 0 ? seq<int>{} : seq<int>{xs[idx[0]]} + mapIndices(xs, idx[1..]);
+
+  requires upper >= 0;
+  requires (\forall int i; i >= 0 && i < |xs|; xs[i] >= 0 && xs[i] < upper);
+  requires (\forall int i; 0 <= i && i < |xs|; (\forall int j; i < j && j < |xs|; xs[i] != xs[j]));
+  ensures |groupBy(xs, upper-1, 0)[1]| > 1 ==> groupBy(xs, upper-1, 0)[1][0] != groupBy(xs, upper-1, 0)[1][1] && xs[groupBy(xs, upper-1, 0)[1][0]] == xs[groupBy(xs, upper-1, 0)[1][1]];
+  ensures |groupBy(xs, upper-1, 0)[1]| < 2;
+  ensures |xs| == |groupBy(xs, upper-1, 0)[0]| + |groupBy(xs, upper-1, 0)[1]|;
+  ensures upper > 0 ==> simple_path_lemma1_helper(mapIndices(xs, groupBy(xs, upper-1, 0)[0]), upper-1);
+  ensures upper > 0 ==> |mapIndices(xs, groupBy(xs, upper-1, 0)[0])| <= upper-1;
+  ensures \result;
+  pure boolean simple_path_lemma1_helper(seq<int> xs, int upper) = |xs| <= upper;
+
+
+  requires Graph(V, A, start, end, weight);
+  requires SimplePath(V, A, start, end, weight, x, y, P);
+  requires i <= |P| - 1 && i >= -1;
+  ensures |\result| == i + 2;
+  ensures i == |P| - 1 ==> |\result| == |P| + 1;
+  ensures (\forall int k; k >= 0 && k < |\result|; \result[k] >= 0 && \result[k] < V);
+  ensures \result[0] == x;
+  ensures (\forall int k; 1 <= k && k < |\result|; \result[k] == end[P[k-1]]);
+  ensures (\forall int k; 0 <= k && k < |\result|; (\forall int t; k < t && t < |\result|; \result[k] != \result[t]));
+  pure seq<int> vertices_in_path(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> P, int x, int y, int i) =
+    i == -1 ? seq<int>{x} :  vertices_in_path(V, A, start, end, weight, P, x, y, i-1) + seq<int>{end[P[i]]};
+
+
+  requires Graph(V, A, start, end, weight);
+  requires SimplePath(V, A, start, end, weight, x, y, P);
+  ensures \result && |P| < V;
+  pure boolean simple_path_lemma1_helper2(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, seq<int> P);
+     //simple_path_lemma1_helper(vertices_in_path(V, A, start, end, weight, P, x, y, |P| - 1), V);
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall seq<int> P; SimplePath(V, A, start, end, weight, x, y, P); |P| < V);
+  pure boolean simple_path_lemma1(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y);
+    //(\forall seq<int> P; SimplePath(V, A, start, end, weight, x, y, P); simple_path_lemma1_helper2(V, A, start, end, weight, x, y, P));
+
+
+//////////////////////////////////////////////////////////////////////////////////Lemma2&3&4_simple_path
+
+  /**
+   * Given any simple (x,y)-path `P` and simple (y,z)-path `Q`
+   * for which it holds that `P[1..] ++ Q` is also a simple path (see fourth requires clause),
+   * this function constructs and returns a simple (x,z)-path.
+   */
+  requires Graph(V, A, start, end, weight);
+  requires SimplePath(V, A, start, end, weight, x, y, P);
+  requires SimplePath(V, A, start, end, weight, y, z, Q);
+  requires (\forall int i; i > 0 && i < |P|;
+            (\forall int j; j >= 0 && j < |Q|; start[P[i]] != end[Q[j]]));
+  requires (\forall int i; i >= 0 && i < |P|; end[P[i]] != x);
+  ensures SimplePath(V, A, start, end, weight, x, z, \result);
+  ensures |\result| <= |P| + |Q|;
+  ensures cost(V, A, start, end, weight, \result) <= cost(V, A, start, end, weight, P) + cost(V, A, start, end, weight, Q);
+  pure seq<int> trim(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, int z, seq<int> P, seq<int> Q) =
+    0 < |Q| ? (end[Q[0]] == x ?
+               trim(V, A, start, end, weight, x, x, z, seq<int>{}, Q[1..]) :
+               assertSeq(trim(V, A, start, end, weight, x, end[Q[0]], z, P+seq<int>{Q[0]}, Q[1..]),
+               (lemma_cost_app(V, A, start, end, weight, P+seq<int>{Q[0]}, Q[1..]) &&
+               lemma_app_append_right(P, Q) &&
+               lemma_cost_app(V, A, start, end, weight, P, Q))))
+            : P;
+
+  /**
+   * Given any simple (y,z)-path `P` and (x,y)-arc `a`,
+   * this function constructs and returns a simple (x,z)-path.
+   */
+  requires Graph(V, A, start, end, weight);
+  requires SimplePath(V, A, start, end, weight, y, z, P);
+  requires 0 <= a && a < A && start[a] == x && end[a] == y;
+  ensures SimplePath(V, A, start, end, weight, x, z, \result);
+  ensures |\result| <= |P| + 1;
+  ensures cost(V, A, start, end, weight, \result) <= weight[a] + cost(V, A, start, end, weight, P);
+  pure seq<int> extend(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, int z, int a, seq<int> P) =
+     trim(V, A, start, end, weight, x, y, z, seq<int>{a}, P);
+
+
+  /**
+   * Converts any given (x,y)-path `P` to a simple (x,y)-path.
+   * The other Half part of lemma 2
+   * And lemma 3 And lemma 4
+   */
+  requires Graph(V, A, start, end, weight);
+  requires Path(V, A, start, end, weight, x, y, P);
+  ensures SimplePath(V, A, start, end, weight, x, y, \result);
+  ensures |\result| <= |P|;
+  ensures cost(V, A, start, end, weight, \result) <= cost(V, A, start, end, weight, P);
+  pure seq<int> convert(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, seq<int> P) =
+    |P| > 0 ? extend(V, A, start, end, weight, x, end[P[0]], y, P[0], convert(V, A, start, end, weight, end[P[0]], y, P[1..]))
+    : P;
+
+
+  requires Graph(V, A, start, end, weight);
+  requires SimplePath(V, A, start, end, weight, x, y, P);
+  ensures \result && Path(V, A, start, end, weight, x, y, P);
+  pure boolean simple_path_Part_1_lemma2_helper(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y, seq<int> P) = true;
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall seq<int> P; SimplePath(V, A, start, end, weight, x, y, P); Path(V, A, start, end, weight, x, y, P));
+  pure boolean simple_path_Part_1_lemma2(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x, int y);
+   //(\forall seq<int> P; SimplePath(V, A, start, end, weight, x, y, P); simple_path_Part_1_lemma2_helper(V, A, start, end, weight, x, y, P));
+
+
+//////////////////////////////////////////////////////////////////////////////////Comparison function
+
+  requires start_cost == inf() || start_cost >= 0;
+  requires end_cost == inf() || end_cost >= 0;
+  requires weight > 0;
+  ensures (start_cost != inf()) && (end_cost == inf() || start_cost + weight <= end_cost) ==> \result;
+  ensures \result ==> (start_cost != inf()) && (end_cost == inf() || start_cost + weight <= end_cost);
+  ensures (start_cost == inf()) || (end_cost != inf() && start_cost + weight > end_cost) ==> !\result;
+  ensures !\result ==> (start_cost == inf()) || (end_cost != inf() && start_cost + weight > end_cost);
+  ensures (\result && end_cost != inf()) ==> start_cost + weight <= end_cost;
+  pure boolean compare(int start_cost, int weight, int end_cost) =
+    (start_cost != inf()) && (end_cost == inf() || start_cost + weight <= end_cost) ?
+          true
+    :
+          false;
+
+class ParallelASSSP{
+
+
+
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int i; i >= 0 && i < A; Path(V, A, start, end, weight, start[i], end[i], seq<int>{i}));
+  ensures	(\forall int i; i >= 0 && i < A; ExPathEqual(V, A, start, end, weight, start[i], end[i], weight[i]));
+  void lemma_one_path(int V, int A, seq<int> start, seq<int> end, seq<int> weight);
+  /*{
+  	assert (\forall int i; i >= 0 && i < A; Path(V, A, start, end, weight, start[i], end[i], seq<int>{i}));
+  	assert (\forall int i; i >= 0 && i < A; ExPathEqual(V, A, start, end, weight, start[i], end[i], weight[i]));
+
+  }*/
+
+
+
+  requires Graph(V, A, start, end, weight);
+  requires |oldcost| == V && |cost| == V;
+  requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+  requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+  requires 0 <= i && i < V-1;
+  requires 0 <= src && src < V;
+  requires oldcost[src] == 0 && cost[src] == 0;
+  requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf());
+  requires (\forall int a; 0 <= a && a < A && oldcost[start[a]] != inf(); cost[end[a]] != inf());
+  ensures (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i + 1); cost[v] != inf());
+  void lemma_inv12_preserved(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i);
+  /*{
+    assert lemma_inv12_helper3(V, A, start, end, weight, oldcost, cost, src, i);
+  }*/
+
+
+
+  requires Graph(V, A, start, end, weight);
+  requires |oldcost| == V && |cost| == V;
+  requires (\forall int k; 0 <= k && k < V; cost[k] == inf() ==> oldcost[k] == cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] == inf() ==> oldcost[k] <= cost[k]);
+  requires (\forall int k; 0 <= k && k < V; oldcost[k] != inf() ==> cost[k] <= oldcost[k]);
+  requires (\forall int k; 0 <= k && k < V && k != src; cost[k] == inf() || cost[k] > 0);
+  requires 0 <= i && i < V-1;
+  requires 0 <= src && src < V;
+  requires oldcost[src] == 0 && cost[src] == 0;
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf();
+            (\forall seq<int> t; Path(V, A, start, end, weight, src, v, t) &&
+             |t| <= i; oldcost[v] <= cost(V, A, start, end, weight, t))); // inv 11
+  requires (\forall int v; 0 <= v && v < V && ExPath(V, A, start, end, weight, src, v, i); oldcost[v] != inf()); // inv 12
+  requires (\forall int v; 0 <= v && v < V && oldcost[v] != inf(); ExPathEqual(V, A, start, end, weight, src, v, oldcost[v])); // inv 10
+  requires (\forall int a; 0 <= a && a < A && (oldcost[start[a]] != inf()) &&
+             (oldcost[end[a]] == inf() || oldcost[start[a]] + weight[a] <= oldcost[end[a]]); cost[end[a]] <= oldcost[start[a]] + weight[a]);
+  ensures (\forall int vertex; 0 <= vertex && vertex < V && cost[vertex] != inf();
+              (\forall seq<int> P; Path(V, A, start, end, weight, src, vertex, P) && |P| <= i + 1; cost(V, A, start, end, weight, P) >= cost[vertex]));
+  void lemma_inv11_preserved(int V, int A, seq<int> start, seq<int> end, seq<int> weight, seq<int> oldcost, seq<int> cost, int src, int i);
+  /*{
+    assert lemma_inv11_helper3(V, A, start, end, weight, oldcost, cost, src, i);
+  }*/
+
+
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int v; v >= 0 && v < V; (\forall seq<int> P; SimplePath(V, A, start, end, weight, x, v, P); |P| < V));
+  void simple_path_lemma1_preserved(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x);
+  /*{
+    assert (\forall int v; v >= 0 && v < V; (\forall seq<int> P; SimplePath(V, A, start, end, weight, x, v, P); simple_path_lemma1(V, A, start, end, weight, x, v)) );
+  }*/
+
+  /**
+   * Every simple path is a path (trivial).
+   */
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int v; v >= 0 && v < V;
+           (\forall seq<int> P; SimplePath(V, A, start, end, weight, x, v, P); Path(V, A, start, end, weight, x, v, P)));
+  void simple_path_Part_1_lemma2_preserved(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x);
+  /*{
+    assert (\forall int v; v >= 0 && v < V; simple_path_Part_1_lemma2(V, A, start, end, weight, x, v));
+  }*/
+
+  /**
+   * For every path convert(path) is a path.
+   * For every path convert(path) is a simple path.
+   */
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int v; v >= 0 && v < V;
+           (\forall seq<int> P; Path(V, A, start, end, weight, x, v, P); Path(V, A, start, end, weight, x, v, convert(V, A, start, end, weight, x, v, P))));
+  ensures (\forall int v; v >= 0 && v < V;
+           (\forall seq<int> P; Path(V, A, start, end, weight, x, v, P); SimplePath(V, A, start, end, weight, x, v, convert(V, A, start, end, weight, x, v, P))));
+  void simple_path_Part_2_lemma2_preserved(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x);
+  /*{
+
+  }*/
+
+  /**
+   * For every path |convert(path)| <= |path|.
+   */
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int v; v >= 0 && v < V;
+           (\forall seq<int> P; Path(V, A, start, end, weight, x, v, P);
+             |convert(V, A, start, end, weight, x, v, P)| <= |P|));
+  void simple_path_lemma3_preserved(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x);
+  /*{
+
+  }*/
+
+  /**
+   * For every path cost(convert(path)) <= cost(path).
+   */
+  requires Graph(V, A, start, end, weight);
+  ensures (\forall int v; v >= 0 && v < V;
+           (\forall seq<int> P; Path(V, A, start, end, weight, x, v, P);
+              cost(V, A, start, end, weight, convert(V, A, start, end, weight, x, v, P)) <= cost(V, A, start, end, weight, P)));
+  void simple_path_cost_lemma4(int V, int A, seq<int> start, seq<int> end, seq<int> weight, int x);
+  /*{
+
+  }*/
+
+
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////Class field
+		seq<int> cost_seq;
+    seq<int> oldcost_seq;
+		seq<int> start_seq;
+    seq<int> weight_seq;
+		seq<int> end_seq;
+	///////////////////////////////////////////////////////////////////////////////////////////////Host&Device
+
+
+    context_everywhere V > 0 && A > 0;
+  	context_everywhere source >= 0 && source < V;
+  	context_everywhere start != null;
+    context_everywhere weight != null;
+  	context_everywhere end != null;
+  	context_everywhere cost != null;
+  	context_everywhere contrib1 != null;
+  	context_everywhere counter != null;
+  	context_everywhere start.length == A;
+    context_everywhere weight.length == A;
+  	context_everywhere end.length == A;
+  	context_everywhere cost.length == V;
+  	context_everywhere counter.length == 1;
+  	context_everywhere contrib1.length == A;
+  	//start_seq && end_seq
+  	context Perm(start_seq, read);
+    context Perm(weight_seq, read);
+  	context Perm(end_seq, read);
+  	context |start_seq| == A;
+    context |weight_seq| == A;
+  	context |end_seq| == A;
+  	//contrib1
+  	context (\forall* int i; 0 <= i && i < A; Perm(contrib1[i], write));
+  	context (\forall int i; 0 <= i && i < A; contrib1[i] == 0); // initially none of the workers has terminated
+  	//counter
+  	context Perm(counter[0], write);
+  	requires counter[0] == 0;
+    ensures counter[0] == V - 1;
+  	//cost_seq && oldcost_seq
+  	context Perm(cost_seq, 1);
+  	context |cost_seq| == V;
+  	context Perm(oldcost_seq, 1);
+  	context |oldcost_seq| == V;
+    context (\forall int i; 0 <= i && i < V; oldcost_seq[i] == cost_seq[i]);
+  	//Start
+  	context (\forall* int i; 0 <= i && i < A; Perm(start[i], read));
+  	context (\forall int i; 0 <= i && i < A; start[i] >= 0 && start[i] < V);
+  	//End
+  	context (\forall* int i; 0 <= i && i < A; Perm(end[i], read));
+  	context (\forall int i; 0 <= i && i < A; end[i] >= 0 && end[i] < V);
+  	//Start&End
+  	context (\forall int i; 0 <= i && i < A; start[i] != end[i]); // No self-loop
+  	context (\forall int i; 0 <= i && i < A;
+  						(\forall int j; 0 <= j && j < A && i != j; start[i] == start[j] ==> end[i] != end[j])); // NO multiple-arcs
+  	context (\forall int i; 0 <= i && i < A; start[i] == start_seq[i]);
+  	context (\forall int i; 0 <= i && i < A; end[i] == end_seq[i]);
+    //Weight
+    context (\forall* int i; 0 <= i && i < A; Perm(weight[i], read));
+    context (\forall int i; 0 <= i && i < A; weight[i] == weight_seq[i]);
+    context (\forall int i; 0 <= i && i < A; weight[i] > 0);
+  	//Costs
+  	context (\forall* int i; 0 <= i && i < V; Perm(cost[i], write));
+  	requires (\forall int i; 0 <= i && i < V && i != source; cost[i] == inf());
+    context cost[source] == 0;
+    ensures (\forall int i; 0 <= i && i < V && i != source; cost_seq[i] == inf() || cost_seq[i] > 0);
+  	context (\forall int i; 0 <= i && i < V; cost[i] == cost_seq[i]);
+    ensures (\forall int i; 0 <= i && i < V && cost_seq[i] != inf(); ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, i, cost_seq[i])); // prop. 7
+    ensures (\forall int vertex; 0 <= vertex && vertex < V && cost_seq[vertex] != inf();
+                          (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, vertex, P); cost_seq[vertex] <= cost(V, A, start_seq, end_seq, weight_seq, P))); // prop. 8
+    ensures (\forall int v; 0 <= v && v < V && (\exists seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, v, P); true); cost_seq[v] != inf()); // prop. 9
+  	void ASSSP(int V, int A, int[] start, int[] end, int[] weight, int[] cost, int[] contrib1, int source, int[] counter){
+
+
+  		//loop_invariant V > 0 && A > 0;
+  		//loop_invariant source >= 0 && source < V;
+  		//loop_invariant counter.length == 1;
+  		loop_invariant Perm(counter[0], write);
+  		loop_invariant counter[0] >= 0 && counter[0] <= V - 1;
+  		//loop_invariant start != null;
+      //loop_invariant weight != null;
+  	  //loop_invariant end != null;
+  		//loop_invariant cost != null;
+  		//loop_invariant start.length == A;
+      //loop_invariant weight.length == A;
+  		//loop_invariant end.length == A;
+  		//loop_invariant cost.length == V;
+  		loop_invariant Perm(start_seq, read);
+  		loop_invariant |start_seq| == A;
+  		loop_invariant Perm(weight_seq, read);
+  		loop_invariant |weight_seq| == A;
+  		loop_invariant Perm(end_seq, read);
+  		loop_invariant |end_seq| == A;
+  		loop_invariant Perm(cost_seq, 1);
+      loop_invariant Perm(oldcost_seq, 1);
+  		loop_invariant |cost_seq| == V;
+      loop_invariant |oldcost_seq| == V;
+      loop_invariant (\forall int i; 0 <= i && i < V; oldcost_seq[i] == cost_seq[i]);
+  		loop_invariant contrib1 != null;
+  		loop_invariant contrib1.length == A;
+  		loop_invariant (\forall* int i; 0 <= i && i < A; Perm(contrib1[i], write));
+  		loop_invariant (\forall int i; 0 <= i && i < A; contrib1[i] == 0);
+  		loop_invariant (\forall* int i; 0 <= i && i < A; Perm(start[i], read));
+  		loop_invariant (\forall int i; 0 <= i && i < A; start[i] >= 0 && start[i] < V);
+  		loop_invariant (\forall* int i; 0 <= i && i < A; Perm(end[i], read));
+  		loop_invariant (\forall int i; 0 <= i && i < A; end[i] >= 0 && end[i] < V);
+  		loop_invariant (\forall int i; 0 <= i && i < A; start[i] != end[i]);
+  		loop_invariant (\forall int i; 0 <= i && i < A;
+  						(\forall int j; 0 <= j && j < A && i != j; start[i] == start[j] ==> end[i] != end[j]));
+  		loop_invariant (\forall int i; 0 <= i && i < A; start[i] == start_seq[i]);
+  		loop_invariant (\forall int i; 0 <= i && i < A; end[i] == end_seq[i]);
+      loop_invariant (\forall* int i; 0 <= i && i < A; Perm(weight[i], read));
+      loop_invariant (\forall int i; 0 <= i && i < A; weight[i] == weight_seq[i]);
+      loop_invariant (\forall int i; 0 <= i && i < A; weight[i] > 0);
+  		loop_invariant (\forall* int i; 0 <= i && i < V; Perm(cost[i], write));
+  		loop_invariant (\forall int i; 0 <= i && i < V && i != source; cost_seq[i] == inf() || cost_seq[i] > 0);
+  		loop_invariant cost[source] == 0;
+  		loop_invariant (\forall int i; 0 <= i && i < V; cost[i] == cost_seq[i]);
+  		loop_invariant (\forall int i; 0 <= i && i < V && cost_seq[i] != inf(); ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, i, cost_seq[i])); // inv 10
+  		loop_invariant (\forall int vertex; 0 <= vertex && vertex < V && cost_seq[vertex] != inf();
+                      (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, vertex, P) && |P| <= counter[0]; cost_seq[vertex] <= cost(V, A, start_seq, end_seq, weight_seq, P))); // inv 11
+  		loop_invariant (\forall int v; 0 <= v && v < V && ExPath(V, A, start_seq, end_seq, weight_seq, source, v, counter[0]); cost_seq[v] != inf()); // inv 12
+  		while(counter[0] < V - 1 )
+  		{
+
+        invariant inv(
+  				             (V > 0 && A > 0 && source >= 0 && source < V && counter.length == 1 && contrib1.length == A) **
+  										 (start.length == A && weight.length == A && end.length == A && cost.length == V) **
+  										 Perm(start_seq, read) ** Perm(weight_seq, read) ** Perm(end_seq, read) ** (|start_seq| == A && |weight_seq| == A && |end_seq| == A) **
+  										 (\forall* int i; 0 <= i && i < A; Perm(start[i], read)) ** ((\forall int i; 0 <= i && i < A; start[i] >= 0 && start[i] < V)) **
+  										 (\forall* int i; 0 <= i && i < A; Perm(end[i], read)) ** ((\forall int i; 0 <= i && i < A; end[i] >= 0 && end[i] < V)) **
+  										 ((\forall int i; 0 <= i && i < A; start[i] != end[i])) **
+  										 ((\forall int i; 0 <= i && i < A; (\forall int j; 0 <= j && j < A && i != j; start[i] == start[j] ==> end[i] != end[j]))) **
+  										 (\forall int i; 0 <= i && i < A; start[i] == start_seq[i]) ** (\forall int i; 0 <= i && i < A; end[i] == end_seq[i]) **
+                       (\forall* int i; 0 <= i && i < A; Perm(weight[i], read)) **
+                       ((\forall int i; 0 <= i && i < A; weight[i] > 0) ** (\forall int i; 0 <= i && i < A; weight[i] == weight_seq[i])) **
+  										 Perm(counter[0], write) ** (counter[0] >= 0 && counter[0] < V - 1) **
+  										 Perm(cost_seq, 1) ** (|cost_seq| == V) ** Perm(oldcost_seq, 1) ** (|oldcost_seq| == V) **
+                       (\forall* int i; 0 <= i && i < A; Perm(contrib1[i], 1\2))  **
+                       ((\forall int i; 0 <= i && i < A; contrib1[i] == 0) ==> (\forall int i; 0 <= i && i < V; oldcost_seq[i] == cost_seq[i])) **
+  									   (\forall* int i; 0 <= i && i < V; Perm(cost[i], write)) **
+                       //(\forall int i; 0 <= i && i < V; cost_seq[i] <= oldcost_seq[i]) **
+                       (\forall int i; 0 <= i && i < V; cost_seq[i] == inf() ==> oldcost_seq[i] == cost_seq[i]) **
+                       (\forall int i; 0 <= i && i < V; oldcost_seq[i] == inf() ==> oldcost_seq[i] <= cost_seq[i]) **
+                       (\forall int i; 0 <= i && i < V; oldcost_seq[i] != inf() ==> cost_seq[i] <= oldcost_seq[i]) **
+                       ((\forall int i; 0 <= i && i < V && i != source; oldcost_seq[i] == inf() || oldcost_seq[i] > 0) && oldcost_seq[source] == 0) **
+                       ((\forall int i; 0 <= i && i < V && i != source; cost_seq[i] == inf() || cost_seq[i] > 0) && cost_seq[source] == 0) **
+                       (\forall int i; 0 <= i && i < V; cost[i] == cost_seq[i]) **
+                       (\forall int i; 0 <= i && i < A && contrib1[i] == 1 && oldcost_seq[start_seq[i]] != inf(); cost_seq[end_seq[i]] != inf()) **
+                       (\forall int a; 0 <= a && a < A && contrib1[a] == 1 && (oldcost_seq[start[a]] != inf()) &&
+                                (oldcost_seq[end[a]] == inf() || oldcost_seq[start[a]] + weight_seq[a] <= oldcost_seq[end[a]]); cost[end[a]] <= oldcost_seq[start[a]] + weight_seq[a]) **
+
+                       (\forall int i; 0 <= i && i < A && cost_seq[start[i]] != inf(); ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, start[i], cost_seq[start[i]])) ** // inv 10
+                       (\forall int i; 0 <= i && i < A && cost_seq[end[i]] != inf(); ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, end[i], cost_seq[end[i]])) ** // inv 10
+                       (\forall int i; 0 <= i && i < V && cost_seq[i] != inf(); ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, i, cost_seq[i])) ** // inv 10
+                       (\forall int v; 0 <= v && v < V && oldcost_seq[v] != inf(); ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, v, oldcost_seq[v])) ** // inv 10
+                       (\forall int vertex; 0 <= vertex && vertex < V && oldcost_seq[vertex] != inf();
+                              (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, vertex, P) && |P| <= counter[0]; cost(V, A, start_seq, end_seq, weight_seq, P) >= oldcost_seq[vertex])) ** // inv 11
+                       (\forall int v; 0 <= v && v < V && ExPath(V, A, start_seq, end_seq, weight_seq, source, v, counter[0]); oldcost_seq[v] != inf()) // inv 12
+
+
+  									 )
+  		  {//;
+
+  				par ASSSP_Kernel (int tid=0..A)
+  				context Perm(contrib1[tid], 1\2);
+  				requires contrib1[tid] == 0;
+  				ensures contrib1[tid] == 1;
+  				{
+
+  							atomic(inv)
+  							{
+
+  									if(compare(cost[start[tid]], weight[tid], cost[end[tid]])) //compare
+  									{
+  												cost[end[tid]] = cost[start[tid]] + weight[tid];
+  												cost_seq = cost_seq[end[tid] -> (cost[start[tid]] + weight[tid])]; // ghost
+                          assert cost_seq[end[tid]] == cost[start[tid]] + weight[tid];
+
+                          lemma_one_path(V, A, start_seq, end_seq, weight_seq);
+  												assert ExPathEqual(V, A, start_seq, end_seq, weight_seq, start[tid], end[tid], weight[tid]);
+  												assert lemma_expath_trans(V, A, start_seq, end_seq, weight_seq, source, start[tid], end[tid], cost_seq[start[tid]], weight[tid]);
+                          assert cost[end[tid]] == cost[start[tid]] + weight[tid];
+  												assert ExPathEqual(V, A, start_seq, end_seq, weight_seq, source, end[tid], cost_seq[start[tid]]+weight[tid]);
+  									}
+
+  									contrib1[tid] = 1;
+
+
+  							}
+
+  				}
+
+  			}
+
+  		  par setZero(int tid=0..A)
+  		  context Perm(contrib1[tid], write);
+  		  ensures contrib1[tid] == 0;
+  		  {
+  			  contrib1[tid] = 0;
+  		  }
+
+
+        lemma_inv12_preserved(V, A, start_seq, end_seq, weight_seq, oldcost_seq, cost_seq, source, counter[0]);
+
+        lemma_inv11_preserved(V, A, start_seq, end_seq, weight_seq, oldcost_seq, cost_seq, source, counter[0]);
+
+
+        oldcost_seq = cost_seq;
+
+        counter[0] = counter[0] + 1;
+
+
+      }
+
+      //Lemma 1
+      simple_path_lemma1_preserved(V, A, start_seq, end_seq, weight_seq, source);
+      //assert (\forall int v; v >= 0 && v < V; (\forall seq<int> P; SimplePath(V, A, start_seq, end_seq, weight_seq, source, v, P); |P| < V));
+      //Lemma 2
+      simple_path_Part_1_lemma2_preserved(V, A, start_seq, end_seq, weight_seq, source);
+      //assert (\forall int v; v >= 0 && v < V;
+        //       (\forall seq<int> P; SimplePath(V, A, start_seq, end_seq, weight_seq, source, v, P); Path(V, A, start_seq, end_seq, weight_seq, source, v, P)));
+      simple_path_Part_2_lemma2_preserved(V, A, start_seq, end_seq, weight_seq, source);
+      /*assert (\forall int v; v >= 0 && v < V;
+                        (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, v, P);
+                           Path(V, A, start_seq, end_seq, weight_seq, source, v, convert(V, A, start_seq, end_seq, weight_seq, source, v, P))));
+      assert (\forall int v; v >= 0 && v < V;
+                        (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, v, P);
+                          SimplePath(V, A, start_seq, end_seq, weight_seq, source, v, convert(V, A, start_seq, end_seq, weight_seq, source, v, P))));*/
+      //Lemma 3
+      simple_path_lemma3_preserved(V, A, start_seq, end_seq, weight_seq, source);
+      /*assert (\forall int v; v >= 0 && v < V;(\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, v, P);
+               |convert(V, A, start_seq, end_seq, weight_seq, source, v, P)| <= |P|));*/
+
+
+      //Lemma 4
+      simple_path_cost_lemma4(V, A, start_seq, end_seq, weight_seq, source);
+      /*assert (\forall int v; v >= 0 && v < V;
+              (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, v, P);
+                cost(V, A, start_seq, end_seq, weight_seq, convert(V, A, start_seq, end_seq, weight_seq, source, v, P)) <= cost(V, A, start_seq, end_seq, weight_seq, P)));
+
+
+
+      assert (\forall int vertex; 0 <= vertex && vertex < V && cost_seq[vertex] != inf();
+                          (\forall seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, vertex, P); cost_seq[vertex] <= cost(V, A, start_seq, end_seq, weight_seq, P))); // prop. 8
+      assert (\forall int v; 0 <= v && v < V && (\exists seq<int> P; Path(V, A, start_seq, end_seq, weight_seq, source, v, P); true); cost_seq[v] != inf()); // prop. 9
+    */
+  	}
+
+}

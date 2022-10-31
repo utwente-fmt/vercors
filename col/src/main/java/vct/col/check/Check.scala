@@ -1,7 +1,7 @@
 package vct.col.check
 
 import vct.col.ast._
-import vct.col.ast.temporaryimplpackage.util.Declarator
+import vct.col.ast.util.Declarator
 import vct.col.err.ASTStateError
 import vct.col.origin.Origin
 import vct.col.ref.Ref
@@ -27,6 +27,12 @@ sealed trait CheckError {
         (use.o, "This usage is out of scope,"),
         (ref.decl.o, "since it is declared here.")
       ))
+    case OutOfWriteScopeError(reason, use, ref) =>
+      Origin.messagesInContext(Seq(
+        (use.o, "This may not be rewritten to, since ..."),
+        (reason.o, "declarations outside this node must not be altered, and ..."),
+        (ref.decl.o, "... it is declared here.")
+      ))
     case DoesNotDefine(declarator, declaration, use) =>
       Origin.messagesInContext(Seq(
         (use.o, "This uses a declaration, which is declared"),
@@ -38,8 +44,6 @@ sealed trait CheckError {
       ???
     case TupleTypeCount(tup) =>
       ???
-    case NotAHeapLocation(loc) =>
-      loc.loc.o.messageInContext("This expression does not denote a heap location.")
     case NotAPredicateApplication(res) =>
       res.o.messageInContext("This expression is not a (scaled) predicate application")
     case AbstractPredicate(res) =>
@@ -54,10 +58,10 @@ case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
 case class TypeErrorText(expr: Expr[_], message: Type[_] => String) extends CheckError
 case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckError
 case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
+case class OutOfWriteScopeError[G](reason: Node[G], use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
 case class DoesNotDefine(declarator: Declarator[_], declaration: Declaration[_], use: Node[_]) extends CheckError
 case class IncomparableTypes(left: Expr[_], right: Expr[_]) extends CheckError
 case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
-case class NotAHeapLocation(loc: Locator[_]) extends CheckError
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
@@ -66,6 +70,7 @@ case class ResultOutsidePostcondition(res: Result[_]) extends CheckError
 case class CheckContext[G]
 (
   scopes: Seq[Set[Declaration[G]]] = Seq(),
+  roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
 ) {
@@ -81,11 +86,17 @@ case class CheckContext[G]
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     scopes.exists(_.contains(ref.decl))
 
+  def inWriteScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
+    scopes.drop(roScopes).exists(_.contains(ref.decl))
+
   def checkInScope[Decl <: Declaration[G]](use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
-    if(inScope(ref))
-      Nil
-    else
-      Seq(OutOfScopeError(use, ref))
+    if(inScope(ref)) Nil
+    else Seq(OutOfScopeError(use, ref))
+
+  def checkInWriteScope[Decl <: Declaration[G]](reason: Option[Node[G]], use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
+    if (!inScope(ref)) Seq(OutOfScopeError(use, ref))
+    else if(!inWriteScope(ref)) Seq(OutOfWriteScopeError(reason.get, use, ref))
+    else Nil
 }
 
 case class UnreachableAfterTypeCheck(message: String, at: Node[_]) extends ASTStateError {

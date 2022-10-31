@@ -12,7 +12,7 @@ public class LoopInv {
     res = 0;
     i = 0;
     //@ loop_invariant res == i * n;
-    //@ loop_invariant i < n;
+    //@ loop_invariant [/expect notMaintained:false] i < n [/end];
     while (i < n) {
       res = res + n;
       i = i + 1;

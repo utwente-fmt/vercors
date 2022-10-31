@@ -63,10 +63,8 @@ valBlock
  ;
 
 valStatement
- : 'create_wand' valBlock # valCreateWand
- | 'qed' langExpr ';' # valQedWand
+ : 'package' langExpr langStatement  # valPackage
  | 'apply' langExpr ';' # valApplyWand
- | 'use' langExpr ';' # valUseWand
  | 'fold' langExpr ';' # valFold
  | 'unfold' langExpr ';' # valUnfold
  | 'open' langExpr ';' # valOpen
@@ -104,6 +102,10 @@ valPostfix
  : '[' '..' langExpr ']'
  | '[' langExpr '..' langExpr? ']'
  | '[' langExpr '->' langExpr ']' // C?
+ | '?.' langId '(' valExpressionList? ')'
+ ;
+valPrefix
+ : '[' langExpr ']' # valScale
  ;
 valWith: 'with' langStatement;
 valThen: 'then' langStatement;
@@ -176,14 +178,35 @@ valPrimaryPermission
  | '\\array'  '(' langExpr ',' langExpr ')' # valArray
  | '\\pointer' '(' langExpr ',' langExpr ',' langExpr ')' # valPointer
  | '\\pointer_index' '(' langExpr ',' langExpr ',' langExpr ')' # valPointerIndex
+ | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
+ | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
+ | '\\pointer_length' '(' langExpr ')' # valPointerLength
  ;
 
+valForall: '\\forall' | '\u2200';
+valStarall: '\\forall*' | '\u2200*';
+valExists: '\\exists' | '\u2203';
+
+valBinderSymbol
+ : valForall # valForallSymb
+ | valStarall # valStarallSymb
+ | valExists # valExistsSymb
+ ;
+
+valBinding
+ : langType langId '=' langExpr '..' langExpr # valRangeBinding
+ | valArg # valNormalBinding
+ ;
+
+valBindings
+ : valBinding
+ | valBinding ',' valBindings
+ ;
+
+valBinderCont: ';' langExpr;
+
 valPrimaryBinder
- : '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId '=' langExpr '..' langExpr ';' langExpr ')' # valRangeQuantifier
- | '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId ';' langExpr ';' langExpr ')' # valQuantifier
- | '(' ('\u2200'|'\u2200*'|'\u2203') valArgList ';' langExpr ')' # valShortQuantifier
+ : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  ;
 
@@ -243,14 +266,15 @@ valPrimary
  | valPrimaryContext
  | '*' # valAny
  | '(' langId '!' valIdList ')' # valFunctionOf
- | '[' langExpr ']' langExpr # valScale
- | '{:' langExpr ':}' # valInlinePattern
+ | TRIGGER_OPEN langExpr ':}' # valInlinePattern
  | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
  | '\\old' '(' langExpr ')' # valOld
+ | '\\old' '[' langId ']' '(' langExpr ')' #valOldLabeled
  | '\\typeof' '(' langExpr ')' # valTypeof
  | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
  | LANG_ID_ESCAPE # valIdEscape
+ | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
  ;
 
 // Out spec: defined meaning: a language local
@@ -281,7 +305,7 @@ valKeywordNonExpr: (
  | VAL_MODIFIES | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT
  | VAL_LOOP_INVARIANT | VAL_KERNEL_INVARIANT | VAL_LOCK_INVARIANT | VAL_SIGNALS | VAL_DECREASES
  // Statement keywords
- | VAL_CREATE | VAL_QED | VAL_APPLY | VAL_USE | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
+ | VAL_CREATE | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
  | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM
  | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE | VAL_ACTION | VAL_ATOMIC
  // Spec function keywords

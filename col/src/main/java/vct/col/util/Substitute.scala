@@ -13,10 +13,12 @@ case class Substitute[G](subs: Map[Expr[G], Expr[G]],
                          originTrafo: Origin => Origin = identity)
   extends NonLatchingRewriter[G, G] {
 
-  override def lookupSuccessor: Declaration[G] => Option[Declaration[G]] = {
-    val here = super.lookupSuccessor
-    decl => here(decl).orElse(Some(decl))
+  case class SuccOrIdentity() extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
+    override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] =
+      Some(post.getOrElse(pre.asInstanceOf[T]))
   }
+
+  override def succProvider: SuccessorsProvider[G, G] = SuccOrIdentity()
 
   override def dispatch(o: Origin): Origin = originTrafo(o)
 

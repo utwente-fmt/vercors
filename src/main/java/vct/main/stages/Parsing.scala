@@ -1,17 +1,40 @@
 package vct.main.stages
 
-import vct.col.rewrite.Generation
-import vct.options.{Options, PathOrStd}
-import vct.parsers.{ColCParser, ColIParser, ColJavaParser, ColPVLParser, ColSilverParser, Language, ParseResult, Parser}
 import hre.io.Readable
-import vct.main.stages.Parsing.UnknownFileExtension
+import hre.stages.Stage
+import vct.col.rewrite.Generation
+import vct.main.stages.Parsing.{Language, UnknownFileExtension}
+import vct.options.Options
 import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
+import vct.parsers._
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
+import viper.api
+import viper.api.transform.ColSilverParser
 
 import java.nio.file.Path
 
 case object Parsing {
+  sealed trait Language
+
+  case object Language {
+    def fromFilename(filename: String): Option[Language] =
+      filename.split('.').last match {
+        case "cl" | "c" | "cu" => Some(C)
+        case "i" => Some(InterpretedC)
+        case "java" => Some(Java)
+        case "pvl" => Some(PVL)
+        case "sil" | "vpr" => Some(Silver)
+        case _ => None
+      }
+
+    case object C extends Language
+    case object InterpretedC extends Language
+    case object Java extends Language
+    case object PVL extends Language
+    case object Silver extends Language
+  }
+
   case class UnknownFileExtension(extension: String) extends UserError {
     override def text: String = s"Unknown file extension: $extension. Try altering the extension of the file, or specify a language explicitly with --lang."
     override def code: String = "unknownExt"

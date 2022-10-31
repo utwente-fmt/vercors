@@ -28,7 +28,7 @@ lock_invariant Perm(this.sum, 1);
 class Main {
 	int sum;
 	
-	Main() {
+	constructor() {
 	}
 	
 	void sum(seq<int> xs) {

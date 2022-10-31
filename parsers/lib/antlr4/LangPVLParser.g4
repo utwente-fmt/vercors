@@ -4,7 +4,7 @@ parser grammar LangPVLParser;
     private static int specLevel = 1;
 }
 
-program  : programDecl* EOF ;
+program  : programDecl* EOF EOF ;
 
 programDecl : valGlobalDeclaration | declClass | method;
 
@@ -111,6 +111,7 @@ seqAddExpr
 unaryExpr
  : '!' unaryExpr
  | '-' unaryExpr
+ | valPrefix unaryExpr
  | newExpr
  ;
 
@@ -132,6 +133,8 @@ unit
  | 'this'
  | 'null'
  | NUMBER
+ | DECIMAL_NUMBER
+ | DECIMAL_NUMBER_F
  | '(' expr ')'
  | identifier call?
  | valGenericAdtInvocation
@@ -221,7 +224,7 @@ invariant: 'loop_invariant' expr ';';
 
 nonArrayType
  : valType
- | ('string' | 'int' | 'boolean' | 'void')
+ | ('string' | 'int' | 'boolean' | 'void' | 'float32' | 'float64')
  | classType
  ;
 

@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.util.AstBuildHelpers._
 import org.scalatest.flatspec.AnyFlatSpec
+import viper.api.backend.Backend
 
 sealed trait G
 
@@ -30,7 +31,7 @@ abstract class VerifySpec(backend: Backend) extends AnyFlatSpec {
   }
 
   def decl(global: => GlobalDeclaration[G]): Unit = {
-    program(Program(Seq(ref, int, global), None)(noErrors))
+    program(Program(Seq(ref, int, global))(noErrors))
   }
 
   def procedure(returnType: => Type[G] = TVoid(),

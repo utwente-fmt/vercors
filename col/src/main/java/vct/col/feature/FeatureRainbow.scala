@@ -72,6 +72,7 @@ class FeatureRainbow[G] {
     case node: AddrOf[G] => Pointers
     case node: PredicateApply[G] => return Nil
     case node: InstancePredicateApply[G] => Classes
+    case node: CoalesceInstancePredicateApply[G] => Classes
     case node: ADTFunctionInvocation[G] => return Nil
     case node: ProcedureInvocation[G] => return Nil
     case node: InvokeProcedure[G] => return Nil
@@ -128,14 +129,21 @@ class FeatureRainbow[G] {
     case node: Scale[G] => return Nil
     case node: Unfolding[G] => return Nil
     case node: Perm[G] => return Nil
-    case node: HPerm[G] => Models
-    case node: APerm[G] => Models
+    case node: FieldLocation[G] => return Nil
+    case node: SilverFieldLocation[G] => return Nil
+    case node: ModelLocation[G] => Models
+    case node: ArrayLocation[G] => Arrays
+    case node: PointerLocation[G] => Pointers
+    case node: PredicateLocation[G] => return Nil
+    case node: InstancePredicateLocation[G] => Classes
+    case node: AmbiguousLocation[G] => AmbiguousOperators
     case node: PointsTo[G] => SugarPermissionOperator
     case node: CurPerm[G] => return Nil
     case node: ValidArray[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: ValidMatrix[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: PermPointer[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
+    case node: Value[G] => return Nil
     case node: Eq[G] => return Nil
     case node: Neq[G] => return Nil
     case node: AmbiguousGreater[G] => AmbiguousOperators
@@ -161,6 +169,9 @@ class FeatureRainbow[G] {
     case node: ArraySubscript[G] => Arrays
     case node: PointerAdd[G] => Pointers
     case node: PointerSubscript[G] => Pointers
+    case node: PointerBlockLength[G] => Pointers
+    case node: PointerBlockOffset[G] => Pointers
+    case node: PointerLength[G] => Pointers
     case node: Length[G] => Arrays
     case node: Size[G] => return Nil
     case node: Cons[G] => SugarCollectionOperator
@@ -308,10 +319,8 @@ class FeatureRainbow[G] {
     case node: Unlock[G] => IntrinsicLocks
     case node: Fold[G] => return Nil
     case node: Unfold[G] => return Nil
-    case node: WandCreate[G] => MagicWand
-    case node: WandQed[G] => MagicWand
+    case node: WandPackage[G] => MagicWand
     case node: WandApply[G] => MagicWand
-    case node: WandUse[G] => MagicWand
     case node: ModelDo[G] => Models
     case node: Havoc[G] => return Nil
     case node: Break[G] => ExceptionalLoopControl
@@ -414,8 +423,6 @@ class FeatureRainbow[G] {
     case node: CShort[G] => return Nil
     case node: CInt[G] => return Nil
     case node: CLong[G] => return Nil
-    case node: CFloat[G] => return Nil
-    case node: CDouble[G] => return Nil
     case node: CSigned[G] => return Nil
     case node: CUnsigned[G] => return Nil
     case node: CBool[G] => return Nil
@@ -426,7 +433,8 @@ class FeatureRainbow[G] {
     case node: CRestrict[G] => return Nil
     case node: CVolatile[G] => return Nil
     case node: CAtomic[G] => return Nil
-    case node: CKernel[G] => return Nil
+    case node: CUDAKernel[G] => return Nil
+    case node: OpenCLKernel[G] => return Nil
     case node: CPointer[G] => return Nil
     case node: CParam[G] => return Nil
     case node: CPointerDeclarator[G] => return Nil
@@ -437,17 +445,20 @@ class FeatureRainbow[G] {
     case node: CInit[G] => return Nil
     case node: CDeclaration[G] => return Nil
     case node: CFunctionDefinition[G] => return Nil
+    case node: CTranslationUnit[G] => return Nil
     case node: CGlobalDeclaration[G] => return Nil
     case node: CDeclarationStatement[G] => return Nil
     case node: CGoto[G] => return Nil
-    case node: GpgpuLocalBarrier[G] => return Nil
-    case node: GpgpuGlobalBarrier[G] => return Nil
+    case node: GpgpuBarrier[G] => return Nil
     case node: GpgpuAtomic[G] => return Nil
+    case node: GpuMemoryFence[G] => return Nil
     case node: CLocal[G] => return Nil
     case node: CInvocation[G] => return Nil
     case node: CStructAccess[G] => return Nil
     case node: CStructDeref[G] => return Nil
     case node: GpgpuCudaKernelInvocation[G] => return Nil
+    case node: LocalThreadId[G] => return Nil
+    case node: GlobalThreadId[G] => return Nil
     case node: CPrimitiveType[G] => return Nil
     case node: JavaName[G] => return Nil
     case node: JavaImport[G] => return Nil
@@ -491,5 +502,7 @@ class FeatureRainbow[G] {
     case node: PVLConstructor[G] => return Nil
     case node: Commit[G] => IntrinsicLocks
     case node: FramedProof[G] => return Nil
+    case node: FloatValue[G] => return Nil
+    case node: CastFloat[G] => return Nil
   })
 }

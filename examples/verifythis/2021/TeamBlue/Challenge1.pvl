@@ -1,0 +1,155 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis2021C1
+//:: tools silicon
+//:: suite medium
+//:: verdict Pass
+
+/** For the challenge, see https://ethz.ch/content/dam/ethz/special-interest/infk/chair-program-method/pm/documents/Verify%20This/Challenges2021/challenge1.pdf
+  * We managed to prove Tasks 1+6 (memory safety) as well as 4 and most of 5 (sortedness property of "next").
+  * We worked a bit on 2 (termination of "next") and 3 (permutation property of "next").
+  * We did not work on Tasks 7-10 (functional correctness of "permut").
+  */
+
+class Challenge1 {
+
+  context A != null;
+  context A.length >= 0;
+  requires Perm(A[*], read); /// 1) Memory safety
+  ensures |\result| == A.length;
+  ensures (\forall int j; 0 <= j && j < A.length; \result[j] == A[j]);
+  pure seq<int> to_seq(int[] A);
+
+  
+  context A != null;
+  context A.length >= 0;
+  context Perm(A[*], write); /// 1) Memory safety
+  ensures (\forall int j; 0 <= j && j < A.length-1; A[j] <= A[j+1]); /// Array is sorted
+  int[] sort(int[] A);
+
+
+  context A != null ==> A.length >= 0;
+  context A != null ==> Perm(A[*], write); /// 6) Memory safety
+  ensures A == null ==> \result == seq<seq<int>>{};
+  seq<seq<int>> permut(int[] A) {
+    seq<seq<int>> result = seq<seq<int>>{};
+    
+    if (A == null) return result;
+    
+    sort(A); /// Start with the 'first' permutation i.e. the smallest number
+    
+    seq<int> seq_A = to_seq(A);
+    result = result ++ seq_A;
+    boolean next_A = next(A);
+    loop_invariant Perm(A[*], write); /// 6) Memory safety
+    while (next_A) {
+      seq_A = to_seq(A);
+      result = result ++ seq_A;
+      next_A = next(A);
+    }
+    
+    return result;
+  }
+  
+    
+  
+  
+  yields int smallestChangedIdx; /// smallest index that changed (if anything changed at all)
+  context_everywhere A != null;
+  context_everywhere A.length >= 0;
+  context_everywhere Perm(A[*], write); /// 1) Memory safety
+  ensures !\result ==> (\forall int i; 0 <= i && i < A.length; A[i] == \old(A[i])); /// 4) A is left unmodified if the result is false
+  ensures !\result ==> (\forall int i; 0 <= i && i < A.length-1; A[i] >= A[i+1]); /// 4) A is the last permutation, i.e. reverse sorted
+  ensures (\forall int i; 0 <= i && i < smallestChangedIdx && smallestChangedIdx < A.length; \old(A[i]) == A[i]); /// Part of 5) Beginning of array has not changed
+  ensures \result ==> 0 <= smallestChangedIdx && smallestChangedIdx < A.length;
+  ensures \result ==> A[smallestChangedIdx] > \old(A[smallestChangedIdx]); /// Part of 5) the smallest changed element increased, i.e. we are lexicographically ascending
+  ensures \result ==> (\forall int k; smallestChangedIdx < k && k < A.length-1; {: \old(A[k]) :} >= \old(A[k+1])); /// Part of 5) the elements above smallestChangedIdx were sorted descending, i.e. smallestChangedIdx was the largest index that could change
+  /// ensures (\forall int k; smallestChangedIdx < k && k < A.length-1; A[k] <= A[k+1]); /// Missing part of 5) the elements above smallestChangedIdx are in ascending order now, i.e. the smallest possible next permutation
+  boolean next(int[] A) {
+    
+    int i = A.length - 1;
+    ghost int prevI = A.length;
+    
+    loop_invariant -1 <= i && i < A.length; /// 2) i is bound (i.e. cannot decrease indefinitely)
+    loop_invariant prevI - 1 == i; /// 2) i decreases by 1 in each iteration
+    loop_invariant i == -1 ==> A.length == 0;
+    loop_invariant i >= 0 ==> (\forall int k; i <= k && k < A.length-1; A[k] >= A[k+1]);
+    loop_invariant (\forall int k; 0 <= k && k < A.length;  A[k]  == {: \old(A[k]) :} ); /// Part of 3), 4) and 5) Array has not changed
+    loop_invariant (\forall int k; i-1 < k && k < A.length-1; {: \old(A[k]) :} >= \old(A[k+1]));
+    while (i > 0 && A[i-1] >= A[i]) {
+      ghost prevI = i;
+      i  = i - 1;
+    }
+    
+    if (i <= 0) return false;
+    int j = A.length - 1;
+    ghost int prevJ = A.length;
+    
+    loop_invariant 0 < i && i < A.length;
+    loop_invariant (\forall int k; i <= k && k < A.length-1; A[k] >= A[k+1]);
+    loop_invariant A[i-1] < A[i];
+    loop_invariant i <= j && j < A.length; /// 2) j is bound (i.e. cannot decrease indefinitely)
+    loop_invariant prevJ - 1 == j; /// 2) j decreases by 1 in each iteration;
+    loop_invariant (\forall int k; 0 <= k && k < A.length;  A[k]  == {: \old(A[k]) :} ); /// Part of 3), 4) and 5) Array has not changed
+    loop_invariant (\forall int k; i-1 < k && k < A.length-1; {: \old(A[k]) :} >= \old(A[k+1]));
+    loop_invariant j<A.length-1 ==> A[j+1] <= A[i-1];
+    while (A[j] <= A[i-1]) {
+      ghost prevJ = j;
+      j = j - 1;
+    }
+    assert A[j] > A[i-1];
+    assert j<A.length-1 ==> A[j+1] <= A[i-1];
+    assert i<j ==> A[j-1] >= A[j];
+    assert i<j ==> A[j-1] > A[i-1];
+    assert j<A.length-1 ==> A[i-1] >= A[j+1];
+    
+    int temp = A[i-1];
+    A[i-1] = A[j];
+    A[j] = temp;
+    assert (\forall int k; 0 <= k && k < i-1; A[k] == {: \old(A[k]) :}); /// Part of 3) Nothing has changed except elements on indices i-1 and j
+    assert \old(A[i-1]) == A[j];
+    assert \old(A[j]) == A[i-1];
+    assert \old(A[i-1]) < A[i-1]; /// Part of 3) elements on i and j have been swapped
+    
+    assert j<A.length-1 ==> A[j+1] <= A[j];
+    assert i<j ==> A[j-1] > A[j];
+
+    ghost smallestChangedIdx = i-1;
+    j = A.length - 1;
+
+    ghost prevI = smallestChangedIdx;
+    ghost prevJ = A.length;
+    
+    loop_invariant 0 <= smallestChangedIdx && smallestChangedIdx < A.length;
+    loop_invariant smallestChangedIdx < i && i < A.length; /// 2) i is bounded (i.e. cannot increase indefinitely)
+    loop_invariant i-1 <= j && j < A.length; /// 2) j is bounded (i.e. cannot decrease indefinitely)
+    loop_invariant prevI + 1 == i; /// 2) i increases in each iteration
+    loop_invariant prevJ - 1 == j; /// 2) j decreases in each iteration
+    loop_invariant -1 <= (j-i) && (j-i) < A.length; /// 2) the gap between j and i is bounded (i.e. cannot decrease indefinitely)
+    loop_invariant prevJ - prevI > j - i; /// 2) the gap between j and i decreases in each iteration
+    loop_invariant (\forall int k; 0 <= k && k < smallestChangedIdx; A[k] == {: \old(A[k]) :} ); /// Part of 3) and 5) Beginning of array has not changed
+    loop_invariant (\forall int k; smallestChangedIdx < k && k < A.length-1; {: \old(A[k]) :} >= \old(A[k+1]));
+    /// elements between i and j are still sorted descending, the ones around are already ascending
+    /// this would prove that the elements above smallestChangedIdx are in ascending order when we return,
+    /// i.e. we return the smallest possible next permutation
+    /// however, trying to prove these relations unfortunately timed out
+    /// loop_invariant (\forall int k; smallestChangedIdx < k && k <= i-2; A[k] <= A[k+1]);
+    /// loop_invariant (\forall int k; i <= k && k <= j-1; A[k] >= A[k+1]);
+    /// loop_invariant (\forall int k; j+1 <= k && k < A.length-1; A[k] <= A[k+1]);
+    /// loop_invariant i-1 > smallestChangedIdx ==> A[i-1] <= A[j];
+    /// loop_invariant j < A.length-1 ==> A[i] <= A[j+1];
+    loop_invariant A[smallestChangedIdx] > \old(A[smallestChangedIdx]);
+    while (i < j) {
+      ghost prevI = i;
+      ghost prevJ = j;
+      temp = A[i];
+      A[i] = A[j];
+      A[j] = temp;
+      i = i + 1;
+      j = j - 1;
+    }
+   
+    return true;
+  }
+  
+
+}

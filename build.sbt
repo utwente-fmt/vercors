@@ -2,7 +2,7 @@ import NativePackagerHelper._
 import java.io.File.pathSeparator
 import sbt.internal._
 
-
+ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 ThisBuild / fork := true
 
@@ -13,7 +13,7 @@ enablePlugins(DebianPlugin)
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
 val silver_url = uri("git:https://github.com/viperproject/silver.git#30396357d472af235c42875ef6cde52589dc9dcc")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#52ef88b3176f3c82d7cc4df8df165f42fb7a41f6")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#e7d6d79e6b420f880dc057a85a4e17dd9976508f")
 val silicon_url = uri("git:https://github.com/niomaster/silicon.git#88c2a546121902f48e2ca722f19042d1fe4202c3")
 
 /*
@@ -44,8 +44,9 @@ lazy val carbon_ref = ProjectRef(carbon_url, "carbon")
 lazy val silicon_ref = ProjectRef(silicon_url, "silicon")
 lazy val hre = project in file("hre")
 lazy val col = (project in file("col")).dependsOn(hre)
+lazy val rewrite = (project in file("rewrite")).dependsOn(hre, col)
 lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
-lazy val viper_api = (project in file("viper")).dependsOn(hre, col, silver_ref, carbon_ref, silicon_ref)
+lazy val viper = (project in file("viper")).dependsOn(hre, col, parsers, silver_ref, carbon_ref, silicon_ref)
 
 // We fix the scalaVersion of all viper components to be silver's scalaVersion, because
 // it seems that in some cases the scalaVersion of the other components is lost.
@@ -70,15 +71,17 @@ ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
 lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
+lazy val benchPrintExternalDeps = taskKey[Unit]("For util/bench/flatten-sources.sh: print only the external dependencies, available without compilation.")
+lazy val benchPrintSources = taskKey[Unit]("For util/bench/flatten-sources.sh: print all source directories, including viper.")
 
 lazy val vercors: Project = (project in file("."))
-  .dependsOn(hre, col, viper_api, parsers)
-  .aggregate(hre, col, viper_api, parsers)
+  .dependsOn(hre, col, rewrite, viper, parsers)
+  .aggregate(hre, col, rewrite, viper, parsers)
   .settings(
     fork := true,
     name := "Vercors",
     organization := "University of Twente",
-    version := "2.0.0-alpha.7",
+    version := "2.0.0-alpha.8",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -108,7 +111,7 @@ lazy val vercors: Project = (project in file("."))
       "-feature",
       "-unchecked",
 //      "-Xno-patmat-analysis",
-//      "-Ystatistics",
+//      "-Ystatistics:typer",
 //      "-Xprint:typer",
 //      "-Ycache-plugin-class-loader:last-modified",
 //      "-Xplugin:/home/pieter/.cache/coursier/v1/https/repo1.maven.org/maven2/io/leonard/scalac-profiling_2.13/0.0.1/scalac-profiling_2.13-0.0.1.jar",
@@ -145,7 +148,10 @@ lazy val vercors: Project = (project in file("."))
       },
       BuildInfoKey.action("gitHasChanges") {
         Git.gitHasChanges
-      }
+      },
+      "silverCommit" -> BuildUtil.commitFromGitUrl(silver_url.toString),
+      "siliconCommit" -> BuildUtil.commitFromGitUrl(silicon_url.toString),
+      "carbonCommit" -> BuildUtil.commitFromGitUrl(carbon_url.toString)
     ),
     buildInfoOptions += BuildInfoOption.BuildTime,
     buildInfoPackage := "vct.main",
@@ -172,9 +178,16 @@ lazy val vercors: Project = (project in file("."))
 
     Universal / packageBin / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
     Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
-    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/vercors/res/$path") },
+    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/${normalizedName.value}/res/$path") },
 
-    scriptClasspath := scriptClasspath.value :+ "../res",
+    // Sets the classpath as described on the below page
+    // https://sbt-native-packager.readthedocs.io/en/latest/recipes/longclasspath.html
+    // To circumvent the long classpath problem
+    // At the time of writing (2021-10-08) the other two workarounds described
+    // on that page seem to be broken.
+    // Both result in "class vct.main.Main" not found when running vercors.
+    // See: https://github.com/sbt/sbt-native-packager/issues/1466
+    scriptClasspath := Seq("*", "../res"),
 
     // Force the main classes, as we have some extra main classes that we don't want to generate run scripts for.
     Compile / discoveredMainClasses := Seq(),
@@ -229,3 +242,27 @@ Global / printRuntimeClasspath := {
   println(joinedPaths)
 }
 
+Global / benchPrintExternalDeps := {
+  println(
+    (Runtime / externalDependencyClasspath).value
+      .map(_.data.toString.replace("\"", "\\\""))
+      .map(entry => "Attributed.blank(file(\"" + entry + "\"))")
+      .mkString("Seq(", ", ", ")")
+  )
+}
+
+Global / benchPrintSources := {
+  println((vercors / baseDirectory).value / "src")
+  println((vercors / baseDirectory).value / "target" / "scala-2.13" / "src_managed")
+  println((hre / baseDirectory).value / "src")
+  println((col / baseDirectory).value / "src")
+  println((col / baseDirectory).value / "target" / "scala-2.13" / "src_managed")
+  println((parsers / baseDirectory).value / "src")
+  println((parsers / baseDirectory).value / "target" / "scala-2.13" / "src_managed")
+  println((rewrite / baseDirectory).value / "src")
+  println((viper / baseDirectory).value / "src")
+  println((silver_ref / baseDirectory).value / "src")
+  println((carbon_ref / baseDirectory).value / "src")
+  println((silicon_ref / baseDirectory).value / "common" / "src")
+  println((silicon_ref / baseDirectory).value / "src")
+}

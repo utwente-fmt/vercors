@@ -1,6 +1,5 @@
 package vct.parsers
 import com.typesafe.scalalogging.LazyLogging
-import hre.config.Configuration
 import hre.io.{RWFile, Readable}
 import org.antlr.v4.runtime.{CharStream, CharStreams}
 import vct.parsers.CParser.PreprocessorError
@@ -51,7 +50,11 @@ case class ColCParser(override val originProvider: OriginProvider,
       val interpreted = File.createTempFile("vercors-interpreted-", ".i")
       interpreted.deleteOnExit()
 
-      val process = interpret(localInclude=Seq(Paths.get(readable.fileName).getParent), input="-", output=interpreted.toString)
+      val process = interpret(
+        localInclude=Option(Paths.get(readable.fileName).getParent).toSeq,
+        input="-",
+        output=interpreted.toString
+      )
       new Thread(() => {
         val writer = new OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
         readable.read { reader =>

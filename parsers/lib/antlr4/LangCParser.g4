@@ -95,6 +95,11 @@ unaryExpression
     |   'sizeof' '(' typeName ')'
     |   '_Alignof' '(' typeName ')'
     |   '&&'  clangIdentifier // GCC extension address of label
+    |   specPrefix unaryExpression
+    ;
+
+specPrefix
+    :   {specLevel>0}? valPrefix
     ;
 
 unaryOperator
@@ -259,6 +264,8 @@ storageClassSpecifier
     |   '_Thread_local'
     |   'auto'
     |   'register'
+    | gpgpuLocalMemory
+    | gpgpuGlobalMemory
     ;
 
 typeSpecifier
@@ -540,8 +547,7 @@ blockItem
     |   statement
     |   valEmbedStatementBlock
     |   {specLevel>0}? valStatement
-    |   gpgpuLocalBarrier
-    |   gpgpuGlobalBarrier
+    |   gpgpuBarrier
     |   gpgpuAtomicBlock
     ;
 

@@ -14,11 +14,14 @@ class Main {
     int t;
     invariant inv(Perm(x,1\2)**Perm(y,1\2)**Perm(z,1\2)** x+y==z){
       t=x+z;
+
+      /*[/expect notMaintained:false]*/
       atomic(inv){
         int tmp=x;
         x=y;
         y=tmp+1;
       }
+    /*[/end]*/
     }
   }
 }

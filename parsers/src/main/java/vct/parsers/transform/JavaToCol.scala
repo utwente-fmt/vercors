@@ -10,8 +10,8 @@ import vct.col.origin._
 import vct.antlr4.generated.{JavaParserPatterns => parse}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.resolve.Java
-import vct.col.util.{AstBuildHelpers, ExpectedError}
+import vct.col.resolve.lang.Java
+import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable
@@ -467,8 +467,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "short" => TInt()
       case "int" => TInt()
       case "long" => TInt()
-      case "float" => TFloat()
-      case "double" => TFloat()
+      case "float" => Java.float
+      case "double" => Java.double
     }
   }
 
@@ -582,6 +582,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "~" => BitNot(convert(inner))
       case "!" => Not(convert(inner))
     }
+    case JavaValPrefix(PrefixOp0(op), inner) =>
+      convert(op, convert(inner))
     case JavaValPrepend(left, PrependOp0(op), right) =>
       convert(op, convert(left), convert(right))
     case JavaMul(leftNode, mul, rightNode) =>
@@ -596,7 +598,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
     case JavaAdd(left, op, right) => op match {
       case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-      case "-" => Minus(convert(left), convert(right))
+      case "-" => AmbiguousMinus(convert(left), convert(right))(blame(expr))
     }
     case JavaShift(left, shift, right) => shift match {
       case ShiftOp0(_, _) => BitShl(convert(left), convert(right))
@@ -633,11 +635,11 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       val value = convert(right)
       PreAssignExpression(target, op match {
         case "=" => value
-        case "+=" => Plus(target, value)
-        case "-=" => Minus(target, value)
-        case "*=" => Mult(target,  value)
+        case "+=" => AmbiguousPlus(target, value)(blame(right))
+        case "-=" => AmbiguousMinus(target, value)(blame(right))
+        case "*=" => AmbiguousMult(target,  value)
         case "/=" => FloorDiv(target,  value)(blame(expr))
-        case "&=" => BitAnd(target, value)
+        case "&=" => AmbiguousComputationalAnd(target, value)
         case "|=" => BitOr(target, value)
         case "^=" => BitXor(target, value)
         case ">>=" => BitShr(target, value)
@@ -700,7 +702,13 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit expr: LiteralContext): Expr[G] = expr match {
     case Literal0(i) => const(Integer.parseInt(i))
-    case Literal1(_) => ??(expr)
+    case Literal1(n) if n.length > 1 =>
+      val (num, t) = n.last match {
+        case 'f' | 'F' => (n.init, Java.float[G])
+        case 'd' | 'D' => (n.init, Java.double[G])
+        case _ => (n, Java.double[G])
+      }
+      FloatValue(BigDecimal(num), t)
     case Literal2(_) => ??(expr)
     case Literal3(_) => ??(expr)
     case Literal4(value) => value match {
@@ -966,6 +974,11 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPostfix1(_, from, _, None, _) => Drop(xs, convert(from))
     case ValPostfix1(_, from, _, Some(to), _) => Slice(xs, convert(from), convert(to))
     case ValPostfix2(_, idx, _, v, _) => SeqUpdate(xs, convert(idx), convert(v))
+    case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
+  }
+
+  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+    case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
   }
 
   def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
@@ -974,10 +987,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
-    case ValCreateWand(_, block) => WandCreate(convert(block))
-    case ValQedWand(_, wand, _) => WandQed(convert(wand))
-    case ValApplyWand(_, wand, _) => WandApply(convert(wand))
-    case ValUseWand(_, wand, _) => WandUse(convert(wand))
+    case ValPackage(_, expr, innerStat) => WandPackage(convert(expr), convert(innerStat))(blame(stat))
+    case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
     case ValFold(_, predicate, _) =>
       Fold(convert(predicate))(blame(stat))
     case ValUnfold(_, predicate, _) =>
@@ -990,7 +1001,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
-    case ValRefute(_, assn, _) => Refute(convert(assn))
+    case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, name, _, delta, _, resource, _) =>
@@ -1185,41 +1196,52 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
-    case ValCurPerm(_, _, loc, _) => CurPerm(convert(loc))
-    case ValPerm(_, _, loc, _, perm, _) => Perm(convert(loc), convert(perm))
-    case ValValue(_, _, loc, _) => Perm(convert(loc), ReadPerm())
-    case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(convert(loc), convert(perm), convert(v))
-    case ValHPerm(_, _, loc, _, perm, _) => HPerm(convert(loc), convert(perm))
-    case ValAPerm(_, _, loc, _, perm, _) => APerm(convert(loc), convert(perm))
+    case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+    case ValPerm(_, _, loc, _, perm, _) => Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
+    case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc))(blame(e)))
+    case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(AmbiguousLocation(convert(loc))(blame(e)), convert(perm), convert(v))
+    case ValHPerm(_, _, loc, _, perm, _) => ModelPerm(convert(loc), convert(perm))
+    case ValAPerm(_, _, loc, _, perm, _) => ActionPerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)
     case ValMatrix(_, _, m, _, dim1, _, dim2, _) => ValidMatrix(convert(m), convert(dim1), convert(dim2))
     case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
+    case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
+    case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
+  }
+
+  def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
+    case ValRangeBinding(t, id, _, from, _, to) =>
+      val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
+      val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
+      (variable, Seq(cond))
+    case ValNormalBinding(arg) =>
+      (convert(arg), Nil)
+  }
+
+  def convert(implicit vs: ValBindingsContext): (Seq[Variable[G]], Seq[Expr[G]]) = vs match {
+    case ValBindings0(binding) =>
+      val (v, cs) = convert(binding)
+      (Seq(v), cs)
+    case ValBindings1(binding, _, bindings) =>
+      val (v, cs) = convert(binding)
+      val (vs, ds) = convert(bindings)
+      (v +: vs, cs ++ ds)
   }
 
   def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
-    case ValRangeQuantifier(_, quant, t, id, _, from, _, to, _, body, _) =>
-      val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
-      val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
-      quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))(blame(e))
-        case "\\forall" => Forall(Seq(variable), Nil, Implies(cond, convert(body)))
-        case "\\exists" => Exists(Seq(variable), Nil, col.And(cond, convert(body)))
+    case ValQuantifier(_, symbol, bindings, _, bodyOrCond, maybeBody, _) =>
+      val (variables, bindingConds) = convert(bindings)
+      val (bodyConds, body) = maybeBody match {
+        case Some(ValBinderCont0(_, body)) => (Seq(convert(bodyOrCond)), convert(body))
+        case None => (Nil, convert(bodyOrCond))
       }
-    case ValQuantifier(_, quant, t, id, _, cond, _, body, _) =>
-      val variable = new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id)))
-      quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(convert(cond), convert(body)))(blame(e))
-        case "\\forall" => Forall(Seq(variable), Nil, Implies(convert(cond), convert(body)))
-        case "\\exists" => Exists(Seq(variable), Nil, col.And(convert(cond), convert(body)))
-      }
-    case ValShortQuantifier(_, quant, bindings, _, body, _) =>
-      val variables = convert(bindings)
-      quant match {
-        case "∀" => Forall(variables, Nil, convert(body))
-        case "∀*" => Starall(variables, Nil, convert(body))(blame(e))
-        case "∃" => Exists(variables, Nil, convert(body))
+      val conds = bindingConds ++ bodyConds
+      symbol match {
+        case ValForallSymb(_) => Forall(variables, Nil, implies(conds, body))
+        case ValStarallSymb(_) => Starall(variables, Nil, implies(conds, body))(blame(e))
+        case ValExistsSymb(_) => Exists(variables, Nil, foldAnd(conds :+ body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
@@ -1264,10 +1286,12 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPrimary9(inner) => convert(inner)
     case ValAny(_) => Any()(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
-    case ValScale(_, perm, _, predInvocation) => Scale(convert(perm), convert(predInvocation))(blame(perm))
-    case ValInlinePattern(_, pattern, _) => InlinePattern(convert(pattern))
-    case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))
+    case ValInlinePattern(open, pattern, _) =>
+      val groupText = open.filter(_.isDigit)
+      InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)
+    case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))(blame(e))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
+    case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))

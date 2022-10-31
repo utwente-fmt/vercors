@@ -25,6 +25,7 @@ VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
 VAL_FALSE: 'false';
+VAL_PACKAGE: 'package';
 */
 
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
@@ -73,10 +74,7 @@ VAL_LOCK_INVARIANT: 'lock_invariant';
 VAL_SIGNALS: 'signals';
 VAL_DECREASES: 'decreases';
 
-VAL_CREATE: 'create_wand';
-VAL_QED: 'qed';
 VAL_APPLY: 'apply';
-VAL_USE: 'use';
 VAL_FOLD: 'fold';
 VAL_UNFOLD: 'unfold';
 VAL_OPEN: 'open';
@@ -135,6 +133,10 @@ MATRIX: '\\matrix';
 ARRAY: '\\array';
 POINTER: '\\pointer';
 POINTER_INDEX: '\\pointer_index';
+POINTER_BLOCK_LENGTH: '\\pointer_block_length';
+POINTER_BLOCK_OFFSET: '\\pointer_block_offset';
+POINTER_LENGTH: '\\pointer_length';
+SHARED_MEM_SIZE: '\\shared_mem_size';
 VALUES: '\\values';
 VCMP: '\\vcmp';
 VREP: '\\vrep';
@@ -151,13 +153,14 @@ WRITE: 'write';
 READ: 'read';
 EMPTY: 'empty';
 
+COALESCE: '?.';
 CONS: '::';
 FRAC_DIV: '\\';
 SEP_CONJ: '**';
 IMPLIES: '==>';
 WAND: '-*';
 RANGE_TO: '..';
-TRIGGER_OPEN: '{:';
+TRIGGER_OPEN: '{:' ('<'* [0-9]* ':')?;
 TRIGGER_CLOSE: ':}';
 LITERAL_BAG_OPEN: 'b{';
 EMPTY_SEQ_OPEN: '[t:';

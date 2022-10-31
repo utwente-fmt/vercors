@@ -2,21 +2,22 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
+import hre.stages.Stage
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
-import vct.col.newrewrite._
-import vct.col.newrewrite.exc._
-import vct.col.newrewrite.lang.NoSupportSelfLoop
-import vct.col.origin.FileSpanningOrigin
+import vct.col.rewrite._
+import vct.col.rewrite.exc._
+import vct.col.rewrite.adt._
+import vct.col.rewrite.lang.NoSupportSelfLoop
+import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
-import vct.col.util.ExpectedError
+import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
-import vct.main.util.Util
-import vct.options.{Backend, Options, PathOrStd}
-import vct.parsers.PathAdtImporter
+import vct.options.types.{Backend, PathOrStd}
+import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
@@ -61,6 +62,17 @@ object Transformation {
     }
 }
 
+/**
+ * Executes a sequence of rewriters. Currently the only concrete implementation is [[SilverTransformation]].
+ *
+ * Refer to [[RewriterBuilder]] and [[RewriterBuilderArg]] for information on how to use a [[Rewriter]] in the
+ * pass chain.
+ *
+ * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
+ * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
+ *                       before the side effect is performed.
+ * @param passes The list of rewrite passes to execute.
+ */
 class Transformation
 (
   val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
@@ -74,7 +86,6 @@ class Transformation
     val tempUnsupported = Set[feature.Feature](
       feature.MatrixVector,
       feature.NumericReductionOperator,
-      feature.MagicWand,
       feature.Models,
     )
 
@@ -98,10 +109,6 @@ class Transformation
         case errors => throw TransformationCheckError(errors)
       }
 
-      logger.debug(s"After ${pass.key}: ${result.transSubnodes.collect {
-        case _: RunMethod[_] => ()
-      }.size} run methods")
-
       onAfterPassKey.foreach {
         case (key, action) => if(pass.key == key) action(result)
       }
@@ -113,6 +120,19 @@ class Transformation
   }
 }
 
+/**
+ * Defines the rewrite chain appropriate for the Viper backends: Silicon and Carbon.
+ *
+ * @param adtImporter Decides how to import the definition of the built-in axiomatically-defined datatypes.
+ * @param onBeforePassKey Execute a side effect just before a rewrite pass is executed.
+ * @param onAfterPassKey Execute a side effect just after a rewrite pass is executed. The consistency check is done
+ *                       before the side effect is performed.
+ * @param simplifyBeforeRelations The list of passes to execute at the appropriate point for simplification, just before
+ *                                quantified integer relations are simplified.
+ * @param simplifyAfterRelations The list of passes to execute at the appropriate point for simplification, just after
+ *                               quantified integer relations are simplified.
+ * @param checkSat Check that non-trivial contracts are satisfiable.
+ */
 case class SilverTransformation
 (
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
@@ -130,8 +150,11 @@ case class SilverTransformation
 
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
+    DisambiguateLocation, // Resolve location type
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
+    ReadToValue, // resolve wildcard into fractional permission
+    DesugarCoalescingOperators, // no .!
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]
     IterationContractToParBlock,
@@ -145,19 +168,27 @@ case class SilverTransformation
     EncodeForkJoin,
     InlineApplicables,
     PureMethodsToFunctions,
+    RefuteToInvertedAssert,
 
     // Encode parallel blocks
     EncodeSendRecv,
     ParBlockEncoder,
-
-    // Encode proof helpers
-    EncodeProofHelpers,
 
     // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SpecifyImplicitLabels,
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,
+
+    SplitQuantifiers,
+    ) ++ simplifyBeforeRelations ++ Seq(
+    SimplifyQuantifiedRelations,
+    SimplifyNestedQuantifiers,
+    ) ++ simplifyAfterRelations ++ Seq(
+
+    // Encode proof helpers
+    EncodeProofHelpers,
+
     // Resolve side effects including method invocations, for encodetrythrowsignals.
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
@@ -167,13 +198,26 @@ case class SilverTransformation
     ClassToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
-  ) ++ simplifyBeforeRelations ++ Seq(
-    SimplifyQuantifiedRelations,
-  ) ++ simplifyAfterRelations ++ Seq(
+
     ResolveExpressionSideChecks,
+    RejoinQuantifiers,
+
+    DesugarCollectionOperators,
 
     // Translate internal types to domains
-    ImportADT.withArg(adtImporter),
+    FloatToRat,
+    ImportArray.withArg(adtImporter),
+    ImportPointer.withArg(adtImporter),
+    ImportMapCompat.withArg(adtImporter),
+    ImportEither.withArg(adtImporter),
+    ImportTuple.withArg(adtImporter),
+    ImportOption.withArg(adtImporter),
+    ImportFrac.withArg(adtImporter),
+    ImportNothing.withArg(adtImporter),
+    ImportVoid.withArg(adtImporter),
+    ImportNull.withArg(adtImporter),
+    ImportAny.withArg(adtImporter),
+    ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
@@ -183,7 +227,6 @@ case class SilverTransformation
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
     BranchToIfElse,
-    DesugarCollectionOperators,
     EvaluationTargetDummy,
 
     // Final translation to rigid silver nodes

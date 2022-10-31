@@ -1,7 +1,5 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case FloatDomain
 //:: tools silicon
-//:: suite problem-fail
 //:: verdict Pass
 
 domain Float {

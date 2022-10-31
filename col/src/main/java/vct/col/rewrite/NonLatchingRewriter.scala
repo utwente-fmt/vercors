@@ -16,6 +16,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Post] = rewriteDefault(node)
   override def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
   override def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Post] = rewriteDefault(node)
+  override def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
   override def dispatch(node: LoopContract[Pre]): LoopContract[Post] = rewriteDefault(node)
 
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = rewriteDefault(parRegion)
@@ -23,12 +24,14 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: SignalsClause[Pre]): SignalsClause[Post] = rewriteDefault(node)
   override def dispatch(fieldFlag: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(fieldFlag)
   override def dispatch(iterVariable: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(iterVariable)
+  override def dispatch(location: Location[Pre]): Location[Post] = rewriteDefault(location)
 
   override def dispatch(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
   override def dispatch(cDeclSpec: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(cDeclSpec)
   override def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)
   override def dispatch(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
   override def dispatch(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
+  override def dispatch(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
 
   override def dispatch(cppDeclSpec: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(cppDeclSpec)
   override def dispatch(cppDecl: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(cppDecl)
