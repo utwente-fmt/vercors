@@ -82,6 +82,8 @@ jobs:
         with:
           path: |
             ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
             ~/.ivy2/cache
             ~/.sbt
           key: sbt-viper-${{ matrix.os }}-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
