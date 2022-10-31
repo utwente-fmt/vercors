@@ -41,6 +41,8 @@ object ColDefs {
     "ParInvariantDecl" -> q"parInvariantScopes",
     "CDeclaration" -> q"cLocalScopes",
     "CParam" -> q"cParams",
+    "CPPDeclaration" -> q"cppLocalScopes",
+    "CPPParam" -> q"cppParams",
     "JavaLocalDeclaration" -> q"javaLocalScopes",
   )
 

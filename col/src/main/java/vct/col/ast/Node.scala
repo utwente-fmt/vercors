@@ -1,5 +1,6 @@
 package vct.col.ast
 
+import vct.col.ast.langspecific.cpp._
 import vct.col.ast.temporaryimplpackage.`type`._
 import vct.col.ast.temporaryimplpackage.`type`.typeclass._
 import vct.col.ast.temporaryimplpackage.declaration._
@@ -701,6 +702,110 @@ final case class GpgpuCudaKernelInvocation[G](kernel: String, blocks: Expr[G], t
 
 sealed trait CType[G] extends Type[G] with CTypeImpl[G]
 final case class CPrimitiveType[G](specifiers: Seq[CDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CPrimitiveTypeImpl[G]
+
+
+
+/**********
+*** CPP ***
+***********/
+
+sealed trait CPPDeclarationSpecifier[G] extends NodeFamily[G] with CPPDeclarationSpecifierImpl[G]
+
+sealed trait CPPSpecificationModifier[G] extends CPPDeclarationSpecifier[G] with CPPSpecificationModifierImpl[G]
+final case class CPPPure[G]()(implicit val o: Origin) extends CPPSpecificationModifier[G] with CPPPureImpl[G]
+final case class CPPInline[G]()(implicit val o: Origin) extends CPPSpecificationModifier[G] with CPPInlineImpl[G]
+
+sealed trait CPPStorageClassSpecifier[G] extends CPPDeclarationSpecifier[G] with CPPStorageClassSpecifierImpl[G]
+final case class CPPExtern[G]()(implicit val o: Origin) extends CPPStorageClassSpecifier[G] with CPPExternImpl[G]
+final case class CPPTypedef[G]()(implicit val o: Origin) extends CPPStorageClassSpecifier[G] with CPPTypedefImpl[G]
+final case class CPPStatic[G]()(implicit val o: Origin) extends CPPStorageClassSpecifier[G] with CPPStaticImpl[G]
+
+sealed trait CPPTypeSpecifier[G] extends CPPDeclarationSpecifier[G] with CPPTypeSpecifierImpl[G]
+final case class CPPVoid[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPVoidImpl[G]
+final case class CPPChar[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPCharImpl[G]
+final case class CPPShort[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPShortImpl[G]
+final case class CPPInt[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPIntImpl[G]
+final case class CPPLong[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPLongImpl[G]
+final case class CPPFloat[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPFloatImpl[G]
+final case class CPPDouble[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPDoubleImpl[G]
+final case class CPPSigned[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSignedImpl[G]
+final case class CPPUnsigned[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPUnsignedImpl[G]
+final case class CPPBool[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPBoolImpl[G]
+final case class CPPTypedefName[G](name: String)(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPTypedefNameImpl[G] {
+  var ref: Option[CPPTypeNameTarget[G]] = None
+}
+final case class CPPSpecificationType[G](t: Type[G])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSpecificationTypeImpl[G]
+
+final case class CPPTypeQualifierDeclarationSpecifier[G](typeQual: CPPTypeQualifier[G])(implicit val o: Origin) extends CPPDeclarationSpecifier[G] with CPPTypeQualifierDeclarationSpecifierImpl[G]
+
+sealed trait CPPTypeQualifier[G] extends NodeFamily[G] with CPPTypeQualifierImpl[G]
+final case class CPPConst[G]()(implicit val o: Origin) extends CPPTypeQualifier[G] with CPPConstImpl[G]
+final case class CPPRestrict[G]()(implicit val o: Origin) extends CPPTypeQualifier[G] with CPPRestrictImpl[G]
+final case class CPPVolatile[G]()(implicit val o: Origin) extends CPPTypeQualifier[G] with CPPVolatileImpl[G]
+final case class CPPAtomic[G]()(implicit val o: Origin) extends CPPTypeQualifier[G] with CPPAtomicImpl[G]
+
+sealed trait CPPFunctionSpecifier[G] extends CPPDeclarationSpecifier[G] with CPPFunctionSpecifierImpl[G]
+sealed trait CPPAlignmentSpecifier[G] extends CPPDeclarationSpecifier[G] with CPPAlignmentSpecifierImpl[G]
+
+final case class CPPPointer[G](qualifiers: Seq[CPPTypeQualifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPPPointerImpl[G]
+
+final class CPPParam[G](val specifiers: Seq[CPPDeclarationSpecifier[G]], val declarator: CPPDeclarator[G])(implicit val o: Origin) extends Declaration[G] with CPPParamImpl[G]
+
+sealed trait CPPDeclarator[G] extends NodeFamily[G] with CPPDeclaratorImpl[G]
+final case class CPPPointerDeclarator[G](pointers: Seq[CPPPointer[G]], inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPPointerDeclaratorImpl[G]
+final case class CPPArrayDeclarator[G](qualifiers: Seq[CPPTypeQualifier[G]], size: Option[Expr[G]], inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPArrayDeclaratorImpl[G]
+final case class CPPTypedFunctionDeclarator[G](params: Seq[CPPParam[G]], varargs: Boolean, inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPTypedFunctionDeclaratorImpl[G]
+final case class CPPAnonymousFunctionDeclarator[G](params: Seq[String], inner: CPPDeclarator[G])(implicit val o: Origin) extends CPPDeclarator[G] with CPPAnonymousFunctionDeclaratorImpl[G]
+final case class CPPName[G](name: String)(implicit val o: Origin) extends CPPDeclarator[G] with CPPNameImpl[G]
+
+final case class CPPInit[G](decl: CPPDeclarator[G], init: Option[Expr[G]])(implicit val o: Origin) extends NodeFamily[G] with CPPInitImpl[G]
+
+final class CPPDeclaration[G](val contract: ApplicableContract[G], val kernelInvariant: Expr[G], val specs: Seq[CPPDeclarationSpecifier[G]], val inits: Seq[CPPInit[G]])(implicit val o: Origin) extends Declaration[G] with CPPDeclarationImpl[G]
+
+sealed trait CPPAbstractGlobalDeclaration[G] extends GlobalDeclaration[G] with CPPAbstractGlobalDeclarationImpl[G]
+
+// TODO ASK PB whether overriding specs here is okay or not, necesary or not or whatever or not.
+final class CPPFunction[G](override val specs: Seq[CPPDeclarationSpecifier[G]], val declarator: CPPDeclarator[G], val body: Statement[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends CPPDeclaration[G] with CPPFunctionDefinitionImpl[G]
+
+//final class CPPFunctionDefinition[G](valfunc: CPPFunction[G])(implicit val o: Origin) with CPPFunctionDefinitionImpl[G]
+
+final class CPPGlobalDeclaration[G](val decl: CPPDeclaration[G])(implicit val o: Origin) extends CPPAbstractGlobalDeclaration[G] with CPPGlobalDeclarationImpl[G]
+
+sealed trait CPPStatement[G] extends Statement[G] with CPPStatementImpl[G]
+final case class CPPDeclarationStatement[G](decl: CPPDeclaration[G])(implicit val o: Origin) extends CPPStatement[G] with CPPDeclarationStatementImpl[G]
+final case class CPPGoto[G](label: String)(implicit val o: Origin) extends CPPStatement[G] with CPPGotoImpl[G] {
+  var ref: Option[LabelDecl[G]] = None
+}
+
+sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
+final case class CPPLocal[G](name: String, namespace: Seq[String])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPLocalImpl[G] {
+  var ref: Option[CPPNameTarget[G]] = None
+}
+
+final case class CPPDeclarationExpr[G](decl: CPPDeclaration[G])(implicit val o: Origin) extends CPPExpr[G] with CPPDeclarationExprImpl[G]
+
+final case class CPPInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends CPPExpr[G] with CPPInvocationImpl[G] {
+  var ref: Option[CPPInvocationTarget[G]] = None
+}
+
+final case class CPPStructAccess[G](struct: Expr[G], field: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CPPExpr[G] with CPPStructAccessImpl[G] {
+  var ref: Option[CPPDerefTarget[G]] = None
+}
+
+final case class CPPStructDeref[G](struct: Expr[G], field: String)(implicit val o: Origin) extends CPPExpr[G] with CPPStructDerefImpl[G]
+
+final case class CPPBracedInitList[G](list: Seq[Expr[G]])(implicit val o: Origin) extends CPPExpr[G] with CPPBracedInitListImpl[G]
+
+
+sealed trait CPPType[G] extends Type[G] with CPPTypeImpl[G]
+final case class CPPPrimitiveType[G](specifiers: Seq[CPPDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPPrimitiveTypeImpl[G]
+
+/**********
+  *** CPP ***
+  ***********/
+
+
+
 
 final case class JavaName[G](names: Seq[String])(implicit val o: Origin) extends NodeFamily[G] with JavaNameImpl[G] {
   var ref: Option[JavaTypeNameTarget[G]] = None

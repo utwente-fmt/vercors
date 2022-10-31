@@ -35,6 +35,8 @@ antlrTask := {
 
         (lib / "LangCLexer.g4", false,
           Set(lib / "SpecLexer.g4", lib / "LangOMPLexer.g4")),
+        (lib / "LangCPPLexer.g4", false,
+          Set(lib / "SpecLexer.g4")),
         (lib / "LangJavaLexer.g4", false,
           Set(lib / "SpecLexer.g4")),
         (lib / "LangPVLLexer.g4", false,
@@ -47,6 +49,9 @@ antlrTask := {
               lib / "LangCParser.g4", lib / "LangCLexer.g4",
               lib / "LangOMPParser.g4", lib / "LangOMPLexer.g4",
               lib / "LangGPGPUParser.g4", lib / "LangGPGPULexer.g4")),
+        (src / "CPPParser.g4", true,
+          Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
+              lib / "LangCPPParser.g4", lib / "LangCPPLexer.g4")),
         (src / "JavaParser.g4", true,
           Set(lib / "SpecParser.g4", lib / "SpecLexer.g4",
               lib / "LangJavaParser.g4", lib / "LangJavaLexer.g4")),

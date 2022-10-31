@@ -5,9 +5,11 @@ import vct.col.origin.SourceNameOrigin
 
 case object Referrable {
   def from[G](decl: Declaration[G]): Seq[Referrable[G]] = Seq[Referrable[G]](decl match {
+    // What is Referrable
     case decl: CParam[G] => RefCParam(decl)
     case decl: CFunctionDefinition[G] => RefCFunctionDefinition(decl)
     case decl: CGlobalDeclaration[G] => return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
+    //TODO OS: Add cases for the CPP Nodes
     case decl: JavaNamespace[G] => RefJavaNamespace(decl)
     case decl: JavaClass[G] => RefJavaClass(decl)
     case decl: JavaInterface[G] => RefJavaClass(decl)
@@ -62,6 +64,7 @@ sealed trait Referrable[G] {
     case RefCFunctionDefinition(decl) => C.nameFromDeclarator(decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefCDeclaration(decls, initIdx) => C.nameFromDeclarator(decls.inits(initIdx).decl)
+    //TODO OS: Add cases for the CPP Nodes
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
     case RefJavaClass(decl) => decl.name
@@ -103,26 +106,31 @@ sealed trait Referrable[G] {
 }
 sealed trait JavaTypeNameTarget[G] extends Referrable[G] with JavaDerefTarget[G]
 sealed trait CTypeNameTarget[G] extends Referrable[G]
+sealed trait CPPTypeNameTarget[G] extends Referrable[G]
 sealed trait PVLTypeNameTarget[G] extends Referrable[G]
-sealed trait SpecTypeNameTarget[G] extends JavaTypeNameTarget[G] with CTypeNameTarget[G] with PVLTypeNameTarget[G]
+sealed trait SpecTypeNameTarget[G] extends JavaTypeNameTarget[G] with CTypeNameTarget[G] with PVLTypeNameTarget[G] with CPPTypeNameTarget[G]
 
 sealed trait JavaNameTarget[G] extends Referrable[G]
 sealed trait CNameTarget[G] extends Referrable[G]
+sealed trait CPPNameTarget[G] extends Referrable[G]
 sealed trait PVLNameTarget[G] extends Referrable[G]
-sealed trait SpecNameTarget[G] extends CNameTarget[G] with JavaNameTarget[G] with PVLNameTarget[G]
+sealed trait SpecNameTarget[G] extends CNameTarget[G] with JavaNameTarget[G] with PVLNameTarget[G] with CPPNameTarget[G]
 
 sealed trait CDerefTarget[G] extends Referrable[G]
+sealed trait CPPDerefTarget[G] extends Referrable[G]
 sealed trait JavaDerefTarget[G] extends Referrable[G]
 sealed trait PVLDerefTarget[G] extends Referrable[G]
-sealed trait SpecDerefTarget[G] extends CDerefTarget[G] with JavaDerefTarget[G] with PVLDerefTarget[G]
+sealed trait SpecDerefTarget[G] extends CDerefTarget[G] with JavaDerefTarget[G] with PVLDerefTarget[G] with CPPDerefTarget[G]
 
 sealed trait JavaInvocationTarget[G] extends Referrable[G]
 sealed trait CInvocationTarget[G] extends Referrable[G]
+sealed trait CPPInvocationTarget[G] extends Referrable[G]
 sealed trait PVLInvocationTarget[G] extends Referrable[G]
 sealed trait SpecInvocationTarget[G]
   extends JavaInvocationTarget[G]
     with CDerefTarget[G] with CInvocationTarget[G]
     with PVLInvocationTarget[G]
+    with CPPDerefTarget[G] with CPPInvocationTarget[G]
 
 sealed trait ThisTarget[G] extends Referrable[G]
 
@@ -135,6 +143,13 @@ case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[
 case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCGlobalDeclaration[G](decls: CGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
 case class RefCDeclaration[G](decls: CDeclaration[G], initIdx: Int) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G]
+
+case class RefCPPParam[G](decl: CPPParam[G]) extends Referrable[G] with CPPNameTarget[G]
+case class RefCPPFunctionDefinition[G](decl: CPPFunctionDefinition[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
+case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
+case class RefCPPDeclaration[G](decls: CPPDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G]
+
+
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]

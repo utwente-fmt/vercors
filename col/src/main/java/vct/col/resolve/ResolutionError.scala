@@ -25,6 +25,11 @@ case class AnonymousMethodsUnsupported(decl: CDeclarator[_]) extends ResolutionE
   override def code: String = "anonFunction"
 }
 
+case class AnonymousCPPMethodsUnsupported(decl: CPPDeclarator[_]) extends ResolutionError {
+  override def text: String = decl.o.messageInContext("Anonymous function declarations are not supported.")
+  override def code: String = "anonFunction"
+}
+
 case class HasNoFields(obj: Expr[_]) extends ResolutionError {
   override def text: String = obj.o.messageInContext("This object has no fields.")
   override def code: String = "hasNoFields"
