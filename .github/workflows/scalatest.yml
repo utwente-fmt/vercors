@@ -43,14 +43,12 @@ jobs:
         java-version: 11
         cache: sbt
     - name: Compile
-      run: sbt compile
-    - name: Make tarball of repository
-      run: tar -cf /tmp/all.tar --exclude=.git ~
+      run: sbt pushRemoteCache
     - name: Upload precompiled repository
       uses: actions/upload-artifact@v3
       with:
         name: precompiled-repository
-        path: /tmp/all.tar
+        path: tmp/vercors-build-cache
 
   ScalaTest:
     needs: "Compile"
@@ -73,8 +71,8 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: precompiled-repository
-      - name: Untar precompiled repository
-        run: tar -xf all.tar -C ~
+      - name: Pull cached compilation into sbt
+        run: sbt pullRemoteCache
 
       # Windows: LLVM/Clang
       - name: Cache LLVM and Clang (windows)
