@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest] # , windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         batch: ["-n MATRIX[0]", "-n MATRIX[1]", "-n MATRIX[2]", "-n MATRIX[3]", "-n MATRIX[4]", "-n MATRIX[5]", "-n MATRIX[6]", "-n MATRIX[7]", "-l MATRIX"]
 
     runs-on: ${{matrix.os}}
@@ -118,10 +118,53 @@ jobs:
 
       - name: Run scalatest for label ${{matrix.batch}}
         run: sbt "testOnly vct.* -- ${{matrix.batch}}"
-        continue-on-error: true
-      - name: Test Report
-        uses: dorny/test-reporter@v1
+
+      - name: Upload test reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
         with:
-          name: TestReport vct           # Name of the check run which will be created
-          path: '**/target/test-reports/TEST-*.xml'    # Path to test results
-          reporter: java-junit
+          name: test-report-${{ matrix.os }}-${{ matrix.batch }}
+          path: tmp/vercors-build-cache
+
+  GenerateTestReport:
+    runs-on: ubuntu-latest
+    needs: ScalaTest
+
+    steps:
+    - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
+    - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
+    - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
+    - {name: Download Test Report ubuntu-3, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[3]", path: reports/ubuntu-3 }}
+    - {name: Download Test Report ubuntu-4, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[4]", path: reports/ubuntu-4 }}
+    - {name: Download Test Report ubuntu-5, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[5]", path: reports/ubuntu-5 }}
+    - {name: Download Test Report ubuntu-6, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[6]", path: reports/ubuntu-6 }}
+    - {name: Download Test Report ubuntu-7, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[7]", path: reports/ubuntu-7 }}
+    - {name: Download Test Report ubuntu-x, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--l MATRIX", path: reports/ubuntu-x }}
+
+    - { name: Download Test Report windows-0, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[0]", path: reports/windows-0 } }
+    - { name: Download Test Report windows-1, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[1]", path: reports/windows-1 } }
+    - { name: Download Test Report windows-2, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[2]", path: reports/windows-2 } }
+    - { name: Download Test Report windows-3, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[3]", path: reports/windows-3 } }
+    - { name: Download Test Report windows-4, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[4]", path: reports/windows-4 } }
+    - { name: Download Test Report windows-5, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[5]", path: reports/windows-5 } }
+    - { name: Download Test Report windows-6, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[6]", path: reports/windows-6 } }
+    - { name: Download Test Report windows-7, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--n MATRIX[7]", path: reports/windows-7 } }
+    - { name: Download Test Report windows-x, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest--l MATRIX", path: reports/windows-x } }
+
+    - { name: Download Test Report macos-0, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[0]", path: reports/macos-0 } }
+    - { name: Download Test Report macos-1, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[1]", path: reports/macos-1 } }
+    - { name: Download Test Report macos-2, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[2]", path: reports/macos-2 } }
+    - { name: Download Test Report macos-3, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[3]", path: reports/macos-3 } }
+    - { name: Download Test Report macos-4, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[4]", path: reports/macos-4 } }
+    - { name: Download Test Report macos-5, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[5]", path: reports/macos-5 } }
+    - { name: Download Test Report macos-6, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[6]", path: reports/macos-6 } }
+    - { name: Download Test Report macos-7, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--n MATRIX[7]", path: reports/macos-7 } }
+    - { name: Download Test Report macos-x, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest--l MATRIX", path: reports/macos-x } }
+
+    - name: Test Report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: TestReport vct           # Name of the check run which will be created
+        path: 'reports/**/TEST-*.xml'    # Path to test results
+        reporter: java-junit
