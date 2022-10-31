@@ -42,7 +42,7 @@ jobs:
       with:
         java-version: 11
     - name: Cache SBT and Viper
-      uses: cache
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cache/coursier
@@ -78,7 +78,7 @@ jobs:
         with:
           java-version: 11
       - name: Cache SBT and Viper
-        uses: cache
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/coursier
