@@ -176,7 +176,7 @@ jobs:
       - name: Download precompiled repository
         uses: actions/download-artifact@v3
         with:
-          name: precompiled-repository-ubuntu-latest
+          name: precompiled-repository
           path: tmp/vercors-build-cache
       - name: Pull cached compilation into sbt
         run: sbt pullRemoteCache compile
