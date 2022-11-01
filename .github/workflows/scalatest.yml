@@ -217,6 +217,6 @@ jobs:
       uses: dorny/test-reporter@v1
       if: success() || failure()
       with:
-        name: TestReport vct           # Name of the check run which will be created
+        name: TestReport           # Name of the check run which will be created
         path: 'reports/**/TEST-*.xml'    # Path to test results
         reporter: java-junit

@@ -12,7 +12,7 @@ Created by Mohsen Safari.
 //Kernel
 ////////////////////////////////////////////////////////////////////////////////
 /*@
-context_everywhere N == opencl_gsize;
+context_everywhere N == blockDim.x;
 context \pointer_index(g_array1, \gtid, write);
 context \pointer_index(g_array2, \gtid, write);
 ensures g_array1[\gtid] <= \old(g_array1[\gtid]) && g_array1[\gtid] <= g_array2[\gtid];

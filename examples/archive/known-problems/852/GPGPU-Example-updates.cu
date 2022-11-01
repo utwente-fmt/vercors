@@ -73,7 +73,7 @@ int main(int argc, char** argv)
   /*@ ghost int contrib[N] = 0; @*/
 
   //Kernel launch
-  CUDAKernel<<< num_of_blocks, num_of_threads_per_block >>>(device_array, device_sum, N) /*@ with { contrib = contrib; } @*/;
+  CUDAKernel<<< num_of_blocks, num_of_threads_per_block >>>(device_array, device_sum, N) /*@ given { contrib = contrib } @*/;
 
   //Stop the Timer
   cudaEventRecord(end, 0);

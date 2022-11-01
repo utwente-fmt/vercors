@@ -4,7 +4,7 @@
 #include <opencl.h>
 
 /*@
-    context_everywhere opencl_gcount == 1;
+    context_everywhere get_global_size(0) == 1;
     context \pointer_index(a, \ltid*2, write);
     context \pointer_index(a, \ltid*2+1, write);
     context \pointer_index(b, \ltid, write);
