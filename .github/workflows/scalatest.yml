@@ -131,7 +131,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-report-${{ matrix.os }}-${{ matrix.batch }}
-          path: tmp/vercors-build-cache
+          path: '**/target/test-reports/TEST-*.xml'
 
   GenerateTestReport:
     runs-on: ubuntu-latest
@@ -141,7 +141,7 @@ jobs:
     steps:
     - name: Checkout VerCors
       uses: actions/checkout@v2
-      
+
     - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
     - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
     - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
