@@ -193,8 +193,8 @@ jobs:
 
   GenerateTestReport:
     runs-on: ubuntu-latest
-    if: ${{ always() }}
-    needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic]
+    if: ${{ always() && needs.SkipDuplicate.outputs.should_skip != 'true' }}
+    needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic, SkipDuplicate]
 
     steps:
     - name: Checkout VerCors
