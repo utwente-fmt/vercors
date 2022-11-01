@@ -3,7 +3,7 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalSpec extends VercorsSpec {
-  vercors should error withCode "?" in "constructor using `this`" pvl """
+  vercors should error withCode "resolutionError" in "constructor using `this`" pvl """
     class err {
       int x;
 
@@ -15,13 +15,13 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "resolutionError" in "example asserting read permission over argument" pvl """
+  vercors should error withCode "notALocation" in "example asserting read permission over argument" pvl """
     class C {}
     requires Value(arg);
     void main(C arg);
   """
 
-  vercors should error withCode "resolutionError" in "example asserting permission over argument" pvl """
+  vercors should error withCode "notALocation" in "example asserting permission over argument" pvl """
     class C {}
     requires Perm(arg, write);
     void main(C arg);
@@ -29,7 +29,7 @@ class TechnicalSpec extends VercorsSpec {
 
   vercors should verify using anyBackend in "example showing comparison of unrelated types" pvl """
     void test() {
-      /*[/expect failed]*/
+      /*[/expect assertFailed:false]*/
       assert 1 == false;
       /*[/end]*/
     }
@@ -44,7 +44,7 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "?" in "example unfolding abstract predicate" pvl """
+  vercors should error withCode "resolutionError" in "example unfolding abstract predicate" pvl """
     resource p();
 
     requires p();
@@ -53,15 +53,15 @@ class TechnicalSpec extends VercorsSpec {
     }
   """
 
-  vercors should error withCode "?" in "example unfolding abstract predicate inline" pvl """
+  vercors should error withCode "resolutionError" in "example unfolding abstract predicate inline" pvl """
     resource p();
 
     requires p();
-    pure int f() = \\unfolding p() \in 0;
+    pure int f() = \Unfolding p() \in 0;
   """
 
   vercors should verify using anyBackend in "example with incorrect boolean logic" pvl """
-    /*[/expect postFailed]*/
+    /*[/expect postFailed:false]*/
     requires false || true;
     ensures false && true;
     void m(){}
@@ -72,7 +72,7 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
-      /*[/expect postFailed]*/
+      /*[/expect postFailed:perm]*/
       // assumes nothing
       requires (\forall* int i; false ; (\forall* int j; 0 <= j && j < 1; Value(x)));
       // yet ensures something, should fail
@@ -87,7 +87,7 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
-      /*[/expect postFailed]*/
+      /*[/expect postFailed:perm]*/
       // assumes nothing
       requires (\forall* int i; false ; Value(x));
       // yet ensures something
@@ -102,34 +102,38 @@ class TechnicalSpec extends VercorsSpec {
     class rewriterIssue {
       int x;
 
+      /*[/expect postFailed:perm]*/
+
       // assumes nothing
       requires (\forall* int i; 0 <= i && i < -5 ; Perm(x,1/-5));
       // yet ensures something
       ensures Perm(x,1);
       void m(boolean y){
       }
-    }
-  """
 
-  vercors should verify using anyBackend in "example with vacuously quantified permission" pvl """
-    class rewriterIssue {
-      int x;
-
-      /*[/expect postFailed]*/
-      // assume sanity of the array, but no permissions
-      requires ar !=null && ar.length > 1;
-      requires  (\forall* int i; 0 <= i && i < -1;
-           (\forall* int j;0 <= j && j < -1;
-             (\forall* int k;0 <= k && k < 1;
-               Perm(ar[k * ( -1 * -1 ) + ( j * -1 + i) ],1) )));
-      // ensure a permission
-      ensures  Perm(ar[0],1);
-      // yet it passes
-      void m(int i,int[] ar){
-      }
       /*[/end]*/
     }
   """
+//  https://github.com/utwente-fmt/vercors/issues/815
+//  vercors should verify using anyBackend in "example with vacuously quantified permission" pvl """
+//    class rewriterIssue {
+//      int x;
+//
+//      /*[/expect postFailed:perm]*/
+//      // assume sanity of the array, but no permissions
+//      requires ar !=null && ar.length > 1;
+//      requires  (\forall* int i; 0 <= i && i < -1;
+//           (\forall* int j;0 <= j && j < -1;
+//             (\forall* int k;0 <= k && k < 1;
+//               Perm(ar[k * ( -1 * -1 ) + ( j * -1 + i) ], 1) )));
+//      // ensure a permission
+//      ensures  Perm(ar[0],1);
+//      // yet it passes
+//      void m(int i,int[] ar){
+//      }
+//      /*[/end]*/
+//    }
+//  """
 
   vercors should verify using anyBackend example "technical/keywords/allowed-c.c"
   vercors should verify using anyBackend example "technical/keywords/allowed-java.java"
@@ -173,7 +177,7 @@ class TechnicalSpec extends VercorsSpec {
 
     void test() {
       par T0 {
-        call given { p = 1 } ();
+        call() given { p = 1 };
       }
     }
   """
@@ -182,19 +186,19 @@ class TechnicalSpec extends VercorsSpec {
     int bar() { return 0; }
     int foo() { return 0; }
 
-    void action(int i) {
+    void act(int i) {
         return;
     }
 
     void test() {
       if(bar() == bar()) {
-          action(0);
+          act(0);
       } else if(bar() == foo()) {
-          action(1);
+          act(1);
       } else if(foo() == bar()) {
-          action(2);
+          act(2);
       } else {
-          action(3);
+          act(3);
       }
     }
   """
@@ -244,7 +248,7 @@ class TechnicalSpec extends VercorsSpec {
     requires Value(left.x) ** Value(right.x);
     void test(Test left, Test right) {
       if(left == right) {
-        /*[/expect failed]*/
+        /*[/expect assertFailed:false]*/
         assert false;
         /*[/end]*/
       }
@@ -257,7 +261,7 @@ class TechnicalSpec extends VercorsSpec {
     requires Value(left.t.t) ** Value(right.t.t);
     void test(Test left, Test right) {
       if(left == right) {
-        /*[/expect failed]*/
+        /*[/expect assertFailed:false]*/
         assert false;
         /*[/end]*/
       }
@@ -281,6 +285,45 @@ class TechnicalSpec extends VercorsSpec {
     requires [1\2]p() ** [1\2]p();
     void test() {
       assert perm(p()) == write;
+    }
+  """
+
+  vercors should verify using anyBackend in "example that shows given parameters clobber fields" java """
+    public class A {
+      int i;
+
+      public void main() {
+        B b = new B();
+
+        b.testA()/*@ given { a = 9 } @*/;
+        b.testI()/*@ given { i = 9 } @*/;
+      }
+    }
+
+    class B {
+      /*@
+        given int a;
+      @*/
+      public void testA() {
+      }
+
+      /*@
+        given int i;
+      @*/
+      public void testI() {
+      }
+    }
+  """
+
+  vercors should verify using anyBackend in "example that shows qualified names are equal types to their unqualified equivalent" java """
+    class QualifiedNames {
+      void foo() {
+          Exception e = new java.lang.Exception();
+      }
+
+      void bar () {
+          java.lang.Exception e = new Exception();
+      }
     }
   """
 }

@@ -1,11 +1,13 @@
 package vct.col.ast.expr.context
 
+import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{AmbiguousResult, Type}
+import vct.col.check.{CheckContext, CheckError, ResultOutsidePostcondition}
 import vct.col.err
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
 
-trait AmbiguousResultImpl[G] { this: AmbiguousResult[G] =>
+trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G] =>
   override def t: Type[G] = ref.getOrElse(
     throw err.ContextSensitiveNodeNotResolved(this, "'\\result' encountered, but its attached method is not resolved.")) match {
     case RefCFunctionDefinition(decl) =>
@@ -18,4 +20,8 @@ trait AmbiguousResultImpl[G] { this: AmbiguousResult[G] =>
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstanceMethod(decl) => decl.returnType
   }
+
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    if (context.inPostCondition) super.check(context)
+    else Seq(ResultOutsidePostcondition(this))
 }

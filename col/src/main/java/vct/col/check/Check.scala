@@ -65,7 +65,7 @@ case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
-case class ResultOutsidePostcondition(res: Result[_]) extends CheckError
+case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
 
 case class CheckContext[G]
 (

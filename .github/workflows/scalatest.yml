@@ -10,13 +10,14 @@ on:
     branches:
       - '**'
 jobs:
-  check_dupe:
+  SkipDuplicate:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
-      - id: skip_check
+      - name: Check for duplicate workflow run
+        id: skip_check
         uses: fkirc/skip-duplicate-actions@master
         with:
           # Never allow two runs of this workflow to exist
@@ -28,56 +29,194 @@ jobs:
           # Do not run on changes only to these files
           paths_ignore: '["**/README.md", "**/LICENSE*"]'
 
-  run-scalatest-vct:
-    needs: check_dupe
-    if: ${{ needs.check_dupe.outputs.should_skip != 'true' }}
+  ScalaTestWindowsBasic:
+    needs: SkipDuplicate
+    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
+    runs-on: windows-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-          - os: windows-latest
-          - os: macos-latest
-
-    runs-on: ${{matrix.os}}
-    environment: Default
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v1
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
+      - name: Install Java
+        uses: actions/setup-java@v1
         with:
           java-version: 11
-          cache: sbt
+      - name: Cache SBT and Viper
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
+          restore-keys: |
+            sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}
       - name: Compile
         run: sbt compile
-
-      # Windows: LLVM/Clang
       - name: Cache LLVM and Clang
-        if: matrix.os == 'windows-latest'
         id: cache-llvm
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/llvm
           key: llvm-10.0
       - name: Install LLVM and Clang
-        if: matrix.os == 'windows-latest'
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-
-      # MacOS: LLVM/Clang
-      - name: Install clang
-        if: matrix.os == 'macos-latest'
-        run: brew install llvm
-
-      - name: run scalatest
-        run: sbt "testOnly vct.*"
-        continue-on-error: true
-      - name: Test Report
-        uses: dorny/test-reporter@v1
+      - name: Run scalatest
+        run: sbt "testOnly vct.test.integration.examples.BasicExamplesSpec"
+      - name: Upload test reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
         with:
-          name: TestReport vct           # Name of the check run which will be created
-          path: '**/target/test-reports/TEST-*.xml'    # Path to test results
-          reporter: java-junit
+          name: test-report-windows-latest
+          path: '**/target/test-reports/TEST-*.xml'
+
+  ScalaTestMacOsBasic:
+    needs: SkipDuplicate
+    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+      - name: Cache SBT and Viper
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: sbt-viper-macos-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
+          restore-keys: |
+            sbt-viper-macos-latest-${{ hashFiles('project/build.properties') }}
+      - name: Compile
+        run: sbt compile
+      - name: Install clang
+        run: brew install llvm
+      - name: Run scalatest
+        run: sbt "testOnly vct.test.integration.examples.BasicExamplesSpec"
+      - name: Upload test reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-macos-latest
+          path: '**/target/test-reports/TEST-*.xml'
+
+  Compile:
+    needs: SkipDuplicate
+
+    runs-on: ubuntu-latest
+    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
+
+    steps:
+    - name: Checkout VerCors
+      uses: actions/checkout@v2
+    - name: Install Java
+      uses: actions/setup-java@v1
+      with:
+        java-version: 11
+    - name: Cache SBT and Viper
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/coursier
+          ~/AppData/Local/Coursier/Cache
+          ~/Library/Caches/Coursier
+          ~/.ivy2/cache
+          ~/.sbt
+        key: sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
+        restore-keys: |
+          sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}
+    - name: Compile
+      run: sbt pushRemoteCache
+    - name: Upload precompiled repository
+      uses: actions/upload-artifact@v3
+      with:
+        name: precompiled-repository
+        path: tmp/vercors-build-cache
+
+  ScalaTest:
+    needs: "Compile"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        batch: ["-n MATRIX[0]", "-n MATRIX[1]", "-n MATRIX[2]", "-n MATRIX[3]", "-n MATRIX[4]", "-n MATRIX[5]", "-n MATRIX[6]", "-n MATRIX[7]", "-l MATRIX"]
+
+    runs-on: ubuntu-latest
+    environment: Default
+    steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+      - name: Cache SBT and Viper
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
+            ~/.ivy2/cache
+            ~/.sbt
+          key: sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
+      - name: Download precompiled repository
+        uses: actions/download-artifact@v3
+        with:
+          name: precompiled-repository
+          path: tmp/vercors-build-cache
+      - name: Pull cached compilation into sbt
+        run: sbt pullRemoteCache compile
+
+      - name: Run scalatest for label ${{matrix.batch}}
+        run: sbt "testOnly vct.* -- ${{matrix.batch}}"
+
+      - name: Upload test reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-report-ubuntu-latest-${{ matrix.batch }}
+          path: '**/target/test-reports/TEST-*.xml'
+
+  GenerateTestReport:
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.SkipDuplicate.outputs.should_skip != 'true' }}
+    needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic, SkipDuplicate]
+
+    steps:
+    - name: Checkout VerCors
+      uses: actions/checkout@v2
+
+    - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
+    - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
+    - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
+    - {name: Download Test Report ubuntu-3, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[3]", path: reports/ubuntu-3 }}
+    - {name: Download Test Report ubuntu-4, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[4]", path: reports/ubuntu-4 }}
+    - {name: Download Test Report ubuntu-5, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[5]", path: reports/ubuntu-5 }}
+    - {name: Download Test Report ubuntu-6, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[6]", path: reports/ubuntu-6 }}
+    - {name: Download Test Report ubuntu-7, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[7]", path: reports/ubuntu-7 }}
+    - {name: Download Test Report ubuntu-x, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--l MATRIX", path: reports/ubuntu-x }}
+
+    - { name: Download Test Report windows, uses: actions/download-artifact@v3, with: { name: "test-report-windows-latest", path: reports/windows } }
+    - { name: Download Test Report macos, uses: actions/download-artifact@v3, with: { name: "test-report-macos-latest", path: reports/macos } }
+
+    - name: Test Report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: TestReport           # Name of the check run which will be created
+        path: 'reports/**/TEST-*.xml'    # Path to test results
+        reporter: java-junit

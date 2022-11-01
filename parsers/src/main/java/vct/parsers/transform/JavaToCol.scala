@@ -701,7 +701,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit expr: LiteralContext): Expr[G] = expr match {
-    case Literal0(i) => const(Integer.parseInt(i))
+    case Literal0(i) => const(BigInt(i))
     case Literal1(n) if n.length > 1 =>
       val (num, t) = n.last match {
         case 'f' | 'F' => (n.init, Java.float[G])

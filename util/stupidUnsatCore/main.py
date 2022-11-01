@@ -14,10 +14,10 @@ REMOVAL_STAGES = [[
 
 
 def result(path):
-    res = subprocess.run(["z3", "-smt2", path], capture_output=True)
+    res = subprocess.run(["z3", "-smt2", path, "trace=true", "proof=true"], capture_output=True)
     lines = res.stdout.decode('utf-8').strip().split("\n")
     lines = [line for line in lines if line != "success"]
-
+    # print(lines)
     if any(line.startswith("(error") for line in lines):
         return "ERROR"
     else:
@@ -113,8 +113,8 @@ for removals in REMOVAL_STAGES:
                     new_result = result(out_path)
 
                     if initial_result == new_result:
-                        print(f"[{len(commands) - 2}] Removing line {try_remove_i + 1}: {commands[try_remove_i]}")
-                        commands = commands[:try_remove_i] + commands[try_remove_i + 2:]
+                        print(f"[{len(commands) - 2}] Removing line {try_remove_i+1}, {try_remove_i+2}: {commands[try_remove_i]}, {commands[try_remove_i+1]}")
+                        commands = commands[:try_remove_i] + commands[try_remove_i+2:]
                         if try_remove_i < len(commands) - 1:
                             continue
 

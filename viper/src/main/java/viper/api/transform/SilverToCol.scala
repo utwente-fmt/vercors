@@ -5,6 +5,7 @@ import vct.col.origin._
 import vct.col.ref.UnresolvedRef
 import vct.col.util.AstBuildHelpers._
 import vct.col.{ast => col}
+import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError.UserError
 import viper.api.transform.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
 import viper.silver.ast.{AbstractSourcePosition, NoPosition}
@@ -49,23 +50,23 @@ case object SilverToCol {
       })
   }
 
-  def transform[G](diagnosticPath: Path, in: Either[Seq[AbstractError], silver.Program]): col.Program[G] =
+  def transform[G](diagnosticPath: Path, in: Either[Seq[AbstractError], silver.Program], blameProvider: BlameProvider): col.Program[G] =
     in match {
-      case Right(program) => SilverToCol(program).transform()
+      case Right(program) => SilverToCol(program, blameProvider).transform()
       case Left(errors) => throw SilverFrontendParseError(diagnosticPath, errors)
     }
 
-  def parse[G](path: Path): col.Program[G] =
-    transform(path, SilverParserDummyFrontend.parse(path))
+  def parse[G](path: Path, blameProvider: BlameProvider): col.Program[G] =
+    transform(path, SilverParserDummyFrontend.parse(path), blameProvider)
 
-  def parse[G](input: String, diagnosticPath: Path): col.Program[G] =
-    transform(diagnosticPath, SilverParserDummyFrontend.parse(input, diagnosticPath))
+  def parse[G](input: String, diagnosticPath: Path, blameProvider: BlameProvider): col.Program[G] =
+    transform(diagnosticPath, SilverParserDummyFrontend.parse(input, diagnosticPath), blameProvider)
 
-  def parse[G](readable: Readable): col.Program[G] =
-    transform(Paths.get(readable.fileName), SilverParserDummyFrontend.parse(readable))
+  def parse[G](readable: Readable, blameProvider: BlameProvider): col.Program[G] =
+    transform(Paths.get(readable.fileName), SilverParserDummyFrontend.parse(readable), blameProvider)
 }
 
-case class SilverToCol[G](program: silver.Program) {
+case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider) {
   def origin(node: silver.Positioned, sourceName: String = ""): Origin =
     if(sourceName.nonEmpty) SourceNameOrigin(sourceName, SilverPositionOrigin(node))
     else node match {
@@ -73,7 +74,18 @@ case class SilverToCol[G](program: silver.Program) {
       case _ => SilverPositionOrigin(node)
     }
 
-  def blame(node: silver.Positioned): Blame[VerificationFailure] = origin(node)
+  def blame(node: silver.Positioned): Blame[VerificationFailure] =
+    node.pos match {
+      case pos: AbstractSourcePosition => blameProvider(
+        pos.start.line - 1,
+        pos.end.map(_.line).getOrElse(pos.start.line) - 1,
+        Some((
+          pos.start.column - 1,
+          pos.end.map(_.column - 1).getOrElse(pos.start.column),
+        )),
+      )
+      case _ => blameProvider(0, 0, Some((0, 1)))
+    }
 
   def ??(node: silver.Node): Nothing =
     throw SilverNodeNotSupported(node)
@@ -218,10 +230,11 @@ case class SilverToCol[G](program: silver.Program) {
     case silver.Unfold(acc) =>
       col.Unfold(transform(acc))(blame(s))(origin(s))
     case silver.Seqn(ss, scopedDecls) =>
-      val vars = scopedDecls.map {
-        case decl @ silver.LocalVarDecl(_, typ) => new col.Variable(transform(typ))(origin(decl))
-        case other: silver.Node => ??(other)
-        case other: silver.Declaration => ???
+      val vars = scopedDecls.flatMap {
+        case decl @ silver.LocalVarDecl(_, typ) => Seq(new col.Variable(transform(typ))(origin(decl)))
+        case _: silver.Label => Nil // scoped by the method for us
+        case other: silver.Declaration with silver.Node => ??(other)
+        case _: silver.Declaration => ??? // unreachable
       }
       col.Scope(vars, col.Block(ss.map(transform))(origin(s)))(origin(s))
     case silver.If(cond, thn, els) =>
