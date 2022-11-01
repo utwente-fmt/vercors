@@ -30,8 +30,13 @@ jobs:
           paths_ignore: '["**/README.md", "**/LICENSE*"]'
 
   Compile:
-    runs-on: ubuntu-latest
     needs: SkipDuplicate
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
     if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
 
     steps:
@@ -46,17 +51,19 @@ jobs:
       with:
         path: |
           ~/.cache/coursier
+          ~/AppData/Local/Coursier/Cache
+          ~/Library/Caches/Coursier
           ~/.ivy2/cache
           ~/.sbt
-        key: sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
+        key: sbt-viper-${{ matrix.os }}-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
         restore-keys: |
-          sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}
+          sbt-viper-${{ matrix.os }}-${{ hashFiles('project/build.properties') }}
     - name: Compile
       run: sbt pushRemoteCache
     - name: Upload precompiled repository
       uses: actions/upload-artifact@v3
       with:
-        name: precompiled-repository
+        name: precompiled-repository-${{ matrix.os }}
         path: tmp/vercors-build-cache
 
   ScalaTest:
@@ -87,12 +94,10 @@ jobs:
             ~/.ivy2/cache
             ~/.sbt
           key: sbt-viper-${{ matrix.os }}-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
-          restore-keys: |
-            sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}
       - name: Download precompiled repository
         uses: actions/download-artifact@v3
         with:
-          name: precompiled-repository
+          name: precompiled-repository-${{ matrix.os }}
           path: tmp/vercors-build-cache
       - name: Pull cached compilation into sbt
         run: sbt pullRemoteCache compile
