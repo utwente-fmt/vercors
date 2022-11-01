@@ -139,6 +139,9 @@ jobs:
     needs: ScalaTest
 
     steps:
+    - name: Checkout VerCors
+      uses: actions/checkout@v2
+      
     - {name: Download Test Report ubuntu-0, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[0]", path: reports/ubuntu-0 }}
     - {name: Download Test Report ubuntu-1, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[1]", path: reports/ubuntu-1 }}
     - {name: Download Test Report ubuntu-2, uses: actions/download-artifact@v3, with: {name: "test-report-ubuntu-latest--n MATRIX[2]", path: reports/ubuntu-2 }}
