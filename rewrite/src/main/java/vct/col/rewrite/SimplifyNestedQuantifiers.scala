@@ -140,8 +140,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     if (e.bindings.exists(_.t != TInt())) return None
 
     // PB: do not attempt to reshape quantifiers that already have patterns
-    if (originalBody.exists { case _: InlinePattern[Pre] => true })
+    if (originalBody.exists { case _: InlinePattern[Pre] => true }) {
+      logger.debug(s"Not rewriting $e because it contains patterns")
       return None
+    }
 
     val quantifierData = new RewriteQuantifierData(originalBody, e, this)
     quantifierData.setData()

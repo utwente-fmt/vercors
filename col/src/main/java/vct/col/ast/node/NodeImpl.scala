@@ -87,7 +87,7 @@ trait NodeImpl[G] { this: Node[G] =>
     collect(f).headOption
 
   def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean =
-    collectFirst(f).getOrElse(true)
+    collectFirst(f).getOrElse(false)
 
   def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2]
                                (implicit witness: this.type <:< TNode[G])
