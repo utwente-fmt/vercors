@@ -80,6 +80,15 @@ trait NodeImpl[G] { this: Node[G] =>
       case None => subnodes.to(LazyList).flatMap(_.flatMap(f))
     }
 
+  def collect[T](f: PartialFunction[Node[G], T]): LazyList[T] =
+    transSubnodes.collect(f)
+
+  def collectFirst[T](f: PartialFunction[Node[G], T]): Option[T] =
+    collect(f).headOption
+
+  def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean =
+    collectFirst(f).getOrElse(true)
+
   def unsafeTransmuteGeneration[TNode[_] <: Node[_], G2]
                                (implicit witness: this.type <:< TNode[G])
                                : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
