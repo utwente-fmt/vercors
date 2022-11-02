@@ -3,6 +3,28 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalSpec extends VercorsSpec {
+  vercors should verify using silicon in "example using triggers" java """
+    class C {
+      Object[] arr;
+
+      C() {
+        int T = 5;
+        arr = new Object[T];
+        /*@
+          loop_invariant Value(arr) ** \array(arr, T);
+          loop_invariant Perm(arr[*], write);
+          loop_invariant 0 <= i && i <= T;
+          loop_invariant (\forall int j = 0 .. i; (\forall int k = 0 .. i; j != k ==> {:<:arr[j]:} != {:arr[k]:}));
+          loop_invariant (\forall int j, int k; 0 <= j && j < i && 0 <= k && k < i; j != k ==> {:arr[j]:} != {:arr[k]:});
+        @*/
+        for (int i = 0; i < T; i++) {
+          arr[i] = new Object();
+          //@ assume (\forall int j = 0 .. i; arr[j] != arr[i]);
+        }
+      }
+    }
+  """
+
   vercors should error withCode "resolutionError" in "constructor using `this`" pvl """
     class err {
       int x;
