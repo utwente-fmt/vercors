@@ -36,6 +36,8 @@ case class SingletonStarall[Pre <: Generation]() extends Rewriter[Pre] {
       expand(bindings, triggers, blame, conds :+ cond, res)
     case Select(cond, left, right) =>
       expand(bindings, triggers, blame, conds :+ cond, left) ++ expand(bindings, triggers, blame, conds :+ !cond, right)
+    case Starall(moreBindings, _, body) =>
+      expand(bindings ++ moreBindings, triggers, blame, conds, body)
     case other => throw UnknownStarallFormat(other)
   }
 

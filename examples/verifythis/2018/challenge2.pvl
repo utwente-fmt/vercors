@@ -120,7 +120,7 @@ class ColoredTiles {
     loop_invariant |res| == n;
     loop_invariant (\forall* int j;0<=j && j<i;Perm(count[j],write));
     loop_invariant (\forall int j;0<=j && j<n;|res[j]| == count[j]);
-    loop_invariant (\forall int z;0<=z && z<n;(\forall int y;0<=y && y <|res[z]|;validSequence(res[z][y],z))); // all sequences valid
+    loop_invariant (\forall int z=0..n, int y=0..|res[z]|; validSequence(res[z][y],z)); // all sequences valid
     loop_invariant (\forall int z;0<=z && z<n;unique(res[z])); // all sequences unique
     while(n<i){
       seq<seq <boolean>> last = seq<seq <boolean>> {};
