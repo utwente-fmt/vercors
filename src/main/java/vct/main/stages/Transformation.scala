@@ -221,6 +221,7 @@ case class SilverTransformation
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)
+    FinalizeArguments,
     ResolveScale,
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
