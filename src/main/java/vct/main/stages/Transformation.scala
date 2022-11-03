@@ -180,7 +180,6 @@ case class SilverTransformation
     ContinueToBreak,
     EncodeBreakReturn,
 
-    SplitQuantifiers,
     ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
     SimplifyNestedQuantifiers,
@@ -200,7 +199,6 @@ case class SilverTransformation
     CheckContractSatisfiability.withArg(checkSat),
 
     ResolveExpressionSideChecks,
-    RejoinQuantifiers,
 
     DesugarCollectionOperators,
 
