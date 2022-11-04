@@ -514,6 +514,8 @@ final case class ValidMatrix[G](mat: Expr[G], w: Expr[G], h: Expr[G])(implicit v
 final case class PermPointer[G](p: Expr[G], len: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermPointerImpl[G]
 final case class PermPointerIndex[G](p: Expr[G], idx: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermPointerIndexImpl[G]
 
+final case class InhaleExhaleAssertion[G](whenInhaling: Expr[G], whenExhaling: Expr[G])(implicit val o: Origin) extends Expr[G] with InhaleExhaleAssertionImpl[G]
+
 sealed trait Comparison[G] extends BinExpr[G] with ComparisonImpl[G]
 final case class Eq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Comparison[G] with EqImpl[G]
 final case class Neq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Comparison[G] with NeqImpl[G]

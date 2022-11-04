@@ -731,6 +731,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         FunctionOf(e, ref)
       case IndeterminateInteger(min, max) =>
         IndeterminateInteger(int(min), int(max))
+      case InhaleExhaleAssertion(whenInhaling, whenExhaling) =>
+        InhaleExhaleAssertion(res(whenInhaling), res(whenExhaling))
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
