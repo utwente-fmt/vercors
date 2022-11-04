@@ -1,6 +1,6 @@
 package vct.col.ast.family.location
 
-import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, InstancePredicateLocation, Location, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation, Type}
+import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, InstancePredicateLocation, Location, ModelLocation, ObligationLocation, PointerLocation, PredicateLocation, SilverFieldLocation, Type}
 
 trait LocationImpl[G] { this: Location[G] =>
   def t: Type[G] = {
@@ -12,6 +12,7 @@ trait LocationImpl[G] { this: Location[G] =>
       case PointerLocation(pointer) => pointer.t.asPointer.get.element
       case PredicateLocation(predicate, args) => ???
       case InstancePredicateLocation(predicate, obj, args) => ???
+      case ObligationLocation(obligation, args) => ???
       case AmbiguousLocation(expr) => expr.t
     } }
 }

@@ -222,6 +222,7 @@ final class Procedure[G](val returnType: Type[G],
 final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
                 val threadLocal: Boolean = false, val inline: Boolean = false)(implicit val o: Origin)
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
+final class Obligation[G](val args: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with ObligationImpl[G]
 
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
@@ -400,6 +401,7 @@ sealed trait Binder[G] extends Expr[G] with BinderImpl[G]
 final case class Forall[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForallImpl[G]
 final case class Starall[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(val blame: Blame[ReceiverNotInjective])(implicit val o: Origin) extends Binder[G] with StarallImpl[G]
 final case class Exists[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ExistsImpl[G]
+final case class ForPerm[G](bindings: Seq[Variable[G]], location: Location[G], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForPermImpl[G]
 final case class Sum[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with SumImpl[G]
 final case class Product[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with ProductImpl[G]
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with LetImpl[G]
@@ -496,6 +498,7 @@ final case class ArrayLocation[G](array: Expr[G], subscript: Expr[G])(val blame:
 final case class PointerLocation[G](pointer: Expr[G])(val blame: Blame[PointerLocationError])(implicit val o: Origin) extends Location[G] with PointerLocationImpl[G]
 final case class PredicateLocation[G](predicate: Ref[G, Predicate[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with PredicateLocationImpl[G]
 final case class InstancePredicateLocation[G](predicate: Ref[G, InstancePredicate[G]], obj: Expr[G], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with InstancePredicateLocationImpl[G]
+final case class ObligationLocation[G](obligation: Ref[G, Obligation[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Location[G] with ObligationLocationImpl[G]
 final case class AmbiguousLocation[G](expr: Expr[G])(val blame: Blame[PointerLocationError])(implicit val o: Origin) extends Location[G] with AmbiguousLocationImpl[G]
 
 

@@ -697,6 +697,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
+      case ForPerm(bindings, location, body) =>
+        ForPerm(bindings, location, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
@@ -1286,6 +1288,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
+      case decl: Obligation[Pre] =>
+        decl
     }
   }
 
