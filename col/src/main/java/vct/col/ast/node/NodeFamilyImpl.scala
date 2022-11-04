@@ -15,9 +15,8 @@ trait NodeFamilyImpl[G] extends NodeImpl[G] { this: NodeFamily[G] =>
       NopCoercingRewriter().coerceAny(this.asInstanceOf[NodeFamily[InitialGeneration]])
       Nil
     } catch {
-      case i @ CoercingRewriter.Incoercible(e, t) =>
-        val err = i
-        Seq(TypeError(e, t))
-      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, _ => m))
+      case CoercingRewriter.Incoercible(e, t) => Seq(TypeError(e, t))
+      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, m))
+      case CoercingRewriter.IncoercibleExplanation(e, m) => Seq(TypeErrorExplanation(e, m))
     }
 }
