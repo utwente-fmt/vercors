@@ -26,6 +26,7 @@ class Test {
   context_everywhere 0 < N && |workers| == N;
 
   context (\forall int i; 0 <= i && i < N; workers[i] != null);
+  context (∀ int i = 0..N, int j = i+1..N; workers[i] != workers[j]);
   context (\forall* int i; 0 <= i && i < N; Perm(workers[i].terminated, write) ** Perm(workers[i].value, write));
   context Perm(values, write) ** |values| == N;
   requires (\forall int i; 0 <= i && i < N; !workers[i].terminated); // initially none of the workers has terminated

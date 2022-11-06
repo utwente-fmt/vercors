@@ -1,7 +1,6 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases CounterState
-//:: tools chalice
-//:: options --explicit
+
 /**
   The command line to verify with the VerCors Tool is:
   
@@ -14,143 +13,135 @@ public class CounterState {
   public int val;
   
   /*@
-    resource state(frac p,int v)=Perm(val,p)**val==v;
+  resource state(frac p, int v) = Perm(val, p) ** val == v;
   @*/
  
   /*@
-    ensures res:state(100,v);
+  ensures state(write, v);
   @*/
   public CounterState(int v){
     val=v;
-    //@ fold res:state(100,v);
+    //@ fold state(write, v);
   }
 
   /*@
-    given int v;
-    requires req:state(100,v);
-    ensures  ens:state(100,v+1);
+  given int v;
+  requires state(write, v);
+  ensures state(write, v+1);
   @*/
   public void incr(){
-    //@ unfold req:state(100,v);
+    //@ unfold state(write, v);
     val = val + 1;
-    //@ fold ens:state(100,v+1);
+    //@ fold state(write, v+1);
   }
 
   /*@
     given int v;
-    requires (req:state(100,v)) ** n>=0;
-    ensures  ens:state(100,v+n);
+    requires (state(write,v)) ** n>=0;
+    ensures  state(write,v+n);
   @*/
   public void incr_loop(int n){
-    //@ unfold req:state(100,v);
+    //@ unfold state(write, v);
     int i=n;
-    //@ loop_invariant Perm(val,100) ** v+n==val+i ** i>=0;
+    //@ loop_invariant Perm(val,write) ** v+n==val+i ** i>=0;
     while(i>0){
       val=val+1;
       i = i-1;
     }
-    //@ fold ens:state(100,v+n);
+    //@ fold state(write,v+n);
   }
 
   /*@
     given int v;
-    requires (req:state(100,v)) ** n>=0;
-    ensures  ens:state(100,v+n);
+    requires (state(write,v)) ** n>=0;
+    ensures  state(write,v+n);
   @*/
   public void incr_loop_fold(int n){
     int i=0;
-    //@ loop_invariant inv:state(100,v+i);
+    //@ loop_invariant state(write,v+i);
     //@ loop_invariant i<=n;
     while(i<n)
-    //@ with { inv = req ; } then { ens = inv; } 
     {
-      //@ unfold inv:state(100,v+i);
+
+      //@ unfold state(write,v+i);
       val = val + 1;
       i = i+1;
-      //@ fold inv:state(100,v+i);
+      //@ fold state(write,v+i);
     }
   }
 
   /*@
     given int v;
-    requires (req:state(100,v)) ** n>=0;
-    ensures  ens:state(100,v+n);
+    requires (state(write,v)) ** n>=0;
+    ensures  state(write,v+n);
   @*/
   public void incr_loop_call(int n){
     int i=0;
-    //@ loop_invariant inv:state(100,v+i);
+    //@ loop_invariant state(write,v+i);
     //@ loop_invariant i<=n;
     while(i<n)
-    //@ with { inv = req ; } then { ens = inv; } 
     {
-      incr_call:incr/*@ v=v+i ; req=inv; */();
-      /*@ inv=incr_call.ens; */
+      incr() /*@ given { v=v+i } @*/;
       i = i+1;
     }
   }
 
   /*@
-    ensures  \result!=null ** ens:\result.state(100,v);
+    ensures  \result!=null ** \result.state(write,v);
   @*/
   public CounterState create(int v){
-    CounterState r=(new CounterState(v) /*@ with { ens = res ; } then { ens = res; } */);
+    CounterState r=(new CounterState(v));
     return r;
   }
 
   /*@
     given frac p;
     given int v;
-    requires req:state(p,v);
-    ensures  ens1:state(p,v);
-    ensures  \result!=null ** ens2:\result.state(100,v); 
+    requires state(p,v);
+    ensures  state(p,v);
+    ensures  \result!=null ** \result.state(write,v); 
   @*/
   public CounterState clone(){
-    //@ unfold req:state(p,v);
-    CounterState r=new CounterState(val) /*@ then { ens2 = res ; } */;
-    //@ fold ens1:state(p,v);
+    //@ unfold state(p,v);
+    CounterState r=new CounterState(val);
+    //@ fold state(p,v);
     return r;
   }
 
   /*@
     given frac p;
     given int v;
-    requires req:state(p,v);
+    requires state(p,v);
     ensures  \result==v;
   @*/
   public /*@ pure @*/ int get(){
-    //@ unfold req:state(p,v);
+    //@ unfold state(p,v);
     return val;
   }
   
   /*@
     given int v;
-    requires (req:state(100,v)) ** n>=0;
-    ensures  ens:state(100,v+n);
+    requires (state(write,v)) ** n>=0;
+    ensures  state(write,v+n);
   @*/
   public void incr_loop_get(int n){
-    //@ unfold req:state(100,v);
-    //@ witness c_res:state(*,*);
-    //@ int i=0;
+    //@ unfold state(write,v);
+    //@ ghost int i=0;
     CounterState c;
-    c=create(0)/*@ c_res = ens ; */;
-    //@ loop_invariant c!=null ** inv:c.state(100,i);
-    //@ loop_invariant c.get(p:100,v:i,req:inv)==i;
-    //@ loop_invariant c.get(p:100,v:i,req:inv)<=n;
-    //@ loop_invariant Perm(val,100);
-    //@ loop_invariant c.get(p:100,v:i,req:inv)+v==val;
-    while(c.get/*@ p=100; v=i; req=inv; */()<n)
-    //@ with { inv = c_res ; }
+    c=create(0);
+    //@ loop_invariant c!=null ** c.state(write,i);
+    //@ loop_invariant c.get() given {p=write, v=i} == i;
+    //@ loop_invariant c.get() given {p=write, v=i} <=n;
+    // (...) other pure usages of get
+    //@ loop_invariant Perm(val, write);
+    //@ loop_invariant c.get() given {p=write, v=i} + v == val;
+    while(c.get() /*@ given {p=write, v=i} @*/ < n)
     {
        val=val+1;
-       c.incr/*@ v=i; req=inv; */() /*@ then { inv = ens; } @*/;
-       //@ i = i + 1 ;
-       // this should have worked isntead of the then above ? @ inv = incr_call.ens ;
+       c.incr() /*@ given { v = i } @*/;
+       //@ ghost i = i + 1;
     }
-    //@ fold ens:state(100,v+n);
+    //@ fold state(write,v+n);
   }
 
 }
-
-
-
-

@@ -20,14 +20,16 @@ case object CoercingRewriter {
     override def text: String =
       "Internal type error: CoercionErrors must not bubble. " + (this match {
         case IncoercibleDummy => "(No alternative matched, see stack trace)"
-        case Incoercible(e, target) => s"Expression $e could not be coerced to $target"
-        case IncoercibleText(e, message) => s"Expression $e could not be coerced. $message."
+        case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
+        case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
+        case IncoercibleExplanation(e, message) => s"At `$e`: $message"
       })
   }
 
   case object IncoercibleDummy extends CoercionError
   case class Incoercible(e: Expr[_], target: Type[_]) extends CoercionError
-  case class IncoercibleText(e: Expr[_], message: String) extends CoercionError
+  case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
+  case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
 
   case class CoercionOrigin(of: Expr[_]) extends Origin {
     override def preferredName: String = "unknown"
@@ -271,9 +273,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def coerceYields(yields: Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])] =
     yields.map {
       case (Ref(target), Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
-        case None => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
+        case None => throw IncoercibleExplanation(blame, "The target for a yielded argument does not exactly match the yields type.")
         case Some(CoerceIdentity(_)) => (target.ref, yieldArg.ref)
-        case Some(_) => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
+        case Some(_) => throw IncoercibleExplanation(blame, "The target for a yielded argument does not exactly match the yields type.")
       }
     }
 
@@ -288,67 +290,67 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
     CoercionUtils.getAnyOptionCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected an option here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"option")
     }
   def tuple(e: Expr[Pre]): (Expr[Pre], TTuple[Pre]) =
     CoercionUtils.getAnyTupleCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a tuple here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"tuple")
     }
   def seq(e: Expr[Pre]): (Expr[Pre], TSeq[Pre]) =
     CoercionUtils.getAnySeqCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a sequence here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"sequence")
     }
   def set(e: Expr[Pre]): (Expr[Pre], TSet[Pre]) =
     CoercionUtils.getAnySetCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a set here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"set")
     }
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a bag here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"bag")
     }
   def map(e: Expr[Pre]): (Expr[Pre], TMap[Pre]) =
     CoercionUtils.getAnyMapCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a map here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"map")
     }
   def sized(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
     CoercionUtils.getAnySizedCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a collection type here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"collection type")
     }
   def array(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyArrayCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected an array here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"array")
     }
   def arrayMatrix(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyMatrixArrayCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a two-dimensional array here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"two-dimensional array")
     }
   def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a pointer here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"pointer")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a matrix here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"matrix")
     }
   def model(e: Expr[Pre]): (Expr[Pre], TModel[Pre]) =
     CoercionUtils.getAnyModelCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a model here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"model")
     }
   def either(e: Expr[Pre]): (Expr[Pre], TEither[Pre]) =
     CoercionUtils.getAnyEitherCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected an either here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"either")
     }
 
   def firstOkHelper[T](thing: Either[Seq[CoercionError], T], onError: => T): Either[Seq[CoercionError], T] =
@@ -792,7 +794,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (coercedRight, rightType) = map(right)
 
         if(leftType.key != rightType.key)
-          throw IncoercibleText(e, s"Expected both operands to have a map type of which the key type is equal, " +
+          throw IncoercibleExplanation(e, s"Expected both operands to have a map type of which the key type is equal, " +
             s"but got ${leftType.key} and ${rightType.key}")
 
         val sharedType = Types.leastCommonSuperType(leftType.value, rightType.value)
@@ -803,7 +805,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (coercedRight, rightType) = map(right)
 
         if(leftType.key != rightType.key)
-          throw IncoercibleText(e, s"Expected both operands to have a map type of which the key type is equal, " +
+          throw IncoercibleExplanation(e, s"Expected both operands to have a map type of which the key type is equal, " +
             s"but got ${leftType.key} and ${rightType.key}")
 
         val sharedType = Types.leastCommonSuperType(leftType.value, rightType.value)

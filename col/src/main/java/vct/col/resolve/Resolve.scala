@@ -85,8 +85,12 @@ case object ResolveReferences {
       case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
       case _ => false
     })
+
     val innerCtx = enterContext(node, ctx, inGPU)
-    val childErrors = node.subnodes.flatMap(resolve(_, innerCtx, inGPU))
+
+    val childErrors = node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
+      resolve(node, innerCtx.copy(checkContext = ctx), inGPU)
+    }).flatten
 
     if(childErrors.nonEmpty) childErrors
     else {
@@ -173,7 +177,7 @@ case object ResolveReferences {
     case declarator: Declarator[G] => ctx
       .declare(declarator.declarations)
     case _ => ctx
-  }).copy(checkContext=node.enterCheckContext(ctx.checkContext))
+  })
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local @ CLocal(name) =>

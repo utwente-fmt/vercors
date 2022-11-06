@@ -1,13 +1,9 @@
 adt `zfrac` {
   pure rational zfrac_val(`zfrac` f);
 
-  axiom
-    (\forall `zfrac` f; true;
-      (\forall `zfrac` g; true;
-        {:zfrac_val(f):} == {:zfrac_val(g):} ==> f == g));
+  axiom (\forall `zfrac` f, `zfrac` g; {:zfrac_val(f):} == {:zfrac_val(g):} ==> f == g);
 
-  axiom
-    (\forall `zfrac` f; true; none <= {:zfrac_val(f):} && zfrac_val(f) <= write);
+  axiom (\forall `zfrac` f; none <= {:zfrac_val(f):} && zfrac_val(f) <= write);
 }
 
 requires none <= p && p <= write;

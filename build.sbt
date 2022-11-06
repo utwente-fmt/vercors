@@ -6,6 +6,8 @@ ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 ThisBuild / fork := true
 
+ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
+
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
@@ -67,7 +69,6 @@ silicon_ref / packageDoc / publishArtifact := false
 ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
-
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
 lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
@@ -80,7 +81,7 @@ lazy val vercors: Project = (project in file("."))
   .settings(
     fork := true,
     name := "Vercors",
-    organization := "University of Twente",
+    organization := "nl.utwente",
     version := "2.0.0-alpha.8",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",

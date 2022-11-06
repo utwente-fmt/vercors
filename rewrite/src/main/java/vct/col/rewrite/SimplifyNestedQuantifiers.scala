@@ -68,8 +68,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           case None =>
             val res = rewriteDefault(e)
             res match {
-              case Starall(_, triggers, _) if triggers.isEmpty => logger.warn(f"The binder '$e' contains no triggers")
-              case Forall(_, triggers, _) if triggers.isEmpty => logger.warn(f"The binder '$e' contains no triggers")
+              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+                logger.warn(f"The binder `$e` contains no triggers")
+              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+                logger.warn(f"The binder `$e` contains no triggers")
               case _ =>
             }
             res
@@ -136,6 +138,12 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     }
 
     if (e.bindings.exists(_.t != TInt())) return None
+
+    // PB: do not attempt to reshape quantifiers that already have patterns
+    if (originalBody.exists { case _: InlinePattern[Pre] => true }) {
+      logger.debug(s"Not rewriting $e because it contains patterns")
+      return None
+    }
 
     val quantifierData = new RewriteQuantifierData(originalBody, e, this)
     quantifierData.setData()
@@ -440,7 +448,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       mainRewriter.variables.collect {linearAccesses.search(body)} match {
         case (bindings, Some(substituteForall)) =>
           if(bindings.size != 1){
-            Unreachable("Only one new variable should be declared with SimplifyNestedQuantifiers.")
+            throw Unreachable("Only one new variable should be declared with SimplifyNestedQuantifiers.")
           }
           val sub = ForallSubstitute(substituteForall.substituteOldVars)
           val newBody = sub.dispatch(body)
@@ -614,7 +622,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                     Plus(old, currentMultiplier.getOrElse(IntegerValue(1)))
                 }
               } else {
-                Unreachable("We should not end up here, the precondition of \'FindLinearArrayAccesses\' was not uphold.")
+                throw Unreachable("We should not end up here, the precondition of \'FindLinearArrayAccesses\' was not uphold.")
               }
             case _ =>
               isLinear = false

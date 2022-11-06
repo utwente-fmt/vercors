@@ -6,6 +6,7 @@
 class Ref {
   context_everywhere x != null;
   context_everywhere tcount >= 0;
+  requires (x.length == tcount);
   requires (\forall* int i; 0 <= i && i < tcount; Perm(x[i], write));
   ensures  (\forall* int i; 0 <= i && i < tcount; Perm(x[i], write) ** x[i]==0);
   void main(int tcount, int[tcount] x){

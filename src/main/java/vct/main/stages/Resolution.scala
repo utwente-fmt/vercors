@@ -65,7 +65,9 @@ case class Resolution[G <: Generation]
     val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
-      case some => throw TransformationCheckError(some)
+      // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The
+      // alternative is that we duplicate a lot of checks (e.g. properties of Local hold for PVLLocal, JavaLocal, etc.)
+      case some => throw InputResolutionError(some)
     }
 
     VerificationContext(resolvedProgram, in.expectedErrors)

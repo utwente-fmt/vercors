@@ -179,7 +179,6 @@ case class SilverTransformation
     ContinueToBreak,
     EncodeBreakReturn,
 
-    SplitQuantifiers,
     ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
     SimplifyNestedQuantifiers,
@@ -199,7 +198,6 @@ case class SilverTransformation
     CheckContractSatisfiability.withArg(checkSat),
 
     ResolveExpressionSideChecks,
-    RejoinQuantifiers,
 
     DesugarCollectionOperators,
 
@@ -226,11 +224,13 @@ case class SilverTransformation
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)
+    FinalizeArguments,
     ResolveScale,
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
     BranchToIfElse,
     EvaluationTargetDummy,
+    SingletonStarall,
 
     // Final translation to rigid silver nodes
     SilverIntRatCoercion,

@@ -41,6 +41,7 @@ case class ColToSilver(program: col.Program[_]) {
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
+  val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -247,6 +248,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.invariant = currentInvariant.topOption
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
+    result.mapGet = currentMapGet.topOption
     result
   }
 
@@ -383,7 +385,9 @@ case class ColToSilver(program: col.Program[_]) {
     case col.MapValueSet(m) => silver.MapRange(exp(m))(pos=pos(e), info=expInfo(e))
     case col.MapItemSet(m) => ???
     case col.MapRemove(m, k) => ???
-    case col.MapGet(m, k) => silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
+    case get @ col.MapGet(m, k) => currentMapGet.having(get) {
+      silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
+    }
 
     case other => ??(other)
   }

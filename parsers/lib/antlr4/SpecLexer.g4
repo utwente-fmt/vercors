@@ -114,6 +114,7 @@ VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';
 
 UNFOLDING: '\\unfolding';
+UNFOLDING_JAVA: '\\Unfolding';
 IN: '\\in';
 MEMBEROF: '\\memberof';
 CURRENT_THREAD: '\\current_thread';
