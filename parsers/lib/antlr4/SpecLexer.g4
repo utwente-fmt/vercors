@@ -102,6 +102,7 @@ VAL_APERM: 'APerm';
 VAL_ARRAYPERM: 'ArrayPerm';
 VAL_CONTRIBUTION: 'Contribution';
 VAL_HELD: 'held';
+VAL_COMMITTED: 'committed';
 VAL_HPERM: 'HPerm';
 VAL_IDLE: 'idle';
 VAL_PERM_VAL: 'perm';

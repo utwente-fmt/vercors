@@ -1093,6 +1093,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
     case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
   }

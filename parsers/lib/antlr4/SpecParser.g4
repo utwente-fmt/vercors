@@ -273,6 +273,7 @@ valPrimary
  | '\\typeof' '(' langExpr ')' # valTypeof
  | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
+ | 'committed' '(' langExpr ')' # valCommitted
  | LANG_ID_ESCAPE # valIdEscape
  | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
  ;
