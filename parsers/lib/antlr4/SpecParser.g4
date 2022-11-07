@@ -85,6 +85,7 @@ valStatement
  | 'spec_ignore' '{' # valSpecIgnoreEnd
  | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
  | 'atomic' '(' langId ')' langStatement # valAtomic
+ | 'commit' langExpr ';' # valCommit
  ;
 
 valActionImpl

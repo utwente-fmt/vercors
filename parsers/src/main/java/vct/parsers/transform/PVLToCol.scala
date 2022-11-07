@@ -762,6 +762,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       })
     case ValAtomic(_, _, invariant, _, body) =>
       ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
+    case ValCommit(_, obj, _) =>
+      Commit(convert(obj))(blame(stat))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {

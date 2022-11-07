@@ -95,6 +95,7 @@ VAL_CSL_SUBJECT: 'csl_subject';
 VAL_SPEC_IGNORE: 'spec_ignore';
 VAL_ACTION: 'action';
 VAL_ATOMIC: 'atomic';
+VAL_COMMIT: 'commit';
 
 VAL_REDUCIBLE: 'Reducible';
 VAL_ADDS_TO: 'AddsTo';

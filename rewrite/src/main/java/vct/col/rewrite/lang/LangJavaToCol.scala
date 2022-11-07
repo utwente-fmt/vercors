@@ -197,7 +197,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 fieldInit(res),
                 sharedInit(res),
                 rw.dispatch(cons.body),
-                Commit(res)(cons.blame),
                 Return(res),
               )))) },
               contract = rw.currentThis.having(result) { cons.contract.rewrite(

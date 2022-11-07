@@ -103,6 +103,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
       case Synchronized(obj, _) => needHeld(obj)
       case Held(obj) => needHeld(obj)
       case Committed(obj) => needHeld(obj)
+      case Commit(obj) => needHeld(obj)
       case _ =>
     }
 
