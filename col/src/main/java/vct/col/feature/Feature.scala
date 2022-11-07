@@ -25,6 +25,7 @@ case object DynamicallyTypedCollection extends Feature // PinCollectionTypes
 case object CurrentThread extends Feature // EncodeCurrentThread
 case object StarSubscript extends Feature // QuantifySubscriptAny
 case object AxiomaticLibraryType extends Feature // ImportADT
+case object SilverAxiomaticLibraryType extends Feature
 case object WildcardReadPermission extends Feature // supported
 case object SequenceRange extends Feature // supported
 case object BuiltinArrayOperators extends Feature // EncodeArrayValues
@@ -43,7 +44,7 @@ case object NonTrivialBranch extends Feature // BranchToIfElse
 case object NonWhileLoop extends Feature // ForLoopToWhileLoop
 case object IntrinsicLocks extends Feature // EncodeIntrinsicLock
 case object WaitNotify extends Feature // EncodeIntrinsicLock
-case object NonMethodInvocationEvaluation extends Feature // EvaluationTargetDummy
+case object Evaluation extends Feature // EvaluationTargetDummy
 case object ExceptionalLoopControl extends Feature // ContinueToBreak + EncodeBreakReturn
 case object NonTrivialLabel extends Feature // EncodeBreakReturn
 case object SwitchStatement extends Feature // SwitchToGoto
@@ -71,3 +72,24 @@ case object TermRewriteRules extends Feature // delay?
 case object Exponents extends Feature // delay?
 case object BitOperators extends Feature // delay?
 case object PermutationOperator extends Feature // delay?
+
+case object Coercions extends Feature
+case object AxiomaticDataTypes extends Feature
+case object SmtOperators extends Feature
+case object JavaSpecific extends Feature
+case object CSpecific extends Feature
+case object PvlSpecific extends Feature
+case object SilverSpecific extends Feature
+case object Contracts extends Feature
+case object BasicStatement extends Feature
+case object Assignment extends Feature
+case object Floats extends Feature
+case object Gotos extends Feature
+case object TerminationMeasure extends Feature
+case object Resources extends Feature
+case object ProofHelpers extends Feature
+case object SmtDeclarations extends Feature
+case object SmtTypes extends Feature
+case object Methods extends Feature
+case object WhileLoops extends Feature
+case object RootStructure extends Feature
