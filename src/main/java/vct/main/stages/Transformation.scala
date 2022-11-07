@@ -6,6 +6,7 @@ import hre.stages.Stage
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
+import vct.col.feature.Feature
 import vct.col.rewrite._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.adt._
@@ -114,6 +115,13 @@ class Transformation
       }
 
       result = PrettifyBlocks().dispatch(result)
+    }
+
+    for((feature, examples) <- Feature.examples(result)) {
+      logger.debug(f"$feature:")
+      for(example <- examples.take(3)) {
+        logger.debug(f"$example")
+      }
     }
 
     result
