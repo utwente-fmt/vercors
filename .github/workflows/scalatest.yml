@@ -1,39 +1,18 @@
 name: 'Run ScalaTest'
-# Only run the workflow when pushed to master, dev, or on pull requests.
-on: 
+on:
   push:
     branches:
       - '**'
-    tags-ignore: 
+    tags-ignore:
       - dev-prerelease
-  pull_request:
-    branches:
-      - '**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  SkipDuplicate:
-    runs-on: ubuntu-latest
-    # Map a step output to a job output
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - name: Check for duplicate workflow run
-        id: skip_check
-        uses: fkirc/skip-duplicate-actions@master
-        with:
-          # Never allow two runs of this workflow to exist
-          concurrent_skipping: 'always'
-          # Except, never skip a PR, scheduled, or manually dispatch run
-          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
-          # Skip if we can find a duplicate run with the same everything
-          skip_after_successful_duplicate: 'true'
-          # Do not run on changes only to these files
-          paths_ignore: '["**/README.md", "**/LICENSE*"]'
-
   ScalaTestWindowsBasic:
-    needs: SkipDuplicate
-    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
     runs-on: windows-latest
-
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v2
@@ -77,10 +56,7 @@ jobs:
           path: '**/target/test-reports/TEST-*.xml'
 
   ScalaTestMacOsBasic:
-    needs: SkipDuplicate
-    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
     runs-on: macos-latest
-
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v2
@@ -114,11 +90,7 @@ jobs:
           path: '**/target/test-reports/TEST-*.xml'
 
   Compile:
-    needs: SkipDuplicate
-
     runs-on: ubuntu-latest
-    if: ${{ needs.SkipDuplicate.outputs.should_skip != 'true' }}
-
     steps:
     - name: Checkout VerCors
       uses: actions/checkout@v2
@@ -193,8 +165,8 @@ jobs:
 
   GenerateTestReport:
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.SkipDuplicate.outputs.should_skip != 'true' }}
-    needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic, SkipDuplicate]
+    if: ${{ always() }}
+    needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic]
 
     steps:
     - name: Checkout VerCors
