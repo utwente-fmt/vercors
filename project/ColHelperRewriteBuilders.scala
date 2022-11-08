@@ -19,7 +19,7 @@ case class ColHelperRewriteBuilders(info: ColDescription) {
   def rewriteBuilder(cls: ClassDef): (String, List[Stat]) = cls.rewriteBuilderName.value -> List(q"""
     class ${cls.rewriteBuilderName}[Pre, Post](subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
       def build(): ${cls.typ}[Post] = {
-        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(subject.blame)", q"o.getOrElse(rewriter.dispatch(subject.o))")}
+        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(rewriter.dispatch(subject.blame))", q"o.getOrElse(rewriter.dispatch(subject.o))")}
       }
 
       var o: Option[Origin] = None

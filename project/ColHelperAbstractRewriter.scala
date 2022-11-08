@@ -46,6 +46,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       implicit val rewriter: AbstractRewriter[Pre, Post] = this
 
       def dispatch(o: Origin): Origin = o
+      def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = blame
 
       def dispatch(decl: Declaration[Pre]): Unit
 
