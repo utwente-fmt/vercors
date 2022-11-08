@@ -25,8 +25,8 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
 
   case class AssertPassedNontrivialUnsatisfiable(contract: ApplicableContract[_]) extends Blame[ExpectedErrorFailure] {
     override def blame(error: ExpectedErrorFailure): Unit = error match {
-      case err: ExpectedErrorTrippedTwice =>
-        PanicBlame("A single assert cannot trip twice").blame(err)
+      case _: ExpectedErrorTrippedTwice =>
+        // Ignore: Carbon may report the assert failed, even when the contract is not well-formed.
       case ExpectedErrorNotTripped(_) =>
         contract.blame.blame(NontrivialUnsatisfiable(contract))
     }

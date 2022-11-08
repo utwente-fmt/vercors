@@ -6,8 +6,8 @@ class ArrayExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/arrays/array-example.pvl"
 
   // https://github.com/utwente-fmt/vercors/issues/815
-  // vercors should verify using silicon example "concepts/arrays/fibSearch.java"
   // vercors should verify using silicon example "concepts/arrays/JavaArrayExamples.java"
+  vercors should verify using silicon example "concepts/arrays/fibSearch.java"
 
   // https://github.com/utwente-fmt/vercors/issues/791
   // vercors should verify using silicon example "concepts/arrays/Transpose.pvl"

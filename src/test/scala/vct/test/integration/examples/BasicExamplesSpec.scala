@@ -31,14 +31,12 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should error withCode "curThreadScope" example "concepts/basic/pure.pvl"
   vercors should verify using anyBackend example "concepts/basic/pvl-array.pvl"
   vercors should error withCode "notALocation" example "concepts/basic/seq-immutable.pvl"
-  // https://github.com/utwente-fmt/vercors/issues/469
-  // vercors should verify using anyBackend example "concepts/basic/seq-item-access.pvl"
+  vercors should verify using anyBackend example "concepts/basic/seq-item-access.pvl"
   vercors should verify using anyBackend example "concepts/basic/seq-length.pvl"
   vercors should verify using anyBackend example "concepts/basic/seq-seq-length.pvl"
   vercors should verify using anyBackend example "concepts/basic/sumints.pvl"
   vercors should verify using anyBackend example "concepts/basic/TernaryOperator.java"
-  // https://github.com/utwente-fmt/vercors/issues/393
-  // vercors should verify using anyBackend example "concepts/basic/test-1.c"
+  vercors should verify using anyBackend example "concepts/basic/test-1.c"
   // https://github.com/utwente-fmt/vercors/issues/769
   // vercors should verify using anyBackend example "concepts/basic/test-scale.java"
   // PB TODO: add equivalent of --dev-no-sat
@@ -53,9 +51,8 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/induction-problem.pvl"
   vercors should verify using anyBackend example "concepts/basic/induction-lemma.pvl"
   vercors should verify using anyBackend example "concepts/basic/option.pvl"
-  // https://github.com/utwente-fmt/vercors/issues/393
-  // vercors should verify using anyBackend example "concepts/basic/BoogieExampleFail.java"
-  // vercors should verify using anyBackend example "concepts/basic/BoogieTestFail.java"
+  vercors should verify using anyBackend example "concepts/basic/BoogieExampleFail.java"
+  vercors should verify using anyBackend example "concepts/basic/BoogieTestFail.java"
   vercors should verify using anyBackend example "concepts/basic/BoogieExamplePass.java"
   vercors should verify using anyBackend example "concepts/basic/BoogieTest.java"
   vercors should verify using anyBackend example "concepts/basic/LoopInvFail.java"
