@@ -12,6 +12,7 @@ class OwickiGries {
     commit this;
   }
 
+  requires committed(this);
   void main(){
     Worker w1=new Worker(this);
     Worker w2=new Worker(this);

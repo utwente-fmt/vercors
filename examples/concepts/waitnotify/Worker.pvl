@@ -18,8 +18,8 @@ class Worker {
     int tmp;
     int i=0;
     loop_invariant 0 <= i && i <= 4;
-    loop_invariant Value(q1) ** q1!=null;
-    loop_invariant Value(q2) ** q2!=null;
+    loop_invariant Value(q1) ** q1!=null ** committed(q1);
+    loop_invariant Value(q2) ** q2!=null ** committed(q2);
     while(i<4){
       tmp=q1.take();
       tmp=tmp+2;

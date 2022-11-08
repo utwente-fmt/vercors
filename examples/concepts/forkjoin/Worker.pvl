@@ -8,9 +8,7 @@ class Worker {
     store=og;
   }
   
-  requires Value(store);
-  requires committed(store);
-  ensures Value(store);
+  context Value(store) ** store != null ** committed(store);
   run {
     lock store;
     store.x=store.x+1;
