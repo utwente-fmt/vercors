@@ -53,6 +53,7 @@ class FeatureRainbow[G] {
     case node: CLocalDeclaration[G] => CSpecific
     case node: CLong[G] => CSpecific
     case node: CName[G] => CSpecific
+    case node: Committed[G] => IntrinsicLocks
     case node: Concat[G] => SilverAxiomaticLibraryType
     case node: CParam[G] => CSpecific
     case node: CPointer[G] => return Seq(CSpecific, Pointers)

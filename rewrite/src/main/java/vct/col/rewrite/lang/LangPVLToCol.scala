@@ -30,7 +30,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       body = rw.currentThis.having(resVar.get) { cons.body.map(body => Scope(Seq(resVar), Block(Seq(
         assignLocal(resVar.get, NewObject[Post](rw.succ(rw.currentClass.top))),
         rw.dispatch(body),
-        Commit(resVar.get)(cons.blame),
         Return(resVar.get),
       )))) },
       contract = rw.currentThis.having(result) { cons.contract.rewrite(

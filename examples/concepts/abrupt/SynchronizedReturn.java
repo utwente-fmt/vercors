@@ -16,10 +16,12 @@ clean-up code should fail in the normal case, but if the goto-oblivious encoding
 class C {
     int f;
 
+    //@ ensures committed(this);
     C() {
-
+        //@ commit this;
     }
 
+    //@ requires committed(this);
     synchronized void m() {
         n();
         return;
