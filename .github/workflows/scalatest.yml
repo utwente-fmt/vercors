@@ -165,7 +165,7 @@ jobs:
 
   GenerateTestReport:
     runs-on: ubuntu-latest
-    if: ${{ always() }}
+    if: ${{ success() || failure() }}
     needs: [ScalaTest, ScalaTestWindowsBasic, ScalaTestMacOsBasic]
 
     steps:
