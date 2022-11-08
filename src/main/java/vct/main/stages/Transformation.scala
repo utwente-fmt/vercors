@@ -119,9 +119,9 @@ class Transformation
 
     for((feature, examples) <- Feature.examples(result)) {
       logger.debug(f"$feature:")
-      for(example <- examples.take(3)) {
-        logger.debug(f"$example")
-      }
+//      for(example <- examples.take(3)) {
+//        logger.debug(f"$example")
+//      }
     }
 
     result

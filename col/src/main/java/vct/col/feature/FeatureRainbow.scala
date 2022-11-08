@@ -11,6 +11,8 @@ class FeatureRainbow[G] {
   val features: mutable.Set[Feature] = mutable.Set()
   val examples: mutable.Map[Feature, ArrayBuffer[Node[G]]] = mutable.Map()
 
+  private var returnTypes: Seq[Type[G]] = Nil
+
   def scan(node: Node[G]): Unit =
     node.transSubnodes.foreach(node => scanFlatly(node).foreach(f => {
       features += f
@@ -18,242 +20,6 @@ class FeatureRainbow[G] {
     }))
 
   def scanFlatly(node: Node[G]): Seq[Feature] = Seq(node match {
-    case node: And[G] => SmtOperators
-    case node: ApplicableContract[G] => Contracts
-    case node: Assert[G] => BasicStatement
-    case node: Assign[G] => Assignment
-    case node: Assume[G] => BasicStatement
-    case node: AxiomaticDataType[G] => AxiomaticDataTypes
-    case node: BagAdd[G] => SilverAxiomaticLibraryType
-    case node: BagLargestCommon[G] => SilverAxiomaticLibraryType
-    case node: BagMemberCount[G] => SilverAxiomaticLibraryType
-    case node: BagMinus[G] => SilverAxiomaticLibraryType
-    case node: Block[G] => BasicStatement
-    case node: BooleanValue[G] => SmtOperators
-    case node: CAnonymousFunctionDeclarator[G] => CSpecific
-    case node: CArrayDeclarator[G] => CSpecific
-    case node: CastFloat[G] => Floats
-    case node: CatchClause[G] => TryCatchStatement
-    case node: CAtomic[G] => CSpecific
-    case node: CBool[G] => CSpecific
-    case node: CCast[G] => return Seq(CSpecific, TypeValuesAndGenerics)
-    case node: CChar[G] => return Seq(CSpecific, TextTypes)
-    case node: CConst[G] => CSpecific
-    case node: CDeclaration[G] => CSpecific
-    case node: CDeclarationStatement[G] => return Seq(CSpecific, UnscopedDeclaration)
-    case node: CExtern[G] => CSpecific
-    case node: CFunctionDefinition[G] => CSpecific
-    case node: CGlobalDeclaration[G] => CSpecific
-    case node: CGoto[G] => return Seq(CSpecific, Gotos)
-    case node: CInit[G] => CSpecific
-    case node: CInline[G] => CSpecific
-    case node: CInt[G] => CSpecific
-    case node: CInvocation[G] => CSpecific
-    case node: CLocal[G] => CSpecific
-    case node: CLocalDeclaration[G] => CSpecific
-    case node: CLong[G] => CSpecific
-    case node: CName[G] => CSpecific
-    case node: Committed[G] => IntrinsicLocks
-    case node: Concat[G] => SilverAxiomaticLibraryType
-    case node: CParam[G] => CSpecific
-    case node: CPointer[G] => return Seq(CSpecific, Pointers)
-    case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
-    case node: CPrimitiveType[G] => CSpecific
-    case node: CPure[G] => CSpecific
-    case node: CRestrict[G] => CSpecific
-    case node: CShort[G] => CSpecific
-    case node: CSigned[G] => CSpecific
-    case node: CSpecificationType[G] => CSpecific
-    case node: CStatic[G] => CSpecific
-    case node: CStructAccess[G] => CSpecific
-    case node: CStructDeref[G] => CSpecific
-    case node: CTCudaVec[G] => CSpecific
-    case node: CTranslationUnit[G] => CSpecific
-    case node: CTypedef[G] => CSpecific
-    case node: CTypedefName[G] => CSpecific
-    case node: CTypedFunctionDeclarator[G] => CSpecific
-    case node: CTypeQualifierDeclarationSpecifier[G] => CSpecific
-    case node: CUDAKernel[G] => CSpecific
-    case node: CUnsigned[G] => CSpecific
-    case node: CurPerm[G] => Resources
-    case node: CVoid[G] => CSpecific
-    case node: CVolatile[G] => CSpecific
-    case node: DecreasesClauseAssume[G] => TerminationMeasure
-    case node: DecreasesClauseNoRecursion[G] => TerminationMeasure
-    case node: DecreasesClauseTuple[G] => TerminationMeasure
-    case node: Div[G] => SmtOperators
-    case node: Drop[G] => SilverAxiomaticLibraryType
-    case node: Eq[G] => SmtOperators
-    case node: Exists[G] => SmtOperators
-    case node: Exhale[G] => Resources
-    case node: FieldLocation[G] => Resources
-    case node: Final[G] => FinalField
-    case node: FloatValue[G] => Floats
-    case node: FloorDiv[G] => SmtOperators
-    case node: Fold[G] => Resources
-    case node: Forall[G] => SmtOperators
-    case node: FramedProof[G] => ProofHelpers
-    case node: FunctionInvocation[G] => SmtDeclarations
-    case node: GlobalThreadId[G] => CSpecific
-    case node: Goto[G] => Gotos
-    case node: GpgpuAtomic[G] => CSpecific
-    case node: GpgpuBarrier[G] => CSpecific
-    case node: GpgpuCudaKernelInvocation[G] => CSpecific
-    case node: GPUGlobal[G] => CSpecific
-    case node: GpuGlobalMemoryFence[G] => CSpecific
-    case node: GPULocal[G] => CSpecific
-    case node: GpuLocalMemoryFence[G] => CSpecific
-    case node: GpuZeroMemoryFence[G] => CSpecific
-    case node: Greater[G] => SmtOperators
-    case node: GreaterEq[G] => SmtOperators
-    case node: Havoc[G] => Assignment
-    case node: Implies[G] => SmtOperators
-    case node: IndeterminateInteger[G] => ProofHelpers
-    case node: Inhale[G] => Resources
-    case node: IntegerValue[G] => SmtOperators
-    case node: InvokeMethod[G] => Classes
-    case node: InvokeProcedure[G] => Methods
-    case node: IterVariable[G] => ParallelRegion
-    case node: JavaAbstract[G] => JavaSpecific
-    case node: JavaAnnotation[G] => JavaSpecific
-    case node: JavaAnnotationInterface[G] => JavaSpecific
-    case node: JavaAnnotationMethod[G] => JavaSpecific
-    case node: JavaClass[G] => JavaSpecific
-    case node: JavaConstructor[G] => JavaSpecific
-    case node: JavaDeref[G] => JavaSpecific
-    case node: JavaFields[G] => JavaSpecific
-    case node: JavaFinal[G] => JavaSpecific
-    case node: JavaImport[G] => JavaSpecific
-    case node: JavaInline[G] => JavaSpecific
-    case node: JavaInterface[G] => JavaSpecific
-    case node: JavaInvocation[G] => JavaSpecific
-    case node: JavaLiteralArray[G] => JavaSpecific
-    case node: JavaLocal[G] => JavaSpecific
-    case node: JavaLocalDeclaration[G] => JavaSpecific
-    case node: JavaLocalDeclarationStatement[G] => JavaSpecific
-    case node: JavaMethod[G] => JavaSpecific
-    case node: JavaName[G] => JavaSpecific
-    case node: JavaNamedType[G] => JavaSpecific
-    case node: JavaNamespace[G] => JavaSpecific
-    case node: JavaNative[G] => JavaSpecific
-    case node: JavaNewClass[G] => JavaSpecific
-    case node: JavaNewDefaultArray[G] => JavaSpecific
-    case node: JavaNewLiteralArray[G] => JavaSpecific
-    case node: JavaPrivate[G] => JavaSpecific
-    case node: JavaProtected[G] => JavaSpecific
-    case node: JavaPublic[G] => JavaSpecific
-    case node: JavaPure[G] => JavaSpecific
-    case node: JavaSharedInitialization[G] => JavaSpecific
-    case node: JavaStatic[G] => JavaSpecific
-    case node: JavaStrictFP[G] => JavaSpecific
-    case node: JavaSynchronized[G] => JavaSpecific
-    case node: JavaTClass[G] => JavaSpecific
-    case node: JavaTransient[G] => JavaSpecific
-    case node: JavaVariableDeclaration[G] => JavaSpecific
-    case node: JavaVolatile[G] => JavaSpecific
-    case node: LabelDecl[G] => Gotos
-    case node: Less[G] => SmtOperators
-    case node: LessEq[G] => SmtOperators
-    case node: Let[G] => SmtOperators
-    case node: LiteralBag[G] => SilverAxiomaticLibraryType
-    case node: LiteralSeq[G] => SilverAxiomaticLibraryType
-    case node: LiteralSet[G] => SilverAxiomaticLibraryType
-    case node: Local[G] => SmtOperators
-    case node: LocalThreadId[G] => CSpecific
-    case node: LoopInvariant[G] => Contracts
-    case node: MethodInvocation[G] => Methods
-    case node: Minus[G] => SmtOperators
-    case node: Mod[G] => SmtOperators
-    case node: Mult[G] => SmtOperators
-    case node: Neq[G] => SmtOperators
-    case node: NoPerm[G] => SmtOperators
-    case node: Not[G] => SmtOperators
-    case node: Null[G] => Resources
-    case node: Old[G] => Resources
-    case node: OpenCLKernel[G] => CSpecific
-    case node: OptEmpty[G] => AxiomaticLibraryType
-    case node: OptNoneTyped[G] => AxiomaticLibraryType
-    case node: OptSomeTyped[G] => AxiomaticLibraryType
-    case node: Or[G] => SmtOperators
-    case node: ParSequential[G] => ParallelRegion
-    case node: Perm[G] => Resources
-    case node: Plus[G] => SmtOperators
-    case node: PredicateApply[G] => Resources
-    case node: PredicateLocation[G] => Resources
-    case node: ProcedureInvocation[G] => Methods
-    case node: Program[G] => RootStructure
-    case node: PVLConstructor[G] => PvlSpecific
-    case node: PVLDeref[G] => PvlSpecific
-    case node: PVLInvocation[G] => PvlSpecific
-    case node: PVLLocal[G] => PvlSpecific
-    case node: PVLNamedType[G] => PvlSpecific
-    case node: PVLNew[G] => PvlSpecific
-    case node: Refute[G] => ProofHelpers
-    case node: Result[G] => return scanFlatly(node.applicable.decl)
-    case node: Scale[G] => Resources
-    case node: Scope[G] => BasicStatement
-    case node: ScopedExpr[G] => ExpressionWithSideEffects
-    case node: Select[G] => SmtOperators
-    case node: SeqMember[G] => SilverAxiomaticLibraryType
-    case node: SeqSubscript[G] => SilverAxiomaticLibraryType
-    case node: SeqUpdate[G] => SilverAxiomaticLibraryType
-    case node: SetIntersection[G] => SilverAxiomaticLibraryType
-    case node: SetMember[G] => SilverAxiomaticLibraryType
-    case node: SetMinus[G] => SilverAxiomaticLibraryType
-    case node: SetUnion[G] => SilverAxiomaticLibraryType
-    case node: SharedMemSize[G] => CSpecific
-    case node: SilverBagSize[G] => SilverAxiomaticLibraryType
-    case node: SilverCurFieldPerm[G] => Resources
-    case node: SilverCurPredPerm[G] => Resources
-    case node: SilverDeref[G] => Resources
-    case node: SilverField[G] => Resources
-    case node: SilverFieldAssign[G] => Resources
-    case node: SilverFieldLocation[G] => Resources
-    case node: SilverIntToRat[G] => SmtOperators
-    case node: SilverLocalAssign[G] => Assignment
-    case node: SilverMapSize[G] => SilverAxiomaticLibraryType
-    case node: SilverNewRef[G] => return Seq(Assignment, Resources)
-    case node: SilverNull[G] => Resources
-    case node: SilverPartialADTFunctionInvocation[G] => SilverSpecific
-    case node: SilverPartialTAxiomatic[G] => SilverSpecific
-    case node: SilverSeqSize[G] => SilverAxiomaticLibraryType
-    case node: SilverSetSize[G] => SilverAxiomaticLibraryType
-    case node: SilverUntypedNonemptyLiteralMap[G] => SilverSpecific
-    case node: Size[G] => SilverAxiomaticLibraryType
-    case node: SplitAccountedPredicate[G] => Contracts
-    case node: Star[G] => Resources
-    case node: Starall[G] => Resources
-    case node: SubBag[G] => SilverAxiomaticLibraryType
-    case node: SubSet[G] => SilverAxiomaticLibraryType
-    case node: Take[G] => SilverAxiomaticLibraryType
-    case node: TAnyClass[G] => Classes
-    case node: TAxiomatic[G] => AxiomaticDataTypes
-    case node: TBag[G] => SilverAxiomaticLibraryType
-    case node: TBool[G] => SmtTypes
-    case node: TBoundedInt[G] => ExoticTypes
-    case node: TFloat[G] => Floats
-    case node: ThisModel[G] => Models
-    case node: ThisObject[G] => Classes
-    case node: TInt[G] => SmtTypes
-    case node: TNotAValue[G] => ExoticTypes
-    case node: TNull[G] => AxiomaticLibraryType
-    case node: TRational[G] => SmtTypes
-    case node: TRef[G] => Resources
-    case node: TResource[G] => Resources
-    case node: TSeq[G] => SilverAxiomaticLibraryType
-    case node: TSet[G] => SilverAxiomaticLibraryType
-    case node: TVoid[G] => AxiomaticLibraryType
-    case node: UMinus[G] => SmtOperators
-    case node: Unfold[G] => Resources
-    case node: Unfolding[G] => Resources
-    case node: UnitAccountedPredicate[G] => Contracts
-    case node: Value[G] => Resources
-    case node: Variable[G] => SmtDeclarations
-    case node: Verification[G] => RootStructure
-    case node: VerificationContext[G] => RootStructure
-    case node: Void[G] => AxiomaticLibraryType
-    case node: WritePerm[G] => SmtOperators
-
     case node: AmbiguousLocation[G] => AmbiguousOperators
     case node: AmbiguousGreater[G] => AmbiguousOperators
     case node: AmbiguousLess[G] => AmbiguousOperators
@@ -266,9 +32,15 @@ class FeatureRainbow[G] {
     case node: Length[G] => Arrays
     case node: TArray[G] => Arrays
 
+    case node: Assign[G] => Assignment
+    case node: Havoc[G] => Assignment
+    case node: SilverLocalAssign[G] => Assignment
+
     case node: ADTAxiom[G] => AxiomaticDataTypes
     case node: ADTFunction[G] => AxiomaticDataTypes
     case node: ADTFunctionInvocation[G] => AxiomaticDataTypes
+    case node: AxiomaticDataType[G] => AxiomaticDataTypes
+    case node: TAxiomatic[G] => AxiomaticDataTypes
 
     case node: LiteralTuple[G] => AxiomaticLibraryType
     case node: LiteralMap[G] => AxiomaticLibraryType
@@ -298,6 +70,16 @@ class FeatureRainbow[G] {
     case node: TEither[G] => AxiomaticLibraryType
     case node: TTuple[G] => AxiomaticLibraryType
     case node: TMap[G] => AxiomaticLibraryType
+    case node: OptEmpty[G] => AxiomaticLibraryType
+    case node: OptNoneTyped[G] => AxiomaticLibraryType
+    case node: OptSomeTyped[G] => AxiomaticLibraryType
+    case node: TNull[G] => AxiomaticLibraryType
+    case node: Void[G] => AxiomaticLibraryType
+
+    case node: Assert[G] => BasicStatement
+    case node: Assume[G] => BasicStatement
+    case node: Block[G] => BasicStatement
+    case node: Scope[G] => BasicStatement
 
     case node: BitNot[G] => BitOperators
     case node: BitAnd[G] => BitOperators
@@ -317,6 +99,11 @@ class FeatureRainbow[G] {
     case node: NewObject[G] => Classes
     case node: TClass[G] => Classes
     case node: Class[G] => Classes
+    case node: FieldLocation[G] => Classes
+    case node: InvokeMethod[G] => Classes
+    case node: TAnyClass[G] => Classes
+    case node: ThisObject[G] => Classes
+    case node: InstanceField[G] => Classes
 
     case node: ApplyCoercion[G] => Coercions
     case node: CoerceBoolResource[G] => Coercions
@@ -366,6 +153,61 @@ class FeatureRainbow[G] {
     case node: AmbiguousThis[G] => ContextSensitiveNode
     case node: AmbiguousResult[G] => ContextSensitiveNode
 
+    case node: ApplicableContract[G] => Contracts
+    case node: LoopInvariant[G] => Contracts
+    case node: SplitAccountedPredicate[G] => Contracts
+    case node: UnitAccountedPredicate[G] => Contracts
+
+    case node: CAnonymousFunctionDeclarator[G] => CSpecific
+    case node: CArrayDeclarator[G] => CSpecific
+    case node: CAtomic[G] => CSpecific
+    case node: CBool[G] => CSpecific
+    case node: CConst[G] => CSpecific
+    case node: CDeclaration[G] => CSpecific
+    case node: CExtern[G] => CSpecific
+    case node: CFunctionDefinition[G] => CSpecific
+    case node: CGlobalDeclaration[G] => CSpecific
+    case node: CInit[G] => CSpecific
+    case node: CInline[G] => CSpecific
+    case node: CInt[G] => CSpecific
+    case node: CInvocation[G] => CSpecific
+    case node: CLocal[G] => CSpecific
+    case node: CLocalDeclaration[G] => CSpecific
+    case node: CLong[G] => CSpecific
+    case node: CName[G] => CSpecific
+    case node: CParam[G] => CSpecific
+    case node: CPrimitiveType[G] => CSpecific
+    case node: CPure[G] => CSpecific
+    case node: CRestrict[G] => CSpecific
+    case node: CShort[G] => CSpecific
+    case node: CSigned[G] => CSpecific
+    case node: CSpecificationType[G] => CSpecific
+    case node: CStatic[G] => CSpecific
+    case node: CStructAccess[G] => CSpecific
+    case node: CStructDeref[G] => CSpecific
+    case node: CTCudaVec[G] => CSpecific
+    case node: CTranslationUnit[G] => CSpecific
+    case node: CTypedef[G] => CSpecific
+    case node: CTypedefName[G] => CSpecific
+    case node: CTypedFunctionDeclarator[G] => CSpecific
+    case node: CTypeQualifierDeclarationSpecifier[G] => CSpecific
+    case node: CUDAKernel[G] => CSpecific
+    case node: CUnsigned[G] => CSpecific
+    case node: CVoid[G] => CSpecific
+    case node: CVolatile[G] => CSpecific
+    case node: GlobalThreadId[G] => CSpecific
+    case node: GpgpuAtomic[G] => CSpecific
+    case node: GpgpuBarrier[G] => CSpecific
+    case node: GpgpuCudaKernelInvocation[G] => CSpecific
+    case node: GPUGlobal[G] => CSpecific
+    case node: GpuGlobalMemoryFence[G] => CSpecific
+    case node: GPULocal[G] => CSpecific
+    case node: GpuLocalMemoryFence[G] => CSpecific
+    case node: GpuZeroMemoryFence[G] => CSpecific
+    case node: LocalThreadId[G] => CSpecific
+    case node: OpenCLKernel[G] => CSpecific
+    case node: SharedMemSize[G] => CSpecific
+
     case node: CurrentThreadId[G] => CurrentThread
 
     case node: UntypedLiteralSeq[G] => DynamicallyTypedCollection
@@ -383,6 +225,8 @@ class FeatureRainbow[G] {
     case node: TAny[G] => ExoticTypes
     case node: TNothing[G] => ExoticTypes
     case node: TUnion[G] => ExoticTypes
+    case node: TBoundedInt[G] => ExoticTypes
+    case node: TNotAValue[G] => ExoticTypes
 
     case node: Exp[G] => Exponents
 
@@ -390,8 +234,16 @@ class FeatureRainbow[G] {
     case node: PostAssignExpression[G] => ExpressionWithSideEffects
     case node: With[G] => ExpressionWithSideEffects
     case node: Then[G] => ExpressionWithSideEffects
+    case node: ScopedExpr[G] => ExpressionWithSideEffects
 
-    case node: InstanceField[G] => FinalField
+    case node: CastFloat[G] => Floats
+    case node: FloatValue[G] => Floats
+    case node: TFloat[G] => Floats
+
+    case node: Final[G] => FinalField
+
+    case node: Goto[G] => Gotos
+    case node: LabelDecl[G] => Gotos
 
     case node: InlinePattern[G] => InlineQuantifierPattern
 
@@ -400,6 +252,45 @@ class FeatureRainbow[G] {
     case node: Lock[G] => IntrinsicLocks
     case node: Unlock[G] => IntrinsicLocks
     case node: Commit[G] => IntrinsicLocks
+    case node: Committed[G] => IntrinsicLocks
+
+    case node: JavaAbstract[G] => JavaSpecific
+    case node: JavaAnnotation[G] => JavaSpecific
+    case node: JavaAnnotationInterface[G] => JavaSpecific
+    case node: JavaAnnotationMethod[G] => JavaSpecific
+    case node: JavaClass[G] => JavaSpecific
+    case node: JavaConstructor[G] => JavaSpecific
+    case node: JavaDeref[G] => JavaSpecific
+    case node: JavaFields[G] => JavaSpecific
+    case node: JavaFinal[G] => JavaSpecific
+    case node: JavaImport[G] => JavaSpecific
+    case node: JavaInline[G] => JavaSpecific
+    case node: JavaInterface[G] => JavaSpecific
+    case node: JavaInvocation[G] => JavaSpecific
+    case node: JavaLiteralArray[G] => JavaSpecific
+    case node: JavaLocal[G] => JavaSpecific
+    case node: JavaLocalDeclaration[G] => JavaSpecific
+    case node: JavaLocalDeclarationStatement[G] => JavaSpecific
+    case node: JavaMethod[G] => JavaSpecific
+    case node: JavaName[G] => JavaSpecific
+    case node: JavaNamedType[G] => JavaSpecific
+    case node: JavaNamespace[G] => JavaSpecific
+    case node: JavaNative[G] => JavaSpecific
+    case node: JavaNewClass[G] => JavaSpecific
+    case node: JavaNewDefaultArray[G] => JavaSpecific
+    case node: JavaNewLiteralArray[G] => JavaSpecific
+    case node: JavaPrivate[G] => JavaSpecific
+    case node: JavaProtected[G] => JavaSpecific
+    case node: JavaPublic[G] => JavaSpecific
+    case node: JavaPure[G] => JavaSpecific
+    case node: JavaSharedInitialization[G] => JavaSpecific
+    case node: JavaStatic[G] => JavaSpecific
+    case node: JavaStrictFP[G] => JavaSpecific
+    case node: JavaSynchronized[G] => JavaSpecific
+    case node: JavaTClass[G] => JavaSpecific
+    case node: JavaTransient[G] => JavaSpecific
+    case node: JavaVariableDeclaration[G] => JavaSpecific
+    case node: JavaVolatile[G] => JavaSpecific
 
     case node: IdleToken[G] => JavaThreads
     case node: JoinToken[G] => JavaThreads
@@ -420,6 +311,10 @@ class FeatureRainbow[G] {
     case node: MatrixCompare[G] => MatrixVector
     case node: MatrixRepeat[G] => MatrixVector
     case node: TMatrix[G] => MatrixVector
+
+    case node: InvokeProcedure[G] => Methods
+    case node: MethodInvocation[G] => Methods
+    case node: ProcedureInvocation[G] => Methods
 
     case node: ModelDeref[G] => Models
     case node: ModelLocation[G] => Models
@@ -447,6 +342,7 @@ class FeatureRainbow[G] {
     case node: ModelProcess[G] => Models
     case node: ModelAction[G] => Models
     case node: Model[G] => Models
+    case node: ThisModel[G] => Models
 
     case node: IndetBranch[G] => NonTrivialBranch
 
@@ -464,6 +360,8 @@ class FeatureRainbow[G] {
     case node: ParStatement[G] => ParallelRegion
     case node: ParBlockDecl[G] => ParallelRegion
     case node: ParInvariantDecl[G] => ParallelRegion
+    case node: IterVariable[G] => ParallelRegion
+    case node: ParSequential[G] => ParallelRegion
 
     case node: Permutation[G] => PermutationOperator
 
@@ -477,11 +375,117 @@ class FeatureRainbow[G] {
     case node: PointerLength[G] => Pointers
     case node: TPointer[G] => Pointers
 
+    case node: FramedProof[G] => ProofHelpers
+    case node: IndeterminateInteger[G] => ProofHelpers
+    case node: Refute[G] => ProofHelpers
+
+    case node: PVLConstructor[G] => PvlSpecific
+    case node: PVLDeref[G] => PvlSpecific
+    case node: PVLInvocation[G] => PvlSpecific
+    case node: PVLLocal[G] => PvlSpecific
+    case node: PVLNamedType[G] => PvlSpecific
+    case node: PVLNew[G] => PvlSpecific
+
+    case node: CurPerm[G] => Resources
+    case node: Exhale[G] => Resources
+    case node: Fold[G] => Resources
+    case node: Inhale[G] => Resources
+    case node: Null[G] => Resources
+    case node: Old[G] => Resources
+    case node: Perm[G] => Resources
+    case node: PredicateApply[G] => Resources
+    case node: PredicateLocation[G] => Resources
+    case node: SilverDeref[G] => Resources
+    case node: SilverField[G] => Resources
+    case node: SilverFieldAssign[G] => Resources
+    case node: SilverFieldLocation[G] => Resources
+    case node: SilverNull[G] => Resources
+    case node: Star[G] => Resources
+    case node: Starall[G] => Resources
+    case node: TRef[G] => Resources
+    case node: TResource[G] => Resources
+    case node: Unfold[G] => Resources
+    case node: Unfolding[G] => Resources
+    case node: Value[G] => Resources
+
+    case node: Program[G] => RootStructure
+    case node: Verification[G] => RootStructure
+    case node: VerificationContext[G] => RootStructure
+
     case node: Send[G] => SendRecv
     case node: Recv[G] => SendRecv
     case node: SendDecl[G] => SendRecv
 
     case node: Range[G] => SequenceRange
+
+    case node: BagAdd[G] => SilverAxiomaticLibraryType
+    case node: BagLargestCommon[G] => SilverAxiomaticLibraryType
+    case node: BagMemberCount[G] => SilverAxiomaticLibraryType
+    case node: BagMinus[G] => SilverAxiomaticLibraryType
+    case node: Concat[G] => SilverAxiomaticLibraryType
+    case node: Drop[G] => SilverAxiomaticLibraryType
+    case node: LiteralBag[G] => SilverAxiomaticLibraryType
+    case node: LiteralSeq[G] => SilverAxiomaticLibraryType
+    case node: LiteralSet[G] => SilverAxiomaticLibraryType
+    case node: SeqMember[G] => SilverAxiomaticLibraryType
+    case node: SeqSubscript[G] => SilverAxiomaticLibraryType
+    case node: SeqUpdate[G] => SilverAxiomaticLibraryType
+    case node: SetIntersection[G] => SilverAxiomaticLibraryType
+    case node: SetMember[G] => SilverAxiomaticLibraryType
+    case node: SetMinus[G] => SilverAxiomaticLibraryType
+    case node: SetUnion[G] => SilverAxiomaticLibraryType
+    case node: SilverBagSize[G] => SilverAxiomaticLibraryType
+    case node: SilverMapSize[G] => SilverAxiomaticLibraryType
+    case node: SilverSeqSize[G] => SilverAxiomaticLibraryType
+    case node: SilverSetSize[G] => SilverAxiomaticLibraryType
+    case node: Size[G] => SilverAxiomaticLibraryType
+    case node: SubBag[G] => SilverAxiomaticLibraryType
+    case node: SubSet[G] => SilverAxiomaticLibraryType
+    case node: Take[G] => SilverAxiomaticLibraryType
+    case node: TBag[G] => SilverAxiomaticLibraryType
+    case node: TSeq[G] => SilverAxiomaticLibraryType
+    case node: TSet[G] => SilverAxiomaticLibraryType
+
+    case node: SilverCurFieldPerm[G] => SilverSpecific
+    case node: SilverCurPredPerm[G] => SilverSpecific
+    case node: SilverPartialADTFunctionInvocation[G] => SilverSpecific
+    case node: SilverPartialTAxiomatic[G] => SilverSpecific
+    case node: SilverUntypedNonemptyLiteralMap[G] => SilverSpecific
+
+    case node: FunctionInvocation[G] => SmtDeclarations
+    case node: Variable[G] => SmtDeclarations
+
+    case node: And[G] => SmtOperators
+    case node: BooleanValue[G] => SmtOperators
+    case node: Div[G] => SmtOperators
+    case node: Eq[G] => SmtOperators
+    case node: Exists[G] => SmtOperators
+    case node: FloorDiv[G] => SmtOperators
+    case node: Forall[G] => SmtOperators
+    case node: Greater[G] => SmtOperators
+    case node: GreaterEq[G] => SmtOperators
+    case node: Implies[G] => SmtOperators
+    case node: IntegerValue[G] => SmtOperators
+    case node: Less[G] => SmtOperators
+    case node: LessEq[G] => SmtOperators
+    case node: Let[G] => SmtOperators
+    case node: Local[G] => SmtOperators
+    case node: Minus[G] => SmtOperators
+    case node: Mod[G] => SmtOperators
+    case node: Mult[G] => SmtOperators
+    case node: Neq[G] => SmtOperators
+    case node: NoPerm[G] => SmtOperators
+    case node: Not[G] => SmtOperators
+    case node: Or[G] => SmtOperators
+    case node: Plus[G] => SmtOperators
+    case node: Select[G] => SmtOperators
+    case node: SilverIntToRat[G] => SmtOperators
+    case node: UMinus[G] => SmtOperators
+    case node: WritePerm[G] => SmtOperators
+
+    case node: TBool[G] => SmtTypes
+    case node: TInt[G] => SmtTypes
+    case node: TRational[G] => SmtTypes
 
     case node: SpecIgnoreStart[G] => SpecIgnore
     case node: SpecIgnoreEnd[G] => SpecIgnore
@@ -498,10 +502,15 @@ class FeatureRainbow[G] {
     case node: SubBagEq[G] => SugarCollectionOperator
 
     case node: PointsTo[G] => SugarPermissionOperator
+    case node: Scale[G] => SugarPermissionOperator
 
     case node: Switch[G] => SwitchStatement
     case node: DefaultCase[G] => SwitchStatement
     case node: Case[G] => SwitchStatement
+
+    case node: DecreasesClauseAssume[G] => TerminationMeasure
+    case node: DecreasesClauseNoRecursion[G] => TerminationMeasure
+    case node: DecreasesClauseTuple[G] => TerminationMeasure
 
     case node: SimplificationRule[G] => TermRewriteRules
     case node: FunctionOf[G] => TermRewriteRules
@@ -510,6 +519,7 @@ class FeatureRainbow[G] {
     case node: TString[G] => TextTypes
 
     case node: TryCatchFinally[G] => TryCatchStatement
+    case node: CatchClause[G] => TryCatchStatement
 
     case node: TypeValue[G] => TypeValuesAndGenerics
     case node: TypeOf[G] => TypeValuesAndGenerics
@@ -589,6 +599,7 @@ class FeatureRainbow[G] {
         (if (node.inline) Seq(ApplicableToBeInlined) else Nil) ++
         (if (node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil)
     case node: Procedure[G] =>
+      returnTypes :+= node.returnType
       return Seq(Methods) ++
         (if (node.inline) Seq(ApplicableToBeInlined) else Nil) ++
         (if (node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil) ++
@@ -601,6 +612,7 @@ class FeatureRainbow[G] {
         (if (node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil) ++
         (if (node.inline) Seq(ApplicableToBeInlined) else Nil)
     case node: InstanceMethod[G] =>
+      returnTypes :+= node.returnType
       return Seq(Classes, Methods) ++
         (if (node.typeArgs.nonEmpty) Seq(TypeValuesAndGenerics) else Nil) ++
         (if (node.inline) Seq(ApplicableToBeInlined) else Nil) ++
@@ -612,10 +624,21 @@ class FeatureRainbow[G] {
       case Block(Nil) => Gotos
       case _ => return Seq(NonTrivialLabel, Gotos)
     }
+    case node: TVoid[G] =>
+      if (returnTypes.exists(_ eq node)) return Nil
+      else AxiomaticLibraryType
 
     case node: ValidArray[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: ValidMatrix[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: PermPointer[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
+    case node: CCast[G] => return Seq(CSpecific, TypeValuesAndGenerics)
+    case node: CChar[G] => return Seq(CSpecific, TextTypes)
+    case node: CDeclarationStatement[G] => return Seq(CSpecific, UnscopedDeclaration)
+    case node: CGoto[G] => return Seq(CSpecific, Gotos)
+    case node: CPointer[G] => return Seq(CSpecific, Pointers)
+    case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
+    case node: Result[G] => return scanFlatly(node.applicable.decl)
+    case node: SilverNewRef[G] => return Seq(Assignment, Resources)
   })
 }
