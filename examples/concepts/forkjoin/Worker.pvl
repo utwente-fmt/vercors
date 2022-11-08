@@ -9,7 +9,8 @@ class Worker {
   }
   
   requires Value(store);
-  ensures  Value(store);
+  requires committed(store);
+  ensures Value(store);
   run {
     lock store;
     store.x=store.x+1;

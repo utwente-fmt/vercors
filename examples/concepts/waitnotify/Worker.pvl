@@ -12,8 +12,8 @@ class Worker {
     this.q2=q2;
   }
   
-  requires Value(q1) ** q1!=null;
-  requires Value(q2) ** q2!=null;
+  requires Value(q1) ** q1!=null ** committed(q1);
+  requires Value(q2) ** q2!=null ** committed(q2);
   run {
     int tmp;
     int i=0;
