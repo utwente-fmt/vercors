@@ -252,7 +252,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit stat: StatementContext): Statement[G] = stat match {
     case PvlReturn(_, value, _) => Return(value.map(convert(_)).getOrElse(Void()))
-    case PvlLock(_, obj, _) => Lock(convert(obj))
+    case PvlLock(_, obj, _) => Lock(convert(obj))(blame(stat))
     case PvlUnlock(_, obj, _) => Unlock(convert(obj))(blame(stat))
     case PvlWait(_, obj, _) => Wait(convert(obj))(blame(stat))
     case PvlNotify(_, obj, _) => Notify(convert(obj))(blame(stat))
@@ -762,6 +762,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       })
     case ValAtomic(_, _, invariant, _, body) =>
       ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
+    case ValCommit(_, obj, _) =>
+      Commit(convert(obj))(blame(stat))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {
@@ -1038,6 +1040,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 

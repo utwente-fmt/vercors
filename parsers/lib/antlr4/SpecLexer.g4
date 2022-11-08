@@ -95,6 +95,7 @@ VAL_CSL_SUBJECT: 'csl_subject';
 VAL_SPEC_IGNORE: 'spec_ignore';
 VAL_ACTION: 'action';
 VAL_ATOMIC: 'atomic';
+VAL_COMMIT: 'commit';
 
 VAL_REDUCIBLE: 'Reducible';
 VAL_ADDS_TO: 'AddsTo';
@@ -102,6 +103,7 @@ VAL_APERM: 'APerm';
 VAL_ARRAYPERM: 'ArrayPerm';
 VAL_CONTRIBUTION: 'Contribution';
 VAL_HELD: 'held';
+VAL_COMMITTED: 'committed';
 VAL_HPERM: 'HPerm';
 VAL_IDLE: 'idle';
 VAL_PERM_VAL: 'perm';

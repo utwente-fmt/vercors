@@ -1019,6 +1019,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       })
     case ValAtomic(_, _, invariant, _, body) =>
       ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
+    case ValCommit(_, obj, _) =>
+      Commit(convert(obj))(blame(stat))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {
@@ -1295,6 +1297,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 

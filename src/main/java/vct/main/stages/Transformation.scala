@@ -8,7 +8,8 @@ import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.origin.FileSpanningOrigin
 import vct.col.print.Printer
-import vct.col.rewrite.adt._
+import vct.col.feature.Feature
+import vct.col.rewrite._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
@@ -113,6 +114,13 @@ class Transformation
       }
 
       result = PrettifyBlocks().dispatch(result)
+    }
+
+    for((feature, examples) <- Feature.examples(result)) {
+      logger.debug(f"$feature:")
+      for(example <- examples.take(3)) {
+        logger.debug(f"$example")
+      }
     }
 
     result

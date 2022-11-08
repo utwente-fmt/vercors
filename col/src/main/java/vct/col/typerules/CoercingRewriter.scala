@@ -639,6 +639,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
+      case c @ Committed(obj) =>
+        Committed(cls(obj))(c.blame)
       case ComputationalAnd(left, right) =>
         ComputationalAnd(bool(left), bool(right))
       case ComputationalOr(left, right) =>
@@ -1166,7 +1168,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
       case LocalDecl(local) => LocalDecl(local)
-      case Lock(obj) => Lock(cls(obj))
+      case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
       case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
