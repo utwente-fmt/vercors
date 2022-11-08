@@ -8,8 +8,10 @@ final
 class MyClass {
     int x;
 
+    //@ ensures committed(this);
     MyClass() {
         x = 0;
+        //@ commit this;
     }
 
     void increment() {
