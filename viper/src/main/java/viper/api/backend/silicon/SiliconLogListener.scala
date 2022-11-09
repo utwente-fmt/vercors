@@ -1,11 +1,14 @@
 package viper.api.backend.silicon
 
 import com.typesafe.scalalogging.LazyLogging
+import vct.col.ast.Neq
 import viper.silicon.logger.records.data.DataRecord
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord, ScopingRecord}
 import viper.silicon.logger.records.structural.BranchingRecord
 import viper.silicon.logger.{SymbLog, SymbLogListener}
-import viper.silver.ast.Exp
+import viper.silicon.state.terms
+import viper.silicon.state.terms.Term
+import viper.silver.ast.{Exp, Not}
 
 import java.util.{Timer, TimerTask}
 import scala.collection.mutable
@@ -19,7 +22,7 @@ case object SiliconLogListener {
 case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
-  var branchConditions: List[Option[Exp]] = List()
+  var branchConditions: List[Option[Either[Term, Exp]]] = List()
 
   var timer = new Timer()
   var currentTimerTask: Option[TimerTask] = None
@@ -59,10 +62,12 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
 
     for(((records, idx), condition) <- openScopeFrames.init.zipWithIndex.zip(branchConditions).reverse) {
       condition match {
-        case Some(cond) =>
-          logger.warn(s"  [$idx] ? $cond")
+        case Some(Right(cond)) =>
+          logger.warn(s"  [$idx] $cond")
+        case Some(Left(cond)) =>
+          logger.warn(s"  [$idx] $cond")
         case None =>
-          logger.warn(s"  [$idx] ?")
+          logger.warn(s"  [$idx] <indeterminate branch>")
       }
 
       printRecords(records, excludedBy)
@@ -94,13 +99,39 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     progress(symbLog)
     openScopeFrames +:= mutable.Map()
     branchScopeCloseRecords +:= mutable.Set()
-    branchConditions +:= r.conditionExp
+
+    if(r.getBranchInfos.size == 2) {
+      if(r.conditionExp.nonEmpty) {
+        branchConditions +:= Some(Right(r.conditionExp.get))
+      } else if(r.condition.nonEmpty) {
+        branchConditions +:= Some(Left(r.condition.get))
+      } else {
+        branchConditions +:= None
+      }
+    } else {
+      branchConditions +:= None
+    }
+  }
+
+  def invert(termOrExp: Either[Term, Exp]): Either[Term, Exp] = termOrExp match {
+    case Right(exp) => Right(exp match {
+      case Not(e) => e
+      case other => Not(other)()
+    })
+    case Left(term) => Left(term match {
+      case terms.Not(e) => e
+      case other => terms.Not(other)
+    })
   }
 
   override def switchToNextBranch(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
     progress(symbLog)
     openScopeFrames.head.clear()
     branchScopeCloseRecords.head.clear()
+
+    if(branchConditions.last.nonEmpty) {
+      branchConditions = branchConditions.init :+ Some(invert(branchConditions.last.get))
+    }
   }
 
   override def markBranchReachable(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
