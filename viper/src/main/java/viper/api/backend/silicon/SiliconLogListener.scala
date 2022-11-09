@@ -2,13 +2,14 @@ package viper.api.backend.silicon
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.Neq
-import viper.silicon.logger.records.data.DataRecord
+import viper.api.transform.NodeInfo
+import viper.silicon.logger.records.data.{ConsumeRecord, DataRecord, ExecuteRecord, MemberRecord, ProduceRecord}
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord, ScopingRecord}
 import viper.silicon.logger.records.structural.BranchingRecord
 import viper.silicon.logger.{SymbLog, SymbLogListener}
 import viper.silicon.state.terms
 import viper.silicon.state.terms.Term
-import viper.silver.ast.{Exp, Not}
+import viper.silver.ast.{Exp, Infoed, Node, Not, Positioned}
 
 import java.util.{Timer, TimerTask}
 import scala.collection.mutable
@@ -40,12 +41,29 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   def done(): Unit =
     timer.cancel()
 
+  def where(node: Node): Option[String] = node match {
+    case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node.o.shortPosition)
+    case _ => None
+  }
+
   def printRecords(records: mutable.Map[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
     for(record <- records.values.toSeq.sortBy(_.id)) {
+      val at = record match {
+        case member: MemberRecord => where(member.value)
+        case exec: ExecuteRecord => where(exec.value)
+        case produce: ProduceRecord => where(produce.value)
+        case consume: ConsumeRecord => where(consume.value)
+        case _ => None
+      }
+
+      if(at.nonEmpty) {
+        logger.warn(s"    At ${at.get}:")
+      }
+
       if(excludedBy.contains(record.id)) {
-        logger.warn(s"    [finished in branch ${excludedBy(record.id)}]: $record")
+        logger.warn(s"      [finished in branch ${excludedBy(record.id)}]: $record")
       } else {
-        logger.warn(s"    $record")
+        logger.warn(s"      $record")
       }
     }
   }
