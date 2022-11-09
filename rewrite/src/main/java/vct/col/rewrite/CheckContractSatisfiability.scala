@@ -2,9 +2,9 @@ package vct.col.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.rewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, CheckSatOrigin}
+import vct.col.rewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, CheckSatOrigin, NotWellFormedIgnoreCheckSat}
 import vct.col.rewrite.util.Extract
-import vct.col.origin.{Blame, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare}
+import vct.col.origin.{Blame, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{ff, foldStar, procedure, unfoldStar}
 
@@ -25,16 +25,25 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
 
   case class AssertPassedNontrivialUnsatisfiable(contract: ApplicableContract[_]) extends Blame[ExpectedErrorFailure] {
     override def blame(error: ExpectedErrorFailure): Unit = error match {
-      case err: ExpectedErrorTrippedTwice =>
-        PanicBlame("A single assert cannot trip twice").blame(err)
+      case _: ExpectedErrorTrippedTwice =>
+        // Ignore: Carbon may report the assert failed, even when the contract is not well-formed.
       case ExpectedErrorNotTripped(_) =>
         contract.blame.blame(NontrivialUnsatisfiable(contract))
     }
+  }
+
+  case class NotWellFormedIgnoreCheckSat(err: ExpectedError) extends Blame[VerificationFailure] {
+    override def blame(error: VerificationFailure): Unit =
+      err.trip(error)
   }
 }
 
 case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = true) extends Rewriter[Pre] {
   val expectedErrors: ScopedStack[ArrayBuffer[ExpectedError]] = ScopedStack[ArrayBuffer[ExpectedError]]()
+  val wellFormednessBlame: ScopedStack[Blame[VerificationFailure]] = ScopedStack()
+
+  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
+    wellFormednessBlame.topOption.getOrElse(blame)
 
   def splitAccountedPredicate(pred: AccountedPredicate[Pre]): Seq[Expr[Pre]] = pred match {
     case UnitAccountedPredicate(pred) => unfoldStar(pred)
@@ -55,7 +64,11 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
           globalDeclarations.declare(procedure(
             blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
             contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
-            requires = UnitAccountedPredicate(dispatch(generalizedContract))(generalizedContract.o),
+            requires = UnitAccountedPredicate(
+              wellFormednessBlame.having(NotWellFormedIgnoreCheckSat(err)) {
+                dispatch(generalizedContract)
+              }
+            )(generalizedContract.o),
             args = variables.dispatch(substitutions.keys),
             body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
           ))

@@ -223,8 +223,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
     PredicateApply[Post](predicateSucc.ref(inv.ref.decl), dispatch(inv.obj) +: inv.args.map(dispatch), dispatch(inv.perm))(inv.o)
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case Unfolding(inv: InstancePredicateApply[Pre], e) =>
-      Unfolding(rewriteInstancePredicateApply(inv), dispatch(e))(e.o)
+    case u @ Unfolding(inv: InstancePredicateApply[Pre], e) =>
+      Unfolding(rewriteInstancePredicateApply(inv), dispatch(e))(u.blame)(e.o)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       ProcedureInvocation[Post](
         ref = methodSucc.ref(method),
@@ -263,16 +263,18 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       dispatch(typeValue),
     ), Nil, Nil, Nil)(PanicBlame("instanceOf requires nothing"))(e.o)
     case Cast(value, typeValue) => dispatch(value) // Discard for now, should assert instanceOf(value, typeValue)
-    case r @ Result(app) => app.decl match {
-      case method: InstanceMethod[Pre] => Result[Post](methodSucc.ref(method))(r.o)
-      case function: InstanceFunction[Pre] => Result[Post](functionSucc.ref(function))(r.o)
-      case _ => rewriteDefault(r)
+    case Result(Ref(app)) => app match {
+      case function: Function[Pre] => Result[Post](succ(function))(e.o)
+      case function: InstanceFunction[Pre] => Result[Post](functionSucc.ref(function))(e.o)
+      case procedure: Procedure[Pre] => Result[Post](succ(procedure))(e.o)
+      case method: InstanceMethod[Pre] => Result[Post](methodSucc.ref(method))(e.o)
     }
     case _ => rewriteDefault(e)
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case TClass(_) => TRef()
+    case TAnyClass() => TRef()
     case t => rewriteDefault(t)
   }
 

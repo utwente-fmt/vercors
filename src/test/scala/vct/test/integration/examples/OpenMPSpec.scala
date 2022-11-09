@@ -11,7 +11,5 @@ class OpenMPSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/openmp/sections-reduced.c"
   vercors should verify using anyBackend example "concepts/openmp/sections-reduced-fail.c"
   vercors should verify using anyBackend example "concepts/openmp/sum-spec.c"
-  vercors should verify using anyBackend example "concepts/openmp/test-main.c"
-  vercors should verify using anyBackend example "concepts/openmp/test-other.c"
   vercors should verify using anyBackend example "concepts/openmp/zero-spec.c"
 }

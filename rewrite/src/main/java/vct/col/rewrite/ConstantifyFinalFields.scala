@@ -7,11 +7,19 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{AbstractApplicable, Origin, PanicBlame, TrueSatisfiable}
 import vct.col.ref.Ref
+import vct.col.rewrite.ConstantifyFinalFields.FinalFieldPerm
 import vct.col.util.SuccessionMap
+import vct.result.VerificationError.UserError
 
 case object ConstantifyFinalFields extends RewriterBuilder {
   override def key: String = "constantFinalFields"
   override def desc: String = "Encode final fields with functions, so that they are not on the heap."
+
+  case class FinalFieldPerm(loc: FieldLocation[_]) extends UserError {
+    override def code: String = "finalFieldPerm"
+    override def text: String =
+      loc.o.messageInContext("Specifying permission over final fields is not allowed, since they are treated as constants.")
+  }
 }
 
 case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
@@ -75,6 +83,12 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
       else rewriteDefault(e)
     // TODO (RR): Lhs of FieldLocation should not be discarded!
     case Perm(FieldLocation(_, ref), _) if isFinal(ref.decl) => BooleanValue(true)(e.o)
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(location: Location[Pre]): Location[Post] = location match {
+    case loc @ FieldLocation(_, Ref(field)) if isFinal(field) =>
+      throw FinalFieldPerm(loc)
     case other => rewriteDefault(other)
   }
 

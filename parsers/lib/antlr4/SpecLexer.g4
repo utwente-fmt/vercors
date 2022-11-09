@@ -99,6 +99,7 @@ VAL_SPEC_REPLACE_EXPR_DONE: '\\replacing_done';
 VAL_SPEC_REPLACE_EXPR: '\\replacing';
 VAL_ACTION: 'action';
 VAL_ATOMIC: 'atomic';
+VAL_COMMIT: 'commit';
 
 VAL_REDUCIBLE: 'Reducible';
 VAL_ADDS_TO: 'AddsTo';
@@ -106,6 +107,7 @@ VAL_APERM: 'APerm';
 VAL_ARRAYPERM: 'ArrayPerm';
 VAL_CONTRIBUTION: 'Contribution';
 VAL_HELD: 'held';
+VAL_COMMITTED: 'committed';
 VAL_HPERM: 'HPerm';
 VAL_IDLE: 'idle';
 VAL_PERM_VAL: 'perm';
@@ -118,6 +120,7 @@ VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';
 
 UNFOLDING: '\\unfolding';
+UNFOLDING_JAVA: '\\Unfolding';
 IN: '\\in';
 MEMBEROF: '\\memberof';
 CURRENT_THREAD: '\\current_thread';

@@ -40,6 +40,8 @@ case class ColToSilver(program: col.Program[_]) {
   val currentPredicatePath: ScopedStack[Seq[AccountedDirection]] = ScopedStack()
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
+  val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
+  val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -60,6 +62,29 @@ case class ColToSilver(program: col.Program[_]) {
     if(index == 0) name
     else s"$name$index"
 
+
+  def sanitize(name: String): String = {
+    val sanitized = name.flatMap {
+      case '$' => "$"
+      case '_' => "_"
+      case '\'' => "'"
+      case '@' => "@"
+      case c if c.isLetterOrDigit => c.toString
+
+      // Add as desired
+      case '+' => "plus"
+      case '-' => "minus"
+
+      case _ => "_"
+    }
+
+    sanitized.head match {
+      case c if c.isLetter => sanitized
+      case '_' | '$' => sanitized
+      case _ => "_" + sanitized
+    }
+  }
+
   /**
    * Give the declaration a silver-appropriate name that is as close as possible to the preferred name
    */
@@ -68,6 +93,7 @@ case class ColToSilver(program: col.Program[_]) {
       ???
     } else {
       var (name, index) = unpackName(decl.o.preferredName)
+      name = sanitize(name)
       while(names.values.exists(_ == (name, index)) || silver.utility.Consistency.reservedNames.contains(packName(name, index))) {
         index += 1
       }
@@ -171,8 +197,9 @@ case class ColToSilver(program: col.Program[_]) {
         name = ref(adt),
         typVars = adt.typeArgs.map(v => silver.TypeVar(ref(v))),
         functions = adt.decls.collect {
-          case func: col.ADTFunction[_] =>
-            silver.DomainFunc(ref(func), func.args.map(variable), typ(func.returnType), unique = false)(pos=pos(func), info=NodeInfo(func), domainName=ref(adt))
+          case func: col.ADTFunction[_] => scoped {
+            silver.DomainFunc(ref(func), func.args.map(variable), typ(func.returnType), unique = false)(pos = pos(func), info = NodeInfo(func), domainName = ref(adt))
+          }
         },
         axioms = adt.decls.collect {
           case ax: col.ADTAxiom[_] =>
@@ -221,6 +248,8 @@ case class ColToSilver(program: col.Program[_]) {
     result.predicatePath = currentPredicatePath.topOption
     result.invariant = currentInvariant.topOption
     result.starall = currentStarall.topOption
+    result.unfolding = currentUnfolding.topOption
+    result.mapGet = currentMapGet.topOption
     result
   }
 
@@ -286,13 +315,16 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(pos=pos(e), info=expInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(pos=pos(e), info=expInfo(e))
     case col.FunctionInvocation(f, args, Nil, Nil, Nil) =>
-      silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, expInfo(e), typ(f.decl.returnType), silver.NoTrafos)
+      silver.FuncApp(ref(f), args.map(exp))(pos(e), expInfo(e), typ(f.decl.returnType), silver.NoTrafos)
     case inv @ col.ADTFunctionInvocation(typeArgs, Ref(func), args) => typeArgs match {
       case Some((Ref(adt), typeArgs)) =>
-        silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(silver.NoPosition, expInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)
+        silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(pos(e), expInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)
       case None => ??(inv)
     }
-    case col.Unfolding(p: col.PredicateApply[_], body) => silver.Unfolding(pred(p), exp(body))(pos=pos(e), info=expInfo(e))
+    case u @ col.Unfolding(p: col.PredicateApply[_], body) =>
+      silver.Unfolding(
+        currentUnfolding.having(u) { pred(p) },
+        exp(body))(pos=pos(e), info=expInfo(e))
     case col.Select(condition, whenTrue, whenFalse) => silver.CondExp(exp(condition), exp(whenTrue), exp(whenFalse))(pos=pos(e), info=expInfo(e))
     case col.Old(expr, None) => silver.Old(exp(expr))(pos=pos(e), info=expInfo(e))
     case col.Old(expr, Some(lbl)) => silver.LabelledOld(exp(expr), ref(lbl))(pos=pos(e), info=expInfo(e))
@@ -354,7 +386,9 @@ case class ColToSilver(program: col.Program[_]) {
     case col.MapValueSet(m) => silver.MapRange(exp(m))(pos=pos(e), info=expInfo(e))
     case col.MapItemSet(m) => ???
     case col.MapRemove(m, k) => ???
-    case col.MapGet(m, k) => silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
+    case get @ col.MapGet(m, k) => currentMapGet.having(get) {
+      silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
+    }
 
     case other => ??(other)
   }
@@ -374,7 +408,7 @@ case class ColToSilver(program: col.Program[_]) {
   def stat(s: col.Statement[_]): silver.Stmt = s match {
     case inv@col.InvokeProcedure(method, args, outArgs, Nil, Nil, Nil) =>
       silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
-        silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
+        pos(s), NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
       silver.FieldAssign(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(s), info=NodeInfo(s)), exp(value))(pos=pos(s), info=NodeInfo(s))
     case col.SilverLocalAssign(v, value) =>

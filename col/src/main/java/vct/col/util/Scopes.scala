@@ -37,22 +37,7 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
   private val successors: ScopedStack[mutable.Map[PreDecl, PostDecl]] = ScopedStack()
   private val collectionBuffer: ScopedStack[mutable.ArrayBuffer[PostDecl]] = ScopedStack()
 
-  /**
-   * When constructing a lazy reference, it is important that the stack of scopes is recorded *before* we enter a lazy
-   * context. For example, this is wrong:
-   *
-   * new LazyRef(successors.toSeq.collectFirst(_(decl)).get)
-   *
-   * since everything between the LazyRef parentheses is evaluated lazily, and only the value of successors is captured
-   * in the closure.
-   */
-  class FrozenScopes extends SuccessorProvider[Pre, Post, PreDecl, PostDecl] {
-    val scopes: Seq[mutable.Map[PreDecl, PostDecl]] = successors.toSeq
-
-    override def computeSucc(decl: PreDecl): Option[PostDecl] = scopes.collectFirst { case m if m.contains(decl) => m(decl) }
-  }
-
-  def freeze: FrozenScopes = new FrozenScopes
+  def freeze: FrozenScopes[Pre, Post, PreDecl, PostDecl] = new FrozenScopes(successors.toSeq)
 
   def scope[T](f: => T): T =
     successors.having(mutable.Map())(f)

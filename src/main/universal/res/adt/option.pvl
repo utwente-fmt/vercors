@@ -5,9 +5,9 @@ adt `option`<T> {
 
   pure T option_get(`option`<T> opt);
 
-  axiom (\forall T x; true; `None`() != {:some(x):});
-  axiom (\forall T x; true; option_get({:some(x):}) == x);
-  axiom (\forall `option`<T> opt; true; {:some(option_get(opt)):} == opt);
+  axiom (\forall T x; `None`() != {:some(x):});
+  axiom (\forall T x; option_get({:some(x):}) == x);
+  axiom (\forall `option`<T> opt; {:some(option_get(opt)):} == opt);
 }
 
 requires opt != `option`<T>.`None`();

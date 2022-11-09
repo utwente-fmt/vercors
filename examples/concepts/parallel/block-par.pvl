@@ -10,12 +10,14 @@ class Ref {
   void main(int c){
     par
       context Perm(x,1);
+      requires x == \old(x);
       ensures x == \old(x)+c;
     {
       x=x+c;
     }
     and
       context Perm(y,1);
+      requires y == \old(y);
       ensures y == \old(y)-c;
     {
       y=y-c;

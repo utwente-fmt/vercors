@@ -208,7 +208,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 fieldInit(res),
                 sharedInit(res),
                 rw.dispatch(cons.body),
-                Commit(res)(cons.blame),
                 Return(res),
               )))) },
               contract = rw.currentThis.having(result) { cons.contract.rewrite(
@@ -223,7 +222,29 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ))
         }
       case method: JavaMethod[Pre] =>
-        rw.dispatch(method)
+        if (BipTransition.get(method).isDefined) {
+          rw.bip.rewriteTransition(method)
+        } else if (BipGuard.get(method).isDefined) {
+          rw.bip.rewriteGuard(method)
+        } else {
+          rw.labelDecls.scope {
+            javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
+              returnType = rw.dispatch(method.returnType),
+              args = rw.variables.collect(method.parameters.foreach(rewriteParameter))._1,
+              outArgs = Nil, typeArgs = Nil,
+              body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
+                case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+                case None => method.body.map(rw.dispatch)
+              },
+              contract = method.contract.rewrite(
+                signals = method.contract.signals.map(rw.dispatch) ++
+                  method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+              ),
+              inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
+              pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
+            )(method.blame)(JavaMethodOrigin(method)))
+          }
+        }
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -244,33 +265,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     } else {
       javaParamSuccessor(param) =
         rw.variables.declare(new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o)))
-    }
-
-  def rewriteMethod(method: JavaMethod[Pre]): Unit =
-    if (BipTransition.get(method).isDefined) {
-      rw.bip.rewriteTransition(method)
-    } else if (BipGuard.get(method).isDefined) {
-      rw.bip.rewriteGuard(method)
-    } else {
-      implicit val o = JavaInstanceClassOrigin(currentJavaClass.top)
-      javaMethod(method) = rw.labelDecls.scope {
-        rw.classDeclarations.declare(new InstanceMethod(
-          returnType = rw.dispatch(method.returnType),
-          args = rw.variables.collect {
-            method.parameters.foreach(rw.dispatch)
-          }._1,
-          outArgs = Nil, typeArgs = Nil,
-          body = method.modifiers.collectFirst { case sync@JavaSynchronized() => sync } match {
-            case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-            case None => method.body.map(rw.dispatch)
-          },
-          contract = method.contract.rewrite(
-            signals = method.contract.signals.map(rw.dispatch) ++
-              method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-          ),
-          pure = method.modifiers.contains(JavaPure[Pre]())
-        )(method.blame)(JavaMethodOrigin(method)))
-      }
     }
 
   //  def makeJavaBipComponent(oldCls: Class[Pre], cls: Class[Post]): JavaBipComponent[Post] = {
@@ -379,7 +373,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaParam(decl) if BipData.get(decl).isDefined => rw.bip.local(local, decl)
       case RefJavaParam(decl) => Local(javaParamSuccessor.ref(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
-      case RefJavaClass(decl) => throw NotAValue(local)
+      case RefJavaClass(decl) =>
+        FunctionInvocation(javaStaticsFunctionSuccessor.ref[Post, Function[Post]](decl), Seq(),
+          Seq(), Seq(), Seq())(TrueSatisfiable)
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
           val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decls)))

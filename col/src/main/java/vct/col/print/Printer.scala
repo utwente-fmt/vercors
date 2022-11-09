@@ -3,7 +3,7 @@ package vct.col.print
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.resolve.ctx.Referrable
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CDerefTarget, CInvocationTarget, CNameTarget, CTypeNameTarget, ImplicitDefaultJavaConstructor, ImplicitDefaultPVLConstructor, JavaConstructorTarget, JavaDerefTarget, JavaInvocationTarget, JavaNameTarget, JavaTypeNameTarget, PVLBuiltinInstanceMethod, PVLConstructorTarget, PVLDerefTarget, PVLInvocationTarget, PVLNameTarget, PVLTypeNameTarget, RefADTAxiom, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCTranslationUnit, RefClass, RefCudaVec, RefCudaVecDim, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefJavaNamespace, RefJavaSharedInitialization, RefLabelDecl, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefParBlockDecl, RefParInvariantDecl, RefPredicate, RefProcedure, RefRunMethod, RefSendDecl, RefSilverField, RefSimplificationRule, RefUnloadedJavaNamespace, RefVariable, Referrable, ResultTarget, ThisTarget}
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers.foldStar
 
@@ -965,7 +965,7 @@ case class Printer(out: Appendable,
     /* case TVector(t) => phrase("vector<", t, ">") // FIXME does not parse (should it?) */
     case TMatrix(t) => phrase("matrix<", t, ">")
     case TType(t) => phrase(t)
-    case _: TNotAValue[_] => ???
+    case t: TNotAValue[_] => s"<<Not a type: declaration ${t.decl.get.name}>>"
     case TAny() => phrase("any")
     case TNothing() => phrase("nothing")
     case TNull() => ???

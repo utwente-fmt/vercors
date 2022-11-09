@@ -68,6 +68,7 @@ object ColDefs {
       "Function", "Procedure",
       "InstanceFunction", "InstanceMethod",
       "JavaConstructor", "JavaMethod",
+      "CFunctionDefinition",
       "PVLConstructor",
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),

@@ -19,8 +19,7 @@ class fibSearch {
         context arr != null;
         context Perm(arr[*], read);
         context arr.length > 0;
-        context (\forall int i; 0<=i && i<arr.length; 
-                    (\forall int j; i<j && j<arr.length; arr[i] <= arr[j]));
+        context (\forall int i = 0 .. arr.length, int j = i+1 .. arr.length; {:arr[i]:} <= {:arr[j]:});
         ensures \result == -1 ==> (\forall int j; 0 <= j && j < arr.length; arr[j] != x); 
         ensures \result != -1 ==> \result >= 0 && \result < arr.length;
         ensures \result != -1 ==> arr[\result] == x;
@@ -91,7 +90,7 @@ class fibSearch {
                     fk = fk2;
                     fk1 = fk1 - fk2;
                     fk2 = fk - fk1;
-                    //@ ghost fibs = tail(tail(fibs));
+                    //@ ghost fibs = fibs.tail.tail;
                     
                     // update idx s.t. again F_k elements to be searched above and F_{k-1} below
                     idx = idx - fk;
@@ -104,7 +103,7 @@ class fibSearch {
                     fk = fk1;
                     fk1 = fk2;
                     fk2 = fk - fk1;
-                    //@ ghost fibs = tail(fibs);
+                    //@ ghost fibs = fibs.tail;
                     
                     // update idx s.t. again F_{k-1} elements to be searched below and F_k above 
                     idx = min(idx + fk1, arr.length-1);

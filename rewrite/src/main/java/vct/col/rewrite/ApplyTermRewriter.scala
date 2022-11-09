@@ -8,6 +8,7 @@ import vct.col.rewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite._
+import vct.col.util.Compare
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
@@ -226,7 +227,11 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       }
     }
 
-    Comparator.compare(pattern, subject).foreach {
+    Compare.compare(pattern, subject) {
+      // SAFETY: the result of a match arm MUST NOT again match a case.
+      case Forall(bindings, triggers, body) if bindings.size >= 2 =>
+        Forall(Seq(bindings.head), Nil, Forall(bindings.tail, triggers, body))
+    } foreach {
       case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
       case Comparator.MatchingDeclaration(_, _) =>

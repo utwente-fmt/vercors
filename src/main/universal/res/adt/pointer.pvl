@@ -6,12 +6,10 @@ adt `block` {
   pure int loc_inv_2(ref r);
 
   // block length is non-negative
-  axiom (\forall `block` b; true; block_length(b) >= 0);
+  axiom (\forall `block` b; block_length(b) >= 0);
 
   // loc is injective: a (block, index) pair indicates a unique ref
-  axiom
-    (∀ `block` b, int i;
-      loc_inv_1(loc(b, i)) == b && loc_inv_2(loc(b, i)) == i);
+  axiom (∀ `block` b, int i; loc_inv_1({:loc(b, i):}) == b && loc_inv_2(loc(b, i)) == i);
 }
 
 adt `pointer` {

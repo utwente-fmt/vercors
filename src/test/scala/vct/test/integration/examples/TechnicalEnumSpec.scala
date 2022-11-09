@@ -19,6 +19,17 @@ class Test {
 
 """
 
+  vercors should verify using silicon in "java/use builtin enums through static imports, without stating the actual type" java
+"""
+import static java.lang.annotation.RetentionPolicy.SOURCE;
+
+class Test {
+    void m() {
+        //@ assert SOURCE != null;
+    }
+}
+"""
+
   vercors should verify using silicon in "java/use builtin enums" java
     """
       |import java.lang.annotation.RetentionPolicy;

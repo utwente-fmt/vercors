@@ -6,10 +6,10 @@ adt array {
   pure int loc_inv_2(ref loc);
 
   axiom
-    (\forall array a, int i; true;
+    (\forall array a, int i;
       loc_inv_1({:array_loc(a, i):}) == a && loc_inv_2(array_loc(a, i)) == i);
 
-  axiom (\forall array a; true; {:alen(a):} >= 0);
+  axiom (\forall array a; {:alen(a):} >= 0);
 }
 
 requires 0 <= i && i < `array`.alen(a);

@@ -4,7 +4,6 @@
 
 class Test {
 
-  constructor() {}
 
   requires true;
   ensures  true;
@@ -15,13 +14,17 @@ class Test {
   void test2(){
     Test t1=new Test();
     fork t1;
+    /*[/expect running]*/
     fork t1;
+    /*[/end]*/
     
   }
 
   void test3(){
     Test t1=new Test();
-    join t1;    
+    /*[/expect idle]*/
+    join t1;
+    /*[/end]*/
   }
 
 }

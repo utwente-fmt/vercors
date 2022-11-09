@@ -1,7 +1,7 @@
 package vct.col.ast.declaration
 
 import vct.col.ast.Declaration
-import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorText}
+import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorExplanation, TypeErrorText}
 import vct.col.debug.Dropped
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.InitialGeneration
@@ -25,6 +25,7 @@ trait DeclarationImpl[G] { this: Declaration[G] =>
       Nil
     } catch {
       case CoercingRewriter.Incoercible(e, t) => Seq(TypeError(e, t))
-      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, _ => m))
+      case CoercingRewriter.IncoercibleText(e, m) => Seq(TypeErrorText(e, m))
+      case CoercingRewriter.IncoercibleExplanation(e, m) => Seq(TypeErrorExplanation(e, m))
     }
 }

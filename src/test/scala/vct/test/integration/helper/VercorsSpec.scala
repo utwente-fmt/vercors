@@ -2,21 +2,29 @@ package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
 import hre.io.Readable
-import org.scalactic.source.Position
-import org.scalatest.{Resources, Tag, Transformer}
-import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
+import org.scalactic.source
+import org.scalatest.Tag
+import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
-import vct.options
 import vct.options.types
 import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.ParseError
 import vct.result.VerificationError
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{SystemError, UserError}
+import vct.test.integration.helper.VercorsSpec.MATRIX_COUNT
 
 import java.nio.file.{Path, Paths}
+
+object VercorsSpec {
+  /**
+   * Please note that this count is also reflected in /.github/scalatest.yml, so changing this value necessitates
+   * updating the CI definition.
+   */
+  val MATRIX_COUNT: Int = 8
+}
 
 abstract class VercorsSpec extends AnyFlatSpec {
   var coveredExamples: Seq[Path] = Nil
@@ -37,8 +45,13 @@ abstract class VercorsSpec extends AnyFlatSpec {
   case class IncompleteVerdict(fromCode: String => Verdict)
   case object ErrorVerdict
 
-  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable]): Unit = {
-    registerTest(s"${desc.capitalize} should $verdict with $backend", tags: _*) {
+  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable])(implicit pos: source.Position): Unit = {
+    val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with $backend".replaceAll("should", "shld")
+    // PB: note that object typically do not have a deterministic hashCode, but Strings do.
+    val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
+    val matrixTag = Tag(s"MATRIX[$matrixId]")
+
+    registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
@@ -62,26 +75,35 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
     verdict match {
       case Pass => value match {
-        case Left(err) =>
+        case Left(err: UserError) =>
           println(err)
-          fail("Expected the test to pass, but it returned an error instead.")
+          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right(Nil) => // success
         case Right(fails) =>
           fails.foreach(f => println(f.toString))
           fail("Expected the test to pass, but it returned verification failures instead.")
       }
       case AnyFail => value match {
-        case Left(err) =>
+        case Left(err: UserError) =>
           println(err)
-          fail("Expected the test to fail, but it returned an error instead.")
+          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right(Nil) =>
           fail("Expected the test to fail, but it passed instead.")
         case Right(_) => // success
       }
       case Fail(code) => value match {
-        case Left(err) =>
+        case Left(err: UserError) =>
           println(err)
-          fail("Expected the test to fail, but it returned an error instead.")
+          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(s"Expected the test to pass, but it crashed with the above error instead.")
         case Right(Nil) =>
           fail("Expected the test to fail, but it passed instead.")
         case Right(fails) => fails.filterNot(_.code == code) match {
@@ -94,11 +116,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case Error(code) => value match {
         case Left(err: UserError) if err.code == code => // success
         case Left(err: UserError) =>
-          println(err.toString)
+          println(err)
           fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
-        case Left(err) =>
-          println(err.toString)
-          fail(f"Expected the test to error with code $code, but got the above error instead.")
+        case Left(err: SystemError) =>
+          println(err)
+          fail(f"Expected the test to error with code $code, but it crashed with the above error instead.")
         case Right(_) =>
           fail("Expected the test to error, but got a pass or fail instead.")
       }
@@ -124,9 +146,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class BackendPhrase(val verdict: Verdict, val backends: Seq[Backend]) {
-    def example(path: String): Unit = examples(path)
+    def example(path: String)(implicit pos: source.Position): Unit = examples(path)
 
-    def examples(examples: String*): Unit = {
+    def examples(examples: String*)(implicit pos: source.Position): Unit = {
       val paths = examples.map(ex => Paths.get(s"examples/$ex"))
       coveredExamples ++= paths
       val inputs = paths.map(PathOrStd.Path)
@@ -140,21 +162,21 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String) {
-    def pvl(data: String): Unit = {
+    def pvl(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
       }
     }
 
-    def java(data: String): Unit = {
+    def java(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.java", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
       }
     }
 
-    def c(data: String): Unit = {
+    def c(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.c", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)

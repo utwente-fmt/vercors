@@ -5,6 +5,20 @@ import vct.col.ast.{Comparator, Declaration, Node}
 import scala.collection.mutable
 
 case object Compare {
+  def compare[L, R](left: Node[L], right: Node[R])(toNormalForm: PartialFunction[Node[L], Node[L]]): LazyList[Comparator.Difference[L, R]] =
+    underEquivalence(Comparator.compare(left, right))(toNormalForm)
+
+  def underEquivalence[L, R](diffs: LazyList[Comparator.Difference[L, R]])(toNormalForm: PartialFunction[Node[L], Node[L]]): LazyList[Comparator.Difference[L, R]] =
+    diffs.flatMap {
+      case diff @ Comparator.StructuralDifference(left, right) =>
+        (toNormalForm.lift(left), toNormalForm.lift(right.asInstanceOf[Node[L]]).asInstanceOf[Option[Node[R]]]) match {
+          case (None, None) => Seq(diff)
+          case (maybeLeft, maybeRight) =>
+            compare(maybeLeft.getOrElse(left), maybeRight.getOrElse(right))(toNormalForm)
+        }
+      case otherDiff => Seq(otherDiff)
+    }
+
   def equals[L, R](left: Node[L], right: Node[R]): Boolean = {
     Comparator.compare(left, right).isEmpty
   }

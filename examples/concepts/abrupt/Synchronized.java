@@ -8,16 +8,20 @@ final
 class MyClass {
     int x;
 
+    //@ ensures committed(this);
     MyClass() {
         x = 0;
+        //@ commit this;
     }
 
+    //@ requires committed(this);
     void increment() {
         synchronized (this) {
             x += 1;
         }
     }
 
+    //@ requires committed(this);
     synchronized void other_increment() {
         x += 1;
     }

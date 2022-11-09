@@ -68,6 +68,7 @@ case object Spec {
       case (TMap(_, _), "keys") => MapKeySet(_)
 
       case (TOption(_), "get") => OptGet(_)(blame)
+      case (TOption(_), "isEmpty") => OptEmpty(_)
 
       case (TTuple(_), "fst") => TupGet(_, 0)
       case (TTuple(_), "snd") => TupGet(_, 1)

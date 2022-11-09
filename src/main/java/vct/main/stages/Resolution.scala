@@ -31,7 +31,6 @@ case object Resolution {
   def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =
     Resolution(
       blameProvider = blameProvider,
-      withJava = true,
       javaLibraryPath = options.jrePath,
     )
 }
@@ -69,7 +68,6 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
 case class Resolution[G <: Generation]
 (
   blameProvider: BlameProvider,
-  withJava: Boolean = true,
   javaLibraryPath: Path = Resources.getJrePath,
   bipSynchrons: Seq[((String, String), (String, String))] = Seq(),
   bipDatas: Seq[((String, String), (String, String))] = Seq(),
@@ -90,9 +88,9 @@ case class Resolution[G <: Generation]
 
     implicit val o: Origin = FileSpanningOrigin
 
-    val parsedProgram = Program(in.decls, if(withJava) Some(Java.JAVA_LANG_OBJECT[G]) else None)(blameProvider())
-    val extraDecls = ResolveTypes.resolve(parsedProgram, if(withJava) Some(JavaLibraryLoader(javaLibraryPath, blameProvider)) else None)
-    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls, parsedProgram.rootClass)(blameProvider())
+    val parsedProgram = Program(in.decls)(blameProvider())
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(javaLibraryPath, blameProvider)))
+    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram, MyLocalJavaParser(blameProvider)) match {
       case Nil => // ok
@@ -101,7 +99,9 @@ case class Resolution[G <: Generation]
     val resolvedProgram = LangSpecificToCol.withArg(LangSpecificToColArgs(bipSynchrons, bipDatas))().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
-      case some => throw TransformationCheckError("langSpecific", some)
+      // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The
+      // alternative is that we duplicate a lot of checks (e.g. properties of Local hold for PVLLocal, JavaLocal, etc.)
+      case some => throw InputResolutionError(some)
     }
 
     VerificationContext(resolvedProgram, in.expectedErrors)

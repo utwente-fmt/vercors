@@ -16,10 +16,16 @@ case object Check {
 
 sealed trait CheckError {
   override def toString: String = this match {
+    case TypeError(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
+      expr.o.messageInContext(s"This expression is not a value.")
+    case TypeErrorText(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
+      expr.o.messageInContext(s"This expression is not a value.")
     case TypeError(expr, expectedType) =>
       expr.o.messageInContext(s"Expected the type of this expression to be `$expectedType`, but got ${expr.t}.")
-    case TypeErrorText(expr, message) =>
-      expr.o.messageInContext(message(expr.t))
+    case TypeErrorText(expr, expectedType) =>
+      expr.o.messageInContext(s"Expected the type of this expression to be $expectedType, but got ${expr.t}.")
+    case TypeErrorExplanation(expr, message) =>
+      expr.o.messageInContext(message)
     case GenericTypeError(t, expectedType) =>
       t.o.messageInContext(s"This type variable refers to a name that is not actually a type.")
     case OutOfScopeError(use, ref) =>
@@ -55,7 +61,8 @@ sealed trait CheckError {
   }
 }
 case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
-case class TypeErrorText(expr: Expr[_], message: Type[_] => String) extends CheckError
+case class TypeErrorText(expr: Expr[_], expectedType: String) extends CheckError
+case class TypeErrorExplanation(expr: Expr[_], message: String) extends CheckError
 case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckError
 case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
 case class OutOfWriteScopeError[G](reason: Node[G], use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
@@ -65,7 +72,7 @@ case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
-case class ResultOutsidePostcondition(res: Result[_]) extends CheckError
+case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
 
 case class CheckContext[G]
 (

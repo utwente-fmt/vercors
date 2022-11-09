@@ -12,6 +12,7 @@ class Main {
     y=1;
     z=2;
     int t;
+    /*[/expect notEstablished:false]*/
     invariant inv(Perm(x,1\2)**Perm(y,1\2)**Perm(z,1\2)** x+y==z){
       t=x+z;
       atomic(inv){
@@ -21,4 +22,5 @@ class Main {
       }
     }
   }
+    /*[/end]*/
 }

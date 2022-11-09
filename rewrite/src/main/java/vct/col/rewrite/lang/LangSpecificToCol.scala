@@ -91,7 +91,6 @@ case class LangSpecificToCol[Pre <: Generation](args: LangSpecificToColArgs) ext
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
-    case m: JavaMethod[Pre] => java.rewriteMethod(m)
     case p: JavaParam[Pre] => java.rewriteParameter(p)
 
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)

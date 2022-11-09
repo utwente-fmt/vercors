@@ -166,7 +166,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   private def hasNoSharedMemNames(node: Node[Pre]): Boolean = {
-    val allowedNonRefs = Set("get_local_id", "get_group_id", "get_local_size", "get_num_groups")
+    val allowedNonRefs = Set("get_local_id", "get_group_id", "get_local_size", "get_num_groups", "get_global_size")
 
     def varIsNotShared(l: CLocal[Pre]): Boolean = {
       l.ref match {
@@ -278,14 +278,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                 => kernelProcedure(namedO, contract, info, Some(func.body), k) }
               .getOrElse( {
                 val params = rw.variables.collect { info.params.get.foreach(rw.dispatch) }._1
-                new Procedure[Post](
-                  returnType = returnType,
-                  args = params,
-                  outArgs = Nil,
-                  typeArgs = Nil,
-                  body = Some(rw.dispatch(func.body)),
-                  contract = rw.dispatch(contract),
-                )(func.blame)(namedO)
+                rw.labelDecls.scope {
+                  new Procedure[Post](
+                    returnType = returnType,
+                    args = params,
+                    outArgs = Nil,
+                    typeArgs = Nil,
+                    body = Some(rw.dispatch(func.body)),
+                    contract = rw.dispatch(contract),
+                  )(func.blame)(namedO)
+                }
               } )
         )
       }
@@ -923,6 +925,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case ("get_local_id", Some(i)) => getCudaLocalThread(i, o)
       case ("get_group_id", Some(i)) => getCudaGroupThread(i, o)
       case ("get_local_size", Some(i)) => getCudaLocalSize(i, o)
+      case ("get_global_size", Some(i)) => getCudaGroupSize(i, o)
       case ("get_num_groups", Some(i)) => getCudaGroupSize(i, o)
       case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
         givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },

@@ -137,4 +137,12 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       succ[JavaClass[Post]](cls).decl.pin = cls.pin.map(dispatch(_))
     case other => rewriteDefault(other)
   }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case CDeclarationStatement(local) =>
+      val (locals, _) = cLocalDeclarations.collect { dispatch(local) }
+      Block(locals.map(CDeclarationStatement(_)(stat.o)))(stat.o)
+
+    case other => rewriteDefault(other)
+  }
 }

@@ -30,7 +30,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       body = rw.currentThis.having(resVar.get) { cons.body.map(body => Scope(Seq(resVar), Block(Seq(
         assignLocal(resVar.get, NewObject[Post](rw.succ(rw.currentClass.top))),
         rw.dispatch(body),
-        Commit(resVar.get)(cons.blame),
         Return(resVar.get),
       )))) },
       contract = rw.currentThis.having(result) { cons.contract.rewrite(
@@ -50,6 +49,10 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val res = Local[Post](resVar.ref)(ThisVar)
       val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
 
+      val checkRunnable = cls.declarations.collectFirst {
+        case _: RunMethod[Pre] => ()
+      }.nonEmpty
+
       pvlDefaultConstructor(cls) = rw.globalDeclarations.declare(withResult((result: Result[Post]) => new Procedure(
         t,
         Nil, Nil, Nil,
@@ -63,7 +66,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
             case field: InstanceField[Pre] =>
               fieldPerm[Post](result, rw.succ(field), WritePerm())
-          }) &* IdleToken(result)), tt, Nil, Nil, Nil, None,
+          }) &* (if (checkRunnable) IdleToken(result) else tt)), tt, Nil, Nil, Nil, None,
         )(TrueSatisfiable)
       )(defaultBlame)))
     }

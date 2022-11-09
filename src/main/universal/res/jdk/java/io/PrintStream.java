@@ -1,7 +1,9 @@
-package java.io;
+package java.lang.io;
 
 class PrintStream {
-    public void println(String s) {
-
-    }
+    /*@
+    ghost void println();
+    ghost void println(Object arg);
+    ghost void println(String arg);
+     @*/
 }

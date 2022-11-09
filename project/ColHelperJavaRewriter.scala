@@ -7,34 +7,34 @@ case class ColHelperJavaRewriter(info: ColDescription) {
   def makeMapEntry(family: String)(cls: ClassDef): Term =
     q"""classOf[${cls.typ}[_]] -> new RWFunc[${Type.Name(family)}] {
       def apply[Pre, Post](node: ${Type.Name(family)}[Pre], rw: JavaRewriter[Pre, Post]): ${Type.Name(family)}[Post] =
-        rw.rewrite(node.asInstanceOf[${cls.typ}[Pre]])
+        rw.${Term.Name("rewrite" + cls.baseName)}(node.asInstanceOf[${cls.typ}[Pre]])
     }"""
 
   def makeDeclMapEntry(cls: ClassDef): Term =
     q"""classOf[${cls.typ}[_]] -> new DeclRWFunc {
       def apply[Pre, Post](node: Declaration[Pre], rw: JavaRewriter[Pre, Post]): Unit =
-        rw.rewrite(node.asInstanceOf[${cls.typ}[Pre]])
+        rw.${Term.Name("rewrite" + cls.baseName)}(node.asInstanceOf[${cls.typ}[Pre]])
     }"""
 
   def javaRewrite(ret: Type.Name)(cls: ClassDef): Stat = q"""
-    def rewrite(node: ${cls.typ}[Pre]): $ret[Post] = {
+    def ${Term.Name("rewrite" + cls.baseName)}(node: ${cls.typ}[Pre]): $ret[Post] = {
       val builder = new ${cls.rewriteBuilderName}(node)
-      rewrite(builder)
+      ${Term.Name("build" + cls.baseName)}(builder)
       builder.build()
     }
   """
 
   def javaRewriteDecl(cls: ClassDef): Stat = q"""
-    def rewrite(node: ${cls.typ}[Pre]): Unit = {
+    def ${Term.Name("rewrite" + cls.baseName)}(node: ${cls.typ}[Pre]): Unit = {
       val builder = new ${Init(cls.rewriteBuilderName, Name.Anonymous(), Nil)}[Pre, Post](node)
-      rewrite(builder)
+      ${Term.Name("build" + cls.baseName)}(builder)
       ${ColDefs.scopes(ColDefs.DECLARATION_KINDS.find(info.supports(_)(cls.baseName)).get)}
         .succeed(node, builder.build())
     }
   """
 
   def javaRewriteBuilder(cls: ClassDef): Stat =
-    q"def rewrite(builder: ${cls.rewriteBuilderName}[Pre, Post]): Unit = {}"
+    q"def ${Term.Name("build" + cls.baseName)}(builder: ${cls.rewriteBuilderName}[Pre, Post]): Unit = {}"
 
   def make(): List[(String, List[Stat])] = List("JavaRewriter" -> q"""
     object JavaRewriter {

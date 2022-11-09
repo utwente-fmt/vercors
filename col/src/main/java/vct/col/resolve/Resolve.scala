@@ -58,6 +58,8 @@ case object Resolve {
     case c: JavaClassOrInterface[_] => c.modifiers.contains(JavaBipAnnotation[InitialGeneration]()(DiagnosticOrigin)) && c.name == `type`
     case _ => false
   }
+
+
 }
 
 case object ResolveTypes {
@@ -73,24 +75,35 @@ case object ResolveTypes {
     resolveOne(node, ctx)
   }
 
+  def scanImport[G](imp: JavaImport[G], ctx: TypeResolutionContext[G]): Seq[Referrable[G]] /* importable? */ = imp match {
+    case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName :+ staticMember), /* star = */ false) =>
+      val staticType = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
+        .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
+      Seq(Java.findStaticMember(staticType, staticMember)
+        .getOrElse(throw NoSuchNameError("static member", (fullyQualifiedTypeName :+ staticMember).mkString("."), imp)))
+    case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName), /* star = */ true) =>
+      val typeName = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
+        .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
+      Java.getStaticMembers(typeName)
+    // Non-static imports are resolved on demand
+    case _ => Seq()
+  }
+
   def enterContext[G](node: Node[G], ctx: TypeResolutionContext[G]): TypeResolutionContext[G] = node match {
-    case Program(decls, _) =>
+    case Program(decls) =>
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
-      ctx.copy(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
+      // Static imports need to be imported at this stage, because they influence how names are resolved.
+      // E.g.: in the expressio f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
+      // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
+      // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
+      ctx.copy(
+        namespace=Some(ns),
+        stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctx))) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
   }
-
-  // On static import: _definitely_ resolve type.
-  // - If single: add one name to stack
-  // - Otherwise: add all static fields/methods/enum constants to stack
-  // On JavaLocal:
-  // - If variable, param, or field: leave empty.
-  // - If available as static (wildcard) import: do not try to resolve as class
-  // - If available as already imported type: done
-  // - Otherwise: resolve, must be type that is not yet imported
 
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit = node match {
     case javaClass @ JavaNamedType(genericNames) =>
@@ -127,18 +140,29 @@ case object ResolveTypes {
       } else if (fqn.contains(Java.JAVA_LANG_CLASS)) {
         cls.pin = Some(JavaLangClass())
       }
-    case imp @ JavaImport(/* static = */ true, name, /* star = */ false) =>
-      Java.findJavaTypeName(name.names.init, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-    case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
-      Java.findJavaTypeName(name.names, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
-      Java.findJavaTypeName(name.names, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//    case imp@JavaImport(/* static = */ false, pkg, /* star = */ true) =>
-//      // TODO (RR): Pulls in everything, even though we prefer on demand...?
-//      Java.findJavaTypeNamesInPackage(pkg.names, ctx)
+      // Kept around but can probably go...? Think it's handled by scanImport now
+//    case imp @ JavaImport(/* static = */ true, name, /* star = */ false) =>
+//      Java.findJavaTypeName(name.names.init, ctx)
+//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+//    case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
+//      Java.findJavaTypeName(name.names, ctx)
+//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+//    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
+//      Java.findJavaTypeName(name.names, ctx)
+//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+////    case imp@JavaImport(/* static = */ false, pkg, /* star = */ true) =>
+////      // TODO (RR): Pulls in everything, even though we prefer on demand...?
+////      Java.findJavaTypeNamesInPackage(pkg.names, ctx)
+    case local: JavaLocal[G] =>
+      Java.findJavaName(local.name, ctx) match {
+        case Some(
+          _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | _: RefJavaParam[G] | // Regular names
+          _: RefJavaClass[G] | _: RefEnum[G] | _: RefEnumConstant[G] // Statically imported, or regular previously imported typename
+        ) => // Nothing to do. Local will get properly resolved next phase
+        case None =>
+          // Unknown what this local refers though. Try importing it as a type; otherwise, it's the start of a package
+          Java.findJavaTypeName(Seq(local.name), ctx)
+      }
     case _ =>
   }
 }
@@ -153,8 +177,12 @@ case object ResolveReferences extends LazyLogging {
       case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
       case _ => false
     })
+
     val innerCtx = enterContext(node, ctx, inGPU)
-    val childErrors = node.subnodes.flatMap(resolve(_, innerCtx, inGPU))
+
+    val childErrors = node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
+      resolve(node, innerCtx.copy(checkContext = ctx), inGPU)
+    }).flatten
 
     if(childErrors.nonEmpty) childErrors
     else {
@@ -198,7 +226,9 @@ case object ResolveReferences extends LazyLogging {
 
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean = false): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
-      .copy(currentJavaNamespace=Some(ns)).declare(ns.declarations)
+      .copy(currentJavaNamespace=Some(ns))
+      .copy(stack = ns.imports.flatMap(ResolveTypes.scanImport[G](_, ctx.asTypeResolutionContext)) +: ctx.stack)
+      .declare(ns.declarations)
     case cls: JavaClassOrInterface[G] => {
       val newCtx = ctx
         .copy(currentJavaClass = Some(cls))
@@ -259,17 +289,23 @@ case object ResolveReferences extends LazyLogging {
     case declarator: Declarator[G] => ctx
       .declare(declarator.declarations)
     case _ => ctx
-  }).copy(checkContext=node.enterCheckContext(ctx.checkContext))
+  })
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@JavaLocal(name) =>
+    case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
       } else { None }
-      local.ref = Some(start.orElse(Java.findJavaName(name, ctx)).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@PVLLocal(name) =>
+      local.ref = Some(start.orElse(
+        Java.findJavaName(name, ctx.asTypeResolutionContext)
+          .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
+              case Some(target: JavaNameTarget[G]) => Some(target)
+              case None => None
+          }))
+          .getOrElse(RefUnloadedJavaNamespace(Seq(name))))
+    case local @ PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))

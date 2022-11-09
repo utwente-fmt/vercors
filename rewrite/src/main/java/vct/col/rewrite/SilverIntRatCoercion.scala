@@ -11,7 +11,7 @@ case object SilverIntRatCoercion extends RewriterBuilder {
 }
 
 case class SilverIntRatCoercion[Pre <: Generation]() extends CoercingRewriter[Pre] {
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceIntRat() =>
       SilverIntToRat(e)
     case other => super.applyCoercion(e, other)
