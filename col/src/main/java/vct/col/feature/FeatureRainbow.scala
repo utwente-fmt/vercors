@@ -12,6 +12,7 @@ class FeatureRainbow[G] {
   val examples: mutable.Map[Feature, ArrayBuffer[Node[G]]] = mutable.Map()
 
   private var returnTypes: Seq[Type[G]] = Nil
+  private var returnValues: Seq[Expr[G]] = Nil
 
   def scan(node: Node[G]): Unit =
     node.transSubnodes.foreach(node => scanFlatly(node).foreach(f => {
@@ -74,7 +75,6 @@ class FeatureRainbow[G] {
     case node: OptNoneTyped[G] => AxiomaticLibraryType
     case node: OptSomeTyped[G] => AxiomaticLibraryType
     case node: TNull[G] => AxiomaticLibraryType
-    case node: Void[G] => AxiomaticLibraryType
 
     case node: Assert[G] => BasicStatement
     case node: Assume[G] => BasicStatement
@@ -583,6 +583,7 @@ class FeatureRainbow[G] {
       )
 
     case node: Return[G] =>
+      returnValues :+= node.result
       if (node.result == Void[G]()(DiagnosticOrigin)) return Seq(Methods)
       else return Seq(NonVoidReturn, Methods)
     case node: Branch[G] =>
@@ -626,6 +627,9 @@ class FeatureRainbow[G] {
     }
     case node: TVoid[G] =>
       if (returnTypes.exists(_ eq node)) return Nil
+      else AxiomaticLibraryType
+    case node: Void[G] =>
+      if (returnValues.exists(_ eq node)) return Nil
       else AxiomaticLibraryType
 
     case node: ValidArray[G] => return Seq(SugarPermissionOperator, Arrays)
