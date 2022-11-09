@@ -586,6 +586,10 @@ expression
     : valEmbedWith? expr valEmbedThen?
     ;
 
+vercorsBipJob
+    : startSpec 'vercorsBipJob' endSpec
+    ;
+
 expr
     :   annotatedPrimary # javaPrimary
     |   expr '.' javaIdentifier # javaDeref
@@ -597,7 +601,7 @@ expr
     |   expr '->' javaIdentifier arguments # javaNonNullInvocation
     |   expr '.' javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields? # javaInvocation
     |   expr postfixOp # javaValPostfix
-    |   'new' creator valEmbedGiven? valEmbedYields? # javaNew
+    |   'new' vercorsBipJob? creator valEmbedGiven? valEmbedYields? # javaNew
     |   '(' type ')' expr # javaCast
     |   expr ('++' | '--') # javaPostfixIncDec
     |   ('+'|'-'|'++'|'--') expr # javaPrefixOp

@@ -607,8 +607,8 @@ case class Printer(out: Appendable,
         case None =>
           phrase(method, "(", commas(arguments.map(NodePhrase)), ")")
       }, 100)
-    case JavaNewClass(args, typeArgs, name, givenMap, yields) =>
-      (phrase("new", space, name, "(", commas(args.map(NodePhrase)), ")"), 100)
+    case JavaNewClass(args, typeArgs, name, givenMap, yields, isBipJob) =>
+      (phrase("new", space, if(isBipJob) "/*@ vercorsBipJob @*/" else "", space, name, "(", commas(args.map(NodePhrase)), ")"), 100)
     case JavaNewLiteralArray(baseType, dims, initializer) =>
       (phrase("new", space, baseType, "[]".repeat(dims), initializer), 100)
     case JavaNewDefaultArray(baseType, specifiedDims, moreDims) =>

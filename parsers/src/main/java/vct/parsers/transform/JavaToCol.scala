@@ -618,7 +618,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           convertEmbedGiven(given), convertEmbedYields(yields))(
           blame(expr))
       case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
-      case JavaNew(_, creator, given, yields) =>
+      case JavaNew(_, Some(e), creator, given, yields) =>
+        ??(e)
+      case JavaNew(_, None, creator, given, yields) =>
         convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
       case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
       case JavaPostfixIncDec(inner, postOp) =>

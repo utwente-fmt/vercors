@@ -477,7 +477,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def newClass(inv: JavaNewClass[Pre]): Expr[Post] = {
-    val JavaNewClass(args, typeParams, t, givenMap, yields) = inv
+    val JavaNewClass(args, typeParams, t, givenMap, yields, _) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case RefModel(decl) => ModelNew[Post](rw.succ(decl))

@@ -1,4 +1,4 @@
-package org.javabip.spec.deviation;
+/* package org.javabip.spec.deviation;
 
 import akka.actor.ActorSystem;
 import org.javabip.api.BIPEngine;
@@ -6,15 +6,15 @@ import org.javabip.api.BIPGlue;
 import org.javabip.engine.factory.EngineFactory;
 import org.javabip.glue.TwoSynchronGlueBuilder;
 
-import static org.javabip.spec.deviation.Constants.*;
+import static org.javabip.spec.deviation.Constants.*; */
 
 public class Main {
     public static void main(String[] args) throws Exception {
         ActorSystem system = ActorSystem.create(ACTOR_SYSTEM);
         EngineFactory engineFactory = new EngineFactory(system);
 
-        BIPGlue glue = new TwoSynchronGlueBuilder() {
-            Override
+        BIPGlue glue = new /*@ vercorsBipJob @*/ TwoSynchronGlueBuilder() {
+            @Override
             public void configure() {
                 synchron(GeneratorSpec.class, SEND_DATA).to(CalculatorSpec.class, GET_DATA);
                 synchron(CalculatorSpec.class, SEND_DATA).to(DeviatorSpec.class, QUERY_DATA);
