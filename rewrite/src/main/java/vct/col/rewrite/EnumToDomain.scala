@@ -137,7 +137,7 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case other => rewriteDefault(other)
   }
 
-  override def applyCoercion(e: Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
+  override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(implicit o: Origin): Expr[Post] = coercion match {
     case CoerceNullEnum(_) =>
       OptNone()(e.o)
     case other => super.applyCoercion(e, other)

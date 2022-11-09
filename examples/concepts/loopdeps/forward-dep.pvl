@@ -22,7 +22,9 @@ class Ref {
       ensures  Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (2)
       context  b[tid]==tid;
       ensures  a[tid]==tid+1;
-      ensures  tid>0 ==> c[tid]==tid+2; 
+      ensures  tid>0 ==> c[tid]==tid+2;
+      requires  a[tid]==\old(a[tid]);
+      context  b[tid]==\old(b[tid]);
     {
       a[tid]=b[tid]+1; 
       barrier(fwd) {
@@ -34,8 +36,8 @@ class Ref {
         ensures  Perm(a[tid], 1\2); // Perm(a[tid], read) also possible (3)
         ensures  tid>0 ==> Perm(a[tid-1], 1\2); // Perm(a[tid-1], read) also possible (4)
         requires a[tid]==tid+1;
-        ensures  a[tid]==\old(a[tid]); // this one is necessary, due to write permission (requires) on a[tid]
-        ensures  b[tid]==\old(b[tid]); // already encapsulated by read permission (requires) on b[tid]
+        context  a[tid]==\old(b[tid]) + 1; // this one is necessary, due to write permission (requires) on a[tid]
+        context  b[tid]==\old(b[tid]); // already encapsulated by read permission (requires) on b[tid]
         ensures  tid>0 ==> a[tid-1]==tid;        
       }
       if (tid>0) {

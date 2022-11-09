@@ -45,7 +45,7 @@ case object ResolveTypes {
   }
 
   def enterContext[G](node: Node[G], ctx: TypeResolutionContext[G]): TypeResolutionContext[G] = node match {
-    case Program(decls, _) =>
+    case Program(decls) =>
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
       // Static imports need to be imported at this stage, because they influence how names are resolved.
@@ -119,8 +119,12 @@ case object ResolveReferences {
       case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
       case _ => false
     })
+
     val innerCtx = enterContext(node, ctx, inGPU)
-    val childErrors = node.subnodes.flatMap(resolve(_, innerCtx, inGPU))
+
+    val childErrors = node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
+      resolve(node, innerCtx.copy(checkContext = ctx), inGPU)
+    }).flatten
 
     if(childErrors.nonEmpty) childErrors
     else {
@@ -209,7 +213,7 @@ case object ResolveReferences {
     case declarator: Declarator[G] => ctx
       .declare(declarator.declarations)
     case _ => ctx
-  }).copy(checkContext=node.enterCheckContext(ctx.checkContext))
+  })
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local @ CLocal(name) =>

@@ -1,4 +1,4 @@
-package vct.col.newrewrite
+package vct.col.rewrite
 
 import vct.col.ast.{Expr, Function, InternedString, JavaStringConcat, JavaStringConcatOperator, Program}
 import vct.col.origin.PanicBlame

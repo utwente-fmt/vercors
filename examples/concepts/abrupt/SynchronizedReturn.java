@@ -10,13 +10,18 @@ code _is_ executed after the return statement. Since the method n() steals the h
 clean-up code should fail in the normal case, but if the goto-oblivious encoding is used this is not the case.
 */
 
-final class C {
-    /*@
-        resource lock_invariant() = Perm(f, 1);
-     @*/
+/*[/expect heldFailed:perm]*/
 
+//@ lock_invariant Perm(f, 1);
+class C {
     int f;
 
+    //@ ensures committed(this);
+    C() {
+        //@ commit this;
+    }
+
+    //@ requires committed(this);
     synchronized void m() {
         n();
         return;
@@ -29,3 +34,5 @@ final class C {
 
     }
 }
+
+/*[/end]*/

@@ -6,6 +6,8 @@ ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
 ThisBuild / fork := true
 
+ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
+
 enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
@@ -67,10 +69,11 @@ silicon_ref / packageDoc / publishArtifact := false
 ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
-
 lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors executable")
 lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
+lazy val benchPrintExternalDeps = taskKey[Unit]("For util/bench/flatten-sources.sh: print only the external dependencies, available without compilation.")
+lazy val benchPrintSources = taskKey[Unit]("For util/bench/flatten-sources.sh: print all source directories, including viper.")
 
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, rewrite, viper, parsers)
@@ -78,7 +81,7 @@ lazy val vercors: Project = (project in file("."))
   .settings(
     fork := true,
     name := "Vercors",
-    organization := "University of Twente",
+    organization := "nl.utwente",
     version := "2.0.0-alpha.8",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
@@ -241,3 +244,27 @@ Global / printRuntimeClasspath := {
   println(joinedPaths)
 }
 
+Global / benchPrintExternalDeps := {
+  println(
+    (Runtime / externalDependencyClasspath).value
+      .map(_.data.toString.replace("\"", "\\\""))
+      .map(entry => "Attributed.blank(file(\"" + entry + "\"))")
+      .mkString("Seq(", ", ", ")")
+  )
+}
+
+Global / benchPrintSources := {
+  println((vercors / baseDirectory).value / "src")
+  println((vercors / baseDirectory).value / "target" / "scala-2.13" / "src_managed")
+  println((hre / baseDirectory).value / "src")
+  println((col / baseDirectory).value / "src")
+  println((col / baseDirectory).value / "target" / "scala-2.13" / "src_managed")
+  println((parsers / baseDirectory).value / "src")
+  println((parsers / baseDirectory).value / "target" / "scala-2.13" / "src_managed")
+  println((rewrite / baseDirectory).value / "src")
+  println((viper / baseDirectory).value / "src")
+  println((silver_ref / baseDirectory).value / "src")
+  println((carbon_ref / baseDirectory).value / "src")
+  println((silicon_ref / baseDirectory).value / "common" / "src")
+  println((silicon_ref / baseDirectory).value / "src")
+}

@@ -227,7 +227,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           Return(Void()),
         )))
       case ass @ Assign(target, value) =>
-        frame(PostAssignExpression[Pre](target, value)(ass.blame), Eval(_))
+        frame(PreAssignExpression[Pre](target, value)(ass.blame), Eval(_))
       case block: Block[Pre] => rewriteDefault(block)
       case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
@@ -269,7 +269,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
       case f @ Fork(obj) => frame(obj, Fork(_)(f.blame))
       case j @ Join(obj) => frame(obj, Join(_)(j.blame))
-      case Lock(obj) => frame(obj, Lock(_))
+      case l @ Lock(obj) => frame(obj, Lock(_)(l.blame))
       case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
       case fold: Fold[Pre] => rewriteDefault(fold)
       case unfold: Unfold[Pre] => rewriteDefault(unfold)

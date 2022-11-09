@@ -3,7 +3,7 @@ package vct.col.resolve.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{Any => _, Class => _, _}
+import vct.col.ast.{ApplicableContract, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void, Enum, TPinnedDecl, JavaClassDeclaration, JavaLangString, TEnum}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
@@ -444,6 +444,7 @@ case object Java extends LazyLogging {
     case TClass(_) => Null()
     case JavaTClass(_, _) => Null()
     case TEnum(_) => Null()
+    case TAnyClass() => Null()
 
     case t: TAxiomatic[G] => throw WrongTypeForDefaultValue(t)
     case t: TType[G] => throw WrongTypeForDefaultValue(t)

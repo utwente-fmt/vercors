@@ -47,7 +47,8 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       )
     }
 
-    ColHelper.assertEquals(ContinueToBreak().dispatch(before), after)
+    val rw = ContinueToBreak[G]()
+    ColHelper.assertEquals(rw.labelDecls.scope { rw.dispatch(before) }, after)
   }
 
   it should "only wrap the other loop when only continuing from the outer loop" in {
@@ -104,6 +105,7 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
       )
     }
 
-    ColHelper.assertEquals(ContinueToBreak().dispatch(before), after)
+    val rw = ContinueToBreak[G]()
+    ColHelper.assertEquals(rw.labelDecls.scope { rw.dispatch(before) }, after)
   }
 }

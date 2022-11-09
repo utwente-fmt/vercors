@@ -10,12 +10,14 @@ class Worker {
 	requires m != null;
 	ensures Perm(main, 1) ** main != null ** main == m;
 	ensures Perm(val, 1) ** val == v;
+	ensures idle(this);
 	constructor(Main m, int v) {
 		this.main = m;
 		this.val = v;
 	}
-	
+
 	context Perm(main, 1\2) ** main != null;
+	requires committed(main);
 	context Perm(val, 1\2);
 	run {
 		lock main;
@@ -27,10 +29,13 @@ class Worker {
 lock_invariant Perm(this.sum, 1);
 class Main {
 	int sum;
-	
-	Main() {
+
+	ensures committed(this);
+	constructor() {
+	  commit this;
 	}
-	
+
+	requires committed(this);
 	void sum(seq<int> xs) {
 		if (0 < |xs|) {
 			Worker w = new Worker(this, xs.head);

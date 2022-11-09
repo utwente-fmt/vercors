@@ -725,7 +725,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit expr: LiteralContext): Expr[G] = expr match {
-    case Literal0(i) => const(Integer.parseInt(i))
+    case Literal0(i) => const(BigInt(i))
     case Literal1(n) if n.length > 1 =>
       val (num, t) = n.last match {
         case 'f' | 'F' => (n.init, Java.float[G])
@@ -1043,6 +1043,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       })
     case ValAtomic(_, _, invariant, _, body) =>
       ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
+    case ValCommit(_, obj, _) =>
+      Commit(convert(obj))(blame(stat))
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {
@@ -1236,28 +1238,37 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
   }
 
-  def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
-    case ValRangeQuantifier(_, quant, t, id, _, from, _, to, _, body, _) =>
+  def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
+    case ValRangeBinding(t, id, _, from, _, to) =>
       val variable = new Variable[G](convert(t))(SourceNameOrigin(convert(id), origin(id)))
       val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
-      quant match {
-        case "\\forall*" => Starall(Seq(variable), Nil, Implies(cond, convert(body)))(blame(e))
-        case "\\forall" => Forall(Seq(variable), Nil, Implies(cond, convert(body)))
-        case "\\exists" => Exists(Seq(variable), Nil, col.And(cond, convert(body)))
+      (variable, Seq(cond))
+    case ValNormalBinding(arg) =>
+      (convert(arg), Nil)
+  }
+
+  def convert(implicit vs: ValBindingsContext): (Seq[Variable[G]], Seq[Expr[G]]) = vs match {
+    case ValBindings0(binding) =>
+      val (v, cs) = convert(binding)
+      (Seq(v), cs)
+    case ValBindings1(binding, _, bindings) =>
+      val (v, cs) = convert(binding)
+      val (vs, ds) = convert(bindings)
+      (v +: vs, cs ++ ds)
+  }
+
+  def convert(implicit e: ValPrimaryBinderContext): Expr[G] = e match {
+    case ValQuantifier(_, symbol, bindings, _, bodyOrCond, maybeBody, _) =>
+      val (variables, bindingConds) = convert(bindings)
+      val (bodyConds, body) = maybeBody match {
+        case Some(ValBinderCont0(_, body)) => (Seq(convert(bodyOrCond)), convert(body))
+        case None => (Nil, convert(bodyOrCond))
       }
-    case ValQuantifier(_, quant, bindings, _, cond, _, body, _) =>
-      val variables = convert(bindings)
-      quant match {
-        case "\\forall*" => Starall(variables, Nil, Implies(convert(cond), convert(body)))(blame(e))
-        case "\\forall" => Forall(variables, Nil, Implies(convert(cond), convert(body)))
-        case "\\exists" => Exists(variables, Nil, col.And(convert(cond), convert(body)))
-      }
-    case ValShortQuantifier(_, quant, bindings, _, body, _) =>
-      val variables = convert(bindings)
-      quant match {
-        case "∀" => Forall(variables, Nil, convert(body))
-        case "∀*" => Starall(variables, Nil, convert(body))(blame(e))
-        case "∃" => Exists(variables, Nil, convert(body))
+      val conds = bindingConds ++ bodyConds
+      symbol match {
+        case ValForallSymb(_) => Forall(variables, Nil, implies(conds, body))
+        case ValStarallSymb(_) => Starall(variables, Nil, implies(conds, body))(blame(e))
+        case ValExistsSymb(_) => Exists(variables, Nil, foldAnd(conds :+ body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
@@ -1311,6 +1322,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
+    case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
     case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
   }
 

@@ -85,6 +85,7 @@ valStatement
  | 'spec_ignore' '{' # valSpecIgnoreEnd
  | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
  | 'atomic' '(' langId ')' langStatement # valAtomic
+ | 'commit' langExpr ';' # valCommit
  ;
 
 valActionImpl
@@ -183,12 +184,30 @@ valPrimaryPermission
  | '\\pointer_length' '(' langExpr ')' # valPointerLength
  ;
 
+valForall: '\\forall' | '\u2200';
+valStarall: '\\forall*' | '\u2200*';
+valExists: '\\exists' | '\u2203';
+
+valBinderSymbol
+ : valForall # valForallSymb
+ | valStarall # valStarallSymb
+ | valExists # valExistsSymb
+ ;
+
+valBinding
+ : langType langId '=' langExpr '..' langExpr # valRangeBinding
+ | valArg # valNormalBinding
+ ;
+
+valBindings
+ : valBinding
+ | valBinding ',' valBindings
+ ;
+
+valBinderCont: ';' langExpr;
+
 valPrimaryBinder
- : '(' ('\\forall*'|'\\forall'|'\\exists')
-        langType langId '=' langExpr '..' langExpr ';' langExpr ')' # valRangeQuantifier
- | '(' ('\\forall*'|'\\forall'|'\\exists')
-        valArgList ';' langExpr ';' langExpr ')' # valQuantifier
- | '(' ('\u2200'|'\u2200*'|'\u2203') valArgList ';' langExpr ')' # valShortQuantifier
+ : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
  ;
 
@@ -249,12 +268,13 @@ valPrimary
  | '*' # valAny
  | '(' langId '!' valIdList ')' # valFunctionOf
  | TRIGGER_OPEN langExpr ':}' # valInlinePattern
- | '\\unfolding' langExpr '\\in' langExpr # valUnfolding
+ | ('\\unfolding'|'\\Unfolding') langExpr '\\in' langExpr # valUnfolding
  | '\\old' '(' langExpr ')' # valOld
  | '\\old' '[' langId ']' '(' langExpr ')' #valOldLabeled
  | '\\typeof' '(' langExpr ')' # valTypeof
  | '\\type' '(' langType ')' # valTypeValue
  | 'held' '(' langExpr ')' # valHeld
+ | 'committed' '(' langExpr ')' # valCommitted
  | LANG_ID_ESCAPE # valIdEscape
  | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
  ;

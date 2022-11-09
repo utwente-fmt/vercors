@@ -15,7 +15,7 @@ sealed trait ContractFailure {
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def code: String = "false"
   override def descCompletion: String = "this expression may be false"
-  override def inlineDescCompletion: String = s"${node.o.inlineContext} may be false"
+  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def code: String = "perm"
@@ -504,7 +504,21 @@ case class PointerInsufficientPermission(node: Expr[_]) extends PointerDerefErro
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to dereference `$source`."
 }
 
-sealed trait UnlockFailure extends VerificationFailure
+sealed trait LockRegionFailure extends VerificationFailure
+
+sealed trait LockFailure extends LockRegionFailure
+case class LockObjectNull(node: Node[_]) extends NodeVerificationFailure with LockFailure {
+  override def code: String = "lockNull"
+  override def descInContext: String = "Lock target may be null"
+  override def inlineDescWithSource(source: String): String = s"Lock target in `$source` may be null."
+}
+case class LockNotCommitted(node: Lock[_]) extends NodeVerificationFailure with LockFailure {
+  override def code: String = "lockNotCommitted"
+  override def descInContext: String = "Lock target may not yet have committed the lock invariant"
+  override def inlineDescWithSource(source: String): String = s"Lock target in `$source` may not yet have committed the lock invariant."
+}
+
+sealed trait UnlockFailure extends LockRegionFailure
 case class UnlockInvariantFailed(node: Unlock[_], failure: ContractFailure) extends UnlockFailure with WithContractFailure {
   override def baseCode: String = "invariantFailed"
   override def descInContext: String = "The lock invariant may not be exhaled here, since"

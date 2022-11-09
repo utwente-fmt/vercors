@@ -3,6 +3,10 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalFloatSpec extends VercorsSpec {
+  // https://github.com/utwente-fmt/vercors/issues/853
+  // vercors should verify using silicon example "technical/floats.c"
+  vercors should verify using silicon example "technical/floats.java"
+
   vercors should verify using silicon in "literals of floats and casting pvl" pvl """
       float64 m() {
         assert 0.5 > 0.0;

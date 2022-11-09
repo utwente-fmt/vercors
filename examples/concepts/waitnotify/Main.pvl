@@ -25,8 +25,8 @@ class Main {
     q2.put(2);
   }
   
-  requires Value(q1) ** q1!=null;
-  requires Value(q2) ** q2!=null;
+  requires Value(q1) ** q1!=null ** committed(q1);
+  requires Value(q2) ** q2!=null ** committed(q2);
   void main(){
     Worker w1=new Worker(q1,q2);
     Worker w2=new Worker(q2,q1);

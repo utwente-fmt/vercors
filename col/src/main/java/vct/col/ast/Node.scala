@@ -70,7 +70,7 @@ sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
 final case class Verification[G](tasks: Seq[VerificationContext[G]])(implicit val o: Origin) extends NodeFamily[G] with VerificationImpl[G]
 final case class VerificationContext[G](program: Program[G], expectedErrors: Seq[ExpectedError])(implicit val o: Origin) extends NodeFamily[G] with VerificationContextImpl[G]
-final case class Program[G](declarations: Seq[GlobalDeclaration[G]], rootClass: Option[Type[G]])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
+final case class Program[G](declarations: Seq[GlobalDeclaration[G]])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
 
 sealed trait Type[G] extends NodeFamily[G] with TypeImpl[G]
 
@@ -122,6 +122,7 @@ final case class TZFraction[G]()(implicit val o: Origin = DiagnosticOrigin) exte
 sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TModelImpl[G]
 final case class TClass[G](cls: Ref[G, Class[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TClassImpl[G]
+final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
 final case class TEnum[G](enum: Ref[G, Enum[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
 
@@ -163,7 +164,7 @@ final case class Wait[G](obj: Expr[G])(val blame: Blame[UnlockFailure])(implicit
 final case class Notify[G](obj: Expr[G])(val blame: Blame[NotifyFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with NotifyImpl[G]
 final case class Fork[G](obj: Expr[G])(val blame: Blame[ForkFailure])(implicit val o: Origin) extends NormallyCompletingStatement[G] with ForkImpl[G]
 final case class Join[G](obj: Expr[G])(val blame: Blame[JoinFailure])(implicit val o: Origin) extends NormallyCompletingStatement[G] with JoinImpl[G]
-final case class Lock[G](obj: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with LockImpl[G]
+final case class Lock[G](obj: Expr[G])(val blame: Blame[LockFailure])(implicit val o: Origin) extends NormallyCompletingStatement[G] with LockImpl[G]
 final case class Unlock[G](obj: Expr[G])(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends NormallyCompletingStatement[G] with UnlockImpl[G]
 final case class Commit[G](obj: Expr[G])(val blame: Blame[CommitFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with CommitImpl[G]
 final case class Fold[G](res: Expr[G])(val blame: Blame[FoldFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with FoldImpl[G]
@@ -190,7 +191,7 @@ final case class IndetBranch[G](branches: Seq[Statement[G]])(implicit val o: Ori
 final case class Switch[G](expr: Expr[G], body: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with SwitchImpl[G]
 final case class Loop[G](init: Statement[G], cond: Expr[G], update: Statement[G], contract: LoopContract[G], body: Statement[G])(implicit val o: Origin) extends CompositeStatement[G] with LoopImpl[G]
 final case class TryCatchFinally[G](body: Statement[G], after: Statement[G], catches: Seq[CatchClause[G]])(implicit val o: Origin) extends CompositeStatement[G] with TryCatchFinallyImpl[G]
-final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends CompositeStatement[G] with SynchronizedImpl[G]
+final case class Synchronized[G](obj: Expr[G], body: Statement[G])(val blame: Blame[LockRegionFailure])(implicit val o: Origin) extends CompositeStatement[G] with SynchronizedImpl[G]
 final case class ParInvariant[G](decl: ParInvariantDecl[G], inv: Expr[G], content: Statement[G])(val blame: Blame[ParInvariantNotEstablished])(implicit val o: Origin) extends CompositeStatement[G] with ParInvariantImpl[G]
 final case class ParAtomic[G](inv: Seq[Ref[G, ParInvariantDecl[G]]], content: Statement[G])(val blame: Blame[ParInvariantNotMaintained])(implicit val o: Origin) extends CompositeStatement[G] with ParAtomicImpl[G]
 final case class ParBarrier[G](block: Ref[G, ParBlockDecl[G]], invs: Seq[Ref[G, ParInvariantDecl[G]]], requires: Expr[G], ensures: Expr[G], content: Statement[G])(val blame: Blame[ParBarrierFailure])(implicit val o: Origin) extends CompositeStatement[G] with ParBarrierImpl[G]
@@ -307,6 +308,7 @@ final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] 
 final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
 final case class CoerceNullClass[G](targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullClassImpl[G]
 final case class CoerceNullJavaClass[G](targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullJavaClassImpl[G]
+final case class CoerceNullAnyClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullAnyClassImpl[G]
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullPointerImpl[G]
 final case class CoerceNullEnum[G](targetEnum: Ref[G, Enum[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullEnumImpl[G]
 
@@ -325,6 +327,8 @@ final case class CoerceBoundIntZFrac[G](source: Type[G])(implicit val o: Origin)
 
 final case class CoerceSupports[G](sourceClass: Ref[G, Class[G]], targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceSupportsImpl[G]
 final case class CoerceJavaSupports[G](sourceClass: Ref[G, JavaClassOrInterface[G]], targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaSupportsImpl[G]
+final case class CoerceClassAnyClass[G](sourceClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceClassAnyClassImpl[G]
+final case class CoerceJavaClassAnyClass[G](sourceClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaClassAnyClassImpl[G]
 
 final case class CoerceCPrimitiveToCol[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceCPrimitiveToColImpl[G]
 final case class CoerceColToCPrimitive[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceColToCPrimitiveImpl[G]
@@ -366,7 +370,9 @@ final case class Null[G]()(implicit val o: Origin) extends Expr[G] with NullImpl
 final case class NoPerm[G]()(implicit val o: Origin) extends Expr[G] with NoPermImpl[G]
 final case class WritePerm[G]()(implicit val o: Origin) extends Expr[G] with WritePermImpl[G]
 final case class OptSome[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with OptSomeImpl[G]
+final case class OptSomeTyped[G](element: Type[G], e: Expr[G])(implicit val o: Origin) extends Expr[G] with OptSomeTypedImpl[G]
 final case class OptNone[G]()(implicit val o: Origin) extends Expr[G] with OptNoneImpl[G]
+final case class OptNoneTyped[G](element: Type[G])(implicit val o: Origin) extends Expr[G] with OptNoneTypedImpl[G]
 final case class Range[G](from: Expr[G], to: Expr[G])(implicit val o: Origin) extends Expr[G] with RangeImpl[G]
 final case class EitherLeft[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherLeftImpl[G]
 final case class EitherRight[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with EitherRightImpl[G]
@@ -582,6 +588,7 @@ final case class MapMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) e
 final case class BagMemberCount[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with BagMemberCountImpl[G]
 
 final case class Permutation[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin) extends Expr[G] with PermutationImpl[G]
+final case class OptEmpty[G](opt: Expr[G])(implicit val o: Origin) extends Expr[G] with OptEmptyImpl[G]
 final case class OptGet[G](opt: Expr[G])(val blame: Blame[OptionNone])(implicit val o: Origin) extends Expr[G] with OptGetImpl[G]
 final case class OptGetOrElse[G](opt: Expr[G], alt: Expr[G])(implicit val o: Origin) extends Expr[G] with OptGetOrElseImpl[G]
 final case class MapGet[G](map: Expr[G], k: Expr[G])(val blame: Blame[MapKeyError])(implicit val o: Origin) extends Expr[G] with MapGetImpl[G]
@@ -621,6 +628,7 @@ final case class With[G](pre: Statement[G], value: Expr[G])(implicit val o: Orig
 final case class Then[G](value: Expr[G], post: Statement[G])(implicit val o: Origin) extends Expr[G] with ThenImpl[G]
 
 final case class Held[G](obj: Expr[G])(implicit val o: Origin) extends Expr[G] with HeldImpl[G]
+final case class Committed[G](obj: Expr[G])(val blame: Blame[LockObjectNull])(implicit val o: Origin) extends Expr[G] with CommittedImpl[G]
 final case class IdleToken[G](thread: Expr[G])(implicit val o: Origin) extends Expr[G] with IdleTokenImpl[G]
 final case class JoinToken[G](thread: Expr[G])(implicit val o: Origin) extends Expr[G] with JoinTokenImpl[G]
 
@@ -770,7 +778,7 @@ final case class JavaAbstract[G]()(implicit val o: Origin) extends JavaModifier[
 final case class JavaFinal[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaFinalImpl[G]
 final case class JavaStrictFP[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaStrictFPImpl[G]
 final case class JavaNative[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaNativeImpl[G]
-final case class JavaSynchronized[G]()(val blame: Blame[UnlockFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
+final case class JavaSynchronized[G]()(val blame: Blame[LockRegionFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
 final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaTransientImpl[G]
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
 final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G]

@@ -2,7 +2,7 @@ package vct.importer
 
 import hre.io.RWFile
 import vct.col.ast.Program
-import vct.col.rewrite.ImportADTImporter
+import vct.col.rewrite.adt.ImportADTImporter
 
 import java.nio.file.Path
 

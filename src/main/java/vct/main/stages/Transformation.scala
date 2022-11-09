@@ -6,9 +6,10 @@ import hre.stages.Stage
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
-import vct.col.newrewrite.{EncodeJavaLangString, EncodeString}
+import vct.col.feature.Feature
 import vct.col.rewrite._
 import vct.col.rewrite.exc._
+import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
@@ -116,6 +117,13 @@ class Transformation
       result = PrettifyBlocks().dispatch(result)
     }
 
+    for((feature, examples) <- Feature.examples(result)) {
+      logger.debug(f"$feature:")
+//      for(example <- examples.take(3)) {
+//        logger.debug(f"$example")
+//      }
+    }
+
     result
   }
 }
@@ -185,7 +193,6 @@ case class SilverTransformation
     ContinueToBreak,
     EncodeBreakReturn,
 
-    SplitQuantifiers,
     ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
     SimplifyNestedQuantifiers,
@@ -194,34 +201,51 @@ case class SilverTransformation
     // Encode proof helpers
     EncodeProofHelpers,
 
+    // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
+    // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
+    // value is pure and therefore be put in the contract of the constant function.
+    ConstantifyFinalFields,
+
     // Resolve side effects including method invocations, for encodetrythrowsignals.
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
 
     // No more classes
-    ConstantifyFinalFields,
     ClassToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
 
     ResolveExpressionSideChecks,
-    RejoinQuantifiers,
+
+    DesugarCollectionOperators,
 
     // Translate internal types to domains
     FloatToRat,
     EnumToDomain,
-    ImportADT.withArg(adtImporter),
+    ImportArray.withArg(adtImporter),
+    ImportPointer.withArg(adtImporter),
+    ImportMapCompat.withArg(adtImporter),
+    ImportEither.withArg(adtImporter),
+    ImportTuple.withArg(adtImporter),
+    ImportOption.withArg(adtImporter),
+    ImportFrac.withArg(adtImporter),
+    ImportNothing.withArg(adtImporter),
+    ImportVoid.withArg(adtImporter),
+    ImportNull.withArg(adtImporter),
+    ImportAny.withArg(adtImporter),
+    ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)
+    FinalizeArguments,
     ResolveScale,
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
     BranchToIfElse,
-    DesugarCollectionOperators,
     EvaluationTargetDummy,
+    SingletonStarall,
 
     // Final translation to rigid silver nodes
     SilverIntRatCoercion,

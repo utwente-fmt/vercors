@@ -41,6 +41,7 @@ case class ColToSilver(program: col.Program[_]) {
   val currentInvariant: ScopedStack[col.LoopInvariant[_]] = ScopedStack()
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
+  val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -248,6 +249,7 @@ case class ColToSilver(program: col.Program[_]) {
     result.invariant = currentInvariant.topOption
     result.starall = currentStarall.topOption
     result.unfolding = currentUnfolding.topOption
+    result.mapGet = currentMapGet.topOption
     result
   }
 
@@ -313,10 +315,10 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(pos=pos(e), info=expInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(pos=pos(e), info=expInfo(e))
     case col.FunctionInvocation(f, args, Nil, Nil, Nil) =>
-      silver.FuncApp(ref(f), args.map(exp))(silver.NoPosition, expInfo(e), typ(f.decl.returnType), silver.NoTrafos)
+      silver.FuncApp(ref(f), args.map(exp))(pos(e), expInfo(e), typ(f.decl.returnType), silver.NoTrafos)
     case inv @ col.ADTFunctionInvocation(typeArgs, Ref(func), args) => typeArgs match {
       case Some((Ref(adt), typeArgs)) =>
-        silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(silver.NoPosition, expInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)
+        silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(pos(e), expInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)
       case None => ??(inv)
     }
     case u @ col.Unfolding(p: col.PredicateApply[_], body) =>
@@ -384,7 +386,9 @@ case class ColToSilver(program: col.Program[_]) {
     case col.MapValueSet(m) => silver.MapRange(exp(m))(pos=pos(e), info=expInfo(e))
     case col.MapItemSet(m) => ???
     case col.MapRemove(m, k) => ???
-    case col.MapGet(m, k) => silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
+    case get @ col.MapGet(m, k) => currentMapGet.having(get) {
+      silver.MapLookup(exp(m), exp(k))(pos=pos(e), info=expInfo(e))
+    }
 
     case other => ??(other)
   }
@@ -404,7 +408,7 @@ case class ColToSilver(program: col.Program[_]) {
   def stat(s: col.Statement[_]): silver.Stmt = s match {
     case inv@col.InvokeProcedure(method, args, outArgs, Nil, Nil, Nil) =>
       silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
-        silver.NoPosition, NodeInfo(inv), silver.NoTrafos)
+        pos(s), NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
       silver.FieldAssign(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(s), info=NodeInfo(s)), exp(value))(pos=pos(s), info=NodeInfo(s))
     case col.SilverLocalAssign(v, value) =>

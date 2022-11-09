@@ -78,6 +78,9 @@ case object Options {
         .action((_, c) => c.copy(mode = Mode.Verify))
         .text("Enable verification mode: instruct VerCors to verify the given files (default)"),
 
+      opt[Unit]("more").abbr("m")
+        .action((_, c) => c.copy(more = true))
+        .text("Always print the maximum amount of information about errors."),
       opt[Language]("lang").valueName(ReadLanguage.valueName)
         .action((lang, c) => c.copy(language = Some(lang)))
         .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
@@ -147,6 +150,12 @@ case object Options {
       opt[Int]("dev-silicon-num-verifiers").hidden()
         .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
         .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+
+      opt[Int]("dev-assert-timeout").hidden()
+        .action((amount, c) => c.copy(devSiliconAssertTimeout = amount))
+        .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
+          "on a single SMT check for longer than this timeout, the verification will fail."),
+
       opt[Path]("dev-silicon-z3-log-file").hidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -268,6 +277,7 @@ case class Options
     ("viper.api", Verbosity.Info),
   ),
   progress: Boolean = false,
+  more: Boolean = false,
 
   // Verify Options
   language: Option[Language] = None,
@@ -309,6 +319,8 @@ case class Options
 
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
+  devSiliconAssertTimeout: Int = 30,
+
 
   devCarbonBoogieLogFile: Option[Path] = None,
 

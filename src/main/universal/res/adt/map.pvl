@@ -8,28 +8,14 @@ adt `map`<K, V> {
   pure V map_cons_inv_v(`map`<K, V> m);
   pure `map`<K, V> map_cons_inv_tail(`map`<K, V> m);
 
-  axiom
-    (\forall K k; true; (\forall V v; true; (\forall `map`<K, V> m; true;
-      map_empty() != {:map_cons(k, v, m):})));
-
+  axiom (\forall K k, V v, `map`<K, V> m; map_empty() != {:map_cons(k, v, m):});
   axiom map_keys(map_empty()) == set<K>{};
 
-  axiom
-    (\forall K k; true; (\forall V v; true; (\forall `map`<K, V> tail; true;
-      {:map_keys(map_cons(k, v, tail)):} == set<K>{k} + map_keys(tail)
-    )));
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_keys(map_cons(k, v, tail)):} == set<K>{k} + map_keys(tail));
 
-  axiom
-    (\forall K k; true; (\forall V v; true; (\forall `map`<K, V> tail; true;
-      {:map_cons_inv_k(map_cons(k, v, tail)):} == k)));
-
-  axiom
-    (\forall K k; true; (\forall V v; true; (\forall `map`<K, V> tail; true;
-      {:map_cons_inv_v(map_cons(k, v, tail)):} == v)));
-
-  axiom
-    (\forall K k; true; (\forall V v; true; (\forall `map`<K, V> tail; true;
-      {:map_cons_inv_tail(map_cons(k, v, tail)):} == tail)));
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_cons_inv_k(map_cons(k, v, tail)):} == k);
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_cons_inv_v(map_cons(k, v, tail)):} == v);
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_cons_inv_tail(map_cons(k, v, tail)):} == tail);
 }
 
 ensures \result >= 0;

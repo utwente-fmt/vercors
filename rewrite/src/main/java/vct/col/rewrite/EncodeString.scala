@@ -1,4 +1,4 @@
-package vct.col.newrewrite
+package vct.col.rewrite
 
 import vct.col.ast
 import vct.col.ast.{Expr, LiteralSeq, StringLiteral, TInt, TSeq, TString, Type}
