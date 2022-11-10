@@ -15,9 +15,11 @@ case class ColHelper() {
     println(s"Generating helpers for ${info.defs.size} node types")
 
     // Construct the output path using the col ast package, as well as the name for the package declaration
-    val packageOutput: Path = PACKAGE.foldLeft(output.toPath)(_.resolve(_))
+    val packageOutput: Path = ("java" +: PACKAGE).foldLeft(output.toPath)(_.resolve(_))
     packageOutput.toFile.mkdirs()
     val packageName = PACKAGE.tail.foldLeft[Term.Ref](Term.Name(PACKAGE.head))((t, n) => Term.Select(t, Term.Name(n)))
+
+    ColSerializeHelper(info, output, writer).make()
 
     var i = 0
 

@@ -11,7 +11,7 @@ lazy val generateHelpersTask = taskKey[Seq[File]]("Generate helpers for the COL 
 
 generateHelpersTask := {
   val src = (Compile / sourceDirectory).value / "java" / "vct" / "col" / "ast"
-  val gen = (Compile / sourceManaged).value / "java"
+  val gen = (Compile / sourceManaged).value
   val files = Seq(
     src / "Node.scala",
   )
@@ -27,4 +27,12 @@ generateHelpersTask := {
   compile(files.toSet).toSeq
 }
 
-Compile / sourceGenerators += generateHelpersTask
+Compile / sourceGenerators := Seq(generateHelpersTask.value : Task[Seq[sbt.File]])
+
+Compile / PB.targets := Seq(
+  scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+)
+
+Compile / PB.protoSources ++= Seq(
+  (Compile / sourceManaged).value / "protobuf"
+)

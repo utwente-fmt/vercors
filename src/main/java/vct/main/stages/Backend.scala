@@ -59,6 +59,8 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
 
 case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
+    import vct.col.serialize.col._
+    Expr(Expr.V.Plus(Plus(Expr(Expr.V.Local(Local(Ref(0)))), Expr(Expr.V.Local(Local(Ref(1)))))))
     input.tasks.foreach { task =>
       backend.submit(task.program, output)
     }
