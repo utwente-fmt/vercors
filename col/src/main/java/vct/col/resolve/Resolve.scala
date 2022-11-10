@@ -353,7 +353,7 @@ case object ResolveReferences extends LazyLogging {
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv@JavaNewClass(args, typeArgs, name, givenMap, yields, _) =>
+    case inv@JavaNewClass(args, typeArgs, name, givenMap, yields) =>
       inv.ref = Some(Java.findConstructor(name, args).getOrElse(throw NoSuchConstructor(inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)

@@ -844,7 +844,7 @@ final case class JavaLiteralArray[G](exprs: Seq[Expr[G]])(implicit val o: Origin
 final case class JavaInvocation[G](obj: Option[Expr[G]], typeParams: Seq[Type[G]], method: String, arguments: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends JavaExpr[G] with JavaInvocationImpl[G] {
   var ref: Option[JavaInvocationTarget[G]] = None
 }
-final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])], isBipJob: Boolean = false)(val blame: Blame[InvocationFailure])(implicit val o: Origin) extends JavaExpr[G] with JavaNewClassImpl[G] {
+final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])])(val blame: Blame[InvocationFailure])(implicit val o: Origin) extends JavaExpr[G] with JavaNewClassImpl[G] {
   var ref: Option[JavaConstructorTarget[G]] = None
 }
 final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
@@ -853,13 +853,23 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
+final case class JavaBipGlue[G](elems: Seq[JavaBipGlueElement[G]])(implicit val o: Origin) extends JavaExpr[G] {
+  override def t: Type[G] = new TNotAValue()
+}
+
+sealed trait JavaBipGlueName[G] extends NodeFamily[G]
+final case class JavaBipGluePortName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends JavaBipGlueName[G]
+final case class JavaBipGlueDataName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends JavaBipGlueName[G]
+sealed trait JavaBipGlueElement[G] extends NodeFamily[G]
+final case class JavaBipGlueRequires[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
+final case class JavaBipGlueAccepts[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
+final case class JavaBipGlueSynchron[G](port0: JavaBipGlueName[G], port1: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
+// dataOut is the output data. In other words, this data provides some data to the data it is wired to.
+// In other words, data flows from dataOut to dataIn
+final case class JavaBipGlueDataWire[G](dataOut: JavaBipGlueName[G], dataIn: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
+
 final class BipData[G](val t: Type[G])(implicit val o: Origin) extends ClassDeclaration[G]
 final class BipIncomingData[G](val data: Ref[G, BipData[G]])(implicit val o: Origin) extends Declaration[G] {
-//  override def declareDefault[Pre](scope: ScopeContext[Pre, G]): this.type = {
-//    scope.bipIncomingDataScopes.top += this
-//    this
-//  }
-
   def t: Type[G] = data.decl.t
 }
 // TODO (RR): Probably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category

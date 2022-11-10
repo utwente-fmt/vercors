@@ -592,6 +592,89 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case _ => false
   }
 
+  def isTwoSynchronGlueBuilderName(createdName: CreatedNameContext): Boolean = createdName match {
+    case CreatedName0(ClassTypeDiamondList0(JavaIdentifier0("TwoSynchronGlueBuilder"), None)) => true
+    case _ => false
+  }
+
+  def convertBipGlue(implicit p: ParserRuleContext): JavaBipGlue[G] = p match {
+    case CreatorRest1(ClassCreatorRest0(Arguments0(_, None, _), Some(classBody))) => convertBipGlue(classBody)
+    case ClassBody0(_, Seq(decl), _) => convertBipGlue(decl)
+    case ClassBodyDeclaration2(None, _, MemberDeclaration0(method)) => convertBipGlue(method)
+    case MethodDeclaration0(
+      TypeOrVoid0(_),
+      JavaIdentifier0("configure"),
+      FormalParameters0(_, None, _),
+      None, None, MethodBodyOrEmpty1(MethodBody0(Block0(_, statements, _)))
+    ) => JavaBipGlue(statements.map(convertBipGlueElement(_)))
+    case _ => ??(p)
+  }
+
+  def convertBipGlueElement(implicit s: ParserRuleContext): JavaBipGlueElement[G] = s match {
+    case BlockStatement1(statement) => convertBipGlueElement(statement)
+    case Statement16(StatementExpression0(expr), _) => convertBipGlueElement(expr)
+    case Expression0(None, expr, None) => convertBipGlueElement(expr)
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("requiresNothing"), None, Arguments(Nil), None, None) =>
+      JavaBipGlueRequires(convertPort(obj).get, Seq())
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("acceptsNothing"), None, Arguments(Nil), None, None) =>
+      JavaBipGlueAccepts(convertPort(obj).get, Seq())
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("to"), None, args @ Arguments(Seq(portType, portName)), None, None) =>
+      (convertPort(obj), convertSynchron(obj), convertData(obj)) match {
+        case (Some(portName), _, _) => ??(s)
+        case (_, Some(synchronPortName), _) =>
+          JavaBipGlueSynchron(synchronPortName, JavaBipGluePortName(convertDotClassToType(portType), convert(portName))(origin(args)))
+        case (_, _, Some(dataName)) =>
+          JavaBipGlueDataWire(dataName, JavaBipGlueDataName(convertDotClassToType(portType), convert(portName))(origin(args)))
+        case _ => ??(s)
+      }
+    case _ => ??(s)
+  }
+
+  object Arguments {
+    def unapply(arguments: ArgumentsContext): Option[Seq[ExpressionContext]] = arguments match {
+      case Arguments0("(", None, ")") => Some(Nil)
+      case Arguments0("(", Some(exprList), ")") => Some(getExprs(exprList))
+    }
+
+    def getExprs(exprList: ExpressionListContext): Seq[ExpressionContext] = exprList match {
+      case ExpressionList0(expression) => Seq(expression)
+      case ExpressionList1(expression, _, exprList) => expression +: getExprs(exprList)
+    }
+  }
+
+  object CleanPrimary {
+    def unapply(ann: ParserRuleContext): Option[PrimaryContext] = ann match {
+      case parse.JavaPrimary(AnnotatedPrimary0(None, primary, None)) => Some(primary)
+      case AnnotatedPrimary0(None, primary, None) => Some(primary)
+      case _ => None
+    }
+  }
+
+  def convertDotClassToType(implicit e: ExpressionContext): Type[G] = e match {
+    case CleanPrimary(Primary6(t, _, _)) => convert(t)
+  }
+
+  def convertPort(implicit e: ExprContext): Option[JavaBipGluePortName[G]] = e match {
+    case CleanPrimary(
+      Primary5(JavaIdentifier0("port"), None, Arguments(Seq(portType, portName)), None, None)
+    ) => Some(JavaBipGluePortName(convertDotClassToType(portType), convert(portName)))
+    case _ => None
+  }
+
+  def convertSynchron(implicit e: ExprContext): Option[JavaBipGluePortName[G]] = e match {
+    case CleanPrimary(
+      Primary5(JavaIdentifier0("port"), None, Arguments(Seq(portType, portName)), None, None)
+    ) => Some(JavaBipGluePortName(convertDotClassToType(portType), convert(portName)))
+    case _ => None
+  }
+
+  def convertData(implicit e: ExprContext): Option[JavaBipGlueDataName[G]] = e match {
+    case CleanPrimary(
+      Primary5(JavaIdentifier0("data"), None, Arguments(Seq(portType, portName)), None, None)
+    ) => Some(JavaBipGlueDataName(convertDotClassToType(portType), convert(portName)))
+    case _ => None
+  }
+
   def convert(implicit expr: ExprContext): Expr[G] = {
     if (isThrowAwayExpr(expr)) {
       logger.warn(s"Unsupported expression at ${originProvider(expr).shortPosition}, replacing with 0")
@@ -618,8 +701,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           convertEmbedGiven(given), convertEmbedYields(yields))(
           blame(expr))
       case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
-      case JavaNew(_, Some(e), creator, given, yields) =>
-        ??(e)
+      case JavaNew(_, Some(_), Creator1(createdName, creatorRest), None, None) if isTwoSynchronGlueBuilderName(createdName) =>
+        convertBipGlue(creatorRest)
       case JavaNew(_, None, creator, given, yields) =>
         convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
       case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
