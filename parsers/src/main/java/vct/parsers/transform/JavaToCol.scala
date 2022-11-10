@@ -610,20 +610,27 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case _ => ??(p)
   }
 
+  object JavaId {
+    def unapply(javaIdentifier: JavaIdentifierContext): Option[String] = Some(javaIdentifier.start.getText)
+  }
+
   def convertBipGlueElement(implicit s: ParserRuleContext): JavaBipGlueElement[G] = s match {
     case BlockStatement1(statement) => convertBipGlueElement(statement)
     case Statement16(StatementExpression0(expr), _) => convertBipGlueElement(expr)
     case Expression0(None, expr, None) => convertBipGlueElement(expr)
-    case parse.JavaInvocation(obj, _, JavaIdentifier0("requiresNothing"), None, Arguments(Nil), None, None) =>
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("requiresNothing"), None, Arguments(Seq()), None, None) =>
       JavaBipGlueRequires(convertPort(obj).get, Seq())
-    case parse.JavaInvocation(obj, _, JavaIdentifier0("acceptsNothing"), None, Arguments(Nil), None, None) =>
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("acceptsNothing"), None, Arguments(Seq()), None, None) =>
       JavaBipGlueAccepts(convertPort(obj).get, Seq())
-    case parse.JavaInvocation(obj, _, JavaIdentifier0("to"), None, args @ Arguments(Seq(portType, portName)), None, None) =>
-      (convertPort(obj), convertSynchron(obj), convertData(obj)) match {
-        case (Some(portName), _, _) => ??(s)
-        case (_, Some(synchronPortName), _) =>
+    case parse.JavaInvocation(obj, _, JavaId("accepts"), None, Arguments(args), None, None) =>
+      JavaBipGlueAccepts(convertPort(obj).get, convertPorts(args))
+    case parse.JavaInvocation(obj, _, JavaId("requires"), None, Arguments(args), None, None) =>
+      JavaBipGlueRequires(convertPort(obj).get, convertPorts(args))
+    case parse.JavaInvocation(obj, _, JavaId("to"), None, args @ Arguments(Seq(portType, portName)), None, None) =>
+      (convertSynchron(obj), convertData(obj)) match {
+        case (Some(synchronPortName), _) =>
           JavaBipGlueSynchron(synchronPortName, JavaBipGluePortName(convertDotClassToType(portType), convert(portName))(origin(args)))
-        case (_, _, Some(dataName)) =>
+        case (_, Some(dataName)) =>
           JavaBipGlueDataWire(dataName, JavaBipGlueDataName(convertDotClassToType(portType), convert(portName))(origin(args)))
         case _ => ??(s)
       }
@@ -644,6 +651,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   object CleanPrimary {
     def unapply(ann: ParserRuleContext): Option[PrimaryContext] = ann match {
+      case Expression0(None, parse.JavaPrimary(AnnotatedPrimary0(None, primary, None)), None) => Some(primary)
       case parse.JavaPrimary(AnnotatedPrimary0(None, primary, None)) => Some(primary)
       case AnnotatedPrimary0(None, primary, None) => Some(primary)
       case _ => None
@@ -652,6 +660,13 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convertDotClassToType(implicit e: ExpressionContext): Type[G] = e match {
     case CleanPrimary(Primary6(t, _, _)) => convert(t)
+  }
+
+  def convertPorts(args: Seq[ExpressionContext]): Seq[JavaBipGluePortName[G]] = {
+    assert((args.length % 2) == 0)
+    args.grouped(2).map { case Seq(portType, portName) =>
+      JavaBipGluePortName(convertDotClassToType(portType), convert(portName))(origin(portType))
+    }.toSeq
   }
 
   def convertPort(implicit e: ExprContext): Option[JavaBipGluePortName[G]] = e match {
@@ -663,7 +678,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convertSynchron(implicit e: ExprContext): Option[JavaBipGluePortName[G]] = e match {
     case CleanPrimary(
-      Primary5(JavaIdentifier0("port"), None, Arguments(Seq(portType, portName)), None, None)
+      Primary5(JavaIdentifier0("synchron"), None, Arguments(Seq(portType, portName)), None, None)
     ) => Some(JavaBipGluePortName(convertDotClassToType(portType), convert(portName)))
     case _ => None
   }

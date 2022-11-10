@@ -87,7 +87,7 @@ object ColDefs {
       "Scope",
     ),
     "BipIncomingData" -> Seq("BipTransition", "BipGuard"),
-    "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor")
+    "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)

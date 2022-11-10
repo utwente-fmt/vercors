@@ -4,7 +4,7 @@ import hre.stages.Stage
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
-import vct.col.rewrite.lang.{LangSpecificToCol, LangSpecificToColArgs, LangTypesToCol}
+import vct.col.rewrite.lang.{IsolateBipGlue, LangSpecificToCol, LangSpecificToColArgs, LangTypesToCol}
 import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
 import vct.col.resolve.lang.{C, Java}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
@@ -89,8 +89,9 @@ case class Resolution[G <: Generation]
     implicit val o: Origin = FileSpanningOrigin
 
     val parsedProgram = Program(in.decls)(blameProvider())
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(javaLibraryPath, blameProvider)))
-    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls)(blameProvider())
+    val isolatedBipProgram = IsolateBipGlue.isolate(parsedProgram)
+    val extraDecls = ResolveTypes.resolve(isolatedBipProgram, Some(JavaLibraryLoader(javaLibraryPath, blameProvider)))
+    val joinedProgram = Program(isolatedBipProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram, MyLocalJavaParser(blameProvider)) match {
       case Nil => // ok

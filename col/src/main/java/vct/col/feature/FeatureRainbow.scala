@@ -662,5 +662,9 @@ class FeatureRainbow[G] {
     case node: BipData[G] => return Nil
     case node: BipIncomingData[G] => return Nil
     case node: BipLocalIncomingData[G] => return Nil
+    case node: JavaBipGlueJob[G] => return Nil
+    case node: JavaBipGlue[G] => return Nil
+    case node: JavaBipGlueElement[G] => return Nil
+    case node: JavaBipGlueName[G] => return Nil
   })
 }

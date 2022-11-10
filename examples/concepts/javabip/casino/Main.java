@@ -12,7 +12,7 @@ public class Main {
         ActorSystem system = ActorSystem.create(ACTOR_SYSTEM);
         EngineFactory engineFactory = new EngineFactory(system);
 
-        BIPGlue glue = new TwoSynchronGlueBuilder() {
+        BIPGlue glue = new /*@ vercorsBipJob @*/ TwoSynchronGlueBuilder() {
             @Override
             public void configure() {
                 port(Operator.class, PREPARE_TO_ADD).requiresNothing();

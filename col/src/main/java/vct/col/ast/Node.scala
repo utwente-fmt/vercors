@@ -853,6 +853,8 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
+final class JavaBipGlueJob[G](val job: Expr[G])(implicit val o: Origin) extends JavaGlobalDeclaration[G]
+
 final case class JavaBipGlue[G](elems: Seq[JavaBipGlueElement[G]])(implicit val o: Origin) extends JavaExpr[G] {
   override def t: Type[G] = new TNotAValue()
 }
