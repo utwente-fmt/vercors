@@ -231,6 +231,7 @@ case class SilverTransformation
     ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
+    RewriteTriggerADTFunctions,
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)
