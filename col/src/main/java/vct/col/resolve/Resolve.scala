@@ -140,19 +140,6 @@ case object ResolveTypes {
       } else if (fqn.contains(Java.JAVA_LANG_CLASS)) {
         cls.pin = Some(JavaLangClass())
       }
-      // Kept around but can probably go...? Think it's handled by scanImport now
-//    case imp @ JavaImport(/* static = */ true, name, /* star = */ false) =>
-//      Java.findJavaTypeName(name.names.init, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//    case imp @ JavaImport(/* static = */ true, name, /* star = */ true) =>
-//      Java.findJavaTypeName(name.names, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-//    case imp@JavaImport(/* static = */ false, name, /* star = */ false) =>
-//      Java.findJavaTypeName(name.names, ctx)
-//        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-////    case imp@JavaImport(/* static = */ false, pkg, /* star = */ true) =>
-////      // TODO (RR): Pulls in everything, even though we prefer on demand...?
-////      Java.findJavaTypeNamesInPackage(pkg.names, ctx)
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
         case Some(
