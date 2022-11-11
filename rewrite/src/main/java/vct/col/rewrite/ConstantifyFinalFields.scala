@@ -7,7 +7,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{AbstractApplicable, Origin, PanicBlame, TrueSatisfiable}
 import vct.col.ref.Ref
-import vct.col.rewrite.ConstantifyFinalFields.{FinalFieldPerm, ImpureConstantifyOrigin}
+import vct.col.rewrite.ConstantifyFinalFields.FinalFieldPerm
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
@@ -19,14 +19,6 @@ case object ConstantifyFinalFields extends RewriterBuilder {
     override def code: String = "finalFieldPerm"
     override def text: String =
       loc.o.messageInContext("Specifying permission over final fields is not allowed, since they are treated as constants.")
-  }
-
-  case class ImpureConstantifyOrigin(e: Expr[_]) extends Origin {
-    override def preferredName: String =
-      if(e.o.preferredName == "unknown") "const" else e.o.preferredName
-    override def context: String = e.o.context
-    override def inlineContext: String = e.o.inlineContext
-    override def shortPosition: String = e.o.shortPosition
   }
 }
 
