@@ -7,6 +7,11 @@ import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.VarBuildHelpers
 
+case object RewriteTriggerADTFunctions extends RewriterBuilder {
+  override def key: String = "rewriteTriggerADTFunctions"
+  override def desc: String = "Rewrite adt forwarding functions in triggers to axiomatic ones."
+}
+
 case class RewriteTriggerADTFunctions[Pre <: Generation]() extends Rewriter[Pre]  {
 
     val inTrigger: ScopedStack[Unit] = ScopedStack()
