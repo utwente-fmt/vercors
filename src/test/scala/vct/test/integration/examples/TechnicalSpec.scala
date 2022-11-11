@@ -358,5 +358,5 @@ class TechnicalSpec extends VercorsSpec {
               this.x = new Integer(0);
           }
       }
-    """.stripMargin
+    """
 }
