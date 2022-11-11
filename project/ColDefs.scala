@@ -38,7 +38,6 @@ object ColDefs {
     "CParam",
     "JavaLocalDeclaration",
     "JavaParam",
-    "BipIncomingData",
   )
 
   def scopes(kind: String): Term.Name =
@@ -86,7 +85,6 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
-    "BipIncomingData" -> Seq("BipTransition", "BipGuard"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 

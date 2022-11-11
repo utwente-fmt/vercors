@@ -629,9 +629,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case parse.JavaInvocation(obj, _, JavaId("to"), None, args @ Arguments(Seq(portType, portName)), None, None) =>
       (convertSynchron(obj), convertData(obj)) match {
         case (Some(synchronPortName), _) =>
-          JavaBipGlueSynchron(synchronPortName, JavaBipGluePortName(convertDotClassToType(portType), convert(portName))(origin(args)))
+          JavaBipGlueSynchron(synchronPortName, JavaBipGlueName(convertDotClassToType(portType), convert(portName))(origin(args)))
         case (_, Some(dataName)) =>
-          JavaBipGlueDataWire(dataName, JavaBipGlueDataName(convertDotClassToType(portType), convert(portName))(origin(args)))
+          JavaBipGlueDataWire(dataName, JavaBipGlueName(convertDotClassToType(portType), convert(portName))(origin(args)))
         case _ => ??(s)
       }
     case _ => ??(s)
@@ -662,31 +662,31 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case CleanPrimary(Primary6(t, _, _)) => convert(t)
   }
 
-  def convertPorts(args: Seq[ExpressionContext]): Seq[JavaBipGluePortName[G]] = {
+  def convertPorts(args: Seq[ExpressionContext]): Seq[JavaBipGlueName[G]] = {
     assert((args.length % 2) == 0)
     args.grouped(2).map { case Seq(portType, portName) =>
-      JavaBipGluePortName(convertDotClassToType(portType), convert(portName))(origin(portType))
+      JavaBipGlueName(convertDotClassToType(portType), convert(portName))(origin(portType))
     }.toSeq
   }
 
-  def convertPort(implicit e: ExprContext): Option[JavaBipGluePortName[G]] = e match {
+  def convertPort(implicit e: ExprContext): Option[JavaBipGlueName[G]] = e match {
     case CleanPrimary(
       Primary5(JavaIdentifier0("port"), None, Arguments(Seq(portType, portName)), None, None)
-    ) => Some(JavaBipGluePortName(convertDotClassToType(portType), convert(portName)))
+    ) => Some(JavaBipGlueName(convertDotClassToType(portType), convert(portName)))
     case _ => None
   }
 
-  def convertSynchron(implicit e: ExprContext): Option[JavaBipGluePortName[G]] = e match {
+  def convertSynchron(implicit e: ExprContext): Option[JavaBipGlueName[G]] = e match {
     case CleanPrimary(
       Primary5(JavaIdentifier0("synchron"), None, Arguments(Seq(portType, portName)), None, None)
-    ) => Some(JavaBipGluePortName(convertDotClassToType(portType), convert(portName)))
+    ) => Some(JavaBipGlueName(convertDotClassToType(portType), convert(portName)))
     case _ => None
   }
 
-  def convertData(implicit e: ExprContext): Option[JavaBipGlueDataName[G]] = e match {
+  def convertData(implicit e: ExprContext): Option[JavaBipGlueName[G]] = e match {
     case CleanPrimary(
       Primary5(JavaIdentifier0("data"), None, Arguments(Seq(portType, portName)), None, None)
-    ) => Some(JavaBipGlueDataName(convertDotClassToType(portType), convert(portName)))
+    ) => Some(JavaBipGlueName(convertDotClassToType(portType), convert(portName)))
     case _ => None
   }
 

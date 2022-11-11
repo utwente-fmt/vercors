@@ -226,6 +226,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           rw.bip.rewriteTransition(method)
         } else if (BipGuard.get(method).isDefined) {
           rw.bip.rewriteGuard(method)
+        } else if (BipData.get(method).isDefined) {
+          rw.bip.rewriteOutgoingData(method)
         } else {
           rw.labelDecls.scope {
             javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(

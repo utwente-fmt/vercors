@@ -51,16 +51,19 @@ public class Player {
     }
 
     @Data(name = OUTGOING_BET)
+    @Pure
     public int getBet() {
         return bet;
     }
 
     @Data(name = OUTGOING_GUESS)
+    @Pure
     public Coin getGuess() {
         return guess;
     }
 
     @Data(name = ID)
+    @Pure
     public Integer id() {
         return id;
     }

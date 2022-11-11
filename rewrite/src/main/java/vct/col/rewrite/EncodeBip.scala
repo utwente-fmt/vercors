@@ -132,7 +132,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   val incomingDataSucc: SuccessionMap[BipIncomingData[Pre], Variable[Post]] = SuccessionMap()
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
-  val synchronSucc: SuccessionMap[BipSynchron[Pre], Procedure[Post]] = SuccessionMap()
+//  val synchronSucc: SuccessionMap[BipSynchron[Pre], Procedure[Post]] = SuccessionMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -177,16 +177,17 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       //   guardSucc.ref[Post, InstanceMethod[Post]](bipGuard),
       //   args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)))
       val bipGuard = ref.decl
-      val vars = bipGuard.data.map { guardData =>
-        currentBipTransition.top.data.find(guardData.data == _.data)
-          .getOrElse(throw MissingData(bipGuard, currentBipTransition.top))
-      }
-      MethodInvocation(
-        obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
-        ref = guardSucc.ref[Post, InstanceMethod[Post]](ref.decl),
-        args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)(expr.o)),
-        Nil, Nil, Nil, Nil
-      )(BipGuardInvocationFailed(currentBipTransition.top))(expr.o)
+      ???
+//      val vars = bipGuard.data.map { guardData =>
+//        currentBipTransition.top.data.find(guardData.data == _.data)
+//          .getOrElse(throw MissingData(bipGuard, currentBipTransition.top))
+//      }
+//      MethodInvocation(
+//        obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
+//        ref = guardSucc.ref[Post, InstanceMethod[Post]](ref.decl),
+//        args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)(expr.o)),
+//        Nil, Nil, Nil, Nil
+//      )(BipGuardInvocationFailed(currentBipTransition.top))(expr.o)
     case _ => rewriteDefault(expr)
   }
 
@@ -213,7 +214,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       labelDecls.scope {
         guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
           TBool()(guard.o),
-          variables.collect { guard.data.map(dispatch) }._1,
+          ???,
+//          variables.collect { guard.data.map(dispatch) }._1,
           Nil, Nil,
           Some(dispatch(guard.body)),
           contract[Post](ForwardUnsatisfiableBlame(guard),
@@ -258,7 +260,8 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       labelDecls.scope {
         transitionSucc(bt) = classDeclarations.declare(new InstanceMethod[Post](
           TVoid(),
-          variables.collect { bt.data.foreach(dispatch) }._1,
+          ???,
+//          variables.collect { bt.data.foreach(dispatch) }._1,
           Nil,
           Nil,
           Some(dispatch(bt.body)),
@@ -280,49 +283,49 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
           )
         )(TransitionPostconditionFailed(bt))(bt.o))
       }
-    case synchron: BipSynchron[Pre] =>
-      val p1 = synchron.p1.decl
-      val p2 = synchron.p2.decl
-
-      val comp1 = portToComponent(p1)
-      val comp2 = portToComponent(p2)
-
-      portToTransitions(p1).foreach { transition1 =>
-        portToTransitions(p2).foreach { transition2 =>
-          generateSynchronization(synchron, comp1, transition1, comp2, transition2)
-        }
-      }
-
+//    case synchron: BipSynchron[Pre] =>
+//      val p1 = synchron.p1.decl
+//      val p2 = synchron.p2.decl
+//
+//      val comp1 = portToComponent(p1)
+//      val comp2 = portToComponent(p2)
+//
+//      portToTransitions(p1).foreach { transition1 =>
+//        portToTransitions(p2).foreach { transition2 =>
+////          generateSynchronization(synchron, comp1, transition1, comp2, transition2)
+//        }
+//      }
+//
     case _ => rewriteDefault(decl)
   }
 
-  def generateSynchronization(synchron: BipSynchron[Pre],
-                              component1: BipComponent[Pre], transition1: BipTransition[Pre],
-                              component2: BipComponent[Pre], transition2: BipTransition[Pre]): Unit = {
-    // Ensure that 1 is sending to 2, and not otherwise
-    if (transition1.data.nonEmpty) {
-      throw Unreachable("Sending transition cannot (yet) have incoming data")
-    }
-
-    // Find getter on sender that provides data, if present
-    // val sendingData = transition2.data.map(incomingDataToOutgoing(_.data.decl))
-
-    implicit val o: Origin = DiagnosticOrigin
-    val cls1 = componentToClass(component1)
-    val cls2 = componentToClass(component2)
-    val c = new Variable[Post](TClass(succ[Class[Post]](cls1)))
-    val d = new Variable[Post](TClass(succ[Class[Post]](cls2)))
-
-    // Can do substitute, and then a plain dispatch. Or: just do it inline. Or: a nested rewriter.
-    component1.invariant
-
-    synchronSucc(synchron) = globalDeclarations.declare(procedure[Post](
-      args = ???,
-      requires = UnitAccountedPredicate[Post]((c.get !== Null()) && (d.get !== Null())),
-      ensures = ???,
-      body = Some(???),
-      blame = ???,
-      contractBlame = ???
-    )(synchron.o))
-  }
+//  def generateSynchronization(synchron: BipSynchron[Pre],
+//                              component1: BipComponent[Pre], transition1: BipTransition[Pre],
+//                              component2: BipComponent[Pre], transition2: BipTransition[Pre]): Unit = {
+//    // Ensure that 1 is sending to 2, and not otherwise
+//    if (transition1.data.nonEmpty) {
+//      throw Unreachable("Sending transition cannot (yet) have incoming data")
+//    }
+//
+//    // Find getter on sender that provides data, if present
+//    // val sendingData = transition2.data.map(incomingDataToOutgoing(_.data.decl))
+//
+//    implicit val o: Origin = DiagnosticOrigin
+//    val cls1 = componentToClass(component1)
+//    val cls2 = componentToClass(component2)
+//    val c = new Variable[Post](TClass(succ[Class[Post]](cls1)))
+//    val d = new Variable[Post](TClass(succ[Class[Post]](cls2)))
+//
+//    // Can do substitute, and then a plain dispatch. Or: just do it inline. Or: a nested rewriter.
+//    component1.invariant
+//
+////    synchronSucc(synchron) = globalDeclarations.declare(procedure[Post](
+////      args = ???,
+////      requires = UnitAccountedPredicate[Post]((c.get !== Null()) && (d.get !== Null())),
+////      ensures = ???,
+////      body = Some(???),
+////      blame = ???,
+////      contractBlame = ???
+////    )(synchron.o))
+//  }
 }

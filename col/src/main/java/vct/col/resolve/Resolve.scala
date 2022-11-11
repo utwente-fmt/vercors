@@ -6,10 +6,11 @@ import vct.col.ast._
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
-import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipStatePredicate, BipTransition}
+import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
 
@@ -524,6 +525,12 @@ case object ResolveReferences extends LazyLogging {
     case ann: JavaAnnotation[G] if isBip(ann, "Port") =>
       // TODO (RR): Also do port type
       ann.data = Some(BipPort[G](getLit(ann.expect("name")), BipEnforceable()(ann.o))(ann.o))
+
+    case ann: JavaAnnotation[G] if isBip(ann, "Pure") =>
+      ann.data = Some(BipPure[G]())
+
+    case portName @ JavaBipGlueName(JavaTClass(Ref(cls: JavaClass[G]), Nil), name) =>
+      portName.data = Some((cls, getLit(name)))
 
     case _ =>
   }

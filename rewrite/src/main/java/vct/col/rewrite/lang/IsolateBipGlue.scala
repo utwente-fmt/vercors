@@ -12,7 +12,7 @@ case object IsolateBipGlue extends LazyLogging {
             case Seq() => Seq(decl)
             case glues =>
               logger.info(decl.o.messageInContext("[info] Of following class, _only_ the containing BIP glue is analyzed"))
-              glues.map(g => new JavaBipGlueJob[G](g)(g.o))
+              glues.map(g => new JavaBipGlueContainer[G](g)(g.o))
           }
         }
         new JavaNamespace[G](ns.pkg, ns.imports, cleanDecls)(ns.o)

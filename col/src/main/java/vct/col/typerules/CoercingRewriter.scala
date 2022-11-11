@@ -231,6 +231,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: BipPortType[Pre] => node
     case node: JavaBipGlueName[Pre] => node
     case node: JavaBipGlueElement[Pre] => node
+    case node: BipGlueRequires[Pre] => node
+    case node: BipGlueAccepts[Pre] => node
+    case node: BipGlueDataWire[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -1336,7 +1339,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case data: BipData[Pre] => data
       case guard: BipGuard[Pre] => guard
       case port: BipPort[Pre] => port
-      case glueJob: JavaBipGlueJob[Pre] => glueJob
+      case glue: JavaBipGlueContainer[Pre] => glue
+      case glue: BipGlue[Pre] => glue
     }
   }
 

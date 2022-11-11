@@ -853,15 +853,15 @@ final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) exte
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
-final class JavaBipGlueJob[G](val job: Expr[G])(implicit val o: Origin) extends JavaGlobalDeclaration[G]
+final class JavaBipGlueContainer[G](val job: Expr[G])(implicit val o: Origin) extends JavaGlobalDeclaration[G]
 
 final case class JavaBipGlue[G](elems: Seq[JavaBipGlueElement[G]])(implicit val o: Origin) extends JavaExpr[G] {
   override def t: Type[G] = new TNotAValue()
 }
 
-sealed trait JavaBipGlueName[G] extends NodeFamily[G]
-final case class JavaBipGluePortName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends JavaBipGlueName[G]
-final case class JavaBipGlueDataName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends JavaBipGlueName[G]
+final case class JavaBipGlueName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends NodeFamily[G] {
+  var data: Option[(JavaClass[G], String)] = None
+}
 sealed trait JavaBipGlueElement[G] extends NodeFamily[G]
 final case class JavaBipGlueRequires[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
 final case class JavaBipGlueAccepts[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
@@ -870,14 +870,17 @@ final case class JavaBipGlueSynchron[G](port0: JavaBipGlueName[G], port1: JavaBi
 // In other words, data flows from dataOut to dataIn
 final case class JavaBipGlueDataWire[G](dataOut: JavaBipGlueName[G], dataIn: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
 
-final class BipData[G](val t: Type[G])(implicit val o: Origin) extends ClassDeclaration[G]
-final class BipIncomingData[G](val data: Ref[G, BipData[G]])(implicit val o: Origin) extends Declaration[G] {
-  def t: Type[G] = data.decl.t
+final class BipGlue[G](val requires: Seq[BipGlueRequires[G]], val accepts: Seq[BipGlueAccepts[G]], val dataWires: Seq[BipGlueDataWire[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+final case class BipGlueRequires[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
+final case class BipGlueAccepts[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
+final case class BipGlueDataWire[G](dataOut: Ref[G, BipData[G]], dataIn: Ref[G, BipData[G]])(implicit val o: Origin) extends NodeFamily[G]
+
+sealed trait BipData[G] extends ClassDeclaration[G] {
+  def t: Type[G]
 }
+final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends BipData[G]
 // TODO (RR): Probably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category
-final class BipOutgoingData[G](val data: Ref[G, BipData[G]], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] {
-  def returnType: Type[G] = data.decl.t
-}
+final class BipOutgoingData[G](val t: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] {
   override def t: Type[G] = ref.decl.t
 }
@@ -885,12 +888,10 @@ final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implic
 final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
 final class BipTransition[G](val port: Ref[G, BipPort[G]],
                              val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
-                             val data: Seq[BipIncomingData[G]], val guard: Option[Expr[G]],
+                             val data: Seq[Ref[G, BipIncomingData[G]]], val guard: Option[Expr[G]],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
-                            )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G] with Declarator[G] {
-  override def declarations: Seq[Declaration[G]] = data
-}
-final class BipGuard[G](val data: Seq[BipIncomingData[G]], val body: Statement[G], val ensures: Expr[G], val pure: Boolean)(val blame: Blame[BipGuardFailure])(implicit val o: Origin) extends ClassDeclaration[G]
+                            )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val ensures: Expr[G], val pure: Boolean)(val blame: Blame[BipGuardFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 final case class BipGuardInvocation[G](guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] {
   override def t: Type[G] = TBool()
 }
@@ -903,9 +904,10 @@ final case class BipEnforceable[G]()(implicit val o: Origin = DiagnosticOrigin) 
 final case class BipSpontaneous[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 
+// These are subsumed by accepts/requires/datawires
 // Assuming datas and ports are not shared between components, class/component references are omitted
-final class BipSynchron[G](val p1: Ref[G, BipPort[G]], val p2: Ref[G, BipPort[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
-final class BipDataBinding[G](val from: Ref[G, BipData[G]], val to: Ref[G, BipData[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+//final class BipSynchron[G](val p1: Ref[G, BipPort[G]], val p2: Ref[G, BipPort[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+//final class BipDataBinding[G](val from: Ref[G, BipData[G]], val to: Ref[G, BipData[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

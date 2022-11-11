@@ -661,10 +661,15 @@ class FeatureRainbow[G] {
     case node: BipGuardInvocation[G] => return Nil
     case node: BipData[G] => return Nil
     case node: BipIncomingData[G] => return Nil
+    case node: BipOutgoingData[G] => return Nil
     case node: BipLocalIncomingData[G] => return Nil
-    case node: JavaBipGlueJob[G] => return Nil
+    case node: JavaBipGlueContainer[G] => return Nil
     case node: JavaBipGlue[G] => return Nil
     case node: JavaBipGlueElement[G] => return Nil
     case node: JavaBipGlueName[G] => return Nil
+    case node: BipGlue[G] => return Nil
+    case node: BipGlueRequires[G] => return Nil
+    case node: BipGlueAccepts[G] => return Nil
+    case node: BipGlueDataWire[G] => return Nil
   })
 }

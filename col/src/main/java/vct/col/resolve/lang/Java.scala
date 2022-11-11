@@ -545,6 +545,8 @@ case object JavaAnnotationData {
   final case class BipGuard[G](name: String) extends JavaAnnotationData[G]
 
   case object BipPure {
-    def isPure[G](m: JavaMethod[G]): Boolean = ???
+    def isPure[G](m: JavaMethod[G]): Boolean =
+      m.modifiers.collectFirst { case ja @ JavaAnnotationEx(_, _, BipPure()) => ja }.isDefined
   }
+  final case class BipPure[G]() extends JavaAnnotationData[G]
 }
