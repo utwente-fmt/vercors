@@ -69,22 +69,8 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     case other => rewriteDefault(other)
   }
 
-  def makeInhale(obj: Expr[Pre], field: InstanceField[Pre], value: Expr[Pre])(implicit o: Origin): Statement[Post] = {
-    val isImpure = value.transSubnodes.collectFirst {
-      case _: PreAssignExpression[Pre] | _: PostAssignExpression[Pre] | _: With[Pre] | _: Then[Pre] |
-           _: MethodInvocation[Pre] | _: ProcedureInvocation[Pre] => true
-    }.contains(true)
-
-    if (isImpure) {
-      val v = new Variable(dispatch(value.t))(ImpureConstantifyOrigin(value))
-      Scope(Seq(v), Block(Seq(
-        assignLocal(v.get, dispatch(value)),
-        Inhale(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === v.get)
-      )))
-    } else {
-      Inhale(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
-    }
-  }
+  def makeInhale(obj: Expr[Pre], field: InstanceField[Pre], value: Expr[Pre])(implicit o: Origin): Statement[Post] =
+    Assume(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Deref(obj, Ref(field)), value) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
