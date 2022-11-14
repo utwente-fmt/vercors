@@ -151,6 +151,7 @@ case class SilverTransformation
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   checkSat: Boolean = true,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    ComputeBipGlue,
     EncodeBipPermissions,
     EncodeBip,
 
