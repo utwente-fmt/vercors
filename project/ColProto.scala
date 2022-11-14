@@ -17,6 +17,8 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
     val parts: Seq[String] = Map(
       Seq("instance", "of") -> Seq("vct", "instance", "of"),
+      Seq("class") -> Seq("vct", "class"),
+      Seq("empty") -> Seq("vct", "empty")
     ).getOrElse(unsafeParts, unsafeParts)
 
     def snake: String = parts.mkString("_")
@@ -93,19 +95,24 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   val boxedTypeFamily: mutable.Map[TName, String] = mutable.Map()
 
   def box(t: Typ): TName = {
-    TName(boxedTypes.getOrElseUpdate(t, t match {
+    val name = TName(t.toString)
+    val proto = message(name.name)
+    boxedTypes.getOrElseUpdate(t, t match {
       case t @ TTuple(ts) =>
-        message(t.toString).addAllField(ts.zipWithIndex.map {
+        boxedTypeTuple(name) = t
+        proto.addAllField(ts.zipWithIndex.map {
           case (t, i) =>
-            val f = field(f"v${i+1}")
+            val f = field(f"v${i + 1}")
             setType(f, t)
             f.build()
         }.asJava).build()
       case other =>
+        boxedTypeForward(name) = other
         val f = field("v")
         setType(f, t)
-        message(other.toString).addField(f).build()
-    }).getName)
+        proto.addField(f).build()
+    })
+    name
   }
 
   def primitivize(t: Typ): Typ = t match {
@@ -170,32 +177,36 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   )
 
   def declarationKinds(): Seq[DescriptorProto] =
-    DECLARATION_KINDS.filter(kind => !info.defs.exists(_.baseName == kind)).map(kind =>
+    DECLARATION_KINDS.filter(kind => !info.defs.exists(_.baseName == kind)).map(kind => {
+      boxedTypeFamily(TName(kind)) = kind
       message(kind)
         .addOneofDecl(oneOf("v"))
         .addAllField(info.defs.filter(defn => info.supports(kind)(defn.baseName)).map(defn =>
           field(defn.baseName).setTypeName(Name(defn.baseName).ucamel).setOneofIndex(0).build()
         ).asJava)
         .build()
-    )
+    })
 
   def families(): Seq[DescriptorProto] =
-    info.families.filter(family => !info.defs.exists(_.baseName == family)).map(family =>
+    info.families.filter(family => !info.defs.exists(_.baseName == family)).map(family => {
+      boxedTypeFamily(TName(family)) = family
       message(family)
         .addOneofDecl(oneOf("v"))
         .addAllField(info.defs.filter(defn => info.supports(family)(defn.baseName)).map(defn =>
           field(defn.baseName).setTypeName(Name(defn.baseName).ucamel).setOneofIndex(0).build()
         ).asJava)
         .build()
-    )
+    })
 
-  def node(defn: ClassDef): DescriptorProto =
+  def node(defn: ClassDef): DescriptorProto = {
+    boxedTypeFamily(TName(defn.baseName)) = defn.baseName
     message(defn.baseName)
       .addAllField(defn.params.map(param =>
         field(param.name.value, Some(param.decltpe.get))
           .build()
       ).asJava)
       .build()
+  }
 
   def declarations(): Seq[DescriptorProto] =
     info.defs.filter(defn => info.supports("Declaration")(defn.baseName)).map(node)

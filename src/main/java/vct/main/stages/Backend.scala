@@ -2,7 +2,7 @@ package vct.main.stages
 
 import hre.io.Writeable
 import hre.stages.Stage
-import vct.col.ast.Verification
+import vct.col.ast.{Serialize, Verification}
 import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
 import vct.options.{Options, types}
@@ -59,8 +59,8 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
 
 case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
-    import vct.col.serialize._
     input.tasks.foreach { task =>
+      println(System.getProperty("deployment.user.cachedir"))
       backend.submit(task.program, output)
     }
     input.tasks.flatMap(_.expectedErrors)
