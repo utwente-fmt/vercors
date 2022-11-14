@@ -1,14 +1,17 @@
 package vct.main.stages
 
 import hre.io.Writeable
+import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{Serialize, Verification}
+import vct.col.ast.{Serialize, Verification, VerificationContext}
 import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
 import vct.options.{Options, types}
 import viper.api.{backend => viper}
 import viper.carbon.Carbon
 import viper.silicon.Silicon
+
+import java.io.FileOutputStream
 
 case object Backend {
 
@@ -59,10 +62,10 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
 
 case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None) extends Backend {
   override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
-    input.tasks.foreach { task =>
-      println(System.getProperty("deployment.user.cachedir"))
+    Progress.foreach[(VerificationContext[_ <: Generation], Int)](input.tasks.zipWithIndex, t => s"Task ${t._2 + 1}") { case (task, idx) =>
+      Serialize.serialize(task.program).writeTo(new FileOutputStream(s"/tmp/col-$idx.data"))
       backend.submit(task.program, output)
     }
-    input.tasks.flatMap(_.expectedErrors)
+    input.expectedErrors
   }
 }

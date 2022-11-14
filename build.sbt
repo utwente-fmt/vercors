@@ -144,6 +144,9 @@ lazy val vercors: Project = (project in file("."))
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
       },
+      BuildInfoKey.action("currentCommit") {
+        Git.currentCommit
+      },
       BuildInfoKey.action("currentShortCommit") {
         Git.currentShortCommit
       },

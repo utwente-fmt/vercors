@@ -76,13 +76,13 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     }
   }
 
-  override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = {
-    val (errs, program) = expectedErrors.collect {
-      dispatch(context.program)
+  override def dispatch(verification: Verification[Pre]): Verification[Post] = {
+    val (errs, tasks) = expectedErrors.collect {
+      verification.tasks.map(dispatch)
     }
     // PB: Important: the expected errors from this pass must appear before other errors, since the absence of an assert
     // failure from this pass may in turn indicate an expected "unsatisfiable" error from an earlier pass.
-    VerificationContext(program, errs ++ context.expectedErrors)(context.o)
+    Verification(tasks, errs ++ verification.expectedErrors)(verification.o)
   }
 
   val name: ScopedStack[String] = ScopedStack()
