@@ -348,4 +348,15 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
   """
+
+  vercors should verify using anyBackend in "assigning results from impure method calls to final fields should preserve information" java
+    """
+      class C {
+          final Integer x;
+          //@ ensures this.x != null && this.x.intValue() == 0;
+          C() {
+              this.x = new Integer(0);
+          }
+      }
+    """
 }

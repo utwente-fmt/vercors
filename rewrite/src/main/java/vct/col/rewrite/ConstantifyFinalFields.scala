@@ -78,11 +78,8 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case Deref(obj, Ref(field)) =>
       implicit val o: Origin = e.o
-      if(isFinal(field))
-        FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing"))
+      if(isFinal(field)) FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing"))
       else rewriteDefault(e)
-    // TODO (RR): Lhs of FieldLocation should not be discarded!
-    case Perm(FieldLocation(_, ref), _) if isFinal(ref.decl) => BooleanValue(true)(e.o)
     case other => rewriteDefault(other)
   }
 
@@ -92,31 +89,15 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     case other => rewriteDefault(other)
   }
 
-  def makeInhale(obj: Expr[Pre], field: InstanceField[Pre], value: Expr[Pre])(implicit o: Origin): Statement[Post] = {
-    val isImpure = value.transSubnodes.collectFirst {
-      case _: PreAssignExpression[Pre] | _: PostAssignExpression[Pre] | _: With[Pre] | _: Then[Pre] |
-           _: MethodInvocation[Pre] | _: ProcedureInvocation[Pre] => true
-    }.contains(true)
-
-    if (isImpure) {
-      val v = new Variable(dispatch(value.t))
-      Block(Seq(
-        LocalDecl(v),
-        assignLocal(v.get, dispatch(value)),
-        Inhale(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === v.get)
-      ))
-    } else {
-      Inhale(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
-    }
-  }
+  def makeInhale(obj: Expr[Pre], field: InstanceField[Pre], value: Expr[Pre])(implicit o: Origin): Statement[Post] =
+    Assume(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Deref(obj, Ref(field)), value) if isFinal(field) && finalValueMap.contains(field) => Block(Nil)(stat.o)
     case Eval(PreAssignExpression(Deref(obj, Ref(field)), value)) if isFinal(field) && finalValueMap.contains(field) => Block(Nil)(stat.o)
 
-    case Eval(PreAssignExpression(Deref(obj, Ref(field)), value)) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
     case Assign(Deref(obj, Ref(field)), value) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
-
+    case Eval(PreAssignExpression(Deref(obj, Ref(field)), value)) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
     case other => rewriteDefault(other)
   }
 }

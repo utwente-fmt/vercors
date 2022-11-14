@@ -2,9 +2,16 @@ package java.lang;
 
 class Integer {
     //@ ensures intValue() == x;
-    Integer(int x) {
-        //@ inhale false;
+    public Integer(int x) {
+        //@ assume false;
     }
 
-    /*@ ghost pure public int intValue(); @*/
+    private Integer() {
+        //@ assume false;
+    }
+
+    /*@
+    ghost
+    pure public int intValue();
+     */
 }
