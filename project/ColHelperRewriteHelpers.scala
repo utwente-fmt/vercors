@@ -2,7 +2,7 @@ import ColDefs._
 
 import scala.meta._
 
-case class ColHelperRewriteHelpers(info: ColDescription) {
+case class ColHelperRewriteHelpers(info: ColDescription) extends ColHelperMaker {
   def rewriteHelperParam(param: Term.Param): Term.Param =
     Term.Param(List(),
       param.name,

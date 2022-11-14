@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.meta.{Type => SType}
 
-case class ColSerializeHelper(info: ColDescription, output: File, writer: (File, String) => Unit) {
+case class ColProto(info: ColDescription, output: File, writer: (File, String) => Unit) {
   case class Name(orig: String) {
     private val upperIndices = orig.capitalize.zipWithIndex.collect { case (c, i) if c.isUpper => i } :+ orig.length
     private val unsafeParts = upperIndices.zip(upperIndices.tail).map {
@@ -68,6 +68,8 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
   case class TTuple(ts: Seq[Typ]) extends Typ
 
   def getType(t: SType): Typ = t match {
+    case SType.Apply(SType.Name("Seq"), List(SType.Name("ExpectedError"))) => TName("ExpectedErrors")
+
     case SType.Apply(SType.Name("Seq"), List(arg)) => TSeq(getType(arg))
     case SType.Apply(SType.Name("Option"), List(arg)) => TOption(getType(arg))
     case SType.Apply(SType.Name("Set"), List(arg)) => TSet(getType(arg))
@@ -82,15 +84,17 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
     case SType.Name("Boolean") => TBool
     case SType.Name("BigInt") => TBigInt
     case SType.Name("BigDecimal") => TBigDecimal
-    case SType.Name("ExpectedError") => TName("ExpectedError")
   }
 
   val boxedTypes: mutable.Map[Typ, DescriptorProto] = mutable.Map()
-  val tupleTypes: mutable.Map[TTuple, DescriptorProto] = mutable.Map()
 
-  def box(t: Typ): TName =
+  val boxedTypeForward: mutable.Map[TName, Typ] = mutable.Map()
+  val boxedTypeTuple: mutable.Map[TName, TTuple] = mutable.Map()
+  val boxedTypeFamily: mutable.Map[TName, String] = mutable.Map()
+
+  def box(t: Typ): TName = {
     TName(boxedTypes.getOrElseUpdate(t, t match {
-      case TTuple(ts) =>
+      case t @ TTuple(ts) =>
         message(t.toString).addAllField(ts.zipWithIndex.map {
           case (t, i) =>
             val f = field(f"v${i+1}")
@@ -102,13 +106,14 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
         setType(f, t)
         message(other.toString).addField(f).build()
     }).getName)
+  }
 
   def primitivize(t: Typ): Typ = t match {
     case t if t.isPrimitive => t
 
-    case TSeq(t) if t.isMarkable => t
-    case TSet(t) if t.isMarkable => t
-    case TOption(t) if t.isMarkable => t
+    case TSeq(inner) if inner.isMarkable => t
+    case TSet(inner) if inner.isMarkable => t
+    case TOption(inner) if inner.isMarkable => t
 
     case TSeq(t) => TSeq(box(t))
     case TSet(t) => TSet(box(t))
@@ -116,7 +121,7 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
     case other => box(other)
   }
 
-  def setType(builder: FieldDescriptorProto.Builder, t: Typ): Unit =
+  def setPrimitivizedType(builder: FieldDescriptorProto.Builder, t: Typ): Unit =
     t match {
       case TBool => builder.setType(PType.TYPE_BOOL)
       case TRef => builder.setTypeName("Ref")
@@ -131,8 +136,11 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
       case _ => ???
     }
 
+  def setType(builder: FieldDescriptorProto.Builder, t: Typ): Unit =
+    setPrimitivizedType(builder, primitivize(t))
+
   def setType(builder: FieldDescriptorProto.Builder, t: scala.meta.Type): Unit =
-    setType(builder, primitivize(getType(t)))
+    setType(builder, getType(t))
 
   def message(name: String): DescriptorProto.Builder =
     DescriptorProto.newBuilder().setName(Name(name).ucamel)
@@ -157,7 +165,7 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
     message("Ref")
       .addField(field("index").setType(PType.TYPE_INT64))
       .build(),
-    message("ExpectedError")
+    message("ExpectedErrors")
       .build(),
   )
 
@@ -205,6 +213,7 @@ case class ColSerializeHelper(info: ColDescription, output: File, writer: (File,
 
   def renderField(field: FieldDescriptorProto, idx: Int, inOneof: Boolean = false): String =
     "  " +
+      (if (inOneof) "  " else "") +
       (if (!inOneof && field.getLabel == FieldDescriptorProto.Label.LABEL_REPEATED) "repeated " else "") +
       (if (!inOneof && field.getLabel == FieldDescriptorProto.Label.LABEL_REQUIRED) "required " else "") +
       (if (!inOneof && field.getLabel == FieldDescriptorProto.Label.LABEL_OPTIONAL) "optional " else "") +

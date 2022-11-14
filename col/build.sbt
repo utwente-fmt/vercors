@@ -27,12 +27,15 @@ generateHelpersTask := {
   compile(files.toSet).toSeq
 }
 
-Compile / sourceGenerators := Seq(generateHelpersTask.value : Task[Seq[sbt.File]])
+Compile / sourceGenerators += generateHelpersTask
 
 Compile / PB.targets := Seq(
-  scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+  scalapb.gen(flatPackage = true) -> (Compile / sourceManaged).value / "scalapb"
 )
 
 Compile / PB.protoSources ++= Seq(
   (Compile / sourceManaged).value / "protobuf"
 )
+
+// The generation of protobuf helpers has to depend on the generation of col.proto
+Compile / PB.generate := (Compile / PB.generate).dependsOn(generateHelpersTask).value
