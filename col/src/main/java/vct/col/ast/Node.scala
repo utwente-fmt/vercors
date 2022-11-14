@@ -880,7 +880,7 @@ sealed trait BipData[G] extends ClassDeclaration[G] {
 }
 final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends BipData[G]
 // TODO (RR): Probably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category
-final class BipOutgoingData[G](val t: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipOutgoingData[G](val t: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with BipData[G]
 final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] {
   override def t: Type[G] = ref.decl.t
 }
