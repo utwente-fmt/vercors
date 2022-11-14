@@ -102,7 +102,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       getJavaBipStatePredicate(source),
       getJavaBipStatePredicate(target),
       m.parameters.map(rewriteParameter),
-      guard.map(rw.dispatch),
+      guard.map(rw.dispatch).getOrElse(tt),
       rw.dispatch(requires),
       rw.dispatch(ensures),
       rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))

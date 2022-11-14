@@ -873,7 +873,7 @@ final case class JavaBipGlueDataWire[G](dataOut: JavaBipGlueName[G], dataIn: Jav
 final class BipGlue[G](val requires: Seq[BipGlueRequires[G]], val accepts: Seq[BipGlueAccepts[G]], val dataWires: Seq[BipGlueDataWire[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 final case class BipGlueRequires[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
 final case class BipGlueAccepts[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
-final case class BipGlueDataWire[G](dataOut: Ref[G, BipData[G]], dataIn: Ref[G, BipData[G]])(implicit val o: Origin) extends NodeFamily[G]
+final case class BipGlueDataWire[G](dataOut: Ref[G, BipOutgoingData[G]], dataIn: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends NodeFamily[G]
 
 sealed trait BipData[G] extends ClassDeclaration[G] {
   def t: Type[G]
@@ -888,7 +888,7 @@ final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implic
 final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
 final class BipTransition[G](val port: Ref[G, BipPort[G]],
                              val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
-                             val data: Seq[Ref[G, BipIncomingData[G]]], val guard: Option[Expr[G]],
+                             val data: Seq[Ref[G, BipIncomingData[G]]], val guard: Expr[G],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
                             )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val ensures: Expr[G], val pure: Boolean)(val blame: Blame[BipGuardFailure])(implicit val o: Origin) extends ClassDeclaration[G]

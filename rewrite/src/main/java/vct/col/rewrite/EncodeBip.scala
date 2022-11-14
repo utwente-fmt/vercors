@@ -1,9 +1,11 @@
 package vct.col.rewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipGuardPreconditionUnsatisfiable, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, BipTransitionPreconditionUnsatisfiable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, NontrivialUnsatisfiable, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
+import vct.col.ref.Ref
 import vct.col.rewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, ForwardUnsatisfiableBlame, GuardPostconditionFailed, IsBipComponent, MissingData, TransitionPostconditionFailed}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -108,7 +110,7 @@ case object EncodeBip extends RewriterBuilder {
   }
 }
 
-case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
+case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
 
   implicit class LocalExprBuildHelpers[G](left: Expr[G]) {
     def &**(right: Expr[G])(implicit origin: Origin): Expr[G] = (left, right) match {
@@ -123,16 +125,17 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
-  val currentBipTransition: ScopedStack[BipTransition[Pre]] = ScopedStack()
+  val currentBipDeclaration: ScopedStack[Declaration[Pre]] = ScopedStack()
   // TODO (RR): Make these vars lazy so construction only happens if there's bip stuff present in the ast?
   var portToComponent: Map[BipPort[Pre], BipComponent[Pre]] = Map()
   var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
   var componentToClass: Map[BipComponent[Pre], Class[Pre]] = Map()
 
+  val incomingDataToVariable: SuccessionMap[(Declaration[Pre], BipIncomingData[Pre]), Variable[Post]] = SuccessionMap()
+
   val incomingDataSucc: SuccessionMap[BipIncomingData[Pre], Variable[Post]] = SuccessionMap()
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
-//  val synchronSucc: SuccessionMap[BipSynchron[Pre], Procedure[Post]] = SuccessionMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -162,32 +165,24 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
 
-  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case thisObj: ThisObject[Pre] => replaceThis.topOption match {
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = (expr, currentBipDeclaration.topOption) match {
+    case (thisObj: ThisObject[Pre], _) => replaceThis.topOption match {
       case Some((otherThis, res)) if thisObj == otherThis => res
       case None => thisObj.rewrite()
     }
-    case BipLocalIncomingData(ref) => Local[Post](incomingDataSucc.ref(ref.decl))(expr.o)
-    case BipGuardInvocation(ref) =>
-      // // For each @Data that the guard needs, find the appropriate @Data parameter from the transition
-      // val vars = bipGuard.data.map(guardData => bt.data.find(guardData.data == _.data).get)
-      // methodInvocation(
-      //   BipGuardInvocationFailed(bt),
-      //   ThisObject(succ[Class[Post]](currentClass.top)),
-      //   guardSucc.ref[Post, InstanceMethod[Post]](bipGuard),
-      //   args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)))
-      val bipGuard = ref.decl
-      ???
-//      val vars = bipGuard.data.map { guardData =>
-//        currentBipTransition.top.data.find(guardData.data == _.data)
-//          .getOrElse(throw MissingData(bipGuard, currentBipTransition.top))
-//      }
-//      MethodInvocation(
-//        obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
-//        ref = guardSucc.ref[Post, InstanceMethod[Post]](ref.decl),
-//        args = vars.map(incomingDataSucc.ref[Post, Variable[Post]](_)).map(Local[Post](_)(expr.o)),
-//        Nil, Nil, Nil, Nil
-//      )(BipGuardInvocationFailed(currentBipTransition.top))(expr.o)
+    case (l @ BipLocalIncomingData(Ref(data)), Some(decl)) =>
+      Local(incomingDataToVariable.ref[Post, Variable[Post]]((decl, data)))(l.o)
+    case (inv @ BipGuardInvocation(Ref(guard)), Some(bt: BipTransition[Pre])) =>
+      MethodInvocation(
+        obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
+        ref = guardSucc.ref[Post, InstanceMethod[Post]](guard),
+        args = guard.data.map{ case Ref(data) =>
+          Local(incomingDataToVariable.ref[Post, Variable[Post]](bt, data))(inv.o)
+        },
+        Nil, Nil, Nil, Nil
+      )(BipGuardInvocationFailed(bt))(expr.o)
+    case (BipGuardInvocation(_), _) =>
+      ??? // Bip guard invocations can only be done by bip transitions
     case _ => rewriteDefault(expr)
   }
 
@@ -212,18 +207,23 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
     case guard: BipGuard[Pre] =>
       implicit val o = guard.o
       labelDecls.scope {
-        guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
-          TBool()(guard.o),
-          ???,
-//          variables.collect { guard.data.map(dispatch) }._1,
-          Nil, Nil,
-          Some(dispatch(guard.body)),
-          contract[Post](ForwardUnsatisfiableBlame(guard),
-            requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
-            ensures = UnitAccountedPredicate(dispatch(guard.ensures))
-          ),
-          pure = guard.pure
-        )(GuardPostconditionFailed(guard))(guard.o))
+        currentBipDeclaration.having(guard) {
+          guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
+            TBool()(guard.o),
+            variables.collect {
+              guard.data.foreach { case Ref(data) =>
+                incomingDataToVariable((guard, data)) = variables.declare(new Variable(dispatch(data.t)))
+              }
+            }._1,
+            Nil, Nil,
+            Some(dispatch(guard.body)),
+            contract[Post](ForwardUnsatisfiableBlame(guard),
+              requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
+              ensures = UnitAccountedPredicate(dispatch(guard.ensures))
+            ),
+            pure = guard.pure
+          )(GuardPostconditionFailed(guard))(guard.o))
+        }
       }
 
     case cls: Class[Pre] =>
@@ -258,44 +258,39 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o = DiagnosticOrigin
       val component = currentComponent.top
       labelDecls.scope {
-        transitionSucc(bt) = classDeclarations.declare(new InstanceMethod[Post](
-          TVoid(),
-          ???,
-//          variables.collect { bt.data.foreach(dispatch) }._1,
-          Nil,
-          Nil,
-          Some(dispatch(bt.body)),
-          contract[Post](ForwardUnsatisfiableBlame(bt),
-            requires = UnitAccountedPredicate(
-              dispatch(component.invariant)
-                &** dispatch(bt.source.decl.expr)
-                &** dispatch(bt.requires)
-//                &** bt.guard.map { guardExpr => currentBipTransition.having(bt) { dispatch(guardExpr) } }.getOrElse(tt)
-                &** currentBipTransition.having(bt) { bt.guard.map(dispatch) }.getOrElse(tt)
-            ),
-            ensures =
-            // Establish component invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(dispatch(component.invariant)),
-            // Establish state invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(dispatch(bt.target.decl.expr)),
-            // Establish update function postcondition
-            UnitAccountedPredicate(dispatch(bt.ensures))))
-          )
-        )(TransitionPostconditionFailed(bt))(bt.o))
+        currentBipDeclaration.having(bt) {
+          transitionSucc(bt) = classDeclarations.declare(new InstanceMethod[Post](
+            TVoid(),
+            variables.collect {
+              bt.data.foreach { case Ref(data) =>
+                incomingDataToVariable((bt, data)) = variables.declare(new Variable(dispatch(data.t)))
+              }
+            }._1,
+            Nil,
+            Nil,
+            Some(dispatch(bt.body)),
+            contract[Post](ForwardUnsatisfiableBlame(bt),
+              requires = UnitAccountedPredicate(
+                dispatch(component.invariant)
+                  &** dispatch(bt.source.decl.expr)
+                  &** dispatch(bt.requires)
+                  &** dispatch(bt.guard)
+              ),
+              ensures =
+              // Establish component invariant
+                SplitAccountedPredicate(UnitAccountedPredicate(dispatch(component.invariant)),
+                  // Establish state invariant
+                  SplitAccountedPredicate(UnitAccountedPredicate(dispatch(bt.target.decl.expr)),
+                    // Establish update function postcondition
+                    UnitAccountedPredicate(dispatch(bt.ensures))))
+            )
+          )(TransitionPostconditionFailed(bt))(bt.o))
+        }
       }
-//    case synchron: BipSynchron[Pre] =>
-//      val p1 = synchron.p1.decl
-//      val p2 = synchron.p2.decl
-//
-//      val comp1 = portToComponent(p1)
-//      val comp2 = portToComponent(p2)
-//
-//      portToTransitions(p1).foreach { transition1 =>
-//        portToTransitions(p2).foreach { transition2 =>
-////          generateSynchronization(synchron, comp1, transition1, comp2, transition2)
-//        }
-//      }
-//
+    case glue: BipGlue[Pre] =>
+      glue.drop()
+      logger.warn(s"Dropping glue at ${glue.o.shortPosition}")
+
     case _ => rewriteDefault(decl)
   }
 
