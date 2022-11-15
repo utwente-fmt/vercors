@@ -42,7 +42,7 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Writeable]): Unit = {
+  override def submit(colProgram: col.Program[_], output: Option[Writeable]): Boolean = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     output.foreach(_.write { writer =>
@@ -85,15 +85,19 @@ trait SilverBackend extends Backend with LazyLogging {
       case None => throw PluginErrors(plugins.errors)
     }
 
-    tracker.withEntities(transformedProgram) {
+    val backendVerifies = tracker.withEntities(transformedProgram) {
       verifier.verify(transformedProgram) match {
-        case Success =>
+        case Success => true
         case Failure(errors) =>
           logger.debug(errors.toString())
           errors.foreach(processError)
+          false
       }
     }
+
     stopVerifier(verifier)
+
+    backendVerifies
   }
 
   def processError(error: AbstractError): Unit = error match {

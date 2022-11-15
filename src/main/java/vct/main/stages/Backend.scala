@@ -1,9 +1,10 @@
 package vct.main.stages
 
-import hre.io.Writeable
+import hre.io.{RWFile, Writeable}
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{Serialize, Verification, VerificationContext}
+import vct.cache.VerificationCache
+import vct.col.ast.{Program, Serialize, Verification, VerificationContext}
 import vct.col.origin.ExpectedError
 import vct.col.rewrite.Generation
 import vct.options.{Options, types}
@@ -11,7 +12,9 @@ import viper.api.{backend => viper}
 import viper.carbon.Carbon
 import viper.silicon.Silicon
 
-import java.io.FileOutputStream
+import java.io.{FileInputStream, FileOutputStream}
+import java.nio.file.{Files, Path}
+import scala.runtime.ScalaRunTime
 
 case object Backend {
 
@@ -43,7 +46,7 @@ case object Backend {
         proverLogFile = options.devViperProverLogFile,
         printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
         options = options.backendFlags,
-      ), options.backendFile)
+      ), options.backendFile, Some(VerificationCache.getSiliconDirectory))
 
     case types.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,
@@ -51,21 +54,63 @@ case object Backend {
       printFile = options.devViperProverLogFile,
       proverLogFile = options.devCarbonBoogieLogFile,
       options = options.backendFlags,
-    ), options.backendFile)
+    ), options.backendFile, Some(VerificationCache.getCarbonDirectory))
   }
 }
 
 trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   override def friendlyName: String = "Verification"
   override def progressWeight: Int = 5
+
+  def cacheDirectory: Option[Path]
+
+  def cachedDefinitelyVerifiesOrElseUpdate(colProgram: Program[_], update: => Boolean): Unit = {
+    val baseDir = cacheDirectory.getOrElse {
+      // There is no cache directory: not allowed to skip the update
+      update
+      return
+    }
+
+    val program = Serialize.serialize(colProgram)
+
+    // PB: I am reasonably certain that the hashCode is deterministic in all the elements of the tree: it certainly is
+    // for all the case class parts, and ByteString. In any case, the hashCode not being deterministic is fine:
+    // it just means the cache will not work very well.
+
+    val path = baseDir.resolve("%02x" format program.hashCode())
+    val programFile = path.resolve("program.colpb").toFile
+
+    if(Files.exists(path)) {
+      // The result is potentially cached in programFile
+      val f = new FileInputStream(programFile)
+      val cachedProgram = vct.col.serialize.Program.parseFrom(f)
+      f.close()
+
+      if(cachedProgram != program) {
+        // Unlikely: in case of a hash collision, just run the verification (permanently unlucky)
+        update
+      }
+    } else if (update) {
+      // If the result is not even potentially cached, run update, and if the program definitely verifies, store the result.
+      path.toFile.mkdirs()
+      val f = new FileOutputStream(programFile)
+      program.writeTo(f)
+      f.close()
+    }
+  }
+
+  override def run(in: Verification[_ <: Generation]): Seq[ExpectedError] = {
+    Progress.foreach[(VerificationContext[_ <: Generation], Int)](in.tasks.zipWithIndex, t => s"Task ${t._2 + 1}") { case (task, idx) =>
+      cachedDefinitelyVerifiesOrElseUpdate(task.program, verify(task.program))
+    }
+
+    in.expectedErrors
+  }
+
+  def verify(program: Program[_ <: Generation]): Boolean
 }
 
-case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None) extends Backend {
-  override def run(input: Verification[_ <: Generation]): Seq[ExpectedError] = {
-    Progress.foreach[(VerificationContext[_ <: Generation], Int)](input.tasks.zipWithIndex, t => s"Task ${t._2 + 1}") { case (task, idx) =>
-      Serialize.serialize(task.program).writeTo(new FileOutputStream(s"/tmp/col-$idx.data"))
-      backend.submit(task.program, output)
-    }
-    input.expectedErrors
-  }
+case class SilverBackend(backend: viper.SilverBackend, output: Option[Writeable] = None, cacheDirectory: Option[Path] = None) extends Backend {
+  override def verify(program: Program[_ <: Generation]): Boolean =
+    backend.submit(program, output)
 }
