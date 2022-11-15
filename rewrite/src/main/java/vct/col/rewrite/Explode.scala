@@ -28,65 +28,111 @@ case object Explode extends RewriterBuilder {
 }
 
 case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
-  case class SplitProgram(
+  case class FocusedProgram(
     adts: Seq[AxiomaticDataType[Pre]],
     fields: Seq[SilverField[Pre]],
     funcs: Seq[Function[Pre]],
-    preds: Seq[Predicate[Pre]],
-    procs: Seq[Procedure[Pre]],
+    predOutlines: Seq[Predicate[Pre]],
+    predBodies: Seq[Predicate[Pre]],
+    procOutlines: Seq[Procedure[Pre]],
+    procBodies: Seq[Procedure[Pre]],
   ) {
-    @tailrec
-    private def fixpoint[G, T <: Node[G]](decls: Seq[T], scan: Seq[Node[G]], usages: Node[G] => Seq[T], prevUsages: Set[T] = Set.empty[T]): Seq[T] = {
-      val curUsages = (scan ++ prevUsages).flatMap(usages).toSet
-      if(curUsages == prevUsages) decls.filter(curUsages.contains)
-      else fixpoint(decls, scan, usages, curUsages)
-    }
+    require(procBodies.forall(procOutlines.contains))
+    require(predBodies.forall(predOutlines.contains))
 
-    def focus(proc: Procedure[Pre]): Seq[GlobalDeclaration[Post]] = {
-      val invocations = proc.collect { case inv: InvokeProcedure[Pre] => inv.ref.decl }.toSet
+    lazy val scanNodes: Seq[Node[Pre]] =
+      adts ++
+        fields ++
+        funcs ++
+        // PB: it's probably nonsense to include args, types, but for consistency: all subnodes except the body
+        predOutlines.flatMap(_.args) ++
+        predBodies.flatMap(_.body.toSeq) ++
+        procOutlines.flatMap(p => p.contract +: p.returnType +: (p.args ++ p.outArgs ++ p.typeArgs)) ++
+        procBodies.flatMap(_.body.toSeq)
 
-      val focusProcs: Seq[Procedure[Pre]] = procs.filter(p => invocations.contains(p) && p != proc)
-      val scanProcs: Seq[Node[Pre]] = proc +: focusProcs.flatMap(p => p.contract +: p.returnType +: (p.args ++ p.outArgs ++ p.typeArgs))
+    def fieldUsage: Seq[SilverField[Pre]] =
+      scanNodes.flatMap(_.flatCollect {
+        case SilverDeref(_, Ref(f)) => Seq(f)
+        case SilverFieldLocation(_, Ref(f)) => Seq(f)
+        case SilverCurFieldPerm(_, Ref(f)) => Seq(f)
+        case SilverNewRef(_, fs) => fs.map(_.decl)
+        case SilverFieldAssign(_, Ref(f), _) => Seq(f)
+      }).distinct
 
-      val focusPreds: Seq[Predicate[Pre]] = fixpoint[Pre, Predicate[Pre]](preds, scanProcs, (n: Node[Pre]) => n.collect {
+    def funcUsage: Seq[Function[Pre]] =
+      scanNodes.flatMap(_.collect {
+        case FunctionInvocation(Ref(f), _, _, _, _) => f
+      }).distinct
+
+    def predUsage: Seq[Predicate[Pre]] =
+      scanNodes.flatMap(_.collect {
         case PredicateApply(Ref(p), _, _) => p
         case PredicateLocation(Ref(p), _) => p
+        case SilverCurPredPerm(Ref(p), _) => p
+      }).distinct
+
+    def predContentUsage: Seq[Predicate[Pre]] =
+      scanNodes.flatMap(_.collect {
+        case Fold(PredicateApply(Ref(p), _, _)) => p
+        case Unfold(PredicateApply(Ref(p), _, _)) => p
+        case Unfolding(PredicateApply(Ref(p), _, _), _) => p
+      }).distinct
+
+    def procUsage: Seq[Procedure[Pre]] =
+      scanNodes.flatMap(_.collect {
+        case InvokeProcedure(Ref(p), _, _, _, _, _) => p
+        case ProcedureInvocation(Ref(p), _, _, _, _, _) => p
       })
-      val scanPreds: Seq[Node[Pre]] = scanProcs ++ focusPreds
 
-      val naiveFocusFuncs: Seq[Function[Pre]] = fixpoint[Pre, Function[Pre]](funcs, scanPreds, (n: Node[Pre]) => n.collect {
-        case FunctionInvocation(Ref(f), _, _, _, _) => f
-      })
-      val focusFuncs = funcs.filter(f => f.contract.decreases.isEmpty || naiveFocusFuncs.contains(f))
-      val scanFuncs: Seq[Node[Pre]] = scanPreds ++ focusFuncs
+    def step: FocusedProgram =
+      FocusedProgram(
+        adts,
+        (fields ++ fieldUsage).distinct,
+        (funcs ++ funcUsage).distinct,
+        (predOutlines ++ predUsage).distinct,
+        (predBodies ++ predContentUsage).distinct,
+        (procOutlines ++ procUsage).distinct,
+        procBodies,
+      )
 
-      val focusFields: Seq[SilverField[Pre]] = fixpoint[Pre, SilverField[Pre]](fields, scanFuncs, (n: Node[Pre]) => n.collect {
-        case SilverDeref(_, Ref(f)) => f
-        case SilverFieldLocation(_, Ref(f)) => f
-      })
+    @tailrec
+    final def fixpoint: FocusedProgram = {
+      val next = step
+      if(this == next) this
+      else next.fixpoint
+    }
 
-      implicit val o: Origin = ExplodeOrigin
+    def sort(other: FocusedProgram): FocusedProgram =
+      FocusedProgram(
+        adts.filter(other.adts.contains),
+        fields.filter(other.fields.contains),
+        funcs.filter(other.funcs.contains),
+        predOutlines.filter(other.predOutlines.contains),
+        predBodies.filter(other.predBodies.contains),
+        procOutlines.filter(other.procOutlines.contains),
+        procBodies.filter(other.procBodies.contains),
+      )
 
+    def toDecls: Seq[GlobalDeclaration[Post]] =
       globalDeclarations.collect {
         adts.foreach(dispatch)
-        focusFields.foreach(dispatch)
-        focusFuncs.foreach(f => globalDeclarations.succeed(f, f.rewrite(
-          blame = AbstractApplicable,
-          body = None,
-          contract = f.contract.rewrite(
-            ensures = if(f.body.isEmpty) dispatch(f.contract.ensures) else SplitAccountedPredicate(dispatch(f.contract.ensures), UnitAccountedPredicate(
-              Result[Post](succ(f)) === dispatch(f.body.get)
-            )),
-          ),
-        )))
-        focusPreds.foreach(dispatch)
-        dispatch(proc)
-        focusProcs.foreach(p => globalDeclarations.succeed(p, p.rewrite(body = None)))
+        fields.foreach(dispatch)
+        funcs.foreach(dispatch)
+        predOutlines.foreach { pred =>
+          if(predBodies.contains(pred)) dispatch(pred)
+          else globalDeclarations.succeed(pred, pred.rewrite(body = None))
+        }
+        procOutlines.foreach { proc =>
+          if(procBodies.contains(proc)) dispatch(proc)
+          else globalDeclarations.succeed(proc, proc.rewrite(body = None))
+        }
       }._1
-    }
+
+    def focus(proc: Procedure[Pre]): Seq[GlobalDeclaration[Post]] =
+      sort(FocusedProgram(adts, Nil, funcs, Nil, Nil, Seq(proc), Seq(proc)).fixpoint).toDecls
   }
 
-  def split(program: Program[Pre]): SplitProgram = {
+  def split(program: Program[Pre]): FocusedProgram = {
     val adts: ArrayBuffer[AxiomaticDataType[Pre]] = ArrayBuffer()
     val fields: ArrayBuffer[SilverField[Pre]] = ArrayBuffer()
     val funcs: ArrayBuffer[Function[Pre]] = ArrayBuffer()
@@ -102,7 +148,7 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
       case other => throw UnknownDeclaration(other)
     }
 
-    SplitProgram(adts.toSeq, fields.toSeq, funcs.toSeq, preds.toSeq, procs.toSeq)
+    FocusedProgram(adts.toSeq, fields.toSeq, funcs.toSeq, preds.toSeq, preds.toSeq, procs.toSeq, procs.toSeq)
   }
 
   override def dispatch(verification: Verification[Pre]): Verification[Post] =
@@ -114,7 +160,7 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
   def explode(context: VerificationContext[Pre]): Seq[VerificationContext[Post]] = {
     val program = split(context.program)
 
-    make(context, globalDeclarations.dispatch(program.adts ++ program.fields ++ program.funcs ++ program.preds)) +:
-      program.procs.map(proc => make(context, program.focus(proc)))
+    make(context, globalDeclarations.dispatch(program.adts ++ program.fields ++ program.funcs ++ program.predBodies)) +:
+      program.procBodies.map(proc => make(context, program.focus(proc)))
   }
 }
