@@ -111,7 +111,7 @@ case class Silicon(
 
     val plugins = SilverPluginManager(Some(Seq(
       "viper.silver.plugin.standard.termination.TerminationPlugin",
-    ).mkString(":")))(silicon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], silicon.config)
+    ).mkString(":")))(silicon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], silicon.config, null)
 
     (silicon, plugins)
   }
