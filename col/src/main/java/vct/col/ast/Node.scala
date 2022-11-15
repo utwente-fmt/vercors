@@ -904,7 +904,7 @@ final case class BipEnforceable[G]()(implicit val o: Origin = DiagnosticOrigin) 
 final case class BipSpontaneous[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 
-final case class BipSynchronization[G](ports: Seq[Ref[G, BipTransition[G]]], wires: Seq[(Ref[G, BipOutgoingData[G]], Ref[G, BipIncomingData[G]])])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G]
+final case class BipSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G]
 
 // These are subsumed by accepts/requires/datawires
 // Assuming datas and ports are not shared between components, class/component references are omitted

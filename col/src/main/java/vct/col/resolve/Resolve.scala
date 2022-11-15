@@ -517,7 +517,7 @@ case object ResolveReferences extends LazyLogging {
         Java.findJavaBipStatePredicate(ctx, getLit(ann.expect("initial")))))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Data") =>
-      ann.data = Some(BipData(getLit(ann.expect("name"))))
+      ann.data = Some(BipData(getLit(ann.expect("name")))(ann.o))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Guard") =>
       ann.data = Some(BipGuard(getLit(ann.expect("name"))))

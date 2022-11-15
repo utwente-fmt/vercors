@@ -29,7 +29,7 @@ public class Constants {
     public static final String RECEIVE_MONEY = "RECEIVE_MONEY";
     public static final String CASINO_WIN  = "CASINO_WIN";
     public static final String PLAYER_WIN  = "PLAYER_WIN";
-    public static final String PREPARE_TO_ADD = "PICK_AN_AMOUNT";
+    public static final String PREPARE_TO_ADD = "PREPARE_TO_ADD";
     public static final String PREPARE_TO_REMOVE = "PREPARE_TO_REMOVE";
     public static final String OPEN_CASINO = "OPEN_CASINO";
     public static final String CLOSE_CASINO = "CLOSE_CASINO";

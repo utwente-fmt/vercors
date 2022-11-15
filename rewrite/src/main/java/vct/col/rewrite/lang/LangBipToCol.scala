@@ -3,7 +3,7 @@ package vct.col.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.ast.lang.JavaAnnotationEx
-import vct.col.lang.LangBipToCol.{BipIncomingDataInconsistentType, WrongTransitionReturnType}
+import vct.col.lang.LangBipToCol.{BipDataOrigin, BipDataWireOrigin, BipIncomingDataInconsistentType, BipPortOrigin, WrongTransitionReturnType}
 import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
 import vct.col.print.Printer
 import vct.col.ref.Ref
@@ -41,6 +41,35 @@ case object LangBipToCol {
       (param.o, s"... is expected to have type ${param.t} by the usage here")
     ))
   }
+
+  case class BipPortOrigin(ns: JavaNamespace[_], cls: JavaClass[_], port: jad.BipPort[_]) extends Origin {
+    override def preferredName: String = {
+      val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
+      s"($fqn,${port.name})"
+    }
+
+    override def context: String = port.o.context
+    override def inlineContext: String = port.o.inlineContext
+    override def shortPosition: String = port.o.shortPosition
+  }
+
+  case class BipDataWireOrigin(cls0: JavaClass[_], port0: String, cls1: JavaClass[_], port1: String, o: Origin) extends Origin {
+    override def preferredName: String = s"(${cls0.name},$port0)->(${cls1.name},$port1)"
+    override def context: String = o.context
+    override def inlineContext: String = o.inlineContext
+    override def shortPosition: String = o.shortPosition
+  }
+
+  case class BipDataOrigin(ns: JavaNamespace[_], cls: JavaClass[_], data: jad.BipData[_]) extends Origin {
+    override def preferredName: String = {
+      val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
+      s"($fqn,${data.name})"
+    }
+
+    override def context: String = data.o.context
+    override def inlineContext: String = data.o.inlineContext
+    override def shortPosition: String = data.o.shortPosition
+  }
 }
 
 // TODO (RR): More specific origins (e.g. avoid SourceNameOrigin), errors, panicBlame...
@@ -74,7 +103,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteParameter(p: JavaParam[Pre]): Ref[Post, BipIncomingData[Post]] = {
-    val jad.BipData(name) = jad.BipData.get(p).get
+    val annData @ jad.BipData(name) = jad.BipData.get(p).get
     val dataTuple = (currentClass(), name)
     val data = dataInPreType.get(dataTuple) match {
       case Some(preType) =>
@@ -84,7 +113,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           throw BipIncomingDataInconsistentType(dataIn(dataTuple), p)
         }
       case None =>
-        dataIn(dataTuple) = rw.classDeclarations.declare(new BipIncomingData(rw.dispatch(p.t))(p.o))
+        dataIn(dataTuple) = rw.classDeclarations.declare(new BipIncomingData(rw.dispatch(p.t))(
+          BipDataOrigin(rw.java.namespace.top, currentClass(), annData)))
         dataInPreType(dataTuple) = p.t
         dataIn(dataTuple)
     }
@@ -116,7 +146,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {
-    val jad.BipData(_) = jad.BipData.get(decl).get
+    val data @ jad.BipData(_) = jad.BipData.get(decl).get
     BipLocalIncomingData(javaParamSucc.ref[Post, BipIncomingData[Post]](decl))(local.o)
   }
 
@@ -135,7 +165,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
-    val jad.BipData(name) = jad.BipData.get(m).get
+    val data @ jad.BipData(name) = jad.BipData.get(m).get
     assert(jad.BipPure.isPure(m), m.o.messageInContext("The following outgoing data should be pure"))
 
     javaMethodSuccOutgoingData(m) = rw.classDeclarations.declare(
@@ -143,7 +173,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         rw.dispatch(m.returnType),
         rw.dispatch(m.body.get),
         jad.BipPure.isPure(m)
-      )(m.blame)(SourceNameOrigin(m.name, m.o)))
+      )(m.blame)(BipDataOrigin(rw.java.namespace.top, currentClass(), data)))
     dataOut((currentClass(), name)) = javaMethodSuccOutgoingData(m)
   }
 
@@ -171,7 +201,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     allPorts.foreach { port =>
       assert(port.portType == BipEnforceable[Pre]())
       ports((cls, port.name)) = rw.classDeclarations.declare(
-        new BipPort(rw.dispatch(port.portType))(SourceNameOrigin(port.name, port.o)))
+        new BipPort(rw.dispatch(port.portType))(BipPortOrigin(rw.java.namespace.top, currentClass(), port)))
     }
   }
 
@@ -200,7 +230,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     BipGlueDataWire[Post](
       dataOut.ref((clsOut, nameOut)),
       dataIn.ref((clsIn, nameIn))
-    )(wire.o)
+    )(BipDataWireOrigin(clsOut, nameOut, clsIn, nameIn, wire.o))
   }
 
   def rewriteGlue(container: JavaBipGlueContainer[Pre]): Unit = {
