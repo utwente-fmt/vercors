@@ -3,6 +3,8 @@ package hre.progress
 import hre.platform.Platform
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
+import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
+
 case object Progress {
   var forceProgress: Boolean = false
 
@@ -101,7 +103,7 @@ case object Progress {
 
   case class Phase(description: String, weight: Int)
   abstract class Frame {
-    var position: Int = 0
+    def position: Int
     def currentWeight: Int
     def currentMessage: String
     def count: Int
@@ -110,6 +112,7 @@ case object Progress {
   }
 
   case class ConcreteFrame(phases: Seq[Phase]) extends Frame {
+    var position: Int = 0
     override def currentWeight: Int = if(0 <= position && position < phases.length) phases(position).weight else 0
     override def currentMessage: String = if(0 <= position && position < phases.length) phases(position).description else "?"
     override def count: Int = phases.size
@@ -117,9 +120,20 @@ case object Progress {
     override def weightDone: Int = phases.take(position).map(_.weight).sum
   }
 
-  case class LazyFrame(count: Int, var currentMessage: String) extends Frame {
+  case class SetMessageFrame(count: Int, var currentMessage: String) extends Frame {
+    var position: Int = 0
     override def currentWeight: Int = 1
     override def totalWeight: Int = count
+    override def weightDone: Int = position
+  }
+
+  case class UnorderedConcreteFrame(phases: Seq[Phase]) extends Frame {
+    var todo: Set[Phase] = phases.toSet
+    override def position: Int = phases.size - todo.size
+    override def currentWeight: Int = 1
+    override def currentMessage: String = phases.filter(todo.contains).map(_.description).mkString(", ")
+    override def count: Int = phases.size
+    override def totalWeight: Int = phases.size
     override def weightDone: Int = position
   }
 
@@ -140,37 +154,67 @@ case object Progress {
     withFrame(ConcreteFrame(stages.map { case (desc, weight) => Phase(desc, weight) }))(f)
 
   def dynamicMessages[T](count: Int, initialMessage: String)(f: => T): T =
-    withFrame(LazyFrame(count, initialMessage))(f)
+    withFrame(SetMessageFrame(count, initialMessage))(f)
 
   def seqStages[T, S](xs: Iterable[T], desc: T => String)(f: => S): S =
     withFrame(ConcreteFrame(xs.map(x => Phase(desc(x), 1)).toSeq))(f)
+
+  def parStages[T, S](xs: Iterable[T], desc: T => String)(f: Seq[Phase] => S): S = {
+    val phases = xs.map(x => Phase(desc(x), 1)).toSeq
+    withFrame(UnorderedConcreteFrame(phases))(f(phases))
+  }
 
   def foreach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit =
     seqStages(xs, desc) {
       xs.foreach(x => {
         f(x)
-        nextPhase()
+        next()
       })
+    }
+
+  def parForeach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit =
+    parStages(xs, desc) { phases =>
+      xs.zip(phases).par.foreach { case (x, phase) =>
+        f(x)
+        nextDone(phase)
+      }
     }
 
   def map[T, S](xs: Iterable[T], desc: T => String)(f: T => S): Iterable[S] =
     seqStages(xs, desc) {
       xs.map(x => {
         val result = f(x)
-        nextPhase()
+        next()
         result
       })
     }
 
-  def nextPhase(nextMessage: String = ""): Unit = {
-    frames.last.position += 1
+  def next(): Unit =
+    this.synchronized {
+      frames.last match {
+        case frame: ConcreteFrame =>
+          frame.position += 1
+        case _ => ???
+      }
 
-    frames.last match {
-      case _: ConcreteFrame =>
-      case frame: LazyFrame =>
-        frame.currentMessage = nextMessage
+      update()
     }
 
-    update()
-  }
+  def nextMessage(message: String): Unit =
+    this.synchronized {
+      frames.last match {
+        case frame: SetMessageFrame =>
+          frame.position += 1
+          frame.currentMessage = message
+        case _ => ???
+      }
+    }
+
+  def nextDone(phase: Phase): Unit =
+    this.synchronized {
+      frames.last match {
+        case frame: UnorderedConcreteFrame =>
+          frame.todo -= phase
+      }
+    }
 }

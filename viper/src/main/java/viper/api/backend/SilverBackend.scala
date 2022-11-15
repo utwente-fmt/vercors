@@ -5,7 +5,7 @@ import hre.io.Writeable
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
-import viper.api.transform.{ColToSilver, NodeInfo, SilverParserDummyFrontend}
+import viper.api.transform.{ColToSilver, NodeInfo, NopViperReporter, SilverParserDummyFrontend}
 import viper.api.SilverTreeCompare
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
@@ -54,7 +54,7 @@ trait SilverBackend extends Backend with LazyLogging {
       case some => throw ConsistencyErrors(some)
     }
 
-    val f = File.createTempFile("vercors-", ".sil")
+    /*val f = File.createTempFile("vercors-", ".sil")
     f.deleteOnExit()
     Using(new FileOutputStream(f)) { out =>
       out.write(silverProgram.toString().getBytes())
@@ -75,17 +75,17 @@ trait SilverBackend extends Backend with LazyLogging {
               logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
             }
         }
-    }
+    }*/
 
-    val tracker = EntityTrackingReporter()
-    val (verifier, plugins) = createVerifier(tracker, nodeFromUniqueId)
+    // val tracker = EntityTrackingReporter()
+    val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 
     val transformedProgram = plugins.beforeVerify(silverProgram) match {
       case Some(program) => program
       case None => throw PluginErrors(plugins.errors)
     }
 
-    val backendVerifies = tracker.withEntities(transformedProgram) {
+    val backendVerifies = // tracker.withEntities(transformedProgram) {
       verifier.verify(transformedProgram) match {
         case Success => true
         case Failure(errors) =>
@@ -93,7 +93,7 @@ trait SilverBackend extends Backend with LazyLogging {
           errors.foreach(processError)
           false
       }
-    }
+    // }
 
     stopVerifier(verifier)
 

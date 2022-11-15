@@ -1,6 +1,7 @@
 package viper.api.backend
 
 import hre.progress.Progress
+import hre.progress.Progress.Phase
 import viper.silver.ast.{Member, Program}
 import viper.silver.reporter.{EntityFailureMessage, EntitySuccessMessage, Message, Reporter}
 
@@ -9,37 +10,18 @@ import scala.collection.mutable
 case class EntityTrackingReporter() extends Reporter {
   override val name: String = "entity_tracking_reporter"
 
-  private val todo: mutable.Set[Member] = mutable.Set()
-
-  def todoMessages: String = {
-    val entities = todo.map(_.name).toSeq.sorted
-    "Entities left: " + (
-      if(entities.size > 4) entities.take(4).mkString("", ", ", ", ...")
-      else entities.mkString(", ")
-    )
-  }
-
   def withEntities[T](program: Program)(f: => T): T = {
-    todo.clear()
-    todo ++= program.functions
-    todo ++= program.predicates
-    todo ++= program.methods
+    val members: Seq[Member] = program.functions ++ program.predicates ++ program.methods
 
-    Progress.dynamicMessages(todo.size, todoMessages)(f)
-  }
-
-  private def update(): Unit = {
-    Progress.nextPhase(todoMessages)
+    Progress.parStages(members, (m: Member) => m.name)(_ => f)
   }
 
   override def report(msg: Message): Unit = this.synchronized {
     msg match {
-      case EntitySuccessMessage(_, concerning, _, _) if todo.contains(concerning) =>
-        todo -= concerning
-        update()
-      case EntityFailureMessage(_, concerning, _, _, _) if todo.contains(concerning) =>
-        todo -= concerning
-        update()
+      case EntitySuccessMessage(_, concerning, _, _) =>
+        Progress.nextDone(Phase(concerning.name, 1))
+      case EntityFailureMessage(_, concerning, _, _, _) =>
+        Progress.nextDone(Phase(concerning.name, 1))
       case _ =>
     }
   }
