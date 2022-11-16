@@ -1,12 +1,12 @@
 package viper.api.backend
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.Writeable
+import hre.io.RWFile
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
-import viper.api.transform.{ColToSilver, NodeInfo, NopViperReporter, SilverParserDummyFrontend}
 import viper.api.SilverTreeCompare
+import viper.api.transform.{ColToSilver, NodeInfo, NopViperReporter, SilverParserDummyFrontend}
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier._
@@ -14,6 +14,7 @@ import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
 import java.io.{File, FileOutputStream}
+import java.nio.file.Path
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
@@ -42,10 +43,10 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Writeable]): Boolean = {
+  override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
-    output.foreach(_.write { writer =>
+    output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
       writer.write(silverProgram.toString())
     })
 

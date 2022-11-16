@@ -75,6 +75,14 @@ lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in r
 lazy val benchPrintExternalDeps = taskKey[Unit]("For util/bench/flatten-sources.sh: print only the external dependencies, available without compilation.")
 lazy val benchPrintSources = taskKey[Unit]("For util/bench/flatten-sources.sh: print all source directories, including viper.")
 
+lazy val fetchGitInfo = taskKey[Seq[String]]("Explicitly depend on git information to generate BuildInfo")
+
+fetchGitInfo := {
+  Seq(Git.currentBranch, Git.currentCommit, Git.currentShortCommit, Git.gitHasChanges.toString)
+}
+
+Compile / buildInfo := (Compile / buildInfo).dependsOn(fetchGitInfo).value
+
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, rewrite, viper, parsers)
   .aggregate(hre, col, rewrite, viper, parsers)
