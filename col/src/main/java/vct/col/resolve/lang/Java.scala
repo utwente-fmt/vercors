@@ -478,10 +478,8 @@ sealed trait JavaAnnotationData[G]
 case object JavaAnnotationData {
 
   case object BipTransition {
-    def get[G](m: JavaMethod[G]): Option[BipTransition[G]] =
-      m.modifiers
-        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-        .collectFirst { case b: BipTransition[G] => b }
+    def get[G](m: JavaMethod[G]): Seq[BipTransition[G]] =
+      m.modifiers.collect { case ja @ JavaAnnotationEx(_, _, b: BipTransition[G]) => b }
   }
   final case class BipTransition[G](portName: String,
                                     source: JavaBipStatePredicateTarget[G],

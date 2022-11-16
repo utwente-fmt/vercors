@@ -89,7 +89,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val glueSucc: SuccessionMap[JavaBipGlueContainer[Pre], BipGlue[Post]] = SuccessionMap()
 
   val javaParamSucc: SuccessionMap[JavaParam[Pre], BipIncomingData[Post]] = SuccessionMap()
-  val javaMethodSuccTransition: SuccessionMap[JavaMethod[Pre], BipTransition[Post]] = SuccessionMap()
+  val javaMethodSuccTransition: SuccessionMap[(JavaMethod[Pre], jad.BipTransition[Pre]), BipTransition[Post]] = SuccessionMap()
   val javaMethodSuccGuard: SuccessionMap[JavaMethod[Pre], BipGuard[Post]] = SuccessionMap()
   val javaMethodSuccOutgoingData: SuccessionMap[JavaMethod[Pre], BipOutgoingData[Post]] = SuccessionMap()
 
@@ -122,8 +122,10 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     data.ref
   }
 
-  def rewriteTransition(m: JavaMethod[Pre]): Unit = {
-    val jad.BipTransition(portName, source, target, guard, requires, ensures) = jad.BipTransition.get(m).get
+  def rewriteTransition(m: JavaMethod[Pre]): Unit = jad.BipTransition.get(m).foreach(rewriteTransition(m, _))
+
+  def rewriteTransition(m: JavaMethod[Pre], transition: jad.BipTransition[Pre]): Unit = {
+    val jad.BipTransition(portName, source, target, guard, requires, ensures) = transition
 
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
 
@@ -137,7 +139,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       rw.dispatch(ensures),
       rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
 
-    javaMethodSuccTransition(m) = rw.classDeclarations.declare(trans)
+    javaMethodSuccTransition((m, transition)) = rw.classDeclarations.declare(trans)
   }
 
   def local(local: JavaLocal[Pre]): Expr[Post] = {

@@ -906,11 +906,6 @@ final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) ext
 
 final case class BipSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G]
 
-// These are subsumed by accepts/requires/datawires
-// Assuming datas and ports are not shared between components, class/component references are omitted
-//final class BipSynchron[G](val p1: Ref[G, BipPort[G]], val p2: Ref[G, BipPort[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
-//final class BipDataBinding[G](val from: Ref[G, BipData[G]], val to: Ref[G, BipData[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
-
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {
   var ref: Option[PVLTypeNameTarget[G]] = None

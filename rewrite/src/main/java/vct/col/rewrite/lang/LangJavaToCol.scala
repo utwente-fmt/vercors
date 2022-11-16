@@ -222,7 +222,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ))
         }
       case method: JavaMethod[Pre] =>
-        if (BipTransition.get(method).isDefined) {
+        if (BipTransition.get(method).nonEmpty) {
           rw.bip.rewriteTransition(method)
         } else if (BipGuard.get(method).isDefined) {
           rw.bip.rewriteGuard(method)
