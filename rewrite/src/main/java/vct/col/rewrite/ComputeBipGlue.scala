@@ -158,9 +158,12 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ctx.bm.or(others.map(ctx.get): _*)
       )
   }
-  case class Accepts(acc: BipGlueAccepts[Pre], allPorts: Seq[BipPort[Pre]]) extends Constraint {
-    val port = acc.port.decl
-    lazy val others = acc.others.map(_.decl).toSet
+  case class Accepts(accepts: Seq[BipGlueAccepts[Pre]], allPorts: Seq[BipPort[Pre]]) extends Constraint {
+    // There should be > 0 clauses, and all clauses should concern the same port
+    assert(accepts.forall(accepts.head.port.decl == _.port.decl))
+
+    val port = accepts.head.port.decl
+    lazy val others = accepts.flatMap(_.others).map(_.decl).toSet
     lazy val offPorts = allPorts.collect { case p if !others.contains(p) && p != port => p }
 
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
@@ -235,7 +238,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
       val wireRequiresPorts: Seq[Constraint] = wires.map(WireRequiresPorts)
 
       val requires = glue.requires.groupBy(_.port.decl).values.map(Requires)
-      val accepts = glue.accepts.map(Accepts(_, ports))
+      val accepts = glue.accepts.groupBy(_.port.decl).values.map(Accepts(_, ports))
       val excludeEmptySynchronization = ExcludeEmptySynchronization(ports)
 
       val constraints = (portEnablesInputsOutputs
@@ -245,7 +248,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ++ requires
         ++ accepts
         ++ wireRequiresPorts
-        :+ excludeEmptySynchronization
+        :+ excludeEmptySynchronization // <--
         )
 
       Using(SolverContextFactory.createSolverContext(Solvers.SMTINTERPOL)) { ctx =>
