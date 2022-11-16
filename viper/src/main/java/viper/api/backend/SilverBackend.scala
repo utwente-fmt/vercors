@@ -247,7 +247,8 @@ trait SilverBackend extends Backend with LazyLogging {
         throw NotSupported(s"Vercors does not support counterexamples from Viper")
     }
     case AbortedExceptionally(throwable) =>
-      throw ViperCrashed(s"Viper has crashed: $throwable")
+      throwable.printStackTrace()
+      throw ViperCrashed(s"Viper has crashed: $throwable.pr")
     case other =>
       throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")
   }
