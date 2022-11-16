@@ -54,12 +54,12 @@ trait SilverBackend extends Backend with LazyLogging {
       case some => throw ConsistencyErrors(some)
     }
 
-    /*val f = File.createTempFile("vercors-", ".sil")
+    val f = File.createTempFile("vercors-", ".sil")
     f.deleteOnExit()
     Using(new FileOutputStream(f)) { out =>
       out.write(silverProgram.toString().getBytes())
     }
-    SilverParserDummyFrontend.parse(f.toPath) match {
+    SilverParserDummyFrontend().parse(f.toPath) match {
       case Left(errors) =>
         logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
         for(error <- errors) {
@@ -75,7 +75,7 @@ trait SilverBackend extends Backend with LazyLogging {
               logger.debug(s" - Right: ${right.getClass.getSimpleName}: $right")
             }
         }
-    }*/
+    }
 
     // val tracker = EntityTrackingReporter()
     val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)

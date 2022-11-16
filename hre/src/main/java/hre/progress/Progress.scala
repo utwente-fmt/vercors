@@ -208,6 +208,8 @@ case object Progress {
           frame.currentMessage = message
         case _ => ???
       }
+
+      update()
     }
 
   def nextDone(phase: Phase): Unit =
@@ -216,5 +218,7 @@ case object Progress {
         case frame: UnorderedConcreteFrame =>
           frame.todo -= phase
       }
+
+      update()
     }
 }
