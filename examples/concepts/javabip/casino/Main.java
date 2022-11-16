@@ -20,6 +20,9 @@ public class Main {
                 port(Operator.class, PREPARE_TO_REMOVE).requiresNothing();
                 port(Operator.class, PREPARE_TO_REMOVE).acceptsNothing();
 
+                port(Player.class, PREPARE_BET).requiresNothing();
+                port(Player.class, PREPARE_BET).acceptsNothing();
+
                 synchron(Operator.class, CREATE_GAME).to(Casino.class, CREATE_GAME);
                 synchron(Operator.class, ADD_TO_POT).to(Casino.class, ADD_TO_POT);
                 synchron(Operator.class, REMOVE_FROM_POT).to(Casino.class, REMOVE_FROM_POT);

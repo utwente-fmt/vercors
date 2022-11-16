@@ -6,12 +6,14 @@ import org.sosy_lab.common.configuration.Configuration
 import org.sosy_lab.common.log.{BasicLogManager, LogManager}
 import org.sosy_lab.java_smt.SolverContextFactory
 import org.sosy_lab.java_smt.SolverContextFactory.Solvers
+import org.sosy_lab.java_smt.api.BasicProverEnvironment.AllSatCallback
 import org.sosy_lab.java_smt.api.SolverContext.ProverOptions
 import vct.col.ast.{BipData, BipGlue, BipGlueAccepts, BipGlueDataWire, BipGlueRequires, BipIncomingData, BipOutgoingData, BipPort, BipSynchronization, BipTransition, Class, ClassDeclaration, Declaration, Node, Program}
 import vct.col.ref.Ref
 import org.sosy_lab.java_smt.api.{BooleanFormula, BooleanFormulaManager, SolverContext}
 import org.sosy_lab.java_smt.utils.PrettyPrinter
 
+import java.util
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
@@ -141,10 +143,19 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
 
   }
   case class ExcludeSynchronization(synchronization: BipSynchronization[Pre]) extends Constraint {
-    override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
+    override def toBooleanFormula(ctx: BipSmt): BooleanFormula = {
+      if (synchronization.ports.isEmpty && synchronization.wires.isEmpty) {
+        // TODO: UGLY. This is theproblem!
+        return ctx.bm.makeTrue()
+      }
       ctx.bm.not(ctx.bm.and(
+        // TODO: Problem: this goes wrong once you want a synchronization with any of the other ports in synchronization.ports set to true... I think
+        // So here we should also include all ports that we expect to be off, or exclude the model at the smt level
+        // I guess it's worth to explore maybe if I can reproduce the allSat problem in a repro?
+        // https://github.com/sosy-lab/java-smt/issues/71 suggests allSat is meant for something else, so should probably do it myself
         synchronization.ports.map { p => ctx.get(p.decl) } ++ synchronization.wires.map(ctx.get) : _*
       ))
+    }
   }
   case class Requires(requires: Seq[BipGlueRequires[Pre]]) extends Constraint {
     // There should be > 0 clauses, and all clauses should concern the same port
@@ -155,7 +166,10 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
       ctx.bm.implication(
         ctx.get(port),
-        ctx.bm.or(others.map(ctx.get): _*)
+        // TODO: Ugly
+        // TODO: So, problem was, the empty case of or is false, where I think I was assuming it to be true.
+        // Need to doublecheck all empty cases where I assume some behaviour about the empty case
+        ctx.bm.or((if(others.isEmpty) Seq(ctx.bm.makeTrue()) else others.map(ctx.get)): _*)
       )
   }
   case class Accepts(accepts: Seq[BipGlueAccepts[Pre]], allPorts: Seq[BipPort[Pre]]) extends Constraint {
@@ -248,11 +262,11 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ++ requires
         ++ accepts
         ++ wireRequiresPorts
-        :+ excludeEmptySynchronization // <--
+//        :+ excludeEmptySynchronization
         )
 
       Using(SolverContextFactory.createSolverContext(Solvers.SMTINTERPOL)) { ctx =>
-        Using(ctx.newProverEnvironment(ProverOptions.GENERATE_MODELS)) { prover =>
+        Using(ctx.newProverEnvironment(ProverOptions.GENERATE_MODELS, ProverOptions.GENERATE_ALL_SAT)) { prover =>
           val bipSmt = BipSmt(ctx)
 
           val bs = constraints.map { c =>
@@ -263,11 +277,16 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
           }
           val all = bs.fold(bipSmt.bm.makeTrue()) { (l, r) => bipSmt.bm.and(l, r) }
           // TODO: Make logging proper
-//          logger.info("== Pretty printer ==")
-//          logger.info(new PrettyPrinter(bipSmt.fm).formulaToString(all, PrettyPrinter.PrinterOption.SPLIT_ONLY_BOOLEAN_OPERATIONS))
+          logger.info("== Pretty printer ==")
+          logger.info(new PrettyPrinter(bipSmt.fm).formulaToString(all))
           bs.foreach(prover.addConstraint)
           // TODO: consider allSat?
-          // TODO: In synchrons, data wires that are not needed should be disabled. Also: if a transition has no input data, the local datas should be disabled.
+
+          /* TODO: At this point, adding PREPARE_BET as requires nothing, accepts nothing, excludes some synchronizations. Also,
+                   removing the one port must go off requirement, results in less models... Something is up!
+                   I think it's because of the empty requires clause. That becomes, (not PREPARE_BET). So prepare bet can never fire,
+                   even though we mean it doesn't require anything...
+          */
           val models: mutable.ArrayBuffer[BipSynchronization[Pre]] = mutable.ArrayBuffer()
           while (!prover.isUnsat) {
             logger.info("Sat!")
@@ -296,10 +315,10 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
           logger.info("Unsat!")
           logger.info(s"Possible synchronizations found: ${models.size}")
 
-          val core = prover.getUnsatCore.asScala
-          logger.info(core.size.toString)
-          val xx = core.fold(bipSmt.bm.makeTrue()) { (l, r) => bipSmt.bm.and(l, r) }
-          logger.info("==== " + bipSmt.fm.dumpFormula(xx).toString)
+//          val core = prover.getUnsatCore.asScala
+//          logger.info(core.size.toString)
+//          val xx = core.fold(bipSmt.bm.makeTrue()) { (l, r) => bipSmt.bm.and(l, r) }
+//          logger.info("==== " + bipSmt.fm.dumpFormula(xx).toString)
 //          core.foreach { b =>
 //            logger.info(bipSmt.fm.dumpFormula(b).toString)
 //          }
