@@ -277,7 +277,6 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
           prover.addConstraint(bipSmt.bm.not(modelFormula))
         }
 
-        logger.debug("Unsat!")
         logger.debug(s"Possible synchronizations found: ${synchronizations.size}")
 
         val portInt = ports.map { p => p -> ports.indexOf(p) }.toMap
