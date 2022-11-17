@@ -1,13 +1,13 @@
-package vct.col.rewrite
+package vct.col.rewrite.bip
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{BipComponentInvariantNotEstablished, BipComponentInvariantNotMaintained, BipGuardFailure, BipGuardInvocationFailure, BipGuardPostconditionFailure, BipGuardPreconditionUnsatisfiable, BipStateInvariantNotEstablished, BipStateInvariantNotMaintained, BipTransitionFailure, BipTransitionPostconditionFailure, BipTransitionPreconditionUnsatisfiable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, FailLeft, FailRight, InstanceInvocationFailure, InstanceNull, InvocationFailure, NontrivialUnsatisfiable, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SignalsFailed}
+import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.EncodeBip.{BipGuardInvocationFailed, ConstructorPostconditionFailed, ForwardUnsatisfiableBlame, GuardPostconditionFailed, IsBipComponent, MissingData, TransitionPostconditionFailed}
-import vct.col.util.AstBuildHelpers._
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -111,6 +111,7 @@ case object EncodeBip extends RewriterBuilder {
 }
 
 case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+  import vct.col.rewrite.bip.EncodeBip._
 
   implicit class LocalExprBuildHelpers[G](left: Expr[G]) {
     def &**(right: Expr[G])(implicit origin: Origin): Expr[G] = (left, right) match {
@@ -188,10 +189,10 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     // The next two should be resolved within this pass, so they should be dropped
-    case data: BipData[Pre] => data.drop()
+    case data: BipData[Pre] => ???; data.drop()
     case port: BipPort[Pre] => port.drop()
 
-    case id: BipIncomingData[Pre] =>
+    case id: BipIncomingData[Pre] => ???
       incomingDataSucc(id) = new Variable(dispatch(id.t))(id.o)
       variables.declare(incomingDataSucc(id))
     case od: BipOutgoingData[Pre] =>

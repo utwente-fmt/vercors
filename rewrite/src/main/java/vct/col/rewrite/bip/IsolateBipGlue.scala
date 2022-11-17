@@ -1,4 +1,4 @@
-package vct.col.rewrite.lang
+package vct.col.rewrite.bip
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
@@ -11,7 +11,7 @@ case object IsolateBipGlue extends LazyLogging {
           getBipGlues(decl) match {
             case Seq() => Seq(decl)
             case glues =>
-              logger.info(decl.o.messageInContext("[info] Of following class, _only_ the containing BIP glue is analyzed"))
+              logger.info(decl.o.messageInContext("_Only_ the containing BIP glue is analyzed of this class"))
               glues.map(g => new JavaBipGlueContainer[G](g)(g.o))
           }
         }

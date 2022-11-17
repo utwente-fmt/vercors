@@ -1,16 +1,13 @@
-package vct.col.rewrite
+package vct.col.rewrite.bip
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.rewrite.EncodeBip.IsBipComponent
-import vct.col.origin.{DiagnosticOrigin, Origin}
-import vct.col.rewrite.EncodeBipPermissions.{GeneratedBipFieldPermissionOrigin, GeneratedBipPermissionsOrigin}
+import vct.col.origin.Origin
+import vct.col.rewrite.bip.EncodeBipPermissions.{GeneratedBipFieldPermissionOrigin, GeneratedBipPermissionsOrigin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
-
-import scala.collection.mutable
 
 case object EncodeBipPermissions extends RewriterBuilder {
   override def key: String = "encodeBipPermissions"
