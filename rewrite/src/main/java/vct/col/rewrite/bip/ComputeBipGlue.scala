@@ -292,7 +292,6 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case glue: BipGlue[Pre] =>
       computeGlue(glue).foreach(dispatch)
-      ???
     case other => rewriteDefault(other)
   }
 }
