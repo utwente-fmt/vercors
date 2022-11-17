@@ -23,12 +23,9 @@ case object ComputeBipGlue extends RewriterBuilder {
 case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   var program: Program[Pre] = _
 
-  implicit class BooleanFormulaManagerBuildHelpers[G](bm: BooleanFormulaManager) {
-    def xorAll(bs: BooleanFormula*): BooleanFormula = bs match {
-      case Seq() => bm.makeTrue()
-      case Seq(b) => b
-      case b +: bs => bm.xor(b, xorAll(bs: _*))
-    }
+  def xor(bm: BooleanFormulaManager, bs: Seq[BooleanFormula]): BooleanFormula = bs match {
+    case Seq(b) => b
+    case b +: bs => bm.xor(b, xor(bm, bs))
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
@@ -87,6 +84,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
   sealed trait Constraint {
     def toBooleanFormula(ctx: BipSmt): BooleanFormula
   }
+
   case class PortEnablesInputsOutputs(port: BipPort[Pre], datas: Seq[BipData[Pre]]) extends Constraint {
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
       ctx.bm.implication(
@@ -94,6 +92,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ctx.bm.and(datas.map(ctx.get) :_*)
       )
   }
+
   case class OutputDataNeedsPort(data: BipOutgoingData[Pre], ports: Seq[BipPort[Pre]]) extends Constraint {
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
       ctx.bm.implication(
@@ -101,24 +100,31 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ctx.bm.or(ports.map(ctx.get): _*)
       )
   }
+
   case class InputDataNeedsPort(data: BipIncomingData[Pre], ports: Seq[BipPort[Pre]]) extends Constraint {
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
       ctx.bm.implication(ctx.get(data), ctx.bm.or(ports.map(ctx.get(_)): _*))
   }
+
   case class InputRequiresOneActiveWire(data: BipIncomingData[Pre], incomingWires: Seq[BipGlueDataWire[Pre]]) extends Constraint {
+    // We require at least one wire to exist for an input - otherwise the model is not well-formed
+    // Otherwise, the resulting constraint is: data => xor(Seq()) === data => false === !data
+    // Meaning, if there is no incoming wire, an input data can never be turned on.
+    assert(incomingWires.nonEmpty)
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula = {
       val bm = ctx.bm
       bm.implication(
         ctx.get(data),
-        bm.xorAll(incomingWires.map { wire =>
+        xor(bm, incomingWires.map { wire =>
           bm.and(
             ctx.get(wire.dataOut.decl),
             ctx.get(wire)
           )
-        }: _*)
+        })
       )
     }
   }
+
   case class WireRequiresPorts(wire: BipGlueDataWire[Pre]) extends Constraint {
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula =
       ctx.bm.implication(
@@ -126,10 +132,9 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ctx.bm.and(
           ctx.get(wire.dataOut.decl),
           ctx.get(wire.dataIn.decl)
-        )
-      )
-
+        ))
   }
+
   case class Requires(requires: Seq[BipGlueRequires[Pre]]) extends Constraint {
     // There should be > 0 clauses, and all clauses should concern the same port
     assert(requires.forall(requires.head.port.decl == _.port.decl))
@@ -141,11 +146,11 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
       case _ =>
         ctx.bm.implication(
         ctx.get(port),
-        // TODO: Need to doublecheck all empty cases where I assume some behaviour about the empty case
         ctx.bm.or(others.map(ctx.get): _*)
       )
     }
   }
+
   case class Accepts(accepts: Seq[BipGlueAccepts[Pre]], allPorts: Seq[BipPort[Pre]]) extends Constraint {
     // There should be > 0 clauses, and all clauses should concern the same port
     assert(accepts.forall(accepts.head.port.decl == _.port.decl))
@@ -160,6 +165,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         ctx.bm.and(offPorts.map { p => ctx.bm.not(ctx.get(p)) }: _*)
       )
   }
+
   case class ExcludeEmptySynchronization(allPorts: Seq[BipPort[Pre]]) extends Constraint {
     override def toBooleanFormula(ctx: BipSmt): BooleanFormula = {
       // At least one of the ports should go off
@@ -167,7 +173,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     }
   }
 
-  def computeGlue(glue: BipGlue[Pre]): Unit = {
+  def computeGlue(glue: BipGlue[Pre]): Seq[BipSynchronization[Pre]] = {
     val relevantDecls: Set[ClassDeclaration[Pre]] = glue.transSubnodes.collect {
       case BipGlueRequires(Ref(port), requires) =>
         port +: requires.map(_.decl)
@@ -181,9 +187,6 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     }
     val ports = classes.flatMap { cls => cls.declarations.collect {
       case port: BipPort[Pre] => port
-    }}
-    val datas = classes.flatMap { cls => cls.declarations.collect {
-      case data: BipData[Pre] => data
     }}
 
     val portEnablesInputsOutputs: Seq[Constraint] = classes.flatMap { cls =>
@@ -226,12 +229,14 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     }
     val wireRequiresPorts: Seq[Constraint] = wires.map(WireRequiresPorts)
 
-    val requiresPorts = glue.requires.map(_.port.decl).distinct
-    val requires = requiresPorts.map { port => Requires(glue.requires.filter(port == _.port.decl)) }
-    val acceptsPorts = glue.accepts.map(_.port.decl).distinct
-    val accepts = acceptsPorts.map { port => Accepts(glue.accepts.filter(port == _.port.decl), ports) }
-
-    val excludeEmptySynchronization = ExcludeEmptySynchronization(ports)
+    val requires = {
+      val requiresPorts = glue.requires.map(_.port.decl).distinct
+      requiresPorts.map { port => Requires(glue.requires.filter(port == _.port.decl)) }
+    }
+    val accepts = {
+      val acceptsPorts = glue.accepts.map(_.port.decl).distinct
+      acceptsPorts.map { port => Accepts(glue.accepts.filter(port == _.port.decl), ports) }
+    }
 
     val constraints = (portEnablesInputsOutputs
       ++ outputDataNeedsPort
@@ -240,7 +245,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
       ++ requires
       ++ accepts
       ++ wireRequiresPorts
-      :+ excludeEmptySynchronization
+      :+ ExcludeEmptySynchronization(ports)
       )
 
     Using(SolverContextFactory.createSolverContext(Solvers.SMTINTERPOL)) { ctx =>
@@ -250,14 +255,13 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         val formulas = constraints.map(_.toBooleanFormula(bipSmt))
         val combinedFormula = formulas.fold(bipSmt.bm.makeTrue()) { (l, r) => bipSmt.bm.and(l, r) }
         val allVars = bipSmt.fm.extractVariables(combinedFormula).keySet().asScala.toSeq.sorted.map(bipSmt.bm.makeVariable)
-        // TODO: Make logging proper
-        logger.info("== Pretty printer ==")
-        logger.info(new PrettyPrinter(bipSmt.fm).formulaToString(combinedFormula))
+        logger.debug("=== Formula: all BIP constraints ===")
+        logger.debug(new PrettyPrinter(bipSmt.fm).formulaToString(combinedFormula))
+        logger.debug("=== End of formula: all BIP constraints ===")
         formulas.foreach(prover.addConstraint)
 
         val synchronizations: mutable.ArrayBuffer[BipSynchronization[Pre]] = mutable.ArrayBuffer()
         while (!prover.isUnsat) {
-          logger.info("Sat!")
           val (synchronization, modelFormula) = Using(prover.getModel()) { model =>
             val enabledPorts = ports.filter { port => model.evaluate(bipSmt.get(port)) }.map(_.ref)
             val enabledWires = wires.filter { wire => model.evaluate(bipSmt.get(wire)) }
@@ -268,20 +272,28 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
             (new BipSynchronization[Pre](enabledPorts, enabledWires), modelFormula)
           }.get
 
-          logger.info(synchronization.summarize)
+          logger.debug(synchronization.summarize)
           synchronizations.addOne(synchronization)
           prover.addConstraint(bipSmt.bm.not(modelFormula))
         }
 
-        logger.info("Unsat!")
-        logger.info(s"Possible synchronizations found: ${synchronizations.size}")
+        logger.debug("Unsat!")
+        logger.debug(s"Possible synchronizations found: ${synchronizations.size}")
+
+        val portInt = ports.map { p => p -> ports.indexOf(p) }.toMap
+        val wireInt = wires.map { w => w -> wires.indexOf(w) }.toMap
+        import scala.math.Ordering.Implicits._ // Required for ordering of Seq[Int]
+        synchronizations.sortBy { synchronization =>
+          (synchronization.ports.map(p => portInt(p.decl)), synchronization.wires.map(wireInt(_)))
+        }.toSeq
       }
-    }
-    System.exit(0)
+    }.get.get
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case glue: BipGlue[Pre] => computeGlue(glue)
+    case glue: BipGlue[Pre] =>
+      computeGlue(glue).foreach(dispatch)
+      ???
     case other => rewriteDefault(other)
   }
 }
