@@ -1,6 +1,7 @@
 package viper.api.backend.carbon
 
 import org.slf4j.LoggerFactory.getLogger
+import vct.col.ast.Program
 import vct.col.{ast => col}
 import viper.api.Resources
 import viper.api.backend.SilverBackend
@@ -17,6 +18,8 @@ case class Carbon(
   proverLogFile: Option[Path] = None,
   options: Seq[String] = Nil,
 ) extends SilverBackend {
+  override def submit(colProgram: Program[_], output: Option[Path]): Boolean = synchronized { super.submit(colProgram, output) }
+
   override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (viper.carbon.CarbonVerifier, SilverPluginManager) = {
     val carbon = viper.carbon.CarbonVerifier(reporter)
 
