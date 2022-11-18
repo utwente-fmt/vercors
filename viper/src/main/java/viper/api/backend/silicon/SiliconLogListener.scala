@@ -3,24 +3,30 @@ package viper.api.backend.silicon
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.Neq
 import viper.api.transform.NodeInfo
+import viper.silicon.decider.PathConditionStack
 import viper.silicon.logger.records.data.{ConsumeRecord, DataRecord, ExecuteRecord, MemberRecord, ProduceRecord}
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord, ScopingRecord}
 import viper.silicon.logger.records.structural.BranchingRecord
-import viper.silicon.logger.{SymbLog, SymbLogListener}
-import viper.silicon.state.terms
+import viper.silicon.logger.{LogConfig, MemberSymbExLogger, SymbExLogger}
+import viper.silicon.state.{State, terms}
 import viper.silicon.state.terms.Term
-import viper.silver.ast.{Exp, Infoed, Node, Not, Positioned}
+import viper.silver.ast.{Exp, Infoed, Member, Node, Not, Positioned}
 
 import java.util.{Timer, TimerTask}
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 
-case object SiliconLogListener {
+case object SiliconLogListener extends SymbExLogger[SiliconLogListener] {
   val NO_PROGRESS_TIMEOUT: Duration = 10 seconds
+
+  override protected def newEntityLogger(member: Member, s: State, pcs: PathConditionStack): SiliconLogListener =
+    new SiliconLogListener(member, s, pcs)
+
+  override def config: LogConfig = null
 }
 
-case class SiliconLogListener() extends SymbLogListener with LazyLogging {
+class SiliconLogListener(member: Member, s: State, pcs: PathConditionStack) extends MemberSymbExLogger(SiliconLogListener, member, s, pcs) with LazyLogging {
   var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[Option[Either[Term, Exp]]] = List()
@@ -28,18 +34,28 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
   var timer = new Timer()
   var currentTimerTask: Option[TimerTask] = None
 
-  def progress(symbLog: SymbLog): Unit = {
+  var doneTrace: Array[StackTraceElement] = _
+
+  def progress(): Unit = {
     currentTimerTask.foreach(_.cancel())
     timer.purge()
 
     currentTimerTask = Some(new TimerTask {
       override def run(): Unit = printDetailedState()
     })
-    timer.schedule(currentTimerTask.get, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
+
+    try {
+      timer.schedule(currentTimerTask.get, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
+    } catch {
+      case _: IllegalStateException =>
+        println("what")
+    }
   }
 
-  def done(): Unit =
+  def done(): Unit = {
     timer.cancel()
+    doneTrace = Thread.currentThread().getStackTrace
+  }
 
   def where(node: Node): Option[String] = node match {
     case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node.o.shortPosition)
@@ -92,16 +108,16 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     }
   }
 
-  override def appendDataRecord(symbLog: SymbLog, r: DataRecord): Unit = {
-    progress(symbLog)
+  override def appendDataRecord(r: DataRecord): Unit = {
+    progress()
     openScopeFrames.head(r.id) = r
   }
 
-  override def appendScopingRecord(symbLog: SymbLog, r: ScopingRecord, ignoreBranchingStack: Boolean): Unit = {
-    progress(symbLog)
+  override def appendScopingRecord(r: ScopingRecord, ignoreBranchingStack: Boolean): Unit = {
+    progress()
     r match {
       case r: CloseScopeRecord =>
-        if(r.refId == symbLog.main.id)
+        if(r.refId == main.id)
           done()
 
         if(openScopeFrames.head.contains(r.refId)) {
@@ -113,8 +129,8 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     }
   }
 
-  override def appendBranchingRecord(symbLog: SymbLog, r: BranchingRecord): Unit = {
-    progress(symbLog)
+  override def appendBranchingRecord(r: BranchingRecord): Unit = {
+    progress()
     openScopeFrames +:= mutable.Map()
     branchScopeCloseRecords +:= mutable.Set()
 
@@ -142,8 +158,8 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     })
   }
 
-  override def switchToNextBranch(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
-    progress(symbLog)
+  override def doSwitchToNextBranch(uidBranchPoint: Int): Unit = {
+    progress()
     openScopeFrames.head.clear()
     branchScopeCloseRecords.head.clear()
 
@@ -152,12 +168,12 @@ case class SiliconLogListener() extends SymbLogListener with LazyLogging {
     }
   }
 
-  override def markBranchReachable(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
-    progress(symbLog)
+  override def markBranchReachable(uidBranchPoint: Int): Unit = {
+    progress()
   }
 
-  override def endBranchPoint(symbLog: SymbLog, uidBranchPoint: Int): Unit = {
-    progress(symbLog)
+  override def doEndBranchPoint(uidBranchPoint: Int): Unit = {
+    progress()
     openScopeFrames = openScopeFrames.tail
 
     for(closeRecord <- branchScopeCloseRecords.head) {

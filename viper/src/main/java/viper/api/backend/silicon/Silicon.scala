@@ -104,8 +104,7 @@ case class Silicon(
     siliconConfig :+= "-"
 
     silicon.parseCommandLine(siliconConfig)
-
-    SymbExLogger.setListenerProvider(_ => SiliconLogListener())
+    silicon.symbExLog = SiliconLogListener
 
     silicon.start()
 
@@ -195,7 +194,7 @@ case class Silicon(
 
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
-    SymbExLogger.reset()
+    // SymbExLogger.reset()
 
     if (printQuantifierStatistics) {
       intermediatePrinterTimer.cancel()
