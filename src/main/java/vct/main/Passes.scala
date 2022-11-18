@@ -2,20 +2,10 @@ package vct.main
 
 import hre.config.Configuration
 
-import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import hre.lang.System.{Abort, Debug, Fail}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
-import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.Feature
 import vct.col.rewrite._
-import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{ChannelPerms, Decompose, GenerateForkJoinMain, GenerateLTS, GlobalProgPerms, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, RemoveTaus, StructureCheck, TerminationCheck, Util}
-import vct.experiments.learn.{NonLinCountVisitor, Oracle}
-import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
-
-import scala.jdk.CollectionConverters._
+import vct.col.veymont.{ Decompose, GenerateForkJoinMain,  GlobalProgPerms,  LocalProgConstructors, PrintVeyMontProg, StructureCheck, TerminationCheck, Util}
 
 object Passes {
   val DIAGNOSTIC: Seq[AbstractPass] = Seq(
@@ -939,8 +929,6 @@ object Passes {
       new RemoveEmptyBlocks(_).rewriteAll),
     SimplePass("VeyMontLocalProgConstr", "add constructors to the local program classes",
       new LocalProgConstructors(_).addChansToConstructors()),
-    SimplePass("VeyMontAddChannelPerms", "add channel permissions in contracts",
-      new ChannelPerms(_).rewriteAll),
     SimplePass("VeyMontAddStartThreads", "add Main class to start all local program classes",
       new GenerateForkJoinMain(_).addStartThreadClass(Configuration.veymont_fork_join_threading.get())),
     Pass("VeyMontPrintOutput", "print AST produced by VeyMont in PVL or Java syntax",

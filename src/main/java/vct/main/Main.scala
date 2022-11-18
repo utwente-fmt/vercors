@@ -27,8 +27,9 @@ import java.util.TimeZone
 object Main {
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]): Unit =
+  def main(args: Array[String]): Unit = {
     new Main().run(args)
+  }
   //def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 

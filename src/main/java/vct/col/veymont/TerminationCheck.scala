@@ -5,6 +5,7 @@ import vct.col.ast.stmt.composite.{BlockStatement, LoopStatement}
 import vct.col.ast.stmt.decl._
 import vct.col.ast.util.RecursiveVisitor
 import Util.{isChannelClass, mainClassName}
+import vct.col.ast.`type`.PrimitiveType
 import vct.col.veymont.TerminationCheck.deadlockWarning
 
 import scala.jdk.CollectionConverters._
@@ -76,17 +77,18 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
         }
         case None =>
       }
-      //Warning("VeyMont Warning: recursive call of method '%s'" + deadlockWarning, m.method, m.getOrigin)
     } else methods.find(tup => tup._1.name == (if(m.method == Method.JavaConstructor) m.dispatch.getName else m.method)) match {
       case Some(tup) => {
         val method = tup._1
         val mClass = tup._2
-        if(mClass == mainClassName && currentClass != mainClassName) {
+        if(mClass == mainClassName && currentClass != mainClassName && method.kind != Method.Kind.Predicate) {
           Fail("VeyMont Fail: Cannot call Main method '%s' from role or other class! %s", m.method,m.getOrigin)
         } else {
-          methodCalled = true
-          encountered += m.method
-          visit(method)
+          if (method.kind != Method.Kind.Predicate) {
+            methodCalled = true
+            encountered += m.method
+            visit(method)
+          }
         }
       }
       case None => {
@@ -95,10 +97,6 @@ class TerminationCheck(override val source : ProgramUnit) extends RecursiveVisit
       }
     }
   }
-
-  override def visit(l : LoopStatement) : Unit =
-    if(currentClass != mainClassName)
-      Warning("VeyMont Warning: loop in method of non-Main class" + deadlockWarning)
 
   override def visit(s : ASTSpecial) : Unit = {
     s.kind match {
