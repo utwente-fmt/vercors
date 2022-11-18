@@ -14,6 +14,33 @@ import vct.col.veymont.Util._
 
 import scala.jdk.CollectionConverters._
 
+sealed trait Action
+sealed trait GlobalAction extends Action
+sealed trait LocalAction extends Action
+
+case object BarrierWait extends LocalAction with GlobalAction {
+  override def toString: String = "BarrierWait"
+}
+case object ErrorAction extends LocalAction with GlobalAction
+final case class SingleRoleAction(n : ASTNode) extends LocalAction with GlobalAction {
+  override def toString: String = n.toString
+}
+final case class CommunicationAction(receiver : NameExpression, receiverField : String, sender : NameExpression, sendExpression : ASTNode) extends GlobalAction {
+  override def toString: String = {
+    toLineString(sendExpression) + " Comm " + receiver + "." + receiverField
+  }
+}
+
+final case class ReadAction(receiver : NameExpression, sender : NameExpression, receiveExpression : ASTNode) extends LocalAction {
+  override def toString: String = sender.toString + " " + receiver.toString + " Read " + toLineString(receiveExpression)
+}
+final case class WriteAction(receiver : NameExpression, sender : String, sendExpression : ASTNode) extends LocalAction {
+  override def toString: String = sender + " " + receiver.toString + " Write " + toLineString(sendExpression)
+}
+case object Tau extends LocalAction {
+  override def toString: String = "Tau"
+}
+
 class Decompose(override val source: ProgramUnit) extends AbstractRewriter(source) {
 
   private val roleNames : Iterable[String] = StructureCheck.getRoleNames(source)

@@ -15,7 +15,7 @@ import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
-import vct.col.veymont.{Preprocessor, Util}
+import vct.col.veymont.{Util}
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
