@@ -360,7 +360,7 @@ case object Java {
     case TProcess() => EmptyProcess()
     case TInt() => const(0)
     case t: TBoundedInt[G] => throw WrongTypeForDefaultValue(t)
-    case t: TFloat[G] => throw WrongTypeForDefaultValue(t)
+    case t: TFloat[G] => const(0)
     case TRational() => const(0)
     case t: TFraction[G] => throw WrongTypeForDefaultValue(t)
     case TZFraction() => const(0)

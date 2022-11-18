@@ -128,4 +128,29 @@ class TechnicalFloatSpec extends VercorsSpec {
         //@ assert (0.5 == 0.6) == false;
       }
   """
+
+  vercors should verify using silicon in "assigning should work" java
+  """
+    class floatArray {
+        void m() {
+            //@ ghost double f = 1;
+            //@ ghost float g = 1;
+            //@ ghost double f = 1.0;
+            //@ ghost float g = 1.0f;
+        }
+    }
+  """
+
+  vercors should verify using silicon in "some float test cases" java
+  """
+    class C {
+      void m() {
+        //@ ghost float[] a = {1, 2, 3};
+        //@ ghost float[] b = new float[3];
+        //@ ghost b[0] = 1;
+        //@ ghost float f = 1;
+      }
+    }
+  """
+
 }

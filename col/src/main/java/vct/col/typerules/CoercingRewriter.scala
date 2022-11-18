@@ -165,6 +165,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceBoolResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
+      case CoerceBoundIntFloat(_, _) => e
       case CoerceJoinUnion(_, _, _) => e
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
 
