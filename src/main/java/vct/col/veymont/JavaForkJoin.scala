@@ -30,7 +30,16 @@ class JavaForkJoin(override val source: ProgramUnit)  extends AbstractRewriter(s
       result = thread
     } else if(c.getName == Util.localMainClassName) {
       val arrayArgs = Array(create.field_decl("args",create.primitive_type(PrimitiveSort.Array,create.primitive_type(PrimitiveSort.String))))
-      val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),new ContractBuilder().getContract,"main",arrayArgs, null)
+      val body = c.methods().asScala.find(_.kind == Method.Kind.Constructor) match {
+        case Some(method: Method) => if(method.getArity == 0) {
+          val bl = new BlockStatement()
+          bl.add(create.new_object(create.class_type(Util.localMainClassName)))
+          bl
+        } else null
+        case None => null
+      }
+      val mainargsmethod = create.method_decl(create.primitive_type(PrimitiveSort.Void),Array(create.class_type("InterruptedException")),
+        new ContractBuilder().getContract,"main",arrayArgs, body)
       mainargsmethod.setFlag(ASTFlags.PUBLIC,true)
       c.add_static(mainargsmethod)
       result = c
