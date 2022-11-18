@@ -20,13 +20,11 @@ import scala.language.postfixOps
 case object SiliconLogListener extends SymbExLogger[SiliconLogListener] {
   val NO_PROGRESS_TIMEOUT: Duration = 10 seconds
 
-  override protected def newEntityLogger(member: Member, s: State, pcs: PathConditionStack): SiliconLogListener =
-    new SiliconLogListener(member, s, pcs)
-
-  override def config: LogConfig = null
+  override protected def newEntityLogger(member: Member, pcs: PathConditionStack): SiliconLogListener =
+    new SiliconLogListener(member, pcs)
 }
 
-class SiliconLogListener(member: Member, s: State, pcs: PathConditionStack) extends MemberSymbExLogger(SiliconLogListener, member, s, pcs) with LazyLogging {
+class SiliconLogListener(member: Member, pcs: PathConditionStack) extends MemberSymbExLogger(SiliconLogListener, member, pcs) with LazyLogging {
   var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[Option[Either[Term, Exp]]] = List()
