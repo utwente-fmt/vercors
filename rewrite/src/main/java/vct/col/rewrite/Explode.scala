@@ -129,7 +129,7 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
       }._1
 
     def focus(proc: Procedure[Pre]): Seq[GlobalDeclaration[Post]] =
-      sort(FocusedProgram(adts, Nil, funcs, Nil, Nil, Seq(proc), Seq(proc)).fixpoint).toDecls
+      sort(FocusedProgram(adts, Nil, funcs.filter(_.contract.decreases.isEmpty), Nil, Nil, Seq(proc), Seq(proc)).fixpoint).toDecls
   }
 
   def split(program: Program[Pre]): FocusedProgram = {
