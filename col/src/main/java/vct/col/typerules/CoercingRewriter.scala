@@ -183,7 +183,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceNullPointer(_) => e
       case CoerceFracZFrac() => e
       case CoerceZFracRat() => e
-      case CoerceFloatRat() => e
+      case CoerceFloatRat(_) => e
       case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
       case CoerceUnboundInt(_) => e

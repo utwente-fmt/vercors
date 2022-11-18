@@ -153,4 +153,41 @@ class TechnicalFloatSpec extends VercorsSpec {
     }
   """
 
+  vercors should verify using silicon in "some more float test cases" java
+    """
+    class FloatTest {
+      float f;
+      double d;
+      //@ ghost float gf = 1;
+
+      //@ context Perm(gf, write);
+      //@ requires Perm(f, write) ** Perm(d, write);
+      //@ requires in > 0;
+      //@ ensures gf != in;
+      void m(float in) {
+          f = 1;
+          f = 1337;
+          f = -1;
+          f = 0;
+          f = -3.45f;
+          f = .42f;
+          assert f >= .4f;
+          d = 1;
+          d = 1337;
+          d = -1;
+          d = 0;
+          d = -3.45;
+          d = .42;
+          assert d >= .4;
+          //@ ghost gf = 1;
+          //@ ghost gf = 1337;
+          //@ ghost gf = -1;
+          //@ ghost gf = 0;
+          //@ ghost gf = -3.45f;
+          //@ ghost gf = .42f;
+          //@ assert gf >= .4f;
+          //@ ghost gf = in + 1;
+    }
+  }
+  """
 }

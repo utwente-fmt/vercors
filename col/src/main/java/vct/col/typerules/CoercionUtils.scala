@@ -56,7 +56,7 @@ case object CoercionUtils {
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
       case (TZFraction(), TRational()) => CoerceZFracRat()
-      case (TFloat(_, _), TRational()) => CoerceFloatRat()
+      case (source @ TFloat(_, _), TRational()) => CoerceFloatRat(source)
 
       case (source @ TFloat(exponentL, mantissaL), target @ TFloat(exponentR, mantissaR)) if exponentL <= exponentR && mantissaL <= mantissaR =>
         CoerceIncreasePrecision(source, target)

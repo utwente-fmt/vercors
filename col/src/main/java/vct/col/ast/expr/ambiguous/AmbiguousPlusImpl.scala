@@ -10,8 +10,7 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
   def isBagOp: Boolean = CoercionUtils.getAnyBagCoercion(left.t).isDefined
   def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(left.t).isDefined
   def isPointerOp: Boolean = CoercionUtils.getAnyPointerCoercion(left.t).isDefined
-  def isFloatOp: Boolean = CoercionUtils.getCoercion(left.t, TFloats.max).isDefined &&
-    CoercionUtils.getCoercion(right.t, TFloats.max).isDefined
+
   def isIntOp: Boolean =
     CoercionUtils.getCoercion(left.t, TInt()).isDefined &&
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
@@ -20,8 +19,8 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
     if(isProcessOp) TProcess()
     else if(isSeqOp || isBagOp || isSetOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isPointerOp) left.t
-    else if(isFloatOp)
-      TFloats.max[G](left.t.asInstanceOf[TFloat[G]], right.t.asInstanceOf[TFloat[G]])
+    else if(TFloats.isFloatOp(left.t, right.t))
+      TFloats.coerceToMax[G](left.t, right.t)
     else if(isIntOp) TInt()
     else TRational()
 }
