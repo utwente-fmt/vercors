@@ -1,11 +1,11 @@
 package vct.col.rewrite
 
-import vct.col.ast._
+import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{AbstractApplicable, Origin}
+import vct.col.ast._
+import vct.col.origin.{Blame, Origin, VerificationFailure}
 import vct.col.ref.Ref
-import vct.col.rewrite.Explode.{ExplodeOrigin, UnknownDeclaration}
-import vct.col.util.AstBuildHelpers._
+import vct.col.rewrite.Explode.{UnknownDeclaration, VerifiedElsewhereBlame}
 import vct.result.VerificationError.SystemError
 
 import scala.annotation.tailrec
@@ -24,6 +24,12 @@ case object Explode extends RewriterBuilder {
     override def context: String = "At: [node generated to split out verification]"
     override def inlineContext: String = "[Node generated to split out verification]"
     override def shortPosition: String = "generated"
+  }
+
+  case object VerifiedElsewhereBlame extends Blame[VerificationFailure] {
+    override def blame(error: VerificationFailure): Unit = {
+      // Do nothing: the error will already be reported elsewhere (or at worst nont-deterministically verified)
+    }
   }
 }
 
@@ -115,22 +121,29 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
 
     def toDecls: Seq[GlobalDeclaration[Post]] =
       globalDeclarations.collect {
-        adts.foreach(dispatch)
-        fields.foreach(dispatch)
-        funcs.foreach(dispatch)
-        predOutlines.foreach { pred =>
-          if(predBodies.contains(pred)) dispatch(pred)
-          else globalDeclarations.succeed(pred, pred.rewrite(body = None))
+        verifiedElsewhere.having(()) {
+          adts.foreach(dispatch)
+          fields.foreach(dispatch)
+          funcs.foreach(dispatch)
+          predOutlines.foreach { pred =>
+            if(predBodies.contains(pred)) dispatch(pred)
+            else globalDeclarations.succeed(pred, pred.rewrite(body = None))
+          }
+          procOutlines.filterNot(procBodies.contains).foreach { proc =>
+            globalDeclarations.succeed(proc, proc.rewrite(body = None))
+          }
         }
-        procOutlines.foreach { proc =>
-          if(procBodies.contains(proc)) dispatch(proc)
-          else globalDeclarations.succeed(proc, proc.rewrite(body = None))
-        }
+        procBodies.foreach(dispatch)
       }._1
 
     def focus(proc: Procedure[Pre]): Seq[GlobalDeclaration[Post]] =
       sort(FocusedProgram(adts, Nil, funcs.filter(_.contract.decreases.isEmpty), Nil, Nil, Seq(proc), Seq(proc)).fixpoint).toDecls
   }
+
+  val verifiedElsewhere: ScopedStack[Unit] = ScopedStack()
+
+  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
+    if(verifiedElsewhere.nonEmpty) VerifiedElsewhereBlame else blame
 
   def split(program: Program[Pre]): FocusedProgram = {
     val adts: ArrayBuffer[AxiomaticDataType[Pre]] = ArrayBuffer()
