@@ -33,7 +33,7 @@ jobs:
           restore-keys: |
             sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}
       - name: Compile
-        run: sbt -J-Xmx2G -J-Xss20m compile
+        run: sbt /J-Xmx2G /J-Xss20m compile
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
