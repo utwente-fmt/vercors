@@ -37,7 +37,7 @@ jobs:
           echo -J-Xmx2G> .sbtopts
           echo -J-Xss20m>> .sbtopts
       - name: Compile
-        run: sbt compile
+        run: sbt -v compile
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
