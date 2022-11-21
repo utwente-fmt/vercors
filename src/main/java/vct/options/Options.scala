@@ -317,7 +317,7 @@ case class Options
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
 
-  devSiliconNumVerifiers: Option[Int] = None,
+  devSiliconNumVerifiers: Option[Int] = Some(1),
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
 

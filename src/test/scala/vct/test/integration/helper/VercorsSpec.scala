@@ -4,6 +4,8 @@ import ch.qos.logback.classic.{Level, Logger}
 import hre.io.Readable
 import org.scalactic.source
 import org.scalatest.Tag
+import org.scalatest.concurrent.TimeLimits.failAfter
+import org.scalatest.time._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
@@ -55,10 +57,12 @@ abstract class VercorsSpec extends AnyFlatSpec {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
-      matchVerdict(verdict, backend match {
-        case types.Backend.Silicon => Verify.verifyWithSilicon(inputs)
-        case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
-      })
+      failAfter(Span(300, Seconds)) {
+        matchVerdict(verdict, backend match {
+          case types.Backend.Silicon => Verify.verifyWithSilicon(inputs)
+          case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+        })
+      }
     }
   }
 
