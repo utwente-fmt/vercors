@@ -310,7 +310,7 @@ final case class CoerceNullPointer[G](pointerElementType: Type[G])(implicit val 
 
 final case class CoerceFracZFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFracZFracImpl[G]
 final case class CoerceZFracRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceZFracRatImpl[G]
-final case class CoerceFloatRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceFloatRatImpl[G]
+final case class CoerceFloatRat[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceFloatRatImpl[G]
 final case class CoerceIntRat[G]()(implicit val o: Origin) extends Coercion[G] with CoerceIntRatImpl[G]
 
 final case class CoerceIncreasePrecision[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G]
@@ -320,6 +320,7 @@ final case class CoerceUnboundInt[G](source: Type[G])(implicit val o: Origin) ex
 
 final case class CoerceBoundIntFrac[G]()(implicit val o: Origin) extends Coercion[G] with CoerceBoundIntFracImpl[G]
 final case class CoerceBoundIntZFrac[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceBoundIntZFracImpl[G]
+final case class CoerceBoundIntFloat[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceBoundIntFloatImpl[G]
 
 final case class CoerceSupports[G](sourceClass: Ref[G, Class[G]], targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceSupportsImpl[G]
 final case class CoerceJavaSupports[G](sourceClass: Ref[G, JavaClassOrInterface[G]], targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaSupportsImpl[G]
