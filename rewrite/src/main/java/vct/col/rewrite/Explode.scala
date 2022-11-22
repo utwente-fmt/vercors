@@ -196,6 +196,7 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
         typeArgs = variables.dispatch(func.typeArgs),
         requires = dispatch(func.contract.requires),
         ensures = dispatch(func.contract.ensures),
+        decreases = Some(DecreasesClauseAssume[Post]()),
       )(AssumeFunction(func.o)))
     }
 
