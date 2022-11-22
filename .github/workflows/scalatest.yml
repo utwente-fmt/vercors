@@ -33,9 +33,7 @@ jobs:
           restore-keys: |
             sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}
       - name: Set SBT options
-        run: >
-          echo -J-Xmx2G> .sbtopts
-          echo -J-Xss20m>> .sbtopts
+        run: echo -J-Xmx2G -J-Xss20m > .sbtopts
       - name: Compile
         run: sbt -v compile
       - name: Cache LLVM and Clang
