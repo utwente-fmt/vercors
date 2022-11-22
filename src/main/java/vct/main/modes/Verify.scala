@@ -5,6 +5,7 @@ import vct.options.Options
 import hre.io.Readable
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
+import vct.col.rewrite.bip.BipVerificationResults
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
@@ -35,12 +36,15 @@ case object Verify extends LazyLogging {
 
   def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
-    val stages = Stages.ofOptions(options, ConstantBlameProvider(collector))
+    val bipResults = BipVerificationResults()
+    val stages = Stages.ofOptions(options, ConstantBlameProvider(collector), bipResults)
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
-    stages.run(inputs) match {
+    val res = stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }
+    logger.warn("TODO: Emit bip verification results to file here")
+    res
   }
 
   /**

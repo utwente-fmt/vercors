@@ -6,16 +6,16 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 import scala.collection.mutable
 
 // TODO (RR): Proof obligation that if a port is enabled, only one transition can ever be enabled
 
-case object EncodeBip extends RewriterBuilder {
+case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
   override def key: String = "encodeBip"
   override def desc: String = "encodes BIP semantics explicitly"
 
@@ -38,14 +38,17 @@ case object EncodeBip extends RewriterBuilder {
   /* TODO (RR): The next three classes seem repetitive. Can probably factor out a common core,
       e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
    */
-  case class TransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[CallableFailure] {
+  case class TransitionPostconditionFailed(results: BipVerificationResults, transition: BipTransition[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) =>
+          results.report(transition, ComponentInvariantNotMaintained)
           transition.blame.blame(BipComponentInvariantNotMaintained(failure, transition))
         case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) =>
+          results.report(transition, StateInvariantNotMaintained)
           transition.blame.blame(BipStateInvariantNotMaintained(failure, transition))
         case PostconditionFailed(Seq(FailRight, FailRight), failure, _) =>
+          results.report(transition, PostconditionNotVerified)
           transition.blame.blame(BipTransitionPostconditionFailure(failure, transition))
         case ctx: ContextEverywhereFailedInPost => PanicBlame("BIP transition does not have context everywhere").blame(ctx)
       }
@@ -54,20 +57,30 @@ case object EncodeBip extends RewriterBuilder {
     }
   }
 
-  case class ConstructorPostconditionFailed(component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
+  case class ConstructorPostconditionFailed(results: BipVerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) => // Failed establishing component invariant
+          results.report(component, ComponentInvariantNotMaintained)
           proc.blame.blame(BipComponentInvariantNotEstablished(failure, component))
         case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) => // Failed establishing state invariant
+          results.report(component, StateInvariantNotMaintained)
           proc.blame.blame(BipStateInvariantNotEstablished(failure, component))
         case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
+          results.report(component, PostconditionNotVerified)
           proc.blame.blame(PostconditionFailed(path, failure, node))
         // TODO (RR): Probably should disallow contracts on constructor?
         case ctx: ContextEverywhereFailedInPost => proc.blame.blame(ctx)
       }
       case ctx: SignalsFailed => proc.blame.blame(ctx)
       case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
+    }
+  }
+
+  case class ExecuteOnBlame[T <: VerificationFailure](blame: Blame[T])(callback: => Unit) extends Blame[T] {
+    override def blame(error: T): Unit = {
+      callback
+      blame.blame(error)
     }
   }
 
@@ -108,9 +121,45 @@ case object EncodeBip extends RewriterBuilder {
       ))
     }
   }
+
+  case class OverwritingBipResultError() extends SystemError {
+    override def text: String = "Oh no overwriting bip stuff"
+  }
+
+  case class UnexpectedBipResultError() extends SystemError {
+    override def text: String = "Oh no unexpected bip stuff"
+  }
 }
 
-case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+case class BipVerificationResults() {
+  val transitionResults: mutable.Map[BipTransition[_], BipVerificationResult] = mutable.LinkedHashMap()
+  val constructorResults: mutable.Map[BipComponent[_], BipVerificationResult] = mutable.LinkedHashMap()
+
+  def setWith[T](e: T, m: mutable.Map[T, BipVerificationResult], result: BipVerificationResult): Unit = m.get(e) match {
+    case Some(Success) => m(e) = result
+    case Some(_) => throw EncodeBip.OverwritingBipResultError()
+    case None => throw EncodeBip.UnexpectedBipResultError()
+  }
+
+  def report(bt: BipTransition[_], result: BipVerificationResult): Unit = setWith(bt, transitionResults, result)
+  def report(bt: BipComponent[_], result: BipVerificationResult): Unit = setWith(bt, constructorResults, result)
+
+  def declareWith[T](e: T, m: mutable.Map[T, BipVerificationResult]): Unit = m.get(e) match {
+    case Some(_) => throw EncodeBip.UnexpectedBipResultError()
+    case None => m(e) = Success
+  }
+
+  def declare(bt: BipTransition[_]): Unit = declareWith(bt, transitionResults)
+  def declare(bt: BipComponent[_]): Unit = declareWith(bt, constructorResults)
+}
+sealed trait BipVerificationResult
+case object Success extends BipVerificationResult
+case object UpdateFunctionFailure extends BipVerificationResult
+case object ComponentInvariantNotMaintained extends BipVerificationResult
+case object StateInvariantNotMaintained extends BipVerificationResult
+case object PostconditionNotVerified extends BipVerificationResult
+
+case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends Rewriter[Pre] with LazyLogging {
   import vct.col.rewrite.bip.EncodeBip._
 
   implicit class LocalExprBuildHelpers[G](left: Expr[G]) {
@@ -239,6 +288,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
 
     case proc: Procedure[Pre] if procConstructorInfo.contains(proc) =>
       val (cls, component) = procConstructorInfo(proc)
+      results.declare(component)
       implicit val o = DiagnosticOrigin
       withResult { res: Result[Post] =>
         val subst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), res)
@@ -257,6 +307,10 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
 
     case bt: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
+
+      // Mark that the default case is that verification is succesful
+      results.declare(bt)
+
       val component = currentComponent.top
       labelDecls.scope {
         currentBipDeclaration.having(bt) {
@@ -270,7 +324,7 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
             Nil,
             Nil,
             Some(dispatch(bt.body)),
-            contract[Post](ForwardUnsatisfiableBlame(bt),
+            contract[Post](dispatch(ForwardUnsatisfiableBlame(bt)),
               requires = UnitAccountedPredicate(
                 dispatch(component.invariant)
                   &** dispatch(bt.source.decl.expr)
@@ -278,12 +332,12 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
                   &** dispatch(bt.guard)
               ),
               ensures =
-              // Establish component invariant
+                // Establish component invariant
                 SplitAccountedPredicate(UnitAccountedPredicate(dispatch(component.invariant)),
-                  // Establish state invariant
-                  SplitAccountedPredicate(UnitAccountedPredicate(dispatch(bt.target.decl.expr)),
-                    // Establish update function postcondition
-                    UnitAccountedPredicate(dispatch(bt.ensures))))
+                // Establish state invariant
+                SplitAccountedPredicate(UnitAccountedPredicate(dispatch(bt.target.decl.expr)),
+                // Establish update function postcondition
+                UnitAccountedPredicate(dispatch(bt.ensures))))
             )
           )(TransitionPostconditionFailed(bt))(bt.o))
         }
@@ -299,8 +353,11 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
     case _ => rewriteDefault(decl)
   }
 
-  // TODO: Do something here
-  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = super.dispatch(blame)
+  // If we're inside a bip transition, wrap each blame into a blame that, when activated/blamed, writes true in the big map of transition verification results
+  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = currentBipDeclaration.topOption match {
+    case Some(bt: BipTransition[Pre]) => ExecuteOnBlame(blame) { results.report(bt, UpdateFunctionFailure) }
+    case _ => super.dispatch(blame)
+  }
 
 //  def generateSynchronization(synchron: BipSynchron[Pre],
 //                              component1: BipComponent[Pre], transition1: BipTransition[Pre],

@@ -13,7 +13,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
-import vct.col.rewrite.bip.{ComputeBipGlue, EncodeBip, EncodeBipPermissions}
+import vct.col.rewrite.bip.{BipVerificationResults, ComputeBipGlue, EncodeBip, EncodeBipPermissions}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -50,7 +50,7 @@ object Transformation {
       debugFilterRule = options.devSimplifyDebugFilterRule,
     )
 
-  def ofOptions(options: Options): Transformation =
+  def ofOptions(options: Options, bipResults: BipVerificationResults): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
@@ -60,6 +60,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          bipResults = bipResults,
         )
     }
 }
@@ -151,6 +152,7 @@ case class SilverTransformation
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   checkSat: Boolean = true,
+  bipResults: BipVerificationResults = BipVerificationResults(),
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     ComputeBipGlue,
     EncodeBipPermissions,
