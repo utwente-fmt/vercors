@@ -3,9 +3,10 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{Blame, Origin, VerificationFailure}
+import vct.col.origin.{AbstractApplicable, Blame, Origin, PanicBlame, UnsafeDontCare, VerificationFailure}
 import vct.col.ref.Ref
-import vct.col.rewrite.Explode.{UnknownDeclaration, VerifiedElsewhereBlame}
+import vct.col.rewrite.Explode.{AssumeFunction, UnknownDeclaration, VerifiedElsewhereBlame}
+import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.SystemError
 
 import scala.annotation.tailrec
@@ -30,6 +31,13 @@ case object Explode extends RewriterBuilder {
     override def blame(error: VerificationFailure): Unit = {
       // Do nothing: the error will already be reported elsewhere (or at worst nont-deterministically verified)
     }
+  }
+
+  case class AssumeFunction(inner: Origin) extends Origin {
+    override def preferredName: String = "assume" + inner.preferredName.capitalize
+    override def context: String = inner.context
+    override def inlineContext: String = inner.inlineContext
+    override def shortPosition: String = inner.shortPosition
   }
 }
 
@@ -175,5 +183,35 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
 
     make(context, globalDeclarations.dispatch(program.adts ++ program.fields ++ program.funcs ++ program.predBodies)) +:
       program.procBodies.map(proc => make(context, program.focus(proc)))
+  }
+
+  def assumeFunction(func: Function[Pre]): Function[Post] =
+    variables.scope { // stash away the arguments - we don't need them externally
+      implicit val o: Origin = func.o
+      withResult((r: Result[Post]) => function(
+        blame = AbstractApplicable,
+        contractBlame = UnsafeDontCare.Satisfiability("assumption function - checked elsewhere"),
+        returnType = dispatch(func.returnType),
+        args = variables.dispatch(func.args),
+        typeArgs = variables.dispatch(func.typeArgs),
+        requires = dispatch(func.contract.requires),
+        ensures = dispatch(func.contract.ensures),
+      )(AssumeFunction(func.o)))
+    }
+
+  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
+    case func: Function[Pre] if verifiedElsewhere.nonEmpty =>
+      val assume = globalDeclarations.declare(assumeFunction(func))
+      implicit val o: Origin = func.o
+      // We don't need to fix up the accounting for the ensures predicate, since we are assuming the postcondition anyway.
+      globalDeclarations.succeed(func, func.rewrite(contract = func.contract.rewrite(
+        ensures = UnitAccountedPredicate(
+          Result(succ[ContractApplicable[Post]](func)) ===
+          FunctionInvocation(assume.ref[Function[Post]], func.args.map(succ[Variable[Post]]).map(Local(_)), func.typeArgs.map(succ[Variable[Post]]).map(TVar(_)), Nil, Nil)(
+            PanicBlame("The precondition holds, because the postcondition of a function is framed by it."))
+        ),
+      )))
+
+    case other => rewriteDefault(other)
   }
 }

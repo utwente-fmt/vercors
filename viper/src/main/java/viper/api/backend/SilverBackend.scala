@@ -32,10 +32,21 @@ trait SilverBackend extends Backend with LazyLogging {
       "An error occurred in a viper plugin, which should always be prevented:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
+  case class NoInfo(node: silver.Infoed) extends SystemError {
+    override def text: String = node match {
+      case posed: silver.Positioned =>
+        s"At ${posed.pos.toString}: node has no info (`$node`)"
+      case _ =>
+        s"node has no info (`$node`)"
+    }
+  }
+
   def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
-  private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
+  private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] =
+    node.info.getAllInfos[NodeInfo[T]]
+      .headOption.getOrElse(throw NoInfo(node))
 
   private def get[T <: col.Node[_]](node: silver.Infoed): T =
     info(node).node
@@ -87,10 +98,11 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     val backendVerifies = // tracker.withEntities(transformedProgram) {
-      verifier.verify(transformedProgram) match {
+      plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
         case Success => true
         case Failure(errors) =>
           logger.debug(errors.toString())
+          logger.whenDebugEnabled()
           errors.foreach(processError)
           false
       }
