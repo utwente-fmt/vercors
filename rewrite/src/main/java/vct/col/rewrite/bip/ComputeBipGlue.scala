@@ -6,7 +6,7 @@ import org.sosy_lab.java_smt.SolverContextFactory.Solvers
 import org.sosy_lab.java_smt.api.SolverContext.ProverOptions
 import org.sosy_lab.java_smt.api.{BooleanFormula, BooleanFormulaManager, SolverContext}
 import org.sosy_lab.java_smt.utils.PrettyPrinter
-import vct.col.ast.{BipData, BipGlue, BipGlueAccepts, BipGlueDataWire, BipGlueRequires, BipIncomingData, BipOutgoingData, BipPort, BipSynchronization, BipTransition, Class, ClassDeclaration, Declaration, Node, Program}
+import vct.col.ast.{BipData, BipGlue, BipGlueAccepts, BipGlueDataWire, BipGlueRequires, BipIncomingData, BipOutgoingData, BipPort, BipSynchronization, BipTransition, Class, ClassDeclaration, Declaration, Expr, Node, Program}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
@@ -30,7 +30,6 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     this.program = program
-
     rewriteDefault(program)
   }
 
@@ -182,9 +181,9 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     }.flatten.toSet
 
     // Collect all relevant components. It is assumed that if a component is not mentioned in the glue, we can ignore it for computing glue
-    val classes = program.transSubnodes.collect {
+    val classes = program.collect {
       case cls: Class[Pre] if cls.declarations.exists(relevantDecls.contains) => cls
-    }
+    }.toIndexedSeq
     val ports = classes.flatMap { cls => cls.declarations.collect {
       case port: BipPort[Pre] => port
     }}
@@ -217,7 +216,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
       }
     }
 
-    val wires: Seq[BipGlueDataWire[Pre]] = glue.transSubnodes.collect { case w: BipGlueDataWire[Pre] => w }
+    val wires = glue.collect { case w: BipGlueDataWire[Pre] => w }.toIndexedSeq
     // We assume there are no duplicate wires - I think this might break the computation at the end of the below block
     assert(wires.length == wires.toSet.size)
     val inputRequiresOneActiveWire: Seq[Constraint] = {

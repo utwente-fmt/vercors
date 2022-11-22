@@ -35,7 +35,7 @@ case object EncodeBip extends RewriterBuilder {
     }
   }
 
-  /* TODO (RR): The next three classes seem repetetive. Can probably factor out a common core,
+  /* TODO (RR): The next three classes seem repetitive. Can probably factor out a common core,
       e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
    */
   case class TransitionPostconditionFailed(transition: BipTransition[_]) extends Blame[CallableFailure] {
@@ -292,8 +292,15 @@ case class EncodeBip[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging
       glue.drop()
       logger.warn(s"Dropping glue at ${glue.o.shortPosition}")
 
+    case synchronization: BipSynchronization[Pre] =>
+      synchronization.drop()
+      logger.warn(s"Dropping synchronization at ${synchronization.o.shortPosition}")
+
     case _ => rewriteDefault(decl)
   }
+
+  // TODO: Do something here
+  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = super.dispatch(blame)
 
 //  def generateSynchronization(synchron: BipSynchron[Pre],
 //                              component1: BipComponent[Pre], transition1: BipTransition[Pre],
