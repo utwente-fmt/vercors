@@ -239,14 +239,13 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    // The next two should be resolved within this pass, so they should be dropped
-    case data: BipData[Pre] => ???; data.drop()
+    // Should be implemented through synchronizations within this pass, so they should be dropped
     case port: BipPort[Pre] => port.drop()
 
-    case id: BipIncomingData[Pre] => ???
-      incomingDataSucc(id) = new Variable(dispatch(id.t))(id.o)
-      variables.declare(incomingDataSucc(id))
-    case od: BipOutgoingData[Pre] =>
+    // Should be implemented as arguments passed to update functions within this pass, so they should be dropped
+    case id: BipIncomingData[Pre] => id.drop()
+
+    case od: BipOutgoingData[Pre] => ???
       // TODO (RR): Encode as instance function
       od.drop()
 
@@ -344,9 +343,6 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
           )(TransitionPostconditionFailed(results, bt))(bt.o))
         }
       }
-    case glue: BipGlue[Pre] =>
-      glue.drop()
-      logger.warn(s"Dropping glue at ${glue.o.shortPosition}")
 
     case synchronization: BipSynchronization[Pre] =>
       synchronization.drop()
