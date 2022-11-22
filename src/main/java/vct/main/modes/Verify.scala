@@ -43,7 +43,9 @@ case object Verify extends LazyLogging {
       case Left(error) => Left(error)
       case Right(()) => Right(collector.errs.toSeq)
     }
-    logger.warn("TODO: Emit bip verification results to file here")
+    if (bipResults.nonEmpty) {
+      logger.warn("TODO: Emit bip verification results to file here")
+    }
     res
   }
 

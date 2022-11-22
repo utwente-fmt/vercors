@@ -135,6 +135,8 @@ case class BipVerificationResults() {
   val transitionResults: mutable.Map[BipTransition[_], BipVerificationResult] = mutable.LinkedHashMap()
   val constructorResults: mutable.Map[BipComponent[_], BipVerificationResult] = mutable.LinkedHashMap()
 
+  def nonEmpty: Boolean = transitionResults.nonEmpty || constructorResults.nonEmpty
+
   def setWith[T](e: T, m: mutable.Map[T, BipVerificationResult], result: BipVerificationResult): Unit = m.get(e) match {
     case Some(Success) => m(e) = result
     case Some(_) => throw EncodeBip.OverwritingBipResultError()
@@ -302,7 +304,7 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
             dispatch(proc.contract.ensures)))
         )
         globalDeclarations.succeed(proc,
-          proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(component, proc)))
+          proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(results, component, proc)))
       }
 
     case bt: BipTransition[Pre] =>
@@ -339,7 +341,7 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
                 // Establish update function postcondition
                 UnitAccountedPredicate(dispatch(bt.ensures))))
             )
-          )(TransitionPostconditionFailed(bt))(bt.o))
+          )(TransitionPostconditionFailed(results, bt))(bt.o))
         }
       }
     case glue: BipGlue[Pre] =>

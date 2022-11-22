@@ -50,7 +50,7 @@ object Transformation {
       debugFilterRule = options.devSimplifyDebugFilterRule,
     )
 
-  def ofOptions(options: Options, bipResults: BipVerificationResults): Transformation =
+  def ofOptions(options: Options, bipResults: BipVerificationResults = BipVerificationResults()): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
@@ -156,7 +156,7 @@ case class SilverTransformation
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     ComputeBipGlue,
     EncodeBipPermissions,
-    EncodeBip,
+    EncodeBip.withArg(bipResults),
 
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
