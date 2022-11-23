@@ -101,13 +101,14 @@ case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
 
   case class ForwardUnsatisfiableBlame(node: Node[_]) extends Blame[NontrivialUnsatisfiable] {
     node match {
-      case _: BipGuard[_] | _: BipTransition[_] =>
-      case _ => throw Unreachable("Can only construct this blame with bip guard, bip transition")
+      case _: BipGuard[_] | _: BipTransition[_] | _: BipOutgoingData[_] =>
+      case _ => throw Unreachable("Can only construct this blame with bip guard, bip transition, bip outgoing data")
     }
 
     override def blame(error: NontrivialUnsatisfiable): Unit = node match {
       case g: BipGuard[_] => g.blame.blame(BipGuardPreconditionUnsatisfiable(g))
       case t: BipTransition[_] => t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
+      case t: BipOutgoingData[_] => t.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(t))
     }
   }
 
@@ -134,6 +135,7 @@ case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
 case class BipVerificationResults() {
   val transitionResults: mutable.Map[BipTransition[_], BipVerificationResult] = mutable.LinkedHashMap()
   val constructorResults: mutable.Map[BipComponent[_], BipVerificationResult] = mutable.LinkedHashMap()
+  val componentToTransitions: mutable.Map[BipComponent[_], Seq[BipTransition[_]]] = mutable.LinkedHashMap()
 
   def nonEmpty: Boolean = transitionResults.nonEmpty || constructorResults.nonEmpty
 
@@ -151,8 +153,45 @@ case class BipVerificationResults() {
     case None => m(e) = Success
   }
 
-  def declare(bt: BipTransition[_]): Unit = declareWith(bt, transitionResults)
+  def declare(bc: BipComponent[_], bt: BipTransition[_]): Unit = {
+    declareWith(bt, transitionResults)
+    val bts = componentToTransitions.getOrElseUpdate(bc, Seq()) :+ bt
+    componentToTransitions(bc) = bts :+ bt
+  }
   def declare(bt: BipComponent[_]): Unit = declareWith(bt, constructorResults)
+
+  import BIP.Standalone._
+
+  def toStandalone(transition: BipTransition[_]): (TransitionSignature, TransitionReport) = {
+    val sig = transition.signature
+
+    (TransitionSignature(sig.portName, sig.sourceStateName, sig.targetStateName, sig.textualGuard),
+      transitionResults(transition) match {
+        case ComponentInvariantNotMaintained => TransitionReport(false, false, false)
+        case UpdateFunctionFailure =>           TransitionReport(false, false, false)
+        case StateInvariantNotMaintained =>     TransitionReport(true, false, false)
+        case PostconditionNotVerified =>        TransitionReport(true, true, false)
+        case Success =>                         TransitionReport(true, true, true)
+      })
+  }
+
+  def constructorToStandalone(component: BipComponent[_]): Option[ConstructorReport] = constructorResults.get(component).map {
+    case ComponentInvariantNotMaintained => ConstructorReport(false, false)
+    case StateInvariantNotMaintained => ConstructorReport(true, false)
+    case Success => ConstructorReport(true, true)
+
+    // The following cases should not appear in a constructor context
+    case PostconditionNotVerified => ???
+    case UpdateFunctionFailure => ???
+  }
+
+  def toStandalone(): VerificationReport = {
+    VerificationReport(componentToTransitions.toSeq.map { case (component, transitions) =>
+      val transitionReports = transitions.map(toStandalone)
+      (component.fqn.mkString("."),
+        ComponentReport(constructorToStandalone(component), transitionReports))
+    })
+  }
 }
 sealed trait BipVerificationResult
 case object Success extends BipVerificationResult
@@ -160,6 +199,21 @@ case object UpdateFunctionFailure extends BipVerificationResult
 case object ComponentInvariantNotMaintained extends BipVerificationResult
 case object StateInvariantNotMaintained extends BipVerificationResult
 case object PostconditionNotVerified extends BipVerificationResult
+
+case object BIP {
+  case object Standalone {
+    // In this context, true == proven, false == not proven
+
+    case class ConstructorReport(componentInvariant: Boolean, stateInvariant: Boolean)
+
+    case class TransitionSignature(name: String, source: String, target: String, guard: Option[String])
+    case class TransitionReport(componentInvariant: Boolean, stateInvariant: Boolean, postCondition: Boolean)
+
+    case class ComponentReport(constructor: Option[ConstructorReport], transitions: Seq[(TransitionSignature, TransitionReport)])
+
+    case class VerificationReport(components: Seq[(String, ComponentReport)])
+  }
+}
 
 case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends Rewriter[Pre] with LazyLogging {
   import vct.col.rewrite.bip.EncodeBip._
@@ -183,11 +237,11 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
   var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
   var componentToClass: Map[BipComponent[Pre], Class[Pre]] = Map()
 
-  val incomingDataToVariable: SuccessionMap[(Declaration[Pre], BipIncomingData[Pre]), Variable[Post]] = SuccessionMap()
 
-  val incomingDataSucc: SuccessionMap[BipIncomingData[Pre], Variable[Post]] = SuccessionMap()
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val incomingDataSucc: SuccessionMap[(Declaration[Pre], BipIncomingData[Pre]), Variable[Post]] = SuccessionMap()
+  val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -223,13 +277,13 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
       case None => thisObj.rewrite()
     }
     case (l @ BipLocalIncomingData(Ref(data)), Some(decl)) =>
-      Local(incomingDataToVariable.ref[Post, Variable[Post]]((decl, data)))(l.o)
+      Local(incomingDataSucc.ref[Post, Variable[Post]]((decl, data)))(l.o)
     case (inv @ BipGuardInvocation(Ref(guard)), Some(bt: BipTransition[Pre])) =>
       MethodInvocation(
         obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
         ref = guardSucc.ref[Post, InstanceMethod[Post]](guard),
         args = guard.data.map{ case Ref(data) =>
-          Local(incomingDataToVariable.ref[Post, Variable[Post]](bt, data))(inv.o)
+          Local(incomingDataSucc.ref[Post, Variable[Post]](bt, data))(inv.o)
         },
         Nil, Nil, Nil, Nil
       )(BipGuardInvocationFailed(bt))(expr.o)
@@ -245,9 +299,22 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
     // Should be implemented as arguments passed to update functions within this pass, so they should be dropped
     case id: BipIncomingData[Pre] => id.drop()
 
-    case od: BipOutgoingData[Pre] => ???
-      // TODO (RR): Encode as instance function
-      od.drop()
+    case data: BipOutgoingData[Pre] =>
+      implicit val o = DiagnosticOrigin
+      assert(data.pure)
+
+      currentBipDeclaration.having(data) {
+        outgoingDataSucc(data) = classDeclarations.declare(new InstanceMethod[Post](
+          dispatch(data.t),
+          Seq(),
+          Seq(),
+          Seq(),
+          Some(dispatch(data.body)),
+          contract = contract[Post](ForwardUnsatisfiableBlame(data),
+            requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
+          pure = true,
+        )(PanicBlame("Postcondition of data cannot fail")))
+      }
 
     // Is encoded in contracts, so dropped
     case sp: BipStatePredicate[Pre] => sp.drop()
@@ -263,7 +330,7 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
             TBool()(guard.o),
             variables.collect {
               guard.data.foreach { case Ref(data) =>
-                incomingDataToVariable((guard, data)) = variables.declare(new Variable(dispatch(data.t)))
+                incomingDataSucc((guard, data)) = variables.declare(new Variable(dispatch(data.t)))
               }
             }._1,
             Nil, Nil,
@@ -306,41 +373,41 @@ case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends
           proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(results, component, proc)))
       }
 
-    case bt: BipTransition[Pre] =>
+    case transition: BipTransition[Pre] =>
       implicit val o = DiagnosticOrigin
 
-      // Mark that the default case is that verification is succesful
-      results.declare(bt)
-
       val component = currentComponent.top
+      // Mark that the default case is that verification is succesfull
+      results.declare(component, transition)
+
       labelDecls.scope {
-        currentBipDeclaration.having(bt) {
-          transitionSucc(bt) = classDeclarations.declare(new InstanceMethod[Post](
+        currentBipDeclaration.having(transition) {
+          transitionSucc(transition) = classDeclarations.declare(new InstanceMethod[Post](
             TVoid(),
             variables.collect {
-              bt.data.foreach { case Ref(data) =>
-                incomingDataToVariable((bt, data)) = variables.declare(new Variable(dispatch(data.t)))
+              transition.data.foreach { case Ref(data) =>
+                incomingDataSucc((transition, data)) = variables.declare(new Variable(dispatch(data.t)))
               }
             }._1,
             Nil,
             Nil,
-            Some(dispatch(bt.body)),
-            contract[Post](dispatch(ForwardUnsatisfiableBlame(bt)),
+            Some(dispatch(transition.body)),
+            contract[Post](dispatch(ForwardUnsatisfiableBlame(transition)),
               requires = UnitAccountedPredicate(
                 dispatch(component.invariant)
-                  &** dispatch(bt.source.decl.expr)
-                  &** dispatch(bt.requires)
-                  &** dispatch(bt.guard)
+                  &** dispatch(transition.source.decl.expr)
+                  &** dispatch(transition.requires)
+                  &** dispatch(transition.guard)
               ),
               ensures =
                 // Establish component invariant
                 SplitAccountedPredicate(UnitAccountedPredicate(dispatch(component.invariant)),
                 // Establish state invariant
-                SplitAccountedPredicate(UnitAccountedPredicate(dispatch(bt.target.decl.expr)),
+                SplitAccountedPredicate(UnitAccountedPredicate(dispatch(transition.target.decl.expr)),
                 // Establish update function postcondition
-                UnitAccountedPredicate(dispatch(bt.ensures))))
+                UnitAccountedPredicate(dispatch(transition.ensures))))
             )
-          )(TransitionPostconditionFailed(results, bt))(bt.o))
+          )(TransitionPostconditionFailed(results, transition))(transition.o))
         }
       }
 

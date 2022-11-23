@@ -473,8 +473,10 @@ case object ResolveReferences extends LazyLogging {
 
       val guard: Option[Expr[G]] = ann.get("guard").map { g =>
         val expr: Expr[G] = ctx.javaParser.parse(getLit(g), g.o)
+        // TODO: What about check errors here?
         resolve(expr, ctx.enableJavaBipGuards())
         expr
+        // TODO: Get rid of this?
 //        Java.findJavaBipGuard(ctx, getLit(g)).getOrElse(throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
 
@@ -498,9 +500,8 @@ case object ResolveReferences extends LazyLogging {
       ann.data = Some(BipTransition[G](name,
         Java.findJavaBipStatePredicate(ctx, source),
         Java.findJavaBipStatePredicate(ctx, target),
-        guard, requires, ensures))
-      val x = ann.data
-      val y = ann.data
+        ann.get("guard").map(getLit(_)),
+        guard, requires, ensures)(ann.o))
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Invariant") =>
       val expr: Expr[G] = ctx.javaParser.parse(getLit(ann.expect("value")), ann.expect("value").o)

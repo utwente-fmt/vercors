@@ -45,6 +45,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: BipGlueAccepts[Pre]): BipGlueAccepts[Post] = rewriteDefault(node)
   override def dispatch(node: BipGlueRequires[Pre]): BipGlueRequires[Post] = rewriteDefault(node)
   override def dispatch(node: BipPortType[Pre]): BipPortType[Post] = rewriteDefault(node)
+  override def dispatch(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = rewriteDefault(node)
 
   override def dispatch(node: Coercion[Pre]): Coercion[Post] = rewriteDefault(node)
 }

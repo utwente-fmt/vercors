@@ -484,7 +484,8 @@ case object JavaAnnotationData {
   final case class BipTransition[G](portName: String,
                                     source: JavaBipStatePredicateTarget[G],
                                     target: JavaBipStatePredicateTarget[G],
-                                    guard: Option[Expr[G]], requires: Expr[G], ensures: Expr[G]) extends JavaAnnotationData[G]
+                                    guardText: Option[String], guard: Option[Expr[G]], requires: Expr[G], ensures: Expr[G]
+                                   )(implicit val o: Origin) extends JavaAnnotationData[G]
 
 
   case object BipInvariant {

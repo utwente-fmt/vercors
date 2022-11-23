@@ -880,13 +880,18 @@ sealed trait BipData[G] extends ClassDeclaration[G] {
 }
 final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends BipData[G]
 // TODO (RR): Probably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category
+// Note: There is a precondition here, but not because the intention is that the user specifies one. Instead, the precondition in JavaBIP of a data is implicit.
+// Specifically, it only consists of the component invariant and permissions belonging to that.
+// Future work: also allowing use of the state invariant in the data.
 final class BipOutgoingData[G](val t: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends BipData[G]
 final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] {
   override def t: Type[G] = ref.decl.t
 }
 
 final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
-final class BipTransition[G](val port: Ref[G, BipPort[G]],
+final case class BipTransitionSignature[G](portName: String, sourceStateName: String, targetStateName: String, textualGuard: Option[String])(implicit val o: Origin) extends NodeFamily[G]
+final class BipTransition[G](val signature: BipTransitionSignature[G],
+                             val port: Ref[G, BipPort[G]],
                              val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
                              val data: Seq[Ref[G, BipIncomingData[G]]], val guard: Expr[G],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
@@ -895,7 +900,7 @@ final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Sta
 final case class BipGuardInvocation[G](guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] {
   override def t: Type[G] = TBool()
 }
-final class BipComponent[G](val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
+final class BipComponent[G](val fqn: Seq[String], val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
                             val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] { }
 
 final class BipPort[G](val t: BipPortType[G])(implicit val o: Origin) extends ClassDeclaration[G]

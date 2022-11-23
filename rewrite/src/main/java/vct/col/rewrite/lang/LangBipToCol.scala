@@ -125,11 +125,19 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteTransition(m: JavaMethod[Pre]): Unit = jad.BipTransition.get(m).foreach(rewriteTransition(m, _))
 
   def rewriteTransition(m: JavaMethod[Pre], transition: jad.BipTransition[Pre]): Unit = {
-    val jad.BipTransition(portName, source, target, guard, requires, ensures) = transition
+    val jad.BipTransition(portName, source, target, guardText, guard, requires, ensures) = transition
 
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
 
+    val signature = BipTransitionSignature[Post](
+      portName,
+      source.name,
+      target.name,
+      guardText
+    )(transition.o)
+
     val trans = new BipTransition[Post](
+      signature,
       ports.ref((currentClass(), portName)),
       getJavaBipStatePredicate(source),
       getJavaBipStatePredicate(target),
@@ -190,7 +198,11 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create bip component marker declaration
     components(name) = rw.classDeclarations.declare(
-      new BipComponent(constructors, rw.dispatch(invariant), getJavaBipStatePredicate(initialState))(cls.o))
+      new BipComponent(
+        rw.java.namespace.top.pkg.get.names :+ cls.name,
+        constructors,
+        rw.dispatch(invariant),
+        getJavaBipStatePredicate(initialState))(cls.o))
 
     // Create bip state predicates
     jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>

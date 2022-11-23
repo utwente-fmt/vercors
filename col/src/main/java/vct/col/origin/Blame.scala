@@ -619,6 +619,13 @@ case class BipTransitionPreconditionUnsatisfiable(node: BipTransition[_]) extend
 
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for transition `$source`"
 }
+// TODO: Factor out the common failure with these two?
+case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) extends BipTransitionFailure with NodeVerificationFailure {
+  override def code: String = "bipOutgoingDataPreconditionUnsatisfiable"
+  override def descInContext: String = "The precondition of this outgoing data is unsatisfiable"
+
+  override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for outgoing data `$source`"
+}
 
 sealed trait BipGuardFailure extends CallableFailure
 case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends BipGuardFailure with NodeVerificationFailure {
