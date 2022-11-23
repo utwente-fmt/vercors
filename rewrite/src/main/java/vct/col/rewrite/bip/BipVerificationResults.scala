@@ -92,67 +92,88 @@ case object BIP {
       def equalsModuloOrdering(other: VerificationReport): Boolean = toMaps() == other.toMaps()
     }
 
-    def indent(s: String): String = {
-      val indent = "  "
-      indent + s.replace("\n", "\n" + indent)
+    def result(b: Boolean): String = if(b) "proven" else "not proven"
+
+    def toJson(report: ConstructorReport): ujson.Obj = ujson.Obj(
+      "componentInvariant" -> result(report.componentInvariant),
+      "stateInvariant" -> result(report.stateInvariant)
+    )
+
+    def toJson(sig: TransitionSignature): ujson.Obj = {
+      val obj = ujson.Obj(
+        "name" -> sig.name,
+        "source" -> sig.source,
+        "target" -> sig.target,
+      )
+      sig.guard.foreach { guard => obj.value.addOne("guard", guard) }
+      obj
     }
 
-    def result(b: Boolean): String = if(b) "\"proven\"" else "\"not proven\""
+    def toJson(report: TransitionReport): ujson.Obj = ujson.Obj(
+      "componentInvariant" -> result(report.componentInvariant),
+      "stateInvariant" -> result(report.stateInvariant),
+      "postCondition" -> result(report.postCondition),
+    )
 
-    def toJson(report: ConstructorReport): String = {
-      s"""{
-         |  "componentInvariant": ${result(report.componentInvariant)},
-         |  "stateInvariant": ${result(report.stateInvariant)}
-         |}""".stripMargin
+    def toJson(transitionReport: (TransitionSignature, TransitionReport)): ujson.Obj = ujson.Obj(
+      "signature" -> toJson(transitionReport._1),
+      "results" -> toJson(transitionReport._2)
+    )
+
+    def toJson(report: ComponentReport): ujson.Obj = ujson.Obj(
+      "constructor" -> toJson(report.constructor),
+      "transitions" -> report.transitions.map(toJson)
+    )
+
+    def toJson(report: VerificationReport, indent: Option[Int] = Some(2)): String = {
+      ujson.write(ujson.Obj.from(report.components.map { case (fqn, report) =>
+        fqn -> toJson(report)
+      }), indent.getOrElse(-1))
     }
 
-    def toJson(sig: TransitionSignature): String = {
-      val guard = sig.guard match {
-        case Some(txt) => s""", "guard": "$txt" """
-        case None => """// This transition had no guard"""
-      }
-      s"""{
-         |  "name": "${sig.name}",
-         |  "source": "${sig.source}",
-         |  "target": "${sig.target}"
-         |  $guard
-         |}""".stripMargin
+    def fromJson(input: String): Either[String, VerificationReport] = ujson.read(input) match {
+      case obj: ujson.Obj => try { Right(verificationReportFromJson(obj)) } catch { case e: Exception => Left(e.getMessage) }
+      case _ => Left("input json is not an object")
     }
 
-    def toJson(report: TransitionReport): String = {
-      s"""{
-         |  "componentInvariant": ${result(report.componentInvariant)},
-         |  "stateInvariant": ${result(report.stateInvariant)},
-         |  "postCondition": ${result(report.postCondition)}
-         |}""".stripMargin
-    }
+    def verificationReportFromJson(obj: ujson.Obj): VerificationReport =
+      VerificationReport(obj.value.toSeq.map { case (fqn, componentReport: ujson.Obj) =>
+        fqn -> componentReportFromJson(componentReport)
+      })
 
-    def toJson(transitionReport: (TransitionSignature, TransitionReport)): String = {
-      val (sig, report) = transitionReport
-      s"""{
-         |  "signature": ${indent(toJson(sig)).strip},
-         |  "results": ${indent(toJson(report)).strip}
-         |}""".stripMargin
-    }
+    def componentReportFromJson(obj: ujson.Obj): ComponentReport =
+      ComponentReport(
+        constructorReportFromJson(obj("constructor").asInstanceOf),
+        transitionReportsFromJson(obj("transitions").asInstanceOf)
+      )
 
-    def toJson(report: ComponentReport): String = {
-      s"""{
-          |  "<constructor>": ${indent(toJson(report.constructor)).strip},
-          |  "transitions": [
-          |${indent(indent(report.transitions.map(toJson).mkString(",\n")))}
-          |  ]
-          |}""".stripMargin
+    def resultFromJson(value: ujson.Value): Boolean = value.asInstanceOf[ujson.Str].value == "proven"
 
-    }
+    def constructorReportFromJson(obj: ujson.Obj): ConstructorReport =
+      ConstructorReport(
+        resultFromJson(obj("componentInvariant")),
+        resultFromJson(obj("stateInvariant"))
+      )
 
-    def toJson(report: VerificationReport): String = {
-      val reportBlocks = report.components.map { case (fqn, report) =>
-        s""""$fqn": ${toJson(report).strip}""".stripMargin
-      }
-      s"""{
-         |${reportBlocks.map(indent).mkString("\n,")}
-         |}
-         |""".stripMargin
-    }
+    def transitionReportsFromJson(arr: ujson.Arr): Seq[(TransitionSignature, TransitionReport)] =
+      arr.value.map { value =>
+        val obj = value.asInstanceOf[ujson.Obj]
+        (transitionSignatureFromJson(obj("signature").asInstanceOf), transitionReportFromJson(obj("results").asInstanceOf))
+      }.toSeq
+
+    def str(value: ujson.Value): String = value.asInstanceOf[ujson.Str].value
+
+    def transitionSignatureFromJson(obj: ujson.Obj): TransitionSignature = TransitionSignature(
+      name = str(obj("name")),
+      source = str(obj("source")),
+      target = str(obj("target")),
+      guard = obj.value.get("guard").map(str)
+    )
+
+    def transitionReportFromJson(obj: ujson.Obj): TransitionReport = TransitionReport(
+      componentInvariant = resultFromJson(obj("componentInvariant")),
+      stateInvariant = resultFromJson(obj("stateInvariant")),
+      postCondition = resultFromJson(obj("postCondition"))
+    )
   }
 }
