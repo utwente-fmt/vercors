@@ -129,24 +129,26 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class VercorsWord {
-    def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict)
+    def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict, None)
     def should(verdict: IncompleteVerdict): CodeVerdictPhrase = new CodeVerdictPhrase(verdict)
     def should(verdict: ErrorVerdict.type): ErrorVerdictPhrase = new ErrorVerdictPhrase()
   }
 
   class CodeVerdictPhrase(val verdict: IncompleteVerdict) {
-    def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code))
+    def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code), None)
   }
 
   class ErrorVerdictPhrase() {
-    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), silicon)
+    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), None, silicon)
   }
 
-  class VerdictPhrase(val verdict: Verdict) {
-    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, backend)
+  class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
+    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend)
+    // TODO: Change this to get an actual object that contains the expected verification report
+    def withReport(path: String): VerdictPhrase = new VerdictPhrase(verdict, Some(Paths.get(s"examples/$path")))
   }
 
-  class BackendPhrase(val verdict: Verdict, val backends: Seq[Backend]) {
+  class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend]) {
     def example(path: String)(implicit pos: source.Position): Unit = examples(path)
 
     def examples(examples: String*)(implicit pos: source.Position): Unit = {

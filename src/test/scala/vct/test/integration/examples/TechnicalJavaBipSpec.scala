@@ -3,7 +3,12 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalJavaBipSpec extends VercorsSpec {
-  vercors should fail withCode "bipStateInvariantNotMaintained:false" using silicon example "technical/javabip/StateInvariantNotMaintained.java"
+  (vercors should fail
+           withCode "bipStateInvariantNotMaintained:false"
+           withReport "technical/javabip/StateInvariantNotMaintained.json"
+           using silicon
+           example "technical/javabip/StateInvariantNotMaintained.java")
+
   vercors should fail withCode "bipComponentInvariantNotMaintained:false" using silicon example "technical/javabip/ComponentInvariantNotMaintained.java"
   vercors should fail withCode "bipTransitionPostconditionFailure:false" using silicon example "technical/javabip/TransitionPostconditionFailed.java"
   vercors should fail withCode "bipStateInvariantNotEstablished:false" using silicon example "technical/javabip/StateInvariantNotEstablished.java"
