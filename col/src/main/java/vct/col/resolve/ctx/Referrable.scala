@@ -66,6 +66,8 @@ sealed trait Referrable[G] {
     case RefCudaVecX(_) => "x"
     case RefCudaVecY(_) => "y"
     case RefCudaVecZ(_) => "z"
+    case RefJavaBipStatePredicate(name, _) => name
+    case ImplicitDefaultJavaBipStatePredicate(name) => name
   }
 }
 
@@ -206,7 +208,7 @@ case class RefModelField[G](decl: ModelField[G]) extends Referrable[G] with Spec
 case class RefModelProcess[G](decl: ModelProcess[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefModelAction[G](decl: ModelAction[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] with PVLConstructorTarget[G]
-case class RefJavaBipStatePredicate[G](decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
+case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
 

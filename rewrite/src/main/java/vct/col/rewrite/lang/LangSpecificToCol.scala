@@ -14,10 +14,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderAr
 import vct.result.VerificationError.UserError
 import vct.col.util.SuccessionMap
 
-case class LangSpecificToColArgs(bipSynchrons: Seq[((String, String), (String, String))] = Seq(),
-                                 bipDatas: Seq[((String, String), (String, String))] = Seq())
-
-case object LangSpecificToCol extends RewriterBuilderArg[LangSpecificToColArgs] {
+case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -34,7 +31,7 @@ case object LangSpecificToCol extends RewriterBuilderArg[LangSpecificToColArgs] 
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation](args: LangSpecificToColArgs) extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)

@@ -234,6 +234,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: BipGlueRequires[Pre] => node
     case node: BipGlueAccepts[Pre] => node
     case node: BipGlueDataWire[Pre] => node
+    case node: BipTransitionSignature[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e

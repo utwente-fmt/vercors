@@ -7,6 +7,7 @@ import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
+import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
 import vct.options.types
@@ -62,7 +63,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     }
   }
 
-  private def matchVerdict(verdict: Verdict, value: Either[VerificationError, Seq[VerificationFailure]]): Unit = {
+  private def matchVerdict[T](verdict: Verdict, value: Either[VerificationError, (Seq[VerificationFailure], VerificationReport)]): Unit = {
     value match {
       case Left(err: TemporarilyUnsupported) =>
         println(err)
@@ -81,8 +82,8 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: SystemError) =>
           println(err)
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
-        case Right(Nil) => // success
-        case Right(fails) =>
+        case Right((Nil, _)) => // success
+        case Right((fails, _)) =>
           fails.foreach(f => println(f.toString))
           fail("Expected the test to pass, but it returned verification failures instead.")
       }
@@ -93,9 +94,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: SystemError) =>
           println(err)
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
-        case Right(Nil) =>
+        case Right((Nil, _)) =>
           fail("Expected the test to fail, but it passed instead.")
-        case Right(_) => // success
+        case Right((_, _)) => // success
       }
       case Fail(code) => value match {
         case Left(err: UserError) =>
@@ -104,9 +105,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: SystemError) =>
           println(err)
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
-        case Right(Nil) =>
+        case Right((Nil, _)) =>
           fail("Expected the test to fail, but it passed instead.")
-        case Right(fails) => fails.filterNot(_.code == code) match {
+        case Right((fails, _)) => fails.filterNot(_.code == code) match {
           case Nil => // success
           case fails =>
             fails.foreach(f => println(f.toString))

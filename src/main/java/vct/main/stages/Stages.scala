@@ -15,24 +15,20 @@ import viper.api.backend.silicon.Silicon
 import scala.collection.mutable
 
 case object Stages {
-  def silicon(blameProvider: BlameProvider): Stages[Seq[Readable], BIP.Standalone.VerificationReport] = {
-    val bipResults = BipVerificationResults()
+  def silicon(blameProvider: BlameProvider, bipResults: BipVerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
       .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Silicon()))
       .thenRun(ExpectedErrors())
-      .thenRun(BipVerificationReport(bipResults))
   }
 
-  def carbon(blameProvider: BlameProvider): Stages[Seq[Readable], BIP.Standalone.VerificationReport] = {
-    val bipResults = BipVerificationResults()
+  def carbon(blameProvider: BlameProvider, bipResults: BipVerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
       .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Carbon()))
       .thenRun(ExpectedErrors())
-      .thenRun(BipVerificationReport(bipResults))
   }
 
   /**

@@ -96,7 +96,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def currentClass(): JavaClass[Pre] = rw.java.currentJavaClass.top.asInstanceOf[JavaClass[Pre]]
 
   def getJavaBipStatePredicate(t: JavaBipStatePredicateTarget[Pre]): Ref[Post, BipStatePredicate[Post]] = t match {
-    case RefJavaBipStatePredicate(decl) => statePredicates.ref(decl.data.get.asInstanceOf[jad.BipStatePredicate[Pre]])
+    case RefJavaBipStatePredicate(_, decl) => statePredicates.ref(decl.data.get.asInstanceOf[jad.BipStatePredicate[Pre]])
     case ImplicitDefaultJavaBipStatePredicate(state) => defaultStatePredicates.getOrElseUpdate(state, {
       rw.classDeclarations.declare(new BipStatePredicate[Post](tt)(DiagnosticOrigin))
     }).ref

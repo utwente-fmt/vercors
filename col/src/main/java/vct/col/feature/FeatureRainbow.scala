@@ -671,5 +671,6 @@ class FeatureRainbow[G] {
     case node: BipGlueRequires[G] => return Nil
     case node: BipGlueAccepts[G] => return Nil
     case node: BipGlueDataWire[G] => return Nil
+    case node: BipTransitionSignature[G] => return Nil
   })
 }

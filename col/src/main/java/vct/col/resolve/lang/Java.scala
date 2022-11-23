@@ -403,7 +403,7 @@ case object Java extends LazyLogging {
   def findJavaBipStatePredicate[G](ctx: ReferenceResolutionContext[G], state: String): JavaBipStatePredicateTarget[G] = {
     val m = ctx.javaBipStatePredicates.map { case (k, v) => (getLit(k), v) }
     m.get(state) match {
-      case Some(ann) => RefJavaBipStatePredicate(ann)
+      case Some(ann) => RefJavaBipStatePredicate(state, ann)
       case None => ImplicitDefaultJavaBipStatePredicate(state)
     }
   }

@@ -4,7 +4,7 @@ import hre.stages.Stage
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
-import vct.col.rewrite.lang.{LangSpecificToCol, LangSpecificToColArgs, LangTypesToCol}
+import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
 import vct.col.resolve.lang.{C, Java}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
@@ -96,7 +96,7 @@ case class Resolution[G <: Generation]
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-    val resolvedProgram = LangSpecificToCol.withArg(LangSpecificToColArgs(bipSynchrons, bipDatas))().dispatch(typedProgram)
+    val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The
