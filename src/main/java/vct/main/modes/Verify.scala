@@ -5,8 +5,8 @@ import vct.options.Options
 import hre.io.Readable
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
-import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
-import vct.col.rewrite.bip.BipVerificationResults
+import vct.col.rewrite.bip.BIP
+import vct.col.rewrite.bip.BIP.Standalone.{VerificationReport, toJson}
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
@@ -17,7 +17,7 @@ import viper.silicon.logger.SymbExLogger
 case object Verify extends LazyLogging {
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
     val collector = BlameCollector()
-    val bipResults = BipVerificationResults()
+    val bipResults = BIP.VerificationResults()
     val stages = Stages.silicon(ConstantBlameProvider(collector), bipResults)
     logger.debug(stages.toString)
     stages.run(inputs) match {
@@ -28,7 +28,7 @@ case object Verify extends LazyLogging {
 
   def verifyWithCarbon(inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
     val collector = BlameCollector()
-    val bipResults = BipVerificationResults()
+    val bipResults = BIP.VerificationResults()
     val stages = Stages.carbon(ConstantBlameProvider(collector), bipResults)
     logger.debug(stages.toString)
     stages.run(inputs) match {
@@ -37,9 +37,9 @@ case object Verify extends LazyLogging {
     }
   }
 
-  def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
+  def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], BIP.Standalone.VerificationReport)] = {
     val collector = BlameCollector()
-    val bipResults = BipVerificationResults()
+    val bipResults = BIP.VerificationResults()
     val stages = Stages.ofOptions(options, ConstantBlameProvider(collector), bipResults)
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
@@ -76,12 +76,12 @@ case object Verify extends LazyLogging {
         EXIT_CODE_ERROR
       case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")
-        logger.info(s"BIP report: $report")
+        logger.info(s"BIP report:\n${toJson(report)}")
         EXIT_CODE_SUCCESS
       case Right((fails, report)) =>
         if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-        logger.info(s"BIP report: $report")
+        logger.info(s"BIP report:\n${toJson(report)}")
         EXIT_CODE_VERIFICATION_FAILURE
     }
   }

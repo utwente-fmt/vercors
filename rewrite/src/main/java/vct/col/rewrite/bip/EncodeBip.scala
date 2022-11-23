@@ -11,11 +11,13 @@ import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
+import BIP._
+
 import scala.collection.mutable
 
 // TODO (RR): Proof obligation that if a port is enabled, only one transition can ever be enabled
 
-case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
+case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   override def key: String = "encodeBip"
   override def desc: String = "encodes BIP semantics explicitly"
 
@@ -38,7 +40,7 @@ case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
   /* TODO (RR): The next three classes seem repetitive. Can probably factor out a common core,
       e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
    */
-  case class TransitionPostconditionFailed(results: BipVerificationResults, transition: BipTransition[_]) extends Blame[CallableFailure] {
+  case class TransitionPostconditionFailed(results: VerificationResults, transition: BipTransition[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) =>
@@ -57,7 +59,7 @@ case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
     }
   }
 
-  case class ConstructorPostconditionFailed(results: BipVerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
+  case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) => // Failed establishing component invariant
@@ -132,90 +134,7 @@ case object EncodeBip extends RewriterBuilderArg[BipVerificationResults] {
   }
 }
 
-case class BipVerificationResults() {
-  val transitionResults: mutable.Map[BipTransition[_], BipVerificationResult] = mutable.LinkedHashMap()
-  val constructorResults: mutable.Map[BipComponent[_], BipVerificationResult] = mutable.LinkedHashMap()
-  val componentToTransitions: mutable.Map[BipComponent[_], Seq[BipTransition[_]]] = mutable.LinkedHashMap()
-
-  def nonEmpty: Boolean = transitionResults.nonEmpty || constructorResults.nonEmpty
-
-  def setWith[T](e: T, m: mutable.Map[T, BipVerificationResult], result: BipVerificationResult): Unit = m.get(e) match {
-    case Some(Success) => m(e) = result
-    case Some(_) => throw EncodeBip.OverwritingBipResultError()
-    case None => throw EncodeBip.UnexpectedBipResultError()
-  }
-
-  def report(bt: BipTransition[_], result: BipVerificationResult): Unit = setWith(bt, transitionResults, result)
-  def report(bt: BipComponent[_], result: BipVerificationResult): Unit = setWith(bt, constructorResults, result)
-
-  def declareWith[T](e: T, m: mutable.Map[T, BipVerificationResult]): Unit = m.get(e) match {
-    case Some(_) => throw EncodeBip.UnexpectedBipResultError()
-    case None => m(e) = Success
-  }
-
-  def declare(bc: BipComponent[_], bt: BipTransition[_]): Unit = {
-    declareWith(bt, transitionResults)
-    val bts = componentToTransitions.getOrElseUpdate(bc, Seq()) :+ bt
-    componentToTransitions(bc) = bts :+ bt
-  }
-  def declare(bt: BipComponent[_]): Unit = declareWith(bt, constructorResults)
-
-  import BIP.Standalone._
-
-  def toStandalone(transition: BipTransition[_]): (TransitionSignature, TransitionReport) = {
-    val sig = transition.signature
-
-    (TransitionSignature(sig.portName, sig.sourceStateName, sig.targetStateName, sig.textualGuard),
-      transitionResults(transition) match {
-        case ComponentInvariantNotMaintained => TransitionReport(false, false, false)
-        case UpdateFunctionFailure =>           TransitionReport(false, false, false)
-        case StateInvariantNotMaintained =>     TransitionReport(true, false, false)
-        case PostconditionNotVerified =>        TransitionReport(true, true, false)
-        case Success =>                         TransitionReport(true, true, true)
-      })
-  }
-
-  def constructorToStandalone(component: BipComponent[_]): Option[ConstructorReport] = constructorResults.get(component).map {
-    case ComponentInvariantNotMaintained => ConstructorReport(false, false)
-    case StateInvariantNotMaintained => ConstructorReport(true, false)
-    case Success => ConstructorReport(true, true)
-
-    // The following cases should not appear in a constructor context
-    case PostconditionNotVerified => ???
-    case UpdateFunctionFailure => ???
-  }
-
-  def toStandalone(): VerificationReport = {
-    VerificationReport(componentToTransitions.toSeq.map { case (component, transitions) =>
-      val transitionReports = transitions.map(toStandalone)
-      (component.fqn.mkString("."),
-        ComponentReport(constructorToStandalone(component), transitionReports))
-    })
-  }
-}
-sealed trait BipVerificationResult
-case object Success extends BipVerificationResult
-case object UpdateFunctionFailure extends BipVerificationResult
-case object ComponentInvariantNotMaintained extends BipVerificationResult
-case object StateInvariantNotMaintained extends BipVerificationResult
-case object PostconditionNotVerified extends BipVerificationResult
-
-case object BIP {
-  case object Standalone {
-    // In this context, true == proven to hold, false == not proven to hold
-
-    case class ConstructorReport(componentInvariant: Boolean, stateInvariant: Boolean)
-
-    case class TransitionSignature(name: String, source: String, target: String, guard: Option[String])
-    case class TransitionReport(componentInvariant: Boolean, stateInvariant: Boolean, postCondition: Boolean)
-
-    case class ComponentReport(constructor: Option[ConstructorReport], transitions: Seq[(TransitionSignature, TransitionReport)])
-
-    case class VerificationReport(components: Seq[(String, ComponentReport)])
-  }
-}
-
-case class EncodeBip[Pre <: Generation](results: BipVerificationResults) extends Rewriter[Pre] with LazyLogging {
+case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Rewriter[Pre] with LazyLogging {
   import vct.col.rewrite.bip.EncodeBip._
 
   implicit class LocalExprBuildHelpers[G](left: Expr[G]) {

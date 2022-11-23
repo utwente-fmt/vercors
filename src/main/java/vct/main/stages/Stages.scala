@@ -8,14 +8,14 @@ import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError
 import hre.io.Readable
 import hre.stages.Stages
-import vct.col.rewrite.bip.{BIP, BipVerificationResult, BipVerificationResults}
+import vct.col.rewrite.bip.BIP
 import viper.api.backend.carbon.Carbon
 import viper.api.backend.silicon.Silicon
 
 import scala.collection.mutable
 
 case object Stages {
-  def silicon(blameProvider: BlameProvider, bipResults: BipVerificationResults): Stages[Seq[Readable], Unit] = {
+  def silicon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
       .thenRun(SilverTransformation(bipResults = bipResults))
@@ -23,7 +23,7 @@ case object Stages {
       .thenRun(ExpectedErrors())
   }
 
-  def carbon(blameProvider: BlameProvider, bipResults: BipVerificationResults): Stages[Seq[Readable], Unit] = {
+  def carbon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
       .thenRun(SilverTransformation(bipResults = bipResults))
@@ -50,7 +50,7 @@ case object Stages {
    * @param blameProvider
    * @return
    */
-  def ofOptions(options: Options, blameProvider: BlameProvider, bipResults: BipVerificationResults): Stages[Seq[Readable], Unit] = {
+  def ofOptions(options: Options, blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(Transformation.ofOptions(options, bipResults))
