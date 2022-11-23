@@ -202,7 +202,7 @@ case object PostconditionNotVerified extends BipVerificationResult
 
 case object BIP {
   case object Standalone {
-    // In this context, true == proven, false == not proven
+    // In this context, true == proven to hold, false == not proven to hold
 
     case class ConstructorReport(componentInvariant: Boolean, stateInvariant: Boolean)
 

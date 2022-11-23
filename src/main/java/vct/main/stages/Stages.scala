@@ -8,27 +8,31 @@ import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError
 import hre.io.Readable
 import hre.stages.Stages
-import vct.col.rewrite.bip.{BipVerificationResult, BipVerificationResults}
+import vct.col.rewrite.bip.{BIP, BipVerificationResult, BipVerificationResults}
 import viper.api.backend.carbon.Carbon
 import viper.api.backend.silicon.Silicon
 
 import scala.collection.mutable
 
 case object Stages {
-  def silicon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def silicon(blameProvider: BlameProvider): Stages[Seq[Readable], BIP.Standalone.VerificationReport] = {
+    val bipResults = BipVerificationResults()
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
-      .thenRun(SilverTransformation())
+      .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Silicon()))
       .thenRun(ExpectedErrors())
+      .thenRun(BipVerificationReport(bipResults))
   }
 
-  def carbon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def carbon(blameProvider: BlameProvider): Stages[Seq[Readable], BIP.Standalone.VerificationReport] = {
+    val bipResults = BipVerificationResults()
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
-      .thenRun(SilverTransformation())
+      .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Carbon()))
       .thenRun(ExpectedErrors())
+      .thenRun(BipVerificationReport(bipResults))
   }
 
   /**

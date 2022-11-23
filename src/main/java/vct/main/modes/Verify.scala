@@ -14,13 +14,23 @@ import viper.api.backend.silicon.SiliconLogListener
 import viper.silicon.logger.SymbExLogger
 
 case object Verify extends LazyLogging {
+  def verifyBipWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
+    val collector = BlameCollector()
+    val stages = Stages.silicon(ConstantBlameProvider(collector))
+    logger.debug(stages.toString)
+    stages.run(inputs) match {
+      case Left(error) => Left(error)
+      case Right(_ /* discard bip report */) => Right(collector.errs.toSeq)
+    }
+  }
+
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
     val collector = BlameCollector()
     val stages = Stages.silicon(ConstantBlameProvider(collector))
     logger.debug(stages.toString)
     stages.run(inputs) match {
       case Left(error) => Left(error)
-      case Right(()) => Right(collector.errs.toSeq)
+      case Right(_ /* discard bip report */) => Right(collector.errs.toSeq)
     }
   }
 
@@ -30,7 +40,7 @@ case object Verify extends LazyLogging {
     logger.debug(stages.toString)
     stages.run(inputs) match {
       case Left(error) => Left(error)
-      case Right(()) => Right(collector.errs.toSeq)
+      case Right(_ /* discard bip report */) => Right(collector.errs.toSeq)
     }
   }
 
@@ -44,7 +54,7 @@ case object Verify extends LazyLogging {
       case Right(()) => Right(collector.errs.toSeq)
     }
     if (bipResults.nonEmpty) {
-      logger.warn("TODO: Emit bip verification results to file here")
+      logger.info(bipResults.toStandalone().toString)
     }
     res
   }

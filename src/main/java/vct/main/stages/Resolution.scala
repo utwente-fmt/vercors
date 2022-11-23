@@ -70,8 +70,6 @@ case class Resolution[G <: Generation]
 (
   blameProvider: BlameProvider,
   javaLibraryPath: Path = Resources.getJrePath,
-  bipSynchrons: Seq[((String, String), (String, String))] = Seq(),
-  bipDatas: Seq[((String, String), (String, String))] = Seq(),
 ) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
