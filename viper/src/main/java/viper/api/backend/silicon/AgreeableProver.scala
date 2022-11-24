@@ -42,6 +42,9 @@ case class AgreeableProver(inner: Prover) extends Prover {
   override def start(): Unit = inner.start()
   override def stop(): Unit = inner.stop()
 
-  override def fresh(id: String, argSorts: Seq[Sort], resultSort: Sort): terms.Function =
-    inner.fresh(id, argSorts, resultSort)
+  var i: Int = 0
+  override def fresh(id: String, argSorts: Seq[Sort], resultSort: Sort): terms.Function = {
+    i += 1
+    Fun(SuffixedIdentifier(id, "-", i.toString), argSorts, resultSort)
+  }
 }
