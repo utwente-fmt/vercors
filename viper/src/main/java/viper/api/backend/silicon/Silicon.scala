@@ -9,23 +9,15 @@ import vct.col.ast.{Expr, Node}
 import vct.col.origin.Origin
 import viper.api.Resources
 import viper.api.backend.SilverBackend
-import viper.silicon
-import viper.silicon.Config
-import viper.silicon.common.config
-import viper.silicon.interfaces.decider.{Prover, Result}
 import viper.silicon.logger.SymbExLogger
-import viper.silicon.state.terms
-import viper.silicon.state.terms.{Decl, Sort, Term}
-import viper.silicon.verifier.DefaultMainVerifier
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
-import viper.silver.verifier.{Model, Verifier}
+import viper.silver.verifier.Verifier
 
 import java.nio.file.Path
 import java.util.{Timer, TimerTask}
 import scala.annotation.nowarn
 import scala.collection.mutable
-import scala.reflect.runtime.universe
 import scala.sys.ShutdownHookThread
 import scala.util.matching.{Regex, UnanchoredRegex}
 
@@ -62,7 +54,7 @@ case class Silicon(
   var reportedQuantifiers = false
   var intermediatePrinterTimer: Timer = null
 
-  override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, Node[_]], tryAssumeFunctions: Boolean = false, tryAssumePredicates: Boolean = false): (viper.silicon.Silicon, SilverPluginManager) = {
+  override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, Node[_]]): (viper.silicon.Silicon, SilverPluginManager) = {
     this.nodeFromUniqueId = nodeFromUniqueId
 
     if (printQuantifierStatistics) {
@@ -115,18 +107,6 @@ case class Silicon(
     silicon.symbExLog = SiliconLogListener
 
     silicon.start()
-
-    if(tryAssumeFunctions && tryAssumePredicates) {
-      // If either one is false, we cannot just stub out the prover of DefaultMainVerifier.
-      val mirror = universe.runtimeMirror(getClass.getClassLoader)
-      val siliconMirror = mirror.reflect(silicon)
-      val verifierMirror = siliconMirror.reflectField(universe.typeOf[viper.silicon.Silicon].decl(universe.TermName("verifier")).asTerm)
-      val decider = verifierMirror.get.asInstanceOf[DefaultMainVerifier].decider
-      val deciderMirror = mirror.reflect(decider)
-      val proverMirror = deciderMirror.reflectField(universe.typeOf[decider.type].decl(universe.TermName("_prover")).asTerm)
-      val oldProver = proverMirror.get.asInstanceOf[Prover]
-      proverMirror.set(AgreeableProver(oldProver))
-    }
 
     val plugins = SilverPluginManager(Some(Seq(
       "viper.silver.plugin.standard.termination.TerminationPlugin",
