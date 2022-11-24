@@ -46,7 +46,7 @@ case object Backend {
         proverLogFile = options.devViperProverLogFile,
         printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
         options = options.backendFlags,
-      ), options.backendFile, Some(VerificationCache.getSiliconDirectory))
+      ), options.backendFile, if(options.devCache) Some(VerificationCache.getSiliconDirectory) else None)
 
     case types.Backend.Carbon => SilverBackend(Carbon(
       z3Path = options.z3Path,

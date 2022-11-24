@@ -146,6 +146,12 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").maybeHidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
+      opt[Unit]("dev-cache").maybeHidden()
+        .action((_, c) => c.copy(devCache = true))
+        .text("Cache verification results (slow, experimental)"),
+      opt[Unit]("dev-split-verification-by-procedure").maybeHidden()
+        .action((_, c) => c.copy(devSplitVerificationByProcedure = true))
+        .text("Invoke separate instances of the backend for each procedure at the end of the rewrite chain (slow, experimental)"),
 
       opt[Int]("dev-silicon-num-verifiers").hidden()
         .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
@@ -316,11 +322,12 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
+  devCache: Boolean = false,
+  devSplitVerificationByProcedure: Boolean = false,
 
-  devSiliconNumVerifiers: Option[Int] = Some(1),
+  devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
-
 
   devCarbonBoogieLogFile: Option[Path] = None,
 

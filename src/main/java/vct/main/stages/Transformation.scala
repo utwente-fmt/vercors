@@ -59,6 +59,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
     }
 }
@@ -150,6 +151,7 @@ case class SilverTransformation
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   checkSat: Boolean = true,
+  splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
@@ -247,5 +249,5 @@ case class SilverTransformation
     // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
     PinSilverNodes,
 
-    Explode,
+    Explode.withArg(splitVerificationByProcedure),
   ))

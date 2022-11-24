@@ -12,7 +12,7 @@ import vct.result.VerificationError.SystemError
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
-case object Explode extends RewriterBuilder {
+case object Explode extends RewriterBuilderArg[Boolean] {
   override def key: String = "explode"
   override def desc: String = "Split out verifications over entities, by eliding unrelated declarations and abstracting relevant ones."
 
@@ -41,7 +41,7 @@ case object Explode extends RewriterBuilder {
   }
 }
 
-case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
+case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
   case class FocusedProgram(
     adts: Seq[AxiomaticDataType[Pre]],
     fields: Seq[SilverField[Pre]],
@@ -173,7 +173,8 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(verification: Verification[Pre]): Verification[Post] =
-    verification.rewrite(tasks = verification.tasks.flatMap(explode))
+    if(enable) verification.rewrite(tasks = verification.tasks.flatMap(explode))
+    else verification.rewrite()
 
   def make(context: VerificationContext[Pre], decls: => Seq[GlobalDeclaration[Post]]): VerificationContext[Post] =
     VerificationContext(context.program.rewrite(declarations = decls))(context.o)
