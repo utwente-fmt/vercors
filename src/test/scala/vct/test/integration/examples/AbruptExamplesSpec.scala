@@ -43,6 +43,7 @@ class AbruptExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/abrupt/WhileFinally.java"
   vercors should verify using anyBackend example "concepts/abrupt/WhileInFinally.java"
   vercors should verify using anyBackend example "concepts/abrupt/SynchronizedReturn.java"
+  vercors should verify using carbon example "concepts/abrupt/KeYAbruptTerminationChallengeCarbon.java"
 
   // Examples that should be type-checked into an error (https://github.com/utwente-fmt/vercors/issues/790)
   // vercors should error withCode "?" example "concepts/abrupt/BadCustomException.java"
@@ -51,6 +52,4 @@ class AbruptExamplesSpec extends VercorsSpec {
   // vercors should error withCode "?" example "concepts/abrupt/TypecheckThrowsThrowBad.java"
   // vercors should error withCode "?" example "concepts/abrupt/UnusedCheckedCatchBad.java"
 
-  // https://github.com/utwente-fmt/vercors/issues/834
-  // vercors should verify using carbon example "concepts/abrupt/KeYAbruptTerminationChallengeCarbon.java"
 }
