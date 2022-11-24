@@ -69,7 +69,7 @@ import vct.col.resolve.ctx._
 sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
 final case class Verification[G](tasks: Seq[VerificationContext[G]], expectedErrors: Seq[ExpectedError])(implicit val o: Origin) extends NodeFamily[G] with VerificationImpl[G]
-final case class VerificationContext[G](program: Program[G])(implicit val o: Origin) extends NodeFamily[G] with VerificationContextImpl[G]
+/** @inheritdoc */ final case class VerificationContext[G](program: Program[G], tryAssumeFunctions: Boolean = false, tryAssumePredicates: Boolean = false)(implicit val o: Origin) extends NodeFamily[G] with VerificationContextImpl[G]
 final case class Program[G](declarations: Seq[GlobalDeclaration[G]])(val blame: Blame[UnsafeCoercion])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
 
 sealed trait Type[G] extends NodeFamily[G] with TypeImpl[G]

@@ -41,7 +41,7 @@ trait SilverBackend extends Backend with LazyLogging {
     }
   }
 
-  def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (Verifier, SilverPluginManager)
+  def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]], tryAssumeFunctions: Boolean = false, tryAssumePredicates: Boolean = false): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
   private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] =
@@ -54,7 +54,7 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
+  override def submit(colProgram: col.Program[_], output: Option[Path], tryAssumeFunctions: Boolean = false, tryAssumePredicates: Boolean = false): Boolean = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
     output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
@@ -90,7 +90,7 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     // val tracker = EntityTrackingReporter()
-    val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
+    val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId, tryAssumeFunctions, tryAssumePredicates)
 
     val transformedProgram = plugins.beforeVerify(silverProgram) match {
       case Some(program) => program

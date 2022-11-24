@@ -149,7 +149,6 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   val verifiedElsewhere: ScopedStack[Unit] = ScopedStack()
-  val resultReplacement: ScopedStack[Expr[Post]] = ScopedStack()
 
   override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
     if(verifiedElsewhere.nonEmpty) VerifiedElsewhereBlame else blame
@@ -176,57 +175,13 @@ case class Explode[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(verification: Verification[Pre]): Verification[Post] =
     verification.rewrite(tasks = verification.tasks.flatMap(explode))
 
-  def make(context: VerificationContext[Pre], decls: => Seq[GlobalDeclaration[Post]]): VerificationContext[Post] =
-    VerificationContext(context.program.rewrite(declarations = decls))(context.o)
+  def make(context: VerificationContext[Pre], main: Boolean, decls: => Seq[GlobalDeclaration[Post]]): VerificationContext[Post] =
+    VerificationContext(context.program.rewrite(declarations = decls), tryAssumeFunctions = !main, tryAssumePredicates = !main)(context.o)
 
   def explode(context: VerificationContext[Pre]): Seq[VerificationContext[Post]] = {
     val program = split(context.program)
 
-    make(context, globalDeclarations.dispatch(program.adts ++ program.fields ++ program.funcs ++ program.predBodies)) +:
-      program.procBodies.map(proc => make(context, program.focus(proc)))
-  }
-
-  def assumeFunction(func: Function[Pre]): Function[Post] =
-    variables.scope { // stash away the arguments - we don't need them externally
-      implicit val o: Origin = func.o
-      val res = new Variable[Post](dispatch(func.returnType))
-      withResult((r: Result[Post]) => function(
-        blame = AbstractApplicable,
-        contractBlame = UnsafeDontCare.Satisfiability("assumption function - checked elsewhere"),
-        returnType = TBool(),
-        args = variables.dispatch(func.args) :+ res,
-        typeArgs = variables.dispatch(func.typeArgs),
-        requires = dispatch(func.contract.requires),
-        ensures = SplitAccountedPredicate(
-          UnitAccountedPredicate(r),
-          resultReplacement.having(Local[Post](res.ref)) { dispatch(func.contract.ensures) },
-        ),
-        decreases = Some(DecreasesClauseAssume[Post]()),
-      )(AssumeFunction(func.o)))
-    }
-
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case func: Function[Pre] if func.body.nonEmpty && verifiedElsewhere.nonEmpty =>
-      val assume = globalDeclarations.declare(assumeFunction(func))
-      implicit val o: Origin = func.o
-      // We don't need to fix up the accounting for the ensures predicate, since we are assuming the postcondition anyway.
-      globalDeclarations.succeed(func, func.rewrite(contract = func.contract.rewrite(
-        ensures = SplitAccountedPredicate(
-          UnitAccountedPredicate(FunctionInvocation(
-            ref = assume.ref[Function[Post]],
-            args = func.args.map(succ[Variable[Post]]).map(Local(_)) :+ Result[Post](succ(func)),
-            typeArgs = func.typeArgs.map(succ[Variable[Post]]).map(TVar(_)),
-            Nil, Nil
-          )(PanicBlame("The precondition holds, because the postcondition of a function is framed by it."))),
-          dispatch(func.contract.ensures),
-        ),
-      )))
-
-    case other => rewriteDefault(other)
-  }
-
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case Result(_) if resultReplacement.nonEmpty => resultReplacement.top
-    case other => rewriteDefault(other)
+    make(context, main = true, decls = globalDeclarations.dispatch(program.adts ++ program.fields ++ program.funcs ++ program.predBodies)) +:
+      program.procBodies.map(proc => make(context, main = false, decls = program.focus(proc)))
   }
 }

@@ -101,16 +101,16 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
 
   override def run(in: Verification[_ <: Generation]): Seq[ExpectedError] = {
     Progress.parForeach[(VerificationContext[_ <: Generation], Int)](in.tasks.zipWithIndex, t => s"Task ${t._2 + 1}") { case (task, idx) =>
-      cachedDefinitelyVerifiesOrElseUpdate(task.program, verify(task.program, idx))
+      cachedDefinitelyVerifiesOrElseUpdate(task.program, verify(task.program, idx, task.tryAssumeFunctions, task.tryAssumePredicates))
     }
 
     in.expectedErrors
   }
 
-  def verify(program: Program[_ <: Generation], idx: Int): Boolean
+  def verify(program: Program[_ <: Generation], idx: Int, tryAssumeFunctions: Boolean = false, tryAssumePredicates: Boolean = false): Boolean
 }
 
 case class SilverBackend(backend: viper.SilverBackend, output: Option[Path] = None, cacheDirectory: Option[Path] = None) extends Backend {
-  override def verify(program: Program[_ <: Generation], idx: Int): Boolean =
-    backend.submit(program, output.map(p => p.resolveSibling(p.getFileName.toString + s"-$idx.vpr")))
+  override def verify(program: Program[_ <: Generation], idx: Int, tryAssumeFunctions: Boolean, tryAssumePredicates: Boolean): Boolean =
+    backend.submit(program, output.map(p => p.resolveSibling(p.getFileName.toString + s"-$idx.vpr")), tryAssumeFunctions, tryAssumePredicates)
 }
