@@ -14,7 +14,7 @@ class TechnicalSpec extends VercorsSpec {
           loop_invariant Value(arr) ** \array(arr, T);
           loop_invariant Perm(arr[*], write);
           loop_invariant 0 <= i && i <= T;
-          loop_invariant (\forall int j = 0 .. i, k = 0 .. i; j != k ==> {:arr[j]:} != {:arr[k]:}));
+          loop_invariant (\forall int j = 0 .. i, int k = 0 .. i; j != k ==> {:arr[j]:} != {:arr[k]:}));
           loop_invariant (\forall int j, int k; 0 <= j && j < i && 0 <= k && k < i; j != k ==> {:arr[j]:} != {:arr[k]:});
         @*/
         for (int i = 0; i < T; i++) {
