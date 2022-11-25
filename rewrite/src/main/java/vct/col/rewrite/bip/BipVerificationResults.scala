@@ -82,6 +82,7 @@ case object BIP {
 
     case class ComponentReport(constructor: ConstructorReport, transitions: Seq[(TransitionSignature, TransitionReport)])
 
+    // TODO: Change this to LinkedHashMap. Since it has order, might as well be an actual map. Will also simplify comparison.
     case class VerificationReport(components: Seq[(String, ComponentReport)]) {
       def toMaps(): (Map[String, ConstructorReport], Map[String, Map[TransitionSignature, TransitionReport]]) = {
         val m1 = components.map { case (fqn, report) => fqn -> report.constructor }.toMap
@@ -91,6 +92,11 @@ case object BIP {
 
       def equalsModuloOrdering(other: VerificationReport): Boolean = toMaps() == other.toMaps()
     }
+
+//    object VerificationReport {
+//      import upickle.default.{ReadWriter => RW, macroRW}
+//      implicit val rw: RW[VerificationReport] = macroRW
+//    }
 
     def result(b: Boolean): String = if(b) "proven" else "not proven"
 

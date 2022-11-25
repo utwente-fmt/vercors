@@ -102,6 +102,8 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
 
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "2.0.0",
+
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
     libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
