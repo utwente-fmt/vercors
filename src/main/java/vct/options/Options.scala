@@ -212,16 +212,6 @@ case object Options {
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
 
-      // TODO (RR): Factor these out into JavaBIP mode?
-      opt[String]("synchron").valueName("<class>.<portName>:<class>.<portName>")
-        .action((s, c) => c.copy(synchrons = c.synchrons :+ parseLink(s)))
-        .text("Indicate synchron to verify")
-        .unbounded(),
-      opt[String]("data").valueName("<class>.<dataName>:<class>.<dataName>")
-        .action((s, c) => c.copy(datas = c.datas :+ parseLink(s)))
-        .text("Indicate data to verify")
-        .unbounded(),
-
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont")
@@ -360,8 +350,4 @@ case class Options
   testFailingFirst: Boolean = false,
   testGenerateFailingRunConfigs: Boolean = false,
   testCIOutput: Boolean = false,
-
-  // JavaBIP options
-  synchrons: Seq[((String, String), (String, String))] = Seq(),
-  datas: Seq[((String, String), (String, String))] = Seq(),
 )

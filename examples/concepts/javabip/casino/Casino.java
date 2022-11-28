@@ -38,9 +38,9 @@ public class Casino {
     }
 
     // Add money to pot
-    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR)
-    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR)
-    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR)
+    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, pre = "funds >= 0" /* TODO: added later! */)
+    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, pre = "funds >= 0")
+    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, pre = "funds >= 0")
     public void addToPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot + funds;
         System.out.println("CASINO" + id + ": " + funds +
