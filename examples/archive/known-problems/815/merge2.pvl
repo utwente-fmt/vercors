@@ -8,7 +8,7 @@ ensures \result <= |ys|;
 ensures element in ys ==> \result > 0;
 ensures \result > 0 ==> element in ys;
 pure int counter(seq<int> ys, int element) =
-  |ys| > 0 ? (ys.head == element ? (1 + counter(ys.tail, element)) : counter(ys.tail, element)) : 0;
+	|ys| > 0 ? (ys.head == element ? (1 + counter(ys.tail, element)) : counter(ys.tail, element)) : 0;
 
 
 requires i >= 0 && i < |xs|;
@@ -17,26 +17,24 @@ requires i <= j;
 requires k >= 0 && k <= |xs|;
 ensures |\result| == |xs| - k;
 ensures k > j ==> (\forall int l; l >= 0 && l < |\result|; \result[l] == xs[l+k]);
-ensures k >= j ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k])
-  && ((l+k) == j ==> \result[l] == xs[i]));
-ensures k > i ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k])
-  && ((l+k) == j ==> \result[l] == xs[i]));
+ensures k >= j ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k]) && ((l+k) == j ==> \result[l] == xs[i]));
+ensures k > i ==> (\forall int l; l >= 0 && l < |\result|; ((l+k) != j ==> \result[l] == xs[l+k]) && ((l+k) == j ==> \result[l] == xs[i]));
 ensures k >= i ==> (\forall int l; l >= 0 && l < |\result|; (((l+k) != i && (l+k) != j) ==> \result[l] == xs[l+k])
-  && ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> \result[l] == xs[i]));
+&& ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> \result[l] == xs[i]));
 ensures (\forall int l; l >= 0 && l < |\result|; (((l+k) != i && (l+k) != j) ==> \result[l] == xs[l+k])
-  && ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> \result[l] == xs[i]));
+&& ((l+k) == i ==> \result[l] == xs[j]) && ((l+k) == j ==> \result[l] == xs[i]));
 pure seq<int> swap(seq<int> xs, int i, int j, int k) =
-  k < |xs| ? (k == i ? seq<int> {xs[j]} + swap(xs, i, j, k+1) : (k == j ? seq<int> {xs[i]} + swap(xs, i, j, k+1)
-  : seq<int> {xs[k]} + swap(xs, i, j, k+1))) : seq<int> {};
-
+	k < |xs|
+		? (k == i
+			? seq<int> {xs[j]} + swap(xs, i, j, k+1)
+			: (k == j ? seq<int> {xs[i]} + swap(xs, i, j, k+1) : seq<int> {xs[k]} + swap(xs, i, j, k+1)))
+		: seq<int> {};
 
 pure boolean isApermutation(seq<int> xs, seq<int> ys) =
-  |xs| == |ys| && (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
+	|xs| == |ys| && (\forall int l; l>=0 && l<|xs|; counter(xs, xs[l]) == counter(ys, xs[l]));
 
-class MergeSort {
-
+class BubbleSort {
 	//////////////////////////////////////////////////////////////////////////Lemmas
-
 	requires i >= 0 && i < |xs|;
 	requires j >= 0 && j < |xs|;
 	requires i <= j;
@@ -103,7 +101,7 @@ class MergeSort {
 		lemma_count_app(xs, ys, element);
 		assert counter(xs + ys, element) == counter(xs, element) + counter(ys, element);
 
-		assert counter(xs + ys + ts + rs + zs, element) == counter(xs, element) + counter(ys, element) + counter(ts, element) + counter(rs, element) + counter(zs, 					 element);
+		assert counter(xs + ys + ts + rs + zs, element) == counter(xs, element) + counter(ys, element) + counter(ts, element) + counter(rs, element) + counter(zs, 					element);
 	}
 
 	requires i >= 0 && i < |xs|;
@@ -124,24 +122,24 @@ class MergeSort {
 		assert (\forall int l; l >= 0 && l < |ys|; (l != i && l != j) ==> swap(xs, i, j, 0)[l] == xs[l]);
 		assert (\forall int l; l >= 0 && l < |ys|; ((l == i) ==> swap(xs, i, j, 0)[l] == xs[j]) && ((l == j) ==> ys[l] == xs[i]));
 		if(i == j){
-		lemma_swap_base(xs, i, j);
-		assert xs == ys;
-		assert counter(xs, element) == counter(ys, element);
+			lemma_swap_base(xs, i, j);
+			assert xs == ys;
+			assert counter(xs, element) == counter(ys, element);
 		}
 		if(i < j){
-		assert ys == xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|];
-		assert counter(ys, element) == counter(xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|], element);
-		lemma_count_app_ext(xs[0..i], seq<int> {xs[j]}, xs[i+1..j], seq<int> {xs[i]}, xs[j+1..|xs|], element);
-		assert counter(ys, element) == counter(xs[0..i], element) + counter(seq<int> {xs[j]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[i]}, element) + counter(xs[j+1..|xs|], element);
-		lemma_count_single(i, element);
-		lemma_count_single(j, element);
-		lemma_swap_permutation_helper(xs, i, j, element);
-		//assert xs == xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|];
-		//assert counter(xs, element) == counter(xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|], element);
-		lemma_count_app_ext(xs[0..i], seq<int> {xs[i]}, xs[i+1..j], seq<int> {xs[j]}, xs[j+1..|xs|], element);
-		assert counter(xs, element) == counter(xs[0..i], element) + counter(seq<int> {xs[i]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[j]}, element) 																	 + counter(xs[j+1..|xs|], element);
+			assert ys == xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|];
+			assert counter(ys, element) == counter(xs[0..i] + seq<int> {xs[j]} + xs[i+1..j] + seq<int> {xs[i]} + xs[j+1..|xs|], element);
+			lemma_count_app_ext(xs[0..i], seq<int> {xs[j]}, xs[i+1..j], seq<int> {xs[i]}, xs[j+1..|xs|], element);
+			assert counter(ys, element) == counter(xs[0..i], element) + counter(seq<int> {xs[j]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[i]}, element) + counter(xs[j+1..|xs|], element);
+			lemma_count_single(i, element);
+			lemma_count_single(j, element);
+			lemma_swap_permutation_helper(xs, i, j, element);
+			//assert xs == xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|];
+			//assert counter(xs, element) == counter(xs[0..i] + seq<int> {xs[i]} + xs[i+1..j] + seq<int> {xs[j]} + xs[j+1..|xs|], element);
+			lemma_count_app_ext(xs[0..i], seq<int> {xs[i]}, xs[i+1..j], seq<int> {xs[j]}, xs[j+1..|xs|], element);
+			assert counter(xs, element) == counter(xs[0..i], element) + counter(seq<int> {xs[i]}, element) + counter(xs[i+1..j], element) + counter(seq<int> {xs[j]}, element) 																	+ counter(xs[j+1..|xs|], element);
 
-		assert counter(xs, element) == counter(ys, element);
+			assert counter(xs, element) == counter(ys, element);
 
 		}
 
@@ -202,27 +200,25 @@ class MergeSort {
 	// First subarray is arr[l..m]
 	// Second subarray is arr[m+1..r]
 	// Inplace Implementation
+	given seq<int> orig_seq;
+	yields seq<int> out_seq;
 	context_everywhere input != null;
 	context_everywhere input.length == size;
 	context_everywhere size > 0;
-	requires length > 0;
 	requires start >= 0 && start <= mid;
 	requires mid <= end;
 	requires end <= size;
 	requires start <= end;
-	context |inp_seq_cur| == size;
-	requires |inp_seq_all| == length;
-	requires (\forall int k; 0 <= k && k < length; |inp_seq_all[k]| == size);
+	context |inp_seq| == size;
+	ensures |out_seq| == size;
 	context (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-	//requires (\forall int k; 0 <= k && k < size; inp_seq_all[length-1][k] == inp_seq_cur[k]);
-	ensures |inp_seq_all| == length;
-	ensures (\forall int k; 0 <= k && k < length; |inp_seq_all[k]| == size);
-	context (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
-	//ensures (\forall int k; 0 <= k && k < size; inp_seq_all[length-1][k] == inp_seq_cur[k]);
-	requires isApermutation(inp_seq_all[0], inp_seq_cur);
-	ensures isApermutation(inp_seq_all[0], inp_seq_cur);
-	void Tomerge(int[] input, int size, int start, int mid, int end, seq<int> inp_seq_cur, seq<seq<int>> inp_seq_all, int length)
+	requires (\forall int k; 0 <= k && k < size; input[k] == inp_seq[k]);
+	ensures (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+	requires isApermutation(orig_seq, inp_seq);
+	ensures isApermutation(orig_seq, out_seq);
+	void Tomerge(int[] input, int size, int start, int mid, int end, seq<int> inp_seq)
 	{
+			out_seq = inp_seq;
 
 	    // If the direct merge is already sorted
 	    if (start == mid || mid == end) {
@@ -238,7 +234,7 @@ class MergeSort {
 			assert right - mid == 0;
 			assert right - mid +1 == mid - left;
 
-			loop_invariant |inp_seq_cur| == size;
+			loop_invariant |out_seq| == size;
 			loop_invariant left <= mid - 1  && left >= start - 1;
 			loop_invariant right >= mid && right <= end;
 			loop_invariant start >= 0 && start <= mid;
@@ -246,7 +242,7 @@ class MergeSort {
 			loop_invariant start <= end;
 			loop_invariant right - mid +1== mid - left;
 			loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-			loop_invariant (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
+			loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
 			while (start <= left && right < end && input[left] > input[right]) {
 					left--;
 					right++;
@@ -256,15 +252,12 @@ class MergeSort {
 			int i = 0;
 			int temp;
 
-			assert (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
+			assert (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
 
 
-			loop_invariant |inp_seq_cur| == size;
+			loop_invariant |out_seq| == size;
 			loop_invariant i >= 0 && i <= n;
-			loop_invariant length > 0;
-			loop_invariant |inp_seq_all| == length;
-			loop_invariant (\forall int k; 0 <= k && k < length; |inp_seq_all[k]| == size);
-			loop_invariant |inp_seq_cur| == size;
+			loop_invariant |out_seq| == size;
 			loop_invariant left <= mid - 1  && left >= start - 1;
 			loop_invariant right >= mid && right <= end;
 			loop_invariant start >= 0 && start <= mid;
@@ -274,58 +267,42 @@ class MergeSort {
 			loop_invariant right - mid +1 == mid - left;
 			//loop_invariant mid+1+i < right;
 			loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-			loop_invariant (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
-			loop_invariant isApermutation(inp_seq_all[0], inp_seq_cur);
+			loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+			loop_invariant isApermutation(orig_seq, out_seq);
 			//for (int i = 0; i < n; i++){
 			while(i < n){
 					//array.swap(mid - n + i, mid + i);
 					assert mid+i > 0;
-					assert mid+i < |inp_seq_cur|;
-				 lemma_permutation_apply(inp_seq_all[0], inp_seq_cur, swap(inp_seq_cur, mid-n+i, mid+i, 0), mid-n+i, mid+i);
+					assert mid+i < |out_seq|;
+				 lemma_permutation_apply(orig_seq, out_seq, swap(out_seq, mid-n+i, mid+i, 0), mid-n+i, mid+i);
  				 temp = input[mid-n+i];
  				 input[mid-n+i] = input[mid+i];
- 				 inp_seq_cur = inp_seq_cur[mid-n+i -> input[mid+i]];
+ 				 out_seq = out_seq[mid-n+i -> input[mid+i]];
  				 input[mid+i] = temp;
- 				 inp_seq_cur = inp_seq_cur[mid+i -> temp];
+ 				 out_seq = out_seq[mid+i -> temp];
 				 i++;
 			}
 
-			/*assert start >= 0 && start <= left+1;
-			assert left+1 <= mid;
-			assert mid <= size;
-
-			assert start <= mid;
-			assert |inp_seq_cur| == size;
-			assert |inp_seq_all| == length;
-			assert (\forall int k; 0 <= k && k < length; |inp_seq_all[k]| == size);
-			assert (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-			assert (\forall int k; 0 <= k && k < size; inp_seq_all[length-1][k] == inp_seq_cur[k]);
-			assert (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
-			//ensures (\forall int k; 0 <= k && k < size; inp_seq_all[length-1][k] == inp_seq_cur[k]);
-			assert isApermutation(inp_seq_all[0], inp_seq_cur);*/
-
-			Tomerge(input, size, start, left+1, mid, inp_seq_cur, inp_seq_all, length);
-			Tomerge(input, size, mid, right, end, inp_seq_cur, inp_seq_all, length);
-
-
+			Tomerge(input, size, start, left+1, mid, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+			Tomerge(input, size, mid, right, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
 	}
 
+	given seq<int> orig_seq;
+	yields seq<int> out_seq;
 	context_everywhere input != null;
 	context_everywhere input.length == size;
 	context_everywhere size > 0;
-	requires length > 0;
 	requires start >= 0 && start <= end && end <= size;
-	context |inp_seq_cur| == size;
-	requires |inp_seq_all| == length;
-	requires (\forall int k; 0 <= k && k < length; |inp_seq_all[k]| == size);
+	context |inp_seq| == size;
+	ensures |out_seq| == size;
 	context (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-	context (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
-	requires (\forall int k; 0 <= k && k < size; inp_seq_all[length-1][k] == inp_seq_cur[k]);
-	//ensures (\forall int k; 0 <= k && k < size; inp_seq_all[length-1][k] == inp_seq_cur[k]);
-	requires isApermutation(inp_seq_all[0], inp_seq_cur);
-	ensures isApermutation(inp_seq_all[0], inp_seq_cur);
-	void mergeSort(int[] input, int size, int start, int end, seq<int> inp_seq_cur, seq<seq<int>> inp_seq_all, int length) /* l is for left index and r is right index of the sub-array of arr to be sorted */
+	requires (\forall int k; 0 <= k && k < size; input[k] == inp_seq[k]);
+	ensures (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+	requires isApermutation(orig_seq, inp_seq);
+	ensures isApermutation(orig_seq, out_seq);
+	void mergeSort(int[] input, int size, int start, int end, seq<int> inp_seq) /* l is for left index and r is right index of the sub-array of arr to be sorted */
 	{
+			out_seq = inp_seq;
 	    if (end - start <= 1) {
 				return;
 			}
@@ -335,38 +312,28 @@ class MergeSort {
 	    int mid = start + (end - start) / 2; //(start+end) / 2;
 
 	    // Sort first and second halves
-	    mergeSort(input, size, start, mid, inp_seq_cur, inp_seq_all, length);
-	    mergeSort(input, size, mid+1, end, inp_seq_cur, inp_seq_all, length);
+	    mergeSort(input, size, start, mid, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+	    mergeSort(input, size, mid+1, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
 
-	    Tomerge(input, size, start, mid, end, inp_seq_cur, inp_seq_all, length);
-			inp_seq_all = inp_seq_all + seq<seq<int>> {inp_seq_cur};
-			length++;
-
+	    Tomerge(input, size, start, mid, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
 	}
 
-
+	yields seq<int> out_seq;
 	context_everywhere input != null;
 	context_everywhere input.length == size;
 	context_everywhere size > 0;
-	requires length == 1;
 	requires l >= 0 && l < size;
 	requires r >= 0 && r < size;
-	context |inp_seq_cur| == size;
-	requires |inp_seq_all| == length;
-	requires (\forall int k; 0 <= k && k < length; |inp_seq_all[k]| == size);
+	context |inp_seq| == size;
+	ensures |out_seq| == size;
 	context (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-	context (\forall int k; 0 <= k && k < size; input[k] == inp_seq_cur[k]);
-	requires (\forall int k; 0 <= k && k < size; inp_seq_all[0][k] == inp_seq_cur[k]);
-	ensures (\forall int k; 0 <= k && k < size; inp_seq_all[|inp_seq_all|-1][k] == inp_seq_cur[k]);
-	ensures isApermutation(inp_seq_all[0], inp_seq_cur);
-	void main(int[] input, int size, int l, int r, seq<int> inp_seq_cur, seq<seq<int>> inp_seq_all, int length){
-
-	  assert inp_seq_all[0] == inp_seq_cur;
-		assert isApermutation(inp_seq_all[0], inp_seq_cur);
-		l = 0;
+	requires (\forall int k; 0 <= k && k < size; input[k] == inp_seq[k]);
+	ensures (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+	ensures isApermutation(inp_seq, out_seq);
+	void main(int[] input, int size, int l, int r, seq<int> inp_seq){
+	  l = 0;
 		r = size;
-		mergeSort(input, size, l, r, inp_seq_cur, inp_seq_all, length);
-
+		mergeSort(input, size, l, r, inp_seq) given { orig_seq = inp_seq } yields { out_seq = out_seq };
 	}
 
 }
