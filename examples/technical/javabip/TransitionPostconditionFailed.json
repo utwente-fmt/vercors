@@ -1,0 +1,22 @@
+{
+  "org.javabip.spec.deviation.TransitionPostconditionFailed": {
+    "constructor": {
+      "componentInvariant": "proven",
+      "stateInvariant": "proven"
+    },
+    "transitions": [
+      {
+        "signature": {
+          "name": "go",
+          "source": "initialState",
+          "target": "doneState"
+        },
+        "results": {
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postCondition": "not proven"
+        }
+      }
+    ]
+  }
+}

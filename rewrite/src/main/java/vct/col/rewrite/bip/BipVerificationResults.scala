@@ -35,6 +35,8 @@ case object BIP {
 
     import Standalone._
 
+    implicit def proofResultFromBool(b: Boolean): ProofResult = ProofResult.mk(b)
+
     def toStandalone(transition: BipTransition[_]): TransitionEntry = {
       val sig = transition.signature
 
@@ -49,9 +51,9 @@ case object BIP {
     }
 
     def constructorToStandalone(component: BipComponent[_]): ConstructorReport = constructorResults(component) match {
-      case ComponentInvariantNotMaintained => ConstructorReport(ProofResult(false), ProofResult(false))
-      case StateInvariantNotMaintained => ConstructorReport(ProofResult(true), ProofResult(false))
-      case Success => ConstructorReport(ProofResult(true), ProofResult(true))
+      case ComponentInvariantNotMaintained => ConstructorReport(false, false)
+      case StateInvariantNotMaintained => ConstructorReport(true, false)
+      case Success => ConstructorReport(true, true)
 
       // The following cases should not appear in a constructor context
       case PostconditionNotVerified => ???
@@ -73,7 +75,7 @@ case object BIP {
 
   case object Standalone {
     case object ProofResult {
-      def apply(b: Boolean): ProofResult = if(b) Proven else NotProven
+      def mk(b: Boolean): ProofResult = if(b) Proven else NotProven
     }
     sealed trait ProofResult
     case object Proven extends ProofResult
@@ -82,11 +84,13 @@ case object BIP {
     case class ConstructorReport(componentInvariant: ProofResult, stateInvariant: ProofResult)
 
     case class TransitionSignature(name: String, source: String, target: String, guard: Option[String])
-    case class TransitionResults(componentInvariant: Boolean, stateInvariant: Boolean, postCondition: Boolean)
+    case class TransitionResults(componentInvariant: ProofResult, stateInvariant: ProofResult, postCondition: ProofResult)
     case class TransitionEntry(signature: TransitionSignature, results: TransitionResults)
     case class ComponentReport(constructor: ConstructorReport, transitions: Seq[TransitionEntry])
 
-    case class VerificationReport(components: mut.LinkedHashMap[String, ComponentReport])
+    case class VerificationReport(components: mut.LinkedHashMap[String, ComponentReport]) {
+      def toJson(): String = upickle.default.write(this, 2)
+    }
 
     object VerificationReport {
       implicit val rwProven: ReadWriter[ProofResult] = readwriter[String].bimap[ProofResult](
@@ -109,7 +113,7 @@ case object BIP {
           },
           { v =>
             val o = v.obj
-            TransitionSignature(o("name").str, o("source").str, o("target").str, o("guard").strOpt)
+            TransitionSignature(o("name").str, o("source").str, o("target").str, o.get("guard").strOpt)
           }
         )
 
@@ -121,6 +125,14 @@ case object BIP {
           { report => ujson.Obj(report.components.map { case (k, v) => (k, writeJs(v)) }) },
           { v => VerificationReport(v.obj.value.map { case (k, v) => (k, read[ComponentReport](v)) }) }
         )
+      }
+
+      def fromJson(str: String): Either[Exception, VerificationReport] = {
+        try {
+          Right(read[VerificationReport](str))
+        } catch {
+          case e: Exception => Left(e)
+        }
       }
     }
   }

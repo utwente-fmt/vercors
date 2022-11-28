@@ -46,6 +46,29 @@ abstract class VercorsSpec extends AnyFlatSpec {
   case class IncompleteVerdict(fromCode: String => Verdict)
   case object ErrorVerdict
 
+  def registerGenericTest(desc: String, backend: Backend, inputs: Seq[Readable])(resultProcessor: (Seq[String], Option[VerificationReport]) => Unit)(implicit pos: source.Position): Unit = {
+    val fullDesc: String = s"$desc (with $backend)"
+    // PB: note that object typically do not have a deterministic hashCode, but Strings do.
+    val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
+    val matrixTag = Tag(s"MATRIX[$matrixId]")
+
+    registerTest(fullDesc, Seq(Tag("MATRIX"), matrixTag): _*) {
+      LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
+      LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
+
+      val res = backend match {
+        case types.Backend.Silicon => Verify.verifyWithSilicon(inputs)
+        case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+      }
+      val res2 = res match {
+        case Left(err: UserError) => (Seq(err.code), None)
+        case Left(_: SystemError) => (Seq("systemError"), None)
+        case Right((failures: Seq[VerificationFailure], report)) => (failures.map(_.code), Some(report))
+      }
+      resultProcessor(res2._1, res2._2)
+    }
+  }
+
   private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable])(implicit pos: source.Position): Unit = {
     val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with $backend".replaceAll("should", "shld")
     // PB: note that object typically do not have a deterministic hashCode, but Strings do.
@@ -144,8 +167,6 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
   class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
     def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend)
-    // TODO: Change this to get an actual object that contains the expected verification report
-    def withReport(path: String): VerdictPhrase = new VerdictPhrase(verdict, Some(Paths.get(s"examples/$path")))
   }
 
   class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend]) {

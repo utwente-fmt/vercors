@@ -77,12 +77,10 @@ case object Verify extends LazyLogging {
       case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")
         logger.info(s"BIP report:\n${upickle.default.write(report, 2)}")
-//        logger.info(s"Auto BIP report:\n${ujson.write(report)}")
         EXIT_CODE_SUCCESS
       case Right((fails, report)) =>
         if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-//        logger.info(s"BIP report:\n${toJson(report)}")
         logger.info(s"BIP report:\n${upickle.default.write(report, 2)}")
         EXIT_CODE_VERIFICATION_FAILURE
     }
