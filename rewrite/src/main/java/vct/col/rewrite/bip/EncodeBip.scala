@@ -186,7 +186,11 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       port -> transitions
     }.toMap
 
-    super.dispatch(p)
+    val px = super.dispatch(p)
+
+    val x = 3
+
+    px
   }
 
 
@@ -277,19 +281,25 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       val (cls, component) = procConstructorInfo(proc)
       results.declare(component)
       implicit val o = DiagnosticOrigin
-      withResult { res: Result[Post] =>
-        val subst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), res)
-        val contract = proc.contract.rewrite(
-          ensures =
+      currentBipDeclaration.having(component) {
+        withResult { res: Result[Post] =>
+          val subst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), res)
+          val contract = proc.contract.rewrite(
+            ensures =
             // Establish component invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) { dispatch(component.invariant) } ),
+            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) {
+              dispatch(component.invariant)
+            }),
             // Establish state invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) { dispatch(component.initial.decl.expr) }),
+            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) {
+              dispatch(component.initial.decl.expr)
+            }),
             // Also include everything that was generated extra for the constructor
             dispatch(proc.contract.ensures)))
-        )
-        globalDeclarations.succeed(proc,
-          proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(results, component, proc)))
+          )
+          globalDeclarations.succeed(proc,
+            proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(results, component, proc)))
+        }
       }
 
     case transition: BipTransition[Pre] =>
@@ -340,6 +350,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   // If we're inside a bip transition, wrap each blame into a blame that, when activated/blamed, writes true in the big map of transition verification results
   override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = currentBipDeclaration.topOption match {
     case Some(bt: BipTransition[Pre]) => ExecuteOnBlame(blame) { results.report(bt, UpdateFunctionFailure) }
+    case Some(bt: BipComponent[Pre]) => ExecuteOnBlame(blame) { results.report(bt, ConstructorFailure) }
     case _ => super.dispatch(blame)
   }
 

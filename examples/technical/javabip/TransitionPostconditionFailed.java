@@ -1,4 +1,4 @@
-package org.javabip.spec.deviation;
+package vct.examples.technical.javabip;
 
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;

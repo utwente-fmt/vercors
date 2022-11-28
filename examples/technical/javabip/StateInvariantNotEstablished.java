@@ -1,4 +1,4 @@
-package vct.test.technical;
+package vct.examples.technical.javabip;
 
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;

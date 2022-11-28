@@ -5,8 +5,7 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.test.integration.helper.VercorsSpec
 import org.scalactic.source
 
-
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
 class TechnicalJavaBipSpec extends VercorsSpec {
   def fromExamples(s: String): PathOrStd.Path = PathOrStd.Path(Paths.get(s"examples/$s"))
@@ -20,7 +19,7 @@ class TechnicalJavaBipSpec extends VercorsSpec {
     val expectedReport = VerificationReport.fromJson(reportPath.readToCompletion()).getOrElse(fail(s"Parse error, or could not find report at $reportPath"))
     val filesDesc = files.map(p => s"examples/${p}").mkString(", ")
     val verdict = if(expectedCodes.isEmpty) "pass" else "fail"
-    val desc = s"Bip test with files $filesDesc should $verdict with report $reportPath (using silicon)"
+    val desc = s"JavaBIP test with files $filesDesc should $verdict with report examples/$report (using silicon)"
 
     def processResult(codes: Seq[String], report: Option[VerificationReport]): Unit = {
       val codeCheck = (expectedCodes, codes) match {

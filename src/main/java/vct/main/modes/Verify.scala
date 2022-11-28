@@ -42,10 +42,12 @@ case object Verify extends LazyLogging {
     val bipResults = BIP.VerificationResults()
     val stages = Stages.ofOptions(options, ConstantBlameProvider(collector), bipResults)
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
-    stages.run(inputs) match {
+    val r = stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right((collector.errs.toSeq, bipResults.toStandalone()))
     }
+    val x = 3
+    r
   }
 
   /**
@@ -76,12 +78,12 @@ case object Verify extends LazyLogging {
         EXIT_CODE_ERROR
       case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")
-        logger.info(s"BIP report:\n${upickle.default.write(report, 2)}")
+        logger.info(s"BIP report:\n${report.toJson()}")
         EXIT_CODE_SUCCESS
       case Right((fails, report)) =>
         if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-        logger.info(s"BIP report:\n${upickle.default.write(report, 2)}")
+        logger.info(s"BIP report:\n${report.toJson()}")
         EXIT_CODE_VERIFICATION_FAILURE
     }
   }

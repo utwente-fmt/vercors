@@ -1,5 +1,5 @@
 {
-  "org.javabip.spec.deviation.TransitionPostconditionFailed": {
+  "vct.examples.technical.javabip.TransitionPostconditionFailed": {
     "constructor": {
       "componentInvariant": "proven",
       "stateInvariant": "proven"

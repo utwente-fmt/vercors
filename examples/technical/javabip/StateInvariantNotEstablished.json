@@ -1,22 +1,11 @@
 {
-  "vct.examples.technical.javabip.StateInvariantNotMaintained": {
+  "vct.examples.technical.javabip.StateInvariantNotEstablished": {
     "constructor": {
       "componentInvariant": "proven",
-      "stateInvariant": "proven"
+      "stateInvariant": "not proven"
     },
     "transitions": [
-      {
-        "signature": {
-          "name": "go",
-          "source": "initialState",
-          "target": "doneState"
-        },
-        "results": {
-          "componentInvariant": "proven",
-          "stateInvariant": "not proven",
-          "postCondition": "not proven"
-        }
-      }
+
     ]
   }
 }

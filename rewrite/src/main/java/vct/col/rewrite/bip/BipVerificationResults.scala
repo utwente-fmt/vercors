@@ -51,6 +51,7 @@ case object BIP {
     }
 
     def constructorToStandalone(component: BipComponent[_]): ConstructorReport = constructorResults(component) match {
+      case ConstructorFailure => ConstructorReport(false, false)
       case ComponentInvariantNotMaintained => ConstructorReport(false, false)
       case StateInvariantNotMaintained => ConstructorReport(true, false)
       case Success => ConstructorReport(true, true)
@@ -61,14 +62,20 @@ case object BIP {
     }
 
     def toStandalone(): VerificationReport = {
-      VerificationReport(mut.LinkedHashMap.from(componentToTransitions.toSeq.map { case (component, transitions) =>
-        (component.fqn.mkString("."), ComponentReport(constructorToStandalone(component), transitions.map(toStandalone)))
-      }))
+      val allComponents = (componentToTransitions.keys.toSeq ++ constructorResults.keys.toSeq).distinct
+      val componentReports = allComponents.map { component =>
+          (component.fqn.mkString("."),
+            ComponentReport(
+              constructorToStandalone(component),
+              componentToTransitions.get(component).map(_.map(toStandalone)).getOrElse(Seq())))
+      }
+      VerificationReport(mut.LinkedHashMap.from(componentReports))
     }
   }
   sealed trait BipVerificationResult
   case object Success extends BipVerificationResult
   case object UpdateFunctionFailure extends BipVerificationResult
+  case object ConstructorFailure extends BipVerificationResult
   case object ComponentInvariantNotMaintained extends BipVerificationResult
   case object StateInvariantNotMaintained extends BipVerificationResult
   case object PostconditionNotVerified extends BipVerificationResult

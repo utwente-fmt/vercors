@@ -1,22 +1,11 @@
 {
-  "org.javabip.spec.deviation.TransitionPostconditionFailed": {
+  "vct.examples.technical.javabip.ComponentInvariantNotEstablished": {
     "constructor": {
-      "componentInvariant": "proven",
-      "stateInvariant": "proven"
+      "componentInvariant": "not proven",
+      "stateInvariant": "not proven"
     },
     "transitions": [
-      {
-        "signature": {
-          "name": "go",
-          "source": "initialState",
-          "target": "doneState"
-        },
-        "results": {
-          "componentInvariant": "proven",
-          "stateInvariant": "proven",
-          "postCondition": "not proven"
-        }
-      }
+
     ]
   }
 }
