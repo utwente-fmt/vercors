@@ -6,7 +6,7 @@ import hre.io.Readable
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.col.rewrite.bip.BIP
-import vct.col.rewrite.bip.BIP.Standalone.{VerificationReport, toJson}
+import vct.col.rewrite.bip.BIP.Standalone.{VerificationReport}
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
 import vct.parsers.transform.ConstantBlameProvider
@@ -76,13 +76,14 @@ case object Verify extends LazyLogging {
         EXIT_CODE_ERROR
       case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")
-        logger.info(s"BIP report:\n${toJson(report)}")
+        logger.info(s"BIP report:\n${upickle.default.write(report, 2)}")
 //        logger.info(s"Auto BIP report:\n${ujson.write(report)}")
         EXIT_CODE_SUCCESS
       case Right((fails, report)) =>
         if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-        logger.info(s"BIP report:\n${toJson(report)}")
+//        logger.info(s"BIP report:\n${toJson(report)}")
+        logger.info(s"BIP report:\n${upickle.default.write(report, 2)}")
         EXIT_CODE_VERIFICATION_FAILURE
     }
   }
