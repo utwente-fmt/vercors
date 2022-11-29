@@ -1,8 +1,6 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import RewriteHelpers._
 import hre.util.ScopedStack
 
 import scala.collection.mutable.ArrayBuffer
