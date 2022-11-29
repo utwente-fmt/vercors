@@ -148,8 +148,10 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
   var program: Program[Pre] = null
 
-  var procConstructorInfo: mutable.Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = mutable.Map()
   var replaceThis: ScopedStack[(ThisObject[Pre], Expr[Post])] = ScopedStack()
+  var replaceDataIns: ScopedStack[Map[BipIncomingData[Pre], Expr[Post]]] = ScopedStack()
+
+  var procConstructorInfo: mutable.Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = mutable.Map()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
   val currentBipDeclaration: ScopedStack[Declaration[Pre]] = ScopedStack()
@@ -164,6 +166,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   }.toMap
   lazy val transitionToComponent: Map[BipTransition[Pre], BipComponent[Pre]] = transitionToClass.toIndexedSeq.map { case (t, cls) =>
     (t, cls.transSubnodes.collectFirst { case component: BipComponent[Pre] => component }.get)
+  }.toMap
+  lazy val dataToClass: Map[BipData[Pre], Class[Pre]] = classes.flatMap { cls =>
+    cls.declarations.collect { case data: BipData[Pre] => (data, cls) }
   }.toMap
 
   def portToClass(p: BipPort[Pre]): Class[Pre] = componentToClass(portToComponent(p))
@@ -376,7 +381,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         val cls = transitionToClass(transition)
         val component = transitionToComponent(transition)
         val clsVar = synchronPortVariable((synchronization, cls)).get
-        val clsThisSubst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), ThisObject[Post](succ[Class[Post]](cls)))
+        val clsThisSubst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), clsVar)
 
         replaceThis.having(clsThisSubst) {
           (clsVar !== null) &**
@@ -386,40 +391,94 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         }
       })
 
-      val x = 3
-      ???
-
       /*
       - Evaluate data wires and assign to var representing output data. Make mapping from data wire to output data var
+       */
+      val wireResults = synchronization.wires.map { case BipGlueDataWire(Ref(dataOut), Ref(dataIn)) =>
+        val v = new Variable(dispatch(dataOut.t))
+        val cls = dataToClass(dataOut)
+        val clsVar = synchronPortVariable((synchronization, cls))
+
+        val init = assignLocal[Post](v.get, methodInvocation(
+            obj = clsVar.get,
+            ref = outgoingDataSucc.ref(dataOut),
+            blame = PanicBlame("Precondition of outgoing data cannot fail")))
+
+        (dataIn, v, init)
+      }
+      val inToVar = wireResults.map { case (dataIn, v, _) => (dataIn, v.get) }.toMap
+      val initBlock: Seq[Statement[Post]] = wireResults.flatMap { case (_, v, init) => Seq(LocalDecl(v), init) }
+
+      /*
       - Of each class var of transition:
         - Exhale, with class var & data wires substituted in:
           - component invariant
-          - start state invariant
+          - source state invariant
           - precondition
+      */
+      val exhales: Seq[Exhale[Post]] = synchronization.transitions.map { case Ref(transition) =>
+        val cls = transitionToClass(transition)
+        val component = transitionToComponent(transition)
+        val clsVar = synchronPortVariable((synchronization, cls)).get
+        val clsThisSubst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), clsVar)
+
+        Exhale(replaceThis.having(clsThisSubst) {
+          dispatch(component.invariant) &**
+            dispatch(transition.source.decl.expr) &**
+            replaceDataIns.having(inToVar) {
+              dispatch(transition.requires)
+            }
+        })(???)
+      }
+
+      /*
         - Inhale, with class var & data wires substituted in:
           - component invariant
-          - end state invariant
+          - target state invariant
           - postcondition
+      */
+      val inhales: Seq[Inhale[Post]] = synchronization.transitions.map { case Ref(transition) =>
+        val cls = transitionToClass(transition)
+        val component = transitionToComponent(transition)
+        val clsVar = synchronPortVariable((synchronization, cls)).get
+        val clsThisSubst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), clsVar)
+
+        Inhale(replaceThis.having(clsThisSubst) {
+          dispatch(component.invariant) &**
+            dispatch(transition.target.decl.expr) &**
+            replaceDataIns.having(inToVar) {
+              dispatch(transition.ensures)
+            }
+        })
+      }
+
+      /*
       - Post:
         - Of each class var of transition:
           - Component invariant
           - New state invariant
-       */
+      */
+      val postcondition: Expr[Post] = foldAnd(synchronization.transitions.map { case Ref(transition) =>
+        val cls = transitionToClass(transition)
+        val component = transitionToComponent(transition)
+        val clsVar = synchronPortVariable((synchronization, cls)).get
+        val clsThisSubst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), clsVar)
 
+        replaceThis.having(clsThisSubst) {
+          dispatch(component.invariant) &**
+          dispatch(transition.target.decl.expr)
+        }
+      })
 
-//      synchronizationSucc(synchronization) =
-//        globalDeclarations.declare(new Procedure(
-//          TVoid(),
-//          classes.map(cls => synchronPortVariable((synchronization, cls))),
-//          Nil, Nil, Some(Block(Seq(
-//
-//          ))),
-//          contract(
-//            requires = ???,
-//            ensures = ???,
-//            blame = ???
-//          )
-//        )(null))
+      synchronizationSucc(synchronization) =
+        globalDeclarations.declare(procedure(
+          args = classes.map(cls => synchronPortVariable((synchronization, cls))),
+          body = Some(Block(initBlock ++ exhales ++ inhales)),
+          requires = UnitAccountedPredicate(precondition),
+          ensures = UnitAccountedPredicate(postcondition),
+          blame = ???, // synchronization
+          contractBlame = ???
+        )(null))
 
     case _: BipPortSynchronization[Pre] => throw Unreachable("Should be translated away at this point")
 
