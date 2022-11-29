@@ -889,7 +889,7 @@ final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implic
 }
 
 final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
-final case class BipTransitionSignature[G](portName: String, sourceStateName: String, targetStateName: String, textualGuard: Option[String])(implicit val o: Origin) extends NodeFamily[G]
+final case class BipTransitionSignature[G](portName: String, sourceStateName: String, targetStateName: String, textualGuard: Option[String])(implicit val o: Origin) extends NodeFamily[G] with BipTransitionSignatureImpl[G]
 final class BipTransition[G](val signature: BipTransitionSignature[G],
                              val port: Ref[G, BipPort[G]],
                              val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
@@ -909,7 +909,8 @@ final case class BipEnforceable[G]()(implicit val o: Origin = DiagnosticOrigin) 
 final case class BipSpontaneous[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 
-final case class BipSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipSynchronizationImpl[G]
+final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
+final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

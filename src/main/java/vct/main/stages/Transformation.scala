@@ -13,7 +13,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
-import vct.col.rewrite.bip.{BIP, ComputeBipGlue, EncodeBip, EncodeBipPermissions}
+import vct.col.rewrite.bip.{BIP, ComputeBipGlue, EncodeBip, EncodeBipPermissions, InstantiateBipSynchronizations}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -155,6 +155,7 @@ case class SilverTransformation
   checkSat: Boolean = true,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     ComputeBipGlue,
+    InstantiateBipSynchronizations,
     EncodeBipPermissions,
     EncodeBip.withArg(bipResults),
 

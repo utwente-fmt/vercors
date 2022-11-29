@@ -156,11 +156,13 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
   var componentToClass: Map[BipComponent[Pre], Class[Pre]] = Map()
 
+  def portToClass(p: BipPort[Pre]): Class[Pre] = componentToClass(portToComponent(p))
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
   val incomingDataSucc: SuccessionMap[(Declaration[Pre], BipIncomingData[Pre]), Variable[Post]] = SuccessionMap()
   val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
+  val synchronizationSucc: SuccessionMap[BipPortSynchronization[Pre], Procedure[Post]] = SuccessionMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     p.subnodes.foreach {
@@ -340,7 +342,35 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         }
       }
 
-    case synchronization: BipSynchronization[Pre] =>
+    case synchronization: BipPortSynchronization[Pre] if synchronization.wires.isEmpty =>
+      implicit val o = DiagnosticOrigin
+      val sync = synchronization
+      val ports = synchronization.ports.map(_.decl)
+      val synchronPortVariable: SuccessionMap[(BipPortSynchronization[Pre], BipPort[Pre]), Variable[Post]] = SuccessionMap()
+
+      ports.foreach { port =>
+        synchronPortVariable((sync, port)) = new Variable(TClass(succ(portToClass(port))))
+      }
+
+      def portLocal(p: BipPort[Pre]): Local[Post] = synchronPortVariable((synchronization, p)).get
+
+      synchronization.drop()
+
+//      synchronizationSucc(synchronization) =
+//        globalDeclarations.declare(new Procedure(
+//          TVoid(),
+//          ports.map(p => synchronPortVariable((sync, p))),
+//          Nil, Nil, Some(Block(Seq(
+//
+//          ))),
+//          contract(
+//            requires = ???,
+//            ensures = ???,
+//            blame = ???
+//          )
+//        )(null))
+
+    case synchronization: BipPortSynchronization[Pre] =>
       synchronization.drop()
       logger.warn(s"Dropping synchronization at ${synchronization.o.shortPosition}")
 

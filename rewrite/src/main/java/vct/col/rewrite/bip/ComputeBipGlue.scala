@@ -6,7 +6,7 @@ import org.sosy_lab.java_smt.SolverContextFactory.Solvers
 import org.sosy_lab.java_smt.api.SolverContext.ProverOptions
 import org.sosy_lab.java_smt.api.{BooleanFormula, BooleanFormulaManager, SolverContext}
 import org.sosy_lab.java_smt.utils.PrettyPrinter
-import vct.col.ast.{BipData, BipGlue, BipGlueAccepts, BipGlueDataWire, BipGlueRequires, BipIncomingData, BipOutgoingData, BipPort, BipSynchronization, BipTransition, Class, ClassDeclaration, Declaration, Expr, Node, Program}
+import vct.col.ast.{BipData, BipGlue, BipGlueAccepts, BipGlueDataWire, BipGlueRequires, BipIncomingData, BipOutgoingData, BipPort, BipPortSynchronization, BipTransition, Class, ClassDeclaration, Declaration, Expr, Node, Program}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
@@ -172,7 +172,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     }
   }
 
-  def computeGlue(glue: BipGlue[Pre]): Seq[BipSynchronization[Pre]] = {
+  def computeGlue(glue: BipGlue[Pre]): Seq[BipPortSynchronization[Pre]] = {
     val relevantDecls: Set[ClassDeclaration[Pre]] = glue.transSubnodes.collect {
       case BipGlueRequires(Ref(port), requires) =>
         port +: requires.map(_.decl)
@@ -259,7 +259,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
         logger.debug("=== End of formula: all BIP constraints ===")
         formulas.foreach(prover.addConstraint)
 
-        val synchronizations: mutable.ArrayBuffer[BipSynchronization[Pre]] = mutable.ArrayBuffer()
+        val synchronizations: mutable.ArrayBuffer[BipPortSynchronization[Pre]] = mutable.ArrayBuffer()
         while (!prover.isUnsat) {
           val (synchronization, modelFormula) = Using(prover.getModel()) { model =>
             val enabledPorts = ports.filter { port => model.evaluate(bipSmt.get(port)) }.map(_.ref)
@@ -268,7 +268,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
             val modelFormula: BooleanFormula = bipSmt.bm.and(
               allVars.map { v => bipSmt.bm.equivalence(v, bipSmt.bm.makeBoolean(model.evaluate(v))) } : _*)
 
-            (new BipSynchronization[Pre](enabledPorts, enabledWires), modelFormula)
+            (new BipPortSynchronization[Pre](enabledPorts, enabledWires), modelFormula)
           }.get
 
           logger.debug(synchronization.summarize)
