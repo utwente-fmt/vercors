@@ -146,8 +146,10 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
     }
   }
 
+  var program: Program[Pre] = null
+
   var procConstructorInfo: mutable.Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = mutable.Map()
-  var replaceThis: ScopedStack[(ThisObject[Pre], Result[Post])] = ScopedStack()
+  var replaceThis: ScopedStack[(ThisObject[Pre], Expr[Post])] = ScopedStack()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
   val currentBipDeclaration: ScopedStack[Declaration[Pre]] = ScopedStack()
@@ -156,15 +158,25 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   var portToTransitions: Map[BipPort[Pre], Seq[BipTransition[Pre]]] = Map()
   var componentToClass: Map[BipComponent[Pre], Class[Pre]] = Map()
 
+  lazy val classes = program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
+  lazy val transitionToClass: Map[BipTransition[Pre], Class[Pre]] = classes.flatMap { c =>
+    c.transSubnodes.collect { case transition: BipTransition[Pre] => (transition, c) }
+  }.toMap
+  lazy val transitionToComponent: Map[BipTransition[Pre], BipComponent[Pre]] = transitionToClass.toIndexedSeq.map { case (t, cls) =>
+    (t, cls.transSubnodes.collectFirst { case component: BipComponent[Pre] => component }.get)
+  }.toMap
+
   def portToClass(p: BipPort[Pre]): Class[Pre] = componentToClass(portToComponent(p))
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
   val incomingDataSucc: SuccessionMap[(Declaration[Pre], BipIncomingData[Pre]), Variable[Post]] = SuccessionMap()
   val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
-  val synchronizationSucc: SuccessionMap[BipPortSynchronization[Pre], Procedure[Post]] = SuccessionMap()
+  val synchronizationSucc: SuccessionMap[BipTransitionSynchronization[Pre], Procedure[Post]] = SuccessionMap()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
+    program = p
+
     p.subnodes.foreach {
       case IsBipComponent(cls, component) =>
         component.constructors.foreach { p => procConstructorInfo(p.decl) = (cls, component) }
@@ -342,24 +354,63 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         }
       }
 
-    case synchronization: BipPortSynchronization[Pre] if synchronization.wires.isEmpty =>
+    case synchronization: BipTransitionSynchronization[Pre] =>
       implicit val o = DiagnosticOrigin
-      val sync = synchronization
-      val ports = synchronization.ports.map(_.decl)
-      val synchronPortVariable: SuccessionMap[(BipPortSynchronization[Pre], BipPort[Pre]), Variable[Post]] = SuccessionMap()
+      val classes = synchronization.transitions.map(t => transitionToClass(t.decl))
+      val synchronPortVariable: SuccessionMap[(BipTransitionSynchronization[Pre], Class[Pre]), Variable[Post]] = SuccessionMap()
 
-      ports.foreach { port =>
-        synchronPortVariable((sync, port)) = new Variable(TClass(succ(portToClass(port))))
+      classes.foreach { cls =>
+        synchronPortVariable((synchronization, cls)) = new Variable(TClass(succ[Class[Post]](cls)))
       }
 
-      def portLocal(p: BipPort[Pre]): Local[Post] = synchronPortVariable((synchronization, p)).get
-
       synchronization.drop()
+
+      /* - Pre:
+           - Of each class var of transition:
+             - Non null
+             - Component invariant
+             - State invariant
+             - Guard
+        */
+      val precondition: Expr[Post] = foldAnd(synchronization.transitions.map { case Ref(transition) =>
+        val cls = transitionToClass(transition)
+        val component = transitionToComponent(transition)
+        val clsVar = synchronPortVariable((synchronization, cls)).get
+        val clsThisSubst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), ThisObject[Post](succ[Class[Post]](cls)))
+
+        replaceThis.having(clsThisSubst) {
+          (clsVar !== null) &**
+            dispatch(component.invariant) &**
+            dispatch(transition.source.decl.expr) &**
+            dispatch(transition.guard)
+        }
+      })
+
+      val x = 3
+      ???
+
+      /*
+      - Evaluate data wires and assign to var representing output data. Make mapping from data wire to output data var
+      - Of each class var of transition:
+        - Exhale, with class var & data wires substituted in:
+          - component invariant
+          - start state invariant
+          - precondition
+        - Inhale, with class var & data wires substituted in:
+          - component invariant
+          - end state invariant
+          - postcondition
+      - Post:
+        - Of each class var of transition:
+          - Component invariant
+          - New state invariant
+       */
+
 
 //      synchronizationSucc(synchronization) =
 //        globalDeclarations.declare(new Procedure(
 //          TVoid(),
-//          ports.map(p => synchronPortVariable((sync, p))),
+//          classes.map(cls => synchronPortVariable((synchronization, cls))),
 //          Nil, Nil, Some(Block(Seq(
 //
 //          ))),
@@ -370,9 +421,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 //          )
 //        )(null))
 
-    case synchronization: BipPortSynchronization[Pre] =>
-      synchronization.drop()
-      logger.warn(s"Dropping synchronization at ${synchronization.o.shortPosition}")
+    case _: BipPortSynchronization[Pre] => throw Unreachable("Should be translated away at this point")
 
     case _ => rewriteDefault(decl)
   }
