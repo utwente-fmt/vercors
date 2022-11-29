@@ -14,6 +14,7 @@ import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 import scala.::
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case object InstantiateBipSynchronizations extends RewriterBuilder {
   override def key: String = "instantiateBipSynchronizations"
@@ -21,24 +22,23 @@ case object InstantiateBipSynchronizations extends RewriterBuilder {
 }
 
 case class InstantiateBipSynchronizations[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
-  import vct.col.rewrite.bip.InstantiateBipSynchronizations._
-
   var program: Program[Pre] = null
-  lazy val ports: Seq[BipPort[Pre]] = program.transSubnodes.collect { case p: BipPort[Pre] => p }
+  lazy val ports: IndexedSeq[BipPort[Pre]] = program.transSubnodes.collect { case p: BipPort[Pre] => p }.toIndexedSeq
   lazy val portToTransitions: ListMap[BipPort[Pre], Seq[BipTransition[Pre]]] = {
     ListMap.from(ports.map { port =>
-      (port, program.transSubnodes.collect { case t: BipTransition[Pre] if t.port.decl == port => t })
+      (port, program.transSubnodes.collect { case t: BipTransition[Pre] if t.port.decl == port => t }.toIndexedSeq)
     })
   }
+  lazy val portSynchrons = program.transSubnodes.collect { case s: BipPortSynchronization[Pre] => s }.toIndexedSeq
 
-  var convertedSynchronizations = 0
-  var resultingSynchronizations = 0
+  val transitionSynchrons = new ArrayBuffer[BipTransitionSynchronization[Post]]()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     this.program = program
     val p = super.dispatch(program)
-    if (convertedSynchronizations > 0) {
-      logger.info(s"Converted $convertedSynchronizations port synchronizations into $resultingSynchronizations transition synchronizations")
+    if (transitionSynchrons.nonEmpty) {
+      logger.info(s"Converted ${portSynchrons.size} port synchronizations into ${transitionSynchrons.size} transition synchronizations")
+      transitionSynchrons.foreach(t => logger.debug(t.summarize))
     }
     p
   }
@@ -52,16 +52,14 @@ case class InstantiateBipSynchronizations[Pre <: Generation]() extends Rewriter[
       elem.flatMap(e => tails.map(t => e +: t))
   }
 
-
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case sync: BipPortSynchronization[Pre] =>
       val wires = sync.wires.map(dispatch)
       val transitionSets = pickOneFromEach(sync.ports.map { case Ref(port) => portToTransitions(port) })
-      convertedSynchronizations += 1
-      resultingSynchronizations += transitionSets.size
-      transitionSets.map { transitions =>
-        globalDeclarations.declare(BipTransitionSynchronization[Post](transitions.map(succ[BipTransition[Post]](_)), wires))
+      val newSyncs = transitionSets.map { transitions =>
+        globalDeclarations.declare(BipTransitionSynchronization[Post](transitions.map(t => succ[BipTransition[Post]](t)), wires))
       }
+      transitionSynchrons.addAll(newSyncs)
       sync.drop()
 
     case _ => rewriteDefault(decl)

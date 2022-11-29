@@ -1343,6 +1343,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case glue: JavaBipGlueContainer[Pre] => glue
       case glue: BipGlue[Pre] => glue
       case synchronization: BipPortSynchronization[Pre] => synchronization
+      case synchronization: BipTransitionSynchronization[Pre] => synchronization
     }
   }
 

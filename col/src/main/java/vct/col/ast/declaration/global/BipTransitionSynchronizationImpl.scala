@@ -1,6 +1,6 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.{BipPortSynchronization, BipTransitionSynchronization}
+import vct.col.ast.BipTransitionSynchronization
 
 trait BipTransitionSynchronizationImpl[G] { this: BipTransitionSynchronization[G] =>
   def summarize: String = {
