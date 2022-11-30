@@ -132,6 +132,10 @@ case object Options {
         .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
         .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds. Implies --dev-silicon-num-verifiers 1"),
 
+      opt[PathOrStd]("bip-report-file").valueName("<path>")
+        .action((p, c) => c.copy(bipReportFile = Some(p)))
+        .text("Write JavaBIP verification report to file, or standard out if \"-\" is used"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -318,6 +322,8 @@ case class Options
 
   siliconPrintQuantifierStats: Option[Int] = None,
 
+  bipReportFile: Option[PathOrStd] = None,
+
   // Verify options - hidden
   devAbruptExc: Boolean = false,
   devCheckSat: Boolean = true,
@@ -331,7 +337,6 @@ case class Options
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
-
 
   devCarbonBoogieLogFile: Option[Path] = None,
 

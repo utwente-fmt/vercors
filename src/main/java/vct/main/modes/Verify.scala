@@ -78,12 +78,12 @@ case object Verify extends LazyLogging {
         EXIT_CODE_ERROR
       case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")
-        logger.info(s"BIP report:\n${report.toJson()}")
+        options.bipReportFile.foreach(f => f.write(w => w.write(report.toJson())))
         EXIT_CODE_SUCCESS
       case Right((fails, report)) =>
         if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
         else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-        logger.info(s"BIP report:\n${report.toJson()}")
+        options.bipReportFile.foreach(f => f.write(w => w.write(report.toJson())))
         EXIT_CODE_VERIFICATION_FAILURE
     }
   }
