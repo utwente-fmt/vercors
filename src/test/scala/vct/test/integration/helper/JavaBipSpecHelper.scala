@@ -35,7 +35,7 @@ abstract class JavaBipSpecHelper extends VercorsSpec {
       }
 
       val err = Seq(codeCheck, reportCheck).mkString(" ")
-      if (err.nonEmpty) {
+      if (err.strip().nonEmpty) {
         fail(s"Test completed with an unexpected result. $err")
       }
     }
