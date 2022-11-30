@@ -636,7 +636,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (right, TBag(rightT)) = bag(ys)
         val sharedElement = Types.leastCommonSuperType(leftT, rightT)
         BagMinus(coerce(left, TBag(sharedElement)), coerce(right, TBag(sharedElement)))
-      case bgi @ BipGuardInvocation(_) => bgi
+      case bgi @ BipGuardInvocation(obj, ref) =>
+        BipGuardInvocation(cls(obj), ref)
       case BitAnd(left, right) =>
         BitAnd(int(left), int(right))
       case BitNot(arg) =>

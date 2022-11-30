@@ -17,12 +17,12 @@ import static casino.Constants.*;
 @StatePredicate(state = PUT_FUNDS, expr = "amountToMove >= 0")
 @StatePredicate(state = WITHDRAW_FUNDS, expr = "0 <= amountToMove && amountToMove <= pot")
 public class Operator {
-    final int id;
+    final Integer id;
     int wallet;
     int pot;
     int amountToMove;
 
-    Operator (int id, int funds) {
+    Operator (Integer id, int funds) {
         this.id = id;
         wallet = funds;
         amountToMove = 0;
@@ -80,7 +80,7 @@ public class Operator {
 
     @Pure
     @Data(name = ID)
-    public int id() {
+    public Integer id() {
         return id;
     }
 }

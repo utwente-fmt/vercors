@@ -152,7 +152,10 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def local(local: JavaLocal[Pre]): Expr[Post] = {
     val Some(RefJavaBipGuard(method)) = local.ref
-    BipGuardInvocation(javaMethodSuccGuard.ref[Post, BipGuard[Post]](method))(local.o)
+    BipGuardInvocation(
+      ThisObject(rw.java.javaInstanceClassSuccessor.ref[Post, Class[Post]](rw.java.currentJavaClass.top))(local.o),
+      javaMethodSuccGuard.ref[Post, BipGuard[Post]](method)
+    )(local.o)
   }
 
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {
