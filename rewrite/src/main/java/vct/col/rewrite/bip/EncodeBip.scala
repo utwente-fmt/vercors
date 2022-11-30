@@ -21,7 +21,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   override def key: String = "encodeBip"
   override def desc: String = "encodes BIP semantics explicitly"
 
-  object IsBipComponent {
+  object ClassBipComponent {
     def unapply[G](cls: Class[G]): Option[(Class[G], BipComponent[G])] = {
       cls.declarations.collectFirst({
         case bc: BipComponent[G] => (cls, bc)
@@ -149,18 +149,16 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   var program: Program[Pre] = null
 
   var replaceThis: ScopedStack[(ThisObject[Pre], Expr[Post])] = ScopedStack()
-  var replaceDataIns: ScopedStack[Map[BipIncomingData[Pre], Expr[Post]]] = ScopedStack()
 
-  var procConstructorInfo: mutable.Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = mutable.Map()
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
   val currentBipDeclaration: ScopedStack[Declaration[Pre]] = ScopedStack()
 
   lazy val classes = program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
-  lazy val components = classes.collect { case IsBipComponent(cls, component) => component }
+  lazy val components = classes.collect { case ClassBipComponent(cls, component) => component }
   lazy val allPorts = classes.flatMap { cls => cls.declarations.collect { case port: BipPort[Pre] => port } }
   lazy val transitionToClassComponent: Map[BipTransition[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
-    case IsBipComponent(cls, component) =>
+    case ClassBipComponent(cls, component) =>
       cls.declarations.collect { case transition: BipTransition[Pre] => (transition, (cls, component)) }
   }.flatten.toMap
   lazy val dataToClass: Map[BipData[Pre], Class[Pre]] = classes.flatMap { cls =>
@@ -170,10 +168,10 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
     cls.declarations.collect { case guard: BipGuard[Pre] => (guard, cls) }
   }.toMap
   lazy val componentToClass: Map[BipComponent[Pre], Class[Pre]] = classes.collect {
-    case IsBipComponent(cls, component) => (component, cls)
+    case ClassBipComponent(cls, component) => (component, cls)
   }.toMap
   lazy val procedureToClassComponent: Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
-    case IsBipComponent(cls, component) => component.constructors.map { case Ref(constructor) =>
+    case ClassBipComponent(cls, component) => component.constructors.map { case Ref(constructor) =>
       (constructor, (cls, component))
     }
   }.flatten.toMap
@@ -189,6 +187,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   def classOf(d: BipData[Pre]): Class[Pre] = dataToClass(d)
   def componentOf(p: Procedure[Pre]): BipComponent[Pre] = procedureToClassComponent(p)._2
   def componentOf(t: BipTransition[Pre]): BipComponent[Pre] = transitionToClassComponent(t)._2
+  def isComponentConstructor(p: Procedure[Pre]): Boolean = procedureToClassComponent.contains(p)
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
@@ -208,19 +207,36 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
     }
     case (l @ BipLocalIncomingData(Ref(data)), Some(decl)) =>
       Local(incomingDataSucc.ref[Post, Variable[Post]]((decl, data)))(l.o)
-    case (inv @ BipGuardInvocation(Ref(guard)), Some(decl @ (_: BipTransition[Pre] | _: BipTransitionSynchronization[Pre]))) =>
+
+    case (inv @ BipGuardInvocation(Ref(guard)), Some(bt: BipTransition[Pre])) =>
+      /* TODO: cases for BipGuardInvocation in BipTransition, and in BipTransitionSynchronization, are slightly different. Can they be unified?
+               Guards in general are compiled into instance method invocations. Between Transition & Synchronization, they are different in
+               how the receiver is determined. For transitions, the receiver is "this". For synchronization, the receiver is the variable that represents
+               the class instance of the port that is firing. There is tension here in the transformation becuase we have to resolve the implicit "this".
+               Solution: Make the this explicit as early as possible.
+       */
       MethodInvocation(
         obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
         ref = guardSucc.ref[Post, InstanceMethod[Post]](guard),
         args = guard.data.map{ case Ref(data) =>
-          Local(incomingDataSucc.ref[Post, Variable[Post]](decl, data))(inv.o)
+          Local(incomingDataSucc.ref[Post, Variable[Post]](bt, data))(inv.o)
         },
         Nil, Nil, Nil, Nil
-//      )(BipGuardInvocationFailed(bt))(expr.o)
-        )(PanicBlame("Guard invocation should be safe"))(expr.o) // TODO: Should this maybe be a proper blame after all? I don't think it can fail...
+      )(BipGuardInvocationFailed(bt))(expr.o)
+    case (inv @ BipGuardInvocation(Ref(guard)), Some(bts: BipTransitionSynchronization[Pre])) =>
+      MethodInvocation(
+        obj = ThisObject(succ[Class[Post]](currentClass.top))(expr.o),
+        ref = guardSucc.ref[Post, InstanceMethod[Post]](guard),
+        args = guard.data.map{ case Ref(data) =>
+          Local(incomingDataSucc.ref[Post, Variable[Post]](bts, data))(inv.o)
+        },
+        Nil, Nil, Nil, Nil
+      )(PanicBlame("Guard invocation should be safe"))(expr.o) // TODO: Should this maybe be a proper blame after all? I don't think it can fail...
+
     case (inv @ BipGuardInvocation(_), _) =>
-      // Bip guard invocations can only be done by bip transitions
+      // Bip guard invocations can only be done by bip transitions, or inside synchrons
       throw Unreachable(inv.o.messageInContext("Bug: the following guard is unexpectedly called outside transition context"))
+
     case _ => rewriteDefault(expr)
   }
 
@@ -276,23 +292,22 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         }
       }
 
-    case cls: Class[Pre] =>
+    case ClassBipComponent(cls, component) =>
       currentClass.having(cls) {
-        cls.declarations.collectFirst { case bc: BipComponent[Pre] => bc } match {
-          case Some(component) => currentComponent.having(component) {
-            rewriteDefault(cls)
-          }
-          case None => rewriteDefault(cls)
+        currentComponent.having(component) {
+          rewriteDefault(cls)
         }
       }
 
-    case proc: Procedure[Pre] if procConstructorInfo.contains(proc) =>
-      val (cls, component) = procConstructorInfo(proc)
+    case cls: Class[Pre] => currentClass.having(cls) { rewriteDefault(cls) }
+
+    case proc: Procedure[Pre] if isComponentConstructor(proc) =>
+      val component = componentOf(proc)
       results.declare(component)
       implicit val o = DiagnosticOrigin
       currentBipDeclaration.having(component) {
         withResult { res: Result[Post] =>
-          val subst = (ThisObject[Pre](cls.ref)(DiagnosticOrigin), res)
+          val subst = (ThisObject[Pre](classOf(proc).ref)(DiagnosticOrigin), res)
           val contract = proc.contract.rewrite(
             ensures =
             // Establish component invariant
