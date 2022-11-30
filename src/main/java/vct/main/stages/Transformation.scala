@@ -107,10 +107,10 @@ class Transformation
 
       result = pass().dispatch(result)
 
-      result.check match {
-        case Nil => // ok
-        case errors => throw TransformationCheckError(pass.key, errors)
-      }
+//      result.check match {
+//        case Nil => // ok
+//        case errors => throw TransformationCheckError(pass.key, errors)
+//      }
 
       onAfterPassKey.foreach {
         case (key, action) => if(pass.key == key) action(result)

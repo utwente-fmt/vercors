@@ -14,10 +14,10 @@ import static casino.Constants.*;
 @Port(name = PLAYER_WIN, type = PortType.enforceable)
 
 @ComponentType(initial = IDLE, name = CASINO_SPEC)
-@Invariant("bet >= 0 && pot >= bet")
+@Invariant("secretNumber != null && bet >= 0 && pot >= bet") // TODO: Moved secretNumber to global invariant, different from original
 @StatePredicate(state = IDLE, expr = "bet == 0")
-@StatePredicate(state = GAME_AVAILABLE, expr = "secretNumber != null && bet == 0")
-@StatePredicate(state = BET_PLACED, expr = "secretNumber != null && guess != null")
+@StatePredicate(state = GAME_AVAILABLE, expr = "bet == 0")
+@StatePredicate(state = BET_PLACED, expr = "guess != null")
 public class Casino {
     final int id;
     int operator;
@@ -35,6 +35,7 @@ public class Casino {
         pot = 0;
         bet = 0;
         System.out.println("CASINO" + id + ": INITIALIZED");
+        secretNumber = new Integer(-1); // TODO: Different from original
     }
 
     // Add money to pot

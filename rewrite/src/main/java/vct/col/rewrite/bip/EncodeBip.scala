@@ -139,6 +139,21 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     override def inlineContext: String = wire.o.inlineContext
     override def shortPosition: String = wire.o.shortPosition
   }
+
+  case class BipSynchronizationOrigin(s: BipTransitionSynchronization[_]) extends Origin {
+    override def preferredName: String = "synchron___" +
+      s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_")
+    override def context: String = s.o.context
+    override def inlineContext: String = s.o.inlineContext
+    override def shortPosition: String = s.o.shortPosition
+  }
+
+  case class SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]) extends Origin {
+    override def preferredName: String = c.fqn.mkString(".")
+    override def context: String = s.o.context
+    override def inlineContext: String = s.o.inlineContext
+    override def shortPosition: String = s.o.shortPosition
+  }
 }
 
 case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Rewriter[Pre] with LazyLogging {
@@ -374,7 +389,8 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
            We define those variables/arguments here.
          */
         val varOf: Map[Declaration[Pre], Local[Post]] = transitions.flatMap { transition =>
-          val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition))))
+          val v = new Variable[Post](TClass(succ[Class[Post]](classOf(transition))))(
+            SynchronizationComponentVariableOrigin(synchronization, componentOf(transition)))
           Seq((transition, v.get), (classOf(transition), v.get))
         }.toMap
 
@@ -496,7 +512,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
             ensures = UnitAccountedPredicate(postcondition),
             blame = PanicBlame("Can this contract fail?"),
             contractBlame = PanicBlame("Can it be unsatisfiable?")
-          )(DiagnosticOrigin))
+          )(BipSynchronizationOrigin(synchronization)))
       }
 
     case _: BipPortSynchronization[Pre] => throw Unreachable("Should be translated away at this point")

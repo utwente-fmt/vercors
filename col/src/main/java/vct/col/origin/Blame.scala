@@ -583,16 +583,46 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
 sealed trait JavaAnnotationFailure extends VerificationFailure
 
 sealed trait BipTransitionFailure extends CallableFailure
+
+sealed trait BipTransitionContractFailure extends CallableFailure with WithContractFailure with BipTransitionFailure {
+  def transition: BipTransition[_]
+  def failure: ContractFailure
+
+  override final def node: Node[_] = transition.signature
+  def signature: BipTransitionSignature[_] = transition.signature
+
+  override def desc: String =
+    Origin.messagesInContext(Seq(
+      (signature.o, "In the following transition,"),
+      (transition.o, s"with the following update function, $descInContext,"),
+      (failure.node.o, failure.descCompletion + errUrl),
+    ))
+}
+
 case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: BipComponent[_]) extends BipTransitionFailure with WithContractFailure {
   override def baseCode: String = "bipComponentInvariantNotEstablished"
   override def descInContext: String = "In this constructor the component invariant is not established, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant cannot be established in $node, since $failure"
 }
-case class BipComponentInvariantNotMaintained(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure with WithContractFailure {
+
+//case class BipComponentInvariantNotMaintained(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure with WithContractFailure {
+//  override def baseCode: String = "bipComponentInvariantNotMaintained"
+//  override def descInContext: String = "In this transition the invariant of the component is not maintained, since"
+//  override def desc: String =
+//    Origin.messagesInContext(Seq(
+//      (node.signature.o, "Considering this BIP transition,"),
+//      (node.o, "With the following update function," + descInContext),
+//      (failure.node.o, "... " + failure.descCompletion + errUrl),
+//    ))
+//  override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant is not maintained in $node, since $failure"
+//}
+
+case class BipComponentInvariantNotMaintained(failure: ContractFailure, transition: BipTransition[_]) extends BipTransitionContractFailure {
   override def baseCode: String = "bipComponentInvariantNotMaintained"
-  override def descInContext: String = "In this transition the invariant of the component is not maintained, since"
+  override def descInContext: String = "the invariant of the component is not maintained, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant is not maintained in $node, since $failure"
 }
+
 case class BipStateInvariantNotEstablished(failure: ContractFailure, node: BipComponent[_]) extends BipTransitionFailure with WithContractFailure {
   override def baseCode: String = "bipStateInvariantNotEstablished"
   override def descInContext: String = "In this constructor the invariant of the state is not established, since"
