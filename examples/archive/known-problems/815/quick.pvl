@@ -238,11 +238,11 @@ class BubbleSort {
 					i++;
 					lemma_permutation_apply(orig_seq, out_seq, swap(out_seq, i, j, 0), i, j);
 					//swap(input[i], input[j]);
-	 				temp = input[i];
-	 				input[i] = input[j];
-	 				out_seq = out_seq[i -> input[j]];
-	 				input[j] = temp;
-	 				out_seq = out_seq[j -> temp];
+					temp = input[i];
+					input[i] = input[j];
+					out_seq = out_seq[i -> input[j]];
+					input[j] = temp;
+					out_seq = out_seq[j -> temp];
 				}
 				j++;
 				assert isApermutation(orig_seq, out_seq);

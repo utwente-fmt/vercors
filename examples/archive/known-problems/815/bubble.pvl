@@ -206,7 +206,7 @@ class BubbleSort {
 	ensures (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
 	ensures isApermutation(inp_seq, out_seq);
 	void bubble(int[] input, int size, seq<int> inp_seq){
-	    int outerLoop = 0;
+		int outerLoop = 0;
 		int innerLoop = 0;
 		int temp;
 		out_seq = inp_seq;

@@ -385,7 +385,7 @@ class BubbleSort {
 
 			insertion(input, size, loopCounter, end, out_seq) given { orig_seq = inp_seq } yields { out_seq = out_seq };
 			loopCounter= loopCounter + RUN;
-  		}
+		}
 
 		int chunk = RUN;
 		// start merging from chunk RUN (or 32). It will merge

@@ -189,8 +189,8 @@ class BubbleSort {
 	ensures ys[i -> ys[j]][j -> ys[i]] == swap(ys, i, j, 0);
 	void lemma_permutation_apply(seq<int> xs, seq<int> ys, seq<int> ts, int i, int j){
 
-			lemma_swap_permutation_all(ys, ts, i, j);
-			lemma_swap_permutation_trans(xs, ys, ts);
+		lemma_swap_permutation_all(ys, ts, i, j);
+		lemma_swap_permutation_trans(xs, ys, ts);
 
 	}
 
@@ -218,73 +218,73 @@ class BubbleSort {
 	ensures isApermutation(orig_seq, out_seq);
 	void Tomerge(int[] input, int size, int start, int mid, int end, seq<int> inp_seq)
 	{
-			out_seq = inp_seq;
+		out_seq = inp_seq;
 
-	    // If the direct merge is already sorted
-	    if (start == mid || mid == end) {
-	        return;
-	    }
+		// If the direct merge is already sorted
+		if (start == mid || mid == end) {
+			return;
+		}
 
-			int left = mid-1;
-			int right = mid;
+		int left = mid-1;
+		int right = mid;
 
-			assert left == mid-1;
-			assert right == mid;
-			assert mid-left == 1;
-			assert right - mid == 0;
-			assert right - mid +1 == mid - left;
+		assert left == mid-1;
+		assert right == mid;
+		assert mid-left == 1;
+		assert right - mid == 0;
+		assert right - mid +1 == mid - left;
 
-			loop_invariant |out_seq| == size;
-			loop_invariant left <= mid - 1  && left >= start - 1;
-			loop_invariant right >= mid && right <= end;
-			loop_invariant start >= 0 && start <= mid;
-			loop_invariant mid <= end && end <= size;
-			loop_invariant start <= end;
-			loop_invariant right - mid +1== mid - left;
-			loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-			loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
-			while (start <= left && right < end && input[left] > input[right]) {
-					left--;
-					right++;
-			}
-			assert right - mid +1 == mid - left;
-			int n = right - mid;
-			int i = 0;
-			int temp;
+		loop_invariant |out_seq| == size;
+		loop_invariant left <= mid - 1  && left >= start - 1;
+		loop_invariant right >= mid && right <= end;
+		loop_invariant start >= 0 && start <= mid;
+		loop_invariant mid <= end && end <= size;
+		loop_invariant start <= end;
+		loop_invariant right - mid +1== mid - left;
+		loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
+		loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+		while (start <= left && right < end && input[left] > input[right]) {
+			left--;
+			right++;
+		}
+		assert right - mid +1 == mid - left;
+		int n = right - mid;
+		int i = 0;
+		int temp;
 
-			assert (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+		assert (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
 
 
-			loop_invariant |out_seq| == size;
-			loop_invariant i >= 0 && i <= n;
-			loop_invariant |out_seq| == size;
-			loop_invariant left <= mid - 1  && left >= start - 1;
-			loop_invariant right >= mid && right <= end;
-			loop_invariant start >= 0 && start <= mid;
-			loop_invariant mid <= end && end <= size;
-			loop_invariant start <= end;
-			loop_invariant n == right - mid;
-			loop_invariant right - mid +1 == mid - left;
-			//loop_invariant mid+1+i < right;
-			loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
-			loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
-			loop_invariant isApermutation(orig_seq, out_seq);
-			//for (int i = 0; i < n; i++){
-			while(i < n){
-					//array.swap(mid - n + i, mid + i);
-					assert mid+i > 0;
-					assert mid+i < |out_seq|;
-				 lemma_permutation_apply(orig_seq, out_seq, swap(out_seq, mid-n+i, mid+i, 0), mid-n+i, mid+i);
- 				 temp = input[mid-n+i];
- 				 input[mid-n+i] = input[mid+i];
- 				 out_seq = out_seq[mid-n+i -> input[mid+i]];
- 				 input[mid+i] = temp;
- 				 out_seq = out_seq[mid+i -> temp];
-				 i++;
-			}
+		loop_invariant |out_seq| == size;
+		loop_invariant i >= 0 && i <= n;
+		loop_invariant |out_seq| == size;
+		loop_invariant left <= mid - 1  && left >= start - 1;
+		loop_invariant right >= mid && right <= end;
+		loop_invariant start >= 0 && start <= mid;
+		loop_invariant mid <= end && end <= size;
+		loop_invariant start <= end;
+		loop_invariant n == right - mid;
+		loop_invariant right - mid +1 == mid - left;
+		//loop_invariant mid+1+i < right;
+		loop_invariant (\forall* int k; k >= 0 && k < size; Perm(input[k], write));
+		loop_invariant (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
+		loop_invariant isApermutation(orig_seq, out_seq);
+		//for (int i = 0; i < n; i++){
+		while(i < n){
+			//array.swap(mid - n + i, mid + i);
+			assert mid+i > 0;
+			assert mid+i < |out_seq|;
+			lemma_permutation_apply(orig_seq, out_seq, swap(out_seq, mid-n+i, mid+i, 0), mid-n+i, mid+i);
+			temp = input[mid-n+i];
+			input[mid-n+i] = input[mid+i];
+			out_seq = out_seq[mid-n+i -> input[mid+i]];
+			input[mid+i] = temp;
+			out_seq = out_seq[mid+i -> temp];
+			i++;
+		}
 
-			Tomerge(input, size, start, left+1, mid, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
-			Tomerge(input, size, mid, right, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+		Tomerge(input, size, start, left+1, mid, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+		Tomerge(input, size, mid, right, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
 	}
 
 	given seq<int> orig_seq;
@@ -302,20 +302,20 @@ class BubbleSort {
 	ensures isApermutation(orig_seq, out_seq);
 	void mergeSort(int[] input, int size, int start, int end, seq<int> inp_seq) /* l is for left index and r is right index of the sub-array of arr to be sorted */
 	{
-			out_seq = inp_seq;
-	    if (end - start <= 1) {
-				return;
-			}
+		out_seq = inp_seq;
+		if (end - start <= 1) {
+			return;
+		}
 
-	    // Same as (l + r) / 2, but avoids overflow
-	    // for large l and r
-	    int mid = start + (end - start) / 2; //(start+end) / 2;
+		// Same as (l + r) / 2, but avoids overflow
+		// for large l and r
+		int mid = start + (end - start) / 2; //(start+end) / 2;
 
-	    // Sort first and second halves
-	    mergeSort(input, size, start, mid, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
-	    mergeSort(input, size, mid+1, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+		// Sort first and second halves
+		mergeSort(input, size, start, mid, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+		mergeSort(input, size, mid+1, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
 
-	    Tomerge(input, size, start, mid, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
+		Tomerge(input, size, start, mid, end, out_seq) given { orig_seq = orig_seq } yields { out_seq = out_seq };
 	}
 
 	yields seq<int> out_seq;
@@ -331,7 +331,7 @@ class BubbleSort {
 	ensures (\forall int k; 0 <= k && k < size; input[k] == out_seq[k]);
 	ensures isApermutation(inp_seq, out_seq);
 	void main(int[] input, int size, int l, int r, seq<int> inp_seq){
-	  l = 0;
+		l = 0;
 		r = size;
 		mergeSort(input, size, l, r, inp_seq) given { orig_seq = inp_seq } yields { out_seq = out_seq };
 	}

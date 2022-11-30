@@ -212,19 +212,19 @@ class BubbleSort {
 		out_seq = inp_seq;
 
 		loop_invariant outerLoop >= 1 && outerLoop <= size;
-        loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
-        loop_invariant |out_seq| == size;
-        loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
-        loop_invariant isApermutation(inp_seq, out_seq);
+		loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
+		loop_invariant |out_seq| == size;
+		loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+		loop_invariant isApermutation(inp_seq, out_seq);
 		while(outerLoop < size){
 				innerLoop = outerLoop;
 
 				loop_invariant outerLoop >= 1 && outerLoop < size;
 				loop_invariant innerLoop >= 0 && innerLoop <= outerLoop;
 				loop_invariant (\forall* int i; i >= 0 && i < size; Perm(input[i], write));
-                loop_invariant |out_seq| == size;
-                loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
-                loop_invariant isApermutation(inp_seq, out_seq);
+				loop_invariant |out_seq| == size;
+				loop_invariant (\forall int i; 0 <= i && i < size; input[i] == out_seq[i]);
+				loop_invariant isApermutation(inp_seq, out_seq);
 				while(innerLoop > 0 && input[innerLoop-1] > input[innerLoop]){
 					lemma_permutation_apply(inp_seq, out_seq, swap(out_seq, innerLoop-1, innerLoop, 0), innerLoop-1, innerLoop);
 
