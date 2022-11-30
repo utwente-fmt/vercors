@@ -184,7 +184,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
     val classes = program.collect {
       case cls: Class[Pre] if cls.declarations.exists(relevantDecls.contains) => cls
     }.toIndexedSeq
-    val ports = classes.flatMap { cls => cls.declarations.collect {
+    val ports = classes.flatMap { cls => cls.declarations.collect { // TODO: Use common one for ports
       case port: BipPort[Pre] => port
     }}
 
