@@ -582,9 +582,10 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
 
 sealed trait JavaAnnotationFailure extends VerificationFailure
 
+sealed trait BipConstructorFailure extends CallableFailure
 sealed trait BipTransitionFailure extends CallableFailure
 
-sealed trait BipTransitionContractFailure extends CallableFailure with WithContractFailure with BipTransitionFailure {
+sealed trait BipTransitionContractFailure extends BipTransitionFailure with WithContractFailure {
   def transition: BipTransition[_]
   def failure: ContractFailure
 
@@ -599,23 +600,17 @@ sealed trait BipTransitionContractFailure extends CallableFailure with WithContr
     ))
 }
 
-case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: BipComponent[_]) extends BipTransitionFailure with WithContractFailure {
+case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: Procedure[_]) extends BipConstructorFailure with WithContractFailure {
   override def baseCode: String = "bipComponentInvariantNotEstablished"
   override def descInContext: String = "In this constructor the component invariant is not established, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant cannot be established in $node, since $failure"
 }
 
-//case class BipComponentInvariantNotMaintained(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure with WithContractFailure {
-//  override def baseCode: String = "bipComponentInvariantNotMaintained"
-//  override def descInContext: String = "In this transition the invariant of the component is not maintained, since"
-//  override def desc: String =
-//    Origin.messagesInContext(Seq(
-//      (node.signature.o, "Considering this BIP transition,"),
-//      (node.o, "With the following update function," + descInContext),
-//      (failure.node.o, "... " + failure.descCompletion + errUrl),
-//    ))
-//  override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant is not maintained in $node, since $failure"
-//}
+case class BipStateInvariantNotEstablished(failure: ContractFailure, node: Procedure[_]) extends BipConstructorFailure with WithContractFailure {
+  override def baseCode: String = "bipStateInvariantNotEstablished"
+  override def descInContext: String = "In this constructor the invariant of the state is not established, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"The state invariant is not established in $node, since $failure"
+}
 
 case class BipComponentInvariantNotMaintained(failure: ContractFailure, transition: BipTransition[_]) extends BipTransitionContractFailure {
   override def baseCode: String = "bipComponentInvariantNotMaintained"
@@ -623,26 +618,18 @@ case class BipComponentInvariantNotMaintained(failure: ContractFailure, transiti
   override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant is not maintained in $node, since $failure"
 }
 
-case class BipStateInvariantNotEstablished(failure: ContractFailure, node: BipComponent[_]) extends BipTransitionFailure with WithContractFailure {
-  override def baseCode: String = "bipStateInvariantNotEstablished"
-  override def descInContext: String = "In this constructor the invariant of the state is not established, since"
-  override def inlineDescWithSource(node: String, failure: String): String = s"The state invariant is not established in $node, since $failure"
-}
-case class BipStateInvariantNotMaintained(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure with WithContractFailure {
+case class BipStateInvariantNotMaintained(failure: ContractFailure, transition: BipTransition[_]) extends BipTransitionContractFailure {
   override def baseCode: String = "bipStateInvariantNotMaintained"
-  override def descInContext: String = "In this transition the invariant of the state is not maintained, since"
+  override def descInContext: String = "the invariant of the state is not maintained, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The state invariant is not maintained in $node, since $failure"
 }
-case class BipTransitionPostconditionFailure(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure with WithContractFailure {
+
+case class BipTransitionPostconditionFailure(failure: ContractFailure, transition: BipTransition[_]) extends BipTransitionContractFailure {
   override def baseCode: String = "bipTransitionPostconditionFailure"
-  override def descInContext: String = "The postcondition of the transition is not maintained, since"
+  override def descInContext: String = "the postcondition does not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The postcondition of $node does not hold, since $failure"
 }
-case class BipGuardInvocationFailure(failure: ContractFailure, node: BipTransition[_]) extends BipTransitionFailure with WithContractFailure {
-  override def baseCode: String = "bipTransitionGuardInvocation"
-  override def descInContext: String = "Invocation of transition guard in precondition of transition failed, since"
-  override def inlineDescWithSource(node: String, failure: String): String = s"The precondition of $node does not hold, since $failure"
-}
+
 case class BipTransitionPreconditionUnsatisfiable(node: BipTransition[_]) extends BipTransitionFailure with NodeVerificationFailure {
   override def code: String = "bipTransitionPreconditionUnsatisfiable"
   override def descInContext: String = "The precondition of this transition is unsatisfiable"
@@ -662,11 +649,6 @@ case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends BipGuard
   override def code: String = "bipGuardPreconditionUnsatisfiable"
   override def descInContext: String = "The precondition of this guard (consisting of only the component invariant) is unsatisfiable"
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for guard `$source`"
-}
-case class BipGuardPostconditionFailure(failure: ContractFailure, node: BipGuard[_]) extends BipGuardFailure with NodeVerificationFailure {
-  override def code: String = ???
-  override def descInContext: String = ???
-  override def inlineDescWithSource(source: String): String = ???
 }
 
 trait Blame[-T <: VerificationFailure] {

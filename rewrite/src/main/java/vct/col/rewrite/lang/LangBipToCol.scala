@@ -173,7 +173,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     javaMethodSuccGuard(m) = rw.classDeclarations.declare(new BipGuard[Post](
       m.parameters.map(rewriteParameter),
       rw.dispatch(m.body.get),
-      tt, true
+      true
     )(m.blame)(SourceNameOrigin(m.name, m.o)))
   }
 

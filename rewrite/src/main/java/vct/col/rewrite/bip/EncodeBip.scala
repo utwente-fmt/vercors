@@ -29,14 +29,6 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  case class BipGuardInvocationFailed(transition: BipTransition[_]) extends Blame[InstanceInvocationFailure] {
-    override def blame(error: InstanceInvocationFailure): Unit = error match {
-      case ctx: InstanceNull => PanicBlame("Guard invoked by BIP transition can never cause instance null error").blame(ctx)
-      case PreconditionFailed(_, failure, _) => transition.blame.blame(BipGuardInvocationFailure(failure, transition))
-      case ContextEverywhereFailedInPre(failure, _) => transition.blame.blame(BipGuardInvocationFailure(failure, transition))
-    }
-  }
-
   /* TODO (RR): The next three classes seem repetitive. Can probably factor out a common core,
       e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
    */
@@ -64,10 +56,10 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) => // Failed establishing component invariant
           results.report(component, ComponentInvariantNotMaintained)
-          proc.blame.blame(BipComponentInvariantNotEstablished(failure, component))
+          proc.blame.blame(BipComponentInvariantNotEstablished(failure, proc))
         case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) => // Failed establishing state invariant
           results.report(component, StateInvariantNotMaintained)
-          proc.blame.blame(BipStateInvariantNotEstablished(failure, component))
+          proc.blame.blame(BipStateInvariantNotEstablished(failure, proc))
         case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
           results.report(component, PostconditionNotVerified)
           proc.blame.blame(PostconditionFailed(path, failure, node))
@@ -83,21 +75,6 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     override def blame(error: T): Unit = {
       callback
       blame.blame(error)
-    }
-  }
-
-  case class GuardPostconditionFailed(guard: BipGuard[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case cf: ContractedFailure => cf match {
-        case PostconditionFailed(_, failure, node) => guard.blame.blame(BipGuardPostconditionFailure(failure, guard))
-        case ContextEverywhereFailedInPost(failure, node) => PanicBlame("BIP guard does not have context everywhere")
-      }
-
-      // These are all impossible...?
-      case SignalsFailed(failure, node) => ???
-      case ExceptionNotInSignals(node) => ???
-      case failure: BipTransitionFailure => ???
-      case failure: BipGuardFailure => ???
     }
   }
 
@@ -237,8 +214,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         obj = dispatch(obj),
         ref = guardSucc.ref[Post, InstanceMethod[Post]](guard),
         args = guard.data.map { case Ref(incomingData) => incomingDataSubstitutions.top(incomingData) },
-        // TODO: Should this maybe be a proper blame after all? I don't think it can fail, since the user cannot specify preconditions
-        blame = PanicBlame("Guard invocation should be safe...?")
+        blame = PanicBlame("Guard invocation cannot fail as it can only depend on component invariant")
         )(expr.o)
 
     case (inv @ BipGuardInvocation(_, _), _) =>
@@ -292,11 +268,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
             Nil, Nil,
             Some(dispatch(guard.body)),
             contract[Post](ForwardUnsatisfiableBlame(guard),
-              requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant)),
-              ensures = UnitAccountedPredicate(dispatch(guard.ensures))
-            ),
+              requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
             pure = guard.pure
-          )(GuardPostconditionFailed(guard))(guard.o))
+          )(PanicBlame("Postcondition of guard cannot fail"))(guard.o))
         }
       }
 
