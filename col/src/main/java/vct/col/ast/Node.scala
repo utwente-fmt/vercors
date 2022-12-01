@@ -870,7 +870,7 @@ final case class JavaBipGlueSynchron[G](port0: JavaBipGlueName[G], port1: JavaBi
 // In other words, data flows from dataOut to dataIn
 final case class JavaBipGlueDataWire[G](dataOut: JavaBipGlueName[G], dataIn: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
 
-final class BipGlue[G](val requires: Seq[BipGlueRequires[G]], val accepts: Seq[BipGlueAccepts[G]], val dataWires: Seq[BipGlueDataWire[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+final class BipGlue[G](val requires: Seq[BipGlueRequires[G]], val accepts: Seq[BipGlueAccepts[G]], val dataWires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipGlueFailure])(implicit val o: Origin) extends GlobalDeclaration[G]
 final case class BipGlueRequires[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
 final case class BipGlueAccepts[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
 final case class BipGlueDataWire[G](dataOut: Ref[G, BipOutgoingData[G]], dataIn: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends NodeFamily[G]
@@ -909,8 +909,8 @@ final case class BipEnforceable[G]()(implicit val o: Origin = DiagnosticOrigin) 
 final case class BipSpontaneous[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
 
-final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
-final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
+final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
+final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

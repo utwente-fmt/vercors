@@ -651,6 +651,29 @@ case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends BipGuard
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for guard `$source`"
 }
 
+sealed trait BipGlueFailure extends VerificationFailure
+sealed trait BipSynchronizationFailure extends BipGlueFailure
+case class TransitionPreconditionFailed(synchronization: BipTransitionSynchronization[_], transition: BipTransition[_], failure: ContractFailure)
+  extends BipSynchronizationFailure with WithContractFailure {
+
+  override def node: Node[_] = transition.signature
+  override def baseCode: String = "bipTransitionPreconditionFailed"
+  override def desc: String =
+    Origin.messagesInContext(
+      (synchronization.o, "In this synchronization, in which the following transitions and data wires participate:") +:
+        (synchronization.transitions.zipWithIndex.map { case (t, i) => (t.decl.signature.o, s"transition ${i + 1},")} ++
+        synchronization.wires.zipWithIndex.map { case (w, i) => (w.o, s"data wire ${i + 1},") }) :+
+        (transition.signature.o, "the precondition of this transition does not hold, since") :+
+        (failure.node.o, s"${failure.descCompletion} $errUrl")
+    )
+
+  // Unused
+  override def descInContext: String = ???
+
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"Precondition of $node does not hold, in a particular synchronization, since $failure"
+}
+
 trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }

@@ -2,6 +2,7 @@ package vct.col.rewrite.bip
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
+import vct.col.origin.Origin
 
 case object IsolateBipGlue extends LazyLogging {
   def isolate[G](p: Program[G]): Program[G] = {
@@ -11,7 +12,10 @@ case object IsolateBipGlue extends LazyLogging {
           getBipGlues(decl) match {
             case Seq() => Seq(decl)
             case glues =>
-              logger.info(decl.o.messageInContext("_Only_ the containing BIP glue is analyzed of this class"))
+              logger.info(Origin.messagesInContext(
+                (decl.o, s"In this class, only the following ${glues.size} glues are kept:") +:
+                  glues.zipWithIndex.map { case (g, i) => (g.o, s"glue ${i + 1}") }
+              ))
               glues.map(g => new JavaBipGlueContainer[G](g)(g.o))
           }
         }

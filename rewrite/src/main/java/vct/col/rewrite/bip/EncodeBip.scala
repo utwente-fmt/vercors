@@ -51,6 +51,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
+  // TODO: Refactor with postblamesplit
   case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
@@ -63,7 +64,6 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
         case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
           results.report(component, PostconditionNotVerified)
           proc.blame.blame(PostconditionFailed(path, failure, node))
-        // TODO (RR): Probably should disallow contracts on constructor?
         case ctx: ContextEverywhereFailedInPost => proc.blame.blame(ctx)
       }
       case ctx: SignalsFailed => proc.blame.blame(ctx)
@@ -130,6 +130,10 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     override def context: String = s.o.context
     override def inlineContext: String = s.o.inlineContext
     override def shortPosition: String = s.o.shortPosition
+  }
+
+  case class ExhalingTransitionPreconditionFailed(s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit = s.blame(TransitionPreconditionFailed(s, t, error.failure))
   }
 }
 
@@ -393,7 +397,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           case BipGlueDataWire(Ref(out), Ref(in)) => (in, methodInvocation(
             obj = varOf(classOf(out)),
             ref = outgoingDataSucc.ref[Post, InstanceMethod[Post]](out),
-            blame = PanicBlame("Should not fail")
+            blame = PanicBlame("Querying outgoing data here cannot fail")
           ))}.toMap
 
         val preconditionGuards: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
@@ -433,17 +437,25 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           - Exhale, with class var & data wires substituted in:
             - component invariant
             - source state invariant
-            - precondition
+          - Exhale, also with substitutions, containing precondition.
+            - Separate so we can detect the error easily
         */
-        val exhales: Seq[Exhale[Post]] = synchronization.transitions.map { case Ref(transition) =>
+        val exhales: Seq[Exhale[Post]] = synchronization.transitions.flatMap { case Ref(transition) =>
           val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
-          Exhale(replaceThis.having(clsThisSubst) { foldStar(
-            Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) ++
+          val regularExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
+            Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) :+
               incomingDataSubstitutions.having(incomingDataTranslationLocals) {
-                Seq(dispatch(transition.guard), dispatch(transition.requires))
-              })
-          })(PanicBlame("I guess the precondition is not proven here?"))
+                dispatch(transition.guard)
+              }) })(PanicBlame("Component invariant, state invariant, and transition guard should hold"))
+
+          val preconditionExhale = Exhale(
+            replaceThis.having(clsThisSubst) {
+              incomingDataSubstitutions.having(incomingDataTranslationLocals) {
+                dispatch(transition.requires)
+              }})(ExhalingTransitionPreconditionFailed(synchronization, transition))
+
+          Seq(regularExhale, preconditionExhale)
         }
 
         /*
