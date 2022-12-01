@@ -7,6 +7,7 @@ import scala.collection.{mutable => mut}
 
 case object BIP {
   case class VerificationResults() {
+    val preconditionResults:  mut.Map[BipTransition[_], BipVerificationResult] = mut.LinkedHashMap()
     val transitionResults: mut.Map[BipTransition[_], BipVerificationResult] = mut.LinkedHashMap()
     val constructorResults: mut.Map[BipComponent[_], BipVerificationResult] = mut.LinkedHashMap()
     val componentToTransitions: mut.Map[BipComponent[_], Seq[BipTransition[_]]] = mut.LinkedHashMap()
@@ -19,6 +20,12 @@ case object BIP {
       case None => throw EncodeBip.UnexpectedBipResultError()
     }
 
+    def reportPreconditionNotVerified(bt: BipTransition[_]): Unit = preconditionResults(bt) match {
+      case Success => preconditionResults(bt) = PreconditionNotVerified
+      case PreconditionNotVerified => // Already on there, don't have to set again
+      case _ => ??? // Any other case should not occur - hence we error here
+    }
+
     def report(bt: BipTransition[_], result: BipVerificationResult): Unit = setWith(bt, transitionResults, result)
     def report(bt: BipComponent[_], result: BipVerificationResult): Unit = setWith(bt, constructorResults, result)
 
@@ -29,6 +36,12 @@ case object BIP {
 
     def declare(bc: BipComponent[_], bt: BipTransition[_]): Unit = {
       declareWith(bt, transitionResults)
+      // Because declareWith inserts Success into preconditionResults, the base assumption becomes
+      // that a transition's precondition is satisfied in each synchronization. However, because
+      // of a specific glue, it might occur that the transition is not at all used in any synchronization.
+      // This is not unsound, but it is a bit of an unintuitive edge case, as one might not expect unused
+      // transitions to end up in the verification report.
+      declareWith(bt, preconditionResults)
       componentToTransitions(bc) = componentToTransitions.getOrElseUpdate(bc, Seq()) :+ bt
     }
     def declare(bt: BipComponent[_]): Unit = declareWith(bt, constructorResults)
@@ -40,13 +53,18 @@ case object BIP {
     def toStandalone(transition: BipTransition[_]): TransitionEntry = {
       val sig = transition.signature
 
+      val preconditionResult: ProofResult = preconditionResults(transition) match {
+        case Success => true
+        case PreconditionNotVerified => false
+      }
+
       TransitionEntry(TransitionSignature(sig.portName, sig.sourceStateName, sig.targetStateName, sig.textualGuard),
         transitionResults(transition) match {
-          case ComponentInvariantNotMaintained => TransitionResults(false, false, false)
-          case UpdateFunctionFailure =>           TransitionResults(false, false, false)
-          case StateInvariantNotMaintained =>     TransitionResults(true, false, false)
-          case PostconditionNotVerified =>        TransitionResults(true, true, false)
-          case Success =>                         TransitionResults(true, true, true)
+          case ComponentInvariantNotMaintained => TransitionResults(preconditionResult, false, false, false)
+          case UpdateFunctionFailure =>           TransitionResults(preconditionResult, false, false, false)
+          case StateInvariantNotMaintained =>     TransitionResults(preconditionResult, true, false, false)
+          case PostconditionNotVerified =>        TransitionResults(preconditionResult, true, true, false)
+          case Success =>                         TransitionResults(preconditionResult, true, true, true)
         })
     }
 
@@ -78,6 +96,7 @@ case object BIP {
   case object ConstructorFailure extends BipVerificationResult
   case object ComponentInvariantNotMaintained extends BipVerificationResult
   case object StateInvariantNotMaintained extends BipVerificationResult
+  case object PreconditionNotVerified extends BipVerificationResult
   case object PostconditionNotVerified extends BipVerificationResult
 
   case object Standalone {
@@ -91,7 +110,7 @@ case object BIP {
     case class ConstructorReport(componentInvariant: ProofResult, stateInvariant: ProofResult)
 
     case class TransitionSignature(name: String, source: String, target: String, guard: Option[String])
-    case class TransitionResults(componentInvariant: ProofResult, stateInvariant: ProofResult, postCondition: ProofResult)
+    case class TransitionResults(precondition: ProofResult, componentInvariant: ProofResult, stateInvariant: ProofResult, postcondition: ProofResult)
     case class TransitionEntry(signature: TransitionSignature, results: TransitionResults)
     case class ComponentReport(constructor: ConstructorReport, transitions: Seq[TransitionEntry])
 

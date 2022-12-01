@@ -78,7 +78,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  case class ForwardUnsatisfiableBlame(node: Node[_]) extends Blame[NontrivialUnsatisfiable] {
+  case class ForwardUnsatisfiableBlame(results: VerificationResults, node: Node[_]) extends Blame[NontrivialUnsatisfiable] {
     node match {
       case _: BipGuard[_] | _: BipTransition[_] | _: BipOutgoingData[_] =>
       case _ => throw Unreachable("Can only construct this blame with bip guard, bip transition, bip outgoing data")
@@ -86,7 +86,11 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
     override def blame(error: NontrivialUnsatisfiable): Unit = node match {
       case g: BipGuard[_] => g.blame.blame(BipGuardPreconditionUnsatisfiable(g))
-      case t: BipTransition[_] => t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
+      case t: BipTransition[_] =>
+        // TODO: Add test where unsatisfaible precondition is detected/signalled in report
+        results.reportPreconditionNotVerified(t)
+        results.report(t, UpdateFunctionFailure)
+        t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
       case t: BipOutgoingData[_] => t.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(t))
     }
   }
@@ -132,8 +136,11 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     override def shortPosition: String = s.o.shortPosition
   }
 
-  case class ExhalingTransitionPreconditionFailed(s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
-    override def blame(error: ExhaleFailed): Unit = s.blame(TransitionPreconditionFailed(s, t, error.failure))
+  case class ExhalingTransitionPreconditionFailed(results: BIP.VerificationResults, s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit = {
+      results.reportPreconditionNotVerified(t)
+      s.blame.blame(TransitionPreconditionFailed(s, t, error.failure))
+    }
   }
 }
 
@@ -154,7 +161,6 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   var replaceThis: ScopedStack[(ThisObject[Pre], Expr[Post])] = ScopedStack()
 
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
-  val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
   val currentBipDeclaration: ScopedStack[Declaration[Pre]] = ScopedStack()
 
   lazy val classes = program.transSubnodes.collect { case c: Class[Pre] => c }.toIndexedSeq
@@ -246,7 +252,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           Seq(),
           Seq(),
           Some(dispatch(data.body)),
-          contract = contract[Post](ForwardUnsatisfiableBlame(data),
+          contract = contract[Post](ForwardUnsatisfiableBlame(null /* not needed */, data),
             requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
           pure = true,
         )(PanicBlame("Postcondition of data cannot fail")))
@@ -271,7 +277,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
             }._1,
             Nil, Nil,
             Some(dispatch(guard.body)),
-            contract[Post](ForwardUnsatisfiableBlame(guard),
+            contract[Post](ForwardUnsatisfiableBlame(null /* not needed */, guard),
               requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
             pure = guard.pure
           )(PanicBlame("Postcondition of guard cannot fail"))(guard.o))
@@ -279,13 +285,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       }
 
     case ClassBipComponent(cls, component) =>
-      currentClass.having(cls) {
-        currentComponent.having(component) {
-          rewriteDefault(cls)
-        }
+      currentComponent.having(component) {
+        rewriteDefault(cls)
       }
-
-    case cls: Class[Pre] => currentClass.having(cls) { rewriteDefault(cls) }
 
     case proc: Procedure[Pre] if isComponentConstructor(proc) =>
       val component = componentOf(proc)
@@ -335,13 +337,13 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
             Nil,
             Nil,
             Some(dispatch(transition.body)),
-            contract[Post](dispatch(ForwardUnsatisfiableBlame(transition)),
+            contract[Post](ForwardUnsatisfiableBlame(results, transition),
               requires = UnitAccountedPredicate(
                 dispatch(component.invariant) &**
                   dispatch(transition.source.decl.expr) &**
                   incomingDataSubstitutions.having(incomingDataTranslationParameters) {
-                    dispatch(transition.requires) &**
-                    dispatch(transition.guard)
+                    dispatch(transition.guard) &**
+                    dispatch(transition.requires)
                   }),
               ensures =
                 // Establish component invariant
@@ -452,10 +454,12 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           val preconditionExhale = Exhale(
             replaceThis.having(clsThisSubst) {
               incomingDataSubstitutions.having(incomingDataTranslationLocals) {
-                dispatch(transition.requires)
-              }})(ExhalingTransitionPreconditionFailed(synchronization, transition))
+                dispatch(transition.requires) // TODO: Need to dispatch on all blames here as well?
+              }})(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
 
           Seq(regularExhale, preconditionExhale)
+          // TODO: switch to the bottom one when bug is fixed. For that, the replaceThis/incomingDataSubstitutions/some other concerns system needs to be cleaned up.
+//          Seq(preconditionExhale, regularExhale)
         }
 
         /*

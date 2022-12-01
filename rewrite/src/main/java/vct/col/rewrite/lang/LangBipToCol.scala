@@ -251,7 +251,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteGlue(container: JavaBipGlueContainer[Pre]): Unit = {
-    val glue = container.job
+    val glue = container.job.asInstanceOf[JavaBipGlue[Pre]]
     val requires = glue.collect { case r: JavaBipGlueRequires[Pre] => r }
     val accepts = glue.collect { case a: JavaBipGlueAccepts[Pre] => a }
 
@@ -264,6 +264,6 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         requires.map(rewriteRequires) ++ pairs.flatMap(_._1),
         accepts.map(rewriteAccepts) ++ pairs.flatMap(_._2),
         wires.map(rewriteDataWire)
-        )(glue.o))
+        )(glue.blame)(glue.o))
   }
 }

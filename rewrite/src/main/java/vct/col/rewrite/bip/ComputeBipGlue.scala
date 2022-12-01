@@ -268,7 +268,7 @@ case class ComputeBipGlue[Pre <: Generation]() extends Rewriter[Pre] with LazyLo
             val modelFormula: BooleanFormula = bipSmt.bm.and(
               allVars.map { v => bipSmt.bm.equivalence(v, bipSmt.bm.makeBoolean(model.evaluate(v))) } : _*)
 
-            (new BipPortSynchronization[Pre](enabledPorts, enabledWires), modelFormula)
+            (new BipPortSynchronization[Pre](enabledPorts, enabledWires)(glue.blame)(glue.o), modelFormula)
           }.get
 
           logger.debug(synchronization.summarize)

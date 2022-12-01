@@ -3,6 +3,12 @@ package vct.test.integration.examples
 import vct.test.integration.helper.JavaBipSpecHelper
 
 class TechnicalJavaBipSpec extends JavaBipSpecHelper {
+  failingTest(Seq("bipTransitionPreconditionFailed:false", "bipTransitionPreconditionUnsatisfiable"),
+    "technical/javabip/transitionPrecondition/transitionPrecondition.json",
+    "technical/javabip/transitionPrecondition/Main.java",
+    "technical/javabip/transitionPrecondition/MyComponent.java",
+  )
+
   failingTest("bipComponentInvariantNotEstablished:false",
     "technical/javabip/ComponentInvariantNotEstablished.json",
     "technical/javabip/ComponentInvariantNotEstablished.java"

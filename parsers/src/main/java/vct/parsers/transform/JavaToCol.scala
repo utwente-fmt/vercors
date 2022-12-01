@@ -605,8 +605,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       TypeOrVoid0(_),
       JavaIdentifier0("configure"),
       FormalParameters0(_, None, _),
-      None, None, MethodBodyOrEmpty1(MethodBody0(Block0(_, statements, _)))
-    ) => JavaBipGlue(statements.map(convertBipGlueElement(_)))
+      None, None, MethodBodyOrEmpty1(m @ MethodBody0(Block0(_, statements, _)))
+    ) => JavaBipGlue(statements.map(convertBipGlueElement(_)))(blame(m))
     case _ => ??(p)
   }
 

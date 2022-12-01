@@ -660,7 +660,7 @@ case class TransitionPreconditionFailed(synchronization: BipTransitionSynchroniz
   override def baseCode: String = "bipTransitionPreconditionFailed"
   override def desc: String =
     Origin.messagesInContext(
-      (synchronization.o, "In this synchronization, in which the following transitions and data wires participate:") +:
+      (synchronization.o, s"In this context there is a synchronization, in which the following ${synchronization.transitions.size} transitions and ${synchronization.wires.size} data wires participate:") +:
         (synchronization.transitions.zipWithIndex.map { case (t, i) => (t.decl.signature.o, s"transition ${i + 1},")} ++
         synchronization.wires.zipWithIndex.map { case (w, i) => (w.o, s"data wire ${i + 1},") }) :+
         (transition.signature.o, "the precondition of this transition does not hold, since") :+

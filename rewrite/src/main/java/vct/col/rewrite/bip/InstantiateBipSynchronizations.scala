@@ -57,7 +57,7 @@ case class InstantiateBipSynchronizations[Pre <: Generation]() extends Rewriter[
       val wires = sync.wires.map(dispatch)
       val transitionSets = pickOneFromEach(sync.ports.map { case Ref(port) => portToTransitions(port) })
       val newSyncs = transitionSets.map { transitions =>
-        globalDeclarations.declare(BipTransitionSynchronization[Post](transitions.map(t => succ[BipTransition[Post]](t)), wires))
+        globalDeclarations.declare(BipTransitionSynchronization[Post](transitions.map(t => succ[BipTransition[Post]](t)), wires)(sync.blame)(sync.o))
       }
       transitionSynchrons.addAll(newSyncs)
       sync.drop()
