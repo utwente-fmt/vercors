@@ -12,9 +12,10 @@
           "target": "doneState"
         },
         "results": {
+          "precondition": "proven",
           "componentInvariant": "proven",
           "stateInvariant": "proven",
-          "postCondition": "not proven"
+          "postcondition": "not proven"
         }
       }
     ]

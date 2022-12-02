@@ -5,7 +5,7 @@ import org.javabip.api.PortType;
 
 @ComponentType(initial = INIT, name = NAME)
 @Port(name = GO)
-@Invariant("true")
+@Invariant("x >= 0")
 public class TransitionPostconditionFailed {
     public static final String INIT = "initialState";
     public static final String DONE = "doneState";

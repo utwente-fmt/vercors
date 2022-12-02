@@ -47,6 +47,7 @@ public class GeneratorSpec {
 
 
     @Data(name = OUTGOING_DATA)
+    @Pure
     public int[] getData() {
         return data;
     }
