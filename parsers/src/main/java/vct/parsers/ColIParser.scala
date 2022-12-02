@@ -13,9 +13,9 @@ case class ColIParser(override val originProvider: OriginProvider, override val 
       originProvider.setTokenStream(tokens)
       val errors = expectedErrors(tokens, LangCLexer.EXPECTED_ERROR_CHANNEL, LangCLexer.VAL_EXPECT_ERROR_OPEN, LangCLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new CParser(tokens)
-      val ec = errorCounter(parser, lexer, originProvider)
-      val tree = parser.compilationUnit()
-      ec.report()
+      val tree = noErrorsOrThrow(parser, lexer, originProvider) {
+        parser.compilationUnit()
+      }
       val decls = CToCol[G](originProvider, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {

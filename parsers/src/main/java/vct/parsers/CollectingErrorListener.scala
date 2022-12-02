@@ -1,5 +1,6 @@
 package vct.parsers
 
+import com.typesafe.scalalogging.LazyLogging
 import org.antlr.v4.runtime
 import org.antlr.v4.runtime.{ANTLRErrorListener, RecognitionException, Recognizer, Token}
 import org.antlr.v4.runtime.atn.ATNConfigSet
@@ -9,12 +10,14 @@ import vct.result.VerificationError.Unreachable
 
 import java.util
 
-case class ThrowingErrorListener(originProvider: OriginProvider) extends ANTLRErrorListener {
+case class CollectingErrorListener(originProvider: OriginProvider) extends ANTLRErrorListener with LazyLogging {
+  var errors: Seq[ParseError] = Nil
+
   override def syntaxError(recognizer: Recognizer[_, _], anyToken: Any,
                            line: Int, charPositionInLine: Int, message: String, e: RecognitionException): Unit = {
     anyToken match {
       case token: Token if anyToken != null =>
-        throw ParseError(originProvider(token, token), message)
+        errors :+= ParseError(originProvider(token, token), message)
       case _ =>
         throw Unreachable("ANTLR gave us a null or mistyped token while reporting a syntax error.")
     }
