@@ -128,4 +128,66 @@ class TechnicalFloatSpec extends VercorsSpec {
         //@ assert (0.5 == 0.6) == false;
       }
   """
+
+  vercors should verify using silicon in "assigning should work" java
+  """
+    class floatArray {
+        void m() {
+            //@ ghost double f = 1;
+            //@ ghost float g = 1;
+            //@ ghost double f = 1.0;
+            //@ ghost float g = 1.0f;
+        }
+    }
+  """
+
+  vercors should verify using silicon in "some float test cases" java
+  """
+    class C {
+      void m() {
+        //@ ghost float[] a = {1, 2, 3};
+        //@ ghost float[] b = new float[3];
+        //@ ghost b[0] = 1;
+        //@ ghost float f = 1;
+      }
+    }
+  """
+
+  vercors should verify using silicon in "some more float test cases" java
+    """
+    class FloatTest {
+      float f;
+      double d;
+      //@ ghost float gf = 1;
+
+      //@ context Perm(gf, write);
+      //@ requires Perm(f, write) ** Perm(d, write);
+      //@ requires in > 0;
+      //@ ensures gf != in;
+      void m(float in) {
+          f = 1;
+          f = 1337;
+          f = -1;
+          f = 0;
+          f = -3.45f;
+          f = .42f;
+          assert f >= .4f;
+          d = 1;
+          d = 1337;
+          d = -1;
+          d = 0;
+          d = -3.45;
+          d = .42;
+          assert d >= .4;
+          //@ ghost gf = 1;
+          //@ ghost gf = 1337;
+          //@ ghost gf = -1;
+          //@ ghost gf = 0;
+          //@ ghost gf = -3.45f;
+          //@ ghost gf = .42f;
+          //@ assert gf >= .4f;
+          //@ ghost gf = in + 1;
+    }
+  }
+  """
 }

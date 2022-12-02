@@ -18,13 +18,15 @@ case class ColJavaParser(override val originProvider: OriginProvider, override v
       originProvider.setTokenStream(tokens)
       val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new JavaParser(tokens)
+      /* TODO (RR): I think this is still needed for JavaBIP, to allow Perm at the top level, but I'm not entirely sure.
+                    If changed, this should also be made consistent with the parser below. */
       if (!specCommentsNeeded) {
         parser.specLevel = 1
       }
-      val ec = errorCounter(parser, lexer, originProvider)
 
-      val tree = parser.compilationUnit()
-      ec.report()
+      val tree = noErrorsOrThrow(parser, lexer, originProvider) {
+        parser.compilationUnit()
+      }
       val decls = JavaToCol[G](originProvider, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {
@@ -43,10 +45,10 @@ case class ColJavaParser(override val originProvider: OriginProvider, override v
       if (!specCommentsNeeded) {
         parser.specLevel = 1
       }
-      val ec = errorCounter(parser, lexer, originProvider)
 
-      val tree = parser.expr()
-      ec.report()
+      val tree = noErrorsOrThrow(parser, lexer, originProvider) {
+        parser.expr()
+      }
       val decls = JavaToCol[G](originProvider, blameProvider, errors).convert(tree)
       (decls, errors.map(_._3))
     } catch {
