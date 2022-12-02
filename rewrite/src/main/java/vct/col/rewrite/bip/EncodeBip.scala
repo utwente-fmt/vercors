@@ -10,9 +10,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderAr
 import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
-
 import BIP._
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 // TODO (RR): Proof obligation that if a port is enabled, only one transition can ever be enabled
@@ -200,34 +200,49 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
-  val incomingDataSucc: SuccessionMap[(Declaration[Pre], BipIncomingData[Pre]), Variable[Post]] = SuccessionMap()
   val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
   val synchronizationSucc: SuccessionMap[BipTransitionSynchronization[Pre], Procedure[Post]] = SuccessionMap()
 
-  val incomingDataSubstitutions: ScopedStack[Map[BipIncomingData[Pre], Expr[Post]]] = ScopedStack()
+  sealed trait IncomingDataContext
+  // The incoming data is stored in some variable
+  case class RewriteToVariableContext(m: Map[BipIncomingData[Pre], Variable[Post]]) extends IncomingDataContext
+  // The incoming data must be acquired by calling an outgoing data on a certain object, likely some variable, but we keep it abstract here.
+  // The important part is that, in the post ast, the type of the expr supports the method resulting from the outgoing data.
+  case class RewriteToOutgoingDataContext(m: Map[BipIncomingData[Pre], (Expr[Post], BipOutgoingData[Pre])]) extends IncomingDataContext
+
+  val incomingDataContext: ScopedStack[IncomingDataContext] = ScopedStack()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     program = p
     super.dispatch(p)
   }
 
-  override def dispatch(expr: Expr[Pre]): Expr[Post] = (expr, currentBipDeclaration.topOption) match {
-    case (thisObj: ThisObject[Pre], _) => replaceThis.topOption match {
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case thisObj: ThisObject[Pre] => replaceThis.topOption match {
       case Some((otherThis, res)) if thisObj == otherThis => res
       case None => thisObj.rewrite()
     }
-    case (l @ BipLocalIncomingData(Ref(data)), Some(decl)) =>
-      Local(incomingDataSucc.ref[Post, Variable[Post]]((decl, data)))(l.o)
 
-    case (BipGuardInvocation(obj, Ref(guard)), Some(decl @ (_: BipTransition[Pre] | _: BipTransitionSynchronization[Pre]))) =>
+    case l @ BipLocalIncomingData(Ref(data)) => incomingDataContext.top match {
+      case RewriteToVariableContext(m) => m(data).get(l.o)
+      case RewriteToOutgoingDataContext(m) => methodInvocation(
+        obj = m(data)._1,
+        ref = outgoingDataSucc.ref[Post, InstanceMethod[Post]](m(data)._2),
+        blame = PanicBlame("Querying outgoing data here cannot fail")
+      )(l.o)
+    }
+
+    // TODO (RR): I actually want the "this" not hardcoded in the bip guard invocation, as actually the this is contextual, so why put it in a node...
+    case invocation @ BipGuardInvocation(obj, Ref(guard)) =>
       methodInvocation(
         obj = dispatch(obj),
         ref = guardSucc.ref[Post, InstanceMethod[Post]](guard),
-        args = guard.data.map { case Ref(incomingData) => incomingDataSubstitutions.top(incomingData) },
+        // Sneakily reuse the encoding we define above by retrofitting the refs from the guard definition into a pre-AST expression
+        args = guard.data.map { ref => BipLocalIncomingData[Pre](ref)(invocation.o) }.map(dispatch),
         blame = PanicBlame("Guard invocation cannot fail as it can only depend on component invariant")
         )(expr.o)
 
-    case (inv @ BipGuardInvocation(_, _), _) =>
+    case inv @ BipGuardInvocation(_, _) =>
       // Bip guard invocations can only be done by bip transitions, or inside synchrons
       throw Unreachable(inv.o.messageInContext("Bug: the following guard is unexpectedly called outside transition context"))
 
@@ -266,21 +281,20 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
     case guard: BipGuard[Pre] =>
       implicit val o = guard.o
+      val incomingDataVariables = ListMap.from(guard.data.map { case Ref(data) => (data, new Variable(dispatch(data.t))) })
       labelDecls.scope {
         currentBipDeclaration.having(guard) {
-          guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
-            TBool()(guard.o),
-            variables.collect {
-              guard.data.foreach { case Ref(data) =>
-                incomingDataSucc((guard, data)) = variables.declare(new Variable(dispatch(data.t)))
-              }
-            }._1,
-            Nil, Nil,
-            Some(dispatch(guard.body)),
-            contract[Post](ForwardUnsatisfiableBlame(null /* not needed */, guard),
-              requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
-            pure = guard.pure
-          )(PanicBlame("Postcondition of guard cannot fail"))(guard.o))
+          incomingDataContext.having(RewriteToVariableContext(incomingDataVariables)) {
+            guardSucc(guard) = classDeclarations.declare(new InstanceMethod[Post](
+              TBool()(guard.o),
+              incomingDataVariables.values.toSeq,
+              Nil, Nil,
+              Some(dispatch(guard.body)),
+              contract[Post](ForwardUnsatisfiableBlame(null /* not needed */, guard),
+                requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
+              pure = guard.pure
+            )(PanicBlame("Postcondition of guard cannot fail"))(guard.o))
+          }
         }
       }
 
@@ -321,19 +335,15 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       // Mark that the default case is that verification is succesfull
       results.declare(component, transition)
 
-      val incomingDataTranslationParameters = transition.data.map { case Ref(incomingData) =>
-        (incomingData, Local(incomingDataSucc.ref[Post, Variable[Post]]((transition, incomingData))))
-      }.toMap
+      val incomingDataToVariable = ListMap.from(transition.data.map { case Ref(data) =>
+        (data, new Variable(dispatch(data.t)))
+      })
 
       labelDecls.scope {
         currentBipDeclaration.having(transition) {
           transitionSucc(transition) = classDeclarations.declare(new InstanceMethod[Post](
             TVoid(),
-            variables.collect {
-              transition.data.foreach { case Ref(data) =>
-                incomingDataSucc((transition, data)) = variables.declare(new Variable(dispatch(data.t)))
-              }
-            }._1,
+            incomingDataToVariable.values.toSeq,
             Nil,
             Nil,
             Some(dispatch(transition.body)),
@@ -341,7 +351,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
               requires = UnitAccountedPredicate(
                 dispatch(component.invariant) &**
                   dispatch(transition.source.decl.expr) &**
-                  incomingDataSubstitutions.having(incomingDataTranslationParameters) {
+                  incomingDataContext.having(RewriteToVariableContext(incomingDataToVariable)) {
                     dispatch(transition.guard) &**
                     dispatch(transition.requires)
                   }),
@@ -395,17 +405,14 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
            This is needed because in the precondition the variables for exchange of data are not yet assigned, so we just execute
            the guards over literal outgoing data invocations. These are then used when guard invocations are translated
          */
-        val incomingDataTranslationInline: Map[BipIncomingData[Pre], Expr[Post]] = synchronization.wires.map {
-          case BipGlueDataWire(Ref(out), Ref(in)) => (in, methodInvocation(
-            obj = varOf(classOf(out)),
-            ref = outgoingDataSucc.ref[Post, InstanceMethod[Post]](out),
-            blame = PanicBlame("Querying outgoing data here cannot fail")
-          ))}.toMap
+        val incomingDataTranslation = ListMap.from(synchronization.wires.map {
+          case BipGlueDataWire(Ref(out), Ref(in)) => (in, (varOf(classOf(out)), out))
+        })
 
         val preconditionGuards: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
           val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
           replaceThis.having(clsThisSubst) {
-            incomingDataSubstitutions.having(incomingDataTranslationInline) {
+            incomingDataContext.having(RewriteToOutgoingDataContext(incomingDataTranslation)) {
               dispatch(transition.guard)
             }
           }
@@ -414,25 +421,33 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         /*
         - Evaluate data wires and assign to var representing output data. Make mapping from data wire to output data var
          */
-        val wireResults = synchronization.wires.map { case BipGlueDataWire(Ref(dataOut), Ref(dataIn)) =>
-          val v = new Variable[Post](dispatch(dataOut.t))(dataIn.o)
+        // TODO (RR): Was doing some mind bendy thing by reusing the translation nicely. Not sure if it's smart to try to be smart. Finish this later.
+//        val wireResults = synchronization.wires.map { case BipGlueDataWire(Ref(dataOut), Ref(dataIn)) =>
+//          val v = new Variable[Post](dispatch(dataOut.t))(dataIn.o)
+//
+//          val init = assignLocal[Post](v.get, methodInvocation(
+//            obj = varOf(classOf(dataOut)),
+//            ref = outgoingDataSucc.ref[Post, InstanceMethod[Post]](dataOut),
+//            blame = PanicBlame("Precondition of outgoing data cannot fail"))(dataOut.o))
+//
+//          (dataIn, v, init)
+//        }
+//        val initBlock: Seq[Assign[Post]] = wireResults.map { case (_, _, init) => init }
 
-          val init = assignLocal[Post](v.get, methodInvocation(
-            obj = varOf(classOf(dataOut)),
-            ref = outgoingDataSucc.ref[Post, InstanceMethod[Post]](dataOut),
-            blame = PanicBlame("Precondition of outgoing data cannot fail"))(dataOut.o))
-
-          (dataIn, v, init)
+        val incomingDataToVariableContext = ListMap.from(synchronization.wires.map { case BipGlueDataWire(Ref(dataOut), Ref(dataIn)) =>
+          (dataIn, new Variable[Post](dispatch(dataOut.t))(dataIn.o))
+        })
+        val initBlock = incomingDataContext.having(RewriteToOutgoingDataContext(incomingDataTranslation)) {
+          incomingDataToVariableContext.keys.map { dataIn =>
+            // Sneakily again reuse some translation conveniently defined entirely someplace else.
+            assignLocal[Post](incomingDataToVariableContext(dataIn).get, dispatch(BipLocalIncomingData(dataIn.ref)))
+          }
         }
-        wireResults.foreach { case (dataIn, v, _) => incomingDataSucc((synchronization, dataIn)) = v }
-        val wireVars = wireResults.map { case (_, v, _) => v }
-        val initBlock: Seq[Assign[Post]] = wireResults.map { case (_, _, init) => init }
 
         /* Construct another mapping, this time using the wire vars from directly above.
            Important, because below also the precondition might refer to incomingdata variables.
          */
-        val incomingDataTranslationLocals: Map[BipIncomingData[Pre], Expr[Post]] = synchronization.wires.map {
-          case BipGlueDataWire(Ref(out), Ref(in)) => (in, incomingDataSucc((synchronization, in)).get)}.toMap
+//        val incomingDataToVariableContext = RewriteToVariableContext(ListMap.from(wireResults.map { case (dataIn, v, _) => (dataIn, v) }))
 
         /*
         - Of each class var of transition:
@@ -445,21 +460,20 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         val exhales: Seq[Exhale[Post]] = synchronization.transitions.flatMap { case Ref(transition) =>
           val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
-          val regularExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
-            Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) :+
-              incomingDataSubstitutions.having(incomingDataTranslationLocals) {
-                dispatch(transition.guard)
-              }) })(PanicBlame("Component invariant, state invariant, and transition guard should hold"))
+          incomingDataContext.having(RewriteToVariableContext(incomingDataToVariableContext)) {
+            val regularExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
+              Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) :+
+                  dispatch(transition.guard)
+            )})(PanicBlame("Component invariant, state invariant, and transition guard should hold"))
 
-          val preconditionExhale = Exhale(
-            replaceThis.having(clsThisSubst) {
-              incomingDataSubstitutions.having(incomingDataTranslationLocals) {
-                dispatch(transition.requires) // TODO: Need to dispatch on all blames here as well?
-              }})(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
+            val preconditionExhale = Exhale(replaceThis.having(clsThisSubst) {
+                  dispatch(transition.requires) // TODO: Need to dispatch on all blames here as well?
+              })(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
 
-          Seq(regularExhale, preconditionExhale)
-          // TODO: switch to the bottom one when bug is fixed. For that, the replaceThis/incomingDataSubstitutions/some other concerns system needs to be cleaned up.
-//          Seq(preconditionExhale, regularExhale)
+            Seq(regularExhale, preconditionExhale)
+            // TODO: switch to the bottom one when bug is fixed. For that, the replaceThis/incomingDataSubstitutions/some other concerns system needs to be cleaned up.
+  //          Seq(preconditionExhale, regularExhale)
+          }
         }
 
         /*
@@ -497,7 +511,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           globalDeclarations.declare(procedure(
             args = transitions.map(varOf(_).ref.decl),
             body = Some(
-              Scope(wireVars, Block(initBlock ++ exhales ++ inhales))),
+              Scope(incomingDataToVariableContext.m.values.toSeq, Block(initBlock ++ exhales ++ inhales))),
             requires = UnitAccountedPredicate(preconditionComponents &** preconditionGuards),
             ensures = UnitAccountedPredicate(postcondition),
             blame = PanicBlame("Can this contract fail?"),
