@@ -1,4 +1,4 @@
-package org.javabip.spec.deviation;
+package deviation;
 
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;
@@ -6,16 +6,12 @@ import org.javabip.api.PortType;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.javabip.spec.deviation.Constants.*;
+import static deviation.Constants.*;
 
-// Ports({
-         @Port(name = GET_DATA)//, type = PortType.enforceable)//,
-         @Port(name = SEND_DATA)//, type = PortType.enforceable)//,
-         @Port(name = START)//, type = PortType.enforceable)//,
-         @Port(name = RESET)//, type = PortType.enforceable)
-// })
-
-         // TODO (RR): Discuss: need to name all states here
+@Port(name = GET_DATA)//, type = PortType.enforceable)//,
+@Port(name = SEND_DATA)//, type = PortType.enforceable)//,
+@Port(name = START)//, type = PortType.enforceable)//,
+@Port(name = RESET)//, type = PortType.enforceable)
 @ComponentType(initial = INIT, name = CALCULATOR)
 public class CalculatorSpec {
 
@@ -59,11 +55,13 @@ public class CalculatorSpec {
     }
 
     @Data(name = OUTGOING_DATA_MEAN)
+    @Pure
     public /* double */ int getMean() {
         return mean;
     }
 
     @Data(name = OUTGOING_DATA_VARIANCE)
+    @Pure
     public /* double */ int getVariance() {
         return variance;
     }

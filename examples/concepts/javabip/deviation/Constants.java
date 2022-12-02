@@ -1,4 +1,4 @@
-package org.javabip.spec.deviation;
+package deviation;
 
 public class Constants {
     public static final String ENGINE = "engine";

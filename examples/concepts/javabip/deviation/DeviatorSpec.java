@@ -1,9 +1,9 @@
-package org.javabip.spec.deviation;
+package deviation;
 
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;
 
-import static org.javabip.spec.deviation.Constants.*;
+import static deviation.Constants.*;
 
 import static java.lang.Math.sqrt;
 

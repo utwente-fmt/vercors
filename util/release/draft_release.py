@@ -41,9 +41,9 @@ confirm(["mv", "-n", deb_location, os.path.join(root, f"vercors-{version}-debian
 confirm(["mv", "-n", tar_location, os.path.join(root, f"vercors-{version}-mac.tar.gz")], root)
 confirm(["mv", "-n", zip_location, os.path.join(root, f"vercors-{version}-windows.zip")], root)
 
-confirm(["git", "tag", f"v{version}"], root)
-confirm(["git", "push", "origin", f"v{version}"], root)
+# confirm(["git", "tag", f"v{version}"], root)
+# confirm(["git", "push", "origin", f"v{version}"], root)
 
-confirm(["xdg-open", f"https://github.com/utwente-fmt/vercors/releases/new?tag=v{version}&title=VerCors%20{version}"], root)
+# confirm(["xdg-open", f"https://github.com/utwente-fmt/vercors/releases/new?tag=v{version}&title=VerCors%20{version}"], root)
 
 print("All done!")

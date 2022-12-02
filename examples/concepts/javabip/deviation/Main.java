@@ -1,12 +1,11 @@
-/* package org.javabip.spec.deviation;
+package deviation;
 
 import akka.actor.ActorSystem;
 import org.javabip.api.BIPEngine;
 import org.javabip.api.BIPGlue;
 import org.javabip.engine.factory.EngineFactory;
 import org.javabip.glue.TwoSynchronGlueBuilder;
-
-import static org.javabip.spec.deviation.Constants.*; */
+import static deviation.Constants.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {

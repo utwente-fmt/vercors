@@ -3,7 +3,7 @@ package vct.col.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.ast.lang.JavaAnnotationEx
-import vct.col.lang.LangBipToCol.{BipDataOrigin, BipDataWireOrigin, BipIncomingDataInconsistentType, BipPortOrigin, WrongTransitionReturnType}
+import vct.col.lang.LangBipToCol.{BipDataOrigin, BipDataWireOrigin, BipIncomingDataInconsistentType, BipPortOrigin, ImpureData, WrongTransitionReturnType}
 import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
 import vct.col.print.Printer
 import vct.col.ref.Ref
@@ -32,6 +32,11 @@ case object LangBipToCol {
   case class WrongGuardReturnType(m: JavaMethod[_]) extends UserError {
     override def code: String = "bipWrongGuardReturnType"
     override def text: String = m.o.messageInContext(s"The return type of this guard should be boolean, instead of ${m.returnType}")
+  }
+
+  case class ImpureData(m: JavaMethod[_]) extends UserError {
+    override def code: String = "bipImpureData"
+    override def text: String = m.o.messageInContext("This data method should be marked pure with `@Pure`")
   }
 
   case class BipIncomingDataInconsistentType(data: BipData[_], param: JavaParam[_]) extends UserError {
@@ -179,7 +184,9 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
     val data @ jad.BipData(name) = jad.BipData.get(m).get
-    assert(jad.BipPure.isPure(m), m.o.messageInContext("The following outgoing data should be pure"))
+    if (!jad.BipPure.isPure(m)) {
+      throw ImpureData(m);
+    }
 
     javaMethodSuccOutgoingData(m) = rw.classDeclarations.declare(
       new BipOutgoingData(

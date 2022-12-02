@@ -1,4 +1,4 @@
-package org.javabip.spec.deviation;
+package deviation;
 
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;
@@ -8,15 +8,12 @@ import java.util.List;
 //import java.util.concurrent.ThreadLocalRandom;
 import static java.util.concurrent.ThreadLocalRandom.current;
 
-import static org.javabip.spec.deviation.Constants.*;
+import static deviation.Constants.*;
 // import static election.Constants.SENT; // Was missing from deviation.Constants?
 
-//Ports({
-        @Port(name = GENERATE)//, type = PortType.enforceable)
-        @Port(name = SEND_DATA)//, type = PortType.enforceable)
-        @Port(name = RESET)//, type = PortType.enforceable)
-//})
-
+@Port(name = GENERATE)//, type = PortType.enforceable)
+@Port(name = SEND_DATA)//, type = PortType.enforceable)
+@Port(name = RESET)//, type = PortType.enforceable)
 @ComponentType(initial = INIT, name = GENERATOR)
 public class GeneratorSpec {
     //private List<Integer> data = new ArrayList<>();

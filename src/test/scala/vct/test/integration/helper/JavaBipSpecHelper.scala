@@ -6,6 +6,8 @@ import java.nio.file.Paths
 import org.scalactic.source
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 
+import java.io.FileNotFoundException
+
 abstract class JavaBipSpecHelper extends VercorsSpec {
   def fromExamples(s: String): PathOrStd.Path = PathOrStd.Path(Paths.get(s"examples/$s"))
 
@@ -23,16 +25,18 @@ abstract class JavaBipSpecHelper extends VercorsSpec {
     def processResult(codes: Seq[String], report: Option[VerificationReport]): Unit = {
       val codeCheck = (expectedCodes, codes) match {
         case (a, b) if a == b => ""
-        case (err +: _, Nil) => s"Expected $err but got pass."
-        case (Nil, err +: _) => s"Expected pass but got $err."
+        case (expectedErrs, Nil) => s"Expected ${expectedErrs.mkString(", ")} but got pass."
+        case (Nil, actualErrs) => s"Expected pass but got ${actualErrs.mkString(", ")}."
         case (expectedErr, actualErr) => s"Expected ${expectedErr.mkString(", ")}, but got ${actualErr.mkString(", ")}."
       }
 
-      val expectedReport = VerificationReport.fromJson(reportPath.readToCompletion()).getOrElse(fail(s"Parse error, or could not find report at $reportPath"))
-      val reportCheck = report match {
-        case Some(report) if report == expectedReport => ""
-        case Some(_) => "The reports differ."
-        case None => "The report is missing."
+      val strReport = try { Right(reportPath.readToCompletion()) } catch { case e: FileNotFoundException => Left(e) }
+      val expectedReport = strReport.flatMap(strReport => VerificationReport.fromJson(strReport)) // getOrElse(fail(s"Parse error, or could not find report at $reportPath"))
+      val reportCheck = (report, expectedReport) match {
+        case (_, Left(err)) => s"The expected report could not be parsed, since ${err.getMessage()}"
+        case (Some(report), expectedReport) if Right(report) == expectedReport => ""
+        case (Some(_), _) => "The reports differ."
+        case (None, _) => "The report is missing."
       }
 
       val err = Seq(codeCheck, reportCheck).mkString(" ")

@@ -10,4 +10,12 @@ class JavaBipSpec extends JavaBipSpecHelper {
     "concepts/javabip/casino/Constants.java",
     "concepts/javabip/casino/Main.java"
   )
+
+  passingTest("concepts/javabip/deviation/deviation.json",
+    "concepts/javabip/deviation/CalculatorSpec.java",
+    "concepts/javabip/deviation/Constants.java",
+    "concepts/javabip/deviation/DeviatorSpec.java",
+    "concepts/javabip/deviation/GeneratorSpec.java",
+    "concepts/javabip/deviation/Main.java",
+  )
 }
