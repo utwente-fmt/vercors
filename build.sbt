@@ -82,7 +82,7 @@ lazy val vercors: Project = (project in file("."))
     fork := true,
     name := "Vercors",
     organization := "nl.utwente",
-    version := "2.0.0-alpha.8",
+    version := "2.0.0-javabip-alpha",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -129,7 +129,7 @@ lazy val vercors: Project = (project in file("."))
     Compile / javacOptions ++= Seq(
       "-Xlint:deprecation",
       "-Xlint:unchecked",
-      "-deprecation"
+      "-deprecation",
     ),
 
     Runtime / javacOptions ++= Seq(

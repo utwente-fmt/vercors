@@ -469,7 +469,8 @@ case object ResolveReferences extends LazyLogging {
       })
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Transition") =>
-      logger.info(s"BIP Transition @ ${ann.o}")
+      // TODO (RR): I would like some indication that vercors is in BIP verification mode, somehow. General message after parsing or resolution?
+//      logger.info(s"BIP Transition @ ${ann.o}")
 
       val guard: Option[Expr[G]] = ann.get("guard").map { g =>
         val expr: Expr[G] = ctx.javaParser.parse(getLit(g), g.o)

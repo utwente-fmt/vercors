@@ -37,7 +37,7 @@ case class InstantiateBipSynchronizations[Pre <: Generation]() extends Rewriter[
     this.program = program
     val p = super.dispatch(program)
     if (transitionSynchrons.nonEmpty) {
-      logger.info(s"Converted ${portSynchrons.size} port synchronizations into ${transitionSynchrons.size} transition synchronizations")
+      logger.info(s"Converted ${portSynchrons.size} JavaBIP port synchronizations into ${transitionSynchrons.size} JavaBIP transition synchronizations")
       transitionSynchrons.foreach(t => logger.debug(t.summarize))
     }
     p
