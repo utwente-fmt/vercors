@@ -116,6 +116,8 @@ case object BIP {
 
     case class VerificationReport(components: mut.LinkedHashMap[String, ComponentReport]) {
       def toJson(): String = upickle.default.write(this, 2)
+      def isEmpty(): Boolean = components.isEmpty
+      def nonEmpty(): Boolean = !isEmpty()
     }
 
     object VerificationReport {
