@@ -61,11 +61,12 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
     case other => rewriteDefault(other)
   }
 
+  def makeInhale(obj: Expr[Pre], field: InstanceField[Pre], value: Expr[Pre])(implicit o: Origin): Statement[Post] =
+    Assume(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case Assign(Deref(obj, Ref(field)), value) =>
-      implicit val o: Origin = stat.o
-      if(isFinal(field)) Inhale(FunctionInvocation[Post](fieldFunction.ref(field), Seq(dispatch(obj)), Nil, Nil, Nil)(PanicBlame("requires nothing")) === dispatch(value))
-      else rewriteDefault(stat)
+    case Assign(Deref(obj, Ref(field)), value) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
+    case Eval(PreAssignExpression(Deref(obj, Ref(field)), value)) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
     case other => rewriteDefault(other)
   }
 }

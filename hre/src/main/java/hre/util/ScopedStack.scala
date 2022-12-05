@@ -26,6 +26,7 @@ case class ScopedStack[T]() {
   def topOption: Option[T] = stack.headOption
   def find(f: T => Boolean): Option[T] = stack.find(f)
   def exists(f: T => Boolean): Boolean = stack.exists(f)
+  def foreach(f: T => Unit): Unit = stack.foreach(f)
   def toSeq: Seq[T] = stack.toSeq
 
   def having[R](x: T)(f: => R): R = {

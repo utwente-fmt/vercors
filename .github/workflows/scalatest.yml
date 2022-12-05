@@ -129,7 +129,6 @@ jobs:
         batch: ["-n MATRIX[0]", "-n MATRIX[1]", "-n MATRIX[2]", "-n MATRIX[3]", "-n MATRIX[4]", "-n MATRIX[5]", "-n MATRIX[6]", "-n MATRIX[7]", "-l MATRIX"]
 
     runs-on: ubuntu-latest
-    environment: Default
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v2
