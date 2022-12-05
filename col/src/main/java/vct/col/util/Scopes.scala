@@ -31,6 +31,10 @@ object Scopes {
         secondPost.o -> "... this declaration.",
       ))
   }
+
+  case class NoSuccessor(pre: Declaration[_]) extends SystemError {
+    override def text: String = pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
+  }
 }
 
 case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaration[Post]]()(implicit tag: ClassTag[PostDecl]) {
