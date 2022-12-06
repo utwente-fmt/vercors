@@ -191,6 +191,7 @@ case object CoercionUtils {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyArrayCoercion)
     case t: TArray[G] => Some((CoerceIdentity(source), t))
     case t: CTArray[G] => ??? // TODO: get concrete type of array
+    case t: CTPointer[G] => ???
     case _: TNull[G] =>
       val t = TArray[G](TAny())
       Some((CoerceNullArray(t), t))
