@@ -6,6 +6,7 @@ adt `zfrac` {
   axiom (\forall `zfrac` f; none <= {:zfrac_val(f):} && zfrac_val(f) <= write);
 }
 
+decreases;
 requires none <= p && p <= write;
 ensures `zfrac`.zfrac_val(\result) == p;
 pure `zfrac` new_zfrac(rational p);

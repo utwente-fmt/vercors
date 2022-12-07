@@ -1,3 +1,4 @@
 adt `nothing` {}
 
+decreases;
 pure T nothing_as<T>(`nothing` value);

@@ -38,9 +38,15 @@ final class ConcurrentListAppender[E] extends AppenderBase[E] {
 }
 
 @nowarn("any") // due to be removed
-case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = Resources.getZ3Path, numberOfParallelVerifiers: Option[Int] = None,
-                   proverLogFile: Option[Path] = None, printQuantifierStatistics: Boolean = false, timeoutValue: Int = 30,
-                   options: Seq[String] = Nil) extends SilverBackend {
+case class Silicon(
+  z3Settings: Map[String, String] = Map.empty,
+  z3Path: Path = Resources.getZ3Path,
+  numberOfParallelVerifiers: Option[Int] = None,
+  proverLogFile: Option[Path] = None,
+  printQuantifierStatistics: Boolean = false,
+  timeoutValue: Int = 30,
+  options: Seq[String] = Nil,
+) extends SilverBackend {
 
   var la: ConcurrentListAppender[ILoggingEvent] = null
   var nodeFromUniqueId: Map[Int, Node[_]] = Map()
@@ -98,14 +104,13 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
     siliconConfig :+= "-"
 
     silicon.parseCommandLine(siliconConfig)
-
-    SymbExLogger.setListenerProvider(_ => SiliconLogListener())
+    silicon.symbExLog = SiliconLogListener
 
     silicon.start()
 
     val plugins = SilverPluginManager(Some(Seq(
       "viper.silver.plugin.standard.termination.TerminationPlugin",
-    ).mkString(":")))(silicon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], silicon.config)
+    ).mkString(":")))(silicon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], silicon.config, null)
 
     (silicon, plugins)
   }
@@ -189,7 +194,7 @@ case class Silicon(z3Settings: Map[String, String] = Map.empty, z3Path: Path = R
 
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
-    SymbExLogger.reset()
+    // SymbExLogger.reset()
 
     if (printQuantifierStatistics) {
       intermediatePrinterTimer.cancel()

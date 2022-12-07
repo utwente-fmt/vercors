@@ -14,9 +14,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#30396357d472af235c42875ef6cde52589dc9dcc")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#e7d6d79e6b420f880dc057a85a4e17dd9976508f")
-val silicon_url = uri("git:https://github.com/niomaster/silicon.git#88c2a546121902f48e2ca722f19042d1fe4202c3")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#8b6c8e363e2f569a8fde394d6aa4ee7b2835c24c")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#7ea5d3f4b04efd37092f8c1ff0e34bf66a0ec246")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#3f6aaa9c29faa0c6684682af97730fae5bdbe8cb")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -74,6 +74,14 @@ lazy val printTestClasspath = taskKey[Unit]("Prints classpath of test vercors ex
 lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in runtime")
 lazy val benchPrintExternalDeps = taskKey[Unit]("For util/bench/flatten-sources.sh: print only the external dependencies, available without compilation.")
 lazy val benchPrintSources = taskKey[Unit]("For util/bench/flatten-sources.sh: print all source directories, including viper.")
+
+lazy val fetchGitInfo = taskKey[Seq[String]]("Explicitly depend on git information to generate BuildInfo")
+
+fetchGitInfo := {
+  Seq(Git.currentBranch, Git.currentCommit, Git.currentShortCommit, Git.gitHasChanges.toString)
+}
+
+Compile / buildInfo := (Compile / buildInfo).dependsOn(fetchGitInfo).value
 
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, rewrite, viper, parsers)
@@ -143,6 +151,9 @@ lazy val vercors: Project = (project in file("."))
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
+      },
+      BuildInfoKey.action("currentCommit") {
+        Git.currentCommit
       },
       BuildInfoKey.action("currentShortCommit") {
         Git.currentShortCommit

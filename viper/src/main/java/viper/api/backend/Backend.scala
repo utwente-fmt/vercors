@@ -1,8 +1,9 @@
 package viper.api.backend
 
-import hre.io.Writeable
 import vct.col.ast.Program
 
+import java.nio.file.Path
+
 trait Backend {
-  def submit(program: Program[_], output: Option[Writeable]): Unit
+  def submit(program: Program[_], output: Option[Path]): Boolean
 }

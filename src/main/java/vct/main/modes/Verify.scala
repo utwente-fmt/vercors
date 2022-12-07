@@ -54,8 +54,8 @@ case object Verify extends LazyLogging {
   def runOptions(options: Options): Int = {
     try {
       // Wrapped in try because this seems to crash on windows
-      Signal.handle(new Signal("USR1"), _ => SymbExLogger.memberList.synchronized {
-        SymbExLogger.memberList.toSeq.map(_.listener).collect { case l: SiliconLogListener => l } match {
+      Signal.handle(new Signal("USR1"), _ => SiliconLogListener.synchronized {
+        SiliconLogListener.logs.toSeq match {
           case Nil => logger.warn("Silicon is idle.")
           case listeners => listeners.foreach(_.printDetailedState())
         }

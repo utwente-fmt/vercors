@@ -1,6 +1,7 @@
 package viper.api.backend.carbon
 
 import org.slf4j.LoggerFactory.getLogger
+import vct.col.ast.Program
 import vct.col.{ast => col}
 import viper.api.Resources
 import viper.api.backend.SilverBackend
@@ -10,7 +11,15 @@ import viper.silver.verifier.Verifier
 
 import java.nio.file.Path
 
-case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resources.getBoogiePath, printFile: Option[Path] = None, proverLogFile: Option[Path] = None, options: Seq[String] = Nil) extends SilverBackend {
+case class Carbon(
+  z3Path: Path = Resources.getZ3Path,
+  boogiePath: Path = Resources.getBoogiePath,
+  printFile: Option[Path] = None,
+  proverLogFile: Option[Path] = None,
+  options: Seq[String] = Nil,
+) extends SilverBackend {
+  override def submit(colProgram: Program[_], output: Option[Path]): Boolean = synchronized { super.submit(colProgram, output) }
+
   override def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (viper.carbon.CarbonVerifier, SilverPluginManager) = {
     val carbon = viper.carbon.CarbonVerifier(reporter)
 
@@ -31,7 +40,7 @@ case class Carbon(z3Path: Path = Resources.getZ3Path, boogiePath: Path = Resourc
 
     val plugins = SilverPluginManager(Some(Seq(
       "viper.silver.plugin.standard.termination.TerminationPlugin",
-    ).mkString(":")))(carbon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], carbon.config)
+    ).mkString(":")))(carbon.reporter, getLogger("viper.silver.plugin").asInstanceOf[ch.qos.logback.classic.Logger], carbon.config, null)
 
     (carbon, plugins)
   }

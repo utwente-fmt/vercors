@@ -32,8 +32,10 @@ jobs:
           key: sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
           restore-keys: |
             sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}
+      - name: Set SBT options
+        run: echo -J-Xmx2G -J-Xss20m > .sbtopts
       - name: Compile
-        run: sbt compile
+        run: sbt -v compile
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
@@ -77,7 +79,7 @@ jobs:
           restore-keys: |
             sbt-viper-macos-latest-${{ hashFiles('project/build.properties') }}
       - name: Compile
-        run: sbt compile
+        run: sbt -J-Xmx2G -J-Xss20m compile
       - name: Install clang
         run: brew install llvm
       - name: Run scalatest
@@ -111,7 +113,7 @@ jobs:
         restore-keys: |
           sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}
     - name: Compile
-      run: sbt pushRemoteCache
+      run: sbt -J-Xmx2G -J-Xss20m pushRemoteCache
     - name: Upload precompiled repository
       uses: actions/upload-artifact@v3
       with:
@@ -150,7 +152,7 @@ jobs:
           name: precompiled-repository
           path: tmp/vercors-build-cache
       - name: Pull cached compilation into sbt
-        run: sbt pullRemoteCache compile
+        run: sbt -J-Xmx2G -J-Xss20m pullRemoteCache compile
 
       - name: Run scalatest for label ${{matrix.batch}}
         run: sbt "testOnly vct.* -- ${{matrix.batch}}"
