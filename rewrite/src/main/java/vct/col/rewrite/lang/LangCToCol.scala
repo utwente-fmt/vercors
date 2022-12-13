@@ -239,7 +239,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def rewriteParam(cParam: CParam[Pre]): Unit = {
     if(kernelSpecifier.isDefined) return rewriteGPUParam(cParam, kernelSpecifier.get)
-    cParam.specifiers.collectFirst{
+    cParam.specifiers.collectFirst {
       case GPULocal() => throw WrongGPUType(cParam)
       case GPUGlobal() => throw WrongGPUType(cParam)
     }

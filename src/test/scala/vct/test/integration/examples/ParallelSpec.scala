@@ -31,8 +31,7 @@ class ParallelSpec extends VercorsSpec {
   // https://github.com/utwente-fmt/vercors/discussions/836
   // vercors should verify using silicon example "concepts/parallel/zero-loop.c"
   vercors should verify using silicon example "concepts/parallel/zero-many.pvl"
-  // https://github.com/utwente-fmt/vercors/issues/820
-  // vercors should verify using silicon example "concepts/parallel/zero-sub-array.c"
+   vercors should verify using silicon example "concepts/parallel/zero-sub-array.c"
   vercors should verify using silicon example "concepts/parallel/zero_array_ic.pvl"
   // https://github.com/utwente-fmt/vercors/issues/791
   // vercors should verify using silicon example "concepts/parallel/zero_matrix_ic.pvl"
