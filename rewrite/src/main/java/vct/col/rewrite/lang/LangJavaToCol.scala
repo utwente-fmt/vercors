@@ -175,7 +175,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           }.flatten)),
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
-      )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
+      )(PanicBlame("The postcondition of a default constructor cannot fail."))
       javaDefaultConstructor(currentJavaClass.top) +: decls
     } else decls
 
