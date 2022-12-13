@@ -1,12 +1,12 @@
 package viper.api.backend
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.Writeable
+import hre.io.RWFile
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
-import viper.api.transform.{ColToSilver, NodeInfo, SilverParserDummyFrontend}
 import viper.api.SilverTreeCompare
+import viper.api.transform.{ColToSilver, NodeInfo, NopViperReporter, SilverParserDummyFrontend}
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.reporter.Reporter
 import viper.silver.verifier._
@@ -14,6 +14,7 @@ import viper.silver.verifier.errors._
 import viper.silver.{ast => silver}
 
 import java.io.{File, FileOutputStream}
+import java.nio.file.Path
 import scala.reflect.ClassTag
 import scala.util.{Try, Using}
 
@@ -31,10 +32,21 @@ trait SilverBackend extends Backend with LazyLogging {
       "An error occurred in a viper plugin, which should always be prevented:\n" + errors.map(_.toString).mkString(" - ", "\n - ", "")
   }
 
+  case class NoInfo(node: silver.Infoed) extends SystemError {
+    override def text: String = node match {
+      case posed: silver.Positioned =>
+        s"At ${posed.pos.toString}: node has no info (`$node`)"
+      case _ =>
+        s"node has no info (`$node`)"
+    }
+  }
+
   def createVerifier(reporter: Reporter, nodeFromUniqueId: Map[Int, col.Node[_]]): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
 
-  private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] = node.info.getAllInfos[NodeInfo[T]].head
+  private def info[T <: col.Node[_]](node: silver.Infoed)(implicit tag: ClassTag[T]): NodeInfo[T] =
+    node.info.getAllInfos[NodeInfo[T]]
+      .headOption.getOrElse(throw NoInfo(node))
 
   private def get[T <: col.Node[_]](node: silver.Infoed): T =
     info(node).node
@@ -42,10 +54,10 @@ trait SilverBackend extends Backend with LazyLogging {
   private def path(node: silver.Node): Seq[AccountedDirection] =
     info(node.asInstanceOf[silver.Infoed]).predicatePath.get
 
-  override def submit(colProgram: col.Program[_], output: Option[Writeable]): Unit = {
+  override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
-    output.foreach(_.write { writer =>
+    output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
       writer.write(silverProgram.toString())
     })
 
@@ -59,7 +71,7 @@ trait SilverBackend extends Backend with LazyLogging {
     Using(new FileOutputStream(f)) { out =>
       out.write(silverProgram.toString().getBytes())
     }
-    SilverParserDummyFrontend.parse(f.toPath) match {
+    SilverParserDummyFrontend().parse(f.toPath) match {
       case Left(errors) =>
         logger.warn("Possible viper bug: silver AST does not reparse when printing as text")
         for(error <- errors) {
@@ -77,23 +89,28 @@ trait SilverBackend extends Backend with LazyLogging {
         }
     }
 
-    val tracker = EntityTrackingReporter()
-    val (verifier, plugins) = createVerifier(tracker, nodeFromUniqueId)
+    // val tracker = EntityTrackingReporter()
+    val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 
     val transformedProgram = plugins.beforeVerify(silverProgram) match {
       case Some(program) => program
       case None => throw PluginErrors(plugins.errors)
     }
 
-    tracker.withEntities(transformedProgram) {
-      verifier.verify(transformedProgram) match {
-        case Success =>
+    val backendVerifies = // tracker.withEntities(transformedProgram) {
+      plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
+        case Success => true
         case Failure(errors) =>
           logger.debug(errors.toString())
+          logger.whenDebugEnabled()
           errors.foreach(processError)
+          false
       }
-    }
+    // }
+
     stopVerifier(verifier)
+
+    backendVerifies
   }
 
   def processError(error: AbstractError): Unit = error match {
@@ -242,6 +259,7 @@ trait SilverBackend extends Backend with LazyLogging {
         throw NotSupported(s"Vercors does not support counterexamples from Viper")
     }
     case AbortedExceptionally(throwable) =>
+      throwable.printStackTrace()
       throw ViperCrashed(s"Viper has crashed: $throwable")
     case other =>
       throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")

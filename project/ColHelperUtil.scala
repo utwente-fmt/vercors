@@ -9,14 +9,14 @@ object ColHelperUtil {
   }
 
   def fail(message: String, context: String = "", node: Option[scala.meta.Tree] = None): Nothing = {
-    println("ColHelpers has failed!")
-    println(message)
+    println("[error] [ColHelper] failed!")
+    println("[error] [ColHelper] " + message)
     if(context.nonEmpty) {
-      println(s"The context is: $context")
+      println(s"[error] [ColHelper] The context is: $context")
     }
     node match {
       case None =>
-      case Some(node) => println(s"At ${node.pos.input.asInstanceOf[Input.VirtualFile].path}:${node.pos.startLine+1}:${node.pos.startColumn+1}")
+      case Some(node) => println(s"[error] [ColHelper] At ${node.pos.input.asInstanceOf[Input.VirtualFile].path}:${node.pos.startLine+1}:${node.pos.startColumn+1}")
     }
     ???
   }

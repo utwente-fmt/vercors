@@ -59,6 +59,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
     }
 }
@@ -79,11 +80,11 @@ class Transformation
   val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val passes: Seq[RewriterBuilder]
-) extends Stage[VerificationContext[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
+) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
 
-  override def run(input: VerificationContext[_ <: Generation]): Verification[_ <: Generation] = {
+  override def run(input: Verification[_ <: Generation]): Verification[_ <: Generation] = {
     val tempUnsupported = Set[feature.Feature](
       feature.MatrixVector,
       feature.NumericReductionOperator,
@@ -96,7 +97,7 @@ class Transformation
       case (_, _) =>
     }
 
-    var result: Verification[_ <: Generation] = Verification(Seq(input))(FileSpanningOrigin)
+    var result: Verification[_ <: Generation] = input
 
     Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
       onBeforePassKey.foreach {
@@ -150,6 +151,7 @@ case class SilverTransformation
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   checkSat: Boolean = true,
+  splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
@@ -246,4 +248,6 @@ case class SilverTransformation
     SilverIntRatCoercion,
     // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
     PinSilverNodes,
+
+    Explode.withArg(splitVerificationByProcedure),
   ))

@@ -282,7 +282,7 @@ object AstBuildHelpers {
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
-               decreases: Option[DecreasesClause[G]] = None,
+               decreases: Option[DecreasesClause[G]] = Some(DecreasesClauseNoRecursion[G]()(ConstOrigin("decreases"))),
                inline: Boolean = false)(implicit o: Origin): Function[G] =
     new Function(returnType, args, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),

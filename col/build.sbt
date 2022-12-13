@@ -11,7 +11,7 @@ lazy val generateHelpersTask = taskKey[Seq[File]]("Generate helpers for the COL 
 
 generateHelpersTask := {
   val src = (Compile / sourceDirectory).value / "java" / "vct" / "col" / "ast"
-  val gen = (Compile / sourceManaged).value / "java"
+  val gen = (Compile / sourceManaged).value
   val files = Seq(
     src / "Node.scala",
   )
@@ -28,3 +28,14 @@ generateHelpersTask := {
 }
 
 Compile / sourceGenerators += generateHelpersTask
+
+Compile / PB.targets := Seq(
+  scalapb.gen(flatPackage = true) -> (Compile / sourceManaged).value / "scalapb"
+)
+
+Compile / PB.protoSources ++= Seq(
+  (Compile / sourceManaged).value / "protobuf"
+)
+
+// The generation of protobuf helpers has to depend on the generation of col.proto
+Compile / PB.generate := (Compile / PB.generate).dependsOn(generateHelpersTask).value

@@ -87,9 +87,9 @@ case object Options {
       opt[Backend]("backend").valueName(Backend.valueName)
         .action((backend, c) => c.copy(backend = backend))
         .text("Set the backend to verify with (default: silicon)"),
-      opt[PathOrStd]("backend-file").valueName("<path>")
+      opt[Path]("backend-file-base").valueName("<path>")
         .action((backendFile, c) => c.copy(backendFile = Some(backendFile)))
-        .text("In addition to verification, output the resulting AST for the backend to a file"),
+        .text("In addition to verification, output the resulting ASTs for the backend to files, appended with -<number>.<extension>"),
       opt[Unit]("backend-debug")
         .action((_, c) => c.copy(logLevels = c.logLevels :+ ("viper", Verbosity.Debug)))
         .text("Instruct the backend to print as much debugging information as possible"),
@@ -146,6 +146,12 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").maybeHidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
+      opt[Unit]("dev-cache").maybeHidden()
+        .action((_, c) => c.copy(devCache = true))
+        .text("Cache verification results (slow, experimental)"),
+      opt[Unit]("dev-split-verification-by-procedure").maybeHidden()
+        .action((_, c) => c.copy(devSplitVerificationByProcedure = true))
+        .text("Invoke separate instances of the backend for each procedure at the end of the rewrite chain (slow, experimental)"),
 
       opt[Int]("dev-silicon-num-verifiers").hidden()
         .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
@@ -282,7 +288,7 @@ case class Options
   // Verify Options
   language: Option[Language] = None,
   backend: Backend = Backend.Silicon,
-  backendFile: Option[PathOrStd] = None,
+  backendFile: Option[Path] = None,
 
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,
@@ -316,11 +322,12 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
+  devCache: Boolean = false,
+  devSplitVerificationByProcedure: Boolean = false,
 
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
-
 
   devCarbonBoogieLogFile: Option[Path] = None,
 

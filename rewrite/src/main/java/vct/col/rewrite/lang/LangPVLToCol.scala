@@ -47,7 +47,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val t = TClass[Post](rw.succ(cls))
       val resVar = new Variable[Post](t)
       val res = Local[Post](resVar.ref)(ThisVar)
-      val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
+      val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 
       val checkRunnable = cls.declarations.collectFirst {
         case _: RunMethod[Pre] => ()
@@ -58,7 +58,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Nil, Nil, Nil,
         Some(Scope(Seq(resVar), Block(Seq(
           assignLocal(res, NewObject[Post](rw.succ(cls))),
-          Commit(res)(defaultBlame),
           Return(res),
         )))),
         ApplicableContract(

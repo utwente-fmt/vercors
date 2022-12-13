@@ -13,7 +13,7 @@ import scala.io.Source
 // We can only refactor this once silver starts using trait parameters (or the suggested workaround)
 // So we silence the warning because it is not useful.
 @nowarn("msg=.*early initializers are deprecated.*")
-object SilverParserDummyFrontend extends {
+case class SilverParserDummyFrontend() extends {
   // early initializer: reporter must be populated before initialization of superclass SilFrontend
   override val reporter: Reporter = NopViperReporter
 } with SilFrontend {

@@ -57,13 +57,13 @@ case object SilverToCol {
     }
 
   def parse[G](path: Path, blameProvider: BlameProvider): col.Program[G] =
-    transform(path, SilverParserDummyFrontend.parse(path), blameProvider)
+    transform(path, SilverParserDummyFrontend().parse(path), blameProvider)
 
   def parse[G](input: String, diagnosticPath: Path, blameProvider: BlameProvider): col.Program[G] =
-    transform(diagnosticPath, SilverParserDummyFrontend.parse(input, diagnosticPath), blameProvider)
+    transform(diagnosticPath, SilverParserDummyFrontend().parse(input, diagnosticPath), blameProvider)
 
   def parse[G](readable: Readable, blameProvider: BlameProvider): col.Program[G] =
-    transform(Paths.get(readable.fileName), SilverParserDummyFrontend.parse(readable), blameProvider)
+    transform(Paths.get(readable.fileName), SilverParserDummyFrontend().parse(readable), blameProvider)
 }
 
 case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider) {

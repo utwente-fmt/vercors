@@ -1,6 +1,6 @@
 import scala.meta._
 
-case class ColHelperAllScopes(info: ColDescription) {
+case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
   def make(): List[(String, List[Stat])] = List("AllScopes" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag

@@ -3,7 +3,7 @@ import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
-case class ColHelperSubnodes(info: ColDescription) {
+case class ColHelperSubnodes(info: ColDescription) extends ColHelperMaker {
   def subnodePatternByType(typ: Type): Option[Term => Term] =
     typ match {
       case Type.Apply(Type.Name("Seq"), List(arg)) =>
