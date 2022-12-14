@@ -194,7 +194,9 @@ case class SilverTransformation
     ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
     SimplifyNestedQuantifiers,
+    TupledQuantifiers,
     ) ++ simplifyAfterRelations ++ Seq(
+    UntupledQuantifiers,
 
     // Encode proof helpers
     EncodeProofHelpers,
