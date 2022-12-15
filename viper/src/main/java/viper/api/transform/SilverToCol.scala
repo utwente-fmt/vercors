@@ -214,7 +214,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
       col.InvokeProcedure[G](
         ref = new UnresolvedRef(methodName),
         args = args.map(transform),
-        outArgs = targets.map(transform).map(_.ref),
+        outArgs = targets.map(transform),
         typeArgs = Nil, givenMap = Nil, yields = Nil,
       )(blame(s))(origin(s))
     case silver.Exhale(exp) =>

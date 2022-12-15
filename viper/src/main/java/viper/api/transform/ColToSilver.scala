@@ -407,7 +407,7 @@ case class ColToSilver(program: col.Program[_]) {
 
   def stat(s: col.Statement[_]): silver.Stmt = s match {
     case inv@col.InvokeProcedure(method, args, outArgs, Nil, Nil, Nil) =>
-      silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
+      silver.MethodCall(ref(method), args.map(exp), outArgs.collect { case col.Local(Ref(arg)) => silver.LocalVar(ref(arg), typ(arg.t))()})(
         pos(s), NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
       silver.FieldAssign(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(s), info=NodeInfo(s)), exp(value))(pos=pos(s), info=NodeInfo(s))

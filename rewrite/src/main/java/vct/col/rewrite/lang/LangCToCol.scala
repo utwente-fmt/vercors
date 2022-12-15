@@ -773,11 +773,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case RefFunction(decl) =>
         FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefProcedure(decl) =>
         ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefPredicate(decl) =>
         PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefInstanceFunction(decl) => ???
@@ -793,7 +793,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case ref: RefCFunctionDefinition[Pre] =>
         ProcedureInvocation[Post](cFunctionSuccessor.ref(ref.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case e: RefCGlobalDeclaration[Pre] => globalInvocation(e, inv)
 
     }
@@ -816,7 +816,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
             +: rw.dispatch(threads) +: one +: one +: args.map(rw.dispatch),
           Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(kernel.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(kernel.blame)
       case e: RefCGlobalDeclaration[Pre] => ???
     }
   }
@@ -923,7 +923,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case ("get_num_groups", Some(i)) => getCudaGroupSize(i, o)
       case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
         givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-        yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+        yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
   }
 

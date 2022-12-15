@@ -63,17 +63,17 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
         case None => throw MissingGivenArg(inv, givenArg)
       })
 
-      val (yieldDummies, orderedYieldTargets: Seq[Ref[Post, Variable[Post]]]) =
+      val (yieldDummies, orderedYieldTargets: Seq[Expr[Post]]) =
         variables.collect {
           inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
-            case Some(value) => succ[Variable[Post]](value.decl)
-            case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).ref
+            case Some(value) => dispatch(value)
+            case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).get(inv.o)
           })
         }
 
       val newInv = inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
-        outArgs = inv.outArgs.map(arg => succ[Variable[Post]](arg.decl)) ++ orderedYieldTargets,
+        outArgs = inv.outArgs.map(dispatch) ++ orderedYieldTargets,
         givenMap = Nil, yields = Nil,
       )
 
@@ -101,14 +101,14 @@ case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {
         case None => throw MissingGivenArg(inv, givenArg)
       })
 
-      val orderedYieldTargets: Seq[Ref[Post, Variable[Post]]] = inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
-        case Some(value) => succ(value.decl)
-        case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).ref
+      val orderedYieldTargets: Seq[Expr[Post]] = inv.ref.decl.contract.yieldsArgs.map(yieldArg => yields.get(yieldArg) match {
+        case Some(value) => dispatch(value)
+        case None => variables.declare(new Variable[Post](dispatch(yieldArg.t))(YieldDummy(yieldArg))).get(inv.o)
       })
 
       inv.rewrite(
         args = inv.args.map(dispatch) ++ orderedGivenValues,
-        outArgs = inv.outArgs.map(arg => succ[Variable[Post]](arg.decl)) ++ orderedYieldTargets,
+        outArgs = inv.outArgs.map(dispatch) ++ orderedYieldTargets,
         givenMap = Nil, yields = Nil,
       )
     case other => rewriteDefault(other)

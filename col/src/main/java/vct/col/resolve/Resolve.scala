@@ -268,14 +268,12 @@ case object ResolveReferences {
     case inv @ SilverPartialADTFunctionInvocation(name, args, partialTypeArgs) =>
       inv.ref = Some(Spec.findAdtFunction(name, ctx).getOrElse(throw NoSuchNameError("function", name, inv)))
       partialTypeArgs.foreach(mapping => mapping._1.tryResolve(name => Spec.findAdtTypeArg(inv.adt, name).getOrElse(throw NoSuchNameError("type variable", name, inv))))
-    case inv @ InvokeProcedure(ref, _, outArgs, _, givenMap, yields) =>
+    case inv @ InvokeProcedure(ref, _, _, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findProcedure(name, ctx).getOrElse(throw NoSuchNameError("procedure", name, inv)))
-      outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
-    case inv @ ProcedureInvocation(ref, _, outArgs, _, givenMap, yields) =>
+    case inv @ ProcedureInvocation(ref, _, _, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findProcedure(name, ctx).getOrElse(throw NoSuchNameError("procedure", name, inv)))
-      outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefProcedure(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefProcedure(ref.decl), inv)
     case inv @ FunctionInvocation(ref, _, _, givenMap, yields) =>
@@ -286,14 +284,12 @@ case object ResolveReferences {
       ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
     case inv @ SilverCurPredPerm(ref, _) =>
       ref.tryResolve(name => Spec.findPredicate(name, ctx).getOrElse(throw NoSuchNameError("predicate", name, inv)))
-    case inv @ InvokeMethod(obj, ref, _, outArgs, _, givenMap, yields) =>
+    case inv @ InvokeMethod(obj, ref, _, _, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findMethod(obj, name).getOrElse(throw NoSuchNameError("method", name, inv)))
-      outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefInstanceMethod(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefInstanceMethod(ref.decl), inv)
-    case inv @ MethodInvocation(obj, ref, _, outArgs, _, givenMap, yields) =>
+    case inv @ MethodInvocation(obj, ref, _, _, _, givenMap, yields) =>
       ref.tryResolve(name => Spec.findMethod(obj, name).getOrElse(throw NoSuchNameError("method", name, inv)))
-      outArgs.foreach(ref => ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, inv))))
       Spec.resolveGiven(givenMap, RefInstanceMethod(ref.decl), inv)
       Spec.resolveYields(ctx, yields, RefInstanceMethod(ref.decl), inv)
     case inv @ InstanceFunctionInvocation(obj, ref, _, _, givenMap, yields) =>

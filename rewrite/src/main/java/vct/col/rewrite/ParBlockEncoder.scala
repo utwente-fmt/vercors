@@ -219,12 +219,14 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         // Other arguments can possibly be changed, so we collect them
       applyFunc(scanAssignTarget, args.filterNot(e => isPrimitive(e.t)))
         .flatMap(r1 => scanIterE(givenMap.map(_._2))
-          // TODO This is how yield works right? The first variable of a yield tupple gets assigned to?
-          .map(r2 => r1 ++ r2 ++ outArgs.map(a => a.decl) ++ yields.map(y => y._1.decl)))
+          .flatMap(r2 => scanIterE(outArgs)
+            .flatMap(r3 => scanIterE(yields.map(_._1))
+              .map(r4 => r1 ++ r2 ++ r3 ++ r4))))
     case FunctionInvocation(_, args, _, givenMap, yields) =>
       applyFunc(scanAssignTarget, args.filterNot(e => isPrimitive(e.t)))
         .flatMap(r1 => scanIterE(givenMap.map(_._2))
-          .map(r2 => r1 ++ r2 ++ yields.map(y => y._1.decl)))
+          .flatMap(r2 => scanIterE(yields.map(_._1))
+            .map(r3 => r1 ++ r2 ++ r3)))
     case PreAssignExpression(target, value) => combine(scanAssignTarget(target), scanForAssignE(value))
     case PointerSubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
     case ArraySubscript(pointer, index) => combine(scanForAssignE(pointer), scanForAssignE(index))
