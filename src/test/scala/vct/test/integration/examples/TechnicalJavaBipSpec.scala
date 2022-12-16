@@ -9,6 +9,12 @@ class TechnicalJavaBipSpec extends JavaBipSpecHelper {
     "technical/javabip/transitionPrecondition/MyComponent.java",
   )
 
+  failingTest(Seq("bipTransitionPreconditionFailed:false", "bipTransitionPreconditionUnsatisfiable"),
+    "technical/javabip/transitionPreconditionUnsatisfiable/transitionPreconditionUnsatisfiable.json",
+    "technical/javabip/transitionPreconditionUnsatisfiable/Main.java",
+    "technical/javabip/transitionPreconditionUnsatisfiable/MyComponent.java",
+  )
+
   failingTest("bipComponentInvariantNotEstablished:false",
     "technical/javabip/ComponentInvariantNotEstablished.json",
     "technical/javabip/ComponentInvariantNotEstablished.java"

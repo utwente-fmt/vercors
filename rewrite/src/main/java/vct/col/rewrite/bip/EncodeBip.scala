@@ -27,8 +27,8 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  /* TODO (RR): The next three classes seem repetitive. Can probably factor out a common core,
-      e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
+  /* The next three classes seem repetitive. Can probably factor out a common core,
+     e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
    */
   case class TransitionPostconditionFailed(results: VerificationResults, transition: BipTransition[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
@@ -49,7 +49,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  // TODO: Refactor with postblamesplit
+  // Could be refactor with postblamesplit
   case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
@@ -232,7 +232,6 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       )(l.o)
     }
 
-    // TODO (RR): I actually want the "this" not hardcoded in the bip guard invocation, as actually the this is contextual, so why put it in a node...
     case invocation @ BipGuardInvocation(obj, Ref(guard)) =>
       methodInvocation(
         obj = dispatch(obj),
@@ -457,7 +456,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
              by the precondition of the synchron.
            */
           val preconditionExhale = Exhale(replaceThis.having(clsThisSubst) {
-                dispatch(transition.requires) // TODO: Need to dispatch on all blames here as well?
+                dispatch(transition.requires)
             })(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
 
           Seq(preconditionExhale, componentStateGuardExhale)
