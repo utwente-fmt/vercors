@@ -9,6 +9,6 @@ trait InvokingNodeImpl[G] { this: InvokingNode[G] =>
   def ref: Ref[G, _ <: ContractApplicable[G]]
   def blame: Blame[InvocationFailure]
   def givenMap: Seq[(Ref[G, Variable[G]], Expr[G])]
-  def yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]
+  def yields: Seq[(Expr[G], Ref[G, Variable[G]])]
   def typeArgs: Seq[Type[G]]
 }

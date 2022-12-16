@@ -33,13 +33,12 @@ case object Spec {
       }
     }
 
-  def resolveYields[G](ctx: ReferenceResolutionContext[G], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])], target: Referrable[G], blame: Node[G]): Unit =
+  def resolveYields[G](ctx: ReferenceResolutionContext[G], yields: Seq[(Expr[G], Ref[G, Variable[G]])], target: Referrable[G], blame: Node[G]): Unit =
     if(yields.nonEmpty) {
       val contract = getContract(target, blame)
       val args = contract.yieldsArgs.flatMap(Referrable.from)
       yields.foreach {
-        case (tgt, res) =>
-          tgt.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, blame)))
+        case (_, res) =>
           res.tryResolve(name => args.collectFirst {
             case ref: RefVariable[G] if ref.name == name => ref.decl
           }.getOrElse(throw NoSuchNameError("'yields' argument", name, blame)))

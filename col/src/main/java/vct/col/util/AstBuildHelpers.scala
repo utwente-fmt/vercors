@@ -182,7 +182,7 @@ object AstBuildHelpers {
   }
 
   implicit class InvocationBuildHelpers[Pre, Post](apply: Invocation[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): Invocation[Post] = apply match {
+    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Expr[Post], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.dispatch(a), rewriter.succ(b.decl)) }): Invocation[Post] = apply match {
       case apply: AnyFunctionInvocation[Pre] =>
         new ApplyAnyFunctionBuildHelpers(apply).rewrite(args = args, givenMap = givenMap, yields = yields)
       case apply: AnyMethodInvocation[Pre] =>
@@ -191,7 +191,7 @@ object AstBuildHelpers {
   }
 
   implicit class ApplyAnyFunctionBuildHelpers[Pre, Post](apply: AnyFunctionInvocation[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), typeArgs: => Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): AnyFunctionInvocation[Post] = apply match {
+    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), typeArgs: => Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: Seq[(Expr[Post], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.dispatch(a), rewriter.succ(b.decl)) }): AnyFunctionInvocation[Post] = apply match {
       case inv: FunctionInvocation[Pre] =>
         new RewriteFunctionInvocation(inv).rewrite(args = args, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: InstanceFunctionInvocation[Pre] =>
@@ -200,7 +200,7 @@ object AstBuildHelpers {
   }
 
   implicit class ApplyAnyMethodBuildHelpers[Pre, Post](apply: AnyMethodInvocation[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: => Seq[Ref[Post, Variable[Post]]] = apply.outArgs.map(arg => rewriter.succ[Variable[Post]](arg.decl)), typeArgs: => Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: => Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): AnyMethodInvocation[Post] = apply match {
+    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: => Seq[Expr[Post]] = apply.outArgs.map(rewriter.dispatch), typeArgs: => Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: => Seq[(Expr[Post], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.dispatch(a), rewriter.succ(b.decl)) }): AnyMethodInvocation[Post] = apply match {
       case inv: ProcedureInvocation[Pre] =>
         new RewriteProcedureInvocation(inv).rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: MethodInvocation[Pre] =>
@@ -209,7 +209,7 @@ object AstBuildHelpers {
   }
 
   implicit class InvocationStatementBuildHelpers[Pre, Post](apply: InvocationStatement[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
-    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: => Seq[Ref[Post, Variable[Post]]] = apply.outArgs.map(arg => rewriter.succ[Variable[Post]](arg.decl)), typeArgs: => Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: => Seq[(Ref[Post, Variable[Post]], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.succ(a.decl), rewriter.succ(b.decl)) }): InvocationStatement[Post] = apply match {
+    def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch), outArgs: => Seq[Expr[Post]] = apply.outArgs.map(rewriter.dispatch), typeArgs: => Seq[Type[Post]] = apply.typeArgs.map(rewriter.dispatch), givenMap: => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = apply.givenMap.map { case (Ref(v), e) => (rewriter.succ(v), rewriter.dispatch(e)) }, yields: => Seq[(Expr[Post], Ref[Post, Variable[Post]])] = apply.yields.map { case (a, b) => (rewriter.dispatch(a), rewriter.succ(b.decl)) }): InvocationStatement[Post] = apply match {
       case inv: InvokeProcedure[Pre] =>
         new RewriteInvokeProcedure(inv).rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: InvokeMethod[Pre] =>
