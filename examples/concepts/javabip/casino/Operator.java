@@ -22,19 +22,25 @@ public class Operator {
     int pot;
     int amountToMove;
 
-    Operator (Integer id, int funds) {
+    Operator (Integer id, int funds) throws Exception {
         this.id = id;
+        if (funds < 0) throw new Exception("Cannot have negative funds");
         wallet = funds;
         amountToMove = 0;
         System.out.println("OPERATOR" + id + " created with wallet: " + wallet);
     }
 
-    @Transition(name = CREATE_GAME, source = WORKING, target = WORKING)
-    @Transition(name = CREATE_GAME, source = PUT_FUNDS, target = PUT_FUNDS)
-    @Transition(name = CREATE_GAME, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS)
-    @Transition(name = DECIDE_BET, source = WORKING, target = WORKING) 
-    @Transition(name = DECIDE_BET, source = PUT_FUNDS, target = PUT_FUNDS)
-    @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS) // TODO: Problem here. Say: Operator.amountToMove == 100, Casino.pot = 10. Then DECIDE_BET executes, sets Operator.pot to 10. Now if REMOVE_FROM_POT is executed, we get negative funds. I think VerCors will give an error here, since it won't be able to prove the state predicate of WITHDRAW_FUNDS. But: this means operator can deadlock?
+    /* TODO: Problem here. Say: Operator.amountToMove == 100, Casino.pot = 10. Then DECIDE_BET executes, sets
+             Operator.pot to 10. Now if REMOVE_FROM_POT is executed, we get negative funds. I think VerCors will give an
+             error here, since it won't be able to prove the state predicate of WITHDRAW_FUNDS. But: this means operator
+             can deadlock?
+     */
+    @Transition(name = CREATE_GAME, source = WORKING, target = WORKING, pre = "pot >= 0")
+    @Transition(name = CREATE_GAME, source = PUT_FUNDS, target = PUT_FUNDS, pre = "pot >= 0")
+    @Transition(name = CREATE_GAME, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "pot >= 0")
+    @Transition(name = DECIDE_BET, source = WORKING, target = WORKING, pre = "pot >= 0")
+    @Transition(name = DECIDE_BET, source = PUT_FUNDS, target = PUT_FUNDS, pre = "pot >= 0")
+    @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "pot >= 0")
     public void gameStep(@Data(name = AVAILABLE_FUNDS) int pot) {
         this.pot = pot;
         System.out.println("OPERATOR" + id + ": making one step in the game");
@@ -42,18 +48,18 @@ public class Operator {
 
     @Transition(name = PREPARE_TO_ADD, source = WORKING, target = PUT_FUNDS, guard = ENOUGH_FUNDS)
     public void prepareAmountToPut() {
-        amountToMove = (int) (Math.random() * wallet) + 1;
+        amountToMove = (int) (Math.random() * wallet); // Note: Math.random is replaced with 0 here (temporary workaround for static method access)
         wallet -= amountToMove;
         System.out.println("OPERATOR" + id + ": decided to put " + amountToMove + ", wallet: " + wallet);
     }
 
     @Transition(name = PREPARE_TO_REMOVE, source = WORKING, target = WITHDRAW_FUNDS)
     public void prepareAmountToWithdraw() {
-        amountToMove = (int) (Math.random() * pot) + 1; // TODO: this is wrong? Pot might become -1
+        amountToMove = (int) (Math.random() * pot); // Note: Math.random is replaced with 0 here (temporary workaround for static method access)
         System.out.println("OPERATOR" + id + ": decided to withdraw " + amountToMove + ", wallet: " + wallet);
     }
 
-    @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING)
+    @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING, pre = "pot >= 0")
     public void addToPot (@Data(name = AVAILABLE_FUNDS) int pot) {
         this.pot = pot + amountToMove;
         System.out.println("OPERATOR" + id + ": added " + amountToMove + " to pot, wallet: " + wallet);

@@ -12,9 +12,8 @@ import static casino.Constants.*;
 @Port(name = RECEIVE_BET, type = PortType.enforceable)
 @Port(name = CASINO_WIN, type = PortType.enforceable)
 @Port(name = PLAYER_WIN, type = PortType.enforceable)
-
 @ComponentType(initial = IDLE, name = CASINO_SPEC)
-@Invariant("secretNumber != null && bet >= 0 && pot >= bet") // TODO: Moved secretNumber to global invariant, different from original
+@Invariant("secretNumber != null && bet >= 0 && pot >= bet") // Moved secretNumber to global invariant, different from original
 @StatePredicate(state = IDLE, expr = "bet == 0")
 @StatePredicate(state = GAME_AVAILABLE, expr = "bet == 0")
 @StatePredicate(state = BET_PLACED, expr = "guess != null")
@@ -39,7 +38,7 @@ public class Casino {
     }
 
     // Add money to pot
-    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, pre = "funds >= 0" /* TODO: added later! */)
+    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, pre = "funds >= 0" /* different from original */)
     @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, pre = "funds >= 0")
     @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, pre = "funds >= 0")
     public void addToPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
@@ -54,15 +53,11 @@ public class Casino {
         // With this guard, cannot establish component invariant pot >= 0. It is not provable that funds < pot (even though we know that the operator ensures this is the case)
         guard = IS_OPERATOR
         // If we add a guard that checks if the funds can actually be removed, then VerCors can prove the component invariant again.
-        // guard = "IS_OPERATOR && ENOUGH_FUNDS"
-        // These are actually not needed - all safety properties for casino are captured by component & state invariants
-        // pre = "funds <= pot",
-        // post = "pot >= 0"
+//        guard = "IS_OPERATOR && ENOUGH_FUNDS"
         )
-    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR
-        // Same here - they are not necessary        
-        // pre = "funds <= pot",
-        // post = "pot >= 0"
+    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE,
+        guard = IS_OPERATOR
+//        guard = "IS_OPERATOR && ENOUGH_FUNDS"
         )
     public void removeFromPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot - funds;
@@ -72,23 +67,16 @@ public class Casino {
     }
 
     // Operator opens the game
-    @Transition(name = CREATE_GAME, source = IDLE, target = GAME_AVAILABLE, guard = IS_OPERATOR
-        // Also not necessary - is better stated as a state invariant
-        // post = "secretNumber != null"
-        )
+    @Transition(name = CREATE_GAME, source = IDLE, target = GAME_AVAILABLE, guard = IS_OPERATOR)
     public void createGame(@Data(name = OPERATOR) Integer sender) {
         secretNumber = new Integer((int) (Math.random() * 100));
         System.out.println("CASINO" + id + ": GAME CREATED");
     }
 
     // Operator receives a bet
-    @Transition(name = RECEIVE_BET, source = GAME_AVAILABLE, target = BET_PLACED, 
-        // TODO: Here should also be an enough funds check!        
-        guard = IS_NOT_OPERATOR
-        // Not necessary - covered by invariants        
-        // pre = "bet <= pot",
-        // post = "bet >= 0 && this.guess != null"
-        )
+    @Transition(name = RECEIVE_BET, source = GAME_AVAILABLE, target = BET_PLACED,
+            guard = "IS_NOT_OPERATOR && ALLOWABLE_BET",
+            pre = "0 <= bet && guess != null")
     public void receiveBet(@Data(name = PLAYER) Integer sender,
                            @Data(name = INCOMING_GUESS) Coin guess, @Data(name = INCOMING_BET) int bet) {
         player = sender;
@@ -162,5 +150,11 @@ public class Casino {
     @Guard(name = ENOUGH_FUNDS)
     public boolean enoughFunds(@Data(name = INCOMING_FUNDS) int funds) {
         return funds <= pot; 
+    }
+
+    @Pure
+    @Guard(name = ALLOWABLE_BET)
+    public boolean allowableBet(@Data(name = INCOMING_BET) int bet) {
+        return bet <= pot;
     }
 }
