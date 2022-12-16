@@ -403,10 +403,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         obj = inlined(obj),
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.get(inv.o) +: outArgs.map(dispatch),
+        outArgs = res.get(inv.o) +: outArgs.map(inlined),
         typeArgs = typeArgs.map(dispatch),
-        givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
+        yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
       stored(res.get(SideEffectOrigin), method.returnType)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
@@ -415,10 +415,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       effect(InvokeProcedure[Post](
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.get(inv.o) +: outArgs.map(dispatch),
+        outArgs = res.get(inv.o) +: outArgs.map(inlined),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
-        yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+        yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
       stored(res.get(SideEffectOrigin), method.returnType)
     case other =>
