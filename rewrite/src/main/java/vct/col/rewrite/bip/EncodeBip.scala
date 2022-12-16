@@ -85,7 +85,6 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     override def blame(error: NontrivialUnsatisfiable): Unit = node match {
       case g: BipGuard[_] => g.blame.blame(BipGuardPreconditionUnsatisfiable(g))
       case t: BipTransition[_] =>
-        // TODO: Add test where unsatisfaible precondition is detected/signalled in report
         results.reportPreconditionNotVerified(t)
         results.report(t, UpdateFunctionFailure)
         t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
@@ -515,10 +514,13 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
      - the body of a constructor is being rewritten,
     wrap each blame into another blame. This blame writes reports failure in transition verification results when triggered
    */
-  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
+  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = {
+    assert(Seq(rewritingBipTransitionBody, rewritingBipConstructorBody).map(_.topOption).count(_.isDefined) <= 1,
+      "should not be rewriting constructors and transitions simultaneously")
     rewritingBipTransitionBody.topOption.orElse(rewritingBipConstructorBody.topOption) match {
       case Some(bt: BipTransition[Pre]) => ExecuteOnBlame(blame) { results.report(bt, UpdateFunctionFailure) }
       case Some(bt: BipComponent[Pre]) => ExecuteOnBlame(blame) { results.report(bt, ConstructorFailure) }
       case _ => super.dispatch(blame)
     }
+  }
 }
