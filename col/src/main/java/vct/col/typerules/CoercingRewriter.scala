@@ -1585,48 +1585,82 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: CPointer[Pre]): CPointer[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    val CPointer(qualifiers) = node
+    CPointer(qualifiers)
   }
 
   def coerce(node: CDeclarator[Pre]): CDeclarator[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    node match {
+      case CPointerDeclarator(pointers, inner) =>
+        CPointerDeclarator(pointers, inner)
+      case CArrayDeclarator(qualifiers, size, inner) =>
+        CArrayDeclarator(qualifiers, size.map(int), inner)
+      case CTypedFunctionDeclarator(params, varargs, inner) =>
+        CTypedFunctionDeclarator(params, varargs, inner)
+      case CAnonymousFunctionDeclarator(params, inner) =>
+        CAnonymousFunctionDeclarator(params, inner)
+      case CName(name) =>
+        CName(name)
+    }
   }
 
   def coerce(node: CInit[Pre]): CInit[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    val CInit(decl, init) = node
+    CInit(decl, init)
   }
 
   def coerce(node: CDeclaration[Pre]): CDeclaration[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    val CDeclaration(contract, kernelInvariant, specs, init) = node
+    CDeclaration(contract, res(kernelInvariant), specs, init)
   }
 
   def coerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    node match {
+      case GpuLocalMemoryFence() => GpuLocalMemoryFence()
+      case GpuGlobalMemoryFence() => GpuGlobalMemoryFence()
+      case GpuZeroMemoryFence(value) => GpuZeroMemoryFence(value)
+    }
   }
 
   def coerce(node: JavaName[Pre]): JavaName[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    val JavaName(names) = node
+    JavaName(names)
   }
 
   def coerce(node: JavaImport[Pre]): JavaImport[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    val JavaImport(isStatic, name, star) = node
+    JavaImport(isStatic, name, star)
   }
 
   def coerce(node: JavaModifier[Pre]): JavaModifier[Pre] = {
     implicit val o: Origin = node.o
-    node matc
+    node match {
+      case JavaPublic() => JavaPublic()
+      case JavaProtected() => JavaProtected()
+      case JavaPrivate() => JavaPrivate()
+      case JavaStatic() => JavaStatic()
+      case JavaAbstract() => JavaAbstract()
+      case JavaFinal() => JavaFinal()
+      case JavaStrictFP() => JavaStrictFP()
+      case JavaNative() => JavaNative()
+      case js @ JavaSynchronized() => JavaSynchronized()(js.blame)
+      case JavaTransient() => JavaTransient()
+      case JavaVolatile() => JavaVolatile()
+      case JavaAnnotation(name, args) => JavaAnnotation(name, args)
+      case JavaPure() => JavaPure()
+      case JavaInline() => JavaInline()
+    }
   }
 
   def coerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = {
     implicit val o: Origin = node.o
-    node match {
-      case
-    }
+    val JavaVariableDeclaration(name, dim, init) = node
+    JavaVariableDeclaration(name, dim, init)
   }
 }
