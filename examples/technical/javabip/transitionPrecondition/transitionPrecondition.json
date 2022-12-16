@@ -13,9 +13,9 @@
         },
         "results": {
           "precondition": "not proven",
-          "componentInvariant": "not proven",
-          "stateInvariant": "not proven",
-          "postcondition": "not proven"
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
         }
       }
     ]

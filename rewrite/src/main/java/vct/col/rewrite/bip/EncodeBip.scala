@@ -15,8 +15,6 @@ import BIP._
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
-// TODO (RR): Proof obligation that if a port is enabled, only one transition can ever be enabled
-
 case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   override def key: String = "encodeBip"
   override def desc: String = "encodes BIP semantics explicitly"
@@ -203,6 +201,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
   val synchronizationSucc: SuccessionMap[BipTransitionSynchronization[Pre], Procedure[Post]] = SuccessionMap()
 
+  // References to incoming datas can be translated in two ways:
   sealed trait IncomingDataContext
   // The incoming data is stored in some variable
   case class RewriteToVariableContext(m: Map[BipIncomingData[Pre], Variable[Post]]) extends IncomingDataContext
@@ -241,10 +240,6 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         args = guard.data.map { ref => BipLocalIncomingData[Pre](ref)(invocation.o) }.map(dispatch),
         blame = PanicBlame("Guard invocation cannot fail as it can only depend on component invariant")
         )(expr.o)
-
-    case inv @ BipGuardInvocation(_, _) =>
-      // Bip guard invocations can only be done by bip transitions, or inside synchrons
-      throw Unreachable(inv.o.messageInContext("Bug: the following guard is unexpectedly called outside transition context"))
 
     case _ => rewriteDefault(expr)
   }
@@ -346,7 +341,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
             incomingDataToVariable.values.toSeq,
             Nil,
             Nil,
-            Some(dispatch(transition.body)),
+            incomingDataContext.having(RewriteToVariableContext(incomingDataToVariable)) {
+              Some(dispatch(transition.body))
+            },
             contract[Post](ForwardUnsatisfiableBlame(results, transition),
               requires = UnitAccountedPredicate(
                 dispatch(component.invariant) &**
@@ -389,7 +386,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
                - Non null
                - Component invariant
                - State invariant
-               - Guard
+               - Guard (done further down)
           */
         val preconditionComponents: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
           val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
@@ -421,33 +418,14 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         /*
         - Evaluate data wires and assign to var representing output data. Make mapping from data wire to output data var
          */
-        // TODO (RR): Was doing some mind bendy thing by reusing the translation nicely. Not sure if it's smart to try to be smart. Finish this later.
-//        val wireResults = synchronization.wires.map { case BipGlueDataWire(Ref(dataOut), Ref(dataIn)) =>
-//          val v = new Variable[Post](dispatch(dataOut.t))(dataIn.o)
-//
-//          val init = assignLocal[Post](v.get, methodInvocation(
-//            obj = varOf(classOf(dataOut)),
-//            ref = outgoingDataSucc.ref[Post, InstanceMethod[Post]](dataOut),
-//            blame = PanicBlame("Precondition of outgoing data cannot fail"))(dataOut.o))
-//
-//          (dataIn, v, init)
-//        }
-//        val initBlock: Seq[Assign[Post]] = wireResults.map { case (_, _, init) => init }
-
         val incomingDataToVariableContext = ListMap.from(synchronization.wires.map { case BipGlueDataWire(Ref(dataOut), Ref(dataIn)) =>
           (dataIn, new Variable[Post](dispatch(dataOut.t))(dataIn.o))
         })
-        val initBlock = incomingDataContext.having(RewriteToOutgoingDataContext(incomingDataTranslation)) {
-          incomingDataToVariableContext.keys.map { dataIn =>
-            // Sneakily again reuse some translation conveniently defined entirely someplace else.
-            assignLocal[Post](incomingDataToVariableContext(dataIn).get, dispatch(BipLocalIncomingData(dataIn.ref)))
+        val initBlock: Seq[Statement[Post]] = incomingDataContext.having(RewriteToOutgoingDataContext(incomingDataTranslation)) {
+          incomingDataToVariableContext.map { case (dataIn, variable) =>
+            assignLocal[Post](variable.get, dispatch(BipLocalIncomingData(dataIn.ref)))
           }
-        }
-
-        /* Construct another mapping, this time using the wire vars from directly above.
-           Important, because below also the precondition might refer to incomingdata variables.
-         */
-//        val incomingDataToVariableContext = RewriteToVariableContext(ListMap.from(wireResults.map { case (dataIn, v, _) => (dataIn, v) }))
+        }.toSeq
 
         /*
         - Of each class var of transition:
@@ -461,18 +439,33 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
           incomingDataContext.having(RewriteToVariableContext(incomingDataToVariableContext)) {
-            val regularExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
+            val componentStateGuardExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
               Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) :+
                   dispatch(transition.guard)
             )})(PanicBlame("Component invariant, state invariant, and transition guard should hold"))
 
+            /* At the time of writing, exhales do not support a system like UnitAccountedPredicate, meaning there's
+               know what part of the exhale failed. Additionally, at the time of writing, the precondition of a transition
+               is always a boolean. Hence, we split
+
+               exhale (componentInvariant ** stateInvariant ** guard) ** precondition
+
+               into:
+
+               exhale precondition
+               exhale (componentInvariant ** stateInvariant ** guard)
+
+               This ensures that while evaluating the precondition, all permissions that might be necessary to evaluate
+               it are still present. Additionally, if it fails, you know the precondition is broken, and not some other subexpression.
+
+               We don't have to split up the component, state, guard, any further, because those are always implied
+               by the precondition of the synchron.
+             */
             val preconditionExhale = Exhale(replaceThis.having(clsThisSubst) {
                   dispatch(transition.requires) // TODO: Need to dispatch on all blames here as well?
               })(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
 
-            Seq(regularExhale, preconditionExhale)
-            // TODO: switch to the bottom one when bug is fixed. For that, the replaceThis/incomingDataSubstitutions/some other concerns system needs to be cleaned up.
-  //          Seq(preconditionExhale, regularExhale)
+            Seq(preconditionExhale, componentStateGuardExhale)
           }
         }
 
@@ -511,7 +504,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
           globalDeclarations.declare(procedure(
             args = transitions.map(varOf(_).ref.decl),
             body = Some(
-              Scope(incomingDataToVariableContext.m.values.toSeq, Block(initBlock ++ exhales ++ inhales))),
+              Scope(incomingDataToVariableContext.values.toSeq, Block(initBlock ++ exhales ++ inhales))),
             requires = UnitAccountedPredicate(preconditionComponents &** preconditionGuards),
             ensures = UnitAccountedPredicate(postcondition),
             blame = PanicBlame("Can this contract fail?"),
@@ -524,7 +517,11 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
     case _ => rewriteDefault(decl)
   }
 
-  // If we're inside a bip transition, wrap each blame into a blame that, when activated/blamed, writes true in the big map of transition verification results
+  /* If:
+     - the body of a transition is being rewritten, or
+     - the body of a constructor is being rewritten,
+    wrap each blame into another blame. This blame writes reports failure in transition verification results when triggered
+   */
   override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = currentBipDeclaration.topOption match {
     case Some(bt: BipTransition[Pre]) => ExecuteOnBlame(blame) { results.report(bt, UpdateFunctionFailure) }
     case Some(bt: BipComponent[Pre]) => ExecuteOnBlame(blame) { results.report(bt, ConstructorFailure) }
