@@ -42,12 +42,12 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends I
   private lazy val arrayLen = find[ADTFunction[Post]](arrayAdt, "alen")
   private lazy val arrayLoc = find[Function[Post]](arrayFile, "aloc")
 
-  val arrayField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
+  val arrayField: mutable.Map[Type[Pre], SilverField[Post]] = mutable.Map()
 
   private def getArrayField(arr: Expr[Pre]): Ref[Post, SilverField[Post]] = {
-    val tElement = dispatch(arr.t.asArray.get.element)
+    val tElement = arr.t.asArray.get.element
     arrayField.getOrElseUpdate(tElement, {
-      globalDeclarations.declare(new SilverField(tElement)(ArrayField(tElement)))
+      globalDeclarations.declare(new SilverField(dispatch(tElement))(ArrayField(tElement)))
     }).ref
   }
 
