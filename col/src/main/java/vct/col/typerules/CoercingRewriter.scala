@@ -377,11 +377,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case (Ref(v), e) => (v.ref, coerce(e, v.t))
     }
 
-  def coerceYields(yields: Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])] =
+  def coerceYields(yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])] =
     yields.map {
-      case (Ref(target), Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
+      case (target, Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
         case None => throw IncoercibleExplanation(blame, "The target for a yielded argument does not exactly match the yields type.")
-        case Some(CoerceIdentity(_)) => (target.ref, yieldArg.ref)
+        case Some(CoerceIdentity(_)) => (target, yieldArg.ref)
         case Some(_) => throw IncoercibleExplanation(blame, "The target for a yielded argument does not exactly match the yields type.")
       }
     }

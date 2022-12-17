@@ -658,7 +658,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blame(invocation))
   }
 
-  def convert(implicit expr: CreatorContext, givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = expr match {
+  def convert(implicit expr: CreatorContext, givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])]): Expr[G] = expr match {
     case Creator0(typeArgs, name, creator) =>
       convert(creator, convert(typeArgs), convert(name), givenArgs, yields)
     case Creator1(name, creator) => creator match {
@@ -667,7 +667,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     }
   }
 
-  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = creator match {
+  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])]): Expr[G] = creator match {
     case ClassCreatorRest0(args, impl) =>
       failIfDefined(impl, "Anonymous classes are not supported")
       JavaNewClass(convert(args), ts, name, givenArgs, yields)(blame(creator))
@@ -917,20 +917,20 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValGivenMappings1(arg, _, v, _, more) => (new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)) +: convert(more)
   }
 
-  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
     case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
   }
 
-  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = mappings match {
-    case ValYieldsMappings0(target, _, res) => Seq((new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
-    case ValYieldsMappings1(target, _, res, _, more) => (new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], Ref[G, Variable[G]])] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
+    case ValYieldsMappings1(target, _, res, _, more) => (local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr[G]] = exprs match {
