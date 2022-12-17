@@ -2,12 +2,11 @@ package vct.col.typerules
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
-import vct.col.ast
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, Rewritten}
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable}
@@ -230,19 +229,19 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
   def postCoerce(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+  override final def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
     case other => postCoerce(coerce(preCoerce(other)))
   }
 
   def preCoerce(stat: Statement[Pre]): Statement[Pre] = stat
   def postCoerce(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
-  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+  override final def dispatch(stat: Statement[Pre]): Statement[Post] =
     postCoerce(coerce(preCoerce(stat)))
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
-  override def dispatch(decl: Declaration[Pre]): Unit = {
+  override final def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
     coercedDeclaration(decl) = coercedDecl
     postCoerce(coercedDecl)
@@ -250,111 +249,111 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def preCoerce(region: ParRegion[Pre]): ParRegion[Pre] = region
   def postCoerce(region: ParRegion[Pre]): ParRegion[Post] = rewriteDefault(region)
-  override def dispatch(region: ParRegion[Pre]): ParRegion[Post] =
+  override final def dispatch(region: ParRegion[Pre]): ParRegion[Post] =
     postCoerce(coerce(preCoerce(region)))
 
 
 
   def preCoerce(node: Verification[Pre]): Verification[Pre] = node
   def postCoerce(node: Verification[Pre]): Verification[Post] = rewriteDefault(node)
-  override def dispatch(node: Verification[Pre]): Verification[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: Verification[Pre]): Verification[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: VerificationContext[Pre]): VerificationContext[Pre] = node
   def postCoerce(node: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(node)
-  override def dispatch(node: VerificationContext[Pre]): VerificationContext[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: VerificationContext[Pre]): VerificationContext[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: Program[Pre]): Program[Pre] = node
   def postCoerce(node: Program[Pre]): Program[Post] = rewriteDefault(node)
-  override def dispatch(node: Program[Pre]): Program[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: Program[Pre]): Program[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: Type[Pre]): Type[Pre] = node
   def postCoerce(node: Type[Pre]): Type[Post] = rewriteDefault(node)
-  override def dispatch(node: Type[Pre]): Type[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: Type[Pre]): Type[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: LoopContract[Pre]): LoopContract[Pre] = node
   def postCoerce(node: LoopContract[Pre]): LoopContract[Post] = rewriteDefault(node)
-  override def dispatch(node: LoopContract[Pre]): LoopContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: LoopContract[Pre]): LoopContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CatchClause[Pre]): CatchClause[Pre] = node
   def postCoerce(node: CatchClause[Pre]): CatchClause[Post] = rewriteDefault(node)
-  override def dispatch(node: CatchClause[Pre]): CatchClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CatchClause[Pre]): CatchClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: IterVariable[Pre]): IterVariable[Pre] = node
   def postCoerce(node: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(node)
-  override def dispatch(node: IterVariable[Pre]): IterVariable[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: IterVariable[Pre]): IterVariable[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: SignalsClause[Pre]): SignalsClause[Pre] = node
   def postCoerce(node: SignalsClause[Pre]): SignalsClause[Post] = rewriteDefault(node)
-  override def dispatch(node: SignalsClause[Pre]): SignalsClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: SignalsClause[Pre]): SignalsClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: DecreasesClause[Pre]): DecreasesClause[Pre] = node
   def postCoerce(node: DecreasesClause[Pre]): DecreasesClause[Post] = rewriteDefault(node)
-  override def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: ApplicableContract[Pre]): ApplicableContract[Pre] = node
   def postCoerce(node: ApplicableContract[Pre]): ApplicableContract[Post] = rewriteDefault(node)
-  override def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: AccountedPredicate[Pre]): AccountedPredicate[Pre] = node
   def postCoerce(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
-  override def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: FieldFlag[Pre]): FieldFlag[Pre] = node
   def postCoerce(node: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(node)
-  override def dispatch(node: FieldFlag[Pre]): FieldFlag[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: FieldFlag[Pre]): FieldFlag[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
-  override def dispatch(node: Coercion[Pre]): Coercion[Rewritten[Pre]] = {
+  override final def dispatch(node: Coercion[Pre]): Coercion[Rewritten[Pre]] = {
     throw Unreachable("Coercions are rewritten by the Expr dispatch")
   }
 
 
   def preCoerce(node: Location[Pre]): Location[Pre] = node
   def postCoerce(node: Location[Pre]): Location[Post] = rewriteDefault(node)
-  override def dispatch(node: Location[Pre]): Location[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: Location[Pre]): Location[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Pre] = node
   def postCoerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(node)
-  override def dispatch(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CTypeQualifier[Pre]): CTypeQualifier[Pre] = node
   def postCoerce(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)
-  override def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CPointer[Pre]): CPointer[Pre] = node
   def postCoerce(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
-  override def dispatch(node: CPointer[Pre]): CPointer[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CPointer[Pre]): CPointer[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CDeclarator[Pre]): CDeclarator[Pre] = node
   def postCoerce(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
-  override def dispatch(node: CDeclarator[Pre]): CDeclarator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CDeclarator[Pre]): CDeclarator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CInit[Pre]): CInit[Pre] = node
   def postCoerce(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
-  override def dispatch(node: CInit[Pre]): CInit[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CInit[Pre]): CInit[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CDeclaration[Pre]): CDeclaration[Pre] = node
   def postCoerce(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
-  override def dispatch(node: CDeclaration[Pre]): CDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: CDeclaration[Pre]): CDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = node
   def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
-  override def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
   def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
-  override def dispatch(node: JavaName[Pre]): JavaName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: JavaName[Pre]): JavaName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaImport[Pre]): JavaImport[Pre] = node
   def postCoerce(node: JavaImport[Pre]): JavaImport[Post] = rewriteDefault(node)
-  override def dispatch(node: JavaImport[Pre]): JavaImport[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: JavaImport[Pre]): JavaImport[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaModifier[Pre]): JavaModifier[Pre] = node
   def postCoerce(node: JavaModifier[Pre]): JavaModifier[Post] = rewriteDefault(node)
-  override def dispatch(node: JavaModifier[Pre]): JavaModifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: JavaModifier[Pre]): JavaModifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = node
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
-  override def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1494,7 +1493,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case DecreasesClauseNoRecursion() =>
         DecreasesClauseNoRecursion()
       case DecreasesClauseTuple(exprs) =>
-        DecreasesClauseTuple(exprs)
+        DecreasesClauseTuple(exprs.map(int))  // Since we currently only support integers
     }
   }
 
