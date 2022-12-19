@@ -56,12 +56,12 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends I
     case other => super.applyCoercion(e, other)
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TArray(_) => TOption(TAxiomatic(arrayAdt.ref, Nil))
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(location: Location[Pre]): Location[Post] = location match {
+  override def postCoerce(location: Location[Pre]): Location[Post] = location match {
     case loc@ArrayLocation(arr, index) =>
       SilverFieldLocation(
         obj = FunctionInvocation[Post](

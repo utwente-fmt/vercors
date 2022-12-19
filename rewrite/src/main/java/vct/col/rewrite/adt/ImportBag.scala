@@ -26,7 +26,7 @@ case class ImportBag[Pre <: Generation](importer: ImportADTImporter) extends Imp
   private lazy val bagDisjoint = find[ADTFunction[Post]](bagAdt, "bag_disjoint")
   private lazy val bagDisjointSkolem = find[ADTFunction[Post]](bagAdt, "bag_disjoint_skolem")
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TBag(inner) => TAxiomatic[Post](bagAdt.ref, Seq(dispatch(inner)))(t.o)
     case other => rewriteDefault(other)
   }

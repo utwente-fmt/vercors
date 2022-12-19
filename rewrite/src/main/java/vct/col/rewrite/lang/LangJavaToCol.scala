@@ -217,7 +217,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             args = rw.variables.dispatch(method.parameters),
             outArgs = Nil, typeArgs = Nil,
             body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
               case None => method.body.map(rw.dispatch)
             },
             contract = method.contract.rewrite(
