@@ -72,7 +72,7 @@ case class ImportEither[Pre <: Generation](importer: ImportADTImporter) extends 
       Seq(e),
     )
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TEither(left, right) => TAxiomatic(eitherAdt.ref, Seq(dispatch(left), dispatch(right)))
     case other => rewriteDefault(other)
   }

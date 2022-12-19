@@ -18,7 +18,7 @@ case class ImportNull[Pre <: Generation](importer: ImportADTImporter) extends Im
     case other => super.applyCoercion(e, other)
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TNull() => TAxiomatic[Post](nullAdt.ref, Nil)(t.o)
     case other => rewriteDefault(other)
   }

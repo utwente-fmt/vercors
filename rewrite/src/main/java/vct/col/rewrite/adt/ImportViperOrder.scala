@@ -7,7 +7,7 @@ import vct.col.rewrite.Generation
 case object ImportViperOrder extends ImportADTBuilder("viper_order")
 
 case class ImportViperOrder[Pre <: Generation](importer: ImportADTImporter) extends ImportADT[Pre](importer) {
-  override def dispatch(program: Program[Pre]): Program[Post] = {
+  override def postCoerce(program: Program[Pre]): Program[Post] = {
     program.rewrite(declarations = globalDeclarations.collect {
       if(program.transSubnodes.collectFirst { case contract: ApplicableContract[Pre] if contract.decreases.nonEmpty => () }.nonEmpty) {
         parse("viper_order")
