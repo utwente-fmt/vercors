@@ -312,6 +312,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
             left = inlineExtraCondition(exc.get === Null(), method.contract.ensures),
             right = UnitAccountedPredicate(AstBuildHelpers.foldStar(method.contract.signals.map {
               case SignalsClause(binding, assn) =>
+                implicit val o: Origin = assn.o
                 binding.drop()
                 ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
                   signalsBinding.having((binding, exc.get)) {
