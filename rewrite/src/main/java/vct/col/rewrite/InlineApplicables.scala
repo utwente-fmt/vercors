@@ -67,6 +67,43 @@ case object InlineApplicables extends RewriterBuilder {
 
     override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
   }
+
+  case class Replacement[Pre](replacing: Expr[Pre], binding: Expr[Pre])(implicit o: Origin) {
+    val withVariable: Variable[Pre] = new Variable(replacing.t)
+    def +(other: Replacements[Pre]): Replacements[Pre] = Replacements(Seq(this)) + other
+    def +(other: Replacement[Pre]): Replacements[Pre] = Replacements(Seq(this)) + other
+  }
+  case class Replacements[Pre](replacements: Seq[Replacement[Pre]]) {
+    def +(other: Replacements[Pre]): Replacements[Pre] = Replacements(replacements ++ other.replacements)
+    def +(other: Replacement[Pre]): Replacements[Pre] = Replacements(replacements :+ other)
+
+    def expr(e: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
+      val replaced = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap).dispatch(e)
+      replacements.foldRight(replaced) {
+        case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)
+      }
+    }
+
+    def captureReturn(t: Type[Pre], body: Statement[Pre])(implicit o: Origin): Expr[Pre] = {
+      val done = Label[Pre](new LabelDecl(), Block(Nil))
+      val result = new Variable[Pre](t)
+      val newBody = ReplaceReturn((e: Expr[Pre]) => Block(Seq(assignLocal(result.get, e), Goto[Pre](done.decl.ref)))).dispatch(body)
+      ScopedExpr(Seq(result), With(Block(Seq(newBody, done)), result.get))
+    }
+
+    def stat(t: Type[Pre], s: Statement[Pre], outReplacements: Replacements[Pre])(implicit o: Origin): Expr[Pre] = {
+      val replaced = Substitute[Pre]((this + outReplacements).replacements.map(r => r.replacing -> r.withVariable.get).toMap).dispatch(s)
+      val capture = captureReturn(t, replaced)
+      ScopedExpr((this + outReplacements).replacements.map(_.withVariable),
+        With(Block(
+          replacements.map(r => assignLocal(r.withVariable.get, r.binding))
+        ), Then(
+          capture, Block(
+            outReplacements.replacements.map(r => Assign(r.binding, r.withVariable.get)(null))
+        )))
+      )
+    }
+  }
 }
 
 case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
@@ -110,37 +147,48 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
       }
 
       inlineStack.having(apply) {
+        lazy val obj = {
+          val instanceApply = apply.asInstanceOf[InstanceApply[Pre]]
+          val cls = classOwner(instanceApply.ref.decl)
+          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)
+        }
+
+        lazy val args =
+          Replacements(for((arg, v) <- apply.args.zip(apply.ref.decl.args))
+            yield Replacement(v.get, arg))
+
+        lazy val givenArgs =
+          Replacements(for((Ref(v), arg) <- apply.asInstanceOf[InvokingNode[Pre]].givenMap)
+            yield Replacement(v.get, arg))
+
+        lazy val outArgs = {
+          val inv = apply.asInstanceOf[AnyMethodInvocation[Pre]]
+          Replacements(for((out, v) <- inv.outArgs.zip(inv.ref.decl.outArgs))
+            yield Replacement(v.get, out))
+        }
+
+        lazy val yields =
+          Replacements(for((out, Ref(v)) <- apply.asInstanceOf[InvokingNode[Pre]].yields)
+            yield Replacement(v.get, out))
+
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]
         // TODO: consider type arguments and out-arguments and given and yields (oof)
         apply match {
           case PredicateApply(Ref(pred), _, WritePerm()) => // TODO inline predicates with non-write perm
-            dispatch(Substitute(replacements).dispatch(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
+            dispatch(args.expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
           case PredicateApply(Ref(pred), _, _) => ???
-          case ProcedureInvocation(Ref(proc), _, outArgs, typeArgs, givenMap, yields) =>
-            val done = Label[Pre](new LabelDecl(), Block(Nil))
-            val v = new Variable[Pre](proc.returnType)
-            val returnReplacement = (result: Expr[Pre]) => Block(Seq(assignLocal(v.get, result), Goto[Pre](done.decl.ref)))
-            val replacedArgumentsBody = Substitute(replacements).dispatch(proc.body.getOrElse(throw AbstractInlineable(apply, proc)))
-            val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsBody)
-            dispatch(With(Block(Seq(body, done)), v.get))
-          case FunctionInvocation(Ref(func), _, typeArgs, givenMap, yields) =>
-            dispatch(Substitute(replacements).dispatch(func.body.getOrElse(throw AbstractInlineable(apply, func))))
+          case ProcedureInvocation(Ref(proc), _, _, typeArgs, _, _) =>
+            dispatch((args + givenArgs).stat(apply.t, proc.body.getOrElse(throw AbstractInlineable(apply, proc)), outArgs + yields))
+          case FunctionInvocation(Ref(func), _, typeArgs, _, yields) =>
+            dispatch((args + givenArgs).expr(func.body.getOrElse(throw AbstractInlineable(apply, func))))
 
-          case MethodInvocation(obj, Ref(method), _, outArgs, typeArgs, givenMap, yields) =>
-            val done = Label[Pre](new LabelDecl(), Block(Nil))
-            val v = new Variable[Pre](method.returnType)
-            val replacementsWithObj = replacements ++ Map[Expr[Pre], Expr[Pre]](ThisObject[Pre](classOwner(method).ref) -> obj)
-            val returnReplacement = (result: Expr[Pre]) => Block(Seq(assignLocal(v.get, result), Goto[Pre](done.decl.ref)))
-            val replacedArgumentsObjBody = Substitute[Pre](replacementsWithObj).dispatch(method.body.getOrElse(throw AbstractInlineable(apply, method)))
-            val body = ReplaceReturn(returnReplacement).dispatch(replacedArgumentsObjBody)
-            dispatch(With(Block(Seq(body, done)), v.get))
-          case InstanceFunctionInvocation(obj, Ref(func), _, typeArgs, givenMap, yields) =>
-            val replacementsWithObj = replacements ++ Map(ThisObject[Pre](classOwner(func).ref) -> obj)
-            dispatch(Substitute(replacementsWithObj).dispatch(func.body.getOrElse(throw AbstractInlineable(apply, func))))
-          case InstancePredicateApply(obj, Ref(pred), _, WritePerm()) =>
-            val replacementsWithObj = replacements ++ Map(ThisObject[Pre](classOwner(pred).ref) -> obj)
-            dispatch(Substitute(replacementsWithObj).dispatch(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
-          case InstancePredicateApply(obj, Ref(pred), _, _) => ???
+          case MethodInvocation(_, Ref(method), _, _, typeArgs, _, _) =>
+            dispatch((obj + args + givenArgs).stat(apply.t, method.body.getOrElse(throw AbstractInlineable(apply, method)), outArgs + yields))
+          case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, yields) =>
+            dispatch((obj + args + givenArgs).expr(func.body.getOrElse(throw AbstractInlineable(apply, func))))
+          case InstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
+            dispatch((obj + args).expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
+          case InstancePredicateApply(_, Ref(pred), _, _) => ???
         }
       }
 
