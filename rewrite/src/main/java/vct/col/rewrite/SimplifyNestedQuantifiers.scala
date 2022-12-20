@@ -430,12 +430,12 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       independentConditions.foldLeft(containsOtherBinders(body))(_ || containsOtherBinders(_))
     }
 
-    case class ForallSubstitute(subs: Map[Expr[Pre], Expr[Post]])
-      extends Rewriter[Pre] {
+    case class ForallSubstitute(subs: Map[Variable[Pre], Expr[Post]], indexReplacement: (Expr[Pre], Expr[Post])) extends Rewriter[Pre] {
       override val allScopes = mainRewriter.allScopes
 
       override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-        case expr if subs.contains(expr) => subs(expr)
+        case expr if expr == indexReplacement._1  => indexReplacement._2
+        case v: Local[Pre] if subs.contains(v.ref.decl) => subs(v.ref.decl)
         case other => rewriteDefault(other)
       }
     }
@@ -445,10 +445,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
       mainRewriter.variables.collect {linearAccesses.search(body)} match {
         case (bindings, Some(substituteForall)) =>
-          if(bindings.size != 1){
-            throw Unreachable("Only one new variable should be declared with SimplifyNestedQuantifiers.")
-          }
-          val sub = ForallSubstitute(substituteForall.substituteOldVars)
+          if(bindings.size != 1) throw Unreachable("Only one new variable should be declared with SimplifyNestedQuantifiers.")
+          val sub = ForallSubstitute(substituteForall.substituteOldVars, substituteForall.substituteIndex)
           val newBody = sub.dispatch(body)
           val select = Seq(substituteForall.newBounds) ++ independentConditions.map(sub.dispatch) ++
             dependentConditions.map(sub.dispatch)
@@ -643,80 +641,11 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             }
           }
 
-          quantifierData.bindings.toList.permutations.map(check_vars_list)
+          def sortVar(v: Variable[Pre]): Option[BigInt] = equalityChecker.isConstantInt(linearExpressions(v))
+          val vars = quantifierData.bindings.toList.sortBy(sortVar)
+
+          vars.permutations.map(check_vars_list)
             .collectFirst({case Some(subst) => subst})
-        }
-
-        case class FoundBound(otherLowerBounds: Set[Expr[Pre]], otherUpperBounds: Set[Expr[Pre]], xMin: Expr[Pre], linExpr: Expr[Pre])
-
-
-
-        // Check in the other bounds if the specific expressions is present by a bound
-        def isExprUpperBounded(e: Expr[Pre], boundRequired: Expr[Pre]): Boolean = {
-          // Determine if l == e
-          // Then we know that e <= r (or e < r)
-          // Thus if r <= boundRequired + 1 ( or r <= boundRequired )
-          // We know that e < boundRequired
-          def lessEqBound(l: Expr[Pre], r: Expr[Pre], eq: Boolean): Boolean = {
-            val checkedBound = if(eq) simplifiedPlus(boundRequired, IntegerValue(1)) else boundRequired
-            equalityChecker.equalExpressions(l, e) &&
-              equalityChecker.lessThenEq(r, checkedBound).getOrElse(false)
-          }
-
-          for(c <- quantifierData.dependentConditions) {
-            c match {
-              case LessEq(l, r) =>
-                if(lessEqBound(l, r, eq = true)) return true
-              case Less(l, r) =>
-                if(lessEqBound(l, r, eq = false)) return true
-              case GreaterEq(l, r) =>
-                // We switch arguments around
-                if(lessEqBound(r, l, eq = true)) return true
-              case Greater(l, r) =>
-                if(lessEqBound(r, l, eq = false)) return true
-              case _ =>
-            }
-          }
-          false
-        }
-
-        def findSuitableBound(x: Variable[Pre], xLast: Variable[Pre], linExpr: Expr[Pre]): Option[FoundBound] = {
-          val a = linearExpressions(x)
-          val aLast = linearExpressions(xLast)
-
-          var otherUpperBounds: Set[Expr[Pre]] = quantifierData.upperExclusiveBounds(xLast).toSet
-          var otherLowerBounds: Set[Expr[Pre]] = quantifierData.lowerBounds(xLast).toSet
-
-          for (up <- quantifierData.upperExclusiveBounds(xLast)) {
-            for (low <- quantifierData.lowerBounds(xLast)) {
-              val nLastCandidate = simplifiedMinus(up, low)
-
-              if (equalityChecker.equalExpressions(a, simplifiedMult(aLast, nLastCandidate))) {
-                otherUpperBounds = otherUpperBounds - up
-                otherLowerBounds = otherLowerBounds - low
-                val linLast = simplifiedPlus(simplifiedMult(aLast, simplifiedMinus(Local(xLast.ref), low)), linExpr)
-                return Some(FoundBound(otherLowerBounds, otherUpperBounds, low, linLast))
-              }
-
-              if (equalityChecker.lessThenEq(simplifiedMult(aLast, nLastCandidate), a).getOrElse(false)) {
-                // This is also valid, we take a stride of a_i, but in that case it will stop earlier
-                // So we do not remove the upperbound we found
-                otherLowerBounds = otherLowerBounds - low
-                val linLast = simplifiedPlus(simplifiedMult(aLast, simplifiedMinus(Local(xLast.ref), low)), linExpr)
-                return Some(FoundBound(otherLowerBounds, otherUpperBounds, low, linLast))
-              }
-            }
-          }
-          // If we have something like f[8*z + 3*y + x] and the bound 3*y+x<8, we are valid as well
-          for (low <- quantifierData.lowerBounds(xLast)) {
-            val linLast = simplifiedPlus(simplifiedMult(aLast, simplifiedMinus(Local(xLast.ref), low)), linExpr)
-            if(isExprUpperBounded(linLast, a)){
-              otherLowerBounds = otherLowerBounds - low
-              return Some(FoundBound(otherLowerBounds, otherUpperBounds, low, linLast))
-            }
-          }
-
-          None
         }
 
         /**
@@ -805,7 +734,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           // base_k == (x_new - off)
           val xNewVar: Expr[Post] = Local(xNew.ref)
           var base: Expr[Post]= if(is_value(offset, 0)) xNewVar else Minus(xNewVar, newGen(offset))
-          val replaceMap:  mutable.Map[Expr[Pre], Expr[Post]] = mutable.Map()
+          val replaceMap:  mutable.Map[Variable[Pre], Expr[Post]] = mutable.Map()
 
           // 0 <= x_new - offset < a_k * n_k
           var newBounds = And(
@@ -814,7 +743,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           )
 
           // Replace the linear expression with the new variable
-          replaceMap(arrayIndex.index) = xNewVar
+          val replaceIndex = (arrayIndex.index, xNewVar)
 
           // and each x_i gets replaced by
           //  x_i -> base_i / a_i + xmin_i
@@ -824,7 +753,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             val xmin = xmins(x)
             if(!is_value(a, 1)) newValue = FloorDiv(newValue, newGen(a))(PanicBlame("a not zero"))
             if(!is_value(xmin, 0)) newValue = Plus(newValue, newGen(xmin))
-            replaceMap(Local(x.ref)) = newValue
+            replaceMap(x) = newValue
 
             // base_{i-1} -> base_i % a_i
             if(!is_value(a, 1)) base = Mod(base, newGen(a))(PanicBlame("n not zero"))
@@ -844,7 +773,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           }
 
           for(x <- vars){
-            val xNew = replaceMap(Local(x.ref))
+            val xNew = replaceMap(x)
             for(lowerBound <- remainingLowerBounds(x)){
               newBounds = And(LessEq(newGen(lowerBound), xNew), newBounds)
             }
@@ -853,7 +782,78 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             }
           }
 
-          Some(SubstituteForall(newBounds, replaceMap.toMap, newTriggers))
+          Some(SubstituteForall(newBounds, replaceMap.toMap, replaceIndex, newTriggers))
+        }
+
+        case class FoundBound(otherLowerBounds: Set[Expr[Pre]], otherUpperBounds: Set[Expr[Pre]], xMin: Expr[Pre], linExpr: Expr[Pre])
+
+        // Check in the other bounds if the specific expressions is present by a bound
+        def isExprUpperBounded(e: Expr[Pre], boundRequired: Expr[Pre]): Boolean = {
+          // Determine if l == e
+          // Then we know that e <= r (or e < r)
+          // Thus if r+1 <= boundRequired ( or r <= boundRequired )
+          // We know that e < boundRequired
+          def lessEqBound(l: Expr[Pre], r: Expr[Pre], eq: Boolean): Boolean = {
+            val checkedR = if(eq) simplifiedPlus(r, IntegerValue(1)) else r
+            equalityChecker.equalExpressions(l, e) &&
+              equalityChecker.lessThenEq(checkedR, boundRequired).getOrElse(false)
+          }
+
+          for(c <- quantifierData.dependentConditions) {
+            c match {
+              case LessEq(l, r) =>
+                if(lessEqBound(l, r, eq = true))
+                  return true
+              case Less(l, r) =>
+                if(lessEqBound(l, r, eq = false)) return true
+              case GreaterEq(l, r) =>
+                // We switch arguments around
+                if(lessEqBound(r, l, eq = true)) return true
+              case Greater(l, r) =>
+                if(lessEqBound(r, l, eq = false)) return true
+              case _ =>
+            }
+          }
+          false
+        }
+
+        def findSuitableBound(x: Variable[Pre], xLast: Variable[Pre], linExpr: Expr[Pre]): Option[FoundBound] = {
+          val a = linearExpressions(x)
+          val aLast = linearExpressions(xLast)
+
+          var otherUpperBounds: Set[Expr[Pre]] = quantifierData.upperExclusiveBounds(xLast).toSet
+          var otherLowerBounds: Set[Expr[Pre]] = quantifierData.lowerBounds(xLast).toSet
+
+          for (up <- quantifierData.upperExclusiveBounds(xLast)) {
+            for (low <- quantifierData.lowerBounds(xLast)) {
+              val nLastCandidate = simplifiedMinus(up, low)
+
+              if (equalityChecker.equalExpressions(a, simplifiedMult(aLast, nLastCandidate))) {
+                otherUpperBounds = otherUpperBounds - up
+                otherLowerBounds = otherLowerBounds - low
+                val linLast = simplifiedPlus(simplifiedMult(aLast, simplifiedMinus(Local(xLast.ref), low)), linExpr)
+                return Some(FoundBound(otherLowerBounds, otherUpperBounds, low, linLast))
+              }
+
+              if (equalityChecker.lessThenEq(simplifiedMult(aLast, nLastCandidate), a).getOrElse(false)) {
+                // This is also valid, we take a stride of a_i, but in that case it will stop earlier
+                // So we do not remove the upperbound we found
+                otherLowerBounds = otherLowerBounds - low
+                val linLast = simplifiedPlus(simplifiedMult(aLast, simplifiedMinus(Local(xLast.ref), low)), linExpr)
+                return Some(FoundBound(otherLowerBounds, otherUpperBounds, low, linLast))
+              }
+            }
+          }
+          // If we have something like f[8*z + 3*y + x] and the bound 3*y+x<8, we are valid as well
+          for (low <- quantifierData.lowerBounds(xLast)) {
+            val linLast = simplifiedPlus(simplifiedMult(aLast, simplifiedMinus(Local(xLast.ref), low)), linExpr)
+            if(isExprUpperBounded(linLast, a)){
+              otherLowerBounds = otherLowerBounds - low
+              return Some(FoundBound(otherLowerBounds, otherUpperBounds, low, linLast))
+            }
+          }
+
+          None
         }
 
         def simplifiedMinus(lhs: Expr[Pre], rhs: Expr[Pre]) : Expr[Pre] = {
@@ -926,5 +926,5 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
   // The `newBounds`, will contain all the new equations for "select" part of the forall.
   // The `substituteOldVars` contains a map, so we can replace the old forall variables with new expressions
   // We also store the `linearExpression`, so if we ever come across it, we can replace it with the new variable.
-  case class SubstituteForall(newBounds: Expr[Post], substituteOldVars: Map[Expr[Pre], Expr[Post]], newTriggers: Seq[Seq[Expr[Post]]])
+  case class SubstituteForall(newBounds: Expr[Post], substituteOldVars: Map[Variable[Pre], Expr[Post]], substituteIndex: (Expr[Pre], Expr[Post]), newTriggers: Seq[Seq[Expr[Post]]])
 }
