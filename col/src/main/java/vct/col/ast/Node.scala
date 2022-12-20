@@ -75,7 +75,7 @@ final case class Program[G](declarations: Seq[GlobalDeclaration[G]])(val blame: 
 sealed trait Type[G] extends NodeFamily[G] with TypeImpl[G]
 
 object TNotAValue {
-  def unappply[G](t: TNotAValue[G]): Some[Referrable[G]] = Some(t.decl.get)
+  def unapply[G](t: TNotAValue[G]): Some[Referrable[G]] = Some(t.decl.get)
 }
 
 final class TNotAValue[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with TNotAValueImpl[G] {
