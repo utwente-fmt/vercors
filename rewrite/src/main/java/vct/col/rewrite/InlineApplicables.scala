@@ -1,14 +1,16 @@
 package vct.col.rewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{AssertFailed, Blame, FoldFailed, Origin, UnfoldFailed}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -68,6 +70,16 @@ case object InlineApplicables extends RewriterBuilder {
     override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
   }
 
+  case class InlineFoldAssertFailed(fold: Fold[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      fold.blame.blame(FoldFailed(error.failure, fold))
+  }
+
+  case class InlineUnfoldAssertFailed(unfold: Unfold[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      unfold.blame.blame(UnfoldFailed(error.failure, unfold))
+  }
+
   case class Replacement[Pre](replacing: Expr[Pre], binding: Expr[Pre])(implicit o: Origin) {
     val withVariable: Variable[Pre] = new Variable(replacing.t)
     def +(other: Replacements[Pre]): Replacements[Pre] = Replacements(Seq(this)) + other
@@ -106,7 +118,7 @@ case object InlineApplicables extends RewriterBuilder {
   }
 }
 
-case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
+case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   import InlineApplicables._
 
   val inlineStack: ScopedStack[Apply[Pre]] = ScopedStack()
@@ -129,6 +141,21 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case app: InlineableApplicable[Pre] if app.inline =>
       app.drop()
+    case other => rewriteDefault(other)
+  }
+
+  @tailrec
+  private def isInlinePredicateApply(e: Expr[Pre]): Boolean = e match {
+    case PredicateApply(Ref(pred), _, _) => pred.inline
+    case InstancePredicateApply(_, Ref(pred), _, _) => pred.inline
+    case Scale(_, res) => isInlinePredicateApply(res)
+    case _ => false
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case f @ Fold(e) if isInlinePredicateApply(e) => Assert(dispatch(e))(InlineFoldAssertFailed(f))(stat.o)
+    case u @ Unfold(e) if isInlinePredicateApply(e) => Assert(dispatch(e))(InlineUnfoldAssertFailed(u))(stat.o)
+
     case other => rewriteDefault(other)
   }
 
@@ -191,6 +218,16 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] {
           case InstancePredicateApply(_, Ref(pred), _, _) => ???
         }
       }
+
+    case Unfolding(PredicateApply(Ref(pred), args, perm), body) if pred.inline =>
+      With(Block(args.map(dispatch).map(e => Eval(e)(e.o)) :+ Eval(dispatch(perm))(perm.o))(e.o), dispatch(body))(e.o)
+
+    case Unfolding(InstancePredicateApply(obj, Ref(pred), args, perm), body) if pred.inline =>
+      With(Block(
+        Seq(Eval(dispatch(obj))(obj.o)) ++
+          args.map(dispatch).map(e => Eval(e)(e.o)) ++
+          Seq(Eval(dispatch(perm))(perm.o))
+      )(e.o), dispatch(body))(e.o)
 
     case other => rewriteDefault(other)
   }

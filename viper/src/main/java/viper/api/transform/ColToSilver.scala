@@ -281,9 +281,15 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Forall(bindings, triggers, body) =>
       scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e)) }
     case starall @ col.Starall(bindings, triggers, body) =>
-      scoped { currentStarall.having(starall) {
-        silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
-      } }
+      scoped {
+        currentStarall.having(starall) {
+          val foralls: Seq[silver.Forall] = silver.utility.QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
+            silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
+          )
+
+          foralls.reduce[silver.Exp] { case (l, r) => silver.And(l, r)(pos=pos(e), info=expInfo(e)) }
+        }
+      }
     case col.Let(binding, value, main) =>
       scoped { silver.Let(variable(binding), exp(value), exp(main))(pos=pos(e), info=expInfo(e)) }
     case col.Not(arg) => silver.Not(exp(arg))(pos=pos(e), info=expInfo(e))
