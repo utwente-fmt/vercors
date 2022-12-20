@@ -244,7 +244,6 @@ case class SilverTransformation
     ForLoopToWhileLoop,
     BranchToIfElse,
     EvaluationTargetDummy,
-    SingletonStarall,
 
     // Final translation to rigid silver nodes
     SilverIntRatCoercion,
