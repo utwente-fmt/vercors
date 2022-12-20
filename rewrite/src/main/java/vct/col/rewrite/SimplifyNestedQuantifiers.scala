@@ -294,15 +294,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         // v < right
         case Comparison.LESS =>
           upperExclusiveBounds(v).addOne(right)
-          upperBounds(v).addOne(right + one)
+          upperBounds(v).addOne(right - one)
         // v <= right
         case Comparison.LESS_EQ =>
-          upperExclusiveBounds(v).addOne(right - one)
+          upperExclusiveBounds(v).addOne(right + one)
           upperBounds(v).addOne(right)
         // v == right
         case Comparison.EQ =>
           lowerBounds(v).addOne(right)
-          upperExclusiveBounds(v).addOne(right - one)
+          upperExclusiveBounds(v).addOne(right + one)
           upperBounds(v).addOne(right)
         // v >= right
         case Comparison.GREATER_EQ => lowerBounds(v).addOne(right)
