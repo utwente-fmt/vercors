@@ -6,6 +6,11 @@ import java.io._
 import java.nio.charset.StandardCharsets
 
 sealed trait PathOrStd extends Readable with Writeable {
+  override def underlyingFile: Option[File] = this match {
+    case PathOrStd.Path(path) => Some(path.toFile)
+    case PathOrStd.StdInOrOut => None
+  }
+
   override def fileName: String = this match {
     case PathOrStd.Path(path) => path.toString
     case PathOrStd.StdInOrOut => "<stdio>"

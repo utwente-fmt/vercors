@@ -11,7 +11,7 @@ public class Main {
 
   public static void main(String[] args) {
     int x=4;
-    int y=Util.incr(x);
+    int y=new Util().incr(x);
     assert y==5;
   }
 

@@ -4,7 +4,7 @@ import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
-import vct.options.types.{Backend, Mode, PathOrStd, ReadLanguage, Verbosity}
+import vct.options.types.{Backend, ClassPathEntry, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
@@ -194,9 +194,12 @@ case object Options {
       opt[Path]("path-c-system").valueName("<path>")
         .action((path, c) => c.copy(cIncludePath = path))
         .text("Set the include path for system headers (-isystem)"),
-      opt[Path]("path-jre").valueName("<path>")
-        .action((path, c) => c.copy(jrePath = path))
-        .text("Set the directory where specified JRE files are stored"),
+      opt[Unit]("no-std-class-path")
+        .action((_, c) => c.copy(classPath = c.classPath.collect { case ClassPathEntry.SourcePath(p) => ClassPathEntry.SourcePath(p) }))
+        .text("Remove the @jre (the default path to specified classes in the java runtime) and @source (the sources root computed via the package entry of submitted sources) entry"),
+      opt[ClassPathEntry]("class-path").valueName("<path>|@jre|@source").unbounded()
+        .action((cp, c) => c.copy(classPath = c.classPath :+ cp))
+        .text("Add an entry to the sources class path"),
       opt[Path]("path-z3").valueName("<path>")
         .action((path, c) => c.copy(z3Path = path))
         .text("Set the location of the z3 binary"),
@@ -306,7 +309,7 @@ case class Options
   adtPath: Path = Resources.getAdtPath,
   cc: Path = Resources.getCcPath,
   cIncludePath: Path = Resources.getCIncludePath,
-  jrePath: Path = Resources.getJrePath,
+  classPath: Seq[ClassPathEntry] = Seq(ClassPathEntry.DefaultJre, ClassPathEntry.SourcePackageRoot),
   z3Path: Path = viper.api.Resources.getZ3Path,
   boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
