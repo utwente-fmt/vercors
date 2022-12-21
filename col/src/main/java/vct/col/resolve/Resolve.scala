@@ -8,16 +8,15 @@ import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
 
-case object Resolve {
-  def resolve(program: Program[_], externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[CheckError] = {
-    ResolveTypes.resolve(program, externalJavaLoader)
-    ResolveReferences.resolve(program)
-  }
-}
-
 case object ResolveTypes {
-  def resolve[G](program: Program[G], externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[GlobalDeclaration[G]] = {
-    val ctx = TypeResolutionContext[G](externalJavaLoader = externalJavaLoader)
+  sealed trait JavaClassPathEntry
+  case object JavaClassPathEntry {
+    case object SourcePackageRoot extends JavaClassPathEntry
+    case class Path(root: java.nio.file.Path) extends JavaClassPathEntry
+  }
+
+  def resolve[G](program: Program[G], externalJavaLoader: Option[ExternalJavaLoader] = None, javaClassPath: Seq[JavaClassPathEntry]): Seq[GlobalDeclaration[G]] = {
+    val ctx = TypeResolutionContext[G](externalJavaLoader = externalJavaLoader, javaClassPath = javaClassPath)
     resolve(program, ctx)
     ctx.externallyLoadedElements.toSeq
   }
