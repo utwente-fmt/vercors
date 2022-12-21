@@ -272,8 +272,8 @@ case object Java {
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
       case TUnion(ts) => findMethodOnType(Types.leastCommonSuperType(ts), method, args)
-      case TNotAValue(RefAxiomaticDataType(adt))  => adt.decls.flatMap(Referrable.from).collectFirst {
-        case r @ RefADTFunction(f) if r.name == method && Util.compat(args, f.args) => r
+      case TNotAValue(RefAxiomaticDataType(adt)) => adt.decls.flatMap(Referrable.from).collectFirst {
+        case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       }
       case _ => None
     }
