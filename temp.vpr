@@ -1,0 +1,5082 @@
+domain any {
+  
+  
+}
+
+domain option[T] {
+  
+  function None(): option[T]
+  
+  function some(x: T): option[T]
+  
+  function option_get(opt: option[T]): T
+  
+  axiom {
+    (forall x: T :: { (some(x): option[T]) } (None(): option[T]) != (some(x): option[T]))
+  }
+  
+  axiom {
+    (forall x: T :: { (some(x): option[T]) } (option_get((some(x): option[T])): T) == x)
+  }
+  
+  axiom {
+    (forall opt: option[T] :: { (some((option_get(opt): T)): option[T]) } (some((option_get(opt): T)): option[T]) == opt)
+  }
+}
+
+domain nothing {
+  
+  
+}
+
+domain void {
+  
+  function unit(): void
+  
+  axiom {
+    (forall v: void :: true ==> unit() == v)
+  }
+}
+
+domain Coin {
+  
+  function HEADS(): Coin
+  
+  function TAILS(): Coin
+  
+  function Coin_eq(Coin1: Coin, Coin2: Coin): Bool
+  
+  function Coin_toInt(Coin1: Coin): Int
+  
+  axiom {
+    (forall i: Coin, i1: Coin :: { Coin_eq(i, i1) } Coin_eq(i, i1) == (Coin_toInt(i) == Coin_toInt(i1)))
+  }
+  
+  axiom {
+    (forall i: Coin, i1: Coin :: { Coin_eq(i, i1) } Coin_eq(i, i1) ==> i == i1)
+  }
+  
+  axiom {
+    Coin_toInt(HEADS()) == 0 && Coin_toInt(TAILS()) == 1
+  }
+  
+  axiom {
+    (forall i: Coin :: { Coin_toInt(i) } 0 <= Coin_toInt(i) && Coin_toInt(i) < 2)
+  }
+}
+
+domain t_null {
+  
+  function v_null(): t_null
+  
+  axiom {
+    (forall v: t_null :: v_null() == v)
+  }
+}
+
+domain PortType {
+  
+  function enforceable(): PortType
+  
+  function spontaneous(): PortType
+  
+  function internal(): PortType
+  
+  function PortType_eq(PortType1: PortType, PortType2: PortType): Bool
+  
+  function PortType_toInt(PortType1: PortType): Int
+  
+  axiom {
+    (forall i: PortType, i1: PortType :: { PortType_eq(i, i1) } PortType_eq(i, i1) == (PortType_toInt(i) == PortType_toInt(i1)))
+  }
+  
+  axiom {
+    (forall i: PortType, i1: PortType :: { PortType_eq(i, i1) } PortType_eq(i, i1) ==> i == i1)
+  }
+  
+  axiom {
+    PortType_toInt(enforceable()) == 0 && PortType_toInt(spontaneous()) == 1 && PortType_toInt(internal()) == 2
+  }
+  
+  axiom {
+    (forall i: PortType :: { PortType_toInt(i) } 0 <= PortType_toInt(i) && PortType_toInt(i) < 3)
+  }
+}
+
+domain array {
+  
+  function array_loc(a: array, i: Int): Ref
+  
+  function alen(a: array): Int
+  
+  function loc_inv_1(loc: Ref): array
+  
+  function loc_inv_2(loc: Ref): Int
+  
+  axiom {
+    (forall a: array, i: Int :: { array_loc(a, i) } loc_inv_1(array_loc(a, i)) == a && loc_inv_2(array_loc(a, i)) == i)
+  }
+  
+  axiom {
+    (forall a: array :: { alen(a) } alen(a) >= 0)
+  }
+}
+
+field guess: option[Coin]
+
+field bet: Int
+
+field player: Ref
+
+field pot1: Int
+
+field purse: Int
+
+field secretNumber: Ref
+
+field operator: Int
+
+field pot: Int
+
+field wallet: Int
+
+field bet1: Int
+
+field guess1: option[Coin]
+
+field amountToMove: Int
+
+function any_as(t: any): any
+
+
+function as_any(t: any): any
+  ensures any_as(result) == t
+
+
+function opt_get(opt: option[any]): any
+  requires opt != (None(): option[any])
+  ensures (some(result): option[any]) == opt
+{
+  (option_get(opt): any)
+}
+
+function opt_or_else(opt: option[any], alt: any): any
+  ensures opt == (None(): option[any]) ==> result == alt
+  ensures opt != (None(): option[any]) ==> result == opt_get(opt)
+{
+  (opt == (None(): option[any]) ? alt : opt_get(opt))
+}
+
+function nothing_as(value1: nothing): any
+
+
+function nothing_as1(value1: nothing): Coin
+
+
+function opt_get1(opt: option[nothing]): nothing
+  requires opt != (None(): option[nothing])
+  ensures (some(result): option[nothing]) == opt
+{
+  (option_get(opt): nothing)
+}
+
+function ACTOR_SYSTEM(ACTOR_SYSTEM1: Ref): Ref
+  ensures result == internToString(Seq(65, 67, 84, 79, 82, 95, 83, 89, 83, 84, 69, 77))
+
+
+function ENGINE(ENGINE1: Ref): Ref
+  ensures result == internToString(Seq(69, 78, 71, 73, 78, 69))
+
+
+function CASINO_SPEC(CASINO_SPEC1: Ref): Ref
+  ensures result == internToString(Seq(67, 65, 83, 73, 78, 79, 95, 83, 80, 69, 67))
+
+
+function CASINO(CASINO2: Ref): Ref
+  ensures result == internToString(Seq(67, 65, 83, 73, 78, 79))
+
+
+function OPERATOR_SPEC(OPERATOR_SPEC1: Ref): Ref
+  ensures result == internToString(Seq(79, 80, 69, 82, 65, 84, 79, 82, 95, 83, 80, 69, 67))
+
+
+function PLAYER_SPEC(PLAYER_SPEC1: Ref): Ref
+  ensures result == internToString(Seq(80, 76, 65, 89, 69, 82, 95, 83, 80, 69, 67))
+
+
+function OFF(OFF1: Ref): Ref
+  ensures result == internToString(Seq(79, 70, 70))
+
+
+function IDLE(IDLE1: Ref): Ref
+  ensures result == internToString(Seq(73, 68, 76, 69))
+
+
+function GAME_AVAILABLE(GAME_AVAILABLE1: Ref): Ref
+  ensures result == internToString(Seq(71, 65, 77, 69, 95, 65, 86, 65, 73, 76, 65, 66, 76, 69))
+
+
+function BET_PLACED(BET_PLACED1: Ref): Ref
+  ensures result == internToString(Seq(66, 69, 84, 95, 80, 76, 65, 67, 69, 68))
+
+
+function BET_PREPARED(BET_PREPARED1: Ref): Ref
+  ensures result == internToString(Seq(66, 69, 84, 95, 80, 82, 69, 80, 65, 82, 69, 68))
+
+
+function PUT_FUNDS(PUT_FUNDS1: Ref): Ref
+  ensures result == internToString(Seq(80, 85, 84, 95, 70, 85, 78, 68, 83))
+
+
+function WITHDRAW_FUNDS(WITHDRAW_FUNDS1: Ref): Ref
+  ensures result == internToString(Seq(87, 73, 84, 72, 68, 82, 65, 87, 95, 70, 85, 78, 68, 83))
+
+
+function WORKING(WORKING1: Ref): Ref
+  ensures result == internToString(Seq(87, 79, 82, 75, 73, 78, 71))
+
+
+function REMOVE_FROM_POT(REMOVE_FROM_POT1: Ref): Ref
+  ensures result == internToString(Seq(82, 69, 77, 79, 86, 69, 95, 70, 82, 79, 77, 95, 80, 79, 84))
+
+
+function ADD_TO_POT(ADD_TO_POT1: Ref): Ref
+  ensures result == internToString(Seq(65, 68, 68, 95, 84, 79, 95, 80, 79, 84))
+
+
+function CREATE_GAME(CREATE_GAME1: Ref): Ref
+  ensures result == internToString(Seq(67, 82, 69, 65, 84, 69, 95, 71, 65, 77, 69))
+
+
+function PLACE_BET(PLACE_BET1: Ref): Ref
+  ensures result == internToString(Seq(80, 76, 65, 67, 69, 95, 66, 69, 84))
+
+
+function PREPARE_BET(PREPARE_BET1: Ref): Ref
+  ensures result == internToString(Seq(80, 82, 69, 80, 65, 82, 69, 95, 66, 69, 84))
+
+
+function RECEIVE_BET(RECEIVE_BET1: Ref): Ref
+  ensures result == internToString(Seq(82, 69, 67, 69, 73, 86, 69, 95, 66, 69, 84))
+
+
+function DECIDE_BET(DECIDE_BET1: Ref): Ref
+  ensures result == internToString(Seq(68, 69, 67, 73, 68, 69, 95, 66, 69, 84))
+
+
+function RECEIVE_MONEY(RECEIVE_MONEY1: Ref): Ref
+  ensures result == internToString(Seq(82, 69, 67, 69, 73, 86, 69, 95, 77, 79, 78, 69, 89))
+
+
+function CASINO_WIN(CASINO_WIN1: Ref): Ref
+  ensures result == internToString(Seq(67, 65, 83, 73, 78, 79, 95, 87, 73, 78))
+
+
+function PLAYER_WIN(PLAYER_WIN1: Ref): Ref
+  ensures result == internToString(Seq(80, 76, 65, 89, 69, 82, 95, 87, 73, 78))
+
+
+function PREPARE_TO_ADD(PREPARE_TO_ADD1: Ref): Ref
+  ensures result == internToString(Seq(80, 82, 69, 80, 65, 82, 69, 95, 84, 79, 95, 65, 68, 68))
+
+
+function PREPARE_TO_REMOVE(PREPARE_TO_REMOVE1: Ref): Ref
+  ensures result == internToString(Seq(80, 82, 69, 80, 65, 82, 69, 95, 84, 79, 95, 82, 69, 77, 79, 86, 69))
+
+
+function OPEN_CASINO(OPEN_CASINO1: Ref): Ref
+  ensures result == internToString(Seq(79, 80, 69, 78, 95, 67, 65, 83, 73, 78, 79))
+
+
+function CLOSE_CASINO(CLOSE_CASINO1: Ref): Ref
+  ensures result == internToString(Seq(67, 76, 79, 83, 69, 95, 67, 65, 83, 73, 78, 79))
+
+
+function OPERATOR(OPERATOR1: Ref): Ref
+  ensures result == internToString(Seq(79, 80, 69, 82, 65, 84, 79, 82))
+
+
+function PLAYER(PLAYER1: Ref): Ref
+  ensures result == internToString(Seq(80, 76, 65, 89, 69, 82))
+
+
+function ID(ID1: Ref): Ref
+  ensures result == internToString(Seq(73, 68))
+
+
+function OUTGOING_GUESS(OUTGOING_GUESS1: Ref): Ref
+  ensures result == internToString(Seq(79, 85, 84, 71, 79, 73, 78, 71, 95, 71, 85, 69, 83, 83))
+
+
+function OUTGOING_BET(OUTGOING_BET1: Ref): Ref
+  ensures result == internToString(Seq(79, 85, 84, 71, 79, 73, 78, 71, 95, 66, 69, 84))
+
+
+function INCOMING_GUESS(INCOMING_GUESS1: Ref): Ref
+  ensures result == internToString(Seq(73, 78, 67, 79, 77, 73, 78, 71, 95, 71, 85, 69, 83, 83))
+
+
+function INCOMING_BET(INCOMING_BET1: Ref): Ref
+  ensures result == internToString(Seq(73, 78, 67, 79, 77, 73, 78, 71, 95, 66, 69, 84))
+
+
+function OUTGOING_MONEY(OUTGOING_MONEY1: Ref): Ref
+  ensures result == internToString(Seq(79, 85, 84, 71, 79, 73, 78, 71, 95, 77, 79, 78, 69, 89))
+
+
+function INCOMING_MONEY(INCOMING_MONEY1: Ref): Ref
+  ensures result == internToString(Seq(73, 78, 67, 79, 77, 73, 78, 71, 95, 77, 79, 78, 69, 89))
+
+
+function OUTGOING_FUNDS(OUTGOING_FUNDS1: Ref): Ref
+  ensures result == internToString(Seq(79, 85, 84, 71, 79, 73, 78, 71, 95, 70, 85, 78, 68, 83))
+
+
+function INCOMING_FUNDS(INCOMING_FUNDS1: Ref): Ref
+  ensures result == internToString(Seq(73, 78, 67, 79, 77, 73, 78, 71, 95, 70, 85, 78, 68, 83))
+
+
+function AVAILABLE_FUNDS(AVAILABLE_FUNDS1: Ref): Ref
+  ensures result == internToString(Seq(65, 86, 65, 73, 76, 65, 66, 76, 69, 95, 70, 85, 78, 68, 83))
+
+
+function CASINO1(CASINO2: Ref): Ref
+  ensures result == internToString(Seq(67, 65, 83, 73, 78, 79))
+
+
+function IS_PLAYER(IS_PLAYER1: Ref): Ref
+  ensures result == internToString(Seq(73, 83, 95, 80, 76, 65, 89, 69, 82))
+
+
+function IS_OPERATOR(IS_OPERATOR1: Ref): Ref
+  ensures result == internToString(Seq(73, 83, 95, 79, 80, 69, 82, 65, 84, 79, 82))
+
+
+function IS_NOT_OPERATOR(IS_NOT_OPERATOR1: Ref): Ref
+  ensures result == internToString(Seq(73, 83, 95, 78, 79, 84, 95, 79, 80, 69, 82, 65, 84, 79, 82))
+
+
+function IS_CASINO(IS_CASINO1: Ref): Ref
+  ensures result == internToString(Seq(73, 83, 95, 67, 65, 83, 73, 78, 79))
+
+
+function GUESSED(GUESSED1: Ref): Ref
+  ensures result == internToString(Seq(71, 85, 69, 83, 83, 69, 68))
+
+
+function ENOUGH_FUNDS(ENOUGH_FUNDS1: Ref): Ref
+  ensures result == internToString(Seq(69, 78, 79, 85, 71, 72, 95, 70, 85, 78, 68, 83))
+
+
+function ALLOWABLE_BET(ALLOWABLE_BET1: Ref): Ref
+  ensures result == internToString(Seq(65, 76, 76, 79, 87, 65, 66, 76, 69, 95, 66, 69, 84))
+
+
+function ConstantsStaticsSingleton(): Ref
+  ensures result != null
+  ensures type(result) == 2
+
+
+function opt_get2(opt: option[Coin]): Coin
+  requires opt != (None(): option[Coin])
+  ensures (some(result): option[Coin]) == opt
+{
+  (option_get(opt): Coin)
+}
+
+function Coin_eqOpt(Coin1: option[Coin], Coin2: option[Coin]): Bool
+{
+  (Coin1 == ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])) || Coin2 == ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])) ? Coin1 == Coin2 : Coin_eq(opt_get2(Coin1), opt_get2(Coin2)))
+}
+
+function id(id3: Ref): Ref
+
+
+function unknown(this: Ref): Int
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  this.bet
+}
+
+function unknown1(this: Ref): option[Coin]
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  this.guess
+}
+
+function unknown2(this: Ref): Ref
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  id(this)
+}
+
+function id1(id3: Ref): Int
+  ensures result == 0
+
+
+function isGuessed(this: Ref): Bool
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  (let secret == ((intValue(this.secretNumber) % 2 == 0 ? (some(HEADS()): option[Coin]) : (some(TAILS()): option[Coin]))) in Coin_eqOpt(secret, this.guess1))
+}
+
+function any_as1(t: any): Ref
+
+
+function as_any1(t: Ref): any
+  ensures any_as1(result) == t
+
+
+function any_as2(t: any): Int
+
+
+function as_any2(t: Int): any
+  ensures any_as2(result) == t
+
+
+function isOperator(this: Ref, isOperator1: Ref): Bool
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  as_any1(isOperator1) == as_any2(this.operator)
+}
+
+function isNotOperator(this: Ref, isNotOperator1: Ref): Bool
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  as_any1(isNotOperator1) != as_any2(this.operator)
+}
+
+function isPlayer(this: Ref, isPlayer1: Ref): Bool
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  isPlayer1 == this.player
+}
+
+function unknown3(this: Ref): Int
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  2 * this.bet1
+}
+
+function unknown4(this: Ref): Int
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  this.pot
+}
+
+function enoughFunds(this: Ref, enoughFunds1: Int): Bool
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  enoughFunds1 <= this.pot
+}
+
+function allowableBet(this: Ref, allowableBet1: Int): Bool
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  allowableBet1 <= this.pot
+}
+
+function id2(id3: Ref): Ref
+
+
+function haveMoney(this: Ref): Bool
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  0 < this.wallet
+}
+
+function unknown5(this: Ref): Int
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  this.amountToMove
+}
+
+function unknown6(this: Ref): Ref
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  id2(this)
+}
+
+function internToString(data1: Seq[Int]): Ref
+  ensures result != null
+  ensures subtype(type(result), 8)
+  ensures data(result) == data1
+  ensures (forall otherData: Seq[Int] :: (otherData == data1) == (result == internToString(otherData)))
+
+
+function concatStrings(a: Ref, b: Ref): Ref
+  ensures result != null
+  ensures subtype(type(result), 8)
+
+
+function data(this: Ref): Seq[Int]
+  requires this != null
+
+
+function intern(this: Ref): Ref
+  requires this != null
+  ensures result == internToString(data(this))
+
+
+function isEmpty(this: Ref): Bool
+  requires this != null
+
+
+function nothing_as2(value1: nothing): PortType
+
+
+function opt_get3(opt: option[PortType]): PortType
+  requires opt != (None(): option[PortType])
+  ensures (some(result): option[PortType]) == opt
+{
+  (option_get(opt): PortType)
+}
+
+function PortType_eqOpt(PortType1: option[PortType], PortType2: option[PortType]): Bool
+{
+  (PortType1 == ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[PortType]) : (some(nothing_as2(opt_get1((None(): option[nothing])))): option[PortType])) || PortType2 == ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[PortType]) : (some(nothing_as2(opt_get1((None(): option[nothing])))): option[PortType])) ? PortType1 == PortType2 : PortType_eq(opt_get3(PortType1), opt_get3(PortType2)))
+}
+
+function intValue(this: Ref): Int
+  requires this != null
+
+
+function aloc(a: array, i: Int): Ref
+  requires 0 <= i
+  requires i < alen(a)
+  ensures loc_inv_1(result) == a
+  ensures loc_inv_2(result) == i
+{
+  array_loc(a, i)
+}
+
+function getMessage(this: Ref): Ref
+  requires this != null
+
+
+function type(type1: Ref): Int
+  ensures result >= 0
+  ensures result <= 33
+  ensures type1 == null ==> result == 0
+  ensures type1 != null ==> result != 0
+
+
+function subtype(subtype1: Int, subtype2: Int): Bool
+  requires subtype1 >= 0
+  requires subtype1 <= 33
+  requires subtype2 >= 0
+  requires subtype2 <= 33
+{
+  (subtype1 == 0 ==> true) && ((subtype1 == 5 ==> subtype2 == 5 || subtype2 == 7) && (subtype1 == 32 ==> subtype2 == 32 || subtype2 == 10) && (subtype1 == 9 ==> subtype2 == 9 || subtype2 == 10) && (subtype1 == 18 ==> subtype2 == 18 || subtype2 == 10) && (subtype1 == 16 ==> subtype2 == 16 || subtype2 == 7) && (subtype1 == 10 ==> subtype2 == 10) && (subtype1 == 6 ==> subtype2 == 6 || subtype2 == 33 || subtype2 == 7) && (subtype1 == 11 ==> subtype2 == 11 || subtype2 == 10) && (subtype1 == 33 ==> subtype2 == 33 || subtype2 == 7) && (subtype1 == 29 ==> subtype2 == 29 || subtype2 == 10) && (subtype1 == 25 ==> subtype2 == 25 || subtype2 == 10) && (subtype1 == 17 ==> subtype2 == 17 || subtype2 == 10) && (subtype1 == 23 ==> subtype2 == 23 || subtype2 == 10) && (subtype1 == 7 ==> subtype2 == 7) && (subtype1 == 3 ==> subtype2 == 3 || subtype2 == 7) && (subtype1 == 31 ==> subtype2 == 31 || subtype2 == 10) && (subtype1 == 24 ==> subtype2 == 24 || subtype2 == 10) && (subtype1 == 30 ==> subtype2 == 30 || subtype2 == 10) && (subtype1 == 8 ==> subtype2 == 8 || subtype2 == 7) && (subtype1 == 22 ==> subtype2 == 22 || subtype2 == 10) && (subtype1 == 19 ==> subtype2 == 19 || subtype2 == 10) && (subtype1 == 13 ==> subtype2 == 13 || subtype2 == 10) && (subtype1 == 2 ==> subtype2 == 2) && (subtype1 == 1 ==> subtype2 == 1 || subtype2 == 7) && (subtype1 == 15 ==> subtype2 == 15 || subtype2 == 10) && (subtype1 == 12 ==> subtype2 == 12 || subtype2 == 10) && (subtype1 == 4 ==> subtype2 == 4 || subtype2 == 7) && (subtype1 == 26 ==> subtype2 == 26 || subtype2 == 10) && (subtype1 == 20 ==> subtype2 == 20 || subtype2 == 10) && (subtype1 == 27 ==> subtype2 == 27 || subtype2 == 10) && (subtype1 == 21 ==> subtype2 == 21 || subtype2 == 10) && (subtype1 == 14 ==> subtype2 == 14 || subtype2 == 10) && (subtype1 == 28 ==> subtype2 == 28 || subtype2 == 10))
+}
+
+method check_sat_synchron___transition_port_PREPARE_BET_from_GAME_AVAILABLE_to_BET_PREPARED(casino_Player: Ref)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+{
+  assert false
+}
+
+method synchron___transition_port_PREPARE_BET_from_GAME_AVAILABLE_to_BET_PREPARED(tid: Int, casino_Player: Ref) returns (res: void)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  ensures acc(casino_Player.bet, 1 * write)
+  ensures acc(casino_Player.guess, 1 * write)
+  ensures acc(casino_Player.purse, 1 * write)
+  ensures 0 <= casino_Player.purse
+  ensures !Coin_eqOpt(casino_Player.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  ensures 0 <= casino_Player.bet
+{
+  var exc: Ref
+  var return: void
+  exc := null
+  exhale true
+  exhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  inhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse && (!Coin_eqOpt(casino_Player.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && 0 <= casino_Player.bet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_PLACE_BET_from_BET_PREPARED_to_GAME_AVAILABLE_$_transition_port_RECEIVE_BET_from_GAME_AVAILABLE_to_BET_PLACED_if_guard(casino_Player: Ref, casino_Casino: Ref)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires !Coin_eqOpt(casino_Player.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires 0 <= casino_Player.bet
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires isNotOperator(casino_Casino, unknown2(casino_Player))
+  requires allowableBet(casino_Casino, unknown(casino_Player))
+{
+  assert false
+}
+
+method synchron___transition_port_PLACE_BET_from_BET_PREPARED_to_GAME_AVAILABLE_$_transition_port_RECEIVE_BET_from_GAME_AVAILABLE_to_BET_PLACED_if_guard(tid: Int, casino_Player: Ref, casino_Casino: Ref) returns (res: void)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires !Coin_eqOpt(casino_Player.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires 0 <= casino_Player.bet
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires isNotOperator(casino_Casino, unknown2(casino_Player))
+  requires allowableBet(casino_Casino, unknown(casino_Player))
+  ensures acc(casino_Player.bet, 1 * write)
+  ensures acc(casino_Player.guess, 1 * write)
+  ensures acc(casino_Player.purse, 1 * write)
+  ensures 0 <= casino_Player.purse
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_INCOMING_BET_: Int
+  var _casino_Casino_INCOMING_GUESS_: option[Coin]
+  var _casino_Casino_PLAYER_: Ref
+  var flatten: Int
+  var flatten1: option[Coin]
+  var flatten2: Ref
+  exc := null
+  flatten := unknown(casino_Player)
+  _casino_Casino_INCOMING_BET_ := flatten
+  flatten1 := unknown1(casino_Player)
+  _casino_Casino_INCOMING_GUESS_ := flatten1
+  flatten2 := unknown2(casino_Player)
+  _casino_Casino_PLAYER_ := flatten2
+  exhale true
+  exhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse && (!Coin_eqOpt(casino_Player.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && 0 <= casino_Player.bet)
+  exhale 0 <= _casino_Casino_INCOMING_BET_ && !Coin_eqOpt(_casino_Casino_INCOMING_GUESS_, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && (isNotOperator(casino_Casino, _casino_Casino_PLAYER_) && allowableBet(casino_Casino, _casino_Casino_INCOMING_BET_))
+  inhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_RECEIVE_MONEY_from_GAME_AVAILABLE_to_GAME_AVAILABLE_$_transition_port_PLAYER_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WORKING_to_WORKING(casino_Operator: Ref, casino_Player: Ref, casino_Casino: Ref)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires isGuessed(casino_Casino)
+  requires isPlayer(casino_Casino, unknown2(casino_Player))
+{
+  assert false
+}
+
+method synchron___transition_port_RECEIVE_MONEY_from_GAME_AVAILABLE_to_GAME_AVAILABLE_$_transition_port_PLAYER_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WORKING_to_WORKING(tid: Int, casino_Player: Ref, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires isGuessed(casino_Casino)
+  requires isPlayer(casino_Casino, unknown2(casino_Player))
+  ensures acc(casino_Player.bet, 1 * write)
+  ensures acc(casino_Player.guess, 1 * write)
+  ensures acc(casino_Player.purse, 1 * write)
+  ensures 0 <= casino_Player.purse
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Casino_PLAYER_: Ref
+  var _casino_Player_INCOMING_MONEY_: Int
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Ref
+  var flatten2: Int
+  var flatten3: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown2(casino_Player)
+  _casino_Casino_PLAYER_ := flatten1
+  flatten2 := unknown3(casino_Casino)
+  _casino_Player_INCOMING_MONEY_ := flatten2
+  flatten3 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten3
+  exhale 0 <= _casino_Player_INCOMING_MONEY_
+  exhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && (isOperator(casino_Casino, _casino_Casino_OPERATOR_) && isGuessed(casino_Casino) && isPlayer(casino_Casino, _casino_Casino_PLAYER_))
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  inhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_RECEIVE_MONEY_from_GAME_AVAILABLE_to_GAME_AVAILABLE_$_transition_port_PLAYER_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_PUT_FUNDS_to_PUT_FUNDS(casino_Operator: Ref, casino_Player: Ref, casino_Casino: Ref)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires isGuessed(casino_Casino)
+  requires isPlayer(casino_Casino, unknown2(casino_Player))
+{
+  assert false
+}
+
+method synchron___transition_port_RECEIVE_MONEY_from_GAME_AVAILABLE_to_GAME_AVAILABLE_$_transition_port_PLAYER_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_PUT_FUNDS_to_PUT_FUNDS(tid: Int, casino_Player: Ref, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires isGuessed(casino_Casino)
+  requires isPlayer(casino_Casino, unknown2(casino_Player))
+  ensures acc(casino_Player.bet, 1 * write)
+  ensures acc(casino_Player.guess, 1 * write)
+  ensures acc(casino_Player.purse, 1 * write)
+  ensures 0 <= casino_Player.purse
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Casino_PLAYER_: Ref
+  var _casino_Player_INCOMING_MONEY_: Int
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Ref
+  var flatten2: Int
+  var flatten3: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown2(casino_Player)
+  _casino_Casino_PLAYER_ := flatten1
+  flatten2 := unknown3(casino_Casino)
+  _casino_Player_INCOMING_MONEY_ := flatten2
+  flatten3 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten3
+  exhale 0 <= _casino_Player_INCOMING_MONEY_
+  exhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && (isOperator(casino_Casino, _casino_Casino_OPERATOR_) && isGuessed(casino_Casino) && isPlayer(casino_Casino, _casino_Casino_PLAYER_))
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  inhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_RECEIVE_MONEY_from_GAME_AVAILABLE_to_GAME_AVAILABLE_$_transition_port_PLAYER_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WITHDRAW_FUNDS_to_WITHDRAW_FUNDS(casino_Operator: Ref, casino_Casino: Ref, casino_Player: Ref)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires isGuessed(casino_Casino)
+  requires isPlayer(casino_Casino, unknown2(casino_Player))
+{
+  assert false
+}
+
+method synchron___transition_port_RECEIVE_MONEY_from_GAME_AVAILABLE_to_GAME_AVAILABLE_$_transition_port_PLAYER_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WITHDRAW_FUNDS_to_WITHDRAW_FUNDS(tid: Int, casino_Player: Ref, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Player != null
+  requires acc(casino_Player.bet, 1 * write)
+  requires acc(casino_Player.guess, 1 * write)
+  requires acc(casino_Player.purse, 1 * write)
+  requires 0 <= casino_Player.purse
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires isGuessed(casino_Casino)
+  requires isPlayer(casino_Casino, unknown2(casino_Player))
+  ensures acc(casino_Player.bet, 1 * write)
+  ensures acc(casino_Player.guess, 1 * write)
+  ensures acc(casino_Player.purse, 1 * write)
+  ensures 0 <= casino_Player.purse
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+  ensures casino_Operator.amountToMove < casino_Operator.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Casino_PLAYER_: Ref
+  var _casino_Player_INCOMING_MONEY_: Int
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Ref
+  var flatten2: Int
+  var flatten3: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown2(casino_Player)
+  _casino_Casino_PLAYER_ := flatten1
+  flatten2 := unknown3(casino_Casino)
+  _casino_Player_INCOMING_MONEY_ := flatten2
+  flatten3 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten3
+  exhale 0 <= _casino_Player_INCOMING_MONEY_
+  exhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && (isOperator(casino_Casino, _casino_Casino_OPERATOR_) && isGuessed(casino_Casino) && isPlayer(casino_Casino, _casino_Casino_PLAYER_))
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  inhale acc(casino_Player.bet, 1 * write) && acc(casino_Player.guess, 1 * write) && acc(casino_Player.purse, 1 * write) && 0 <= casino_Player.purse
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_ADD_TO_POT_from_IDLE_to_IDLE_if_guard_$_transition_port_ADD_TO_POT_from_PUT_FUNDS_to_WORKING(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_ADD_TO_POT_from_IDLE_to_IDLE_if_guard_$_transition_port_ADD_TO_POT_from_PUT_FUNDS_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_INCOMING_FUNDS_: Int
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  exc := null
+  flatten := unknown5(casino_Operator)
+  _casino_Casino_INCOMING_FUNDS_ := flatten
+  flatten1 := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten1
+  flatten2 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten2
+  exhale 0 <= _casino_Casino_INCOMING_FUNDS_
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_ADD_TO_POT_from_GAME_AVAILABLE_to_GAME_AVAILABLE_if_guard_$_transition_port_ADD_TO_POT_from_PUT_FUNDS_to_WORKING(casino_Casino: Ref, casino_Operator: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_ADD_TO_POT_from_GAME_AVAILABLE_to_GAME_AVAILABLE_if_guard_$_transition_port_ADD_TO_POT_from_PUT_FUNDS_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_INCOMING_FUNDS_: Int
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  exc := null
+  flatten := unknown5(casino_Operator)
+  _casino_Casino_INCOMING_FUNDS_ := flatten
+  flatten1 := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten1
+  flatten2 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten2
+  exhale 0 <= _casino_Casino_INCOMING_FUNDS_
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_ADD_TO_POT_from_BET_PLACED_to_BET_PLACED_if_guard_$_transition_port_ADD_TO_POT_from_PUT_FUNDS_to_WORKING(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_ADD_TO_POT_from_BET_PLACED_to_BET_PLACED_if_guard_$_transition_port_ADD_TO_POT_from_PUT_FUNDS_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_INCOMING_FUNDS_: Int
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  exc := null
+  flatten := unknown5(casino_Operator)
+  _casino_Casino_INCOMING_FUNDS_ := flatten
+  flatten1 := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten1
+  flatten2 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten2
+  exhale 0 <= _casino_Casino_INCOMING_FUNDS_
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_REMOVE_FROM_POT_from_IDLE_to_IDLE_if_guard_$_transition_port_REMOVE_FROM_POT_from_WITHDRAW_FUNDS_to_WORKING(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_REMOVE_FROM_POT_from_IDLE_to_IDLE_if_guard_$_transition_port_REMOVE_FROM_POT_from_WITHDRAW_FUNDS_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_INCOMING_FUNDS_: Int
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  exc := null
+  flatten := unknown5(casino_Operator)
+  _casino_Casino_INCOMING_FUNDS_ := flatten
+  flatten1 := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten1
+  flatten2 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten2
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale true
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_REMOVE_FROM_POT_from_GAME_AVAILABLE_to_GAME_AVAILABLE_if_guard_$_transition_port_REMOVE_FROM_POT_from_WITHDRAW_FUNDS_to_WORKING(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_REMOVE_FROM_POT_from_GAME_AVAILABLE_to_GAME_AVAILABLE_if_guard_$_transition_port_REMOVE_FROM_POT_from_WITHDRAW_FUNDS_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_INCOMING_FUNDS_: Int
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  exc := null
+  flatten := unknown5(casino_Operator)
+  _casino_Casino_INCOMING_FUNDS_ := flatten
+  flatten1 := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten1
+  flatten2 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten2
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale true
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_CREATE_GAME_from_IDLE_to_GAME_AVAILABLE_if_guard_$_transition_port_CREATE_GAME_from_WORKING_to_WORKING(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_CREATE_GAME_from_IDLE_to_GAME_AVAILABLE_if_guard_$_transition_port_CREATE_GAME_from_WORKING_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten1
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_CREATE_GAME_from_IDLE_to_GAME_AVAILABLE_if_guard_$_transition_port_CREATE_GAME_from_PUT_FUNDS_to_PUT_FUNDS(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_CREATE_GAME_from_IDLE_to_GAME_AVAILABLE_if_guard_$_transition_port_CREATE_GAME_from_PUT_FUNDS_to_PUT_FUNDS(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten1
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_CREATE_GAME_from_IDLE_to_GAME_AVAILABLE_if_guard_$_transition_port_CREATE_GAME_from_WITHDRAW_FUNDS_to_WITHDRAW_FUNDS(casino_Casino: Ref, casino_Operator: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+{
+  assert false
+}
+
+method synchron___transition_port_CREATE_GAME_from_IDLE_to_GAME_AVAILABLE_if_guard_$_transition_port_CREATE_GAME_from_WITHDRAW_FUNDS_to_WITHDRAW_FUNDS(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires casino_Casino.bet1 == 0
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+  ensures casino_Operator.amountToMove < casino_Operator.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten1
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0 && isOperator(casino_Casino, _casino_Casino_OPERATOR_)
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_CASINO_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WORKING_to_WORKING(casino_Casino: Ref, casino_Operator: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires !isGuessed(casino_Casino)
+{
+  assert false
+}
+
+method synchron___transition_port_CASINO_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WORKING_to_WORKING(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires !isGuessed(casino_Casino)
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten1
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && (isOperator(casino_Casino, _casino_Casino_OPERATOR_) && !isGuessed(casino_Casino))
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_CASINO_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_PUT_FUNDS_to_PUT_FUNDS(casino_Casino: Ref, casino_Operator: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires !isGuessed(casino_Casino)
+{
+  assert false
+}
+
+method synchron___transition_port_CASINO_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_PUT_FUNDS_to_PUT_FUNDS(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires !isGuessed(casino_Casino)
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten1
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && (isOperator(casino_Casino, _casino_Casino_OPERATOR_) && !isGuessed(casino_Casino))
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_CASINO_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WITHDRAW_FUNDS_to_WITHDRAW_FUNDS(casino_Operator: Ref, casino_Casino: Ref)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires !isGuessed(casino_Casino)
+{
+  assert false
+}
+
+method synchron___transition_port_CASINO_WIN_from_BET_PLACED_to_IDLE_if_guard_$_transition_port_DECIDE_BET_from_WITHDRAW_FUNDS_to_WITHDRAW_FUNDS(tid: Int, casino_Casino: Ref, casino_Operator: Ref) returns (res: void)
+  requires casino_Casino != null
+  requires acc(casino_Casino.operator, 1 * write)
+  requires acc(casino_Casino.pot, 1 * write)
+  requires acc(casino_Casino.secretNumber, 1 * write)
+  requires acc(casino_Casino.player, 1 * write)
+  requires acc(casino_Casino.guess1, 1 * write)
+  requires acc(casino_Casino.bet1, 1 * write)
+  requires casino_Casino.secretNumber != null
+  requires 0 <= casino_Casino.bet1
+  requires casino_Casino.bet1 <= casino_Casino.pot
+  requires !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires 0 <= casino_Operator.amountToMove
+  requires casino_Operator.amountToMove < casino_Operator.pot1 + 1
+  requires isOperator(casino_Casino, unknown6(casino_Operator))
+  requires !isGuessed(casino_Casino)
+  ensures acc(casino_Casino.operator, 1 * write)
+  ensures acc(casino_Casino.pot, 1 * write)
+  ensures acc(casino_Casino.secretNumber, 1 * write)
+  ensures acc(casino_Casino.player, 1 * write)
+  ensures acc(casino_Casino.guess1, 1 * write)
+  ensures acc(casino_Casino.bet1, 1 * write)
+  ensures casino_Casino.secretNumber != null
+  ensures 0 <= casino_Casino.bet1
+  ensures casino_Casino.bet1 <= casino_Casino.pot
+  ensures casino_Casino.bet1 == 0
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+  ensures casino_Operator.amountToMove < casino_Operator.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  var _casino_Casino_OPERATOR_: Ref
+  var _casino_Operator_AVAILABLE_FUNDS_: Int
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := unknown6(casino_Operator)
+  _casino_Casino_OPERATOR_ := flatten
+  flatten1 := unknown4(casino_Casino)
+  _casino_Operator_AVAILABLE_FUNDS_ := flatten1
+  exhale true
+  exhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && !Coin_eqOpt(casino_Casino.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))) && (isOperator(casino_Casino, _casino_Casino_OPERATOR_) && !isGuessed(casino_Casino))
+  exhale 0 <= _casino_Operator_AVAILABLE_FUNDS_
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  inhale acc(casino_Casino.operator, 1 * write) && acc(casino_Casino.pot, 1 * write) && acc(casino_Casino.secretNumber, 1 * write) && acc(casino_Casino.player, 1 * write) && acc(casino_Casino.guess1, 1 * write) && acc(casino_Casino.bet1, 1 * write) && (casino_Casino.secretNumber != null && 0 <= casino_Casino.bet1 && casino_Casino.bet1 <= casino_Casino.pot) && casino_Casino.bet1 == 0
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_PREPARE_TO_ADD_from_WORKING_to_PUT_FUNDS_if_guard(casino_Operator: Ref)
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires haveMoney(casino_Operator)
+{
+  assert false
+}
+
+method synchron___transition_port_PREPARE_TO_ADD_from_WORKING_to_PUT_FUNDS_if_guard(tid: Int, casino_Operator: Ref) returns (res: void)
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  requires haveMoney(casino_Operator)
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+{
+  var exc: Ref
+  var return: void
+  exc := null
+  exhale true
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && haveMoney(casino_Operator)
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && 0 <= casino_Operator.amountToMove
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_synchron___transition_port_PREPARE_TO_REMOVE_from_WORKING_to_WITHDRAW_FUNDS(casino_Operator: Ref)
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+{
+  assert false
+}
+
+method synchron___transition_port_PREPARE_TO_REMOVE_from_WORKING_to_WITHDRAW_FUNDS(tid: Int, casino_Operator: Ref) returns (res: void)
+  requires casino_Operator != null
+  requires acc(casino_Operator.wallet, 1 * write)
+  requires acc(casino_Operator.pot1, 1 * write)
+  requires acc(casino_Operator.amountToMove, 1 * write)
+  requires 0 <= casino_Operator.pot1
+  requires 0 <= casino_Operator.wallet
+  ensures acc(casino_Operator.wallet, 1 * write)
+  ensures acc(casino_Operator.pot1, 1 * write)
+  ensures acc(casino_Operator.amountToMove, 1 * write)
+  ensures 0 <= casino_Operator.pot1
+  ensures 0 <= casino_Operator.wallet
+  ensures 0 <= casino_Operator.amountToMove
+  ensures casino_Operator.amountToMove < casino_Operator.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  exc := null
+  exhale true
+  exhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet)
+  inhale acc(casino_Operator.wallet, 1 * write) && acc(casino_Operator.pot1, 1 * write) && acc(casino_Operator.amountToMove, 1 * write) && (0 <= casino_Operator.pot1 && 0 <= casino_Operator.wallet) && (0 <= casino_Operator.amountToMove && casino_Operator.amountToMove < casino_Operator.pot1 + 1)
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_Constants()
+{
+  assert false
+}
+
+method Constants(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 1
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 1
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_ConstantsStatics()
+{
+  assert false
+}
+
+method ConstantsStatics(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 2
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 2
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_ACTOR_SYSTEM()
+{
+  assert false
+}
+
+method check_sat_ENGINE()
+{
+  assert false
+}
+
+method check_sat_CASINO_SPEC()
+{
+  assert false
+}
+
+method check_sat_CASINO()
+{
+  assert false
+}
+
+method check_sat_OPERATOR_SPEC()
+{
+  assert false
+}
+
+method check_sat_PLAYER_SPEC()
+{
+  assert false
+}
+
+method check_sat_OFF()
+{
+  assert false
+}
+
+method check_sat_IDLE()
+{
+  assert false
+}
+
+method check_sat_GAME_AVAILABLE()
+{
+  assert false
+}
+
+method check_sat_BET_PLACED()
+{
+  assert false
+}
+
+method check_sat_BET_PREPARED()
+{
+  assert false
+}
+
+method check_sat_PUT_FUNDS()
+{
+  assert false
+}
+
+method check_sat_WITHDRAW_FUNDS()
+{
+  assert false
+}
+
+method check_sat_WORKING()
+{
+  assert false
+}
+
+method check_sat_REMOVE_FROM_POT()
+{
+  assert false
+}
+
+method check_sat_ADD_TO_POT()
+{
+  assert false
+}
+
+method check_sat_CREATE_GAME()
+{
+  assert false
+}
+
+method check_sat_PLACE_BET()
+{
+  assert false
+}
+
+method check_sat_PREPARE_BET()
+{
+  assert false
+}
+
+method check_sat_RECEIVE_BET()
+{
+  assert false
+}
+
+method check_sat_DECIDE_BET()
+{
+  assert false
+}
+
+method check_sat_RECEIVE_MONEY()
+{
+  assert false
+}
+
+method check_sat_CASINO_WIN()
+{
+  assert false
+}
+
+method check_sat_PLAYER_WIN()
+{
+  assert false
+}
+
+method check_sat_PREPARE_TO_ADD()
+{
+  assert false
+}
+
+method check_sat_PREPARE_TO_REMOVE()
+{
+  assert false
+}
+
+method check_sat_OPEN_CASINO()
+{
+  assert false
+}
+
+method check_sat_CLOSE_CASINO()
+{
+  assert false
+}
+
+method check_sat_OPERATOR()
+{
+  assert false
+}
+
+method check_sat_PLAYER()
+{
+  assert false
+}
+
+method check_sat_ID()
+{
+  assert false
+}
+
+method check_sat_OUTGOING_GUESS()
+{
+  assert false
+}
+
+method check_sat_OUTGOING_BET()
+{
+  assert false
+}
+
+method check_sat_INCOMING_GUESS()
+{
+  assert false
+}
+
+method check_sat_INCOMING_BET()
+{
+  assert false
+}
+
+method check_sat_OUTGOING_MONEY()
+{
+  assert false
+}
+
+method check_sat_INCOMING_MONEY()
+{
+  assert false
+}
+
+method check_sat_OUTGOING_FUNDS()
+{
+  assert false
+}
+
+method check_sat_INCOMING_FUNDS()
+{
+  assert false
+}
+
+method check_sat_AVAILABLE_FUNDS()
+{
+  assert false
+}
+
+method check_sat_CASINO1()
+{
+  assert false
+}
+
+method check_sat_IS_PLAYER()
+{
+  assert false
+}
+
+method check_sat_IS_OPERATOR()
+{
+  assert false
+}
+
+method check_sat_IS_NOT_OPERATOR()
+{
+  assert false
+}
+
+method check_sat_IS_CASINO()
+{
+  assert false
+}
+
+method check_sat_GUESSED()
+{
+  assert false
+}
+
+method check_sat_ENOUGH_FUNDS()
+{
+  assert false
+}
+
+method check_sat_ALLOWABLE_BET()
+{
+  assert false
+}
+
+method check_sat_ConstantsStaticsSingleton()
+{
+  assert false
+}
+
+method check_sat_Player()
+{
+  assert false
+}
+
+method Player(tid: Int, id3: Int, purse1: Int) returns (res: Ref)
+  ensures acc(res.bet, 1 * write)
+  ensures acc(res.guess, 1 * write)
+  ensures acc(res.purse, 1 * write)
+  ensures 0 <= res.purse
+  ensures res != null
+  ensures type(res) == 3
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: t_null
+  var flatten3: Int
+  var res1: Ref
+  var flatten4: Ref
+  exc := null
+  flatten := new(bet, guess, purse)
+  inhale type(flatten) == 3
+  this := flatten
+  inhale id(this) == null
+  flatten1 := 0
+  this.bet := flatten1
+  flatten2 := v_null()
+  this.guess := ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))
+  flatten3 := 0
+  this.purse := flatten3
+  flatten4 := id(this)
+  res1 := Integer(tid, id3)
+  inhale flatten4 == res1
+  this.purse := purse1
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_id()
+{
+  assert false
+}
+
+method check_sat_prepareBet(this: Ref)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  assert false
+}
+
+method prepareBet(this: Ref, tid: Int) returns (res: void)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+  ensures acc(this.bet, 1 * write)
+  ensures acc(this.guess, 1 * write)
+  ensures acc(this.purse, 1 * write)
+  ensures 0 <= this.purse
+  ensures !Coin_eqOpt(this.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  ensures 0 <= this.bet
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: Ref
+  var flatten3: option[Coin]
+  var flatten4: Ref
+  var flatten5: Int
+  exc := null
+  flatten := this
+  flatten1 := 0
+  flatten.bet := flatten1
+  flatten2 := this
+  flatten3 := (0 * write < 5 * write / 10 ? (some(HEADS()): option[Coin]) : (some(TAILS()): option[Coin]))
+  flatten2.guess := flatten3
+  flatten4 := this
+  flatten5 := this.purse - this.bet
+  flatten4.purse := flatten5
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_placeBet(this: Ref)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+  requires !Coin_eqOpt(this.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires 0 <= this.bet
+{
+  assert false
+}
+
+method placeBet(this: Ref, tid: Int) returns (res: void)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+  requires !Coin_eqOpt(this.guess, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires 0 <= this.bet
+  ensures acc(this.bet, 1 * write)
+  ensures acc(this.guess, 1 * write)
+  ensures acc(this.purse, 1 * write)
+  ensures 0 <= this.purse
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: Ref
+  var flatten3: t_null
+  exc := null
+  flatten := this
+  flatten1 := 0
+  flatten.bet := flatten1
+  flatten2 := this
+  flatten3 := v_null()
+  flatten2.guess := ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_receiveContribution(this: Ref, unknown7: Int)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method receiveContribution(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+  requires 0 <= unknown7
+  ensures acc(this.bet, 1 * write)
+  ensures acc(this.guess, 1 * write)
+  ensures acc(this.purse, 1 * write)
+  ensures 0 <= this.purse
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := this.purse + unknown7
+  flatten.purse := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_unknown(this: Ref)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  assert false
+}
+
+method check_sat_unknown1(this: Ref)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  assert false
+}
+
+method check_sat_unknown2(this: Ref)
+  requires this != null
+  requires acc(this.bet, 1 * write)
+  requires acc(this.guess, 1 * write)
+  requires acc(this.purse, 1 * write)
+  requires 0 <= this.purse
+{
+  assert false
+}
+
+method check_sat_Casino()
+{
+  assert false
+}
+
+method Casino(tid: Int, id3: Int, operator1: Int) returns (res: Ref)
+  ensures acc(res.operator, 1 * write)
+  ensures acc(res.pot, 1 * write)
+  ensures acc(res.secretNumber, 1 * write)
+  ensures acc(res.player, 1 * write)
+  ensures acc(res.guess1, 1 * write)
+  ensures acc(res.bet1, 1 * write)
+  ensures res.secretNumber != null
+  ensures 0 <= res.bet1
+  ensures res.bet1 <= res.pot
+  ensures res.bet1 == 0
+  ensures res != null
+  ensures type(res) == 4
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: Int
+  var flatten3: t_null
+  var flatten4: t_null
+  var flatten5: t_null
+  var flatten6: Int
+  var flatten7: Int
+  var flatten8: Int
+  var res1: Ref
+  var flatten9: Ref
+  exc := null
+  flatten := new(operator, pot, secretNumber, player, guess1, bet1)
+  inhale type(flatten) == 4
+  this := flatten
+  flatten1 := 0
+  this.operator := flatten1
+  flatten2 := 0
+  this.pot := flatten2
+  flatten3 := v_null()
+  this.secretNumber := null
+  flatten4 := v_null()
+  this.player := null
+  flatten5 := v_null()
+  this.guess1 := ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))
+  flatten6 := 0
+  this.bet1 := flatten6
+  this.operator := operator1
+  flatten7 := 0
+  this.pot := flatten7
+  flatten8 := 0
+  this.bet1 := flatten8
+  res1 := Integer(tid, -1)
+  flatten9 := res1
+  this.secretNumber := flatten9
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_id1()
+{
+  assert false
+}
+
+method check_sat_addToPot(unknown7: Int, this: Ref, unknown8: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown8)
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method addToPot(this: Ref, tid: Int, unknown7: Ref, unknown8: Int) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+  requires 0 <= unknown8
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := this.pot + unknown8
+  flatten.pot := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_addToPot1(unknown7: Int, this: Ref, unknown8: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown8)
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method addToPot1(this: Ref, tid: Int, unknown7: Ref, unknown8: Int) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+  requires 0 <= unknown8
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := this.pot + unknown8
+  flatten.pot := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_addToPot2(unknown7: Ref, this: Ref, unknown8: Int)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires isOperator(this, unknown7)
+  requires 0 <= unknown8
+{
+  assert false
+}
+
+method addToPot2(this: Ref, tid: Int, unknown7: Ref, unknown8: Int) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires isOperator(this, unknown7)
+  requires 0 <= unknown8
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := this.pot + unknown8
+  flatten.pot := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_removeFromPot(this: Ref, unknown7: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+{
+  assert false
+}
+
+method removeFromPot(this: Ref, tid: Int, unknown7: Ref, unknown8: Int) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := this.pot - unknown8
+  flatten.pot := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_removeFromPot1(unknown7: Ref, this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+{
+  assert false
+}
+
+method removeFromPot1(this: Ref, tid: Int, unknown7: Ref, unknown8: Int) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := this.pot - unknown8
+  flatten.pot := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_createGame(unknown7: Ref, this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+{
+  assert false
+}
+
+method createGame(this: Ref, tid: Int, unknown7: Ref) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isOperator(this, unknown7)
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var res1: Ref
+  var flatten1: Ref
+  exc := null
+  flatten := this
+  res1 := Integer(tid, 0)
+  flatten1 := res1
+  flatten.secretNumber := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_receiveBet(unknown7: option[Coin], this: Ref, unknown8: Ref, unknown9: Int)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isNotOperator(this, unknown8)
+  requires allowableBet(this, unknown9)
+  requires 0 <= unknown9
+  requires !Coin_eqOpt(unknown7, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+{
+  assert false
+}
+
+method receiveBet(this: Ref, tid: Int, unknown7: Ref, unknown8: option[Coin], unknown9: Int) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires this.bet1 == 0
+  requires isNotOperator(this, unknown7)
+  requires allowableBet(this, unknown9)
+  requires 0 <= unknown9
+  requires !Coin_eqOpt(unknown8, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Ref
+  var flatten2: Ref
+  exc := null
+  flatten := this
+  flatten.player := unknown7
+  flatten1 := this
+  flatten1.guess1 := unknown8
+  flatten2 := this
+  flatten2.bet1 := unknown9
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_casinoWin(unknown7: Ref, this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires isOperator(this, unknown7)
+  requires !isGuessed(this)
+{
+  assert false
+}
+
+method casinoWin(this: Ref, tid: Int, unknown7: Ref) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires isOperator(this, unknown7)
+  requires !isGuessed(this)
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var exc: Ref
+  var return: void
+  var won: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  var flatten3: Ref
+  var flatten4: Int
+  var flatten5: Ref
+  var flatten6: t_null
+  var flatten7: Ref
+  var flatten8: t_null
+  exc := null
+  flatten := this.bet1
+  won := flatten
+  flatten1 := this
+  flatten2 := this.pot + this.bet1
+  flatten1.pot := flatten2
+  flatten3 := this
+  flatten4 := 0
+  flatten3.bet1 := flatten4
+  flatten5 := this
+  flatten6 := v_null()
+  flatten5.guess1 := ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))
+  flatten7 := this
+  flatten8 := v_null()
+  flatten7.player := null
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_playerWin(this: Ref, unknown7: Ref, unknown8: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires isOperator(this, unknown8)
+  requires isGuessed(this)
+  requires isPlayer(this, unknown7)
+{
+  assert false
+}
+
+method playerWin(this: Ref, tid: Int, formalUnknown: Ref, unknown7: Ref) returns (res: void)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+  requires !Coin_eqOpt(this.guess1, ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin])))
+  requires isOperator(this, unknown7)
+  requires isGuessed(this)
+  requires isPlayer(this, formalUnknown)
+  ensures acc(this.operator, 1 * write)
+  ensures acc(this.pot, 1 * write)
+  ensures acc(this.secretNumber, 1 * write)
+  ensures acc(this.player, 1 * write)
+  ensures acc(this.guess1, 1 * write)
+  ensures acc(this.bet1, 1 * write)
+  ensures this.secretNumber != null
+  ensures 0 <= this.bet1
+  ensures this.bet1 <= this.pot
+  ensures this.bet1 == 0
+{
+  var unknown8: Ref
+  var exc: Ref
+  var return: void
+  var lost: Int
+  var flatten: Int
+  var flatten1: Ref
+  var flatten2: Int
+  var flatten3: Ref
+  var flatten4: Int
+  var flatten5: Ref
+  var flatten6: t_null
+  var flatten7: t_null
+  unknown8 := formalUnknown
+  exc := null
+  flatten := this.bet1
+  lost := flatten
+  flatten1 := this
+  flatten2 := this.pot - this.bet1
+  flatten1.pot := flatten2
+  flatten3 := this
+  flatten4 := 0
+  flatten3.bet1 := flatten4
+  flatten5 := this
+  flatten6 := v_null()
+  flatten5.guess1 := ((None(): option[nothing]) == (None(): option[nothing]) ? (None(): option[Coin]) : (some(nothing_as1(opt_get1((None(): option[nothing])))): option[Coin]))
+  flatten7 := v_null()
+  unknown8 := null
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_isGuessed(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_isOperator(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_isNotOperator(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_isPlayer(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_unknown3(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_unknown4(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_enoughFunds(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_allowableBet(this: Ref)
+  requires this != null
+  requires acc(this.operator, 1 * write)
+  requires acc(this.pot, 1 * write)
+  requires acc(this.secretNumber, 1 * write)
+  requires acc(this.player, 1 * write)
+  requires acc(this.guess1, 1 * write)
+  requires acc(this.bet1, 1 * write)
+  requires this.secretNumber != null
+  requires 0 <= this.bet1
+  requires this.bet1 <= this.pot
+{
+  assert false
+}
+
+method check_sat_Operator()
+{
+  assert false
+}
+
+method Operator(tid: Int, id3: Ref, funds: Int) returns (exc: Ref, res: Ref)
+  ensures exc != null ==> subtype(type(exc), 6)
+  ensures exc == null ==> true
+  ensures exc == null ==> acc(res.wallet, 1 * write)
+  ensures exc == null ==> acc(res.pot1, 1 * write)
+  ensures exc == null ==> acc(res.amountToMove, 1 * write)
+  ensures exc == null ==> 0 <= res.pot1
+  ensures exc == null ==> 0 <= res.wallet
+  ensures exc == null ==> true
+  ensures exc == null ==> res != null
+  ensures exc == null ==> type(res) == 5
+  ensures exc == null ==> true
+  ensures exc != null && subtype(type(exc), 6) ==> true
+{
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: Int
+  var flatten3: Int
+  var res1: Ref
+  var flatten4: Int
+  exc := null
+  flatten := new(wallet, pot1, amountToMove)
+  inhale type(flatten) == 5
+  this := flatten
+  inhale id2(this) == null
+  flatten1 := 0
+  this.wallet := flatten1
+  flatten2 := 0
+  this.pot1 := flatten2
+  flatten3 := 0
+  this.amountToMove := flatten3
+  inhale id2(this) == id3
+  if (funds < 0) {
+    res1 := Exception1(tid, internToString(Seq(67, 97, 110, 110, 111, 116, 32, 104, 97, 118, 101, 32, 110, 101, 103, 97, 116, 105, 118, 101, 32, 102, 117, 110, 100, 115)))
+    exc := res1
+    assert exc != null
+    goto bubble
+  }
+  this.wallet := funds
+  flatten4 := 0
+  this.amountToMove := flatten4
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+}
+
+method check_sat_id2()
+{
+  assert false
+}
+
+method check_sat_gameStep(this: Ref, unknown7: Int)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method gameStep(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  exc := null
+  flatten := this
+  flatten.pot1 := unknown7
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_gameStep1(unknown7: Int, this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method gameStep1(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+  ensures 0 <= this.amountToMove
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  exc := null
+  flatten := this
+  flatten.pot1 := unknown7
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_gameStep2(this: Ref, unknown7: Int)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires this.amountToMove < this.pot1 + 1
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method gameStep2(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires this.amountToMove < this.pot1 + 1
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+  ensures 0 <= this.amountToMove
+  ensures this.amountToMove < this.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  exc := null
+  flatten := this
+  flatten.pot1 := unknown7
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_gameStep3(this: Ref, unknown7: Int)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method gameStep3(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  exc := null
+  flatten := this
+  flatten.pot1 := unknown7
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_gameStep4(this: Ref, unknown7: Int)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method gameStep4(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+  ensures 0 <= this.amountToMove
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  exc := null
+  flatten := this
+  flatten.pot1 := unknown7
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_gameStep5(unknown7: Int, this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires this.amountToMove < this.pot1 + 1
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method gameStep5(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires this.amountToMove < this.pot1 + 1
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+  ensures 0 <= this.amountToMove
+  ensures this.amountToMove < this.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  exc := null
+  flatten := this
+  flatten.pot1 := unknown7
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_prepareAmountToPut(this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires haveMoney(this)
+{
+  assert false
+}
+
+method prepareAmountToPut(this: Ref, tid: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires haveMoney(this)
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+  ensures 0 <= this.amountToMove
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: Ref
+  var flatten3: Int
+  exc := null
+  flatten := this
+  flatten1 := 0
+  flatten.amountToMove := flatten1
+  flatten2 := this
+  flatten3 := this.wallet - this.amountToMove
+  flatten2.wallet := flatten3
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_prepareAmountToWithdraw(this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  assert false
+}
+
+method prepareAmountToWithdraw(this: Ref, tid: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+  ensures 0 <= this.amountToMove
+  ensures this.amountToMove < this.pot1 + 1
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := 0
+  flatten.amountToMove := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_addToPot3(this: Ref, unknown7: Int)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires 0 <= unknown7
+{
+  assert false
+}
+
+method addToPot3(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires 0 <= unknown7
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  exc := null
+  flatten := this
+  flatten1 := unknown7 + this.amountToMove
+  flatten.pot1 := flatten1
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_removeFromPot2(this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires this.amountToMove < this.pot1 + 1
+{
+  assert false
+}
+
+method removeFromPot2(this: Ref, tid: Int, unknown7: Int) returns (res: void)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+  requires 0 <= this.amountToMove
+  requires this.amountToMove < this.pot1 + 1
+  ensures acc(this.wallet, 1 * write)
+  ensures acc(this.pot1, 1 * write)
+  ensures acc(this.amountToMove, 1 * write)
+  ensures 0 <= this.pot1
+  ensures 0 <= this.wallet
+{
+  var exc: Ref
+  var return: void
+  var flatten: Ref
+  var flatten1: Int
+  var flatten2: Ref
+  var flatten3: Int
+  exc := null
+  flatten := this
+  flatten1 := this.wallet + this.amountToMove
+  flatten.wallet := flatten1
+  flatten2 := this
+  flatten3 := unknown7 - this.amountToMove
+  flatten2.pot1 := flatten3
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_haveMoney(this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  assert false
+}
+
+method check_sat_unknown5(this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  assert false
+}
+
+method check_sat_unknown6(this: Ref)
+  requires this != null
+  requires acc(this.wallet, 1 * write)
+  requires acc(this.pot1, 1 * write)
+  requires acc(this.amountToMove, 1 * write)
+  requires 0 <= this.pot1
+  requires 0 <= this.wallet
+{
+  assert false
+}
+
+method check_sat_Object()
+{
+  assert false
+}
+
+method Object(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 7
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 7
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_internToString()
+{
+  assert false
+}
+
+method check_sat_concatStrings()
+{
+  assert false
+}
+
+method check_sat_String()
+{
+  assert false
+}
+
+method String(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 8
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 8
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_data(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method check_sat_intern(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method check_sat_isEmpty(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method check_sat_Port()
+{
+  assert false
+}
+
+method Port(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 9
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 9
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Annotation()
+{
+  assert false
+}
+
+method Annotation(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 10
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 10
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_equals(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method equals(this: Ref, tid: Int, obj: Ref) returns (res: Bool)
+  requires this != null
+
+
+method check_sat_hashCode(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method hashCode(this: Ref, tid: Int) returns (res: Int)
+  requires this != null
+
+
+method check_sat_toString(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method toString(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port1()
+{
+  assert false
+}
+
+method Port1(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 11
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 11
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name1(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name1(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port2()
+{
+  assert false
+}
+
+method Port2(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 12
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 12
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name2(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name2(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_ComponentType()
+{
+  assert false
+}
+
+method ComponentType(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 13
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 13
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name3(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name3(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_initial(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method initial(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Invariant()
+{
+  assert false
+}
+
+method Invariant(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 14
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 14
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_value(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method value(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_StatePredicate()
+{
+  assert false
+}
+
+method StatePredicate(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 15
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 15
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_state(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method state(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_expr(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method expr(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Integer()
+{
+  assert false
+}
+
+method Integer(tid: Int, x: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 16
+  ensures intValue(res) == x
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 16
+  this := flatten
+  inhale false
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_Integer1()
+{
+  assert false
+}
+
+method Integer1(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 16
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 16
+  this := flatten
+  inhale false
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_intValue(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method check_sat_Transition()
+{
+  assert false
+}
+
+method Transition(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 17
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 17
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name4(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name4(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_source(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method source(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_target(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method target(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_guard(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method guard(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_pre(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method pre(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_post(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method post(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Data()
+{
+  assert false
+}
+
+method Data(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 18
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 18
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name5(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name5(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_ports(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method ports(this: Ref, tid: Int) returns (res: option[array])
+  requires this != null
+
+
+method check_sat_Pure()
+{
+  assert false
+}
+
+method Pure(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 19
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 19
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_Port3()
+{
+  assert false
+}
+
+method Port3(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 20
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 20
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name6(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name6(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port4()
+{
+  assert false
+}
+
+method Port4(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 21
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 21
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name7(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name7(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port5()
+{
+  assert false
+}
+
+method Port5(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 22
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 22
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name8(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name8(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port6()
+{
+  assert false
+}
+
+method Port6(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 23
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 23
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name9(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name9(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port7()
+{
+  assert false
+}
+
+method Port7(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 24
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 24
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name10(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name10(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port8()
+{
+  assert false
+}
+
+method Port8(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 25
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 25
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name11(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name11(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Guard()
+{
+  assert false
+}
+
+method Guard(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 26
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 26
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name12(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name12(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port9()
+{
+  assert false
+}
+
+method Port9(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 27
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 27
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name13(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name13(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port10()
+{
+  assert false
+}
+
+method Port10(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 28
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 28
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name14(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name14(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port11()
+{
+  assert false
+}
+
+method Port11(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 29
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 29
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name15(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name15(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port12()
+{
+  assert false
+}
+
+method Port12(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 30
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 30
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name16(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name16(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port13()
+{
+  assert false
+}
+
+method Port13(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 31
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 31
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name17(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name17(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Port14()
+{
+  assert false
+}
+
+method Port14(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 32
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 32
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_name18(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method name18(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_Exception()
+{
+  assert false
+}
+
+method Exception(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 6
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 6
+  this := flatten
+  inhale false
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_Exception1()
+{
+  assert false
+}
+
+method Exception1(tid: Int, msg: Ref) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 6
+  ensures getMessage(res) == msg
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 6
+  this := flatten
+  inhale false
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_getMessage(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method check_sat_printStackTrace(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method printStackTrace(this: Ref, tid: Int) returns (res: void)
+  requires this != null
+
+
+method check_sat_Throwable()
+{
+  assert false
+}
+
+method Throwable(tid: Int) returns (res: Ref)
+  ensures res != null
+  ensures type(res) == 33
+{
+  var exc: Ref
+  var return: Ref
+  var this: Ref
+  var flatten: Ref
+  exc := null
+  flatten := new()
+  inhale type(flatten) == 33
+  this := flatten
+  return := this
+  goto end
+  label end
+  res := return
+  label bubble
+  assert exc == null
+}
+
+method check_sat_getMessage1(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method getMessage1(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+
+
+method check_sat_printStackTrace1(this: Ref)
+  requires this != null
+{
+  assert false
+}
+
+method printStackTrace1(this: Ref, tid: Int) returns (res: void)
+  requires this != null
+
+
+method check_sat_type()
+{
+  assert false
+}
+
+method check_sat_subtype(subtype1: Int, subtype2: Int)
+  requires subtype1 >= 0
+  requires subtype1 <= 33
+  requires subtype2 >= 0
+  requires subtype2 <= 33
+{
+  assert false
+}
