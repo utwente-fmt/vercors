@@ -1,0 +1,38 @@
+//:: cases RoleFieldType4
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Pass
+//:: tool veymont
+class Main {
+
+	Role a,b,c;
+
+	constructor() {
+		a = new Role();
+		b = new Role();
+		c = new Role();
+	}
+	
+	void run() {
+		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int[][] x;
+	seq<seq<boolean>> y;
+	Other[] z;
+}
+
+class Other {
+
+	seq<int> f;
+}
+

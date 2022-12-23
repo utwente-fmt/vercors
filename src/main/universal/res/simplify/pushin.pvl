@@ -1,0 +1,21 @@
+axiom collapse_nested_implies {
+  (∀boolean a, boolean b, resource c;
+    (a ==> b ==> c) == ((a && b) ==> c))
+}
+
+axiom push_implies_and { (∀boolean a, boolean b, boolean c; (a ==> b && c) == ((a ==> b) && (a ==> c))) }
+axiom push_implies_star { (∀boolean a, resource b, resource c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
+
+/*
+axiom push_implies_forall {
+  (∀type<any> T, boolean cond, boolean body;
+    (cond ==> (∀T t; (body!t))) ==
+    (∀T t; cond ==> (body!t)))
+}
+
+axiom push_implies_starall {
+  (∀type<any> T, boolean cond, resource body;
+    (cond ==> (∀*T t; (body!t))) ==
+    (∀*T t; cond ==> (body!t)))
+}
+*/

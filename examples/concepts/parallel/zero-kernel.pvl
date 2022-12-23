@@ -1,0 +1,20 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ZeroKernel
+//:: tools silicon
+//:: verdict Pass
+
+class Ref {
+  context_everywhere x != null;
+  context_everywhere tcount >= 0;
+  requires (x.length == tcount);
+  requires (\forall* int i; 0 <= i && i < tcount; Perm(x[i], write));
+  ensures  (\forall* int i; 0 <= i && i < tcount; Perm(x[i], write) ** x[i]==0);
+  void main(int tcount, int[tcount] x){
+    par (int tid=0..tcount) 
+      requires Perm(x[tid], write);
+      ensures  Perm(x[tid], write) ** x[tid]==0;
+    {
+      x[tid]=0;
+    }
+  }
+}

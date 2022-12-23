@@ -1,0 +1,15 @@
+//:: cases TwoMainConstructors
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	constructor() {
+	
+	}
+	
+	constructor() {
+	
+	}
+}

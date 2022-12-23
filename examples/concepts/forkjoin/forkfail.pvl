@@ -1,0 +1,31 @@
+//:: cases ForkPVLFail
+//:: tools silicon
+//:: verdict Fail
+
+class Test {
+
+
+  requires true;
+  ensures  true;
+  run {
+    
+  }
+
+  void test2(){
+    Test t1=new Test();
+    fork t1;
+    /*[/expect running]*/
+    fork t1;
+    /*[/end]*/
+    
+  }
+
+  void test3(){
+    Test t1=new Test();
+    /*[/expect idle]*/
+    join t1;
+    /*[/end]*/
+  }
+
+}
+

@@ -1,0 +1,99 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case GeneralisedConcurrentCounting
+//:: suite puptol
+//:: tool silicon
+//:: option --check-history
+
+model Counter {
+	int counter;
+
+	// Models a single atomic "decrease" operation.
+	modifies counter;
+	ensures counter == \old(counter) - 1;
+	action decr();
+
+	// Models a concurrent system with `n` "decrease" actions.
+	requires 0 <= n;
+	ensures counter == \old(counter) - n;
+	process pardecr(int n) = 0 < n ? (decr() || pardecr(n - 1)) : empty;
+}
+
+class Worker {
+	/* ghost */ frac p;
+	Program prog;
+
+	requires Value(pr.f) ** fr != none;
+	ensures Value(prog) ** Value(prog.f) ** Value(p) ** p != none;
+	ensures prog == pr ** p == fr;
+	constructor(Program pr, frac fr) {
+		this.prog = pr;
+		this.p = fr;
+	}
+
+	// Performs the atomic "decrease" action.
+	context Value(p) ** Value(prog) ** Value(prog.f) ** p != none;
+	requires prog.f.state(p, prog.f.decr());
+	ensures prog.f.state(p, empty);
+	run {
+		lock prog;
+		action(prog.f, p, empty, prog.f.decr()) {
+			prog.f.counter = prog.f.counter - 1;
+		}
+		unlock prog;
+	}
+}
+
+lock_invariant Value(f) ** HPerm(f.counter, 1);
+class Program {
+	/* ghost */ int count;
+	/* ghost */ int threads;
+	Counter f;
+
+	requires threads > 0;
+	ensures Value(f) ** f.state(1, f.pardecr(threads));
+	ensures Value(this.count) ** Value(this.threads) ** f.abstractState(f.counter == this.count - this.threads);
+	ensures this.count == count ** this.threads == threads;
+	constructor(int count, int threads) {
+		this.count = count;
+		this.threads = threads;
+		f = new Counter();
+		f.counter = count;
+		f.create(f.pardecr(threads));
+	}
+
+	// Recursively forks and joins `n` concurrent threads.
+	given frac p;
+	requires p <= 1;
+	context n >= 0 ** p != none ** Value(f);
+	context Value(count) ** Value(threads) ** f.abstractState(f.counter == count - threads);
+	requires f.state(p, f.pardecr(n));
+	ensures f.state(p, empty);
+	void spawn(int n) {
+		if (n > 0) {
+			// split-off a `decr()` process.
+			f.split(p\2, f.decr(), p\2, f.pardecr(n - 1));
+
+			// spawn `n` concurrent threads.
+			Worker t = new Worker(this, p\2);
+			fork t;
+			spawn(n - 1) given { p = p\2 };
+			join t;
+
+			// merge the resulting process.
+			f.merge(p\2, empty, p\2, empty);
+		}
+	}
+}
+
+class Main {
+
+	requires threads > 0;
+	void main(int count, int threads) {
+		Program p = new Program(count, threads);
+		p.spawn(threads) given { p = 1 };
+
+		lock p;
+		p.f.destroy();
+		assert p.f.counter == count - threads;
+	}
+}

@@ -4,49 +4,40 @@ parser grammar LangPVLParser;
     private static int specLevel = 1;
 }
 
-program  : programDecl* block? EOF ;
+program  : programDecl* EOF EOF ;
 
-programDecl : claz|kernel|block|field|methodDecl ;
+programDecl : valGlobalDeclaration | declClass | method;
 
-claz : contract 'class' identifier '{' clazMember* '}' ;
-clazMember : constructor | methodDecl | field;
-
-kernel : 'kernel' identifier '{' kernelMember* '}' ;
-kernelMember : kernelField | methodDecl ;
-
-kernelField : ('global' | 'local') type identifierList ';' ;
+declClass : contract 'class' identifier '{' classDecl* '}' ;
+classDecl : valClassDeclaration | constructor | method | field | runMethod;
 
 field : type identifierList ';' ;
 
-modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
+method : contract valModifier* type identifier '(' args? ')' methodBody ;
+methodBody : ';' | block ;
 
-methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
-methodBody : '=' expr ';' | constructorBody ;
+constructor : contract 'constructor' '(' args? ')' methodBody ;
 
-constructor : contract identifier '(' args? ')' constructorBody ;
-constructorBody : ';' | block ;
+runMethod : contract 'run' methodBody ;
 
 contract : valContractClause* ;
 
 args
-    : type identifier
-    | type identifier ',' args
-    ;
+ : type identifier
+ | type identifier ',' args
+ ;
 
 exprList
-    : expr
-    | expr ',' exprList
-    ;
-mapPairs
-    : expr '->' expr
-    | expr '->' expr ',' mapPairs
-    ;
+ : expr
+ | expr ',' exprList
+ ;
 
 expr
- : identifier ':' expr
- | expr 'with' block
- | expr 'then' block
- | 'unfolding' expr 'in' expr
+ : valWith? unfoldingExpr valThen?
+ ;
+
+unfoldingExpr
+ : 'unfolding' unfoldingExpr 'in' unfoldingExpr
  | iteExpr
  ;
 
@@ -56,15 +47,18 @@ iteExpr
  ;
 
 implicationExpr
- : implicationExpr '==>' andOrExpr
- | implicationExpr '-*' andOrExpr
- | andOrExpr
+ : orExpr valImpOp implicationExpr
+ | orExpr
  ;
 
-andOrExpr
- : andOrExpr '&&' eqExpr
- | andOrExpr '||' eqExpr
- | andOrExpr '**' eqExpr
+orExpr
+ : orExpr '||' andExpr
+ | andExpr
+ ;
+
+andExpr
+ : andExpr '&&' eqExpr
+ | andExpr valAndOp eqExpr
  | eqExpr
  ;
 
@@ -79,6 +73,7 @@ relExpr
  | relExpr '<=' addExpr
  | relExpr '>=' addExpr
  | relExpr '>' addExpr
+ | relExpr valInOp addExpr
  | setExpr
  ;
 
@@ -97,160 +92,123 @@ multExpr
  : multExpr '*' powExpr
  | multExpr '/' powExpr
  | multExpr '%' powExpr
- | multExpr '\\' powExpr
+ | multExpr valMulOp powExpr
  | powExpr
  ;
 
 powExpr
- : powExpr '^^' unaryExpr
+ : powExpr '^^' seqAddExpr
  | seqAddExpr
  ;
 
 seqAddExpr
- : unaryExpr '::' seqAddExpr
- | seqAddExpr '++' unaryExpr
- | seqAddExpr '++' '(' unaryExpr ',' unaryExpr ')'
+ : unaryExpr valPrependOp seqAddExpr
+ | seqAddExpr valAppendOp unaryExpr
+ | seqAddExpr valAppendOp '(' expr ',' expr ')'
  | unaryExpr
  ;
 
 unaryExpr
  : '!' unaryExpr
  | '-' unaryExpr
+ | valPrefix unaryExpr
  | newExpr
  ;
 
 newExpr
- : 'new' identifier tuple
+ : 'new' classType call
  | 'new' nonArrayType newDims
- | nonTarget
+ | postfixExpr
  ;
 
-nonTarget
- : nonTarget '.' gen_id
- | nonTarget tuple
- | nonTarget '[' '..' expr ']'
- | nonTarget '[' expr ']'
- | nonTarget '[' expr '..' expr? ']'
- | nonTarget '[' expr '->' expr ']'
- | nonTarget '->' identifier tuple
- | nonTargetUnit
+postfixExpr
+ : postfixExpr '.' identifier call?
+ | postfixExpr '[' expr ']'
+ | postfixExpr valPostfix
+ | unit
  ;
 
-nonTargetUnit
- : valPrimary
+unit
+ : valExpr
  | 'this'
  | 'null'
- | 'true'
- | 'false'
- | 'current_thread'
- | '\\result'
- | collectionConstructors
- | 'map' '<' type ',' type '>' mapValues
- | 'tuple' '<' type ',' type '>' values
- | builtinMethod tuple
- | '\\owner' '(' expr ',' expr ',' expr ')'
- | 'id' '(' expr ')'
- | '|' expr '|'
- | '?' identifier
  | NUMBER
- | values
+ | DECIMAL_NUMBER
+ | DECIMAL_NUMBER_F
  | '(' expr ')'
- | identifier
+ | identifier call?
+ | valGenericAdtInvocation
  ;
 
-collectionConstructors
- : container '<' type '>' values
- | '[' exprList ']'
- | '[t:' type ']'
- | '{' exprList '}'
- | '{' expr '..' expr '}'
- | '{t:' type '}'
- | 'b{' exprList '}'
- | 'b{t:' type '}'
- | 'set' '<' type '>' '{' expr '|' setCompSelectors ';' expr '}'
- ;
-
-targetUnit
- : identifier
- ;
-
-builtinMethod
- : ('Value' | 'HPerm' | 'Perm' | 'PointsTo' | 'Hist' | '\\old' | '?' | 'idle' | 'running' | 'head' | 'tail' | 'held' | 'Some')
- ;
-
-values : '{' exprList? '}';
-
-mapValues : '{' mapPairs? '}';
-
+call : typeArgs? tuple valGiven? valYields?;
 tuple : '(' exprList? ')';
 
 block : '{' statement* '}' ;
 
-setCompSelectors
-    : type identifier
-    | type identifier '<-' identifier
-    | type identifier '<-' collectionConstructors
-    | type identifier ',' setCompSelectors
-    | type identifier '<-' identifier ',' setCompSelectors
-    | type identifier '<-' collectionConstructors ',' setCompSelectors
-    ;
-
 statement
- : 'return' expr? ';'
- | 'lock' expr ';'
- | 'unlock' expr ';'
- | 'wait' expr ';'
- | 'notify' expr ';'
- | 'fork' expr ';'
- | 'join' expr ';'
- | 'action' tuple block
- | valStatement
- | 'if' '(' expr ')' statement elseBlock?
- | 'barrier' '(' identifier barrierTags? ')' barrierBody
- | contract 'par' parUnitList
- | 'vec' '(' iter ')' block
- | 'invariant' identifier '(' expr ')' block
- | 'atomic' '(' identifierList ')' block
- | invariantList 'while' '(' expr ')' statement
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
- | block
- | '{*' expr '*}'
- | 'goto' identifier ';'
- | 'label' identifier ';'
- | allowedForStatement ';'
+ : 'return' expr? ';' # pvlReturn
+ | 'lock' expr ';' # pvlLock
+ | 'unlock' expr ';' # pvlUnlock
+ | 'wait' expr ';' # pvlWait
+ | 'notify' expr ';' # pvlNotify
+ | 'fork' expr ';' # pvlFork
+ | 'join' expr ';' # pvlJoin
+ | valStatement # pvlValStatement
+ | 'if' '(' expr ')' statement elseBlock? # pvlIf
+ | 'barrier' '(' identifier barrierTags? ')' barrierBody # pvlBarrier
+ | parRegion # pvlPar
+ | 'vec' '(' iter ')' block # pvlVec
+ | 'invariant' identifier '(' expr ')' block # pvlInvariant
+ | 'atomic' '(' identifierList ')' block # pvlAtomic
+ | invariantList 'while' '(' expr ')' statement # pvlWhile
+ | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement # pvlFor
+ | block # pvlBlock
+ | 'goto' identifier ';' # pvlGoto
+ | 'label' identifier ';' # pvlLabel
+ | allowedForStatement ';' # pvlForStatement
  ;
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
 barrierBody: '{' contract '}' | contract block;
-parUnitList: parUnit | parUnit 'and' parUnitList;
+
+allowedForStatement
+ : type declList # pvlLocal
+ | expr # pvlEval
+ | identifier ('++'|'--') # pvlIncDec
+ | expr '=' expr # pvlAssign
+ ;
 
 forStatementList
  : allowedForStatement
  | allowedForStatement ',' forStatementList
  ;
 
-allowedForStatement
- : type declList
- | expr
- | identifier ('++'|'--')
- | expr '=' expr
+parRegion
+ : 'parallel' '{' parRegion* '}' # pvlParallel
+ | 'sequential' '{' parRegion* '}' # pvlSequential
+ | 'block' identifier? parBlockIter? contract statement # pvlParBlock
+ | 'par' parOldUnitList # pvlOldPar
  ;
+
+parOldUnit
+ : identifier? parBlockIter? contract statement # pvlOldParUnit
+ ;
+
+parOldUnitList
+ : parOldUnit
+ | parOldUnit 'and' parOldUnitList
+ ;
+
 
 declList
  : identifier declInit?
  | identifier declInit? ',' declList
  ;
 
-declInit
- : '=' expr
- ;
+declInit : '=' expr ;
 
-parUnit
- : identifier? '(' iters? parWaitList? ')' contract block
- | contract block
- ;
-
+parBlockIter: '(' iters ')';
 iters: iter | iter ',' iters;
 iter: type identifier '=' expr '..' expr;
 
@@ -265,46 +223,31 @@ invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
 nonArrayType
- : container '<' type '>'
- | 'option' '<' type '>'
- | ('map' | 'tuple') '<' type ',' type '>'
- | ('string' | 'process' | 'int' | 'boolean' | 'zfrac' | 'frac' | 'resource' | 'void')
+ : valType
+ | ('string' | 'int' | 'boolean' | 'void' | 'float32' | 'float64')
  | classType
  ;
 
-type
- : nonArrayType typeDims
- ;
+type : nonArrayType typeDims? ;
+typeList
+  : type
+  | type ',' typeList
+  ;
 
 typeDims
- : quantifiedDim*
- | anonDim*
- ;
-
-newDims
  : quantifiedDim+
+ | anonDim+
  ;
 
-quantifiedDim
- : '[' expr ']'
- ;
-
-anonDim
- : '[' ']'
- ;
-
-gen_id : identifier | container ;
-
+newDims : quantifiedDim+ ;
+quantifiedDim : '[' expr ']' ;
+anonDim : '[' ']' ;
 classType : identifier typeArgs?;
-
-typeArgs : '<' exprList '>';
-
-
-container : ('seq' | 'set' | 'bag');
+typeArgs : '<' typeList '>';
 
 identifierList
-    : identifier
-    | identifier ',' identifierList
-    ;
+ : identifier
+ | identifier ',' identifierList
+ ;
 
-identifier : Identifier | valReserved ;
+identifier : Identifier | LANG_ID_ESCAPE ;

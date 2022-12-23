@@ -1,0 +1,23 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases Parameters1
+//:: tools silicon
+//:: verdict Fail
+class parameters {
+
+  given    frac p;
+  requires c!=null ** Perm(c.x,p);
+  yields   frac q;
+  ensures  c!=null ** Perm(c.x,q) ** q <= p;
+  void drop(Counter c){
+    q = p \ 2;
+  }
+
+  void main(){
+    Counter c=new Counter();
+    c.x=37;
+    drop(c) given { p = 1 };
+    /*[/expect assignFieldFailed]*/
+    c.x=12;
+    /*[/end]*/
+  }
+}

@@ -1,0 +1,86 @@
+adt `map`<K, V> {
+  pure `map`<K, V> map_empty();
+  pure `map`<K, V> map_cons(K k, V v, `map`<K, V> tail);
+
+  pure set<K> map_keys(`map`<K, V> m);
+
+  pure K map_cons_inv_k(`map`<K, V> m);
+  pure V map_cons_inv_v(`map`<K, V> m);
+  pure `map`<K, V> map_cons_inv_tail(`map`<K, V> m);
+
+  axiom (\forall K k, V v, `map`<K, V> m; map_empty() != {:map_cons(k, v, m):});
+  axiom map_keys(map_empty()) == set<K>{};
+
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_keys(map_cons(k, v, tail)):} == set<K>{k} + map_keys(tail));
+
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_cons_inv_k(map_cons(k, v, tail)):} == k);
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_cons_inv_v(map_cons(k, v, tail)):} == v);
+  axiom (\forall K k, V v, `map`<K, V> tail; {:map_cons_inv_tail(map_cons(k, v, tail)):} == tail);
+}
+
+decreases;
+ensures \result >= 0;
+ensures (\result == 0) == (m == `map`<K, V>.map_empty());
+ensures (\result == 0) == (\forall K k; k \in `map`<K, V>.map_keys(m); false);
+ensures (\result == 0) == (\forall V v; v \in map_values<K, V>(m); false);
+ensures (\result == 0) == (\forall tuple<K, V> t; t \in map_items<K, V>(m); false);
+pure int map_size<K, V>(`map`<K, V> m) = |`map`<K, V>.map_keys(m)|;
+
+decreases;
+requires m != `map`<K, V>.map_empty();
+pure K map_cons_get_k<K, V>(`map`<K, V> m) = `map`<K, V>.map_cons_inv_k(m);
+
+decreases;
+requires m != `map`<K, V>.map_empty();
+pure V map_cons_get_v<K, V>(`map`<K, V> m) = `map`<K, V>.map_cons_inv_v(m);
+
+decreases;
+requires m != `map`<K, V>.map_empty();
+pure `map`<K, V> map_cons_get_tail<K, V>(`map`<K, V> m) = `map`<K, V>.map_cons_inv_tail(m);
+
+decreases;
+requires k \in `map`<K, V>.map_keys(m);
+pure V map_get<K, V>(`map`<K, V> m, K k) =
+  map_cons_get_k<K, V>(m) == k ? map_cons_get_v<K, V>(m) : map_get<K, V>(map_cons_get_tail<K, V>(m), k);
+
+decreases;
+ensures |\result| <= map_size<K, V>(m);
+ensures (\forall V v; true; {:v \in \result:} == (\exists K k; k \in `map`<K, V>.map_keys(m); map_get<K, V>(m, k) == v));
+pure set<V> map_values<K, V>(`map`<K, V> m) =
+  m == `map`<K, V>.map_empty() ? set<V>{} : set<V>{map_cons_get_v<K, V>(m)} + map_values<K, V>(map_cons_get_tail<K, V>(m));
+
+decreases;
+ensures |\result| == map_size<K, V>(m);
+ensures (
+  \forall tuple<K, V> t; true;
+    (t \in \result) == (t.fst \in `map`<K, V>.map_keys(m) && map_get<K, V>(m, t.fst) == t.snd)
+);
+pure set<tuple<K, V>> map_items<K, V>(`map`<K, V> m) =
+  m == `map`<K, V>.map_empty() ? set<tuple<K, V>>{} :
+    set<tuple<K, V>>{tuple<K, V>{map_cons_get_k<K, V>(m), map_cons_get_v<K, V>(m)}} +
+      map_items<K, V>(map_cons_get_tail<K, V>(m));
+
+decreases;
+ensures \result ==> map_size<K, V>(left) == map_size<K, V>(right);
+pure boolean map_equals<K, V>(`map`<K, V> left, `map`<K, V> right) =
+  `map`<K, V>.map_keys(left) == `map`<K, V>.map_keys(right) && (
+    \forall K k; k \in `map`<K, V>.map_keys(left); map_get<K, V>(left, k) == map_get<K, V>(right, k)
+  );
+
+decreases;
+pure boolean map_disjoint<K, V>(`map`<K, V> left, `map`<K, V> right) =
+  (\forall K k; true; !(k \in `map`<K, V>.map_keys(left)) || !(k \in `map`<K, V>.map_keys(right)));
+
+decreases;
+ensures !(k \in `map`<K, V>.map_keys(m)) ==> map_equals<K, V>(\result, m);
+ensures !(k \in `map`<K, V>.map_keys(\result));
+ensures (\forall K l; k != l; l \in `map`<K, V>.map_keys(m) == l \in `map`<K, V>.map_keys(\result));
+ensures (\forall K l; l \in `map`<K, V>.map_keys(\result) && k != l; map_get<K, V>(\result, l) == map_get<K, V>(m, l));
+ensures k \in `map`<K, V>.map_keys(m) ==> map_size<K, V>(m) == map_size<K, V>(\result) + 1;
+pure `map`<K, V> map_remove<K, V>(`map`<K, V> m, K k) =
+  m == `map`<K, V>.map_empty() ? `map`<K, V>.map_empty() :
+    map_cons_get_k<K, V>(m) == k ? map_remove<K, V>(map_cons_get_tail<K, V>(m), k) :
+      `map`<K, V>.map_cons(
+        map_cons_get_k<K, V>(m),
+        map_cons_get_v<K, V>(m),
+        map_remove<K, V>(map_cons_get_tail<K, V>(m), k));

@@ -1,0 +1,218 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis19Three
+//:: tools silicon
+//:: suite medium problem-fail
+//:: verdict Pass
+
+class Challenge3 {
+	
+	/** ** Auxiliary definitions */
+	
+	requires 0 <= j && j < |xs|;
+	ensures |\result| == |xs|;
+	ensures \result[j] == v;
+	ensures (\forall int i; 0 <= i && i < |\result| && i != j; \result[i] == xs[i]);
+	pure seq<int> update(seq<int> xs, int j, int v) =
+		0 < j ? xs.head :: update(xs.tail, j - 1, v) : v :: xs.tail;
+		
+	requires |pos| == |xs| && |term| == |xs|;
+	pure int sum(seq<int> xs, seq<int> pos, seq<boolean> term, int x) =
+		0 < |xs| ? (pos.head == x && term.head ? xs.head : 0) + sum(xs.tail, pos.tail, term.tail, x) : 0;
+		
+	requires |pos| == |xs|;
+	pure int sumsimple(seq<int> xs, seq<int> pos, int x) =
+		0 < |xs| ? (pos.head == x ? xs.head : 0) + sumsimple(xs.tail, pos.tail, x) : 0;
+		
+	requires 0 <= j && j < |xs|;
+	ensures |\result| == |xs|;
+	ensures \result[j] == v;
+	ensures (\forall int i; 0 <= i && i < |\result| && i != j; \result[i] == xs[i]);
+	pure seq<boolean> update(seq<boolean> xs, int j, boolean v) =
+		0 < j ? xs.head :: update(xs.tail, j - 1, v) : v :: xs.tail;
+	
+	
+	/** ** Lemmas */
+	
+	requires 0 <= tid && tid < |res|;
+	requires |pos| == |res| && |term| == |res|;
+	requires !term[tid];
+	ensures sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), x) == sum(res, pos, term, x) + v;
+	void lemma_sum_upd(seq<int> res, seq<int> pos, seq<boolean> term, int tid, int x, int v) {
+		if (0 < tid) {
+			lemma_sum_upd(res.tail, pos.tail, term.tail, tid - 1, x, v);
+			assert update(res, tid, v).head == res.head;
+			assert update(res, tid, v).tail == update(res.tail, tid - 1, v);
+			assert update(pos, tid, x).head == pos.head;
+			assert update(pos, tid, x).tail == update(pos.tail, tid - 1, x);
+			assert update(term, tid, true).head == term.head;
+			assert update(term, tid, true).tail == update(term.tail, tid - 1, true);
+		}
+		else {
+			assert update(res, tid, v).head == v;
+			assert update(res, tid, v).tail == res.tail;
+			assert update(pos, tid, x).head == x;
+			assert update(pos, tid, x).tail == pos.tail;
+			assert update(term, tid, true).head == true;
+			assert update(term, tid, true).tail == term.tail;
+		}
+	}
+	
+	requires 0 <= tid && tid < |res|;
+	requires |pos| == |res| && |term| == |res|;
+	requires !term[tid];
+	requires x != y;
+	ensures sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), y) == sum(res, pos, term, y);
+	void lemma_sum_upd_neq(seq<int> res, seq<int> pos, seq<boolean> term, int tid, int x, int y, int v) {
+		if (0 < tid) {
+			lemma_sum_upd_neq(res.tail, pos.tail, term.tail, tid - 1, x, y, v);
+			assert update(res, tid, v).head == res.head;
+			assert update(res, tid, v).tail == update(res.tail, tid - 1, v);
+			assert update(pos, tid, x).head == pos.head;
+			assert update(pos, tid, x).tail == update(pos.tail, tid - 1, x);
+			assert update(term, tid, true).head == term.head;
+			assert update(term, tid, true).tail == update(term.tail, tid - 1, true);
+		}
+		else {
+			assert update(res, tid, v).head == v;
+			assert update(res, tid, v).tail == res.tail;
+			assert update(pos, tid, x).head == x;
+			assert update(pos, tid, x).tail == pos.tail;
+			assert update(term, tid, true).head == true;
+			assert update(term, tid, true).tail == term.tail;
+		}
+	}
+
+	context_everywhere 0 <= N;
+	context_everywhere 0 <= tid && tid < |res|;
+	context_everywhere |pos| == |res| && |term| == |res|;
+	context_everywhere !term[tid];
+	ensures (\forall int i; 0 <= i && i < N && i != x; sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), i) == sum(res, pos, term, i));
+	void lemma_sum_upd_all(int N, seq<int> res, seq<int> pos, seq<boolean> term, int tid, int x, int v) {
+		int k = 0;
+		
+		loop_invariant 0 <= k && k <= N;
+		loop_invariant (\forall int i; 0 <= i && i < k && i != x; sum(update(res, tid, v), update(pos, tid, x), update(term, tid, true), i) == sum(res, pos, term, i));
+		while (k < N) {
+			if (k != x) {
+				lemma_sum_upd_neq(res, pos, term, tid, x, k, v);
+			}
+			
+			k = k + 1;
+		}
+	}
+	
+	requires |pos| == |res| && |term| == |res|;
+	requires (\forall int i; 0 <= i && i < |term|; !term[i]);
+	ensures sum(res, pos, term, x) == 0;
+	void lemma_sum_nterm(seq<int> res, seq<int> pos, seq<boolean> term, int x) {
+		if (0 < |res|) {
+			lemma_sum_nterm(res.tail, pos.tail, term.tail, x);
+		}
+	}
+	
+	context_everywhere 0 <= N;
+	context_everywhere |pos| == |res| && |term| == |res|;
+	context_everywhere (\forall int i; 0 <= i && i < |term|; !term[i]);
+	ensures (\forall int i; 0 <= i && i < N; sum(res, pos, term, i) == 0);
+	void lemma_sum_nterm_all(int N, seq<int> res, seq<int> pos, seq<boolean> term) {
+		int k = 0;
+		
+		loop_invariant 0 <= k && k <= N;
+		loop_invariant (\forall int i; 0 <= i && i < k; sum(res, pos, term, i) == 0);
+		while (k < N) {
+			lemma_sum_nterm(res, pos, term, k);
+			k = k + 1;
+		}
+	}
+	
+	requires |pos| == |res| && |term| == |res|;
+	requires (\forall int i; 0 <= i && i < |term|; term[i]);
+	ensures sum(res, pos, term, x) == sumsimple(res, pos, x);
+	void lemma_sum_tosimple(seq<int> res, seq<int> pos, seq<boolean> term, int x) {
+		if (0 < |res|) {
+			lemma_sum_tosimple(res.tail, pos.tail, term.tail, x);
+		}
+	}
+	
+	context_everywhere 0 <= N;
+	context_everywhere |pos| == |res| && |term| == |res|;
+	context_everywhere (\forall int i; 0 <= i && i < |term|; term[i]);
+	ensures (\forall int i; 0 <= i && i < N; sum(res, pos, term, i) == sumsimple(res, pos, i));
+	void lemma_sum_tosimple_all(int N, seq<int> res, seq<int> pos, seq<boolean> term) {
+		int k = 0;
+		
+		loop_invariant 0 <= k && k <= N;
+		loop_invariant (\forall int i; 0 <= i && i < k; sum(res, pos, term, i) == sumsimple(res, pos, i));
+		while (k < N) {
+			lemma_sum_tosimple(res, pos, term, k);
+			k = k + 1;
+		}
+	}
+	
+	/** The following lemma can be used to show that the operations of the different parallel threads can be
+		 	reordered, so that the parallelised implementation behaves the same as the sequential implementation. */
+	
+	requires |xs1| == |pos1|;
+	requires |xs2| == |pos2|;
+	ensures sumsimple(xs1 + xs2, pos1 + pos2, x) == sumsimple(xs1, pos1, x) + sumsimple(xs2, pos2, x);
+	void lemma_sumsimple_split(seq<int> xs1, seq<int> xs2, seq<int> pos1, seq<int> pos2, int x) {
+		if (0 < |xs1|) {
+			lemma_sumsimple_split(xs1.tail, xs2, pos1.tail, pos2, x);
+			assert (xs1 + xs2).head == xs1.head;
+			assert (xs1 + xs2).tail == xs1.tail + xs2;
+			assert (pos1 + pos2).head == pos1.head;
+			assert (pos1 + pos2).tail == pos1.tail + pos2;
+		}
+	}
+
+
+	/** ** Implementation */
+	
+	yields seq<int> res; // thread-local contributions
+	yields seq<boolean> term; // thread-local termination
+	yields seq<int> pos; // the position in `y` of the thread-local contributions
+	context_everywhere |M| == msize && |res| == msize && |term| == msize && |pos| == msize;
+	context_everywhere y != null && y.length == N && 0 < N;
+	context_everywhere (\forall int i; 0 <= i && i < |M|; |M[i]| == 3);
+	context_everywhere (\forall int i; 0 <= i && i < |M|; 0 <= M[i][0] && M[i][0] < N);
+	context_everywhere (\forall int i; 0 <= i && i < |M|; 0 <= M[i][1] && M[i][1] < N);
+	context_everywhere |x| == N;
+	context (\forall* int i; 0 <= i && i < N; Perm(y[i], 1));
+	requires (\forall int i; 0 <= i && i < N; y[i] == 0);
+	requires (\forall int i; 0 <= i && i < msize; res[i] == 0 && !term[i]);
+	ensures (\forall int i; 0 <= i && i < msize; res[i] == x[M[i][0]] * M[i][2]);
+	ensures (\forall int i; 0 <= i && i < msize; pos[i] == M[i][1]);
+	ensures (\forall int i; 0 <= i && i < msize; term[i]);
+	ensures (\forall int i; 0 <= i && i < N; y[i] == sumsimple(res, pos, i)); // functional correctness
+	void mult(seq<seq<int>> M, seq<int> x, int N, int[N] y, int msize) {
+		lemma_sum_nterm_all(N, res, pos, term);
+
+		invariant atom(
+			y != null **
+			(\forall* int i; 0 <= i && i < N; Perm(y[i], 1)) **
+			(\forall int i; 0 <= i && i < msize && term[i]; 0 <= pos[i] && pos[i] < N) **
+			(\forall int i; 0 <= i && i < N; y[i] == sum(res, pos, term, i))
+		)//;
+		{
+			par (int tid = 0 .. msize)
+				requires !term[tid];
+				ensures term[tid];
+				ensures res[tid] == x[M[tid][0]] * M[tid][2];
+				ensures 0 <= pos[tid] && pos[tid] < N;
+				ensures pos[tid] == M[tid][1];
+			{
+				atomic(atom) {
+					lemma_sum_upd(res, pos, term, tid, M[tid][1], x[M[tid][0]] * M[tid][2]);
+					lemma_sum_upd_all(N, res, pos, term, tid, M[tid][1], x[M[tid][0]] * M[tid][2]);
+					
+					pos = update(pos, tid, M[tid][1]);
+					res = update(res, tid, x[M[tid][0]] * M[tid][2]);
+					term = update(term, tid, true);
+					y[pos[tid]] = y[pos[tid]] + res[tid];
+				}
+			}
+		}
+		
+		lemma_sum_tosimple_all(N, res, pos, term);
+	}
+}

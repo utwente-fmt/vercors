@@ -4,10 +4,10 @@ libraryDependencies += "antlr" % "antlr" % "4.8-extractors-2" from
   "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-2/antlr4.jar"
 
 antlrTask := {
-    val cp = (Compile / dependencyClasspath ).value.files
-    val src = (Compile / sourceDirectory ).value / "antlr4"
-    val lib = (Compile / unmanagedBase ).value / "antlr4"
-    val target = (Compile / sourceManaged ).value / "antlr4" / "vct" / "antlr4" / "generated"
+    val cp = (Compile / externalDependencyClasspath).value.files
+    val src = (Compile / sourceDirectory).value / "antlr4"
+    val lib = (Compile / unmanagedBase).value / "antlr4"
+    val target = (Compile / sourceManaged).value / "java" / "vct" / "antlr4" / "generated"
     val log = streams.value.log
 
     val compileSets: Seq[(java.io.File, Boolean, Set[java.io.File])] = Seq(
@@ -70,6 +70,7 @@ antlrTask := {
                     val exitCode = scala.sys.process.Process("java", Seq(
                         "-cp", Path.makeString(cp),
                         "org.antlr.v4.Tool",
+                        "-encoding", "utf-8",
                         "-o", target.toString,
                         "-lib", lib.toString,
                         "-package", "vct.antlr4.generated",
@@ -90,9 +91,8 @@ antlrTask := {
     cachedCompile(allInputFiles).toSeq
 }
 
-Compile / sourceGenerators  += (Compile / antlrTask ).taskValue
-Compile / managedSourceDirectories  += (Compile / sourceManaged ).value / "antlr4"
+Compile / sourceGenerators += (Compile / antlrTask).taskValue
 
 // Disable documentation generation
-Compile / doc / sources := Seq()
+Compile / doc / sources := Nil
 Compile / packageDoc / publishArtifact := false

@@ -1,0 +1,33 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases ListsPVL
+//:: tools silicon
+class node {
+
+  int val;
+  node next;
+  
+  resource state() =
+    Perm(val,1) ** Perm(next,1) ** (next!=null ==> next.state());
+
+  requires state();
+  pure seq<int> contents() =
+    unfolding state() in (next==null?seq<int>{val}:seq<int>{val}+next.contents());
+
+  requires n!=null ==> n.state();
+  ensures  state() ** contents() == (n==null ? [v] : v :: \old(n.contents()));
+  constructor(int v,node n){
+    val = v;
+    next = n;
+    fold state();
+  }
+
+  void main() {
+    seq<int> tmp = [1, 2, 3];
+    assert tmp == [1] + [2, 3];
+    assert tmp.head == 1;
+    assert tmp.tail == [2, 3];
+    node l = new node(37, null);
+    assert l.contents() == [37];
+    assert 37 in l.contents();
+  }
+}

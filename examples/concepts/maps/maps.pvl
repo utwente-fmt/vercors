@@ -1,0 +1,50 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case MapsInPVL
+//:: tools silicon
+//:: verdict Pass
+
+class MapsInPVL {
+	void main() {
+		map<int, boolean> m1 = map<int,boolean>{1 -> true, 2 -> true, 0 -> false};
+		
+		assert m1 == map<int,boolean>{1 -> true, 2 -> true, 0 -> false, 1 -> false, 1 -> true};
+		assert m1[1] && !m1[0];
+		assert !m1.isEmpty;
+		assert |m1 ++ (1, false)| == 3;
+		assert m1[1];
+		assert |m1| == 3;
+		assert map<int,boolean>{1 -> true, 2 -> true, 0 -> false}[1];
+		
+		m1 = m1.add(1, true);
+		assert !m1.disjoint(map<int,boolean>{1 -> true});
+		assert m1.disjoint(map<int,boolean>{3 -> false, 4 -> true});
+		
+		set<tuple<int,boolean>> items = m1.items;
+		assert tuple<int,boolean>{1, true} in items;
+		
+		
+		map<int, boolean> m2 = map<int,boolean>{};
+		m2 = m2.add(1, true);
+		assert map<int,boolean> {1 -> true}.equals(m2);
+		
+		assert map<int, boolean> {0 -> true}.remove(0) == map<int,boolean>{};
+		
+		assert map<int, boolean>{}.keys.isEmpty;
+		assert map<int, boolean>{123 -> false}.keys == {123};
+		assert map<int, boolean>{123 -> false}.values == {false};
+		
+		assert map<int, boolean>{123 -> false, 2 -> false, 84368 -> true}.values == {false, true};
+		assert map<int, boolean>{123 -> false, 2 -> false, 84368 -> true}.keys == {123, 2, 84368};
+		
+		
+		map<int, boolean> m3 = map<int,boolean>{1 -> true, 2 -> true, 0 -> false};
+		map<int, boolean> m4 = m3.remove(1);
+		
+		assert m3[2];
+		assert 0 in m4.keys;
+		assert false in m4.values;
+		assert m4[2];
+		assert true in m4.values;
+		assert map<int,boolean>{}.add(0, true).remove(0) == map<int,boolean>{};
+	}
+}

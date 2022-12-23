@@ -1,0 +1,24 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases ArrayItemAccess
+//:: tools silicon
+//:: verdict Pass
+
+class Element {
+    int value;
+}
+
+class Test {
+    Element[] sequence;
+
+    requires Perm(this.sequence, write);
+    requires this.sequence != null;
+    requires this.sequence.length > 0;
+    requires (\forall* int i; 0 <= i && i < this.sequence.length; Perm(sequence[i], write));
+    requires (\forall int i = 0..sequence.length, int j = 0..sequence.length; sequence[i] == sequence[j] ==> i == j);
+    requires (\forall* int i; 0 <= i && i < this.sequence.length; Perm(sequence[i].value, write));
+    void test() {
+        if(sequence[0].value == 0) {
+
+        }
+    }
+}

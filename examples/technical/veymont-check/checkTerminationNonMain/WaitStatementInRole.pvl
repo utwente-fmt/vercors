@@ -1,0 +1,36 @@
+//:: cases WaitStatementInRole
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: tool veymont
+//:: verdict Pass
+class Main {
+
+	Role a;
+
+	constructor() {
+		a = new Role(5);
+	}
+	
+	void run() {
+		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+}
+
+class Role {
+
+	int x;
+	
+	constructor(int v) {
+		x = v;
+	}
+	
+	void doWait() {
+		wait this;
+	}
+
+}

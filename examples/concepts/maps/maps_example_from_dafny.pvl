@@ -1,0 +1,108 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case Maps
+//:: tools silicon
+//:: verdict Pass
+
+// Based on a Dafny file in the Dafny repository: https://github.com/dafny-lang/dafny/blob/213ed90c75bee4f30638c60060dd7ac5971b82a0/Test/dafny0/Maps.dfy
+
+class Maps {
+
+    void main() {
+        map<int,int> m = map<int,int> {2 -> 3};
+        assert 2 in m.keys;
+        assert !(3 in m.keys);
+        assert m[2] == 3;
+        assert m.disjoint(map<int, int> {3 -> 3});
+        assert map<int, int> {2 -> 4} == map<int, int> {2 -> 4};
+        assert (m ++ (7, 1)).equals(m ++ (2, 3) ++ (7, 1));
+        assert m.equals(m ++ (2, 3));
+    }
+
+    void m() {
+        map<int, int> a = map<int, int> {2 -> 3};
+        map<int, int> b = map<int, int> {3 -> 2};
+        assert a[b[3]] == 3;
+    }
+
+    requires (\forall int i; 0 <= i && i < 100; i in a.keys && i in b.keys && a[i] != b[i]);
+    void m2(map<int, boolean> a, map<int, boolean> b) {
+        assert (\forall int i; 0 <= i  && i < 100; {:a[i]:} || {:b[i]:});
+    }
+
+    requires (\forall int i; 0 <= i && i < 100; i in a.keys && a[i] == i*i);
+    void m3(map<int, int> a) {
+        assert a[20] == 400;
+    }
+
+    void m4() {
+        map<int, int> a = map<int, int> {3 -> 9};
+        if (/*[/expect mapKey]*/ a[4] == 4 /*[/end]*/) {
+            m();
+        }
+    }
+
+    requires 20 in a.keys;
+    void m5(map<int, int> a) {
+        assert a[20] <= 0 || 0 < a[20];
+    }
+
+    void m6() {
+        map<int,int> a = map<int,int> {3 -> 9};
+        assert map<int, int> {2 -> 4} == map<int, int> {2 -> 4};
+        assert a ++ (3, 5) == map<int, int> {3 -> 5};
+        assert a ++ (2, 5) == map<int, int> {2 -> 5, 3 -> 9};
+        assert a ++ (2, 5) == map<int, int> {2 -> 6, 3 -> 9, 2 -> 5};
+    }
+
+    void m7() {
+        map<int,int> a = map<int,int> {1 -> 1, 2 -> 4, 3 -> 9};
+        assert (\forall int i; i in a.keys; a[i] == i*i);
+        assert !(0 in a.keys);
+        assert 1 in a.keys;
+        assert 2 in a.keys;
+        assert 3 in a.keys;
+        assert (\forall int i; i < 1 || i > 3; !(i in a.keys));
+    }
+
+    void m8() {
+        map<int,int> a = map<int,int> {};
+        assert (\forall int i; true; !(i in a.keys));
+        int i = 0;
+        int n = 100;
+
+
+        loop_invariant 0 <= i && i <= n;
+        loop_invariant (\forall int j; j in a.keys; a[j] == j*j);
+        loop_invariant (\forall int k; true; (0 <= k && k < i) == k in a.keys);
+        while (i < n) {
+          a = a ++ (i, (i*i));
+          i = i + 1;
+        }
+
+        assert a.disjoint(map<int, int>{-1 -> 2});
+        m3(a);
+    }
+
+    void m9() {
+        map<int,int> a = map<int,int> {};
+        map<int,int> b = map<int,int> {};
+        assert a.disjoint(b);
+
+        b = map<int,int> {2 -> 3, 4 -> 2, 5 -> -6, 6 -> 7};
+        assert a.disjoint(b);
+        assert !b.disjoint(map<int,int> {6 -> 3});
+    }
+
+    void m10()
+    {
+        map<int,int> a = map<int,int> {};
+        map<int,int> b = map<int,int> {};
+        assert a.disjoint(b);
+
+        b = map<int,int> {2 -> 3, 4 -> 2, 5 -> -6, 6 -> 7};
+        assert a.disjoint(b);
+
+        a = map<int,int> {3 -> 3, 1 -> 2, 9 -> -6, 8 -> 7};
+        assert a.disjoint(b);
+    }
+}

@@ -1,8 +1,13 @@
 lexer grammar LangPVLLexer;
 import SpecLexer;
 
+channels {
+  EXPECTED_ERROR_CHANNEL
+}
+
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
+VAL_PACKAGE: 'package';
 
 PAREN_OPEN: '(';
 PAREN_CLOSE: ')';
@@ -13,13 +18,6 @@ ANGLE_CLOSE: '>';
 BRACK_OPEN: '[';
 BRACK_CLOSE: ']';
 ARR_RIGHT: '->';
-ARR_LEFT: '<-';
-EMPTY_SEQ_OPEN: '[t:';
-EMPTY_SET_OPEN: '{t:';
-BAG_OPEN: 'b{';
-EMPTY_BAG_OPEN: 'b{t:';
-HOARE_PRED_OPEN: '{*';
-HOARE_PRED_CLOSE: '*}';
 
 COMMA: ',';
 POINT: '.';
@@ -52,6 +50,8 @@ CLASS: 'class';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
+CONSTRUCTOR: 'constructor';
+RUN: 'run';
 
 IF: 'if';
 ELSE: 'else';
@@ -62,6 +62,9 @@ RETURN: 'return';
 VEC: 'vec';
 PAR: 'par';
 PAR_AND: 'and';
+PARALLEL: 'parallel';
+SEQUENTIAL: 'sequential';
+BLOCK: 'block';
 
 LOCK: 'lock';
 UNLOCK: 'unlock';
@@ -88,21 +91,22 @@ IN: 'in';
 NEW: 'new';
 ID: 'id';
 
-MAP: 'map';
-TUPLE: 'tuple';
 BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
 STRING: 'string';
-OPTION: 'option';
+FLOAT32: 'float32';
+FLOAT64: 'float64';
 
 NUMBER : ('0'..'9')+;
+DECIMAL_NUMBER : ('0'..'9')+ '.' ('0'..'9')+;
+DECIMAL_NUMBER_F : ('0'..'9')+ '.' ('0'..'9')+ 'f';
 
 mode DEFAULT_MODE;
 Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 
 COMMENT : '/*' .*? '*/' -> skip;
-LINE_COMMENT : '//' .*? '\n' -> skip;
+LINE_COMMENT : '//' .*? ('\n'|EOF) -> skip;
 
 WS  :   (   ' '
         |   '\t'

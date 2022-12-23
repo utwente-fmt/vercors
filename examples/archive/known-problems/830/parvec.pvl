@@ -1,0 +1,21 @@
+//:: case ParallelVectorExample1
+//:: tools silicon
+//:: verdict Pass
+
+/*
+ * Further test case for a vector block.
+ */
+class parvec {
+
+  context_everywhere ar!=null ** ar.length==M;
+  context (\forall* int i; 0 <= i && i < M ; Perm(ar[i],1));
+  ensures (\forall int i; 0 <= i && i < M ; ar[i]==2);
+  void main(int M,int[M] ar){
+    vec(int j=0..M){
+      int c;
+      c=1;
+      ar[j]=c+c;
+    }
+  }
+
+}

@@ -15,4 +15,4 @@ if [ ! -f "$BIN/.classpath" ] || [ ! -s "$BIN/.classpath" ]; then
 fi
 
 CLASSPATH=$(cat "$BIN/.classpath" | tr -d "\n\r")
-java -Xss128M -cp $CLASSPATH "$@"
+java $MORE_JAVA_OPTS -Xss128M -cp $CLASSPATH "$@"

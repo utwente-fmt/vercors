@@ -1,0 +1,21 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases SeqItemAccess
+//:: tools silicon
+//:: verdict Pass
+
+class Element {
+    int value;
+}
+
+class Test {
+    seq<Element> sequence;
+
+    requires Perm(this.sequence, write);
+    requires this.sequence.size > 0;
+    requires /*[/expect notInjective]*/(\forall* int i; 0 <= i && i < this.sequence.size; Perm(sequence[i].value, write))/*[/end]*/;
+    void test() {
+        if(sequence[0].value == 0) {
+
+        }
+    }
+}

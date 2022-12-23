@@ -1,0 +1,18 @@
+//:: cases NoRunArg
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	Role a;
+
+	constructor() {
+		a = new Role(5);
+	}
+	
+	void run(int x) {
+		
+	}
+}
+

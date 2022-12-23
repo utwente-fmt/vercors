@@ -1,0 +1,13 @@
+//:: cases BigInts
+//:: tools silicon carbon
+
+pure boolean int32r(int v) = -2147483648 <= v && v <= 2147483647;
+
+pure int foo() = -9999999999999999999999;
+pure int bar() = 9999999999999999999999;
+
+class C {
+  requires foo() < bar();
+  requires 1111111111111111 < 2222222222222222222222;
+  void m() { }
+}

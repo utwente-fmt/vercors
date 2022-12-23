@@ -1,0 +1,38 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases WaitNotify
+//:: tools silicon
+//:: verdict Pass
+
+/*
+  This example is both verifiable and executable.
+  
+  to compile: pvlc Worker.pvl Queue.pvl Main.pvl Test.java
+  to run    : pvl Test
+  to verify : vct --silver=silicon Main.pvl Worker.pvl Queue.pvl
+
+*/
+class Main {
+
+  Queue q1;
+  Queue q2;
+  
+  ensures Value(q1) ** q1!=null;
+  ensures Value(q2) ** q2!=null;
+  constructor(){
+    q1=new Queue();
+    q2=new Queue();
+    q1.put(1);
+    q2.put(2);
+  }
+  
+  requires Value(q1) ** q1!=null ** committed(q1);
+  requires Value(q2) ** q2!=null ** committed(q2);
+  void main(){
+    Worker w1=new Worker(q1,q2);
+    Worker w2=new Worker(q2,q1);
+    fork w1;
+    fork w2;
+    join w1;
+    join w2;
+  }
+}

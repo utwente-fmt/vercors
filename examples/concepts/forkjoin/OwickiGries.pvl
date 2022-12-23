@@ -1,0 +1,22 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases OwickiGries
+//:: tools silicon
+//:: verdict Pass
+lock_invariant Perm(x,1);
+class OwickiGries {
+  int x;
+
+  ensures committed(this);
+  constructor(){
+    x=0;
+    commit this;
+  }
+
+  requires committed(this);
+  void main(){
+    Worker w1=new Worker(this);
+    Worker w2=new Worker(this);
+    fork w1; fork w2;
+    join w1; join w2;
+  }
+}

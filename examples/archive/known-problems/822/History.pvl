@@ -1,0 +1,42 @@
+//:: cases HistoryLoop
+
+//:: cases HistoryDefined
+//:: tools silicon
+//:: options --check-defined
+//:: verdict Pass
+
+//:: cases HistoryAxioms
+//:: tools silicon
+//:: options --check-axioms
+//:: verdict Pass
+
+requires n >= 0 ;
+ensures  h.single(n) == (n>0 ? h.single(n-1)*h.incr() : empty);
+void lemma(History h, int n){
+  if (n>=2) {
+    lemma(h, n-2);
+  }
+}
+
+requires m>=0 && n>=0;
+ensures h.single(m) * h.single(n) == h.single(m+n);
+void single_axiom(History h, int m, int n);
+
+model History {
+  int x;
+  
+  modifies x;
+  ensures  x==\old(x)+1;
+  action incr();
+  
+  modifies x;
+  requires n>=0;
+  ensures  x==\old(x)+n;
+  process  single(int n)=n>0?incr()*single(n-1):empty;
+  
+  modifies x;
+  requires n>=0 && m >= 0;
+  ensures  x==\old(x)+n+m;
+  process  dual(int n,int m)=single(n)||single(m);
+}
+

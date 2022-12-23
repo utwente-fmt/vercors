@@ -4,62 +4,62 @@
 //:: options --check-history
 //:: verdict Pass
 
-class `Future` {
+pure int seqSum(seq<int> xs) = 0 < |xs| ? xs.head + seqSum(xs.tail) : 0;
+
+model Sum {
 	int sum;
 
 	modifies sum;
 	ensures sum == \old(sum) + v;
-	process incr(int v);
+	action incr(int v);
 
 	process done(int v) = empty;
 
 	modifies sum;
 	requires 0 < |xs|;
-	ensures sum == Program.sum(xs);
-	process P(seq<int> xs) = 0 < |xs| ? incr(head(xs)) * done(head(xs)) || P(tail(xs)) : empty;
+	ensures sum == seqSum(xs);
+	process P(seq<int> xs) = 0 < |xs| ? incr(xs.head) * done(xs.head) || P(xs.tail) : empty;
 }
 
 class Program {
-	static pure int sum(seq<int> xs) = 0 < |xs| ? head(xs) + sum(tail(xs)) : 0;
+	context_everywhere 0 < |xs|;
+	requires m.state(1, m.P(xs));
+	ensures (\forall* int i; 0 <= i && i < |xs|; m.state(1\|xs|, m.incr({:xs[i]:}) * m.done(xs[i])));
+	void lemma_P_split_all(Sum m, seq<int> xs);
 
-	context_everywhere model != null && 0 < |xs|;
-	requires Future(model, 1, model.P(xs));
-	ensures (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.incr({:xs[i]:}) * model.done(xs[i])));
-	void lemma_P_split_all(`Future` model, seq<int> xs);
-
-	context_everywhere model != null && 0 < |xs|;
-	requires (\forall* int i; 0 <= i && i < |xs|; Future(model, 1\|xs|, model.done({:xs[i]:})));
-	ensures Future(model, 1, empty);
-	void lemma_done_merge_all(`Future` model, seq<int> xs);
+	context_everywhere 0 < |xs|;
+	requires (\forall* int i; 0 <= i && i < |xs|; m.state(1\|xs|, m.done({:xs[i]:})));
+	ensures m.state(1, empty);
+	void lemma_done_merge_all(Sum m, seq<int> xs);
 
 	given seq<int> xs;
 	context_everywhere A != null && A.length == |xs| && 0 < A.length;
 	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
 	context (\forall int i; 0 <= i && i < A.length; A[i] == xs[i]);
-	ensures \result == sum(xs);
+	ensures \result == seqSum(xs);
 	int parsum(int[] A) {
-		`Future` model = new `Future`();
-		create model, model.P(xs);
-		lemma_P_split_all(model, xs);
-		invariant inv(HPerm(model.sum, 1)) //;
+		Sum m = new Sum();
+		m.create(m.P(xs));
+		lemma_P_split_all(m, xs);
+		invariant inv(HPerm(m.sum, 1)) //;
 		{
 			par (int tid = 0 .. A.length)
 				context Perm({:A[tid]:}, 1\4);
 				context {:A[tid]:} == {:xs[tid]:};
-				requires Future(model, 1\|xs|, model.incr({:A[tid]:}) * model.done(A[tid]));
-				ensures Future(model, 1\|xs|, model.done({:A[tid]:}));
+				requires m.state(1\|xs|, m.incr({:A[tid]:}) * m.done(A[tid]));
+				ensures m.state(1\|xs|, m.done({:A[tid]:}));
 			{
 				atomic(inv) {
-					action(model, 1\|xs|, model.done(A[tid]), model.incr(A[tid])) {
-						model.sum = model.sum + A[tid];
+					action(m, 1\|xs|, m.done(A[tid]), m.incr(A[tid])) {
+						m.sum = m.sum + A[tid];
 					}
 				}
 			}
 		}
 
-		lemma_done_merge_all(model, xs);
-		destroy model;
+		lemma_done_merge_all(m, xs);
+		m.destroy();
 
-		return model.sum;
+		return m.sum;
 	}
 }

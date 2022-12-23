@@ -1,0 +1,29 @@
+//:: cases MainConstructorWrongRoleNr
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+//:: tool veymont
+class Main {
+
+	Role a,b;
+
+	constructor() {
+		a = new Role();
+	}
+
+	void run() {
+	
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int i;
+}
+

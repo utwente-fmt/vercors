@@ -1,0 +1,44 @@
+//:: case TestFuturePermsPass
+//:: tool silicon
+//:: option --check-history
+//:: verdict Pass
+
+model Model {
+  int x;
+  
+  modifies x;
+  ensures x == \old(x)+1;
+  action step();
+}
+
+
+requires Perm(f.x, 1);
+void good1(Model f){
+  f.x = 1;
+}
+
+requires APerm(f.x, 1);
+void good2(Model f){
+  f.x = 1;
+}
+
+requires Perm(f.x, 1);
+requires t == f.x+1;
+ensures HPerm(f.x, 1) ** f.state(1, f.step()) ** f.abstractState(f.x == t);
+void start(Model f, int t){
+  f.create(f.step());
+}
+
+requires HPerm(f.x, 1) ** f.state(1, f.step());
+ensures  HPerm(f.x, 1) ** f.state(1, empty);
+void work(Model f){
+  action(f, 1, empty, f.step()) {
+    f.x = f.x + 1;
+  }
+}
+
+requires HPerm(f.x, 1) ** f.state(1, empty) ** f.abstractState(f.x == t);
+ensures Perm(f.x, 1) ** f.x == t;
+void stop(Model f, int t){
+  f.destroy();
+}

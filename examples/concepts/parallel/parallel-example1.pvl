@@ -1,0 +1,34 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: case ParallelPVLExample1
+//:: tools silicon
+//:: suite rise4fun
+
+/*
+ * Testing the PVL parallel loop construct.
+ */
+class test {
+
+  void main(){
+    int[10] x=new int[10];
+    int[10] y=new int[10];
+    int[10] z=new int[10];
+
+    sequential {
+      block fst(int i=0..10)
+      context Perm(x[i],1) ** Perm(y[i],1) ** Perm(z[i],1);
+      {
+        x[i]=z[i];
+        x[i]=0;
+      }
+      block snd(int j=0..10)
+      context Perm(y[j],1);
+      context Perm(z[j],1);
+      {
+        y[j]=0;
+        z[j]=y[j];
+      }
+    }
+  }
+  
+}
+

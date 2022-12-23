@@ -39,26 +39,17 @@ do
   # Replacing newlines with spaces to make sure all the filenames are on one line
   files=$(grep -r "\\<$kees\\>" -l | tr "\n" " ")
 
-  veymontCmd="$vercorsPath --veymont ${kees}_output.pvl $files"
+  veymontCmd="$vercorsPath --veymont $files"
   echo "-- Running VeyMont: $veymontCmd"
   output=$(eval $veymontCmd)
   echo "$output"
-  if [[ $output != *"Pass"* ]]; then
+  if [[ $output != *"Pass"*"Pass"*"Pass"* ]]; then
     echo "VeyMont did not succeed in analyzing case $kees, files: $files"
     failingReport="$failingReport\n- $kees"
     totalReturnCode=1
     continue
   fi
 
-  vercorsCmd="$vercorsPath --silicon ${kees}_output.pvl"
-  echo "-- Running VerCors: $vercorsCmd"
-  output=$(eval $vercorsCmd)
-  echo "$output"
-  if [[ $output != *"Pass"* ]]; then
-    echo "VerCors did not succeed in analyzing the VeyMont output for case $kees"
-    failingReport="$failingReport\n- $kees"
-    totalReturnCode=1
-  fi
 done
 
 printf "$failingReport\n"

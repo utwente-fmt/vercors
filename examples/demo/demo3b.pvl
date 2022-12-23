@@ -3,14 +3,16 @@
 //:: tools silicon
 //:: verdict Pass
 
+lock_invariant Perm(this.sum, 1);
 class ArraySum {
 	int sum;
-	
-	resource lock_invariant() = Perm(this.sum, 1);
-	
-	ArraySum() {
+
+	ensures committed(this);
+	constructor() {
+	  commit this;
 	}
 
+  requires committed(this);
 	context_everywhere A != null;
 	context (\forall* int i; 0 <= i && i < A.length; Perm(A[i], 1\2));
 	void sum(int[] A) {

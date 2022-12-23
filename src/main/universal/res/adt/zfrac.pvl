@@ -1,0 +1,12 @@
+adt `zfrac` {
+  pure rational zfrac_val(`zfrac` f);
+
+  axiom (\forall `zfrac` f, `zfrac` g; {:zfrac_val(f):} == {:zfrac_val(g):} ==> f == g);
+
+  axiom (\forall `zfrac` f; none <= {:zfrac_val(f):} && zfrac_val(f) <= write);
+}
+
+decreases;
+requires none <= p && p <= write;
+ensures `zfrac`.zfrac_val(\result) == p;
+pure `zfrac` new_zfrac(rational p);

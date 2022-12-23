@@ -1,0 +1,60 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases WandDemoSilver
+//:: tools silicon
+
+/**
+ * The command line to verify with the VerCors Tool is:
+ * <p>
+ * vct --silver=silicon WandDemoSilver.java
+ * <p>
+ * The expected result is Pass.
+ */
+final class WandDemo {
+    int x;
+
+    /*@
+    resource readonly() = Perm(x,1\4);
+    resource writeonly() = Perm(x,write);
+    @*/
+  
+    /*@
+    requires readonly();
+    pure int get() = \unfolding readonly() \in x;
+    */
+
+    //@ ensures writeonly();
+    WandDemo() {
+        //@ fold writeonly();
+    }
+
+    /*@
+    requires writeonly();
+    ensures  readonly();
+    ensures  readonly()-*writeonly();
+    @*/
+    void set(int v) {
+        //@ unfold writeonly();
+        x = v;
+        //@ fold readonly();
+        /*@
+        package readonly() -* writeonly() {
+        unfold readonly();
+        fold writeonly();
+        }
+        @*/
+    }
+
+
+    void demo() {
+        WandDemo d = new WandDemo();
+        int i = 1;
+        //@ loop_invariant d.writeonly();
+        while (true) {
+            d.set(i);
+            i = d.get() + d.get();
+            //@ apply d.readonly()-*d.writeonly();
+        }
+    }
+
+}
+
