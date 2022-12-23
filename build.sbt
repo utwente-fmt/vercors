@@ -62,6 +62,9 @@ ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).v
 ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 
+carbon_ref / unmanagedResources / excludeFilter := "logback*.xml"
+silicon_ref / unmanagedResources / excludeFilter := "logback*.xml"
+
 // Disable doc generation in all viper projects
 carbon_ref / packageDoc / publishArtifact := false
 silver_ref / packageDoc / publishArtifact := false
