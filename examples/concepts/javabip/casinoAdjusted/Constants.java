@@ -57,6 +57,7 @@ public class Constants {
     public static final String GUESSED = "GUESSED";
     public static final String ENOUGH_FUNDS = "ENOUGH_FUNDS";
     public static final String ALLOWABLE_BET = "ALLOWABLE_BET";
+    public static final String SAFE_GAME_STEP = "SAFE_GAME_STEP";
 }
 
 enum Coin { HEADS, TAILS }

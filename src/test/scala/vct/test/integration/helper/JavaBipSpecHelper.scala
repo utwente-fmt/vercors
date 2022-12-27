@@ -35,7 +35,8 @@ abstract class JavaBipSpecHelper extends VercorsSpec {
       val reportCheck = (report, expectedReport) match {
         case (_, Left(err)) => s"The expected report could not be parsed, since ${err.getMessage()}"
         case (Some(report), expectedReport) if Right(report) == expectedReport => ""
-        case (Some(_), _) => "The reports differ."
+        case (Some(_), _) =>
+          "The reports differ."
         case (None, _) => "The report is missing."
       }
 

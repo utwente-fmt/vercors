@@ -1,7 +1,6 @@
 /*
-This version of the casino case study adjusts the contracts, by including wherever needed that the pot needs to be big enough. This fixes verification problems, at the cost of introducing a deadlock.
-
-TODO: The above explanation is not actually implemented here!!
+This version of the casino case study adjusts the contracts, by including wherever needed that the pot needs to be big
+enough. This fixes verification problems, at the cost of introducing a deadlock.
 */
 
 package casino;

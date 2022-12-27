@@ -50,15 +50,10 @@ public class Casino {
 
     // Remove money from pot
     @Transition(name = REMOVE_FROM_POT, source = IDLE, target = IDLE, 
-        // With this guard, cannot establish component invariant pot >= 0. It is not provable that funds < pot (even though we know that the operator ensures this is the case)
-        guard = IS_OPERATOR
         // If we add a guard that checks if the funds can actually be removed, then VerCors can prove the component invariant again.
-//        guard = "IS_OPERATOR && ENOUGH_FUNDS"
+        guard = "IS_OPERATOR && ENOUGH_FUNDS"
         )
-    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE,
-        guard = IS_OPERATOR
-//        guard = "IS_OPERATOR && ENOUGH_FUNDS"
-        )
+    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = "IS_OPERATOR && ENOUGH_FUNDS")
     public void removeFromPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot - funds;
         System.out.println("CASINO" + id + ": " + funds +

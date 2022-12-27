@@ -30,19 +30,14 @@ public class Operator {
         System.out.println("OPERATOR" + id + " created with wallet: " + wallet);
     }
 
-    /* TODO: Problem here. Say: Operator.amountToMove == 100, Casino.pot = 10. Then DECIDE_BET executes, sets
-             Operator.pot to 10. Now if REMOVE_FROM_POT is executed, we get negative funds. I think VerCors will give an
-             error here, since it won't be able to prove the state predicate of WITHDRAW_FUNDS. But: this means operator
-             can deadlock?
-     */
-    @Transition(name = CREATE_GAME, source = WORKING, target = WORKING, pre = "pot >= 0")
-    @Transition(name = CREATE_GAME, source = PUT_FUNDS, target = PUT_FUNDS, pre = "pot >= 0")
-    @Transition(name = CREATE_GAME, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "pot >= 0")
-    @Transition(name = DECIDE_BET, source = WORKING, target = WORKING, pre = "pot >= 0")
-    @Transition(name = DECIDE_BET, source = PUT_FUNDS, target = PUT_FUNDS, pre = "pot >= 0")
-    @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "pot >= 0")
-    public void gameStep(@Data(name = AVAILABLE_FUNDS) int pot) {
-        this.pot = pot;
+    @Transition(name = CREATE_GAME, source = WORKING, target = WORKING, pre = "newPot >= 0")
+    @Transition(name = CREATE_GAME, source = PUT_FUNDS, target = PUT_FUNDS, pre = "newPot >= 0")
+    @Transition(name = CREATE_GAME, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "newPot >= 0")
+    @Transition(name = DECIDE_BET, source = WORKING, target = WORKING, pre = "newPot >= 0")
+    @Transition(name = DECIDE_BET, source = PUT_FUNDS, target = PUT_FUNDS, pre = "newPot >= 0")
+    @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "newPot >= 0")
+    public void gameStep(@Data(name = AVAILABLE_FUNDS) int newPot) {
+        this.pot = newPot;
         System.out.println("OPERATOR" + id + ": making one step in the game");
     }
 
@@ -59,16 +54,16 @@ public class Operator {
         System.out.println("OPERATOR" + id + ": decided to withdraw " + amountToMove + ", wallet: " + wallet);
     }
 
-    @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING, pre = "pot >= 0")
-    public void addToPot (@Data(name = AVAILABLE_FUNDS) int pot) {
-        this.pot = pot + amountToMove;
+    @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING, pre = "newPot >= 0")
+    public void addToPot (@Data(name = AVAILABLE_FUNDS) int newPot) {
+        this.pot = newPot + amountToMove;
         System.out.println("OPERATOR" + id + ": added " + amountToMove + " to pot, wallet: " + wallet);
     }
 
     @Transition(name = REMOVE_FROM_POT, source = WITHDRAW_FUNDS, target = WORKING)
-    public void removeFromPot (@Data(name = AVAILABLE_FUNDS) int pot) {
+    public void removeFromPot (@Data(name = AVAILABLE_FUNDS) int newPot) {
         wallet += amountToMove;
-        this.pot = pot - amountToMove;
+        this.pot = newPot - amountToMove;
         System.out.println("OPERATOR" + id + ": removed " + amountToMove + " from pot, wallet: " + wallet);
     }
 

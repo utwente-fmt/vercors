@@ -1,0 +1,324 @@
+{
+  "casino.Player": {
+    "constructor": {
+      "componentInvariant": "proven",
+      "stateInvariant": "proven"
+    },
+    "transitions": [
+      {
+        "signature": {
+          "name": "PREPARE_BET",
+          "source": "GAME_AVAILABLE",
+          "target": "BET_PREPARED"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "PLACE_BET",
+          "source": "BET_PREPARED",
+          "target": "GAME_AVAILABLE"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "RECEIVE_MONEY",
+          "source": "GAME_AVAILABLE",
+          "target": "GAME_AVAILABLE"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      }
+    ]
+  },
+  "casino.Casino": {
+    "constructor": {
+      "componentInvariant": "proven",
+      "stateInvariant": "proven"
+    },
+    "transitions": [
+      {
+        "signature": {
+          "name": "ADD_TO_POT",
+          "source": "IDLE",
+          "target": "IDLE",
+          "guard": "IS_OPERATOR"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "ADD_TO_POT",
+          "source": "GAME_AVAILABLE",
+          "target": "GAME_AVAILABLE",
+          "guard": "IS_OPERATOR"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "ADD_TO_POT",
+          "source": "BET_PLACED",
+          "target": "BET_PLACED",
+          "guard": "IS_OPERATOR"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "REMOVE_FROM_POT",
+          "source": "IDLE",
+          "target": "IDLE",
+          "guard": "IS_OPERATOR && ENOUGH_FUNDS"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "REMOVE_FROM_POT",
+          "source": "GAME_AVAILABLE",
+          "target": "GAME_AVAILABLE",
+          "guard": "IS_OPERATOR && ENOUGH_FUNDS"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "CREATE_GAME",
+          "source": "IDLE",
+          "target": "GAME_AVAILABLE",
+          "guard": "IS_OPERATOR"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "RECEIVE_BET",
+          "source": "GAME_AVAILABLE",
+          "target": "BET_PLACED",
+          "guard": "IS_NOT_OPERATOR && ALLOWABLE_BET"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "CASINO_WIN",
+          "source": "BET_PLACED",
+          "target": "IDLE",
+          "guard": "IS_OPERATOR & !GUESSED"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "PLAYER_WIN",
+          "source": "BET_PLACED",
+          "target": "IDLE",
+          "guard": "IS_OPERATOR & GUESSED & IS_PLAYER"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      }
+    ]
+  },
+  "casino.Operator": {
+    "constructor": {
+      "componentInvariant": "proven",
+      "stateInvariant": "proven"
+    },
+    "transitions": [
+      {
+        "signature": {
+          "name": "CREATE_GAME",
+          "source": "WORKING",
+          "target": "WORKING"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "CREATE_GAME",
+          "source": "PUT_FUNDS",
+          "target": "PUT_FUNDS"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "CREATE_GAME",
+          "source": "WITHDRAW_FUNDS",
+          "target": "WITHDRAW_FUNDS",
+          "guard": "SAFE_GAME_STEP"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "DECIDE_BET",
+          "source": "WORKING",
+          "target": "WORKING"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "DECIDE_BET",
+          "source": "PUT_FUNDS",
+          "target": "PUT_FUNDS"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "DECIDE_BET",
+          "source": "WITHDRAW_FUNDS",
+          "target": "WITHDRAW_FUNDS",
+          "guard": "SAFE_GAME_STEP"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "PREPARE_TO_ADD",
+          "source": "WORKING",
+          "target": "PUT_FUNDS",
+          "guard": "ENOUGH_FUNDS"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "PREPARE_TO_REMOVE",
+          "source": "WORKING",
+          "target": "WITHDRAW_FUNDS"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "ADD_TO_POT",
+          "source": "PUT_FUNDS",
+          "target": "WORKING"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      },
+      {
+        "signature": {
+          "name": "REMOVE_FROM_POT",
+          "source": "WITHDRAW_FUNDS",
+          "target": "WORKING"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "proven"
+        }
+      }
+    ]
+  }
+}

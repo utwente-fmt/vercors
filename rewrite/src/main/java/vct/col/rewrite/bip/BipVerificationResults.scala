@@ -141,7 +141,7 @@ case object BIP {
           },
           { v =>
             val o = v.obj
-            TransitionSignature(o("name").str, o("source").str, o("target").str, o.get("guard").strOpt)
+            TransitionSignature(o("name").str, o("source").str, o("target").str, o.get("guard").map(_.str))
           }
         )
 

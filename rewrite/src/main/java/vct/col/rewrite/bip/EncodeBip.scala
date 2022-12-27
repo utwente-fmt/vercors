@@ -139,6 +139,13 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
       s.blame.blame(TransitionPreconditionFailed(s, t, error.failure))
     }
   }
+
+  case class ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]) extends Origin {
+    override def preferredName: String = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${t.o.preferredName}_${t.signature.asciiSignature}"
+    override def context: String = t.o.context
+    override def inlineContext: String = t.o.inlineContext
+    override def shortPosition: String = t.o.shortPosition
+  }
 }
 
 case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Rewriter[Pre] with LazyLogging {
@@ -168,9 +175,10 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
     case ClassBipComponent(cls, component) =>
       cls.declarations.collect { case transition: BipTransition[Pre] => (transition, (cls, component)) }
   }.flatten.toMap
-  lazy val dataToClass: Map[BipData[Pre], Class[Pre]] = classes.flatMap { cls =>
-    cls.declarations.collect { case data: BipData[Pre] => (data, cls) }
-  }.toMap
+  lazy val dataToClassComponent: Map[BipData[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
+    case ClassBipComponent(cls, component) =>
+      cls.declarations.collect { case data: BipData[Pre] => (data, (cls, component)) }
+  }.flatten.toMap
   lazy val guardToClass: Map[BipGuard[Pre], Class[Pre]] = classes.flatMap { cls =>
     cls.declarations.collect { case guard: BipGuard[Pre] => (guard, cls) }
   }.toMap
@@ -191,9 +199,10 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   def classOf(g: BipGuard[Pre]): Class[Pre] = guardToClass(g)
   def classOf(p: Procedure[Pre]): Class[Pre] = procedureToClassComponent(p)._1
   def classOf(t: BipTransition[Pre]): Class[Pre] = transitionToClassComponent(t)._1
-  def classOf(d: BipData[Pre]): Class[Pre] = dataToClass(d)
+  def classOf(d: BipData[Pre]): Class[Pre] = dataToClassComponent(d)._1
   def componentOf(p: Procedure[Pre]): BipComponent[Pre] = procedureToClassComponent(p)._2
   def componentOf(t: BipTransition[Pre]): BipComponent[Pre] = transitionToClassComponent(t)._2
+  def componentOf(d: BipData[Pre]): BipComponent[Pre] = dataToClassComponent(d)._2
   def isComponentConstructor(p: Procedure[Pre]): Boolean = procedureToClassComponent.contains(p)
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
@@ -262,7 +271,8 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         contract = contract[Post](ForwardUnsatisfiableBlame(null /* not needed */, data),
           requires = UnitAccountedPredicate(dispatch(currentComponent.top.invariant))),
         pure = true,
-      )(PanicBlame("Postcondition of data cannot fail")))
+      )(PanicBlame("Postcondition of data cannot fail")
+      )(data.o))
 
     // Is encoded in contracts, so dropped
     case sp: BipStatePredicate[Pre] => sp.drop()
@@ -324,6 +334,8 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       // Mark that the default case is that verification is succesfull
       results.declare(component, transition)
 
+      // TODO (RR): I would really like to have put the textual names of the transitions.datas in the origin of the variable below...
+      // Better debugging
       val incomingDataToVariable = ListMap.from(transition.data.map { case Ref(data) =>
         (data, new Variable(dispatch(data.t)))
       })
@@ -354,7 +366,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
                 // Establish update function postcondition
                 UnitAccountedPredicate(dispatch(transition.ensures))))
             )
-          )(TransitionPostconditionFailed(results, transition))(transition.o))
+          )(TransitionPostconditionFailed(results, transition))(ImplCheckBipTransitionOrigin(component, transition)))
         }
       }
 
