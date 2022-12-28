@@ -1,7 +1,5 @@
 /*
-This version of the JavaBIP casino case study has an obvious problem: the operator decides how much to withdraw, but
-after deciding that the casino can decide a bet, which might reduce the pot. After that, it might not be possible for
-the operator to withdraw that much, and the model does not account for that.
+This version of the JavaBIP casino case study has an obvious problem: the operator decides how much to withdraw, but after deciding that the casino can decide a bet, which might reduce the pot. After that, it might not be possible for the operator to withdraw that much, and the model does not account for that.
 */
 package casino;
 
@@ -13,7 +11,7 @@ import org.javabip.glue.TwoSynchronGlueBuilder;
 import static casino.Constants.*;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         ActorSystem system = ActorSystem.create(ACTOR_SYSTEM);
         EngineFactory engineFactory = new EngineFactory(system);
 

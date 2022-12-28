@@ -6,17 +6,21 @@ import org.javabip.api.PortType;
 import static casino.Coin.*;
 import static casino.Constants.*;
 
-@Port(name = ADD_TO_POT, type = PortType.enforceable)
-@Port(name = REMOVE_FROM_POT, type = PortType.enforceable)
-@Port(name = CREATE_GAME, type = PortType.enforceable)
-@Port(name = RECEIVE_BET, type = PortType.enforceable)
-@Port(name = CASINO_WIN, type = PortType.enforceable)
+@Ports({
+@Port(name = ADD_TO_POT, type = PortType.enforceable),
+@Port(name = REMOVE_FROM_POT, type = PortType.enforceable),
+@Port(name = CREATE_GAME, type = PortType.enforceable),
+@Port(name = RECEIVE_BET, type = PortType.enforceable),
+@Port(name = CASINO_WIN, type = PortType.enforceable),
 @Port(name = PLAYER_WIN, type = PortType.enforceable)
+})
 @ComponentType(initial = IDLE, name = CASINO_SPEC)
 @Invariant("secretNumber != null && bet >= 0 && pot >= bet") // Moved secretNumber to global invariant, different from original
-@StatePredicate(state = IDLE, expr = "bet == 0")
-@StatePredicate(state = GAME_AVAILABLE, expr = "bet == 0")
+@StatePredicates({
+@StatePredicate(state = IDLE, expr = "bet == 0"),
+@StatePredicate(state = GAME_AVAILABLE, expr = "bet == 0"),
 @StatePredicate(state = BET_PLACED, expr = "guess != null")
+})
 public class Casino {
     final int id;
     int operator;
@@ -38,9 +42,11 @@ public class Casino {
     }
 
     // Add money to pot
-    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, pre = "funds >= 0" /* different from original */)
-    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, pre = "funds >= 0")
-    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, pre = "funds >= 0")
+    @Transitions({
+    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, requires = "funds >= 0" /* different from original */),
+    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, requires = "funds >= 0"),
+    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, requires = "funds >= 0")
+    })
     public void addToPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot + funds;
         System.out.println("CASINO" + id + ": " + funds +
@@ -49,12 +55,18 @@ public class Casino {
     }
 
     // Remove money from pot
-    @Transition(name = REMOVE_FROM_POT, source = IDLE, target = IDLE,
-        /* With this guard, cannot establish component invariant pot >= 0. It is not provable that funds < pot
-          (even though we know that the operator ensures this is the case)
-         */
-        guard = IS_OPERATOR)
-    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR)
+    @Transitions({
+    @Transition(name = REMOVE_FROM_POT, source = IDLE, target = IDLE, 
+        // With this guard, cannot establish component invariant pot >= 0. It is not provable that funds < pot (even though we know that the operator ensures this is the case)
+        guard = IS_OPERATOR
+        // If we add a guard that checks if the funds can actually be removed, then VerCors can prove the component invariant again.
+//        guard = "IS_OPERATOR && ENOUGH_FUNDS"
+        ),
+    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE,
+        guard = IS_OPERATOR
+//        guard = "IS_OPERATOR && ENOUGH_FUNDS"
+        )
+    })
     public void removeFromPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot - funds;
         System.out.println("CASINO" + id + ": " + funds +
@@ -71,8 +83,8 @@ public class Casino {
 
     // Operator receives a bet
     @Transition(name = RECEIVE_BET, source = GAME_AVAILABLE, target = BET_PLACED,
-            guard = "IS_NOT_OPERATOR && ALLOWABLE_BET",
-            pre = "0 <= bet && guess != null")
+            guard = "IS_NOT_OPERATOR & ALLOWABLE_BET",
+            requires = "0 <= bet && guess != null")
     public void receiveBet(@Data(name = PLAYER) Integer sender,
                            @Data(name = INCOMING_GUESS) Coin guess, @Data(name = INCOMING_BET) int bet) {
         player = sender;
@@ -84,7 +96,7 @@ public class Casino {
     }
 
     @Transition(name = CASINO_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR & !GUESSED")
-    public void casinoWin(@Data(name = OPERATOR) Integer sender) {
+    public void casinoWin(/*@Data(name = OPERATOR) Integer sender*/) {
         int won = bet;
         pot = pot + bet;
         bet = 0;
@@ -95,7 +107,7 @@ public class Casino {
     }
 
     @Transition(name = PLAYER_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR & GUESSED & IS_PLAYER")
-    public void playerWin(@Data(name = PLAYER) Integer player, @Data(name = OPERATOR) Integer operator) {
+    public void playerWin(/*@Data(name = PLAYER) Integer player, @Data(name = OPERATOR) Integer operator*/) {
         int lost = bet;
         pot = pot - bet;
         bet = 0;
