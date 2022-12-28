@@ -30,12 +30,12 @@ public class Operator {
         System.out.println("OPERATOR" + id + " created with wallet: " + wallet);
     }
 
-    @Transition(name = CREATE_GAME, source = WORKING, target = WORKING, pre = "newPot >= 0")
-    @Transition(name = CREATE_GAME, source = PUT_FUNDS, target = PUT_FUNDS, pre = "newPot >= 0")
-    @Transition(name = CREATE_GAME, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "newPot >= 0")
-    @Transition(name = DECIDE_BET, source = WORKING, target = WORKING, pre = "newPot >= 0")
-    @Transition(name = DECIDE_BET, source = PUT_FUNDS, target = PUT_FUNDS, pre = "newPot >= 0")
-    @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, pre = "newPot >= 0")
+    @Transition(name = CREATE_GAME, source = WORKING, target = WORKING, requires = "newPot >= 0")
+    @Transition(name = CREATE_GAME, source = PUT_FUNDS, target = PUT_FUNDS, requires = "newPot >= 0")
+    @Transition(name = CREATE_GAME, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, requires = "newPot >= 0")
+    @Transition(name = DECIDE_BET, source = WORKING, target = WORKING, requires = "newPot >= 0")
+    @Transition(name = DECIDE_BET, source = PUT_FUNDS, target = PUT_FUNDS, requires = "newPot >= 0")
+    @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, requires = "newPot >= 0")
     public void gameStep(@Data(name = AVAILABLE_FUNDS) int newPot) {
         this.pot = newPot;
         System.out.println("OPERATOR" + id + ": making one step in the game");
@@ -54,7 +54,7 @@ public class Operator {
         System.out.println("OPERATOR" + id + ": decided to withdraw " + amountToMove + ", wallet: " + wallet);
     }
 
-    @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING, pre = "newPot >= 0")
+    @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING, requires = "newPot >= 0")
     public void addToPot (@Data(name = AVAILABLE_FUNDS) int newPot) {
         this.pot = newPot + amountToMove;
         System.out.println("OPERATOR" + id + ": added " + amountToMove + " to pot, wallet: " + wallet);

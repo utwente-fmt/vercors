@@ -64,13 +64,13 @@ public /*@ bip_annotation @*/ @interface Transition {
 	 * can be useful to check properties specific to a transition, which you don’t want to put in a state predicate or component invariant
 	 * @return pre condition
 	 */
-	String pre() default "";
+	String requires() default "";
 
 	/**
 	 * post condition that is supposed to hold after the execution of the update function
 	 * can be useful to check properties specific to a transition, which you don’t want to put in a state predicate or component invariant
 	 * @return post condition
 	 */
-	String post() default "";
+	String ensures() default "";
 
 }

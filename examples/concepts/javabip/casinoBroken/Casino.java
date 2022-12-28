@@ -38,9 +38,9 @@ public class Casino {
     }
 
     // Add money to pot
-    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, pre = "funds >= 0" /* different from original */)
-    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, pre = "funds >= 0")
-    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, pre = "funds >= 0")
+    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, requires = "funds >= 0" /* different from original */)
+    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, requires = "funds >= 0")
+    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, requires = "funds >= 0")
     public void addToPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot + funds;
         System.out.println("CASINO" + id + ": " + funds +
@@ -72,7 +72,7 @@ public class Casino {
     // Operator receives a bet
     @Transition(name = RECEIVE_BET, source = GAME_AVAILABLE, target = BET_PLACED,
             guard = "IS_NOT_OPERATOR && ALLOWABLE_BET",
-            pre = "0 <= bet && guess != null")
+            requires = "0 <= bet && guess != null")
     public void receiveBet(@Data(name = PLAYER) Integer sender,
                            @Data(name = INCOMING_GUESS) Coin guess, @Data(name = INCOMING_BET) int bet) {
         player = sender;

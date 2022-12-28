@@ -487,11 +487,11 @@ case object ResolveReferences extends LazyLogging {
         case Some(n) => throw MalformedBipAnnotation(n, "pre- and post-conditions must be string literals")
       }
 
-      val (r, ro) = extractExpr(ann.get("pre"))
+      val (r, ro) = extractExpr(ann.get("requires"))
       val requires: Expr[G] = ctx.javaParser.parse(r, ro)
       resolve(requires, ctx)
 
-      val (e, eo) = extractExpr(ann.get("post"))
+      val (e, eo) = extractExpr(ann.get("ensures"))
       val ensures: Expr[G] = ctx.javaParser.parse(e, eo)
       resolve(ensures, ctx)
 

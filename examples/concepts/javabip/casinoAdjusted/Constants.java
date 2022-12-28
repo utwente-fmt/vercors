@@ -47,7 +47,6 @@ public class Constants {
     public static final String OUTGOING_FUNDS = "OUTGOING_FUNDS";
     public static final String INCOMING_FUNDS = "INCOMING_FUNDS";
     public static final String AVAILABLE_FUNDS = "AVAILABLE_FUNDS";
-    public static final String CASINO = "CASINO";
 
     //guards
     public static final String IS_PLAYER = "IS_PLAYER";
