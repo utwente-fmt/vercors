@@ -1,4 +1,4 @@
-package casino;
+package org.javabip.spec.casinoAdjusted;
 
 public class Constants {
     public static final String ACTOR_SYSTEM = "ACTOR_SYSTEM";
@@ -47,7 +47,6 @@ public class Constants {
     public static final String OUTGOING_FUNDS = "OUTGOING_FUNDS";
     public static final String INCOMING_FUNDS = "INCOMING_FUNDS";
     public static final String AVAILABLE_FUNDS = "AVAILABLE_FUNDS";
-    public static final String CASINO = "CASINO";
 
     //guards
     public static final String IS_PLAYER = "IS_PLAYER";
@@ -57,7 +56,6 @@ public class Constants {
     public static final String GUESSED = "GUESSED";
     public static final String ENOUGH_FUNDS = "ENOUGH_FUNDS";
     public static final String ALLOWABLE_BET = "ALLOWABLE_BET";
-    public static final String SAFE_GAME_STEP = "SAFE_GAME_STEP";
 }
 
 enum Coin { HEADS, TAILS }

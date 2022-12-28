@@ -1,14 +1,16 @@
-package casino;
+package org.javabip.spec.casinoAdjusted;
 
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;
-import static casino.Coin.HEADS;
-import static casino.Coin.TAILS;
-import static casino.Constants.*;
+import static org.javabip.spec.casinoAdjusted.Coin.HEADS;
+import static org.javabip.spec.casinoAdjusted.Coin.TAILS;
+import static org.javabip.spec.casinoAdjusted.Constants.*;
 
-@Port(name = PREPARE_BET, type = PortType.enforceable)
-@Port(name = PLACE_BET, type = PortType.enforceable)
+@Ports({
+@Port(name = PREPARE_BET, type = PortType.enforceable),
+@Port(name = PLACE_BET, type = PortType.enforceable),
 @Port(name = RECEIVE_MONEY, type = PortType.enforceable)
+})
 @ComponentType(initial = GAME_AVAILABLE, name = PLAYER_SPEC)
 @Invariant("purse >= 0")
 @StatePredicate(state = BET_PREPARED, expr = "guess != null && bet >= 0")
@@ -43,7 +45,7 @@ public class Player {
 
     // Player receives a contribution
     @Transition(name = RECEIVE_MONEY, source = GAME_AVAILABLE, target = GAME_AVAILABLE,
-        pre = "win >= 0" // Needed, otherwise VerCors cannot prove invariant again. E.g. what if win is negative? This is excluded by the casino invariant "bet >= 0"
+        requires = "win >= 0" // Needed, otherwise VerCors cannot prove invariant again. E.g. what if win is negative? This is excluded by the casino invariant "bet >= 0"
     )
     public void receiveContribution(@Data(name = INCOMING_MONEY) int win) {
         purse += win;

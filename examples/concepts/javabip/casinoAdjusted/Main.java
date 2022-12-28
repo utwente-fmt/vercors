@@ -1,19 +1,20 @@
 /*
-This version of the casino case study adjusts the contracts, by including wherever needed that the pot needs to be big
-enough. This fixes verification problems, at the cost of introducing a deadlock.
+This version of the casino case study adjusts the contracts, by including wherever needed that the pot needs to be big enough. This fixes verification problems, at the cost of introducing a deadlock.
+
+TODO: The above explanation is not actually implemented here!!
 */
 
-package casino;
+package org.javabip.spec.casinoAdjusted;
 
 import akka.actor.ActorSystem;
 import org.javabip.api.BIPEngine;
 import org.javabip.api.BIPGlue;
 import org.javabip.engine.factory.EngineFactory;
 import org.javabip.glue.TwoSynchronGlueBuilder;
-import static casino.Constants.*;
+import static org.javabip.spec.casinoAdjusted.Constants.*;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         ActorSystem system = ActorSystem.create(ACTOR_SYSTEM);
         EngineFactory engineFactory = new EngineFactory(system);
 
