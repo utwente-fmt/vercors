@@ -13,7 +13,7 @@ import org.javabip.glue.TwoSynchronGlueBuilder;
 import static casino.Constants.*;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         ActorSystem system = ActorSystem.create(ACTOR_SYSTEM);
         EngineFactory engineFactory = new EngineFactory(system);
 
