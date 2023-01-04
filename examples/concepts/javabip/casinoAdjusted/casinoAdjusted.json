@@ -155,7 +155,7 @@
           "name": "CASINO_WIN",
           "source": "BET_PLACED",
           "target": "IDLE",
-          "guard": "IS_OPERATOR & !GUESSED"
+          "guard": "IS_OPERATOR && !GUESSED"
         },
         "results": {
           "precondition": "proven",
@@ -169,7 +169,7 @@
           "name": "PLAYER_WIN",
           "source": "BET_PLACED",
           "target": "IDLE",
-          "guard": "IS_OPERATOR & GUESSED & IS_PLAYER"
+          "guard": "IS_OPERATOR && GUESSED && IS_PLAYER"
         },
         "results": {
           "precondition": "proven",

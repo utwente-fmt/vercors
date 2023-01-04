@@ -82,7 +82,7 @@ public class Casino {
                 " from player " + player);
     }
 
-    @Transition(name = CASINO_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR & !GUESSED")
+    @Transition(name = CASINO_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR && !GUESSED")
     public void casinoWin(@Data(name = OPERATOR) Integer sender) {
         int won = bet;
         pot = pot + bet;
@@ -93,7 +93,7 @@ public class Casino {
                 ", pot: " + pot);
     }
 
-    @Transition(name = PLAYER_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR & GUESSED & IS_PLAYER")
+    @Transition(name = PLAYER_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR && GUESSED && IS_PLAYER")
     public void playerWin(@Data(name = PLAYER) Integer player, @Data(name = OPERATOR) Integer operator) {
         int lost = bet;
         pot = pot - bet;
