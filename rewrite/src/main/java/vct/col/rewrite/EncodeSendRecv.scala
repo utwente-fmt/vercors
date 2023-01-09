@@ -57,7 +57,7 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
     program.rewrite()
   }
 
-  val allowSendRecv: ScopedStack[Option[Variable[Pre]]] = ScopedStack()
+  val allowSendRecv: ScopedStack[Option[IterationContractData[Pre]]] = ScopedStack()
   allowSendRecv.push(None)
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
@@ -68,15 +68,19 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
     case loop @ Loop(_, _, _, IterationContract(_, _, _), _) =>
       loop.getIterationContractData(DiagnosticOrigin) match {
         case Left(err) => throw err
-        case Right(IterationContractData(v, _, _)) =>
-          allowSendRecv.having(Some(v)) { rewriteDefault(loop) }
+        case Right(data) =>
+          allowSendRecv.having(Some(data)) { rewriteDefault(loop) }
       }
 
     case send @ Send(decl, _, res) =>
       decl.drop()
-      if(allowSendRecv.top.isEmpty)
-        throw WrongSendRecvPosition(stat)
-      else Exhale(dispatch(res))(SendFailedExhaleFailed(send))(stat.o)
+      allowSendRecv.top match {
+        case None =>
+          throw WrongSendRecvPosition(stat)
+        case Some(IterationContractData(v, _, upperBound)) =>
+          implicit val o: Origin = send.o
+          Exhale((dispatch(v.get) < dispatch(upperBound) - const(send.delta)) ==> dispatch(res))(SendFailedExhaleFailed(send))(stat.o)
+      }
 
     case recv @ Recv(Ref(decl)) =>
       val send = sendOfDecl(decl)
@@ -89,12 +93,12 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
       allowSendRecv.top match {
         case None =>
           throw WrongSendRecvPosition(stat)
-        case Some(v) =>
+        case Some(IterationContractData(v, lowerBound, _)) =>
           implicit val o: Origin = recv.o
           val resource = Substitute(
             Map[Expr[Pre], Expr[Pre]](v.get -> (v.get - const(send.delta))),
           ).dispatch(send.res)
-          Inhale(dispatch(resource))(stat.o)
+          Inhale((dispatch(v.get) >= dispatch(lowerBound) + const(send.delta)) ==> dispatch(resource))(stat.o)
       }
 
     case other => allowSendRecv.having(None) { rewriteDefault(other) }
@@ -103,7 +107,7 @@ case class EncodeSendRecv[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(parRegion: ParRegion[Pre]): ParRegion[Post] = parRegion match {
     case block @ ParBlock(_, iters, _, _, _, _) =>
       iters match {
-        case Seq(v) => allowSendRecv.having(Some(v.variable)) { block.rewrite() }
+        case Seq(v) => allowSendRecv.having(Some(IterationContractData(v.variable, v.from, v.to))) { block.rewrite() }
         case _ => block.rewrite()
       }
     case other => rewriteDefault(other)

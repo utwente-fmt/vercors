@@ -57,7 +57,6 @@ case class Resolution[G <: Generation]
           throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
         }
       })
-      case addrOf: AddrOf[_] => throw TemporarilyUnsupported("&", Seq(addrOf))
       case _ =>
     })
 

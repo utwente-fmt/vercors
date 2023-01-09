@@ -16,8 +16,8 @@ class ArrayExamplesSpec extends VercorsSpec {
 //   vercors should verify using silicon example "concepts/arrays/zero-sub-matrix.c"
 
   // https://github.com/utwente-fmt/vercors/discussions/836
-  // vercors should verify using silicon example "concepts/arrays/zero-array-ic-e1.c"
-  // vercors should verify using silicon example "concepts/arrays/basic-examples.c"
+  vercors should verify using silicon example "concepts/arrays/zero-array-ic-e1.c"
+  vercors should verify using silicon example "concepts/arrays/basic-examples.c"
 
   vercors should verify using silicon example "concepts/arrays/array.pvl"
   vercors should verify using silicon example "concepts/arrays/zero_array.pvl"
