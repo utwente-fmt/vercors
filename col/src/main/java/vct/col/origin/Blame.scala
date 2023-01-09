@@ -215,6 +215,17 @@ case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractF
   override def descInContext: String = "Postcondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
 }
+case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with VerificationFailure {
+  override def code: String = "decreasesFailed"
+  override def position: String = measure.o.shortPosition
+  override def desc: String = Origin.messagesInContext(Seq(
+    applicable.o -> "Applicable may not terminate, since ...",
+    apply.o -> "... from this invocation ...",
+    measure.o -> "... this measure may not be bounded, or may not decrease.",
+  ))
+  override def inlineDesc: String =
+    s"`${apply.o.inlineContext}` may not terminate, since `${measure.o.inlineContext}` is not decreased or not bounded"
+}
 case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
   override def descInContext: String = "Context may not hold in postcondition, since"
@@ -240,6 +251,12 @@ case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvari
   override def baseCode: String = "notMaintained"
   override def descInContext: String = "This invariant may not be maintained, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Invariant of `$node` may not be maintained, since $failure."
+}
+case class LoopTerminationMeasureFailed(node: DecreasesClause[_]) extends LoopInvariantFailure with NodeVerificationFailure {
+  override def code: String = "loopDecreasesFailed"
+  override def position: String = node.o.shortPosition
+  override def descInContext: String = "Loop may not terminate, since this measure may not be bounded, or may not decrease."
+  override def inlineDescWithSource(source: String): String = s"Loop may not terminate, since `${node.o.inlineContext}` may be unbounded or nondecreasing"
 }
 case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"

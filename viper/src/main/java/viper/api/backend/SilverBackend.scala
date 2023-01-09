@@ -7,7 +7,9 @@ import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
 import viper.api.SilverTreeCompare
 import viper.api.transform.{ColToSilver, NodeInfo, NopViperReporter, SilverParserDummyFrontend}
+import viper.silver.ast.Infoed
 import viper.silver.plugin.SilverPluginManager
+import viper.silver.plugin.standard.termination.{FunctionTerminationError, LoopTerminationError, MethodTerminationError, TerminationConditionFalse, TupleBoundedFalse, TupleConditionFalse, TupleDecreasesFalse, TupleSimpleFalse}
 import viper.silver.reporter.Reporter
 import viper.silver.verifier._
 import viper.silver.verifier.errors._
@@ -213,6 +215,15 @@ trait SilverBackend extends Backend with LazyLogging {
         defer(reason)
       case PredicateNotWellformed(_, reason, _) =>
         defer(reason)
+      case FunctionTerminationError(node: Infoed, reason, _) =>
+        val apply = get[col.Invocation[_]](node)
+        apply.ref.decl.blame.blame(blame.TerminationMeasureFailed(apply.ref.decl, apply, getDecreasesClause(reason)))
+      case MethodTerminationError(node: Infoed, reason, _) =>
+        val apply = get[col.Invocation[_]](node)
+        apply.ref.decl.blame.blame(blame.TerminationMeasureFailed(apply.ref.decl, apply, getDecreasesClause(reason)))
+      case LoopTerminationError(node: Infoed, reason, _) =>
+        val decreases = get[col.DecreasesClause[_]](node)
+        info(node).invariant.get.blame.blame(blame.LoopTerminationMeasureFailed(decreases))
       case TerminationFailed(_, _, _) =>
         throw NotSupported(s"Vercors does not support termination measures from Viper")
       case PackageFailed(node, reason, _) =>
@@ -271,6 +282,22 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
   }
 
+  def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] = reason match {
+    case TerminationConditionFalse(_) =>
+      throw NotSupported("Vercors does not support termination measure conditions from Viper")
+    case TupleConditionFalse(_) =>
+      throw NotSupported("Vercors does not support termination measure conditions from Viper")
+
+    case TupleSimpleFalse(node: Infoed) =>
+      // PB: simple == (not decreasing || not bounded)
+      get[col.DecreasesClause[_]](node)
+    case TupleDecreasesFalse(node: Infoed) => get[col.DecreasesClause[_]](node)
+    case TupleBoundedFalse(node: Infoed) => get[col.DecreasesClause[_]](node)
+
+    case other =>
+      throw NotSupported(s"Viper returned an error reason that VerCors does not recognize: $other")
+  }
+
   def defer(reason: ErrorReason): Unit = reason match {
     case reasons.DivisionByZero(e) =>
       val division = get[col.DividingExpr[_]](e)
@@ -296,5 +323,8 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.MapKeyNotContained(_, key) =>
       val get = info(key).mapGet.get
       get.blame.blame(blame.MapKeyError(get))
+
+    case other =>
+      throw NotSupported(s"Viper returned an error reason that VerCors does not recognize: $other")
   }
 }

@@ -1460,8 +1460,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: LoopContract[Pre]): LoopContract[Pre] = {
     implicit val o: Origin = node.o
     node match {
-      case li @ LoopInvariant(invariant) =>
-        LoopInvariant(res(invariant))(li.blame)
+      case li @ LoopInvariant(invariant, decreases) =>
+        LoopInvariant(res(invariant), decreases)(li.blame)
       case ic @ IterationContract(requires, ensures, context_everywhere) =>
         IterationContract(res(requires), res(ensures), res(context_everywhere))(ic.blame)
     }

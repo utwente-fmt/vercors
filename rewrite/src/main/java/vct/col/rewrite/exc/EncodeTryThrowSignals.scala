@@ -219,8 +219,8 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         Scope(Seq(beforeLoop), Block[Post](Seq(
           assignLocal(beforeLoop.get, getExc),
           loop.rewrite(contract = loop.contract match {
-            case inv@LoopInvariant(invariant) =>
-              LoopInvariant(getExc === beforeLoop.get &* dispatch(invariant))(inv.blame)
+            case inv@LoopInvariant(invariant, decreases) =>
+              LoopInvariant(getExc === beforeLoop.get &* dispatch(invariant), decreases.map(dispatch))(inv.blame)
             case it: IterationContract[Pre] => rewriteDefault(it)
           })
         )))
