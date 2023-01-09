@@ -293,13 +293,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
     case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs))(blame(stat)), convert(body)))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs), None)(blame(stat)), convert(body)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
       Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
         cond.map(convert(_)).getOrElse(tt),
         update.map(convert(_)).getOrElse(Block(Nil)),
-        LoopInvariant(convert(invs))(blame(stat)),
+        LoopInvariant(convert(invs), None)(blame(stat)),
         convert(body)
       ))
     case PvlBlock(inner) => convert(inner)
