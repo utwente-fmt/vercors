@@ -165,7 +165,8 @@ case class SilverTransformation
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     ReadToValue, // resolve wildcard into fractional permission
-    DesugarCoalescingOperators, // no .!
+    TrivialAddrOf,
+    DesugarCoalescingOperators, // no ?.
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]
     IterationContractToParBlock,
