@@ -13,7 +13,7 @@ trait AmbiguousMinusImpl[G] { this: AmbiguousMinus[G] =>
     CoercionUtils.getCoercion(left.t, TInt()).isDefined &&
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
 
-  override def t: Type[G] = {
+  override lazy val t: Type[G] = {
     if(isSetOp || isBagOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isIntOp) TInt()
     else if(isPointerOp) left.t

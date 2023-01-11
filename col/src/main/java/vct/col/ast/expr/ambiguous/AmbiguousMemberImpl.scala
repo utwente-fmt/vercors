@@ -15,5 +15,5 @@ trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
     else if(isBagOp) xs.t.asBag.get.element
     else xs.t.asMap.get.key
 
-  override def t: Type[G] = if(isBagOp) TInt() else TBool()
+  override lazy val t: Type[G] = if(isBagOp) TInt() else TBool()
 }

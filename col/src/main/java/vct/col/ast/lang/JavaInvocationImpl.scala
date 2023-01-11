@@ -4,7 +4,7 @@ import vct.col.ast.{JavaInvocation, Type}
 import vct.col.resolve.ctx._
 
 trait JavaInvocationImpl[G] { this: JavaInvocation[G] =>
-  override def t: Type[G] = ref.get match {
+  override lazy val t: Type[G] = ref.get match {
     case RefFunction(decl) => decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefPredicate(decl) => decl.returnType
