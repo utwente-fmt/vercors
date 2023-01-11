@@ -6,5 +6,5 @@ import vct.col.typerules.Types
 trait SeqUpdateImpl[G] { this: SeqUpdate[G] =>
   def tailType: TSeq[G] = xs.t.asSeq.get
 
-  override def t: TSeq[G] = TSeq(Types.leastCommonSuperType(tailType.element, x.t))
+  override lazy val t: TSeq[G] = TSeq(Types.leastCommonSuperType(tailType.element, x.t))
 }

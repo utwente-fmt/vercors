@@ -5,7 +5,7 @@ import vct.col.ref.Ref
 
 trait ADTFunctionInvocationImpl[G] { this: ADTFunctionInvocation[G] =>
   override def ref: Ref[G, _ <: ADTFunction[G]]
-  override def t: Type[G] =
+  override lazy val t: Type[G] =
     typeArgs match {
       case Some((adt, typeArgs)) =>
         ref.decl.returnType.particularize(adt.decl.typeArgs.zip(typeArgs).toMap)

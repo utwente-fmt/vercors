@@ -6,7 +6,7 @@ import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 
 trait JavaDerefImpl[G] { this: JavaDeref[G] =>
-  override def t: Type[G] = ref.get match {
+  override lazy val t: Type[G] = ref.get match {
     case RefModelField(decl) => decl.t
     case ref: RefUnloadedJavaNamespace[G] => Types.notAValue(ref)
     case ref: RefJavaClass[G] => Types.notAValue(ref)

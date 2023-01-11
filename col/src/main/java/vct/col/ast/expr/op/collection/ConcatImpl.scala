@@ -8,5 +8,5 @@ trait ConcatImpl[G] { this: Concat[G] =>
 
   def rightType: TSeq[G] = ys.t.asSeq.get
 
-  override def t: Type[G] = TSeq(Types.leastCommonSuperType(leftType.element, rightType.element))
+  override lazy val t: Type[G] = TSeq(Types.leastCommonSuperType(leftType.element, rightType.element))
 }

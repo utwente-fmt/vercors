@@ -12,5 +12,5 @@ trait SilverPartialADTFunctionInvocationImpl[G] { this: SilverPartialADTFunction
 
   def typeArgs: Seq[Type[G]] = maybeTypeArgs.get
 
-  override def t: Type[G] = function.returnType.particularize(adt.typeArgs.zip(typeArgs).toMap)
+  override lazy val t: Type[G] = function.returnType.particularize(adt.typeArgs.zip(typeArgs).toMap)
 }
