@@ -6,7 +6,7 @@ import hre.progress.Progress
 import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
-import vct.main.modes.Verify
+import vct.main.modes.{Verify, VeyMont}
 import vct.main.stages.Transformation
 import vct.options.types.{Mode, Verbosity}
 import vct.options.Options
@@ -85,7 +85,7 @@ case object Main extends LazyLogging {
           logger.info(s"    ${pass.desc}")
         }
         EXIT_CODE_SUCCESS
-      case Mode.VeyMont => ???
+      case Mode.VeyMont => VeyMont.runOptions(options)
       case Mode.BatchTest => ???
     }
   }

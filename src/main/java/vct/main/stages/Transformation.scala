@@ -13,6 +13,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
+import vct.col.rewrite.veymont.StructureCheck
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -60,6 +61,15 @@ object Transformation {
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
+        )
+    }
+
+  def veymontOfOptions(options: Options): Transformation =
+    options.backend match {
+      case Backend.Silicon | Backend.Carbon =>
+        VeyMontTransformation(
+          onBeforePassKey = writeOutFunctions(options.outputBeforePass),
+          onAfterPassKey = writeOutFunctions(options.outputAfterPass)
         )
     }
 }
@@ -253,3 +263,10 @@ case class SilverTransformation
 
     Explode.withArg(splitVerificationByProcedure),
   ))
+
+case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+  extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    StructureCheck
+  ))
+
