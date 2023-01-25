@@ -20,7 +20,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isSetOp) SetIntersection(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagLargestCommon(dispatch(left), dispatch(right))
         else Mult(dispatch(left), dispatch(right))
-      case op @ AmbiguousPlus(left, right) =>
+      case op @ AmbiguousPlus(left, right, _) =>
         if(op.isProcessOp) ProcessChoice(dispatch(left), dispatch(right))
         else if(op.isPointerOp) unfoldPointerAdd(PointerAdd(dispatch(left), dispatch(right))(op.blame))
         else if(op.isSeqOp) Concat(dispatch(left), dispatch(right))

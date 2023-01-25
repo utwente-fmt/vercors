@@ -686,7 +686,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case arr : CLocal[Pre] => Seq(arr.ref.get)
     case PointerAdd(arr : CLocal[Pre], _) => Seq(arr.ref.get)
     case AmbiguousSubscript(arr : CLocal[Pre], _) => Seq(arr.ref.get)
-    case AmbiguousPlus(l, r) if isPointer(l.t) && isNumeric(r.t) => searchNames(l, original)
+    case AmbiguousPlus(l, r, _) if isPointer(l.t) && isNumeric(r.t) => searchNames(l, original)
     case _ => throw UnsupportedBarrierPermission(original)
   }
 

@@ -785,7 +785,7 @@ case class Printer(out: Appendable,
       (phrase("!", assoc(90, arg)), 90)
     case Exp(left, right) =>
       (phrase(bind(85, left), space, "^^", space, assoc(85, right)), 85)
-    case AmbiguousPlus(left, right) =>
+    case AmbiguousPlus(left, right, _) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Plus(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)

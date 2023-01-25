@@ -2,7 +2,9 @@ package vct.col.ast.expr.ambiguous
 
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
+import vct.col.ref.Ref
 import vct.col.typerules.{CoercionUtils, Types}
+import vct.result.VerificationError.Unreachable
 
 trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
   def isProcessOp: Boolean = CoercionUtils.getCoercion(left.t, TProcess()).isDefined
@@ -16,10 +18,11 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
   def isStringOp: Boolean =
     CoercionUtils.getCoercion(left.t, TString()).isDefined
-  def isJavaLangStringOp: Boolean =
-    ???
-//    CoercionUtils.getCoercion(left.t, TPinnedDecl(JavaLangString(), Nil)).isDefined
+  def isJavaLangStringOp: Boolean = if(stringClassRefOpt.isDefined)
+    left.t == stringClassType || right.t == stringClassType // TODO (RR): This is is horrible
+  else false
 
+  private lazy val stringClassType: Type[G] = TClass(stringClassRefOpt.getOrElse(throw new Unreachable("Expected the string class to be defined")))
 
   override lazy val t: Type[G] =
     if(isProcessOp) TProcess()

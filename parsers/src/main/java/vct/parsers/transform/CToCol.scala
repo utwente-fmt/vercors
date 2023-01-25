@@ -318,7 +318,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         case "*=" => AmbiguousMult(target, value)
         case "/=" => FloorDiv(target, value)(blame(expr))
         case "%=" => col.Mod(target, value)(blame(expr))
-        case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
+        case "+=" => col.AmbiguousPlus(target, value, None)(blame(valueNode))
         case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
         case "<<=" => BitShl(target, value)
         case ">>=" => BitShr(target, value)
@@ -396,7 +396,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit expr: AdditiveExpressionContext): Expr[G] = expr match {
     case AdditiveExpression0(inner) => convert(inner)
-    case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
+    case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right), None)(blame(expr))
     case AdditiveExpression2(left, _, right) => col.AmbiguousMinus(convert(left), convert(right))(blame(expr))
   }
 
@@ -436,7 +436,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousPlus(target, const(1), None)(blame(expr)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
       PreAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
@@ -465,7 +465,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousPlus(target, const(1), None)(blame(expr)))(blame(expr))
     case PostfixExpression6(targetNode, _) =>
       val target = convert(targetNode)
       PostAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
