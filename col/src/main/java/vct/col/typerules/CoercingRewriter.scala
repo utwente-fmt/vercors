@@ -193,11 +193,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceIntRat() => e
       case CoerceRatZFrac() => e
       case CoerceZFracFrac() => e
-
-      case CoerceJavaTClassTPinnedDecl(_, _) => e
-      case CoerceTPinnedDeclJavaTClass(_, _) => e
-      case CoerceTClassTPinnedDecl(_, _) => e
-      case CoerceTPinnedDeclTClass(_, _) => e
     }
   }
 
@@ -229,7 +224,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: JavaName[Pre] => node
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
-    case node: PinnedDecl[Pre] => node
     case node: Location[Pre] => node
   }
 
@@ -361,10 +355,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: PinnedDecl[Pre]): PinnedDecl[Pre] = node
-  def postCoerce(node: PinnedDecl[Pre]): PinnedDecl[Post] = rewriteDefault(node)
-  override final def dispatch(node: PinnedDecl[Pre]): PinnedDecl[Post] = postCoerce(coerce(preCoerce(node)))
-
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -400,7 +390,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
-  def javaString(e: Expr[Pre]): Expr[Pre] = coerce(e, TPinnedDecl[Pre](JavaLangString[Pre](), Nil))
+  def javaString(e: Expr[Pre]): Expr[Pre] = ???
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -780,8 +770,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
-      case JavaStringConcat(left, right) =>
-        JavaStringConcat(javaString(left), javaString(right))
+      case JavaStringConcat(left, right, t) => ???
+//        JavaStringConcat(javaString(left), javaString(right), t)
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case CStructDeref(struct, field) =>
@@ -1690,14 +1680,5 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
-  }
-
-  def coerce(node: PinnedDecl[Pre]): PinnedDecl[Pre] = {
-    implicit val o: Origin = node.o
-    node match {
-      case JavaLangString() => JavaLangString()
-      case JavaStringConcatOperator() => JavaStringConcatOperator()
-      case JavaLangClass() => JavaLangClass()
-    }
   }
 }

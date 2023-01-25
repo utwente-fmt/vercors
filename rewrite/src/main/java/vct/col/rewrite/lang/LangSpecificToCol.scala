@@ -37,20 +37,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
-  val pinnedClasses: SuccessionMap[PinnedDecl[Pre], JavaClass[Pre]] = SuccessionMap()
   var concatStrings: Option[Function[Pre]] = None
   var internToString: Option[Function[Pre]] = None
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     program.transSubnodes.foreach {
-      case cls: JavaClassOrInterface[Pre] =>
-        implicit val o: Origin = cls.o
-
-        cls match {
-          case cls: JavaClass[Pre] if cls.pin.isDefined => pinnedClasses(cls.pin.get) = cls
-          case _ =>
-        }
-
       case ns: JavaNamespace[Pre] =>
         if (ns.pkg.exists(_.names == Java.JAVA_LANG)) {
           ns.transSubnodes.foreach {
@@ -98,9 +89,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           globalDeclarations.succeed(cls, cls.rewrite(decls))
         }
       }
-
-    case function: Function[Pre] if concatStrings.contains(function) =>
-      globalDeclarations.succeed(function, function.rewrite(pin = Some(JavaStringConcatOperator())))
 
     case other => rewriteDefault(other)
   }

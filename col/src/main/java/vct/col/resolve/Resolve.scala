@@ -88,9 +88,11 @@ case object ResolveTypes {
     case cls: JavaClass[G] =>
       val fqn = ctx.namespace.flatMap(_.pkg).map(_.names :+ cls.name)
       if (fqn.contains(Java.JAVA_LANG_STRING)) {
-        cls.pin = Some(JavaLangString())
+        ???
+        // cls.pin = Some(JavaLangString())
       } else if (fqn.contains(Java.JAVA_LANG_CLASS)) {
-        cls.pin = Some(JavaLangClass())
+        ???
+        // cls.pin = Some(JavaLangClass())
       }
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {

@@ -128,7 +128,6 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
     case cls: JavaClass[Pre] =>
       rewriteDefault(cls)
-      succ[JavaClass[Post]](cls).decl.pin = cls.pin.map(dispatch(_))
     case other => rewriteDefault(other)
   }
 

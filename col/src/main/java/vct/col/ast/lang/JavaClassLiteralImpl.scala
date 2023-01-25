@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{JavaClassLiteral, JavaLangClass, TPinnedDecl}
+import vct.col.ast.{JavaClassLiteral, Type}
 
 trait JavaClassLiteralImpl[G] { this: JavaClassLiteral[G] =>
-  def t(): TPinnedDecl[G] = TPinnedDecl(JavaLangClass(), Seq(cls))
+  def t: Type[G] = ???
 }

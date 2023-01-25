@@ -17,7 +17,8 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
   def isStringOp: Boolean =
     CoercionUtils.getCoercion(left.t, TString()).isDefined
   def isJavaLangStringOp: Boolean =
-    CoercionUtils.getCoercion(left.t, TPinnedDecl(JavaLangString(), Nil)).isDefined
+    ???
+//    CoercionUtils.getCoercion(left.t, TPinnedDecl(JavaLangString(), Nil)).isDefined
 
 
   override lazy val t: Type[G] =
@@ -28,6 +29,6 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
       TFloats.coerceToMax[G](left.t, right.t)
     else if(isIntOp) TInt()
     else if(isStringOp) TString()
-    else if(isJavaLangStringOp) TPinnedDecl(JavaLangString(), Nil)
+    else if(isJavaLangStringOp) ???
     else TRational()
 }

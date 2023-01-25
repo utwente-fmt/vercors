@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{ClassDeclaration, Declaration, JavaAnnotationMethod, JavaClassOrInterface, JavaMethod, JavaModifier, JavaName, JavaTClass, PinnedDecl, Type, Variable}
+import vct.col.ast.{ClassDeclaration, Declaration, JavaAnnotationMethod, JavaClassOrInterface, JavaMethod, JavaModifier, JavaName, JavaTClass, Type, Variable}
 import vct.col.origin.DiagnosticOrigin
 import vct.col.ref.Ref
 import vct.result.VerificationError.Unreachable
@@ -13,8 +13,6 @@ trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
   def typeParams: Seq[Variable[G]]
   def decls: Seq[ClassDeclaration[G]]
   def supports: Seq[Type[G]]
-
-  def isPin(s: PinnedDecl[G]): Boolean = pin.contains(s)
 
   def transSupportArrows(seen: Set[JavaClassOrInterface[G]]): Seq[(JavaClassOrInterface[G], JavaClassOrInterface[G])] = {
     if(seen.contains(this)) {

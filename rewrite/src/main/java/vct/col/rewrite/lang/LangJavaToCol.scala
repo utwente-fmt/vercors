@@ -269,7 +269,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
         new Class[Post](rw.classDeclarations.collect {
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
-        }._1, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch))(JavaInstanceClassOrigin(cls))
+        }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))
       }
 
       rw.globalDeclarations.declare(instanceClass)
