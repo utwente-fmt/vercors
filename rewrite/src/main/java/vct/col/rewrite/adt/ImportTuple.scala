@@ -32,7 +32,7 @@ case class ImportTuple[Pre <: Generation](importer: ImportADTImporter) extends I
       tupleTup.ref, Seq(fst, snd),
     )
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TTuple(Seq(t1, t2)) => TAxiomatic(tupleAdt.ref, Seq(dispatch(t1), dispatch(t2)))
     case other => rewriteDefault(other)
   }

@@ -6,7 +6,7 @@ import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 
 trait JavaLocalImpl[G] { this: JavaLocal[G] =>
-  override def t: Type[G] = ref.get match {
+  override lazy val t: Type[G] = ref.get match {
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case ref: RefEnum[G] => Types.notAValue(ref)
     case RefEnumConstant(Some(enum), _) => TEnum(enum.ref[Enum[G]])

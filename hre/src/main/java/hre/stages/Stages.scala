@@ -46,7 +46,7 @@ case class UnitStages[-Input, +Output](stage: Stage[Input, Output]) extends Stag
 case class StagesPair[-Input, Mid, +Output](left: Stages[Input, Mid], right: Stages[Mid, Output]) extends Stages[Input, Output] {
   override def runUnsafely(in: Input): Output = {
     val mid = left.runUnsafely(in)
-    Progress.nextPhase()
+    Progress.next()
     right.runUnsafely(mid)
   }
 

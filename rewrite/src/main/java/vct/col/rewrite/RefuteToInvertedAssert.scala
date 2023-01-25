@@ -27,12 +27,13 @@ case object RefuteToInvertedAssert extends RewriterBuilder {
 case class RefuteToInvertedAssert[Pre <: Generation]() extends Rewriter[Pre] {
   val expectedErrors: ScopedStack[ArrayBuffer[ExpectedError]] = ScopedStack[ArrayBuffer[ExpectedError]]()
 
-  override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = {
-    val (errs, program) = expectedErrors.collect {
-      dispatch(context.program)
+  override def dispatch(verification: Verification[Pre]): Verification[Post] = {
+    val (errs, tasks) = expectedErrors.collect {
+      verification.tasks.map(dispatch)
     }
-
-    context.rewrite(program = program, expectedErrors = errs ++ context.expectedErrors)
+    // PB: Important: the expected errors from this pass must appear before other errors, since the absence of an assert
+    // failure from this pass may in turn indicate an expected "unsatisfiable" error from an earlier pass.
+    Verification(tasks, errs ++ verification.expectedErrors)(verification.o)
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {

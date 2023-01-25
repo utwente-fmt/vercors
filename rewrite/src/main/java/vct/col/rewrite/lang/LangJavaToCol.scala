@@ -175,7 +175,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           }.flatten)),
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
-      )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
+      )(PanicBlame("The postcondition of a default constructor cannot fail."))
       if (!isStaticPart) javaDefaultConstructor(currentJavaClass.top) = cons
       cons +: decls
     } else decls
@@ -218,7 +218,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             args = rw.variables.dispatch(method.parameters),
             outArgs = Nil, typeArgs = Nil,
             body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
+              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
               case None => method.body.map(rw.dispatch)
             },
             contract = method.contract.rewrite(
@@ -379,21 +379,21 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefFunction(decl) =>
         FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefProcedure(decl) =>
         ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefPredicate(decl) =>
         PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefInstanceFunction(decl) =>
         InstanceFunctionInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefInstanceMethod(decl) =>
         MethodInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefInstancePredicate(decl) =>
         InstancePredicateApply[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefADTFunction(decl) =>
@@ -410,7 +410,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
+            yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
           )(inv.blame)
         } else {
           MethodInvocation[Post](
@@ -418,7 +418,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
+            yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
           )(inv.blame)
         }
       case RefJavaAnnotationMethod(decl) =>
@@ -440,14 +440,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaConstructor(cons) =>
         ProcedureInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor() =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
         val ref = new LazyRef[Post, Procedure[Post]](javaConstructor(javaDefaultConstructor(cls)))
         ProcedureInvocation[Post](ref,
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
   }
 

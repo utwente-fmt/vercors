@@ -229,8 +229,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
 
     Compare.compare(pattern, subject) {
       // SAFETY: the result of a match arm MUST NOT again match a case.
-      case Forall(bindings, triggers, body) if bindings.size >= 2 =>
-        Forall(Seq(bindings.head), Nil, Forall(bindings.tail, triggers, body))
+      case _ if false => ???
     } foreach {
       case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
@@ -360,7 +359,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      Progress.nextPhase(s"`$e`")
+      Progress.nextMessage(s"`$e`")
       countApply = 0
       countSuccess = 0
       currentExpr = e

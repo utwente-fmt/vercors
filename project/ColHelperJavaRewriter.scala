@@ -3,7 +3,7 @@ import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
-case class ColHelperJavaRewriter(info: ColDescription) {
+case class ColHelperJavaRewriter(info: ColDescription) extends ColHelperMaker {
   def makeMapEntry(family: String)(cls: ClassDef): Term =
     q"""classOf[${cls.typ}[_]] -> new RWFunc[${Type.Name(family)}] {
       def apply[Pre, Post](node: ${Type.Name(family)}[Pre], rw: JavaRewriter[Pre, Post]): ${Type.Name(family)}[Post] =

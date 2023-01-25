@@ -24,7 +24,8 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/InlineFunctions.pvl"
   vercors should verify using silicon example "concepts/basic/MultiDimArray.java"
   vercors should verify using anyBackend example "concepts/basic/NewClassGhost.java"
-  vercors should verify using anyBackend example "concepts/basic/pointer.c"
+  // https://github.com/utwente-fmt/vercors/issues/921
+  // vercors should verify using anyBackend example "concepts/basic/pointer.c"
   vercors should verify using anyBackend example "concepts/basic/postfix-increment.pvl"
   vercors should verify using anyBackend example "concepts/basic/predicate.pvl"
   vercors should error withCode "curThreadScope" example "concepts/basic/pure.pvl"
@@ -59,8 +60,7 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/SimpleExamples.java"
   vercors should verify using anyBackend example "concepts/basic/nested-loops.pvl"
   vercors should verify using anyBackend example "concepts/basic/BigInts.pvl"
-  // https://github.com/utwente-fmt/vercors/issues/851
-  // vercors should verify using anyBackend example "concepts/basic/RequireConstructor.pvl"
+  vercors should verify using anyBackend example "concepts/basic/RequireConstructor.pvl"
   // https://github.com/utwente-fmt/vercors/issues/781
   // vercors should verify using anyBackend example "concepts/basic/StaticImportA.java"
   // vercors should verify using anyBackend example "concepts/basic/StaticImportB.java"

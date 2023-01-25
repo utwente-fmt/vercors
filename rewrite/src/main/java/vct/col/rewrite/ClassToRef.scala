@@ -207,10 +207,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       InvokeProcedure[Post](
         ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+        outArgs = outArgs.map(dispatch),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
+        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case fold @ Fold(inv: InstancePredicateApply[Pre]) =>
       Fold(rewriteInstancePredicateApply(inv))(fold.blame)(fold.o)
@@ -229,10 +229,10 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       ProcedureInvocation[Post](
         ref = methodSucc.ref(method),
         args = dispatch(obj) +: args.map(dispatch),
-        outArgs = outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+        outArgs = outArgs.map(dispatch),
         typeArgs = typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
+        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance method type?"), inv.blame)))(inv.o)
     case inv @ InstancePredicateApply(obj, Ref(pred), args, perm) =>
       implicit val o: Origin = inv.o
@@ -243,7 +243,7 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
         args = dispatch(obj) +: args.map(dispatch),
         typeArgs.map(dispatch),
         givenMap = givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields = yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
+        yields = yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
       )(PreBlameSplit.left(InstanceNullPreconditionFailed(inv.blame, inv), PreBlameSplit.left(PanicBlame("incorrect instance function type?"), inv.blame)))(inv.o)
     case ThisObject(_) =>
       Local[Post](diz.top.ref)(e.o)

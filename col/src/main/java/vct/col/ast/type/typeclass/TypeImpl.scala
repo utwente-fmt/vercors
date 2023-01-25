@@ -19,6 +19,7 @@ trait TypeImpl[G] { this: Type[G] =>
   def asBag: Option[TBag[G]] = CoercionUtils.getAnyBagCoercion(this).map(_._2)
   def asPointer: Option[TPointer[G]] = CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] = CoercionUtils.getAnyArrayCoercion(this).map(_._2)
+  def asCArray: Option[CTArray[G]] = CoercionUtils.getAnyCArrayCoercion(this).map(_._2)
   def asOption: Option[TOption[G]] = CoercionUtils.getAnyOptionCoercion(this).map(_._2)
   def asMap: Option[TMap[G]] = CoercionUtils.getAnyMapCoercion(this).map(_._2)
   def asTuple: Option[TTuple[G]] = CoercionUtils.getAnyTupleCoercion(this).map(_._2)

@@ -179,6 +179,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   override def dispatch(t: Type[Pre]): Type[Post] = t match {
     case t: JavaTClass[Pre] => java.classType(t)
+    case t: CTPointer[Pre] => c.pointerType(t)
+    case t: CTArray[Pre] => c.arrayType(t)
     case other => rewriteDefault(other)
   }
 }

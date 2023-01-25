@@ -88,12 +88,6 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case None =>
         CName[Post](info.name)
     }
-    declarator match {
-      case CArrayDeclarator(_, Some(size), _) =>
-        val spec = CSpecificationType[Post](dispatch(baseType)) +: otherSpecifiers
-        return (spec, CArrayDeclarator(Seq(), Some(dispatch(size)), newDeclarator))
-      case _ =>
-    }
 
     (newSpecifiers, newDeclarator)
   }

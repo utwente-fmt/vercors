@@ -8,7 +8,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
 
 trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G] =>
-  override def t: Type[G] = ref.getOrElse(
+  override lazy val t: Type[G] = ref.getOrElse(
     throw err.ContextSensitiveNodeNotResolved(this, "'\\result' encountered, but its attached method is not resolved.")) match {
     case RefCFunctionDefinition(decl) =>
       C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)

@@ -9,6 +9,7 @@ import vct.col.util.AstBuildHelpers.foldStar
 
 import scala.annotation.nowarn
 import scala.collection.mutable
+import scala.runtime.ScalaRunTime
 
 sealed trait Syntax
 case object PVL extends Syntax
@@ -1299,14 +1300,15 @@ case class Printer(out: Appendable,
       say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
   }
 
-  def printVerification(node: Verification[_]): Unit =
+  def printVerification(node: Verification[_]): Unit = {
+    node.expectedErrors.foreach { ee =>
+      say(newline, s"""// Expected error "${ee.errorCode}" at ${ee.errorRegion.shortPosition}""", newline)
+    }
     node.tasks.foreach(print)
+  }
 
   def printVerificationContext(node: VerificationContext[_]): Unit = {
     say(newline, "// === Verification context ===", newline)
-    node.expectedErrors.foreach{ ee =>
-      say(newline, s"""// Expected error "${ee.errorCode}" at ${ee.errorRegion.shortPosition}""", newline)
-    }
     print(node.program)
   }
 
@@ -1320,32 +1322,43 @@ case class Printer(out: Appendable,
     say(spaced(node.inits.map(NodePhrase)))
   }
 
-  def print(node: Node[_]): Unit = node match {
-    case program: Program[_] => printProgram(program)
-    case stat: Statement[_] => printStatement(stat)
-    case e: Expr[_] => printExpr(e)
-    case t: Type[_] => printType(t)
-    case decl: Declaration[_] => printDeclaration(decl)
-    case node: ApplicableContract[_] => printApplicableContract(node)
-    case parBlock: ParBlock[_] => printParBlock(parBlock, "par")
-    case catchClause: CatchClause[_] => printCatchClause(catchClause)
-    case node: SignalsClause[_] => printSignalsClause(node)
-    case fieldFlag: FieldFlag[_] => printFieldFlag(fieldFlag)
-    case iterVariable: IterVariable[_] => printIterVariable(iterVariable)
-    case node: CDeclarator[_] => printCDeclarator(node)
-    case cDeclSpec: CDeclarationSpecifier[_] => printCDeclarationSpecifier(cDeclSpec)
-    case node: CTypeQualifier[_] => printCTypeQualifier(node)
-    case node: CPointer[_] => printCPointer(node)
-    case node: CInit[_] => printCInit(node)
-    case node: GpuMemoryFence[_] => printGpuMemoryFence(node)
-    case node: JavaModifier[_] => printJavaModifier(node)
-    case node: JavaImport[_] => printJavaImport(node)
-    case node: JavaName[_] => printJavaName(node)
-    case node : Location[_] => printLocation(node)
-    case node: Verification[_] => printVerification(node)
-    case node: VerificationContext[_] => printVerificationContext(node)
-    case node: CDeclaration[_] => printCDeclaration(node)
-    case x =>
-      say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
-  }
+  def print(node: Node[_]): Unit =
+    try {
+      node match {
+        case program: Program[_] => printProgram(program)
+        case stat: Statement[_] => printStatement(stat)
+        case e: Expr[_] => printExpr(e)
+        case t: Type[_] => printType(t)
+        case decl: Declaration[_] => printDeclaration(decl)
+        case node: ApplicableContract[_] => printApplicableContract(node)
+        case parBlock: ParBlock[_] => printParBlock(parBlock, "par")
+        case catchClause: CatchClause[_] => printCatchClause(catchClause)
+        case node: SignalsClause[_] => printSignalsClause(node)
+        case fieldFlag: FieldFlag[_] => printFieldFlag(fieldFlag)
+        case iterVariable: IterVariable[_] => printIterVariable(iterVariable)
+        case node: CDeclarator[_] => printCDeclarator(node)
+        case cDeclSpec: CDeclarationSpecifier[_] => printCDeclarationSpecifier(cDeclSpec)
+        case node: CTypeQualifier[_] => printCTypeQualifier(node)
+        case node: CPointer[_] => printCPointer(node)
+        case node: CInit[_] => printCInit(node)
+        case node: GpuMemoryFence[_] => printGpuMemoryFence(node)
+        case node: JavaModifier[_] => printJavaModifier(node)
+        case node: JavaImport[_] => printJavaImport(node)
+        case node: JavaName[_] => printJavaName(node)
+        case node: Location[_] => printLocation(node)
+        case node: Verification[_] => printVerification(node)
+        case node: VerificationContext[_] => printVerificationContext(node)
+        case node: CDeclaration[_] => printCDeclaration(node)
+        case x =>
+          say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
+      }
+    } catch {
+      // If the printer has a bug, try to print a useful representation
+      case t: Throwable => node match {
+        // Case classes are automatically a product type, which produces the nice Type(arg1, arg2) representation.
+        case p: scala.Product => say(ScalaRunTime._toString(p))
+        // Otherwise, fall back to printing the subnodes
+        case _ => say(s"${this.getClass.getSimpleName}(${node.subnodes.map(_.toString).mkString(", ")})")
+      }
+    }
 }

@@ -24,8 +24,7 @@ case object Util {
   def loadPVLLibraryFile[G](readable: Readable): Program[G] = {
     val res = ColPVLParser(ReadableOriginProvider(readable), ConstantBlameProvider(LibraryFileBlame)).parse(readable)
     val context = Resolution(ConstantBlameProvider(LibraryFileBlame)).run(res)
-    assert(context.expectedErrors.isEmpty)
-    val unambiguousProgram: Program[_] = Disambiguate().dispatch(context.program)
+    val unambiguousProgram: Program[_] = Disambiguate().dispatch(context.tasks.head.program)
     unambiguousProgram.asInstanceOf[Program[G]]
   }
 }

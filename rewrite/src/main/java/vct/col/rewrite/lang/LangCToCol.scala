@@ -239,7 +239,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def rewriteParam(cParam: CParam[Pre]): Unit = {
     if(kernelSpecifier.isDefined) return rewriteGPUParam(cParam, kernelSpecifier.get)
-    cParam.specifiers.collectFirst{
+    cParam.specifiers.collectFirst {
       case GPULocal() => throw WrongGPUType(cParam)
       case GPUGlobal() => throw WrongGPUType(cParam)
     }
@@ -495,26 +495,19 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     var shared = false
     var extern = false
     var innerType: Option[Type[Pre]] = None
-    var maybeInnerType: Option[Type[Pre]] = None
+    var arraySize: Option[Expr[Pre]] = None
 
     specs.foreach {
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
-      case CSpecificationType(TPointer(t)) =>
+      case CSpecificationType(CTPointer(t)) =>
         arrayOrPointer = true
         innerType = Some(t)
-      case CSpecificationType(TArray(t)) =>
-        arrayOrPointer = true
+      case CSpecificationType(CTArray(size, t)) =>
+        arraySize = size
         innerType = Some(t)
-      case CSpecificationType(t) => maybeInnerType = Some(t)
+        arrayOrPointer = true
       case CExtern() => extern = true
-      case _ =>
-    }
-
-    decl match {
-      case _ :CArrayDeclarator[Pre] =>
-        arrayOrPointer = true
-        innerType = maybeInnerType
       case _ =>
     }
 
@@ -528,8 +521,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     cNameSuccessor(cRef) = v
   }
 
-  def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin, declStatement: CLocalDeclaration[Pre]): Unit = decl match {
-      case CArrayDeclarator(Seq(), Some(IntegerValue(size)), _) =>
+  def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin,
+                      declStatement: CLocalDeclaration[Pre], arraySize: Option[Expr[Pre]]): Unit = arraySize match {
+      case Some(IntegerValue(size)) =>
         val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
         staticSharedMemNames(cRef) = size
         cNameSuccessor(cRef) = v
@@ -558,12 +552,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
           return true
         }
         if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && !prop.extern) {
-          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl)
+          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl, prop.arraySize)
           return true
         }
       case Some(OpenCLKernel()) =>
         if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && !prop.extern) {
-          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl)
+          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl, prop.arraySize)
           return true
         }
       case None => throw Unreachable(f"This should have been called from inside a GPU kernel scope.")
@@ -610,33 +604,33 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
-    // PB: this is correct because Seq[CInit]'s are flattened, but the structure is a bit stupid.
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
     decl.decl.specs.foreach {
       case _: CSpecificationType[Pre] =>
       case _ => throw WrongCType(decl)
     }
-    Block(for((init, idx) <- decl.decl.inits.zipWithIndex) yield {
-      val info = C.getDeclaratorInfo(init.decl)
-      val varO: Origin = InterpretedOriginVariable(info.name, init.o)
-      (info.params, init) match {
-        case (Some(params), _) => ???
-        case (None, CInit(CArrayDeclarator(qualifiers, size, _), _)) =>
-          if(qualifiers.nonEmpty || init.init.isDefined) throw WrongCType(decl)
-          implicit val o: Origin = init.o
-          val v = new Variable[Post](TArray(t))(varO)
-          cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
-          val newArr = NewArray[Post](t, Seq(rw.dispatch(size.get)), 0)
-          Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
-        case (None, CInit(_, _)) =>
-          val v = new Variable[Post](t)(varO)
-          cNameSuccessor(RefCLocalDeclaration(decl, idx)) = v
-          implicit val o: Origin = init.o
-          init.init
-            .map(value => Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value)))))
-            .getOrElse(LocalDecl(v))
-      }
-    })(decl.o)
+
+    // LangTypesToCol makes it so that each declaration only has one init
+    val init = decl.decl.inits.head
+
+    val info = C.getDeclaratorInfo(init.decl)
+    val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+    t match {
+      case CTArray(Some(size), t) =>
+        if(init.init.isDefined) throw WrongCType(decl)
+        implicit val o: Origin = init.o
+        val v = new Variable[Post](TArray(t))(varO)
+        cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+        val newArr = NewArray[Post](t, Seq((size)), 0)
+        Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
+      case _ =>
+        val v = new Variable[Post](t)(varO)
+        cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+        implicit val o: Origin = init.o
+        init.init
+          .map(value => Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value)))))
+          .getOrElse(LocalDecl(v))
+    }
   }
 
   def rewriteGoto(goto: CGoto[Pre]): Statement[Post] =
@@ -779,11 +773,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case RefFunction(decl) =>
         FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefProcedure(decl) =>
         ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefPredicate(decl) =>
         PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefInstanceFunction(decl) => ???
@@ -799,7 +793,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case ref: RefCFunctionDefinition[Pre] =>
         ProcedureInvocation[Post](cFunctionSuccessor.ref(ref.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case e: RefCGlobalDeclaration[Pre] => globalInvocation(e, inv)
 
     }
@@ -822,7 +816,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
             +: rw.dispatch(threads) +: one +: one +: args.map(rw.dispatch),
           Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(kernel.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(kernel.blame)
       case e: RefCGlobalDeclaration[Pre] => ???
     }
   }
@@ -929,7 +923,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case ("get_num_groups", Some(i)) => getCudaGroupSize(i, o)
       case _ => ProcedureInvocation[Post](cFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
         givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-        yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+        yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
+  }
+
+  def pointerType(t: CTPointer[Pre]): Type[Post] = {
+    TPointer(rw.dispatch(t.innerType))
+  }
+
+  def arrayType(t: CTArray[Pre]): Type[Post] = {
+    // TODO: we should not use pointer here
+    TPointer(rw.dispatch(t.innerType))
   }
 }

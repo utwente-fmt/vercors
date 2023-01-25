@@ -22,7 +22,7 @@ case class ImportSet[Pre <: Generation](importer: ImportADTImporter) extends Imp
   private lazy val setEqual = find[ADTFunction[Post]](setAdt, "set_equal")
   private lazy val setSkolem = find[ADTFunction[Post]](setAdt, "set_skolem")
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TSet(inner) => TAxiomatic[Post](setAdt.ref, Seq(dispatch(inner)))(t.o)
     case other => rewriteDefault(other)
   }

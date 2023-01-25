@@ -1,18 +1,22 @@
 package vct.col.resolve.lang
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ApplicableContract, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void, Enum, TPinnedDecl, JavaClassDeclaration, JavaLangString, TEnum}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPinnedDecl, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
+import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import java.io.File
 import java.lang.reflect.{Modifier, Parameter}
+import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
 
@@ -83,6 +87,8 @@ case object Java extends LazyLogging {
 
     implicit val o: Origin = JavaSystemOrigin("unknown_jre")
     currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
+
+    logger.warn(s"Attempting to load a shim of ${potentialFQName.mkString(".")} via reflection.")
 
     try {
       val classLoader = this.getClass.getClassLoader
@@ -194,28 +200,42 @@ case object Java extends LazyLogging {
     }
   }
 
+  /**
+   * Attempt to find a class by its fully qualified name.
+   * @param name Fully qualified name of the class
+   * @param ctx Queried for the external class loader, and the source class paths
+   */
   def findLibraryJavaType[G](name: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] =
-    ctx.externalJavaLoader match {
-      case Some(loader) =>
-        loader.load[G](name) match {
-          case Some(ns) =>
-            ctx.externallyLoadedElements += ns
-            ResolveTypes.resolve(ns, ctx)
-            ns.declarations match {
-              case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
-              case Seq(cls: JavaInterface[G]) => Some(RefJavaClass(cls))
-              case Seq(cls: JavaAnnotationInterface[G]) => Some(RefJavaClass(cls))
-              case Seq(enum: Enum[G]) => Some(RefEnum(enum))
-              case decls => decls.collect({
-                case cls: JavaClassOrInterface[G] if cls.name == name.last => cls
-              }) match {
-                case Seq(cls: JavaClassOrInterface[G]) => Some(RefJavaClass(cls))
+    ctx.externalJavaLoader.flatMap { loader =>
+      FuncTools.firstOption(ctx.javaClassPath, (classPath: ResolveTypes.JavaClassPathEntry) => {
+        // We have an external class loader and a class path.
+        val maybeBasePath: Option[Path] = classPath match {
+          case JavaClassPathEntry.SourcePackageRoot =>
+            // Try to derive the base path, by the path of the current source file and the package.
+            // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
+            for {
+              ns <- ctx.namespace
+              ReadableOrigin(readable, _, _, _) <- Some(ns.o)
+              file <- readable.underlyingFile
+              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Some(file.getParentFile)) {
+                case (name, Some(file)) if file.getName == name => Some(file.getParentFile)
                 case _ => None
               }
-            }
-          case None => None
+            } yield baseFile.toPath
+          case JavaClassPathEntry.Path(root) => Some(root)
         }
-      case None => None
+
+        for {
+          basePath <- maybeBasePath
+          ns <- loader.load[G](basePath, name)
+          cls <- ns.declarations.flatMap(Referrable.from).collectFirst {
+            case ref: JavaTypeNameTarget[G] if ref.name == name.last =>
+              ctx.externallyLoadedElements += ns
+              ResolveTypes.resolve(ns, ctx)
+              ref
+          }
+        } yield cls
+      })
     }
 
   def findLibraryJavaTypesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] =
@@ -331,13 +351,16 @@ case object Java extends LazyLogging {
         case ref: RefModelProcess[G] if ref.name == method => ref
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
+      case TUnion(ts) => findMethodOnType(ctx, Types.leastCommonSuperType(ts), method, args)
       case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G])) => findMethodInClass(cls, method, args)
+      case TNotAValue(RefAxiomaticDataType(adt)) => adt.decls.flatMap(Referrable.from).collectFirst {
+        case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      }
       case TPinnedDecl(JavaLangString(), Nil) =>
         findJavaTypeName[G](Java.JAVA_LANG_STRING, ctx.asTypeResolutionContext).flatMap {
           case cls: RefJavaClass[G] => findMethodInClass[G](cls.decl, method, args)
           case _ => throw UnexpectedJreDefinition("java class", Java.JAVA_LANG_STRING)
         }
-      case TUnion(ts) => findMethodOnType(ctx, Types.leastCommonSuperType(ts), method, args)
       case _ => None
     }
 

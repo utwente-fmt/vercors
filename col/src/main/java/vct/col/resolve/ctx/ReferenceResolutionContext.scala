@@ -18,7 +18,7 @@ case class ReferenceResolutionContext[G]
   currentInitializerType: Option[Type[G]] = None,
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
-    TypeResolutionContext(stack, currentJavaNamespace, None, externallyLoadedElements)
+    TypeResolutionContext(stack, currentJavaNamespace, None, Nil, externallyLoadedElements)
 
   def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     copy(stack = decls.flatMap(Referrable.from) +: stack)

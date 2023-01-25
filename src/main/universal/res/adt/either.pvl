@@ -19,10 +19,12 @@ adt `either`<L, R> {
   axiom (\forall R r; either_get_right(right(r)) == r);
 }
 
+decreases;
 requires !`either`<L, R>.is_right(e);
 pure L get_left<L, R>(`either`<L, R> e) =
   `either`<L, R>.either_get_left(e);
 
+decreases;
 requires `either`<L, R>.is_right(e);
 pure R get_right<L, R>(`either`<L, R> e) =
   `either`<L, R>.either_get_right(e);

@@ -47,7 +47,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val t = TClass[Post](rw.succ(cls))
       val resVar = new Variable[Post](t)
       val res = Local[Post](resVar.ref)(ThisVar)
-      val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?).")
+      val defaultBlame = PanicBlame("The postcondition of a default constructor cannot fail.")
 
       val checkRunnable = cls.declarations.collectFirst {
         case _: RunMethod[Pre] => ()
@@ -58,7 +58,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Nil, Nil, Nil,
         Some(Scope(Seq(resVar), Block(Seq(
           assignLocal(res, NewObject[Post](rw.succ(cls))),
-          Commit(res)(defaultBlame),
           Return(res),
         )))),
         ApplicableContract(
@@ -104,11 +103,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case RefFunction(decl) =>
         FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefProcedure(decl) =>
         ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefPredicate(decl) =>
         PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefInstanceFunction(decl) =>
@@ -118,12 +117,12 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           args.map(rw.dispatch),
           typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
         )(inv.blame)
       case RefInstanceMethod(decl) =>
         MethodInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefInstancePredicate(decl) =>
         InstancePredicateApply[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefADTFunction(decl) =>
@@ -147,11 +146,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case RefPVLConstructor(decl) =>
         ProcedureInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultPVLConstructor() =>
         ProcedureInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
   }
 }

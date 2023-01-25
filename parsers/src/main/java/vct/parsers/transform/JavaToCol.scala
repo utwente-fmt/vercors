@@ -584,7 +584,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         Some(convert(obj)), Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
-    case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(valPostfix, convert(expr))
+    case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(expr, valPostfix, convert(expr))
     case JavaNew(_, creator, given, yields) =>
       convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
     case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
@@ -607,9 +607,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "!" => Not(convert(inner))
     }
     case JavaValPrefix(PrefixOp0(op), inner) =>
-      convert(op, convert(inner))
+      convert(expr, op, convert(inner))
     case JavaValPrepend(left, PrependOp0(op), right) =>
-      convert(op, convert(left), convert(right))
+      convert(expr, op, convert(left), convert(right))
     case JavaMul(leftNode, mul, rightNode) =>
       val (left, right) = (convert(leftNode), convert(rightNode))
       mul match {
@@ -618,7 +618,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           case "/" => FloorDiv(left, right)(blame(expr))
           case "%" => Mod(left, right)(blame(expr))
         }
-        case MulOp1(specOp) => convert(specOp, left, right)
+        case MulOp1(specOp) => convert(expr, specOp, left, right)
       }
     case JavaAdd(left, op, right) => op match {
       case "+" => AmbiguousPlus(convert(left), convert(right))(blame(expr))
@@ -634,7 +634,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case RelOp0(">=") => AmbiguousGreaterEq(convert(left), convert(right))
       case RelOp0(">") => AmbiguousGreater(convert(left), convert(right))
       case RelOp0("<") => AmbiguousLess(convert(left), convert(right))
-      case RelOp1(valOp) => convert(valOp, convert(left), convert(right))
+      case RelOp1(valOp) => convert(expr, valOp, convert(left), convert(right))
     }
     case JavaInstanceOf(obj, _, t) => InstanceOf(convert(obj), TypeValue(convert(t)))
     case JavaEquals(left, eq, right) => eq match {
@@ -646,11 +646,11 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case JavaBitOr(left, _, right) => AmbiguousComputationalOr(convert(left), convert(right))
     case JavaAnd(left, and, right) => and match {
       case AndOp0(_) => And(convert(left), convert(right))
-      case AndOp1(specOp) => convert(specOp, convert(left), convert(right))
+      case AndOp1(specOp) => convert(expr, specOp, convert(left), convert(right))
     }
     case JavaOr(left, _, right) => AmbiguousOr(convert(left), convert(right))
     case JavaValImp(left, imp, right) => imp match {
-      case ImpOp0(specOp) => convert(specOp, convert(left), convert(right))
+      case ImpOp0(specOp) => convert(expr, specOp, convert(left), convert(right))
     }
     case JavaSelect(cond, _, whenTrue, _, whenFalse) =>
       Select(convert(cond), convert(whenTrue), convert(whenFalse))
@@ -682,7 +682,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(obj, typeArgs, convert(name), convert(arguments), Nil, Nil)(blame(invocation))
   }
 
-  def convert(implicit expr: CreatorContext, givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = expr match {
+  def convert(implicit expr: CreatorContext, givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])]): Expr[G] = expr match {
     case Creator0(typeArgs, name, creator) =>
       convert(creator, convert(typeArgs), convert(name), givenArgs, yields)
     case Creator1(name, creator) => creator match {
@@ -691,7 +691,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     }
   }
 
-  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])]): Expr[G] = creator match {
+  def convert(implicit creator: ClassCreatorRestContext, ts: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])]): Expr[G] = creator match {
     case ClassCreatorRest0(args, impl) =>
       failIfDefined(impl, "Anonymous classes are not supported")
       JavaNewClass(convert(args), ts, name, givenArgs, yields)(blame(creator))
@@ -941,20 +941,20 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValGivenMappings1(arg, _, v, _, more) => (new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)) +: convert(more)
   }
 
-  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
     case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
   }
 
-  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = mappings match {
-    case ValYieldsMappings0(target, _, res) => Seq((new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
-    case ValYieldsMappings1(target, _, res, _, more) => (new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], Ref[G, Variable[G]])] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
+    case ValYieldsMappings1(target, _, res, _, more) => (local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr[G]] = exprs match {
@@ -972,28 +972,28 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValTypeList1(t, _, ts) => convert(t) +: convert(ts)
   }
 
-  def convert(implicit impOp: ValImpOpContext, left: Expr[G], right: Expr[G]): Expr[G] = impOp match {
+  def convert(implicit root: ParserRuleContext, impOp: ValImpOpContext, left: Expr[G], right: Expr[G]): Expr[G] = impOp match {
     case ValImpOp0(_) => Wand(left, right)(origin(impOp))
     case ValImpOp1(_) => Implies(left, right)(origin(impOp))
   }
 
-  def convert(implicit andOp: ValAndOpContext, left: Expr[G], right: Expr[G]): Expr[G] = andOp match {
+  def convert(implicit root: ParserRuleContext, andOp: ValAndOpContext, left: Expr[G], right: Expr[G]): Expr[G] = andOp match {
     case ValAndOp0(_) => col.Star(left, right)(origin(andOp))
   }
 
-  def convert(implicit inOp: ValInOpContext, left: Expr[G], right: Expr[G]): Expr[G] = inOp match {
+  def convert(implicit root: ParserRuleContext, inOp: ValInOpContext, left: Expr[G], right: Expr[G]): Expr[G] = inOp match {
     case ValInOp0(_) => AmbiguousMember(left, right)
   }
 
-  def convert(implicit mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
+  def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
     case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
   }
 
-  def convert(implicit prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
+  def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
     case ValPrependOp0(_) => Cons(left, right)
   }
 
-  def convert(implicit postfixOp: ValPostfixContext, xs: Expr[G]): Expr[G] = postfixOp match {
+  def convert(implicit root: ParserRuleContext, postfixOp: ValPostfixContext, xs: Expr[G]): Expr[G] = postfixOp match {
     case ValPostfix0(_, _, to, _) => Take(xs, convert(to))
     case ValPostfix1(_, from, _, None, _) => Drop(xs, convert(from))
     case ValPostfix1(_, from, _, Some(to), _) => Slice(xs, convert(from), convert(to))
@@ -1001,7 +1001,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
-  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+  def convert(implicit root: ParserRuleContext, prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
     case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
   }
 

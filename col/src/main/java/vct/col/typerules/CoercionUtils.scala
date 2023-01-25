@@ -15,6 +15,8 @@ case object CoercionUtils {
       case (TNothing(), _) => CoerceNothingSomething(target)
       case (_, TAny()) => CoerceSomethingAny(source)
 
+
+
       case (source @ TOption(innerSource), target @ TOption(innerTarget)) =>
         CoerceMapOption(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (source @ TTuple(Seq(leftSource, rightSource)), target @ TTuple(Seq(leftTarget, rightTarget))) =>
@@ -57,6 +59,9 @@ case object CoercionUtils {
       case (TPinnedDecl(pin, typeArgs), cls: JavaTClass[G]) if cls.ref.decl.isPin(pin) && cls.typeArgs == typeArgs => CoerceTPinnedDeclJavaTClass(pin, cls)
       case (cls: TClass[G], TPinnedDecl(pin, Nil)) if cls.cls.decl.isPin(pin) => CoerceTClassTPinnedDecl(cls, pin)
       case (TPinnedDecl(pin, Nil), cls: TClass[G]) if cls.cls.decl.isPin(pin) => CoerceTPinnedDeclTClass(pin, cls)
+
+      case (_ @ CTArray(_, innerType), _ @ TArray(element)) if element == innerType =>
+        CoerceCArrayPointer(element)
 
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
@@ -187,9 +192,17 @@ case object CoercionUtils {
   def getAnyPointerCoercion[G](source: Type[G]): Option[(Coercion[G], TPointer[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyPointerCoercion)
     case t: TPointer[G] => Some((CoerceIdentity(source), t))
+    case t: CTPointer[G] => Some((CoerceIdentity(source), TPointer(t.innerType)))
+    case t: CTArray[G] => Some((CoerceCArrayPointer(t.innerType), TPointer(t.innerType)))
     case _: TNull[G] =>
       val t = TPointer[G](TAny())
       Some((CoerceNullPointer(t), t))
+    case _ => None
+  }
+
+  def getAnyCArrayCoercion[G](source: Type[G]): Option[(Coercion[G], CTArray[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyCArrayCoercion)
+    case t: CTArray[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
