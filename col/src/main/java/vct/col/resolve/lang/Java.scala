@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPinnedDecl, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPinnedDecl, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -239,18 +239,44 @@ case object Java extends LazyLogging {
     }
 
   def findLibraryJavaTypesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] =
-    ctx.externalJavaLoader match {
-      case Some(loader) =>
-        loader.loadPkg[G](pkg).flatMap { ns =>
-          ctx.externallyLoadedElements += ns
-          ResolveTypes.resolve(ns, ctx)
-          ns.declarations.map {
-            case cls: JavaClass[G] => RefJavaClass(cls)
-            case cls: JavaInterface[G] => RefJavaClass(cls)
-            case cls: JavaAnnotationInterface[G] => RefJavaClass(cls)
-            case enum: Enum[G] => RefEnum(enum)
-          }
+    ctx.externalJavaLoader.map { loader =>
+      val xs: Seq[JavaTypeNameTarget[G]] = ctx.javaClassPath.flatMap { classPath =>
+        // We have an external class loader and a class path.
+        val maybeBasePath: Option[Path] = classPath match {
+          case JavaClassPathEntry.SourcePackageRoot =>
+            // Try to derive the base path, by the path of the current source file and the package.
+            // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
+            for {
+              ns <- ctx.namespace
+              ReadableOrigin(readable, _, _, _) <- Some(ns.o)
+              file <- readable.underlyingFile
+              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Some(file.getParentFile)) {
+                case (name, Some(file)) if file.getName == name => Some(file.getParentFile)
+                case _ => None
+              }
+            } yield baseFile.toPath
+          case JavaClassPathEntry.Path(root) => Some(root)
         }
+
+        (maybeBasePath match { case Some(value) => Seq(value); case None => Seq() }) // Oof
+          .flatMap(loader.loadPkg[G](_, pkg))
+          .flatMap { ns =>
+            val javaTypeNames = ns.declarations.map(Referrable.from).collect {
+              case ref: JavaTypeNameTarget[G] => ref
+            }
+            if (javaTypeNames.nonEmpty) {
+              ctx.externallyLoadedElements += ns
+              ResolveTypes.resolve(ns, ctx)
+              javaTypeNames
+            } else {
+              Seq()
+            }
+          }
+      }
+
+      xs
+    } match {
+      case Some(xs) => xs
       case None => Seq()
     }
 
