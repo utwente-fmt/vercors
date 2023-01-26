@@ -487,7 +487,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def concatStrings(function: Function[Pre]): Function[Post] = {
-    // TODO: Maybe check types of the function?
+    // TODO (RR): Maybe check types of the function?
     val f = function.rewrite()
     rw.globalDeclarations.declare(new ConcatDisplay(f.ref[Function[Post]]))
     rw.globalDeclarations.succeed(function, f)

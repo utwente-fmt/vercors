@@ -644,8 +644,6 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
-//    case node: JavaStringConcatOperator[G] => return Nil
-//    case node: JavaLangString[G] => return Nil
     case node: InternedString[G] => return Nil
     case node: StringLiteral[G] => return Nil
     case node: EnumConstant[G] => return Nil

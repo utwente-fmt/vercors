@@ -91,7 +91,7 @@ case object ResolveTypes {
       Java.findJavaName(local.name, ctx) match {
         case Some(
           _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
-          _: RefJavaClass[G] | _: RefEnum[G] | _: RefEnumConstant[G] // Statically imported, or regular previously imported typename
+          _: RefJavaClass[G] | _: RefEnum[G] | _: RefEnumConstant[G] | _: RefAxiomaticDataType[G] // Statically imported, or regular previously imported typename
         ) => // Nothing to do. Local will get properly resolved next phase
         case None =>
           // Unknown what this local refers though. Try importing it as a type; otherwise, it's the start of a package
