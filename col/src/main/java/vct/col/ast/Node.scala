@@ -63,6 +63,9 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.{Java, JavaTypeContext}
+import vct.col.typerules.{CoercionUtils, Types}
+import vct.result.VerificationError.Unreachable
 
 /** @inheritdoc */ sealed trait Node[G] extends NodeImpl[G]
 
@@ -463,6 +466,12 @@ final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G], stringClassRefO
 final case class AmbiguousMinus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousMinusImpl[G]
 final case class AmbiguousOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with AmbiguousOrImpl[G]
 
+sealed trait JavaContext[G] {
+  var ctx: Option[JavaTypeContext[G]] = None
+}
+
+final case class JavaPlus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with JavaContext[G] with JavaPlusImpl[G]
+
 sealed trait BitOp[G] extends BinExpr[G] with BitOpImpl[G]
 final case class AmbiguousComputationalOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BitOp[G] with AmbiguousComputationalOrImpl[G]
 final case class AmbiguousComputationalXor[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BitOp[G] with AmbiguousComputationalXorImpl[G]
@@ -483,7 +492,12 @@ final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZer
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 final case class StringLiteral[G](data: String)(implicit val o: Origin) extends Expr[G] with StringLiteralImpl[G]
 // TODO (RR): should probably derive t from constructor or string class
-final case class JavaStringConcat[G](left: Expr[G], right: Expr[G], t: Type[G])(implicit val o: Origin) extends BinExpr[G] with JavaStringConcatImpl[G]
+
+// TODO: This is now one, but should probably become one unified "global display" decl with all the things that are present in the environment. Other candidates: java.lang.object base class, java.lang.throwable, primitive to class mapping, constructors for coercions
+final class ConcatDisplay[G](val ref: Ref[G, Function[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G]
+final case class StringClassConcat[G](left: Expr[G], right: Expr[G], stringClassRef: Ref[G, Class[G]], concatImpl: Ref[G, Function[G]])(implicit val o: Origin) extends BinExpr[G] with StringClassConcatImpl[G] {
+  val t: Type[G] = TClass(stringClassRef)
+}
 final case class InternedString[G](data: Expr[G], interner: Ref[G, Function[G]])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
 
 final case class BitAnd[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitAndImpl[G]
@@ -830,7 +844,7 @@ final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], nam
 final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
 final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
 final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) extends JavaExpr[G] with JavaStringLiteralImpl[G] {
-  var constructorRef: Option[JavaConstructorTarget[G]] = None
+  var internerRef: Option[Function[G]] = None
   var typeRef: Option[JavaClass[G]] = None
 }
 

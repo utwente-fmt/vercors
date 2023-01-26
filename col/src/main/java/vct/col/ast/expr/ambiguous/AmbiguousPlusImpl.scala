@@ -18,11 +18,11 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
   def isStringOp: Boolean =
     CoercionUtils.getCoercion(left.t, TString()).isDefined
-  def isJavaLangStringOp: Boolean = if(stringClassRefOpt.isDefined)
-    left.t == stringClassType || right.t == stringClassType // TODO (RR): This is is horrible
+  def isStringClassOp: Boolean = if(stringClassRefOpt.isDefined)
+    left.t == stringClassType || right.t == stringClassType
   else false
 
-  private lazy val stringClassType: Type[G] = TClass(stringClassRefOpt.getOrElse(throw new Unreachable("Expected the string class to be defined")))
+  lazy val stringClassType: Type[G] = TClass(stringClassRefOpt.getOrElse(throw new Unreachable("Expected the string class to be defined")))
 
   override lazy val t: Type[G] =
     if(isProcessOp) TProcess()
@@ -32,6 +32,6 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
       TFloats.coerceToMax[G](left.t, right.t)
     else if(isIntOp) TInt()
     else if(isStringOp) TString()
-    else if(isJavaLangStringOp) ???
+    else if(isStringClassOp) stringClassType
     else TRational()
 }

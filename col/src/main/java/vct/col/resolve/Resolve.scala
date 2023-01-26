@@ -6,7 +6,9 @@ import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.Java.findJavaLangStringClass
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
+import vct.result.VerificationError.Unreachable
 
 case object ResolveTypes {
   sealed trait JavaClassPathEntry
@@ -85,15 +87,6 @@ case object ResolveTypes {
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case _: JavaStringLiteral[G] =>
       Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
-    case cls: JavaClass[G] =>
-      val fqn = ctx.namespace.flatMap(_.pkg).map(_.names :+ cls.name)
-      if (fqn.contains(Java.JAVA_LANG_STRING)) {
-        ???
-        // cls.pin = Some(JavaLangString())
-      } else if (fqn.contains(Java.JAVA_LANG_CLASS)) {
-        ???
-        // cls.pin = Some(JavaLangClass())
-      }
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
         case Some(
@@ -118,6 +111,11 @@ case object ResolveReferences {
       case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
       case _ => false
     })
+
+    node match {
+      case node: JavaContext[G] => node.ctx = Some(ctx.javaTypeContext)
+      case _ =>
+    }
 
     val innerCtx = enterContext(node, ctx, inGPU)
 
@@ -395,6 +393,9 @@ case object ResolveReferences {
         case t @ TArray(_) => t
         case _ => throw WrongArrayInitializer(arr)
       })
+    case lit: JavaStringLiteral[G] =>
+      lit.typeRef = findJavaLangStringClass(ctx.asTypeResolutionContext)
+      if (lit.typeRef.isEmpty) throw Unreachable("Did not find java.lang.String but should")
 
     case _ =>
   }

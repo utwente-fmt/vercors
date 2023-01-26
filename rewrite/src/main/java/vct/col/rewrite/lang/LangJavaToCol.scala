@@ -107,6 +107,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
+  def inJavaLang(): Boolean = namespace.topOption.flatMap(_.pkg.map(_.names)).contains(Java.JAVA_LANG)
+
   def isJavaStatic(decl: ClassDeclaration[_]): Boolean = decl match {
     case init: JavaSharedInitialization[_] => init.isStatic
     case fields: JavaFields[_] => fields.modifiers.collectFirst { case JavaStatic() => () }.nonEmpty
@@ -477,5 +479,17 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
+  }
+
+  def plus(plus: JavaPlus[Pre]): Expr[Post] = {
+    val cls: Option[Ref[Post, Class[Post]]] = plus.ctx.getOrElse(???).string.map(javaInstanceClassSuccessor.ref(_))
+    AmbiguousPlus(rw.dispatch(plus.left), rw.dispatch(plus.right), cls)(plus.blame)(plus.o)
+  }
+
+  def concatStrings(function: Function[Pre]): Function[Post] = {
+    // TODO: Maybe check types of the function?
+    val f = function.rewrite()
+    rw.globalDeclarations.declare(new ConcatDisplay(f.ref[Function[Post]]))
+    rw.globalDeclarations.succeed(function, f)
   }
 }

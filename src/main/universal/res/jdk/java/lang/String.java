@@ -1,6 +1,8 @@
 package java.lang;
 
 // TODO: Should not have to use instanceof anywhere in this file
+// TODO (RR): Use an adt and injectivity instead of the strange recursive forall in internToString
+
 /*@
 ghost
 decreases assume;

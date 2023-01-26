@@ -621,7 +621,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case MulOp1(specOp) => convert(expr, specOp, left, right)
       }
     case JavaAdd(left, op, right) => op match {
-      case "+" => AmbiguousPlus(convert(left), convert(right), None)(blame(expr))
+      case "+" => JavaPlus(convert(left), convert(right))(blame(expr))
       case "-" => AmbiguousMinus(convert(left), convert(right))(blame(expr))
     }
     case JavaShift(left, shift, right) => shift match {
@@ -659,7 +659,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       val value = convert(right)
       PreAssignExpression(target, op match {
         case "=" => value
-        case "+=" => AmbiguousPlus(target, value, None)(blame(right))
+        case "+=" => JavaPlus(target, value)(blame(right))
         case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
         case "/=" => FloorDiv(target,  value)(blame(expr))

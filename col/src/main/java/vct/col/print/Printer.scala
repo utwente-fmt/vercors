@@ -789,7 +789,7 @@ case class Printer(out: Appendable,
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Plus(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
-    case JavaStringConcat(left, right, _) =>
+    case StringClassConcat(left, right, _, _) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Minus(left, right) =>
       (phrase(assoc(70, left), space, "-", space, bind(70, right)), 70)

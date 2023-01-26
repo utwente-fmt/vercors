@@ -10,6 +10,7 @@ import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.Java.findJavaLangStringClass
 import vct.col.typerules.Types
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -37,12 +38,12 @@ case object Java extends LazyLogging {
   def JAVA_LANG_ANNOTATION_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
   def JAVA_LANG_STRING_TYPE[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
   def JAVA_LANG_STRING_NAME[G]: JavaName[G] = JavaName(JAVA_LANG_STRING)
-  def JAVA_LANG_CLASS: Seq[String] = Seq("java", "lang", "Class")
-  def JAVA_LANG_STRING: Seq[String] = Seq("java", "lang", "String")
+  def JAVA_LANG_CLASS: Seq[String] = JAVA_LANG :+ "Class"
+  def JAVA_LANG_STRING: Seq[String] = JAVA_LANG :+ "String"
   def JAVA_LANG: Seq[String] = Seq("java", "lang")
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
-    (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
+    (ctx.stack.lastOption.getOrElse(Seq()) ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
       case RefJavaNamespace(ns: JavaNamespace[G]) =>
         for(decl <- ns.declarations) {
           Referrable.from(decl).foreach {
@@ -500,4 +501,28 @@ case object Java extends LazyLogging {
 
   def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
   def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
+
+  def findJavaLangStringClass[G](ctx: TypeResolutionContext[G]): Option[JavaClass[G]] =
+    findJavaTypeName(Java.JAVA_LANG_STRING, ctx) match {
+      case Some(RefJavaClass(cls: JavaClass[G])) => Some(cls)
+      case _ => None
+    }
+}
+
+case object JavaTypeContext {
+  def from[G](ctx: TypeResolutionContext[G]): JavaTypeContext[G] = {
+    JavaTypeContext(
+      string = Java.findJavaLangStringClass(ctx)
+    )
+  }
+}
+
+case class JavaTypeContext[G]
+(
+  string: Option[JavaClass[G]]
+) {
+  def javaLangStringType(): Option[Type[G]] =
+    string.map { cls =>
+      JavaTClass(cls.asInstanceOf[JavaClassOrInterface[G]].ref[JavaClassOrInterface[G]], Seq())
+    }
 }
