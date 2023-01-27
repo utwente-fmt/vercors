@@ -56,6 +56,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
 
+    case method: JavaMethod[Pre] => java.rewriteMethod(method)
+
     case unit: CTranslationUnit[Pre] => c.rewriteUnit(unit)
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)

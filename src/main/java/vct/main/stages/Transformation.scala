@@ -164,7 +164,7 @@ case class SilverTransformation
     DisambiguateLocation, // Resolve location type
 
     // Q (RR): Should the next two passes be more in the center of the pass list? Like the exception passes?
-    EncodeJavaLangString, // Encode java strings as string objects and interning functions
+    EncodeStringClass, // Encode java strings as string objects and interning functions
     EncodeString, // Encode spec string as seq<int>
 
     CollectLocalDeclarations, // all decls in Scope

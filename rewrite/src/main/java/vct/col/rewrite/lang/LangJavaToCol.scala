@@ -112,9 +112,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
 
+  lazy val javaLangStringClass: Option[JavaClass[Pre]] = rw.program.collect {
+    case namespace: JavaNamespace[Pre] if namespace.isJavaLang() => namespace.collectFirst {
+      case cls: JavaClass[Pre] if cls.name == "String" => cls
+    }
+  }.flatten.headOption
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
-  def inJavaLang(): Boolean = namespace.topOption.flatMap(_.pkg.map(_.names)).contains(Java.JAVA_LANG)
+  def inJavaLang(): Boolean = namespace.topOption.exists(_.isJavaLang())
   def inJavaLangString(): Boolean = inJavaLang() &&
     namespace.top.declarations.collectFirst { case cls: JavaClass[Pre] if cls.name == "String" => cls }.isDefined
 
@@ -222,24 +227,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
           ))
         }
-      case method: JavaMethod[Pre] =>
-        rw.labelDecls.scope {
-          javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
-            returnType = rw.dispatch(method.returnType),
-            args = rw.variables.dispatch(method.parameters),
-            outArgs = Nil, typeArgs = Nil,
-            body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
-              case None => method.body.map(rw.dispatch)
-            },
-            contract = method.contract.rewrite(
-              signals = method.contract.signals.map(rw.dispatch) ++
-                method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-            ),
-            inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
-            pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
-          )(method.blame)(JavaMethodOrigin(method)))
-        }
+      case method: JavaMethod[Pre] => rw.dispatch(method)
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -251,6 +239,27 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case _: JavaSharedInitialization[Pre] =>
       case _: JavaFields[Pre] =>
       case other => rw.dispatch(other)
+    }
+  }
+
+  def rewriteMethod(method: JavaMethod[Pre]): Unit = {
+    implicit val o: Origin = method.o
+    rw.labelDecls.scope {
+      javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
+        returnType = rw.dispatch(method.returnType),
+        args = rw.variables.dispatch(method.parameters),
+        outArgs = Nil, typeArgs = Nil,
+        body = method.modifiers.collectFirst { case sync@JavaSynchronized() => sync } match {
+          case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
+          case None => method.body.map(rw.dispatch)
+        },
+        contract = method.contract.rewrite(
+          signals = method.contract.signals.map(rw.dispatch) ++
+            method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+        ),
+        inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
+        pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
+      )(method.blame)(JavaMethodOrigin(method)))
     }
   }
 
@@ -270,7 +279,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           case method: JavaMethod[Pre] => method
           case function: InstanceFunction[Pre] => function
           case decl => throw NotSupportedInJavaLangStringClass(decl)
-        }.foreach(rw.rewriteDefault(_)))._1
+        }.foreach(rw.dispatch(_)))._1
       )(cls.o)
     }
 
@@ -516,7 +525,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
-    // TODO (RR): Probably need to convert this into TStringClass
+    case cls: JavaClass[Pre] if javaLangStringClass.contains(cls) => TStringClass()(t.o)
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
 

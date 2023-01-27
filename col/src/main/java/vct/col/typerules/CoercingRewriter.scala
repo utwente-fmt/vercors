@@ -1222,6 +1222,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ThisModel(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
+      case ThisStringClass(ref) =>
+        ThisStringClass(ref)
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>
@@ -1439,6 +1441,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
+      case stringClass: StringClass[Pre] =>
+        // TODO (RR): Typecheck the interner/concat function types here?
+        stringClass
     }
   }
 

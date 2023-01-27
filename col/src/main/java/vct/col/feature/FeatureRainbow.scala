@@ -650,5 +650,8 @@ class FeatureRainbow[G] {
     case node: Enum[G] => return Nil
     case node: TEnum[G] => return Nil
     case node: EnumUse[G] => return Nil
+    case node: TStringClass[G] => return Nil
+    case node: StringClass[G] => return Nil
+    case node: ThisStringClass[G] => return Nil
   })
 }
