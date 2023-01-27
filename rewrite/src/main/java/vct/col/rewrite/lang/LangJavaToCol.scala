@@ -500,11 +500,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def newDefaultArray(arr: JavaNewDefaultArray[Pre]): Expr[Post] =
     NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.o)
 
-  def stringLiteral(lit: JavaStringLiteral[Pre]): Expr[Post] = {
-    implicit val o = lit.o
-    // TODO (RR): Better error throw
-    Intern(StringLiteral(lit.data)) // , rw.succ(rw.internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
-  }
+  def stringLiteral(lit: JavaStringLiteral[Pre]): Expr[Post] = Intern(StringLiteral(lit.data))(lit.o)
 
   def literalArray(arr: JavaLiteralArray[Pre]): Expr[Post] = {
     implicit val o: Origin = JavaInlineArrayInitializerOrigin(arr.o)
