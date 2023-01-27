@@ -3,7 +3,6 @@ package vct.col.resolve.ctx
 import vct.col.ast._
 import vct.col.check.CheckContext
 import vct.col.origin.DiagnosticOrigin
-import vct.col.resolve.lang.JavaTypeContext
 
 import scala.collection.mutable
 
@@ -26,6 +25,4 @@ case class ReferenceResolutionContext[G]
 
   def currentPkg: Option[JavaName[G]] = currentJavaNamespace.flatMap(_.pkg)
   def currentFqn: Option[JavaName[G]] = currentPkg.map(pkg => JavaName(pkg.names ++ currentJavaClass.map(cls => Seq(cls.name)).getOrElse(Seq()))(DiagnosticOrigin))
-
-  lazy val javaTypeContext: JavaTypeContext[G] = JavaTypeContext.from(this.asTypeResolutionContext)
 }

@@ -112,11 +112,6 @@ case object ResolveReferences {
       case _ => false
     })
 
-    node match {
-      case node: JavaContext[G] => node.ctx = Some(ctx.javaTypeContext)
-      case _ =>
-    }
-
     val innerCtx = enterContext(node, ctx, inGPU)
 
     val childErrors = node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>

@@ -390,12 +390,17 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
-  def javaString(e: Expr[Pre], javaLangString: Option[Type[Pre]] = None): Expr[Pre] = javaLangString match {
-    case Some(t) =>
-      coerce(e, t)
-    case _ => throw IncoercibleText(e, "java.lang.String")
-  }
-  def stringClass(e: Expr[Pre]) = coerce(e, TStringClass())
+  def stringClass(e: Expr[Pre]): Expr[Pre] = coerce(e, TStringClass())
+  def javaStringClass(e: Expr[Pre]): Expr[Pre] =
+    // TODO (RR): We need something like the commented code below, but for java types. Since int -> Integer -> String is allowed. Should probably go in a separate PR.
+//    CoercionUtils.getAnyClassCoercion(e.t) match {
+//      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+//      case None => throw IncoercibleText(e, "java.lang.String")
+//    }
+    e.t match {
+      case t @ JavaTClass(Ref(cls: JavaClass[Pre]), Seq()) if cls.isJavaStringClass => coerce(e, t)
+      case _ => throw IncoercibleText(e, "java.lang.String")
+    }
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -705,10 +710,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           JavaPlus(int(left), int(right))(plus.blame),
           JavaPlus(float(left), float(right))(plus.blame),
           JavaPlus(rat(left), rat(right))(plus.blame),
-          JavaPlus(process(left), process(right))(plus.blame), {
-            val stringType = plus.ctx.flatMap(_.javaLangStringType())
-            JavaPlus(javaString(left, stringType), javaString(right, stringType))(plus.blame)
-          },
+          JavaPlus(process(left), process(right))(plus.blame),
+          JavaPlus(javaStringClass(left), javaStringClass(right))(plus.blame),
           {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
@@ -1704,6 +1707,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaAnnotation(name, args) => JavaAnnotation(name, args)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
+      case JavaBuiltinString() => JavaBuiltinString()
     }
   }
 

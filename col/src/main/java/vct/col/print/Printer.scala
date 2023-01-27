@@ -943,7 +943,7 @@ case class Printer(out: Appendable,
     )
     case TFloat(exponent, mantissa) => phrase(s"float[$exponent, $mantissa]")
     case TChar() => phrase("char")
-    case TString() => phrase("String")
+    case TString() => phrase("string")
     case TRef() => phrase("Ref")
     case TArray(element) => phrase(element, "[]")
     case TPointer(element) => phrase(element, "*")

@@ -509,21 +509,3 @@ case object Java extends LazyLogging {
       case _ => None
     }
 }
-
-case object JavaTypeContext {
-  def from[G](ctx: TypeResolutionContext[G]): JavaTypeContext[G] = {
-    JavaTypeContext(
-      string = Java.findJavaLangStringClass(ctx)
-    )
-  }
-}
-
-case class JavaTypeContext[G]
-(
-  string: Option[JavaClass[G]]
-) {
-  def javaLangStringType(): Option[Type[G]] =
-    string.map { cls =>
-      JavaTClass(cls.asInstanceOf[JavaClassOrInterface[G]].ref[JavaClassOrInterface[G]], Seq())
-    }
-}

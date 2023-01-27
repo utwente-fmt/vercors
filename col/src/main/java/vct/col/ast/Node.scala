@@ -63,7 +63,7 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.{Java, JavaTypeContext}
+import vct.col.resolve.lang.Java
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError.Unreachable
 
@@ -474,11 +474,7 @@ final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G])(val blame: Blam
 final case class AmbiguousMinus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousMinusImpl[G]
 final case class AmbiguousOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with AmbiguousOrImpl[G]
 
-sealed trait JavaContext[G] {
-  var ctx: Option[JavaTypeContext[G]] = None
-}
-
-final case class JavaPlus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with JavaContext[G] with JavaPlusImpl[G]
+final case class JavaPlus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with JavaPlusImpl[G]
 
 sealed trait BitOp[G] extends BinExpr[G] with BitOpImpl[G]
 final case class AmbiguousComputationalOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BitOp[G] with AmbiguousComputationalOrImpl[G]
@@ -798,6 +794,7 @@ final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
 final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G]
 
+final case class JavaBuiltinString[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
 

@@ -112,16 +112,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
 
-  lazy val javaLangStringClass: Option[JavaClass[Pre]] = rw.program.collect {
-    case namespace: JavaNamespace[Pre] if namespace.isJavaLang() => namespace.collectFirst {
-      case cls: JavaClass[Pre] if cls.name == "String" => cls
-    }
-  }.flatten.headOption
+  lazy val javaLangStringClass: Option[JavaClass[Pre]] = rw.program.collectFirst {
+    case cls: JavaClass[Pre] if cls.isJavaStringClass => cls
+  }
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
-
-  def inJavaLang(): Boolean = namespace.topOption.exists(_.isJavaLang())
-  def inJavaLangString(): Boolean = inJavaLang() &&
-    namespace.top.declarations.collectFirst { case cls: JavaClass[Pre] if cls.name == "String" => cls }.isDefined
 
   def isJavaStatic(decl: ClassDeclaration[_]): Boolean = decl match {
     case init: JavaSharedInitialization[_] => init.isStatic
@@ -290,7 +284,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 
-    if (inJavaLang() && cls.name == "String") {
+    if (javaLangStringClass.contains(cls)) {
       rewriteJavaLangStringClass(cls.asInstanceOf[JavaClass[Pre]])
       return
     }
@@ -533,11 +527,4 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def plus(plus: JavaPlus[Pre]): Expr[Post] = {
     AmbiguousPlus(rw.dispatch(plus.left), rw.dispatch(plus.right))(plus.blame)(plus.o)
   }
-
-  // TODO (RR): This can probably go
-//  def concatStrings(function: Function[Pre]): Function[Post] = {
-//    val f = function.rewrite()
-//    rw.globalDeclarations.declare(new ConcatDisplay(f.ref[Function[Post]]))
-//    rw.globalDeclarations.succeed(function, f)
-//  }
 }

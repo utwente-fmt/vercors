@@ -1,7 +1,8 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{JavaPlus, TInt, TProcess, TRational, TString, Type}
+import vct.col.ast.{JavaClass, JavaPlus, JavaTClass, TInt, TProcess, TRational, TString, Type}
 import vct.col.ast.`type`.TFloats
+import vct.col.ref.Ref
 import vct.col.typerules.{CoercionUtils, Types}
 
 trait JavaPlusImpl[G] { this: JavaPlus[G] =>
@@ -24,11 +25,17 @@ trait JavaPlusImpl[G] { this: JavaPlus[G] =>
   def isStringOp: Boolean =
     CoercionUtils.getCoercion(left.t, TString()).isDefined
 
-  def isJavaLangStringOp: Boolean = if (ctx.get.javaLangStringType().isDefined)
-    left.t == javaStringClassType || right.t == javaStringClassType
-  else false
+  def getJavaStringClass: Option[JavaTClass[G]] =
+    (left.t match {
+      case t @ JavaTClass(Ref(cls: JavaClass[G]), Seq()) if cls.isJavaStringClass => Some(t)
+      case _ => None
+    }).orElse(right.t match {
+        case t @ JavaTClass(Ref(cls: JavaClass[G]), Seq()) if cls.isJavaStringClass => Some(t)
+        case _ => None
+      })
 
-  private lazy val javaStringClassType: Type[G] = ctx.get.javaLangStringType().get // This is a bit weird, with the get and the if a few lines up
+  def isJavaStringClassOp: Boolean = getJavaStringClass.isDefined
+
   override lazy val t: Type[G] =
     if (isProcessOp) TProcess()
     else if (isSeqOp || isBagOp || isSetOp) Types.leastCommonSuperType(left.t, right.t)
@@ -37,6 +44,6 @@ trait JavaPlusImpl[G] { this: JavaPlus[G] =>
       TFloats.coerceToMax[G](left.t, right.t)
     else if (isIntOp) TInt()
     else if (isStringOp) TString()
-    else if (isJavaLangStringOp) javaStringClassType
+    else if (isJavaStringClassOp) getJavaStringClass.get
     else TRational()
 }
