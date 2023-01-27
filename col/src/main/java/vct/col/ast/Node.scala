@@ -384,6 +384,7 @@ final case class AmbiguousThis[G]()(implicit val o: Origin) extends Expr[G] with
 }
 
 final case class ThisObject[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with ThisObjectImpl[G]
+final case class ThisStringClass[G](cls: Ref[G, StringClass[G]])(implicit val o: Origin) extends Expr[G] with ThisStringClassImpl[G]
 final case class ThisModel[G](cls: Ref[G, Model[G]])(implicit val o: Origin) extends Expr[G] with ThisModelImpl[G]
 
 final case class AmbiguousResult[G]()(implicit val o: Origin) extends Expr[G] with AmbiguousResultImpl[G] {
@@ -462,7 +463,7 @@ sealed trait NumericBinExpr[G] extends BinExpr[G] with NumericBinExprImpl[G]
 sealed trait DividingExpr[G] extends Expr[G] with DividingExprImpl[G]
 
 final case class AmbiguousMult[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with AmbiguousMultImpl[G]
-final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G], stringClassRefOpt: Option[Ref[G, Class[G]]])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousPlusImpl[G]
+final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousPlusImpl[G]
 final case class AmbiguousMinus[G](left: Expr[G], right: Expr[G])(val blame: Blame[FrontendAdditiveError])(implicit val o: Origin) extends Expr[G] with AmbiguousMinusImpl[G]
 final case class AmbiguousOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with AmbiguousOrImpl[G]
 
@@ -491,14 +492,11 @@ final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZer
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 final case class StringLiteral[G](data: String)(implicit val o: Origin) extends Expr[G] with StringLiteralImpl[G]
-// TODO (RR): should probably derive t from constructor or string class
 
-// TODO: This is now one, but should probably become one unified "global display" decl with all the things that are present in the environment. Other candidates: java.lang.object base class, java.lang.throwable, primitive to class mapping, constructors for coercions
-final class ConcatDisplay[G](val ref: Ref[G, Function[G]])(implicit val o: Origin = DiagnosticOrigin) extends GlobalDeclaration[G]
-final case class StringClassConcat[G](left: Expr[G], right: Expr[G], stringClassRef: Ref[G, Class[G]], concatImpl: Ref[G, Function[G]])(implicit val o: Origin) extends BinExpr[G] with StringClassConcatImpl[G] {
-  val t: Type[G] = TClass(stringClassRef)
-}
-final case class InternedString[G](data: Expr[G], interner: Ref[G, Function[G]])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
+final class StringClass[G](val intern: Ref[G, Function[G]], val concat: Ref[G, Function[G]], val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+final case class TStringClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G]
+final case class StringClassConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringClassConcatImpl[G]
+final case class Intern[G](data: Expr[G])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
 
 final case class BitAnd[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitAndImpl[G]
 final case class BitOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitOrImpl[G]

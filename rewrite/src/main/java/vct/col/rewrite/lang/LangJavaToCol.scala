@@ -12,7 +12,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.col.resolve.lang.Java
-import vct.result.VerificationError.{UserError, Unreachable}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -84,6 +84,11 @@ case object LangJavaToCol {
     override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
     override def code: String = "invalidNesting"
   }
+
+  case class NotSupportedInJavaLangStringClass(decl: ClassDeclaration[_]) extends UserError {
+    override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
+    override def text: String = "notSupportedInStringClass"
+  }
 }
 
 case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -95,6 +100,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaInstanceClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Function[Post]] = SuccessionMap()
+
+  val javaStringClassSuccessor: SuccessionMap[JavaClass[Pre], StringClass[Post]] = SuccessionMap()
 
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
@@ -108,6 +115,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
   def inJavaLang(): Boolean = namespace.topOption.flatMap(_.pkg.map(_.names)).contains(Java.JAVA_LANG)
+  def inJavaLangString(): Boolean = inJavaLang() &&
+    namespace.top.declarations.collectFirst { case cls: JavaClass[Pre] if cls.name == "String" => cls }.isDefined
 
   def isJavaStatic(decl: ClassDeclaration[_]): Boolean = decl match {
     case init: JavaSharedInitialization[_] => init.isStatic
@@ -245,8 +254,37 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     }
   }
 
+  def rewriteJavaLangStringClass(cls: JavaClass[Pre]): Unit = {
+    val intern = namespace.top.declarations.collectFirst {
+      case function: Function[Pre] if function.o.preferredName == "internToString" => function
+    }.getOrElse(???)
+    val concat = namespace.top.declarations.collectFirst {
+      case function: Function[Pre] if function.o.preferredName == "concatStrings" => function
+    }.getOrElse(???)
+
+    val stringClass = rw.currentThis.having(ThisStringClass[Post](javaStringClassSuccessor.ref(cls))(cls.o)) {
+      new StringClass[Post](
+        intern = rw.succ(intern),
+        concat = rw.succ(concat),
+        declarations = rw.classDeclarations.collect(cls.decls.collect {
+          case method: JavaMethod[Pre] => method
+          case function: InstanceFunction[Pre] => function
+          case decl => throw NotSupportedInJavaLangStringClass(decl)
+        }.foreach(rw.rewriteDefault(_)))._1
+      )(cls.o)
+    }
+
+    javaStringClassSuccessor(cls) = rw.globalDeclarations.declare(stringClass)
+  }
+
+
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
+
+    if (inJavaLang() && cls.name == "String") {
+      rewriteJavaLangStringClass(cls.asInstanceOf[JavaClass[Pre]])
+      return
+    }
 
     cls.decls.collect({
       case decl: JavaClassDeclaration[Pre] =>
@@ -462,7 +500,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def stringLiteral(lit: JavaStringLiteral[Pre]): Expr[Post] = {
     implicit val o = lit.o
     // TODO (RR): Better error throw
-    InternedString(StringLiteral(lit.data), rw.succ(rw.internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
+    Intern(StringLiteral(lit.data)) // , rw.succ(rw.internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
   }
 
   def literalArray(arr: JavaLiteralArray[Pre]): Expr[Post] = {
@@ -478,18 +516,19 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
+    // TODO (RR): Probably need to convert this into TStringClass
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
 
+  // TODO (RR): This can probably be inlined...?
   def plus(plus: JavaPlus[Pre]): Expr[Post] = {
-    val cls: Option[Ref[Post, Class[Post]]] = plus.ctx.getOrElse(???).string.map(javaInstanceClassSuccessor.ref(_))
-    AmbiguousPlus(rw.dispatch(plus.left), rw.dispatch(plus.right), cls)(plus.blame)(plus.o)
+    AmbiguousPlus(rw.dispatch(plus.left), rw.dispatch(plus.right))(plus.blame)(plus.o)
   }
 
-  def concatStrings(function: Function[Pre]): Function[Post] = {
-    // TODO (RR): Maybe check types of the function?
-    val f = function.rewrite()
-    rw.globalDeclarations.declare(new ConcatDisplay(f.ref[Function[Post]]))
-    rw.globalDeclarations.succeed(function, f)
-  }
+  // TODO (RR): This can probably go
+//  def concatStrings(function: Function[Pre]): Function[Post] = {
+//    val f = function.rewrite()
+//    rw.globalDeclarations.declare(new ConcatDisplay(f.ref[Function[Post]]))
+//    rw.globalDeclarations.succeed(function, f)
+//  }
 }

@@ -38,12 +38,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
   var program: Program[Pre] = null
-  lazy val internToString: Option[Function[Pre]] = program.transSubnodes.collect {
-    case ns: JavaNamespace[Pre] if ns.pkg.exists(_.names == Java.JAVA_LANG) =>
-        ns.transSubnodes.collectFirst {
-          case f: Function[Pre] if f.o.preferredName == "internToString" => f
-        }
-  }.flatten.headOption
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     this.program = program
@@ -79,9 +73,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           globalDeclarations.succeed(cls, cls.rewrite(decls))
         }
       }
-
-    case function: Function[Pre] if java.inJavaLang() && function.o.preferredName == "concatStrings" =>
-      java.concatStrings(function)
 
     case other => rewriteDefault(other)
   }

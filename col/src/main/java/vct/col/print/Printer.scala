@@ -599,8 +599,8 @@ case class Printer(out: Appendable,
       (phrase(s""""${data}""""), 100)
     case StringLiteral(data) =>
       (phrase(s""""${data}""""), 100)
-    case InternedString(data, interner) =>
-      (phrase("\\internedString(", data, ", ", interner.decl.o.preferredName, ")"), 100)
+    case Intern(data) =>
+      (phrase(s"\\internedString($data)"), 100)
     case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {
         case Some(obj) =>
@@ -785,11 +785,11 @@ case class Printer(out: Appendable,
       (phrase("!", assoc(90, arg)), 90)
     case Exp(left, right) =>
       (phrase(bind(85, left), space, "^^", space, assoc(85, right)), 85)
-    case AmbiguousPlus(left, right, _) =>
+    case AmbiguousPlus(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Plus(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
-    case StringClassConcat(left, right, _, _) =>
+    case StringClassConcat(left, right) =>
       (phrase(assoc(70, left), space, "+", space, assoc(70, right)), 70)
     case Minus(left, right) =>
       (phrase(assoc(70, left), space, "-", space, bind(70, right)), 70)

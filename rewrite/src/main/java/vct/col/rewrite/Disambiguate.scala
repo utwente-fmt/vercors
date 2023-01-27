@@ -13,24 +13,6 @@ case object Disambiguate extends RewriterBuilder {
 }
 
 case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
-  var program: Program[Pre] = null
-  lazy val stringClassConcatFunction: Function[Pre] = {
-    program.transSubnodes.collectFirst {
-      case display: ConcatDisplay[Pre] => display.ref.decl
-    }.getOrElse(throw Unreachable("Concat should be defined"))
-  }
-
-  override def dispatch(program: Program[Pre]): Program[Post] = {
-    this.program = program
-
-    rewriteDefault(program)
-  }
-
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case display: ConcatDisplay[Pre] => display.drop()
-    case node => super.dispatch(node)
-  }
-
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
@@ -39,17 +21,14 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isSetOp) SetIntersection(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagLargestCommon(dispatch(left), dispatch(right))
         else Mult(dispatch(left), dispatch(right))
-      case op @ AmbiguousPlus(left, right, stringClass) =>
+      case op @ AmbiguousPlus(left, right) =>
         if(op.isProcessOp) ProcessChoice(dispatch(left), dispatch(right))
         else if(op.isPointerOp) unfoldPointerAdd(PointerAdd(dispatch(left), dispatch(right))(op.blame))
         else if(op.isSeqOp) Concat(dispatch(left), dispatch(right))
         else if(op.isSetOp) SetUnion(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagAdd(dispatch(left), dispatch(right))
         else if(op.isStringOp) StringConcat(dispatch(left), dispatch(right))
-        else if(op.isStringClassOp)
-          StringClassConcat(dispatch(left), dispatch(right),
-            succ[Class[Post]](stringClass.get.decl),
-            succ[Function[Post]](stringClassConcatFunction))
+        else if(op.isStringClassOp) StringClassConcat(dispatch(left), dispatch(right))
         else Plus(dispatch(left), dispatch(right))
       case op @ AmbiguousMinus(left, right) =>
         if(op.isSetOp) SetMinus(dispatch(left), dispatch(right))

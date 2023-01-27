@@ -395,10 +395,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       coerce(e, t)
     case _ => throw IncoercibleText(e, "java.lang.String")
   }
-  def stringClass(e: Expr[Pre], stringClass: Option[Ref[Pre, Class[Pre]]]) = stringClass match {
-    case Some(ref @ Ref(_: Class[Pre])) => coerce(e, TClass(ref))
-    case _ => throw IncoercibleText(e, "string class")
-  }
+  def stringClass(e: Expr[Pre]) = coerce(e, TStringClass())
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -679,28 +676,28 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           AmbiguousOr(bool(left), bool(right)),
           AmbiguousOr(process(left), process(right)),
         )
-      case plus @ AmbiguousPlus(left, right, scr) =>
+      case plus @ AmbiguousPlus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
-          AmbiguousPlus(int(left), int(right), scr)(plus.blame),
-          AmbiguousPlus(float(left), float(right), scr)(plus.blame),
-          AmbiguousPlus(rat(left), rat(right), scr)(plus.blame),
-          AmbiguousPlus(process(left), process(right), scr)(plus.blame),
-          AmbiguousPlus(stringClass(left, scr), stringClass(right, scr), scr)(plus.blame),
-          AmbiguousPlus(pointer(left)._1, int(right), scr)(plus.blame), {
+          AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(float(left), float(right))(plus.blame),
+          AmbiguousPlus(rat(left), rat(right))(plus.blame),
+          AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(stringClass(left), stringClass(right))(plus.blame),
+          AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)), scr)(plus.blame)
+            AmbiguousPlus(coerce(coercedLeft, TSeq(sharedType)), coerce(coercedRight, TSeq(sharedType)))(plus.blame)
           }, {
             val (coercedLeft, TSet(elementLeft)) = set(left)
             val (coercedRight, TSet(elementRight)) = set(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)), scr)(plus.blame)
+            AmbiguousPlus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))(plus.blame)
           }, {
             val (coercedLeft, TBag(elementLeft)) = bag(left)
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)), scr)(plus.blame)
+            AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
           },
         )
       case plus@JavaPlus(left, right) =>
@@ -799,8 +796,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
-      case StringClassConcat(left, right, classRef, concatRef) =>
-        StringClassConcat(stringClass(left, Some(classRef)), stringClass(right, Some(classRef)), classRef, concatRef)
+      case StringClassConcat(left, right) =>
+        StringClassConcat(stringClass(left), stringClass(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case CStructDeref(struct, field) =>
@@ -902,7 +899,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case str @ JavaStringLiteral(_) => str
       case str @ StringLiteral(_) => str
-      case str @ InternedString(_, _) => str
+      case str @ Intern(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -1442,8 +1439,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
-      case display: ConcatDisplay[Pre] =>
-        display
     }
   }
 
