@@ -127,7 +127,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case arr: JavaNewDefaultArray[Pre] => java.newDefaultArray(arr)
     case str: JavaStringLiteral[Pre] => java.stringLiteral(str)
     case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
-    case plus: JavaPlus[Pre] => java.plus(plus)
 
     case Cast(inner, TypeValue(t)) if t == Java.float[Pre] || t == Java.double[Pre] =>
       CastFloat(dispatch(inner), dispatch(t))(e.o)

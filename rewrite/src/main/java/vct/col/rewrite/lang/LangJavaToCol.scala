@@ -522,9 +522,4 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     case cls: JavaClass[Pre] if javaLangStringClass.contains(cls) => TStringClass()(t.o)
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
-
-  // TODO (RR): This can probably be inlined...?
-  def plus(plus: JavaPlus[Pre]): Expr[Post] = {
-    AmbiguousPlus(rw.dispatch(plus.left), rw.dispatch(plus.right))(plus.blame)(plus.o)
-  }
 }

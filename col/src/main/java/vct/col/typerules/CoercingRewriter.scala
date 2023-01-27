@@ -687,6 +687,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(javaStringClass(left), javaStringClass(right))(plus.blame),
           AmbiguousPlus(stringClass(left), stringClass(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
@@ -703,25 +704,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          },
-        )
-      case plus@JavaPlus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a java.lang.String, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
-          JavaPlus(int(left), int(right))(plus.blame),
-          JavaPlus(float(left), float(right))(plus.blame),
-          JavaPlus(rat(left), rat(right))(plus.blame),
-          JavaPlus(process(left), process(right))(plus.blame),
-          JavaPlus(javaStringClass(left), javaStringClass(right))(plus.blame),
-          {
-            val (coercedLeft, TSet(elementLeft)) = set(left)
-            val (coercedRight, TSet(elementRight)) = set(right)
-            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            JavaPlus(coerce(coercedLeft, TSet(sharedType)), coerce(coercedRight, TSet(sharedType)))(plus.blame)
-          }, {
-            val (coercedLeft, TBag(elementLeft)) = bag(left)
-            val (coercedRight, TBag(elementRight)) = bag(right)
-            val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
-            JavaPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
           },
         )
       case AmbiguousResult() => e
