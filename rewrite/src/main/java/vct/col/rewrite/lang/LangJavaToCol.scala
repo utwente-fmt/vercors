@@ -227,6 +227,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
             pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
           )(method.blame)(JavaMethodOrigin(method)))
+
+          method.modifiers.collectFirst {
+            case m@JavaFocus() => rw.globalDeclarations.declare(FilterIndicator(javaMethod(method).ref, focus = true))
+          }
         }
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
