@@ -8,6 +8,7 @@ import scala.collection.mutable
 
 case class ReferenceResolutionContext[G]
 (
+  program: Program[G],
   stack: Seq[Seq[Referrable[G]]] = Nil,
   externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
   checkContext: CheckContext[G] = CheckContext[G](),

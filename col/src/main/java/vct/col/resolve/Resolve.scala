@@ -103,7 +103,7 @@ case object ResolveTypes {
 
 case object ResolveReferences {
   def resolve[G](program: Program[G]): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G]())
+    resolve(program, ReferenceResolutionContext[G](program))
   }
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
@@ -389,8 +389,10 @@ case object ResolveReferences {
         case _ => throw WrongArrayInitializer(arr)
       })
     case lit: JavaStringLiteral[G] =>
-      lit.typeRef = findJavaLangStringClass(ctx.asTypeResolutionContext)
-      if (lit.typeRef.isEmpty) throw Unreachable("Did not find java.lang.String but should")
+      ctx.program.collectFirst { case cls: JavaClass[G] if cls.isJavaStringClass => cls } match {
+        case Some(cls) => lit.ref = Some(cls)
+        case None => Unreachable("Did not find java.lang.String but should")
+      }
 
     case _ =>
   }
