@@ -252,13 +252,15 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit2(_) => Null()
     case Unit3(n) => const(BigInt(n))
     case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
-    case Unit5(n) => FloatValue(BigDecimal(n.init /* take off final "f" */), PVL.float32)
-    case Unit6(_, inner, _) => convert(inner)
-    case Unit7(id, None) => local(id, convert(id))
-    case Unit7(id, Some(Call0(typeArgs, args, given, yields))) =>
+    case Unit5(s"${n}f") /* take off final "f" */ => FloatValue(BigDecimal(n), PVL.float32)
+    case Unit6(data) => StringLiteral(data.substring(1, data.length - 1))
+    case Unit7(s"'$data'") => CharLiteral(data)
+    case Unit8(_, inner, _) => convert(inner)
+    case Unit9(id, None) => local(id, convert(id))
+    case Unit9(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case Unit8(inner) => convert(inner)
+    case Unit10(inner) => convert(inner)
   }
 
   def convert(implicit stat: StatementContext): Statement[G] = stat match {
@@ -452,12 +454,12 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit t: NonArrayTypeContext): Type[G] = t match {
     case NonArrayType0(inner) => convert(inner)
     case NonArrayType1(name) => name match {
-      case "string" => TString()
       case "int" => TInt()
       case "boolean" => TBool()
       case "void" => TVoid()
       case "float32" => PVL.float32
       case "float64" => PVL.float64
+      case "char" => TChar()
     }
     case NonArrayType2(inner) => convert(inner)
   }
@@ -902,6 +904,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       case "ref" => TRef()
       case "any" => TAny()
       case "nothing" => TNothing()
+      case "string" => TString()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))

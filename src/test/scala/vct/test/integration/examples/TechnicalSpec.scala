@@ -2,6 +2,15 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
+class TechnicalSpec2 extends VercorsSpec {
+  vercors should verify using silicon in "example using strings and chars" pvl """
+    void m() {
+      char myChar = 'x';
+      string xs = "abc";
+    }
+  """
+}
+
 class TechnicalSpec extends VercorsSpec {
   vercors should verify using silicon in "example using triggers" java """
     class C {

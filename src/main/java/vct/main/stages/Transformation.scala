@@ -166,6 +166,7 @@ case class SilverTransformation
     // Q (RR): Should the next two passes be more in the center of the pass list? Like the exception passes?
     EncodeStringClass, // Encode java strings as string objects and interning functions
     EncodeString, // Encode spec string as seq<int>
+    EncodeChar,
 
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.

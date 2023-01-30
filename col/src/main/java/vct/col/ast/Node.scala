@@ -493,6 +493,7 @@ final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZer
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 final case class StringLiteral[G](data: String)(implicit val o: Origin) extends Expr[G] with StringLiteralImpl[G]
+final case class CharLiteral[G](data: String)(implicit val o: Origin) extends Expr[G] with CharLiteralImpl[G]
 
 final class StringClass[G](val intern: Ref[G, Function[G]], val concat: Ref[G, Function[G]], val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 final case class TStringClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G]

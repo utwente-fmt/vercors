@@ -653,5 +653,6 @@ class FeatureRainbow[G] {
     case node: TStringClass[G] => return Nil
     case node: StringClass[G] => return Nil
     case node: ThisStringClass[G] => return Nil
+    case node: CharLiteral[G] => return Nil
   })
 }
