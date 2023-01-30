@@ -10,7 +10,6 @@ import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.Java.findJavaLangStringClass
 import vct.col.typerules.Types
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -503,9 +502,10 @@ case object Java extends LazyLogging {
   def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
   def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
 
-  def findJavaLangStringClass[G](ctx: TypeResolutionContext[G]): Option[JavaClass[G]] =
-    findJavaTypeName(Java.JAVA_LANG_STRING, ctx) match {
-      case Some(RefJavaClass(cls: JavaClass[G])) => Some(cls)
-      case _ => None
+  def findBuiltInString[G](ctx: ReferenceResolutionContext[G]): Option[JavaClass[G]] =
+    ctx.stack.flatten.collect {
+      case RefJavaNamespace(ns) => ns.declarations
+    }.flatten.collectFirst {
+      case cls: JavaClass[G] if cls.isJavaStringClass => cls
     }
 }

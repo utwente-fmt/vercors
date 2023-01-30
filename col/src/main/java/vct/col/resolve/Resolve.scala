@@ -6,7 +6,6 @@ import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.Java.findJavaLangStringClass
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
 import vct.result.VerificationError.Unreachable
 
@@ -103,7 +102,7 @@ case object ResolveTypes {
 
 case object ResolveReferences {
   def resolve[G](program: Program[G]): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G](program))
+    resolve(program, ReferenceResolutionContext[G]())
   }
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
@@ -389,10 +388,7 @@ case object ResolveReferences {
         case _ => throw WrongArrayInitializer(arr)
       })
     case lit: JavaStringLiteral[G] =>
-      ctx.program.collectFirst { case cls: JavaClass[G] if cls.isJavaStringClass => cls } match {
-        case Some(cls) => lit.ref = Some(cls)
-        case None => Unreachable("Did not find java.lang.String but should")
-      }
+      lit.ref = Java.findBuiltInString(ctx).orElse(throw Unreachable("Did not find java.lang.String, but should"))
 
     case _ =>
   }

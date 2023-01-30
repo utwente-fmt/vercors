@@ -114,7 +114,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "final" => JavaFinal()
       case "strictfp" => JavaStrictFP()
     }
-    case ClassOrInterfaceModifier2(_, "\\builtin_String", _) => JavaBuiltinString()
+    case ClassOrInterfaceModifier2(_, "builtin_String", _) => JavaBuiltinString()
   }
 
   def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {

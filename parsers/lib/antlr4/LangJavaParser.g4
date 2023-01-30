@@ -83,7 +83,7 @@ classOrInterfaceModifier
         |   'final'      // class only -- does not apply to interfaces
         |   'strictfp'   // class or interface
         )
-    | startSpec BuiltInString endSpec
+    | startSpec 'builtin_String' endSpec
     ;
 
 variableModifier

@@ -431,8 +431,6 @@ EmbeddedLatex
     : '#' ~[\r\n]* '#' -> skip
     ;
 
-BuiltInString: '\\builtin_String';
-
 /* This is the mode we are already in, but it serves as a workaround for the ANTLR import order. All rules in this file
  * will have precedence over the imported rules, so any reserved keywords would never be lexed, because Identifier
  * appears first. However, tokens with an explicit mode always appear after all other rules, so by explicitly setting

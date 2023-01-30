@@ -53,6 +53,7 @@ VAL_STRING: 'string';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
+VAL_BUILTIN_STRING: 'builtin_String';
 
 VAL_WITH: 'with';
 VAL_THEN: 'then';

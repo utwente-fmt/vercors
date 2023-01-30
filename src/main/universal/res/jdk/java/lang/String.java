@@ -28,7 +28,7 @@ ensures \result != null ** \result instanceof String;
 pure String concatStrings(String a, String b);
 @*/
 
-public /*@ \builtin_String @*/ class String {
+public /*@ builtin_String @*/ class String {
     /*@
     decreases;
     pure string data();
