@@ -86,8 +86,8 @@ case object PVL {
   def builtinInstanceMethod[G](obj: Expr[G], method: String, args: Seq[Expr[G]]): Option[PVLBuiltinInstanceMethod[G]] = {
     implicit val o: Origin = obj.o
     Some((obj.t, method, args) match {
-      case (TStringClass(), "intern", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => Intern(obj))
-      case (TStringClass(), "data", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => StringClassGetData(obj))
+      case (TStringClass(), "intern", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => StringClassIntern(obj))
+      case (TStringClass(), "data", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => StringClassData(obj))
       case (TFloat(_, _), "toFloat32", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => CastFloat(obj, PVL.float32))
       case (TFloat(_, _), "toFloat64", Seq()) => PVLBuiltinInstanceMethod[G](obj => _ => CastFloat(obj, PVL.float64))
       case _ => return None

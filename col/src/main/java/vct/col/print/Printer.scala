@@ -599,7 +599,7 @@ case class Printer(out: Appendable,
       (phrase(s""""${data}""""), 100)
     case StringValue(data) =>
       (phrase(s""""${data}""""), 100)
-    case Intern(data) =>
+    case StringClassIntern(data) =>
       (phrase(s"\\internedString($data)"), 100)
     case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {

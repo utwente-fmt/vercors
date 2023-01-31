@@ -1,7 +1,7 @@
 package vct.col.rewrite.adt
 
 import vct.col.ast.RewriteHelpers.RewriteProgram
-import vct.col.ast.{AxiomaticDataType, Declaration, Expr, Intern, PVLStringClassNew, Procedure, ProcedureInvocation, Program, StringClass, StringClassConcat, TStringClass}
+import vct.col.ast.{AxiomaticDataType, Declaration, Expr, StringClassIntern, PVLStringClassNew, Procedure, ProcedureInvocation, Program, StringClass, StringClassConcat, TStringClass}
 import vct.col.origin.PanicBlame
 import vct.col.rewrite.Generation
 import vct.col.serialize.Expr.V.Empty.procedureInvocation
@@ -23,7 +23,7 @@ case class ImportStringClass[Pre <: Generation](importer: ImportADTImporter) ext
 
   lazy val usesStringClass = program.collectFirst {
     case TStringClass() => true
-    case Intern(_) => true
+    case StringClassIntern(_) => true
     case StringClassConcat(_, _) => true
   }.contains(true)
 

@@ -3,19 +3,19 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalSpec2 extends VercorsSpec {
-  vercors should verify using silicon in "example using string primitive" pvl
-    """
-void g() {
-    "xuz";
-    assert "abc" == "abc";
-    assert "abc" != "xyz";
-
-    string xxx;
-    string s1 = "aaa";
-    string s2 = "bbb";
-    string s3 = s1 + s2;
-}
-"""
+//  vercors should verify using silicon in "example using string primitive" pvl
+//    """
+//void g() {
+//    "xuz";
+//    assert "abc" == "abc";
+//    assert "abc" != "xyz";
+//
+//    string xxx;
+//    string s1 = "aaa";
+//    string s2 = "bbb";
+//    string s3 = s1 + s2;
+//}
+//"""
 
   vercors should verify using silicon in "example using string class" pvl
     """

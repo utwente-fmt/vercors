@@ -1,7 +1,7 @@
 package vct.col.ast.expr.misc
 
-import vct.col.ast.{StringClassGetData, TString, Type}
+import vct.col.ast.{StringClassData, TString, Type}
 
-trait StringClassGetDataImpl[G] { this: StringClassGetData[G] =>
+trait StringClassGetDataImpl[G] { this: StringClassData[G] =>
   def t: Type[G] = TString();
 }

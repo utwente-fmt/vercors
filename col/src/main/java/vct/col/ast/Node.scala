@@ -505,8 +505,8 @@ final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZer
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 final case class StringClassConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringClassConcatImpl[G]
-final case class Intern[G](data: Expr[G])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
-final case class StringClassGetData[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with StringClassGetDataImpl[G]
+final case class StringClassIntern[G](data: Expr[G])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
+final case class StringClassData[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with StringClassGetDataImpl[G]
 
 final case class BitAnd[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitAndImpl[G]
 final case class BitOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitOrImpl[G]

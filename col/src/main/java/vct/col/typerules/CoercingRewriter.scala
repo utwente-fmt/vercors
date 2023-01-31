@@ -893,7 +893,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case str @ JavaStringLiteral(_) => str
       case str @ StringValue(_) => str
-      case str @ Intern(expr) => Intern(stringClass(expr))
+      case str @ StringClassIntern(expr) => StringClassIntern(stringClass(expr))
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -1181,7 +1181,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))(starall.blame)
-      case StringClassGetData(expr) => StringClassGetData(stringClass(expr))
+      case StringClassData(expr) => StringClassData(stringClass(expr))
       case SubBag(left, right) =>
         val (coercedLeft, leftBag) = bag(left)
         val (coercedRight, rightBag) = bag(right)

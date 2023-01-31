@@ -20,7 +20,7 @@ class String  {
     decreases;
     requires b != null;
     ensures \result != null;
-    ensures \result.data() == this.data() + b.data();
+    ensures \result.data() == data() + b.data();
     pure String concat(String b);
 
     decreases;

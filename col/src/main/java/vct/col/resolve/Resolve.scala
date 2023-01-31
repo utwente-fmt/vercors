@@ -163,6 +163,7 @@ case object ResolveReferences {
       .declare(cls.declarations)
     case cls: StringClass[G] => ctx
       .copy(currentThis=Some(RefStringClass(cls)))
+      .declare(cls.declarations)
     case app: ContractApplicable[G] => ctx
       .copy(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))

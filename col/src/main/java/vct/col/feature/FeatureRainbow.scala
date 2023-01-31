@@ -644,7 +644,7 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
-    case node: Intern[G] => return Nil
+    case node: StringClassIntern[G] => return Nil
     case node: StringValue[G] => return Nil
     case node: EnumConstant[G] => return Nil
     case node: Enum[G] => return Nil

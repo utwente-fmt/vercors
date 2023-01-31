@@ -1,6 +1,6 @@
 package vct.col.rewrite
 
-import vct.col.ast.{ADTFunction, ADTFunctionInvocation, ApplicableRef, Class, ClassDeclaration, Declaration, Expr, Function, InstanceFunction, InstanceFunctionInvocation, Intern, Program, StringClass, StringClassConcat, StringClassGetData, StringValue, TClass, TStringClass, ThisObject, ThisStringClass, Type}
+import vct.col.ast.{ADTFunction, ADTFunctionInvocation, ApplicableRef, Class, ClassDeclaration, Declaration, Expr, Function, InstanceFunction, InstanceFunctionInvocation, StringClassIntern, Program, StringClass, StringClassConcat, StringClassGetData, StringValue, TClass, TStringClass, ThisObject, ThisStringClass, Type}
 import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{RefInstanceFunction, Referrable}
@@ -58,7 +58,7 @@ case class EncodeStringClass[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case i @ Intern(data) =>
+    case i @ StringClassIntern(data) =>
       call("Interning a string cannot fail", intern, dispatch(data), Seq())(i.o)
     case c @ StringClassConcat(left, right) =>
       // TODO (RR): Not true, null!
