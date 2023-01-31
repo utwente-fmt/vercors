@@ -230,7 +230,7 @@ final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with EnumImpl[G]
 final class EnumConstant[G]()(implicit val o: Origin) extends Declaration[G]
-final class StringClass[G](val intern: ApplicableRef[G], val concat: ApplicableRef[G], val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+final class StringClass[G](val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 
 sealed trait ApplicableRef[G] extends NodeFamily[G] with ApplicableRefImpl[G]
 case class DirectApplicableRef[G](app: Ref[G, Applicable[G]])(implicit val o: Origin) extends ApplicableRef[G]
@@ -323,9 +323,7 @@ final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] 
 final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
 final case class CoerceNullClass[G](targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullClassImpl[G]
 final case class CoerceNullJavaClass[G](targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullJavaClassImpl[G]
-final case class CoerceNullStringClass[G]()(implicit val o: Origin) extends Coercion[G] {
-  val target: Type[G] = TStringClass()
-}
+final case class CoerceNullStringClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullStringClassImpl[G]
 final case class CoerceNullAnyClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullAnyClassImpl[G]
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullPointerImpl[G]
 final case class CoerceNullEnum[G](targetEnum: Ref[G, Enum[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullEnumImpl[G]
@@ -508,6 +506,7 @@ final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZer
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 final case class StringClassConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringClassConcatImpl[G]
 final case class Intern[G](data: Expr[G])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
+final case class StringClassGetData[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with StringClassGetDataImpl[G]
 
 final case class BitAnd[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitAndImpl[G]
 final case class BitOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitOrImpl[G]

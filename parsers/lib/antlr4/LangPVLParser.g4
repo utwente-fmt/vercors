@@ -12,7 +12,7 @@ enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
  : contract 'class' identifier '{' classDecl* '}'
- | 'class' 'String' '(' applicableReference ',' applicableReference ')' '{' classDecl* '}'
+ | 'class' 'String' '{' classDecl* '}'
  ;
 
 applicableReference

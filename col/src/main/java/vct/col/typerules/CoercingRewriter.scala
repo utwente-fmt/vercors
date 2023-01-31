@@ -181,6 +181,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceNullArray(_) => e
       case CoerceNullClass(_) => e
       case CoerceNullJavaClass(_) => e
+      case CoerceNullStringClass() => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
       case CoerceFracZFrac() => e
@@ -891,7 +892,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case str @ JavaStringLiteral(_) => str
       case str @ StringValue(_) => str
-      case str @ Intern(_) => str
+      case str @ Intern(expr) => Intern(stringClass(expr))
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -1098,7 +1099,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
       case PVLNew(t, args, givenMap, yields) => e
-      case PVLStringClassNew(expr) => PVLStringClassNew(string(e))
+      case PVLStringClassNew(str) => PVLStringClassNew(string(str))
       case Range(from, to) =>
         Range(int(from), int(to))
       case ReadPerm() =>
@@ -1179,6 +1180,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))(starall.blame)
+      case StringClassGetData(expr) => StringClassGetData(stringClass(expr))
       case SubBag(left, right) =>
         val (coercedLeft, leftBag) = bag(left)
         val (coercedRight, rightBag) = bag(right)

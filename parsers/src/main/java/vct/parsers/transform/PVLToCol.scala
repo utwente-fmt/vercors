@@ -65,8 +65,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
         )(SourceNameOrigin(convert(name), origin(cls)))
       })
-    case DeclClass1(_, "String", _, internRef, _, concatRef, _, _, decls, _) =>
-      new StringClass(convert(internRef), convert(concatRef), decls.flatMap(convert(_)))
+    case DeclClass1(_, "String", _, decls, _) =>
+      new StringClass(decls.flatMap(convert(_)))
   }
 
   def convert(implicit applicableRef: ApplicableReferenceContext): ApplicableRef[G] = applicableRef match {

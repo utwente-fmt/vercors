@@ -104,7 +104,9 @@ class Transformation
         case (key, action) => if(pass.key == key) action(result)
       }
 
+      logger.info(pass.key)
       result = pass().dispatch(result)
+      logger.info(s"done: ${pass.key}")
 
       result.check match {
         case Nil => // ok
@@ -163,9 +165,9 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
 
+    ImportStringClass.withArg(adtImporter), // Import StringClass type if not present in AST // TODO (RR): Maybe merge this with EncodeStringClass?
     // Q (RR): Should the next two passes be more in the center of the pass list? Like the exception passes?
     EncodeStringClass, // Encode java strings as string objects and interning functions
-    ImportStringClass.withArg(adtImporter), // Import StringClass type if not present in AST
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,
 

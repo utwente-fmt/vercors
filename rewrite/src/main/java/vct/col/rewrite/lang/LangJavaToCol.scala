@@ -258,17 +258,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def rewriteJavaLangStringClass(cls: JavaClass[Pre]): Unit = {
-    val intern = namespace.top.declarations.collectFirst {
-      case function: Function[Pre] if function.o.preferredName == "internToString" => function
-    }.getOrElse(???)
-    val concat = namespace.top.declarations.collectFirst {
-      case function: Function[Pre] if function.o.preferredName == "concatStrings" => function
-    }.getOrElse(???)
-
     val stringClass = rw.currentThis.having(ThisStringClass[Post](javaStringClassSuccessor.ref(cls))(cls.o)) {
       new StringClass[Post](
-        intern = DirectApplicableRef(rw.succ(intern).asInstanceOf[Ref[Post, Applicable[Post]]])(cls.o),
-        concat = DirectApplicableRef(rw.succ(concat).asInstanceOf[Ref[Post, Applicable[Post]]])(cls.o),
         declarations = rw.classDeclarations.collect(cls.decls.collect {
           case method: JavaMethod[Pre] => method
           case function: InstanceFunction[Pre] => function

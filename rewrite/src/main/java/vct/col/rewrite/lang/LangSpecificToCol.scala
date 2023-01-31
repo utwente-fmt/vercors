@@ -76,6 +76,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         }
       }
 
+    case cls: StringClass[Pre] =>
+      implicit val o: Origin = cls.o
+      currentThis.having(ThisStringClass[Post](succ(cls))) {
+        globalDeclarations.succeed(cls, cls.rewrite())
+      }
+
     case other => rewriteDefault(other)
   }
 

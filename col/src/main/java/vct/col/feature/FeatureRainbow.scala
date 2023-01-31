@@ -654,5 +654,6 @@ class FeatureRainbow[G] {
     case node: StringClass[G] => return Nil
     case node: ThisStringClass[G] => return Nil
     case node: CharValue[G] => return Nil
+    case node: PVLStringClassNew[G] => return Nil
   })
 }
