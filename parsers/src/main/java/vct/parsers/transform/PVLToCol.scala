@@ -466,6 +466,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit t: ClassTypeContext): Type[G] = t match {
     case ClassType0(name, typeArgs) => PVLNamedType(convert(name), typeArgs.map(convert(_)).getOrElse(Nil))
+    case ClassType1("String") => TStringClass()
   }
 
   def convert(implicit ts: TypeArgsContext): Seq[Type[G]] = ts match {

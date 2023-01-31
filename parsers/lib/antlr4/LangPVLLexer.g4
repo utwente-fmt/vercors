@@ -98,6 +98,7 @@ INT: 'int';
 CHAR: 'char';
 FLOAT32: 'float32';
 FLOAT64: 'float64';
+STRING_CLASS: 'String';
 
 NUMBER : ('0'..'9')+;
 DECIMAL_NUMBER : ('0'..'9')+ '.' ('0'..'9')+;
@@ -115,7 +116,7 @@ STRING_LITERAL : '"' STRING_CHARACTER* '"';
 
 fragment
 STRING_CHARACTER
-    : ~["\\]
+    : ~["\\ | 'String']
     | ESCAPE
     ;
 

@@ -31,7 +31,7 @@ class TechnicalSpec2 extends VercorsSpec {
 
       assert "".isEmpty() || !"".isEmpty();
 
-      assert new String("abc").intern() == new String("abc").intern();
+      assert (new String("abc")).intern() == (new String("abc")).intern();
   }
 """
 }

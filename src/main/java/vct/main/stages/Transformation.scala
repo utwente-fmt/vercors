@@ -165,6 +165,7 @@ case class SilverTransformation
 
     // Q (RR): Should the next two passes be more in the center of the pass list? Like the exception passes?
     EncodeStringClass, // Encode java strings as string objects and interning functions
+    ImportString, // Import StringClass type if not present in AST
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,
 

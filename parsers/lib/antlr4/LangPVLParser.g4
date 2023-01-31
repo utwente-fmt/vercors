@@ -246,7 +246,10 @@ typeDims
 newDims : quantifiedDim+ ;
 quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
-classType : identifier typeArgs?;
+classType
+ : identifier typeArgs?
+ | 'String'
+ ;
 typeArgs : '<' typeList '>';
 
 identifierList
