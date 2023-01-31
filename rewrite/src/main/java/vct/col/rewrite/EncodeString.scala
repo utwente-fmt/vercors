@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast
-import vct.col.ast.{CharLiteral, Expr, LiteralSeq, StringLiteral, TChar, TInt, TSeq, TString, Type}
+import vct.col.ast.{CharLiteral, Expr, LiteralSeq, StringValue, TChar, TInt, TSeq, TString, Type}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.EncodeString.toCodepoints
@@ -27,7 +27,7 @@ case object EncodeString extends RewriterBuilder {
 
 case class EncodeString[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case StringLiteral(data) => LiteralSeq[Post](TChar(), toCodepoints(data).map(CharLiteral(_)(expr.o)))(expr.o)
+    case StringValue(data) => LiteralSeq[Post](TChar(), toCodepoints(data).map(CharLiteral(_)(expr.o)))(expr.o)
     case e => rewriteDefault(e)
   }
 

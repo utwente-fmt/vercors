@@ -1,8 +1,8 @@
 package vct.col.ast.expr.misc
 
-import vct.col.ast.{StringLiteral, TString, Type}
+import vct.col.ast.{StringValue, TString, Type}
 
 trait StringLiteralImpl[G] {
-  this: StringLiteral[G] =>
+  this: StringValue[G] =>
   override def t: Type[G] = TString()
 }

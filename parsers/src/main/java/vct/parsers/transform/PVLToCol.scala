@@ -253,7 +253,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit3(n) => const(BigInt(n))
     case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
     case Unit5(s"${n}f") /* take off final "f" */ => FloatValue(BigDecimal(n), PVL.float32)
-    case Unit6(data) => StringLiteral(data.substring(1, data.length - 1))
+    case Unit6(data) => StringValue(data.substring(1, data.length - 1))
     case Unit7(s"'$data'") => CharLiteral(data)
     case Unit8(_, inner, _) => convert(inner)
     case Unit9(id, None) => local(id, convert(id))

@@ -597,7 +597,7 @@ case class Printer(out: Appendable,
       (phrase("{", commas(exprs.map(NodePhrase)), "}"), 120)
     case JavaStringLiteral(data) =>
       (phrase(s""""${data}""""), 100)
-    case StringLiteral(data) =>
+    case StringValue(data) =>
       (phrase(s""""${data}""""), 100)
     case Intern(data) =>
       (phrase(s"\\internedString($data)"), 100)
