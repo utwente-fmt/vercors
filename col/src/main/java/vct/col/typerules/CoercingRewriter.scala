@@ -682,13 +682,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           AmbiguousOr(process(left), process(right)),
         )
       case plus @ AmbiguousPlus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, bag, or string; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
           AmbiguousPlus(javaStringClass(left), javaStringClass(right))(plus.blame),
           AmbiguousPlus(stringClass(left), stringClass(right))(plus.blame),
+          AmbiguousPlus(string(left), string(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
