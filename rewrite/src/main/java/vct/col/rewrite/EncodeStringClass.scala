@@ -23,7 +23,7 @@ case class EncodeStringClass[Pre <: Generation]() extends Rewriter[Pre] {
     case ref @ RefInstanceFunction(f) if ref.name == "intern" => f
   }.get
   lazy val concat = stringClass.declarations.flatMap(Referrable.from(_)).collectFirst {
-    case ref @ RefInstanceFunction(f) if ref.name == "concatStrings" => f
+    case ref @ RefInstanceFunction(f) if ref.name == "concat" => f
   }.get
   lazy val data = stringClass.declarations.flatMap(Referrable.from(_)).collectFirst {
     case ref @ RefInstanceFunction(f) if ref.name == "data" => f

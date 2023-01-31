@@ -25,7 +25,7 @@ pure String internToString(string data) = StringBijection.toString(data);
 ghost
 decreases;
 ensures \result != null ** \result instanceof String;
-pure String concatStrings(String a, String b);
+pure String concat(String a, String b);
 @*/
 
 public /*@ builtin_String @*/ class String {

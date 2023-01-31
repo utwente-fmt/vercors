@@ -21,7 +21,7 @@ class String  {
     requires b != null;
     ensures \result != null;
     ensures \result.data() == this.data() + b.data();
-    pure String concatStrings(String b);
+    pure String concat(String b);
 
     decreases;
     pure string data();
