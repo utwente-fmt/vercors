@@ -287,7 +287,7 @@ case class UnitAccountedPredicate[G](pred: Expr[G])(implicit val o: Origin) exte
 case class SplitAccountedPredicate[G](left: AccountedPredicate[G], right: AccountedPredicate[G])(implicit val o: Origin) extends AccountedPredicate[G] with SplitAccountedPredicateImpl[G]
 
 sealed trait FieldFlag[G] extends NodeFamily[G] with FieldFlagImpl[G]
-final class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
+final case class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
 
 sealed trait Coercion[G] extends NodeFamily[G] with CoercionImpl[G]
 final case class CoerceIdentity[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceIdentityImpl[G]
