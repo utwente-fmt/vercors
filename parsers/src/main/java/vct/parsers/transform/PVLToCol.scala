@@ -91,9 +91,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
   }
 
+  def convert(implicit finalFlag: FinalFlagContext): FieldFlag[G] = finalFlag match {
+    case FinalFlag0(_) => Final()
+  }
+
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
-    case Field0(t, ids, _) =>
-      convert(ids).map(name => new InstanceField[G](convert(t), Set.empty)(SourceNameOrigin(name, origin(field))))
+    case Field0(finalFlag, t, ids, _) =>
+      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(SourceNameOrigin(name, origin(field))))
   }
 
   def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
