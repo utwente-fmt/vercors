@@ -11,8 +11,7 @@ case object EncodeChar extends RewriterBuilder {
 case class EncodeChar[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case CharValue(data) =>
-      assert(Character.charCount(data.codePointAt(0)) == data.length)
-      const(data.codePointAt(0))(expr.o)
+      const(data)(expr.o)
     case e => rewriteDefault(e)
   }
 

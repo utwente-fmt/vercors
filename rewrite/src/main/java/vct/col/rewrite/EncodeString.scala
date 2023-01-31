@@ -13,12 +13,12 @@ case object EncodeString extends RewriterBuilder {
   override def key: String = "encodeString"
   override def desc: String = "Encodes spec string using seq<char>."
 
-  def toCodepoints(str: String): Seq[String] = {
-    val all = ArrayBuffer[String]()
+  def toCodepoints(str: String): Seq[Int] = {
+    val all = ArrayBuffer[Int]()
     var offset = 0
     while (offset < str.length) {
       val codepoint = str.codePointAt(offset)
-      all.addOne(Character.toString(codepoint))
+      all.addOne(codepoint)
       offset += Character.charCount(codepoint)
     }
     all.toSeq
