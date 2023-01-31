@@ -1,7 +1,7 @@
 package vct.col.ast.util
 
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.col.ast.{And, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Range, SeqMember, Star, UMinus, Wand}
+import vct.col.ast.{And, BinExpr, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Range, SeqMember, Star, UMinus, Wand}
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -152,6 +152,13 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     case _ => isConstantInt(e).getOrElse(0) != 0
   }
 
+  def unfoldComm[B <: BinExpr[G]](e: Expr[G], base: B): Seq[Expr[G]] = {
+    e match {
+      case e: B if e.getClass == base.getClass => unfoldComm[B](e.left, base) ++ unfoldComm[B](e.right, base)
+      case _ => Seq(e)
+    }
+  }
+
   //
   def equalExpressionsRecurse(lhs: Expr[G], rhs: Expr[G]): Boolean = {
     (isConstantInt(lhs), isConstantInt(rhs)) match {
@@ -161,15 +168,64 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       case _ => return false
     }
 
+    def partitionOptionList[A,B](xs: Seq[A], f: Function[A,Option[B]]): (Seq[A], Seq[B]) = {
+      var resLeft: Seq[A] = Seq()
+      var resRight: Seq[B] = Seq()
+      for(x <- xs){
+        f(x) match {
+          case Some(b) => resRight ++= Seq(b)
+          case None => resLeft ++= Seq(x)
+        }
+      }
+      (resLeft, resRight)
+    }
+
+    def commAssoc[B <: BinExpr[G]](e1: B, e2: B): Boolean = {
+      val e1s = unfoldComm[B](e1, e1)
+      val e2s = unfoldComm[B](e2, e2)
+
+      val (e1rest, e1Ints) = partitionOptionList(e1s, isConstantInt)
+      val (e2rest, e2Ints) = partitionOptionList(e2s, isConstantInt)
+
+      if(e1rest.size != e2rest.size) return false
+
+      val res1: Boolean = e1 match {
+        case _: Plus[G] =>
+          e1Ints.sum == e2Ints.sum
+        case _: Mult[G] =>
+          e1Ints.product == e2Ints.product
+          // Should not be reachable
+        case _ => ???
+      }
+      if(!res1) return false
+
+      var available: Seq[Expr[G]] = e2rest
+
+      for(x <- e1rest){
+        var found = false
+        val freezeAvailable = available
+
+        for(y <- freezeAvailable){
+          if(!found && equalExpressionsRecurse(x, y)){
+            found = true
+            available = available.diff(Seq(y))
+          }
+        }
+        if(!found) return false
+      }
+
+      true
+    }
+
     def comm(lhs1: Expr[G], lhs2: Expr[G], rhs1: Expr[G], rhs2: Expr[G]): Boolean =
-      (equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)) ||
-      (equalExpressionsRecurse(lhs1, rhs2) && equalExpressionsRecurse(lhs2, rhs1))
+      equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2) ||
+        equalExpressionsRecurse(lhs2, rhs1) && equalExpressionsRecurse(lhs1, rhs2)
 
     (lhs, rhs) match {
       // Unsure if we could check/pattern match on this easier
       // Commutative operators
-      case (Plus(lhs1, lhs2), Plus(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
-      case (Mult(lhs1, lhs2), Mult(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
+      case (lhs@Plus(_, _), rhs@Plus(_, _)) => commAssoc(lhs, rhs)
+      case (lhs@Mult(_, _), rhs@Mult(_, _)) => commAssoc(lhs, rhs)
       case (BitAnd(lhs1, lhs2), BitAnd(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (BitOr(lhs1, lhs2), BitOr(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (BitXor(lhs1, lhs2), BitXor(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)

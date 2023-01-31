@@ -247,6 +247,14 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
   case class NonConstantVariables(vars: Set[Variable[Pre]])
 
+  def isConstant(e: Expr[Post]): Boolean = e match {
+    case _ : Constant[Post, _] => true
+    // TODO: Is this true??
+//    case _: Local[Post] => true
+    case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
+    case _ => false
+  }
+
   def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Statement[Post] = region match {
     case ParParallel(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
     case ParSequential(regions) => Block(regions.map(ranges(_, rangeValues)))(region.o)
@@ -264,10 +272,14 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         } else {
           val lo = variables.declare(new Variable[Post](TInt())(LowEvalOrigin(v)))
           val hi = variables.declare(new Variable[Post](TInt())(HighEvalOrigin(v)))
-          rangeValues(v.variable) = (lo.get, hi.get)
+          val from = dispatch(v.from)
+          val to = dispatch(v.to)
+          val low = if(isConstant(from)) from else lo.get
+          val high = if(isConstant(to)) to else hi.get
+          rangeValues(v.variable) = (low, high)
           res ++ Seq(
-            assignLocal(lo.get, dispatch(v.from)),
-            assignLocal(hi.get, dispatch(v.to)),
+            assignLocal(lo.get, from),
+            assignLocal(hi.get, to),
           )
         }
       })(region.o)

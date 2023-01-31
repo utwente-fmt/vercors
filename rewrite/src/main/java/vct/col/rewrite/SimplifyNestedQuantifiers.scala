@@ -243,33 +243,38 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       */
     def getBounds(potentialBounds: Iterable[Expr[Pre]]): Unit = {
       for (bound <- potentialBounds) {
-        // First try to match a simple comparison
-        Comparison.of(bound) match {
-          case Some((_, Comparison.NEQ, _)) => dependentConditions.addOne(bound)
-          case Some((left, comp, right)) =>
-            if (indepOf(bindings, right)) {
-              // x >|>=|==|<=|< 5
-              left match {
-                case Local(Ref(v)) if bindings.contains(v) => addSingleBound(v, right, comp)
-                case _ => dependentConditions.addOne(bound)
-              }
-            } else if (indepOf(bindings, left)) {
-              right match {
-                case Local(Ref(v)) if bindings.contains(v) =>
-                  // If the quantified variable is the second argument: flip the relation
-                  addSingleBound(v, left, comp.flip)
-                case _ => dependentConditions.addOne(bound)
-              }
-            }
-          case None => bound match {
-            // If we do not have a simple comparison, we support one special case: i \in {a..b}
-            case SeqMember(Local(Ref(v)), Range(from, to))
-              if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
-              addSingleBound(v, from, Comparison.GREATER_EQ)
-              addSingleBound(v, to, Comparison.LESS)
+        getSingleBound(bound)
+      }
+    }
+
+    def getSingleBound(bound: Expr[Pre]): Unit = Comparison.of(bound) match {
+      // First try to match a simple comparison
+      case Some((_, Comparison.NEQ, _)) => dependentConditions.addOne(bound)
+      case Some((left, comp, right)) =>
+        if (indepOf(bindings, right)) {
+          // x >|>=|==|<=|< 5
+          left match {
+            case Local(Ref(v)) if bindings.contains(v) => addSingleBound(v, right, comp)
+            case Plus(ll, rr) if indepOf(bindings, rr) => getSingleBound(comp.make(ll, right - rr))
+            case Plus(ll, rr) if indepOf(bindings, ll) => getSingleBound(comp.make(rr, right - ll))
+            case Minus(ll, rr) if indepOf(bindings, rr) => getSingleBound(comp.make(ll, right + rr))
             case _ => dependentConditions.addOne(bound)
           }
+        } else if (indepOf(bindings, left)) {
+          getSingleBound(comp.flip.make(right, left))
+        } else {
+          dependentConditions.addOne(bound)
         }
+      case None => bound match {
+        // If we do not have a simple comparison, we support one special case: i \in {a..b}
+        case SeqMember(Local(Ref(v)), Range(from, to))
+          if bindings.contains(v) && indepOf(bindings, from) && indepOf(bindings, to) =>
+          addSingleBound(v, from, Comparison.GREATER_EQ)
+          addSingleBound(v, to, Comparison.LESS)
+        case SeqMember(left, Range(from, to)) =>
+          getSingleBound(Comparison.GREATER_EQ.make(left, from))
+          getSingleBound(Comparison.LESS.make(left, to))
+        case _ => dependentConditions.addOne(bound)
       }
     }
 
@@ -644,8 +649,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           def sortVar(v: Variable[Pre]): Option[BigInt] = equalityChecker.isConstantInt(linearExpressions(v))
           val vars = quantifierData.bindings.toList.sortBy(sortVar)
 
-          vars.permutations.map(check_vars_list)
+          val res = vars.permutations.map(check_vars_list)
             .collectFirst({case Some(subst) => subst})
+          res
         }
 
         /**
@@ -856,7 +862,34 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           None
         }
 
-        def simplifiedMinus(lhs: Expr[Pre], rhs: Expr[Pre]) : Expr[Pre] = {
+
+        def getPlusses(e: Expr[Pre]): (Seq[Expr[Pre]], BigInt) = {
+          e match {
+            case Plus(e1, e2) =>
+              val (s1, i1) = getPlusses(e1)
+              val (s2, i2) = getPlusses(e2)
+              (s1 ++ s2, i1+i2)
+            case e => equalityChecker.isConstantInt(e) match {
+              case Some(i) => (Seq(), i)
+              case None => (Seq(e), 0)
+            }
+          }
+        }
+
+        def simplify(e: Expr[Pre]): Expr[Pre] = {
+          val (plusses, value) = getPlusses(e)
+          if(value != 0) {
+            plusses.foldLeft(IntegerValue(value): Expr[Pre])(Plus[Pre])
+          } else if(plusses.isEmpty ) {
+            IntegerValue(0)
+          } else {
+            plusses.reduce(Plus[Pre])
+          }
+        }
+
+        def simplifiedMinus(lhs_arg: Expr[Pre], rhs_arg: Expr[Pre]) : Expr[Pre] = {
+          val lhs = simplify(lhs_arg)
+          val rhs = simplify(rhs_arg)
           (equalityChecker.isConstantInt(lhs), equalityChecker.isConstantInt(rhs)) match {
             case (Some(l), Some(r)) => return IntegerValue(l - r)
             case (_, Some(r)) if r == 0 => return lhs
@@ -874,6 +907,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
               else if(equalityChecker.equalExpressions(l1 ,r2)) return Minus(r1, l2)
               else if(equalityChecker.equalExpressions(r1 ,l2)) return Minus(l1, r2)
               else if(equalityChecker.equalExpressions(r1 ,r2)) return Minus(l1, l2)
+            case _ =>
+          }
+
+          (lhs, rhs) match {
+            case (Mult(l1, r1), Mult(l2, r2)) =>
+              if(equalityChecker.equalExpressions(l1 ,l2)) return Mult(l1, simplifiedMinus(r1, r2))
+              else if(equalityChecker.equalExpressions(l1 ,r2)) return Mult(l1, simplifiedMinus(r1, l2))
+              else if(equalityChecker.equalExpressions(r1 ,l2)) return Mult(r1, simplifiedMinus(l1, r2))
+              else if(equalityChecker.equalExpressions(r1 ,r2)) return Mult(r1, simplifiedMinus(l1, l2))
             case _ =>
           }
 
