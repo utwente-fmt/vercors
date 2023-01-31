@@ -29,6 +29,14 @@ pure String concat(String a, String b);
 @*/
 
 public /*@ builtin_String @*/ class String {
+    // Special constructor needed for constructing literals
+    /*@
+    ghost
+    decreases
+    ensures this.data() == data;
+    String(string data);
+    */
+
     /*@
     decreases;
     pure string data();
