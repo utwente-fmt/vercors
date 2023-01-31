@@ -390,6 +390,12 @@ case object ResolveReferences {
     case lit: JavaStringLiteral[G] =>
       lit.ref = Java.findBuiltInString(ctx).orElse(throw Unreachable("Did not find java.lang.String, but should"))
 
+    case functionRef @ FunctionRef(function) =>
+      functionRef.ref = Spec.findFunction[G](function, ctx)
+
+    case adtFunctionRef @ ADTFunctionRef(adtName, functionName) =>
+      adtFunctionRef.ref = Spec.findAdtFunction[G](adtName, functionName, ctx)
+
     case _ =>
   }
 }

@@ -4,6 +4,7 @@ import vct.col.ast.`type`._
 import vct.col.ast.`type`.typeclass._
 import vct.col.ast.declaration._
 import vct.col.ast.declaration.adt._
+import vct.col.ast.declaration.applicableref.{ADTFunctionRefImpl, ApplicableRefImpl, FunctionRefImpl}
 import vct.col.ast.declaration.category._
 import vct.col.ast.declaration.cls._
 import vct.col.ast.declaration.global._
@@ -229,7 +230,16 @@ final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with EnumImpl[G]
 final class EnumConstant[G]()(implicit val o: Origin) extends Declaration[G]
-final class StringClass[G](val intern: Ref[G, Function[G]], val concat: Ref[G, Function[G]], val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+final class StringClass[G](val intern: ApplicableRef[G], val concat: ApplicableRef[G], val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
+
+sealed trait ApplicableRef[G] extends NodeFamily[G] with ApplicableRefImpl[G]
+case class DirectApplicableRef[G](app: Ref[G, Applicable[G]])(implicit val o: Origin) extends ApplicableRef[G]
+case class FunctionRef[G](name: String)(implicit val o: Origin) extends ApplicableRef[G] with FunctionRefImpl[G] {
+  var ref: Option[Function[G]] = None
+}
+case class ADTFunctionRef[G](domain: String, name: String)(implicit val o: Origin) extends ApplicableRef[G] with ADTFunctionRefImpl[G] {
+  var ref: Option[ADTFunction[G]] = None
+}
 
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
@@ -868,6 +878,8 @@ final case class PVLInvocation[G](obj: Option[Expr[G]], method: String, args: Se
 final case class PVLNew[G](t: Type[G], args: Seq[Expr[G]], givenMap: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(val blame: Blame[InvocationFailure])(implicit val o: Origin) extends PVLExpr[G] with PVLNewImpl[G] {
   var ref: Option[PVLConstructorTarget[G]] = None
 }
+
+final case class PVLStringClassNew[G](e: Expr[G])(implicit val o: Origin) extends PVLExpr[G] with PVLStringClassNewImpl[G]
 
 sealed trait PVLClassDeclaration[G] extends ClassDeclaration[G] with PVLClassDeclarationImpl[G]
 final class PVLConstructor[G](val contract: ApplicableContract[G], val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends PVLClassDeclaration[G] with PVLConstructorImpl[G]

@@ -1,0 +1,24 @@
+adt StringBijection {
+    pure String toString(string data);
+    pure string fromString(String object);
+
+    axiom (\forall string data; {: toString(data) :} != null);
+    axiom (\forall String o; o != null; toString({: fromString(o) :}) == o);
+    axiom (\forall string data; fromString({: toString(data) :}) == data);
+}
+
+// Interface function
+decreases;
+ensures \result != null ** \result instanceof String;
+ensures \result.data() == a.data() + b.data();
+pure String concatStrings(String a, String b);
+
+class String(StringBijection.toString, concatStrings)  {
+    ensures data() == s;
+    constructor(string s);
+
+    decreases;
+    pure string data();
+}
+
+StringClass(intern: ApplicableRef[G], concat: ..., decl)

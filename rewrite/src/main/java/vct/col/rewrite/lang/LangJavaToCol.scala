@@ -267,8 +267,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     val stringClass = rw.currentThis.having(ThisStringClass[Post](javaStringClassSuccessor.ref(cls))(cls.o)) {
       new StringClass[Post](
-        intern = rw.succ(intern),
-        concat = rw.succ(concat),
+        intern = DirectApplicableRef(rw.succ(intern).asInstanceOf[Ref[Post, Applicable[Post]]])(cls.o),
+        concat = DirectApplicableRef(rw.succ(concat).asInstanceOf[Ref[Post, Applicable[Post]]])(cls.o),
         declarations = rw.classDeclarations.collect(cls.decls.collect {
           case method: JavaMethod[Pre] => method
           case function: InstanceFunction[Pre] => function

@@ -10,7 +10,16 @@ programDecl : valGlobalDeclaration | declClass | enumDecl | method;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
-declClass : contract 'class' identifier '{' classDecl* '}' ;
+declClass
+ : contract 'class' identifier '{' classDecl* '}'
+ | 'class' 'String' '(' applicableReference ',' applicableReference ')' '{' classDecl* '}'
+ ;
+
+applicableReference
+ : identifier '.' identifier # pvlAdtFunctionRef
+ | identifier                # pvlFunctionRef
+ ;
+
 classDecl : valClassDeclaration | constructor | method | field | runMethod;
 
 field : type identifierList ';' ;
@@ -118,7 +127,8 @@ unaryExpr
  ;
 
 newExpr
- : 'new' classType call
+ : 'new' 'String' '(' expr ')'
+ | 'new' classType call
  | 'new' nonArrayType newDims
  | postfixExpr
  ;

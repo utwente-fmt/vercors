@@ -56,7 +56,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       }))
   }
 
-  def convert(implicit cls: DeclClassContext): Class[G] = cls match {
+  def convert(implicit cls: DeclClassContext): GlobalDeclaration[G] = cls match {
     case DeclClass0(contract, _, name, _, decls, _) =>
       withContract(contract, contract => {
         new Class(
@@ -65,6 +65,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
         )(SourceNameOrigin(convert(name), origin(cls)))
       })
+    case DeclClass1(_, "String", _, internRef, _, concatRef, _, _, decls, _) =>
+      new StringClass(convert(internRef), convert(concatRef), decls.flatMap(convert(_)))
+  }
+
+  def convert(implicit applicableRef: ApplicableReferenceContext): ApplicableRef[G] = applicableRef match {
+    case PvlAdtFunctionRef(domainName, _, functionName) => ADTFunctionRef(convert(domainName), convert(functionName))
+    case PvlFunctionRef(functionName) => FunctionRef(convert(functionName))
   }
 
   def convert(implicit decl: ClassDeclContext): Seq[ClassDeclaration[G]] = decl match {
@@ -230,10 +237,12 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
-    case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
+    case NewExpr0(_, "String", _, arg, _) =>
+      PVLStringClassNew(convert(arg))
+    case NewExpr1(_, name, Call0(typeArgs, args, given, yields)) =>
       PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
-    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
-    case NewExpr2(inner) => convert(inner)
+    case NewExpr2(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
+    case NewExpr3(inner) => convert(inner)
   }
 
   def convert(implicit expr: PostfixExprContext): Expr[G] = expr match {

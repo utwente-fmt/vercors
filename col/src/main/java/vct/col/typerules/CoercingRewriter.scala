@@ -225,6 +225,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
+    case node: ApplicableRef[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -354,6 +355,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = node
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: ApplicableRef[Pre]): ApplicableRef[Pre] = node
+  def postCoerce(node: ApplicableRef[Pre]): ApplicableRef[Post] = rewriteDefault(node)
+  override final def dispatch(node: ApplicableRef[Pre]): ApplicableRef[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1093,6 +1098,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
       case PVLNew(t, args, givenMap, yields) => e
+      case PVLStringClassNew(expr) => PVLStringClassNew(string(e))
       case Range(from, to) =>
         Range(int(from), int(to))
       case ReadPerm() =>
@@ -1699,5 +1705,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
+  }
+
+  def coerce(node: ApplicableRef[Pre]): ApplicableRef[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case DirectApplicableRef(app) => DirectApplicableRef(app)
+      case FunctionRef(name) => FunctionRef(name)
+      case ADTFunctionRef(domain, name) => ADTFunctionRef(domain, name)
+    }
   }
 }

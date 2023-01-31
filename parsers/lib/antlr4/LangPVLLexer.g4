@@ -116,7 +116,7 @@ STRING_LITERAL : '"' STRING_CHARACTER* '"';
 
 fragment
 STRING_CHARACTER
-    : ~["\\ | 'String']
+    : ~["\\]
     | ESCAPE
     ;
 
