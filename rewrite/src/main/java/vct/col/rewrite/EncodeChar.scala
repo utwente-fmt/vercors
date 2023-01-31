@@ -1,6 +1,6 @@
 package vct.col.rewrite
 
-import vct.col.ast.{CharLiteral, Expr, TChar, TInt, Type}
+import vct.col.ast.{CharValue, Expr, TChar, TInt, Type}
 import vct.col.util.AstBuildHelpers.const
 
 case object EncodeChar extends RewriterBuilder {
@@ -10,7 +10,7 @@ case object EncodeChar extends RewriterBuilder {
 
 case class EncodeChar[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case CharLiteral(data) =>
+    case CharValue(data) =>
       assert(Character.charCount(data.codePointAt(0)) == data.length)
       const(data.codePointAt(0))(expr.o)
     case e => rewriteDefault(e)

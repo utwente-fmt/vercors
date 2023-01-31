@@ -364,6 +364,8 @@ sealed abstract class Constant[G, T] extends Expr[G] with ConstantImpl[G, T]
 final case class IntegerValue[G](value: BigInt)(implicit val o: Origin) extends Constant[G, BigInt] with Expr[G] with IntegerValueImpl[G]
 final case class BooleanValue[G](value: Boolean)(implicit val o: Origin) extends Constant[G, Boolean] with BooleanValueImpl[G]
 final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */)(implicit val o: Origin) extends Constant[G, BigDecimal] with FloatValueImpl[G]
+final case class StringValue[G](data: String)(implicit val o: Origin) extends Expr[G] with StringLiteralImpl[G]
+final case class CharValue[G](data: String)(implicit val o: Origin) extends Expr[G] with CharLiteralImpl[G]
 final case class LiteralSeq[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralSeqImpl[G]
 final case class LiteralSet[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralSetImpl[G]
 final case class LiteralBag[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralBagImpl[G]
@@ -492,8 +494,6 @@ final case class FloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[Div
 final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with ModImpl[G]
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
-final case class StringValue[G](data: String)(implicit val o: Origin) extends Expr[G] with StringLiteralImpl[G]
-final case class CharLiteral[G](data: String)(implicit val o: Origin) extends Expr[G] with CharLiteralImpl[G]
 
 final class StringClass[G](val intern: Ref[G, Function[G]], val concat: Ref[G, Function[G]], val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 final case class TStringClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G]
