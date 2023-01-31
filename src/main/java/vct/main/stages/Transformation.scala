@@ -104,9 +104,7 @@ class Transformation
         case (key, action) => if(pass.key == key) action(result)
       }
 
-      logger.info(pass.key)
       result = pass().dispatch(result)
-      logger.info(s"done: ${pass.key}")
 
       result.check match {
         case Nil => // ok

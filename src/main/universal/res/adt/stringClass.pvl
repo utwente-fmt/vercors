@@ -13,13 +13,12 @@ String `constructor`(string s);
 
 // Order in the below class matters, as it is parsed into an instance of StringClass
 class String  {
-    // First: interner
     decreases;
     ensures \result == StringBijection.toString(this.data());
     pure String intern();
 
-    // Second: concat
     decreases;
+    requires b != null;
     ensures \result != null;
     ensures \result.data() == this.data() + b.data();
     pure String concatStrings(String b);
