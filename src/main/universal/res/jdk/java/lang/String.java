@@ -23,6 +23,11 @@ public /*@ builtin_String @*/ class String {
     String(string data);
     */
 
+    //@ requires other != null;
+    String(String other) {
+        //@ assume data() == other.data()
+    }
+
     /*@
     decreases;
     pure string data();

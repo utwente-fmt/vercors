@@ -232,15 +232,6 @@ final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin)
 final class EnumConstant[G]()(implicit val o: Origin) extends Declaration[G]
 final class StringClass[G](val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 
-sealed trait ApplicableRef[G] extends NodeFamily[G] with ApplicableRefImpl[G]
-case class DirectApplicableRef[G](app: Ref[G, Applicable[G]])(implicit val o: Origin) extends ApplicableRef[G]
-case class FunctionRef[G](name: String)(implicit val o: Origin) extends ApplicableRef[G] with FunctionRefImpl[G] {
-  var ref: Option[Function[G]] = None
-}
-case class ADTFunctionRef[G](domain: String, name: String)(implicit val o: Origin) extends ApplicableRef[G] with ADTFunctionRefImpl[G] {
-  var ref: Option[ADTFunction[G]] = None
-}
-
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
                        val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean, val threadLocal: Boolean = false)
@@ -402,7 +393,6 @@ final case class AmbiguousThis[G]()(implicit val o: Origin) extends Expr[G] with
 }
 
 final case class ThisObject[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with ThisObjectImpl[G]
-final case class ThisStringClass[G](cls: Ref[G, StringClass[G]])(implicit val o: Origin) extends Expr[G] with ThisStringClassImpl[G]
 final case class ThisModel[G](cls: Ref[G, Model[G]])(implicit val o: Origin) extends Expr[G] with ThisModelImpl[G]
 
 final case class AmbiguousResult[G]()(implicit val o: Origin) extends Expr[G] with AmbiguousResultImpl[G] {
@@ -504,9 +494,6 @@ final case class FloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[Div
 final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with ModImpl[G]
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
-final case class StringClassConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringClassConcatImpl[G]
-final case class StringClassIntern[G](data: Expr[G])(implicit val o: Origin) extends Expr[G] with InternedStringImpl[G]
-final case class StringClassData[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with StringClassGetDataImpl[G]
 
 final case class BitAnd[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitAndImpl[G]
 final case class BitOr[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with BitOrImpl[G]
@@ -852,9 +839,7 @@ final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], nam
 }
 final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
 final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
-final case class JavaStringLiteral[G](data: String)(implicit val o: Origin) extends JavaExpr[G] with JavaStringLiteralImpl[G] {
-  var ref: Option[JavaClass[G]] = None
-}
+final case class JavaStringLiteral[G](data: String, t: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaStringLiteralImpl[G]
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
