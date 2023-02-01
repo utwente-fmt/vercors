@@ -10,8 +10,8 @@ programDecl : valGlobalDeclaration | declClass | method;
 
 declClass : contract 'class' identifier '{' classDecl* '}' ;
 classDecl : valClassDeclaration | constructor | method | field | runMethod;
-
-field : type identifierList ';' ;
+finalFlag: 'final';
+field : finalFlag? type identifierList ';' ;
 
 method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
