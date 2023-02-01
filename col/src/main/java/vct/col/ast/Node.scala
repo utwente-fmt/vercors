@@ -246,6 +246,23 @@ final class InstancePredicate[G](val args: Seq[Variable[G]], val body: Option[Ex
   extends ClassDeclaration[G] with AbstractPredicate[G] with InstancePredicateImpl[G]
 final class InstanceField[G](val t: Type[G], val flags: Set[FieldFlag[G]])(implicit val o: Origin) extends ClassDeclaration[G] with Field[G] with InstanceFieldImpl[G]
 final class RunMethod[G](val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with RunMethodImpl[G]
+final class InstanceOperatorFunction[G](val returnType: Type[G], val operator: Operator[G], val args: Seq[Variable[G]],
+                                        val body: Option[Expr[G]], val contract: ApplicableContract[G],
+                                        val inline: Boolean, val threadLocal: Boolean = false)
+                                       (val blame: Blame[CallableFailure])(implicit val o: Origin)
+  extends ClassDeclaration[G] with AbstractFunction[G] with InstanceOperatorFunctionImpl[G]
+final class InstanceOperatorMethod[G](val returnType: Type[G],
+                                      val operator: Operator[G],
+                                      val args: Seq[Variable[G]],
+                                      val body: Option[Statement[G]],
+                                      val contract: ApplicableContract[G],
+                                      val inline: Boolean = false, val pure: Boolean = false)
+                                     (val blame: Blame[CallableFailure])(implicit val o: Origin)
+  extends ClassDeclaration[G] with AbstractMethod[G] with InstanceOperatorMethodImpl[G]
+
+sealed trait Operator[G] extends NodeFamily[G]
+case class OperatorLeftPlus[G]()(implicit val o: Origin) extends Operator[G]
+case class OperatorRightPlus[G]()(implicit val o: Origin) extends Operator[G]
 
 sealed trait ModelDeclaration[G] extends Declaration[G] with ModelDeclarationImpl[G]
 final class ModelField[G](val t: Type[G])(implicit val o: Origin) extends ModelDeclaration[G] with Field[G] with ModelFieldImpl[G]

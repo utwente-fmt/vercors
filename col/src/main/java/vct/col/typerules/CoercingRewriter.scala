@@ -225,6 +225,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
+    case node: Operator[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -354,6 +355,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = node
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Operator[Pre]): Operator[Pre] = node
+  def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
+  override final def dispatch(node: Operator[Pre]): Operator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1364,6 +1369,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         field
       case method: RunMethod[Pre] =>
         method
+      case method: InstanceOperatorMethod[Pre] =>
+        method
+      case function: InstanceOperatorFunction[Pre] =>
+        new InstanceOperatorFunction[Pre](function.returnType, function.operator, function.args, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.o)
       case initialization: JavaSharedInitialization[Pre] =>
         initialization
       case fields: JavaFields[Pre] =>
@@ -1677,5 +1686,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
+  }
+
+  def coerce(node: Operator[Pre]): Operator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case OperatorLeftPlus() => OperatorLeftPlus()
+      case OperatorRightPlus() => OperatorRightPlus()
+    }
   }
 }
