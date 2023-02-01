@@ -77,8 +77,8 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isSetOp) SetUnion(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagAdd(dispatch(left), dispatch(right))
         else if(op.isStringOp) StringConcat(dispatch(left), dispatch(right))
-        else if(op.getCustomLeftPlusType().isDefined) rewriteLeftPlus(op)
-        else if(op.getCustomRightPlusType().isDefined) rewriteRightPlus(op)
+        else if(op.getCustomPlusType(OperatorLeftPlus[Pre]()).isDefined) rewritePlusOf(OperatorLeftPlus[Pre](), op)
+        else if(op.getCustomPlusType(OperatorRightPlus[Pre]()).isDefined) rewritePlusOf(OperatorRightPlus[Pre](), op)
         else Plus(dispatch(left), dispatch(right))
       case op @ AmbiguousMinus(left, right) =>
         if(op.isSetOp) SetMinus(dispatch(left), dispatch(right))
@@ -134,36 +134,22 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  def rewriteLeftPlus(plus: AmbiguousPlus[Pre]): Expr[Post] = {
-    val left = plus.left
-    val right = plus.right
-    val decls = left.t match {
-      case TClass(Ref(cls)) => cls.declarations
-      case JavaTClass(Ref(cls), _) => cls.declarations
-    }
-    val validOperators = decls.collect {
-      case m: InstanceOperatorMethod[Pre] if m.operator == OperatorLeftPlus[Pre]()
-        && CoercionUtils.getCoercion(right.t, m.args.head.t).isDefined => m
-      case f: InstanceOperatorFunction[Pre] if f.operator == OperatorLeftPlus[Pre]()
-        && CoercionUtils.getCoercion(right.t, f.args.head.t).isDefined => f
-    }
+  def rewritePlusOf(operator: Operator[Pre], plus: AmbiguousPlus[Pre]): Expr[Post] = {
+    val (subject, other) = if(operator == OperatorLeftPlus[Pre]()) (plus.left, plus.right) else (plus.right, plus.left)
+    val validOperators = plus.getValidOperatorsOf(operator).get
     validOperators match {
       case Seq(m: InstanceOperatorMethod[Pre]) => MethodInvocation[Post](
-        dispatch(left),
+        dispatch(subject),
         methodSucc.ref(m),
-        Seq(dispatch(right)),
+        Seq(dispatch(other)),
         Seq(), Seq(), Seq(), Seq())(OperatorToInvocation(plus.blame))(plus.o)
       case Seq(f: InstanceOperatorFunction[Pre]) => InstanceFunctionInvocation[Post](
-        dispatch(left),
+        dispatch(subject),
         functionSucc.ref(f),
-        Seq(dispatch(right)),
+        Seq(dispatch(other)),
         Seq(), Seq(), Seq())(OperatorToInvocation(plus.blame))(plus.o)
       case _ => ???
     }
-  }
-
-  def rewriteRightPlus(plus: AmbiguousPlus[Pre]): Expr[Post] = {
-    ???
   }
 
   def unfoldPointerAdd[G](e: PointerAdd[G]): PointerAdd[G] = e.pointer match {
