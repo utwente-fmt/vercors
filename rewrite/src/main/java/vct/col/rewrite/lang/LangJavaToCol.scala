@@ -160,7 +160,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     // 3. the body of the constructor
 
-    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty && !isStaticPart) {
+    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
       val cons = new JavaConstructor(
         modifiers = Nil,
         name = prefName,
@@ -170,7 +170,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         body = Block(Nil),
         contract = ApplicableContract(
           requires = UnitAccountedPredicate(tt),
-          ensures = UnitAccountedPredicate(foldStar(decls.collect {
+          /* Hack: don't generate the permissions for the default constructor. Problem: the "local" method further down will use
+             the Statics function instead of \result from the procedure. Statics constructor is only used for static final
+             field assignments required for ConstantifyFinalFields.
+           */
+          ensures = UnitAccountedPredicate(if(isStaticPart) tt[Pre] else foldStar(decls.collect {
             case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
               fields.decls.indices.map(decl => {
                 val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
