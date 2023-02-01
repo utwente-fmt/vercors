@@ -39,6 +39,13 @@ public class String {
     pure string data();
     */
 
+    /*@
+    ghost
+    decreases;
+    ensures \result == StringBijection.toString(str);
+    static pure String vercorsIntern(string str);
+     */
+
     //@ decreases;
     //@ ensures \result == StringBijection.toString(data());
     public native /*@ pure @*/ String intern();

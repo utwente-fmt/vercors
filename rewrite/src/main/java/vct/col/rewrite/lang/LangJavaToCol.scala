@@ -499,25 +499,29 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def stringValue(str: JavaStringValue[Pre]): Expr[Post] = {
     val JavaTClass(Ref(stringClass), Seq()) = str.t
-    val constructor: JavaConstructor[Pre] = stringClass.declarations.collectFirst {
-      case cons: JavaConstructor[Pre] if cons.parameters.length == 1 && cons.parameters.head.t == TString[Pre]() => cons
-    }.get
+//    val constructor: JavaConstructor[Pre] = stringClass.declarations.collectFirst {
+//      case cons: JavaConstructor[Pre] if cons.parameters.length == 1 && cons.parameters.head.t == TString[Pre]() => cons
+//    }.get
     val intern: JavaMethod[Pre] = stringClass.declarations.collectFirst {
-      case m: JavaMethod[Pre] if m.name == "intern" => m
+      case m: JavaMethod[Pre] if m.name == "vercorsIntern" => m
     }.get
 
-    methodInvocation[Post](
-      PanicBlame("Interning cannot fail"),
-      ProcedureInvocation[Post](
-        javaConstructor.ref(constructor),
-        Seq(StringValue(str.data)(str.o)),
-        Seq(), Seq(), Seq(), Seq()
-      )(PanicBlame("Constructing a java.lang.String cannot fail"))(str.o),
-      javaMethod.ref(intern),
-    )(str.o)
-  }
+//    ProcedureInvocation[Post](
+//      PanicBlame("Interning cannot fail"),
+//      Seq(StringValue(str.data)(str.o)),
+//      javaMethod.ref(intern),
+//    )(str.o)
 
-  def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
+    val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(stringClass))
+    MethodInvocation[Post](
+      obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Class static cannot fail"))(str.o),
+      ref = javaMethod.ref(intern),
+      args = Seq(StringValue(str.data)(str.o)),
+      Nil, Nil, Nil, Nil
+    )(PanicBlame("Interning cannot fail"))(str.o)
+    }
+
+    def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
 }
