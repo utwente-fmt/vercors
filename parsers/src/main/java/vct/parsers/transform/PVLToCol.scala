@@ -853,6 +853,39 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
+    case ValInstanceOperatorFunction(contract, modifiers, "pure", t, name, "(", args, ")", definition) =>
+      Seq(withContract(contract, c => {
+        withModifiers(modifiers, m => {
+          transform(new InstanceOperatorFunction(
+            convert(t),
+            convert(name),
+            args.map(convert(_)).getOrElse(Nil),
+            convert(definition),
+            c.consumeApplicableContract(blame(decl)),
+            m.consume(m.inline),
+            m.consume(m.threadLocal)
+          )(blame(decl)))
+        })
+      }))
+    case ValInstanceOperatorMethod(contract, modifiers, t, name, "(", args, ")", definition) =>
+      Seq(withContract(contract, c => {
+        withModifiers(modifiers, m => {
+          transform(new InstanceOperatorMethod(
+            convert(t),
+            convert(name),
+            args.map(convert(_)).getOrElse(Nil),
+            convert(definition),
+            c.consumeApplicableContract(blame(decl)),
+            m.consume(m.inline),
+            m.consume(m.pure)
+          )(blame(decl)))
+        })
+      }))
+  }
+
+  def convert(implicit operator: ValOperatorNameContext): Operator[G] = operator match {
+    case ValOperatorName0("+") => OperatorLeftPlus()
+    case ValOperatorName1("right+") => OperatorRightPlus()
   }
 
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {

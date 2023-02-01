@@ -2,6 +2,29 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
+class TechnicalSpec2 extends VercorsSpec {
+  vercors should verify using silicon in "example using plus operator overloading" pvl """
+  class C {
+    int x;
+
+    ensures Perm(x, 1) ** x == v;
+    constructor(int v) {
+      x = v;
+    }
+
+    context Perm(x, 1\2) ** Perm(other.x, 1\2);
+    ensures Perm(\result.x, 1) ** \result.x == x + other.x;
+    C +(C other) {
+      return new C(x + other.x);
+    }
+  }
+
+  void m() {
+    assert (new C(1) + new C(2)).x == 3;
+  }
+  """
+}
+
 class TechnicalSpec extends VercorsSpec {
   vercors should verify using silicon in "example using triggers" java """
     class C {
