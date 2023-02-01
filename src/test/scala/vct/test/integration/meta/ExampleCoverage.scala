@@ -38,6 +38,8 @@ class ExampleCoverage extends AnyFlatSpec {
       new TechnicalFloatSpec(),
       new TechnicalSpec(),
       new TechnicalVeymontSpec(),
+      new TechnicalEnumSpec(),
+      new TechnicalJavaSpec(),
       new TerminationSpec(),
       new TypeValuesSpec(),
       new VerifyThisSpec(),
