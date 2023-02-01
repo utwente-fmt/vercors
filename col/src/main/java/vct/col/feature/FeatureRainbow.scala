@@ -653,5 +653,7 @@ class FeatureRainbow[G] {
     case node: InstanceOperatorMethod[G] => return Nil
     case node: InstanceOperatorFunction[G] => return Nil
     case node: Operator[G] => return Nil
+    case node: JavaStringValue[G] => return Nil
+    case node: StringConcat[G] => return Nil
   })
 }
