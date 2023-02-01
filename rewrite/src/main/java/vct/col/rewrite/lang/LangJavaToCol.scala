@@ -160,7 +160,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     // 3. the body of the constructor
 
-    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
+    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty && !isStaticPart) {
       val cons = new JavaConstructor(
         modifiers = Nil,
         name = prefName,
