@@ -3,7 +3,6 @@ package java.lang;
 // TODO: Should not have to use instanceof anywhere in this file
 
 /*@
-// adt goes brrr
 ghost
 adt StringBijection {
     pure String toString(string data);
@@ -16,7 +15,7 @@ adt StringBijection {
 @*/
 
 public /*@ builtin_String @*/ class String {
-    // Special constructor needed for constructing literals
+    // Special constructor needed for constructing literals. Used by VerCors internally
     /*@
     ghost
     decreases
@@ -38,7 +37,16 @@ public /*@ builtin_String @*/ class String {
     decreases;
     ensures \result != null ** \result instanceof String;
     ensures \result.data() == data() + other.data();
-    pure String vercorsConcat(String other);
+    String +(String other) {
+        return new String(data() + other.data());
+    }
+
+    decreases;
+    ensures \result != null ** \result instanceof String;
+    ensures \result.data() == data() + other.data();
+    String right+(String other) {
+        return new String(other.data() + data());
+    }
     @*/
 
     /*@
