@@ -115,7 +115,6 @@ VAL_SOME: 'Some';
 VAL_LEFT: 'Left';
 VAL_RIGHT: 'Right';
 VAL_VALUE: 'Value';
-VAL_RIGHT_PLUS: 'right+';
 
 UNFOLDING: '\\unfolding';
 UNFOLDING_JAVA: '\\Unfolding';

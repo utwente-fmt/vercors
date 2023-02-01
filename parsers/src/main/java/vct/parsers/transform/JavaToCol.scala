@@ -1153,7 +1153,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit operator: ValOperatorNameContext): Operator[G] = operator match {
     case ValOperatorName0("+") => OperatorLeftPlus()
-    case ValOperatorName1("right+") => OperatorRightPlus()
+    case ValOperatorName1(id, "+") if convert(id) == "right" => OperatorRightPlus()
   }
 
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {

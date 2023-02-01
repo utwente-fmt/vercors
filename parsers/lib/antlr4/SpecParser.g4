@@ -351,7 +351,7 @@ valClassDeclaration
 
 valOperatorName
  : '+'
- | 'right+'
+ | langId '+' // identifier should be 'right'
  ;
 
 valModelDeclaration
