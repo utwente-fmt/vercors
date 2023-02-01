@@ -37,14 +37,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
-  var program: Program[Pre] = null
-
-  override def dispatch(program: Program[Pre]): Program[Post] = {
-    this.program = program
-
-    super.dispatch(program)
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
       implicit val o: Origin = model.o

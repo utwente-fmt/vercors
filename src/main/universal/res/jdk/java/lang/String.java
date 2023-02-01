@@ -15,7 +15,6 @@ adt StringBijection {
 @*/
 
 public class String {
-    // Special constructor needed for constructing literals. Used by VerCors internally
     /*@
     ghost
     decreases;
@@ -23,7 +22,7 @@ public class String {
     String(string str) {
         //@ assume false;
     }
-    */
+    @*/
 
     String(String other) {
         // TODO (RR): Assume empty string here somehow...? Need spec syntax for strings
