@@ -14,18 +14,24 @@ adt StringBijection {
 }
 @*/
 
-public /*@ builtin_String @*/ class String {
+public class String {
     // Special constructor needed for constructing literals. Used by VerCors internally
     /*@
     ghost
-    decreases
+    decreases;
     ensures this.data() == data;
-    String(string data);
+    String(string data) {
+        //@ assume false;
+    }
     */
+
+    String(String other) {
+        // TODO (RR): Assume empty string here somehow...? Need spec syntax for strings
+    }
 
     //@ requires other != null;
     String(String other) {
-        //@ assume data() == other.data()
+        //@ assume data() == other.data();
     }
 
     /*@

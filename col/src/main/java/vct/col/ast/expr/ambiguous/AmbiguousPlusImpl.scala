@@ -19,18 +19,6 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
 
   def isStringOp: Boolean =
     CoercionUtils.getCoercion(left.t, TString()).isDefined
-  def isStringClassOp: Boolean =
-    CoercionUtils.getCoercion(left.t, TStringClass()).isDefined ||
-      CoercionUtils.getCoercion(right.t, TStringClass()).isDefined
-  def getJavaStringClass: Option[JavaTClass[G]] = {
-    Some(left.t).collect {
-      case t@JavaTClass(Ref(cls: JavaClass[G]), Seq()) if cls.isJavaStringClass => t
-    }.orElse(Some(right.t).collect {
-      case t@JavaTClass(Ref(cls: JavaClass[G]), Seq()) if cls.isJavaStringClass => t
-    })
-  }
-
-  def isJavaStringClassOp: Boolean = getJavaStringClass.isDefined
 
   override lazy val t: Type[G] =
     if(isProcessOp) TProcess()
@@ -39,8 +27,6 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
     else if(TFloats.isFloatOp(left.t, right.t))
       TFloats.coerceToMax[G](left.t, right.t)
     else if(isIntOp) TInt()
-    else if (isJavaStringClassOp) getJavaStringClass.get
-    else if(isStringClassOp) TStringClass()
     else if(isStringOp) TString()
     else TRational()
 }

@@ -175,14 +175,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceClassAnyClass(_) => e
       case CoerceJavaSupports(_, _) => e
       case CoerceJavaClassAnyClass(_) => e
-      case CoerceStringClassAnyClass() => e
       case CoerceCPrimitiveToCol(_, _) => e
       case CoerceColToCPrimitive(_, _) => e
       case CoerceNullRef() => e
       case CoerceNullArray(_) => e
       case CoerceNullClass(_) => e
       case CoerceNullJavaClass(_) => e
-      case CoerceNullStringClass() => e
       case CoerceNullAnyClass() => e
       case CoerceNullPointer(_) => e
       case CoerceFracZFrac() => e
@@ -227,7 +225,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
-    case node: ApplicableRef[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -358,10 +355,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: ApplicableRef[Pre]): ApplicableRef[Pre] = node
-  def postCoerce(node: ApplicableRef[Pre]): ApplicableRef[Post] = rewriteDefault(node)
-  override final def dispatch(node: ApplicableRef[Pre]): ApplicableRef[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
-
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -397,17 +390,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
-  def stringClass(e: Expr[Pre]): Expr[Pre] = coerce(e, TStringClass())
-  def javaStringClass(e: Expr[Pre]): Expr[Pre] =
-    // TODO (RR): We need something like the commented code below, but for java types. Since int -> Integer -> String is allowed. Should probably go in a separate PR.
-//    CoercionUtils.getAnyClassCoercion(e.t) match {
-//      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-//      case None => throw IncoercibleText(e, "java.lang.String")
-//    }
-    e.t match {
-      case t @ JavaTClass(Ref(cls: JavaClass[Pre]), Seq()) if cls.isJavaStringClass => coerce(e, t)
-      case _ => throw IncoercibleText(e, "java.lang.String")
-    }
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -694,8 +676,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
-          AmbiguousPlus(javaStringClass(left), javaStringClass(right))(plus.blame),
-          AmbiguousPlus(stringClass(left), stringClass(right))(plus.blame),
           AmbiguousPlus(string(left), string(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
@@ -790,8 +770,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
-      case StringClassConcat(left, right) =>
-        StringClassConcat(stringClass(left), stringClass(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case CStructDeref(struct, field) =>
@@ -891,9 +869,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
-      case str @ JavaStringLiteral(_) => str
+      case str @ JavaStringValue(_, _) => str
       case str @ StringValue(_) => str
-      case str @ StringClassIntern(expr) => StringClassIntern(stringClass(expr))
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -1100,7 +1077,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLInvocation(obj, method, args, typeArgs, givenArgs, yields) => e
       case PVLLocal(name) => e
       case PVLNew(t, args, givenMap, yields) => e
-      case PVLStringClassNew(str) => PVLStringClassNew(string(str))
       case Range(from, to) =>
         Range(int(from), int(to))
       case ReadPerm() =>
@@ -1181,7 +1157,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
         Starall(bindings, triggers, res(body))(starall.blame)
-      case StringClassData(expr) => StringClassData(stringClass(expr))
       case SubBag(left, right) =>
         val (coercedLeft, leftBag) = bag(left)
         val (coercedRight, rightBag) = bag(right)
@@ -1218,8 +1193,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ThisModel(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
-      case ThisStringClass(ref) =>
-        ThisStringClass(ref)
       case TupGet(tup, index) =>
         TupGet(tuple(tup)._1, index)
       case TypeOf(expr) =>
@@ -1437,9 +1410,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
-      case stringClass: StringClass[Pre] =>
-        // TODO (RR): Typecheck the interner/concat function types here?
-        stringClass
     }
   }
 
@@ -1700,7 +1670,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaAnnotation(name, args) => JavaAnnotation(name, args)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
-      case JavaBuiltinString() => JavaBuiltinString()
     }
   }
 
@@ -1708,14 +1677,5 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
-  }
-
-  def coerce(node: ApplicableRef[Pre]): ApplicableRef[Pre] = {
-    implicit val o: Origin = node.o
-    node match {
-      case DirectApplicableRef(app) => DirectApplicableRef(app)
-      case FunctionRef(name) => FunctionRef(name)
-      case ADTFunctionRef(domain, name) => ADTFunctionRef(domain, name)
-    }
   }
 }

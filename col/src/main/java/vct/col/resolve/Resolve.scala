@@ -84,7 +84,7 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-    case _: JavaStringLiteral[G] =>
+    case _: JavaStringValue[G] =>
       Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
@@ -160,9 +160,6 @@ case object ResolveReferences {
       .declare(cls.decls)
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
-      .declare(cls.declarations)
-    case cls: StringClass[G] => ctx
-      .copy(currentThis=Some(RefStringClass(cls)))
       .declare(cls.declarations)
     case app: ContractApplicable[G] => ctx
       .copy(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
@@ -390,14 +387,6 @@ case object ResolveReferences {
         case t @ TArray(_) => t
         case _ => throw WrongArrayInitializer(arr)
       })
-    case lit: JavaStringLiteral[G] =>
-      lit.ref = Java.findBuiltInString(ctx).orElse(throw Unreachable("Did not find java.lang.String, but should"))
-
-    case functionRef @ FunctionRef(function) =>
-      functionRef.ref = Spec.findFunction[G](function, ctx)
-
-    case adtFunctionRef @ ADTFunctionRef(adtName, functionName) =>
-      adtFunctionRef.ref = Spec.findAdtFunction[G](adtName, functionName, ctx)
 
     case _ =>
   }

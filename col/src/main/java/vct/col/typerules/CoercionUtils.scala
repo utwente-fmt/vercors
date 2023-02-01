@@ -52,7 +52,6 @@ case object CoercionUtils {
       case (TNull(), TClass(target)) => CoerceNullClass(target)
       case (TNull(), JavaTClass(target, _)) => CoerceNullJavaClass(target)
       case (TNull(), TAnyClass()) => CoerceNullAnyClass()
-      case (TNull(), TStringClass()) => CoerceNullStringClass()
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
@@ -91,9 +90,6 @@ case object CoercionUtils {
 
       case (source @ JavaTClass(sourceClass, Nil), TAnyClass()) =>
         CoerceJavaClassAnyClass(sourceClass)
-
-      case (TStringClass(), TAnyClass()) =>
-        CoerceStringClassAnyClass()
 
       case (source @ TUnion(ts), target) =>
         CoerceJoinUnion(ts.map(getCoercion(_, target)).map {

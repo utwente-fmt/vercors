@@ -101,8 +101,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   val javaStaticsClassSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Class[Post]] = SuccessionMap()
   val javaStaticsFunctionSuccessor: SuccessionMap[JavaClassOrInterface[Pre], Function[Post]] = SuccessionMap()
 
-  val javaStringClassSuccessor: SuccessionMap[JavaClass[Pre], StringClass[Post]] = SuccessionMap()
-
   val javaFieldsSuccessor: SuccessionMap[(JavaFields[Pre], Int), InstanceField[Post]] = SuccessionMap()
   val javaLocalsSuccessor: SuccessionMap[(JavaLocalDeclaration[Pre], Int), Variable[Post]] = SuccessionMap()
 
@@ -112,9 +110,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
 
-  lazy val javaLangStringClass: Option[JavaClass[Pre]] = rw.program.collectFirst {
-    case cls: JavaClass[Pre] if cls.isJavaStringClass => cls
-  }
+//  lazy val javaLangStringClass: Option[JavaClass[Pre]] = rw.program.collectFirst {
+//    case cls: JavaClass[Pre] if cls.isJavaStringClass => cls
+//  }
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
   def isJavaStatic(decl: ClassDeclaration[_]): Boolean = decl match {
@@ -258,27 +256,23 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def rewriteJavaLangStringClass(cls: JavaClass[Pre]): Unit = {
-    val stringClass = rw.currentThis.having(ThisStringClass[Post](javaStringClassSuccessor.ref(cls))(cls.o)) {
-      new StringClass[Post](
-        declarations = rw.classDeclarations.collect(cls.decls.collect {
-          case method: JavaMethod[Pre] => method
-          case function: InstanceFunction[Pre] => function
-          case decl => throw NotSupportedInJavaLangStringClass(decl)
-        }.foreach(rw.dispatch(_)))._1
-      )(cls.o)
-    }
-
-    javaStringClassSuccessor(cls) = rw.globalDeclarations.declare(stringClass)
+//    val stringClass = rw.currentThis.having(ThisStringClass[Post](javaStringClassSuccessor.ref(cls))(cls.o)) {
+//      new StringClass[Post](
+//        declarations = rw.classDeclarations.collect(cls.decls.collect {
+//          case method: JavaMethod[Pre] => method
+//          case function: InstanceFunction[Pre] => function
+//          case decl => throw NotSupportedInJavaLangStringClass(decl)
+//        }.foreach(rw.dispatch(_)))._1
+//      )(cls.o)
+//    }
+//
+//    javaStringClassSuccessor(cls) = rw.globalDeclarations.declare(stringClass)
+    ???
   }
 
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
-
-    if (javaLangStringClass.contains(cls)) {
-      rewriteJavaLangStringClass(cls.asInstanceOf[JavaClass[Pre]])
-      return
-    }
 
     cls.decls.collect({
       case decl: JavaClassDeclaration[Pre] =>
@@ -491,8 +485,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def newDefaultArray(arr: JavaNewDefaultArray[Pre]): Expr[Post] =
     NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.o)
 
-  def stringLiteral(lit: JavaStringLiteral[Pre]): Expr[Post] = StringClassIntern(StringValue(lit.data)(lit.o))(lit.o)
-
   def literalArray(arr: JavaLiteralArray[Pre]): Expr[Post] = {
     implicit val o: Origin = JavaInlineArrayInitializerOrigin(arr.o)
     val array = new Variable[Post](rw.dispatch(arr.typeContext.get))
@@ -505,8 +497,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     ), array.get))
   }
 
+  def stringValue(str: JavaStringValue[Pre]): Expr[Post] = ???
+
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
-    case cls: JavaClass[Pre] if javaLangStringClass.contains(cls) => TStringClass()(t.o)
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
 }

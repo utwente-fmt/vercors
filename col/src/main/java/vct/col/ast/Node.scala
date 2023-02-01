@@ -4,7 +4,6 @@ import vct.col.ast.`type`._
 import vct.col.ast.`type`.typeclass._
 import vct.col.ast.declaration._
 import vct.col.ast.declaration.adt._
-import vct.col.ast.declaration.applicableref.{ADTFunctionRefImpl, ApplicableRefImpl, FunctionRefImpl}
 import vct.col.ast.declaration.category._
 import vct.col.ast.declaration.cls._
 import vct.col.ast.declaration.global._
@@ -129,7 +128,6 @@ final case class TClass[G](cls: Ref[G, Class[G]])(implicit val o: Origin = Diagn
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
 final case class TEnum[G](enum: Ref[G, Enum[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
-final case class TStringClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
 
 sealed trait ParRegion[G] extends NodeFamily[G] with ParRegionImpl[G]
 final case class ParParallel[G](regions: Seq[ParRegion[G]])(val blame: Blame[ParPreconditionFailed])(implicit val o: Origin) extends ParRegion[G] with ParParallelImpl[G]
@@ -230,7 +228,6 @@ final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with EnumImpl[G]
 final class EnumConstant[G]()(implicit val o: Origin) extends Declaration[G]
-final class StringClass[G](val declarations: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G]
 
 sealed abstract class ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
@@ -314,7 +311,6 @@ final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] 
 final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
 final case class CoerceNullClass[G](targetClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullClassImpl[G]
 final case class CoerceNullJavaClass[G](targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullJavaClassImpl[G]
-final case class CoerceNullStringClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullStringClassImpl[G]
 final case class CoerceNullAnyClass[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullAnyClassImpl[G]
 final case class CoerceNullPointer[G](pointerElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullPointerImpl[G]
 final case class CoerceNullEnum[G](targetEnum: Ref[G, Enum[G]])(implicit val o: Origin) extends Coercion[G] with CoerceNullEnumImpl[G]
@@ -339,9 +335,6 @@ final case class CoerceSupports[G](sourceClass: Ref[G, Class[G]], targetClass: R
 final case class CoerceJavaSupports[G](sourceClass: Ref[G, JavaClassOrInterface[G]], targetClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaSupportsImpl[G]
 final case class CoerceClassAnyClass[G](sourceClass: Ref[G, Class[G]])(implicit val o: Origin) extends Coercion[G] with CoerceClassAnyClassImpl[G]
 final case class CoerceJavaClassAnyClass[G](sourceClass: Ref[G, JavaClassOrInterface[G]])(implicit val o: Origin) extends Coercion[G] with CoerceJavaClassAnyClassImpl[G]
-final case class CoerceStringClassAnyClass[G]()(implicit val o: Origin) extends Coercion[G] {
-  override def target: TAnyClass[G] = TAnyClass()
-}
 
 final case class CoerceCPrimitiveToCol[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceCPrimitiveToColImpl[G]
 final case class CoerceColToCPrimitive[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceColToCPrimitiveImpl[G]
@@ -788,7 +781,6 @@ final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
 final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G]
 
-final case class JavaBuiltinString[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
 
@@ -839,7 +831,7 @@ final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], nam
 }
 final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
 final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
-final case class JavaStringLiteral[G](data: String, t: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaStringLiteralImpl[G]
+final case class JavaStringValue[G](data: String, t: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaStringValueImpl[G]
 
 final case class JavaClassLiteral[G](cls: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaClassLiteralImpl[G]
 
@@ -862,8 +854,6 @@ final case class PVLInvocation[G](obj: Option[Expr[G]], method: String, args: Se
 final case class PVLNew[G](t: Type[G], args: Seq[Expr[G]], givenMap: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(val blame: Blame[InvocationFailure])(implicit val o: Origin) extends PVLExpr[G] with PVLNewImpl[G] {
   var ref: Option[PVLConstructorTarget[G]] = None
 }
-
-final case class PVLStringClassNew[G](e: Expr[G])(implicit val o: Origin) extends PVLExpr[G] with PVLStringClassNewImpl[G]
 
 sealed trait PVLClassDeclaration[G] extends ClassDeclaration[G] with PVLClassDeclarationImpl[G]
 final class PVLConstructor[G](val contract: ApplicableContract[G], val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends PVLClassDeclaration[G] with PVLConstructorImpl[G]

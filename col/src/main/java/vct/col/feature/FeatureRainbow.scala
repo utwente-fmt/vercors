@@ -644,16 +644,11 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
-    case node: StringClassIntern[G] => return Nil
     case node: StringValue[G] => return Nil
     case node: EnumConstant[G] => return Nil
     case node: Enum[G] => return Nil
     case node: TEnum[G] => return Nil
     case node: EnumUse[G] => return Nil
-    case node: TStringClass[G] => return Nil
-    case node: StringClass[G] => return Nil
-    case node: ThisStringClass[G] => return Nil
     case node: CharValue[G] => return Nil
-    case node: PVLStringClassNew[G] => return Nil
   })
 }

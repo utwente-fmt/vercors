@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TStringClass, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -489,7 +489,6 @@ case object Java extends LazyLogging {
     case JavaTClass(_, _) => Null()
     case TEnum(_) => Null()
     case TAnyClass() => Null()
-    case TStringClass() => Null()
 
     case t: TAxiomatic[G] => throw WrongTypeForDefaultValue(t)
     case t: TType[G] => throw WrongTypeForDefaultValue(t)
@@ -501,11 +500,4 @@ case object Java extends LazyLogging {
 
   def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
   def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
-
-  def findBuiltInString[G](ctx: ReferenceResolutionContext[G]): Option[JavaClass[G]] =
-    ctx.stack.flatten.collect {
-      case RefJavaNamespace(ns) => ns.declarations
-    }.flatten.collectFirst {
-      case cls: JavaClass[G] if cls.isJavaStringClass => cls
-    }
 }

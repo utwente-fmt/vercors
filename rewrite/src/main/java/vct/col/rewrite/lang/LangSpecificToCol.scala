@@ -76,12 +76,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         }
       }
 
-    case cls: StringClass[Pre] =>
-      implicit val o: Origin = cls.o
-      currentThis.having(ThisStringClass[Post](succ(cls))) {
-        globalDeclarations.succeed(cls, cls.rewrite())
-      }
-
     case other => rewriteDefault(other)
   }
 
@@ -131,7 +125,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: JavaNewClass[Pre] => java.newClass(inv)
     case arr: JavaNewLiteralArray[Pre] => java.newLiteralArray(arr)
     case arr: JavaNewDefaultArray[Pre] => java.newDefaultArray(arr)
-    case str: JavaStringLiteral[Pre] => java.stringLiteral(str)
+    case str: JavaStringValue[Pre] => java.stringValue(str)
     case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
 
     case Cast(inner, TypeValue(t)) if t == Java.float[Pre] || t == Java.double[Pre] =>

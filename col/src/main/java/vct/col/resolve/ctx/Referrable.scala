@@ -56,7 +56,6 @@ sealed trait Referrable[G] {
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
-    case RefStringClass(decl) => ""
     case ImplicitDefaultJavaConstructor() => ""
     case ImplicitDefaultPVLConstructor() => ""
     case RefCudaThreadIdx() => "threadIdx"
@@ -112,7 +111,6 @@ case object Referrable {
     case decl: CLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
-    case decl: StringClass[G] => RefStringClass(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -178,7 +176,6 @@ case class RefProcedure[G](decl: Procedure[G]) extends Referrable[G] with SpecIn
 case class RefPredicate[G](decl: Predicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefClass[G](decl: Class[G]) extends Referrable[G] with PVLTypeNameTarget[G] with SpecNameTarget[G] with ThisTarget[G]
 case class RefModel[G](decl: Model[G]) extends Referrable[G] with SpecTypeNameTarget[G] with ThisTarget[G] with PVLConstructorTarget[G] with JavaConstructorTarget[G]
-case class RefStringClass[G](decl: StringClass[G]) extends Referrable[G] with ThisTarget[G]
 case class RefEnum[G](decl: Enum[G]) extends Referrable[G] with SpecTypeNameTarget[G] with SpecNameTarget[G]
 case class RefEnumConstant[G](enum: Option[Enum[G]], decl: EnumConstant[G]) extends Referrable[G] with SpecDerefTarget[G] with SpecNameTarget[G]
 case class RefJavaSharedInitialization[G](decl: JavaSharedInitialization[G]) extends Referrable[G]

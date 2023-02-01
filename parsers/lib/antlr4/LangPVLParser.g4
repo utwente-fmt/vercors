@@ -12,7 +12,6 @@ enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
  : contract 'class' identifier '{' classDecl* '}'
- | 'class' 'String' '{' classDecl* '}'
  ;
 
 applicableReference
@@ -127,8 +126,7 @@ unaryExpr
  ;
 
 newExpr
- : 'new' 'String' '(' expr ')'
- | 'new' classType call
+ : 'new' classType call
  | 'new' nonArrayType newDims
  | postfixExpr
  ;
@@ -258,7 +256,6 @@ quantifiedDim : '[' expr ']' ;
 anonDim : '[' ']' ;
 classType
  : identifier typeArgs?
- | 'String'
  ;
 typeArgs : '<' typeList '>';
 

@@ -2,37 +2,6 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
-class TechnicalSpec2 extends VercorsSpec {
-//  vercors should verify using silicon in "example using string primitive" pvl
-//    """
-//void g() {
-//    "xuz";
-//    assert "abc" == "abc";
-//    assert "abc" != "xyz";
-//
-//    string xxx;
-//    string s1 = "aaa";
-//    string s2 = "bbb";
-//    string s3 = s1 + s2;
-//}
-//"""
-
-  vercors should verify using silicon in "example using string class" pvl
-    """
-void g() {
-  new String("xuz");
-  assert new String("abc") != new String("xyz");
-
-  String xxx;
-  String s1 = new String("aaa");
-  String s2 = new String("bbb");
-  String s3 = s1 + s2;
-
-  assert (new String("abc")).intern() == (new String("abc")).intern();
-}
-"""
-}
-
 class TechnicalSpec extends VercorsSpec {
   vercors should verify using silicon in "example using triggers" java """
     class C {
@@ -419,20 +388,5 @@ class TechnicalSpec extends VercorsSpec {
       string s2 = "bbb";
       string s3 = s1 + s2;
   }
-"""
-
-  vercors should verify using silicon in "example using string class" pvl
-    """
-void g() {
-    new String("xuz");
-    assert new String("abc") != new String("xyz");
-
-    String xxx;
-    String s1 = new String("aaa");
-    String s2 = new String("bbb");
-    String s3 = s1 + s2;
-
-    assert (new String("abc")).intern() == (new String("abc")).intern();
-}
 """
 }

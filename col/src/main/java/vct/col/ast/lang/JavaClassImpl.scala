@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{JavaBuiltinString, JavaClass, JavaFields, JavaMethod, Type}
+import vct.col.ast.{JavaClass, JavaFields, JavaMethod, Type}
 import vct.col.resolve.ctx._
 
 trait JavaClassImpl[G] { this: JavaClass[G] =>
@@ -24,10 +24,5 @@ trait JavaClassImpl[G] { this: JavaClass[G] =>
 
   def getMethods(name: String): Seq[RefJavaMethod[G]] = decls.collect {
     case m: JavaMethod[G] if m.name == name => RefJavaMethod(m)
-  }
-
-  lazy val isJavaStringClass: Boolean = modifiers.exists {
-    case JavaBuiltinString() => true
-    case _ => false
   }
 }

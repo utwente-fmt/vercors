@@ -114,7 +114,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "final" => JavaFinal()
       case "strictfp" => JavaStrictFP()
     }
-    case ClassOrInterfaceModifier2(_, "builtin_String", _) => JavaBuiltinString()
   }
 
   def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
@@ -735,7 +734,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
       FloatValue(BigDecimal(num), t)
     case Literal2(_) => ??(expr)
-    case Literal3(data) => JavaStringLiteral(data.substring(1, data.length - 1))
+    case Literal3(data) => JavaStringValue(data.substring(1, data.length - 1), Java.JAVA_LANG_STRING_TYPE)
     case Literal4(value) => value match {
       case "true" => tt
       case "false" => ff

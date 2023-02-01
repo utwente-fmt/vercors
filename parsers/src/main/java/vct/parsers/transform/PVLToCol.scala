@@ -65,13 +65,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
         )(SourceNameOrigin(convert(name), origin(cls)))
       })
-    case DeclClass1(_, "String", _, decls, _) =>
-      new StringClass(decls.flatMap(convert(_)))
-  }
-
-  def convert(implicit applicableRef: ApplicableReferenceContext): ApplicableRef[G] = applicableRef match {
-    case PvlAdtFunctionRef(domainName, _, functionName) => ADTFunctionRef(convert(domainName), convert(functionName))
-    case PvlFunctionRef(functionName) => FunctionRef(convert(functionName))
   }
 
   def convert(implicit decl: ClassDeclContext): Seq[ClassDeclaration[G]] = decl match {
@@ -237,12 +230,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
-    case NewExpr0(_, "String", _, arg, _) =>
-      PVLStringClassNew(convert(arg))
-    case NewExpr1(_, name, Call0(typeArgs, args, given, yields)) =>
+    case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
       PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
-    case NewExpr2(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
-    case NewExpr3(inner) => convert(inner)
+    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
+    case NewExpr2(inner) => convert(inner)
   }
 
   def convert(implicit expr: PostfixExprContext): Expr[G] = expr match {
@@ -475,7 +466,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit t: ClassTypeContext): Type[G] = t match {
     case ClassType0(name, typeArgs) => PVLNamedType(convert(name), typeArgs.map(convert(_)).getOrElse(Nil))
-    case ClassType1("String") => TStringClass()
   }
 
   def convert(implicit ts: TypeArgsContext): Seq[Type[G]] = ts match {

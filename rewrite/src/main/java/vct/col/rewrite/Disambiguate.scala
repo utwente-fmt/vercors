@@ -27,7 +27,6 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
         else if(op.isSeqOp) Concat(dispatch(left), dispatch(right))
         else if(op.isSetOp) SetUnion(dispatch(left), dispatch(right))
         else if(op.isBagOp) BagAdd(dispatch(left), dispatch(right))
-        else if(op.isStringClassOp) StringClassConcat(dispatch(left), dispatch(right))
         else if(op.isStringOp) StringConcat(dispatch(left), dispatch(right))
         else Plus(dispatch(left), dispatch(right))
       case op @ AmbiguousMinus(left, right) =>
