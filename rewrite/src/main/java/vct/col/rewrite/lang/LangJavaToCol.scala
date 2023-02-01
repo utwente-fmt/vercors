@@ -110,9 +110,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   val javaClassDeclToJavaClass: mutable.Map[JavaClassDeclaration[Pre], JavaClassOrInterface[Pre]] = mutable.Map()
 
-//  lazy val javaLangStringClass: Option[JavaClass[Pre]] = rw.program.collectFirst {
-//    case cls: JavaClass[Pre] if cls.isJavaStringClass => cls
-//  }
   val currentJavaClass: ScopedStack[JavaClassOrInterface[Pre]] = ScopedStack()
 
   def isJavaStatic(decl: ClassDeclaration[_]): Boolean = decl match {
@@ -253,21 +250,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
       )(method.blame)(JavaMethodOrigin(method)))
     }
-  }
-
-  def rewriteJavaLangStringClass(cls: JavaClass[Pre]): Unit = {
-//    val stringClass = rw.currentThis.having(ThisStringClass[Post](javaStringClassSuccessor.ref(cls))(cls.o)) {
-//      new StringClass[Post](
-//        declarations = rw.classDeclarations.collect(cls.decls.collect {
-//          case method: JavaMethod[Pre] => method
-//          case function: InstanceFunction[Pre] => function
-//          case decl => throw NotSupportedInJavaLangStringClass(decl)
-//        }.foreach(rw.dispatch(_)))._1
-//      )(cls.o)
-//    }
-//
-//    javaStringClassSuccessor(cls) = rw.globalDeclarations.declare(stringClass)
-    ???
   }
 
 
@@ -499,18 +481,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def stringValue(str: JavaStringValue[Pre]): Expr[Post] = {
     val JavaTClass(Ref(stringClass), Seq()) = str.t
-//    val constructor: JavaConstructor[Pre] = stringClass.declarations.collectFirst {
-//      case cons: JavaConstructor[Pre] if cons.parameters.length == 1 && cons.parameters.head.t == TString[Pre]() => cons
-//    }.get
     val intern: JavaMethod[Pre] = stringClass.declarations.collectFirst {
       case m: JavaMethod[Pre] if m.name == "vercorsIntern" => m
     }.get
-
-//    ProcedureInvocation[Post](
-//      PanicBlame("Interning cannot fail"),
-//      Seq(StringValue(str.data)(str.o)),
-//      javaMethod.ref(intern),
-//    )(str.o)
 
     val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(stringClass))
     MethodInvocation[Post](
@@ -519,9 +492,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       args = Seq(StringValue(str.data)(str.o)),
       Nil, Nil, Nil, Nil
     )(PanicBlame("Interning cannot fail"))(str.o)
-    }
+  }
 
-    def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
+  def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
   }
 }
