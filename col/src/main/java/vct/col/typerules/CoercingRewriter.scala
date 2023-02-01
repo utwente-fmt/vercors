@@ -508,6 +508,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       .onCoercionError(alt6)
       .onCoercionError(alt7)
       .onCoercionError(alt8)
+      .onCoercionError(alt9)
+      .onCoercionError(alt10)
+      .onCoercionError(alt11)
     match {
       case Left(errs) =>
         for(err <- errs) {
@@ -697,7 +700,42 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          },
+          }, {
+            // Plus left case
+            val l = cls(left)
+            val decls = left.t match {
+              case TClass(Ref(cls)) => cls.declarations
+              case JavaTClass(Ref(cls), _) => cls.declarations
+            }
+            val validOperators = decls.collect {
+              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorLeftPlus[Pre]()
+                && CoercionUtils.getCoercion(right.t, m.args.head.t).isDefined => m
+              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorLeftPlus[Pre]()
+                && CoercionUtils.getCoercion(right.t, f.args.head.t).isDefined => f
+            }
+            validOperators match {
+              case Seq(op) => AmbiguousPlus(l, coerce(right, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(l, "This expression does not have a matching custom plus operator")
+            }
+          }, {
+            // TODO (RR): Definition of operators should be type checked for arity
+            // Plus right case
+            val r = cls(right)
+            val decls = r.t match {
+              case TClass(Ref(cls)) => cls.declarations
+              case JavaTClass(Ref(cls), _) => cls.declarations
+            }
+            val validOperators = decls.collect {
+              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorRightPlus[Pre]()
+                && CoercionUtils.getCoercion(left.t, m.args.head.t).isDefined => m
+              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorRightPlus[Pre]()
+                && CoercionUtils.getCoercion(left.t, f.args.head.t).isDefined => f
+            }
+            validOperators match {
+              case Seq(op) => AmbiguousPlus(r, coerce(left, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(r, "This expression does not have a matching custom right plus operator")
+            }
+          }
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>

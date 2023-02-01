@@ -128,6 +128,8 @@ object AstBuildHelpers {
         new RewriteProcedure(procedure).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure, blame = blame)
       case method: InstanceMethod[Pre] =>
         new RewriteInstanceMethod(method).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure, blame = blame)
+      case method: InstanceOperatorMethod[Pre] =>
+        new RewriteInstanceOperatorMethod(method).rewrite(returnType = returnType, operator = rewriter.dispatch(method.operator), args = args, body = body, contract = contract, inline = inline, pure = pure, blame = blame)
     }
   }
 
@@ -145,6 +147,8 @@ object AstBuildHelpers {
         new RewriteFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
       case function: InstanceFunction[Pre] =>
         new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
+      case function: InstanceOperatorFunction[Pre] =>
+        new RewriteInstanceOperatorFunction(function).rewrite(returnType = returnType, operator = rewriter.dispatch(function.operator), args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
     }
   }
 
@@ -298,16 +302,16 @@ object AstBuildHelpers {
                          yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): FunctionInvocation[G] =
     FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
 
-  // def methodInvocation[G]
-  //                     (blame: Blame[InstanceInvocationFailure],
-  //                      obj: Expr[G],
-  //                      ref: Ref[G, InstanceMethod[G]],
-  //                      args: Seq[Expr[G]] = Nil,
-  //                      outArgs: Seq[Ref[G, Variable[G]]] = Nil,
-  //                      typeArgs: Seq[Type[G]] = Nil,
-  //                      givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
-  //                      yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
-  //   MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+  def methodInvocation[G]
+                      (blame: Blame[InstanceInvocationFailure],
+                       obj: Expr[G],
+                       ref: Ref[G, InstanceMethod[G]],
+                       args: Seq[Expr[G]] = Nil,
+                       outArgs: Seq[Expr[G]] = Nil,
+                       typeArgs: Seq[Type[G]] = Nil,
+                       givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                       yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
+    MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
   case object GeneratedQuantifier extends Origin {
     override def preferredName: String = "i"

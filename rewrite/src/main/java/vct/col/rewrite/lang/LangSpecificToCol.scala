@@ -114,6 +114,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case RefJavaAnnotationMethod(decL) => ???
         case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
+        case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
+        case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>

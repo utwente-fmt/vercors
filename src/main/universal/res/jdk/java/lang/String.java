@@ -19,8 +19,8 @@ public class String {
     /*@
     ghost
     decreases;
-    ensures this.data() == data;
-    String(string data) {
+    ensures data() == str;
+    String(string str) {
         //@ assume false;
     }
     */
@@ -46,6 +46,7 @@ public class String {
 
     /*@
     decreases;
+    requires other != null;
     ensures \result != null ** \result instanceof String;
     ensures \result.data() == data() + other.data();
     String +(String other) {
@@ -53,8 +54,9 @@ public class String {
     }
 
     decreases;
+    requires other != null;
     ensures \result != null ** \result instanceof String;
-    ensures \result.data() == data() + other.data();
+    ensures \result.data() == other.data() + data();
     String right+(String other) {
         return new String(other.data() + data());
     }

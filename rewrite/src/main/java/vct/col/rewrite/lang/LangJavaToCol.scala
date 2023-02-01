@@ -497,7 +497,25 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     ), array.get))
   }
 
-  def stringValue(str: JavaStringValue[Pre]): Expr[Post] = ???
+  def stringValue(str: JavaStringValue[Pre]): Expr[Post] = {
+    val JavaTClass(Ref(stringClass), Seq()) = str.t
+    val constructor: JavaConstructor[Pre] = stringClass.declarations.collectFirst {
+      case cons: JavaConstructor[Pre] if cons.parameters.length == 1 && cons.parameters.head.t == TString[Pre]() => cons
+    }.get
+    val intern: JavaMethod[Pre] = stringClass.declarations.collectFirst {
+      case m: JavaMethod[Pre] if m.name == "intern" => m
+    }.get
+
+    methodInvocation[Post](
+      PanicBlame("Interning cannot fail"),
+      ProcedureInvocation[Post](
+        javaConstructor.ref(constructor),
+        Seq(StringValue(str.data)(str.o)),
+        Seq(), Seq(), Seq(), Seq()
+      )(PanicBlame("Constructing a java.lang.String cannot fail"))(str.o),
+      javaMethod.ref(intern),
+    )(str.o)
+  }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
     case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
