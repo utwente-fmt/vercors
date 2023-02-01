@@ -929,9 +929,14 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         SourceNameOrigin(convert(name), origin(decl)))
   }
 
-  def convert(implicit definition: ValDefContext): Option[Expr[G]] = definition match {
-    case ValAbstractBody(_) => None
-    case ValBody(_, expr, _) => Some(convert(expr))
+  def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
+    case ValPureAbstractBody(_) => None
+    case ValPureBody(_, expr, _) => Some(convert(expr))
+  }
+
+  def convert(implicit definition: ValImpureDefContext): Option[Statement[G]] = definition match {
+    case ValImpureAbstractBody(_) => None
+    case ValImpureBody(statement) => Some(convert(statement))
   }
 
   def convert(implicit t: ValTypeContext): Type[G] = t match {

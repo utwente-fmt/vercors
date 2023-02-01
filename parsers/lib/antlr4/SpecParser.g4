@@ -334,17 +334,24 @@ valType
 
 valGlobalDeclaration
  : 'axiom' langId '{' langExpr '}' # valAxiom
- | valModifier* 'resource' langId '(' valArgList? ')' valDef # valPredicate
- | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valFunction
+ | valModifier* 'resource' langId '(' valArgList? ')' valPureDef # valPredicate
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valPureDef # valFunction
  | 'model' langId '{' valModelDeclaration* '}' # valModel
  | 'ghost' langGlobalDecl # valGhostDecl
  | 'adt' langId valTypeVars? '{' valAdtDeclaration* '}' # valAdtDecl
  ;
 
 valClassDeclaration
- : valModifier* 'resource' langId '(' valArgList? ')' valDef # valInstancePredicate
- | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valInstanceFunction
+ : valModifier* 'resource' langId '(' valArgList? ')' valPureDef # valInstancePredicate
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valPureDef # valInstanceFunction
  | 'ghost' langClassDecl # valInstanceGhostDecl
+ | valContractClause* valModifier* 'pure' langType valOperatorName '(' valArgList? ')' valPureDef # valInstanceOperatorFunction
+ | valContractClause* valModifier*  langType valOperatorName '(' valArgList? ')' valImpureDef # valInstanceOperatorMethod
+ ;
+
+valOperatorName
+ : '+'
+ | 'right+'
  ;
 
 valModelDeclaration
@@ -362,9 +369,14 @@ valAdtDeclaration
  | 'pure' langType langId '(' valArgList? ')' ';' # valAdtFunction
  ;
 
-valDef
- : ';' # valAbstractBody
- | '=' langExpr ';' # valBody
+valPureDef
+ : ';'              # valPureAbstractBody
+ | '=' langExpr ';' # valPureBody
+ ;
+
+valImpureDef
+ : ';'           # valImpureAbstractBody
+ | langStatement # valImpureBody
  ;
 
 valModifier
