@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaLangString, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPinnedDecl, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -37,12 +37,12 @@ case object Java extends LazyLogging {
   def JAVA_LANG_ANNOTATION_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
   def JAVA_LANG_STRING_TYPE[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
   def JAVA_LANG_STRING_NAME[G]: JavaName[G] = JavaName(JAVA_LANG_STRING)
-  def JAVA_LANG_CLASS: Seq[String] = Seq("java", "lang", "Class")
-  def JAVA_LANG_STRING: Seq[String] = Seq("java", "lang", "String")
+  def JAVA_LANG_CLASS: Seq[String] = JAVA_LANG :+ "Class"
+  def JAVA_LANG_STRING: Seq[String] = JAVA_LANG :+ "String"
   def JAVA_LANG: Seq[String] = Seq("java", "lang")
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
-    (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
+    (ctx.stack.lastOption.getOrElse(Seq()) ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
       case RefJavaNamespace(ns: JavaNamespace[G]) =>
         for(decl <- ns.declarations) {
           Referrable.from(decl).foreach {
@@ -382,11 +382,6 @@ case object Java extends LazyLogging {
       case TNotAValue(RefAxiomaticDataType(adt)) => adt.decls.flatMap(Referrable.from).collectFirst {
         case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       }
-      case TPinnedDecl(JavaLangString(), Nil) =>
-        findJavaTypeName[G](Java.JAVA_LANG_STRING, ctx.asTypeResolutionContext).flatMap {
-          case cls: RefJavaClass[G] => findMethodInClass[G](cls.decl, method, args)
-          case _ => throw UnexpectedJreDefinition("java class", Java.JAVA_LANG_STRING)
-        }
       case _ => None
     }
 

@@ -10,7 +10,15 @@ programDecl : valGlobalDeclaration | declClass | enumDecl | method;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
-declClass : contract 'class' identifier '{' classDecl* '}' ;
+declClass
+ : contract 'class' identifier '{' classDecl* '}'
+ ;
+
+applicableReference
+ : identifier '.' identifier # pvlAdtFunctionRef
+ | identifier                # pvlFunctionRef
+ ;
+
 classDecl : valClassDeclaration | constructor | method | field | runMethod;
 
 field : type identifierList ';' ;
@@ -137,6 +145,8 @@ unit
  | NUMBER
  | DECIMAL_NUMBER
  | DECIMAL_NUMBER_F
+ | STRING_LITERAL
+ | CHARACTER_LITERAL
  | '(' expr ')'
  | identifier call?
  | valGenericAdtInvocation
@@ -226,7 +236,7 @@ invariant: 'loop_invariant' expr ';';
 
 nonArrayType
  : valType
- | ('string' | 'int' | 'boolean' | 'void' | 'float32' | 'float64')
+ | ('int' | 'boolean' | 'void' | 'float32' | 'float64' | 'char')
  | classType
  ;
 

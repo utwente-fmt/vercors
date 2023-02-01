@@ -37,39 +37,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
 
-  val pinnedClasses: SuccessionMap[PinnedDecl[Pre], JavaClass[Pre]] = SuccessionMap()
-  var concatStrings: Option[Function[Pre]] = None
-  var internToString: Option[Function[Pre]] = None
-
-  override def dispatch(program: Program[Pre]): Program[Post] = {
-    program.transSubnodes.foreach {
-      case cls: JavaClassOrInterface[Pre] =>
-        implicit val o: Origin = cls.o
-
-        cls match {
-          case cls: JavaClass[Pre] if cls.pin.isDefined => pinnedClasses(cls.pin.get) = cls
-          case _ =>
-        }
-
-      case ns: JavaNamespace[Pre] =>
-        if (ns.pkg.exists(_.names == Java.JAVA_LANG)) {
-          ns.transSubnodes.foreach {
-            case f: Function[Pre] =>
-              f.o match {
-                case SourceNameOrigin("concatStrings", _) => concatStrings = Some(f)
-                case SourceNameOrigin("internToString", _) => internToString = Some(f)
-                case _ =>
-              }
-            case _ =>
-          }
-        }
-
-      case _ =>
-    }
-
-    super.dispatch(program)
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
       implicit val o: Origin = model.o
@@ -80,6 +47,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
+
+    case method: JavaMethod[Pre] => java.rewriteMethod(method)
 
     case unit: CTranslationUnit[Pre] => c.rewriteUnit(unit)
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
@@ -98,9 +67,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           globalDeclarations.succeed(cls, cls.rewrite(decls))
         }
       }
-
-    case function: Function[Pre] if concatStrings.contains(function) =>
-      globalDeclarations.succeed(function, function.rewrite(pin = Some(JavaStringConcatOperator())))
 
     case other => rewriteDefault(other)
   }
@@ -140,6 +106,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case RefJavaAnnotationMethod(decL) => ???
         case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
+        case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
+        case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>
@@ -151,7 +119,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: JavaNewClass[Pre] => java.newClass(inv)
     case arr: JavaNewLiteralArray[Pre] => java.newLiteralArray(arr)
     case arr: JavaNewDefaultArray[Pre] => java.newDefaultArray(arr)
-    case str: JavaStringLiteral[Pre] => java.stringLiteral(str)
+    case str: JavaStringValue[Pre] => java.stringValue(str)
     case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
 
     case Cast(inner, TypeValue(t)) if t == Java.float[Pre] || t == Java.double[Pre] =>

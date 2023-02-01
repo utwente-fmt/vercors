@@ -12,7 +12,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.col.resolve.lang.Java
-import vct.result.VerificationError.{UserError, Unreachable}
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -83,6 +83,11 @@ case object LangJavaToCol {
   case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray[_]) extends UserError {
     override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
     override def code: String = "invalidNesting"
+  }
+
+  case class NotSupportedInJavaLangStringClass(decl: ClassDeclaration[_]) extends UserError {
+    override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
+    override def text: String = "notSupportedInStringClass"
   }
 }
 
@@ -211,24 +216,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
           ))
         }
-      case method: JavaMethod[Pre] =>
-        rw.labelDecls.scope {
-          javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
-            returnType = rw.dispatch(method.returnType),
-            args = rw.variables.dispatch(method.parameters),
-            outArgs = Nil, typeArgs = Nil,
-            body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
-              case None => method.body.map(rw.dispatch)
-            },
-            contract = method.contract.rewrite(
-              signals = method.contract.signals.map(rw.dispatch) ++
-                method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-            ),
-            inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
-            pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
-          )(method.blame)(JavaMethodOrigin(method)))
-        }
+      case method: JavaMethod[Pre] => rw.dispatch(method)
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -242,6 +230,28 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case other => rw.dispatch(other)
     }
   }
+
+  def rewriteMethod(method: JavaMethod[Pre]): Unit = {
+    implicit val o: Origin = method.o
+    rw.labelDecls.scope {
+      javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
+        returnType = rw.dispatch(method.returnType),
+        args = rw.variables.dispatch(method.parameters),
+        outArgs = Nil, typeArgs = Nil,
+        body = method.modifiers.collectFirst { case sync@JavaSynchronized() => sync } match {
+          case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
+          case None => method.body.map(rw.dispatch)
+        },
+        contract = method.contract.rewrite(
+          signals = method.contract.signals.map(rw.dispatch) ++
+            method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+        ),
+        inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
+        pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
+      )(method.blame)(JavaMethodOrigin(method)))
+    }
+  }
+
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
@@ -269,7 +279,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
         new Class[Post](rw.classDeclarations.collect {
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
-        }._1, supports, rw.dispatch(lockInvariant), pin = cls.pin.map(rw.dispatch))(JavaInstanceClassOrigin(cls))
+        }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))
       }
 
       rw.globalDeclarations.declare(instanceClass)
@@ -457,12 +467,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   def newDefaultArray(arr: JavaNewDefaultArray[Pre]): Expr[Post] =
     NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.o)
 
-  def stringLiteral(lit: JavaStringLiteral[Pre]): Expr[Post] = {
-    implicit val o = lit.o
-    // TODO (RR): Better error throw
-    InternedString(StringLiteral(lit.data), rw.succ(rw.internToString.getOrElse(throw Unreachable("internToString should be loaded"))))
-  }
-
   def literalArray(arr: JavaLiteralArray[Pre]): Expr[Post] = {
     implicit val o: Origin = JavaInlineArrayInitializerOrigin(arr.o)
     val array = new Variable[Post](rw.dispatch(arr.typeContext.get))
@@ -473,6 +477,21 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             PanicBlame("Assignment for an explicit array initializer cannot fail."))
         }
     ), array.get))
+  }
+
+  def stringValue(str: JavaStringValue[Pre]): Expr[Post] = {
+    val JavaTClass(Ref(stringClass), Seq()) = str.t
+    val intern: JavaMethod[Pre] = stringClass.declarations.collectFirst {
+      case m: JavaMethod[Pre] if m.name == "vercorsIntern" => m
+    }.get
+
+    val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(stringClass))
+    MethodInvocation[Post](
+      obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Class static cannot fail"))(str.o),
+      ref = javaMethod.ref(intern),
+      args = Seq(StringValue(str.data)(str.o)),
+      Nil, Nil, Nil, Nil
+    )(PanicBlame("Interning cannot fail"))(str.o)
   }
 
   def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {

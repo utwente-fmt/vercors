@@ -24,9 +24,9 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
 object Transformation {
-  case class TransformationCheckError(errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
     override def text: String =
-      "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
+      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
@@ -108,7 +108,7 @@ class Transformation
 
       result.check match {
         case Nil => // ok
-        case errors => throw TransformationCheckError(errors)
+        case errors => throw TransformationCheckError(pass, errors)
       }
 
       onAfterPassKey.foreach {
@@ -163,9 +163,8 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
 
-    // Q (RR): Should the next two passes be more in the center of the pass list? Like the exception passes?
-    EncodeJavaLangString, // Encode java strings as string objects and interning functions
     EncodeString, // Encode spec string as seq<int>
+    EncodeChar,
 
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.

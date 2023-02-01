@@ -7,6 +7,7 @@ import vct.col.check.CheckError
 import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
+import vct.result.VerificationError.Unreachable
 
 case object ResolveTypes {
   sealed trait JavaClassPathEntry
@@ -83,20 +84,13 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-    case _: JavaStringLiteral[G] =>
+    case _: JavaStringValue[G] =>
       Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
-    case cls: JavaClass[G] =>
-      val fqn = ctx.namespace.flatMap(_.pkg).map(_.names :+ cls.name)
-      if (fqn.contains(Java.JAVA_LANG_STRING)) {
-        cls.pin = Some(JavaLangString())
-      } else if (fqn.contains(Java.JAVA_LANG_CLASS)) {
-        cls.pin = Some(JavaLangClass())
-      }
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
         case Some(
           _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
-          _: RefJavaClass[G] | _: RefEnum[G] | _: RefEnumConstant[G] // Statically imported, or regular previously imported typename
+          _: RefJavaClass[G] | _: RefEnum[G] | _: RefEnumConstant[G] | _: RefAxiomaticDataType[G] // Statically imported, or regular previously imported typename
         ) => // Nothing to do. Local will get properly resolved next phase
         case None =>
           // Unknown what this local refers though. Try importing it as a type; otherwise, it's the start of a package

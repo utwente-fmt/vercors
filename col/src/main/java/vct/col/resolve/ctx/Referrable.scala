@@ -40,6 +40,8 @@ sealed trait Referrable[G] {
     case RefJavaAnnotationMethod(decl) => decl.name
     case RefInstanceFunction(decl) => Referrable.originName(decl)
     case RefInstanceMethod(decl) => Referrable.originName(decl)
+    case RefInstanceOperatorMethod(decl) => Referrable.originName(decl)
+    case RefInstanceOperatorFunction(decl) => Referrable.originName(decl)
     case RefInstancePredicate(decl) => Referrable.originName(decl)
     case RefField(decl) => Referrable.originName(decl)
     case RefVariable(decl) => Referrable.originName(decl)
@@ -95,6 +97,8 @@ case object Referrable {
     case decl: JavaAnnotationMethod[G] => RefJavaAnnotationMethod(decl)
     case decl: InstanceFunction[G] => RefInstanceFunction(decl)
     case decl: InstanceMethod[G] => RefInstanceMethod(decl)
+    case decl: InstanceOperatorMethod[G] => RefInstanceOperatorMethod(decl)
+    case decl: InstanceOperatorFunction[G] => RefInstanceOperatorFunction(decl)
     case decl: InstancePredicate[G] => RefInstancePredicate(decl)
     case decl: InstanceField[G] => RefField(decl)
     case decl: Variable[G] => RefVariable(decl)
@@ -186,6 +190,8 @@ case class RefJavaMethod[G](decl: JavaMethod[G]) extends Referrable[G] with Java
 case class RefJavaAnnotationMethod[G](decl: JavaAnnotationMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceFunction[G](decl: InstanceFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceMethod[G](decl: InstanceMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefInstanceOperatorMethod[G](decl: InstanceOperatorMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
+case class RefInstanceOperatorFunction[G](decl: InstanceOperatorFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefInstancePredicate[G](decl: InstancePredicate[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefField[G](decl: InstanceField[G]) extends Referrable[G] with PVLNameTarget[G] with PVLDerefTarget[G]
 case class RefVariable[G](decl: Variable[G]) extends Referrable[G] with SpecNameTarget[G] with SpecTypeNameTarget[G]
