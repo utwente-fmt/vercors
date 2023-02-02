@@ -25,7 +25,8 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/JavaAnnotation.java"
   vercors should verify using silicon example "concepts/basic/MultiDimArray.java"
   vercors should verify using anyBackend example "concepts/basic/NewClassGhost.java"
-  vercors should verify using anyBackend example "concepts/basic/pointer.c"
+  // https://github.com/utwente-fmt/vercors/issues/921
+  // vercors should verify using anyBackend example "concepts/basic/pointer.c"
   vercors should verify using anyBackend example "concepts/basic/postfix-increment.pvl"
   vercors should verify using anyBackend example "concepts/basic/predicate.pvl"
   vercors should error withCode "curThreadScope" example "concepts/basic/pure.pvl"

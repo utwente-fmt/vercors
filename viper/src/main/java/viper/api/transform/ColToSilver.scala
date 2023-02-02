@@ -281,9 +281,15 @@ case class ColToSilver(program: col.Program[_]) {
     case col.Forall(bindings, triggers, body) =>
       scoped { silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e)) }
     case starall @ col.Starall(bindings, triggers, body) =>
-      scoped { currentStarall.having(starall) {
-        silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
-      } }
+      scoped {
+        currentStarall.having(starall) {
+          val foralls: Seq[silver.Forall] = silver.utility.QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
+            silver.Forall(bindings.map(variable), triggers.map(trigger), exp(body))(pos=pos(e), info=expInfo(e))
+          )
+
+          foralls.reduce[silver.Exp] { case (l, r) => silver.And(l, r)(pos=pos(e), info=expInfo(e)) }
+        }
+      }
     case col.Let(binding, value, main) =>
       scoped { silver.Let(variable(binding), exp(value), exp(main))(pos=pos(e), info=expInfo(e)) }
     case col.Not(arg) => silver.Not(exp(arg))(pos=pos(e), info=expInfo(e))
@@ -407,7 +413,7 @@ case class ColToSilver(program: col.Program[_]) {
 
   def stat(s: col.Statement[_]): silver.Stmt = s match {
     case inv@col.InvokeProcedure(method, args, outArgs, Nil, Nil, Nil) =>
-      silver.MethodCall(ref(method), args.map(exp), outArgs.map(arg => silver.LocalVar(ref(arg), typ(arg.decl.t))()))(
+      silver.MethodCall(ref(method), args.map(exp), outArgs.collect { case col.Local(Ref(arg)) => silver.LocalVar(ref(arg), typ(arg.t))()})(
         pos(s), NodeInfo(inv), silver.NoTrafos)
     case col.SilverFieldAssign(obj, field, value) =>
       silver.FieldAssign(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(s), info=NodeInfo(s)), exp(value))(pos=pos(s), info=NodeInfo(s))
@@ -418,8 +424,8 @@ case class ColToSilver(program: col.Program[_]) {
       val silverLocals = locals.map(variable)
       silver.Seqn(Seq(stat(body)), silverLocals)(pos=pos(s), info=NodeInfo(s))
     case col.Branch(Seq((cond, whenTrue), (col.BooleanValue(true), whenFalse))) => silver.If(exp(cond), block(whenTrue), block(whenFalse))(pos=pos(s), info=NodeInfo(s))
-    case col.Loop(col.Block(Nil), cond, col.Block(Nil), invNode @ col.LoopInvariant(inv), body) =>
-      silver.While(exp(cond), currentInvariant.having(invNode) { unfoldStar(inv).map(exp) }, block(body))(pos=pos(s), info=NodeInfo(s))
+    case col.Loop(col.Block(Nil), cond, col.Block(Nil), invNode @ col.LoopInvariant(inv, decrClause), body) =>
+      silver.While(exp(cond), currentInvariant.having(invNode) { unfoldStar(inv).map(exp) ++ decrClause.map(decreases).toSeq }, block(body))(pos=pos(s), info=NodeInfo(s))
     case col.Label(decl, col.Block(Nil)) => silver.Label(ref(decl), Seq())(pos=pos(s), info=NodeInfo(s))
     case col.Goto(lbl) => silver.Goto(ref(lbl))(pos=pos(s), info=NodeInfo(s))
     case col.Return(col.Void()) => silver.Seqn(Nil, Nil)(pos=pos(s), info=NodeInfo(s))

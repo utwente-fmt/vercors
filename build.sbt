@@ -62,6 +62,9 @@ ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).v
 ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 
+carbon_ref / unmanagedResources / excludeFilter := "logback*.xml"
+silicon_ref / unmanagedResources / excludeFilter := "logback*.xml"
+
 // Disable doc generation in all viper projects
 carbon_ref / packageDoc / publishArtifact := false
 silver_ref / packageDoc / publishArtifact := false
@@ -90,7 +93,7 @@ lazy val vercors: Project = (project in file("."))
     fork := true,
     name := "Vercors",
     organization := "nl.utwente",
-    version := "2.0.0-alpha.8",
+    version := "2.0.0-beta.1",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=

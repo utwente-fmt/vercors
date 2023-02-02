@@ -15,7 +15,7 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
     CoercionUtils.getCoercion(left.t, TInt()).isDefined &&
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
 
-  override def t: Type[G] =
+  override lazy val t: Type[G] =
     if(isProcessOp) TProcess()
     else if(isSeqOp || isBagOp || isSetOp) Types.leastCommonSuperType(left.t, right.t)
     else if(isPointerOp) left.t

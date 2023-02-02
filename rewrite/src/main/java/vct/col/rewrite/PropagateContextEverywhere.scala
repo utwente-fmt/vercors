@@ -90,8 +90,8 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
     case loop: Loop[Pre] =>
       implicit val o: Origin = loop.o
       loop.contract match {
-        case inv @ LoopInvariant(invariant) =>
-          loop.rewrite(contract = LoopInvariant(freshInvariants() &* dispatch(invariant))(inv.blame))
+        case inv @ LoopInvariant(invariant, decreases) =>
+          loop.rewrite(contract = LoopInvariant(freshInvariants() &* dispatch(invariant), decreases.map(dispatch))(inv.blame))
         case _: IterationContract[Pre] => throw ExtraNode
       }
     case other => rewriteDefault(other)

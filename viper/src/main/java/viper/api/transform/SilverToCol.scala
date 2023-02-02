@@ -214,7 +214,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
       col.InvokeProcedure[G](
         ref = new UnresolvedRef(methodName),
         args = args.map(transform),
-        outArgs = targets.map(transform).map(_.ref),
+        outArgs = targets.map(transform),
         typeArgs = Nil, givenMap = Nil, yields = Nil,
       )(blame(s))(origin(s))
     case silver.Exhale(exp) =>
@@ -247,7 +247,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
         init = col.Block(Nil)(origin(s)),
         cond = transform(cond),
         update = col.Block(Nil)(origin(s)),
-        contract = col.LoopInvariant(foldStar(invs.map(transform))(origin(s)))(blame(s))(origin(s)),
+        contract = col.LoopInvariant(foldStar(invs.map(transform))(origin(s)), None)(blame(s))(origin(s)),
         body = transform(body),
       )(origin(s))
     case silver.Label(name, invs) =>

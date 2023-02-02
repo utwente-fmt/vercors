@@ -46,7 +46,8 @@ case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
 
         contract = LoopInvariant(
           (once.get ==> dispatch(pre)) &*
-            (!once.get ==> dispatch(post))
+            (!once.get ==> dispatch(post)),
+          Some(DecreasesClauseNoRecursion[Post]()),
         )(FramedProofLoopInvariantFailed(proof)),
         body = dispatch(body),
       ))

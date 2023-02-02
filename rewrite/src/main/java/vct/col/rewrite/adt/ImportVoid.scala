@@ -13,7 +13,7 @@ case class ImportVoid[Pre <: Generation](importer: ImportADTImporter) extends Im
   private lazy val voidAdt = find[AxiomaticDataType[Post]](voidFile, "void")
   private lazy val voidUnit = find[ADTFunction[Post]](voidAdt, "unit")
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TVoid() => TAxiomatic(voidAdt.ref, Nil)
     case other => rewriteDefault(other)
   }

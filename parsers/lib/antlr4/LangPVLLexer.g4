@@ -84,6 +84,7 @@ OWNER: '\\owner';
 GLOBAL: 'global';
 LOCAL: 'local';
 STATIC: 'static';
+FINAL: 'final';
 UNFOLDING_ESC: '\\unfolding';
 UNFOLDING: 'unfolding';
 IN_ESC: '\\in';

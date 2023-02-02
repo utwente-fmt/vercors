@@ -359,4 +359,20 @@ class TechnicalSpec extends VercorsSpec {
           }
       }
     """
+
+  vercors should verify using silicon in "example using adts" java
+    """
+    /*@ adt MyADT {
+      pure boolean f();
+      axiom f();
+    }
+
+    @*/
+
+    class C {
+      void m() {
+          //@ assert MyADT.f();
+      }
+    }
+    """
 }

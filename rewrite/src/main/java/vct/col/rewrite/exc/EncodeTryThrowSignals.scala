@@ -194,7 +194,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       case inv: InvokeProcedure[Pre] =>
         Block(Seq(
-          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(arg => succ[Variable[Post]](arg.decl))),
+          inv.rewrite(outArgs = currentException.top.get +: inv.outArgs.map(dispatch)),
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
@@ -206,7 +206,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
 
       case inv: InvokeMethod[Pre] =>
         Block(Seq(
-          inv.rewrite(outArgs = currentException.top.ref +: inv.outArgs.map(arg => succ[Variable[Post]](arg.decl))),
+          inv.rewrite(outArgs = currentException.top.get +: inv.outArgs.map(dispatch)),
           Branch(Seq((
             getExc !== Null(),
             Goto(exceptionalHandlerEntry.top.ref),
@@ -219,8 +219,8 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
         Scope(Seq(beforeLoop), Block[Post](Seq(
           assignLocal(beforeLoop.get, getExc),
           loop.rewrite(contract = loop.contract match {
-            case inv@LoopInvariant(invariant) =>
-              LoopInvariant(getExc === beforeLoop.get &* dispatch(invariant))(inv.blame)
+            case inv@LoopInvariant(invariant, decreases) =>
+              LoopInvariant(getExc === beforeLoop.get &* dispatch(invariant), decreases.map(dispatch))(inv.blame)
             case it: IterationContract[Pre] => rewriteDefault(it)
           })
         )))
@@ -312,6 +312,7 @@ case class EncodeTryThrowSignals[Pre <: Generation]() extends Rewriter[Pre] {
             left = inlineExtraCondition(exc.get === Null(), method.contract.ensures),
             right = UnitAccountedPredicate(AstBuildHelpers.foldStar(method.contract.signals.map {
               case SignalsClause(binding, assn) =>
+                implicit val o: Origin = assn.o
                 binding.drop()
                 ((exc.get !== Null()) && InstanceOf(exc.get, TypeValue(dispatch(binding.t)))) ==>
                   signalsBinding.having((binding, exc.get)) {

@@ -71,7 +71,7 @@ case object ImportADT {
 abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends CoercingRewriter[Pre] {
   val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
 
-  override def dispatch(program: Program[Pre]): Program[Post] = {
+  override def postCoerce(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
       program.rewrite(declarations = globalDeclarations.collect {
         program.declarations.foreach(dispatch)

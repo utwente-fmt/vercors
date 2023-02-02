@@ -91,9 +91,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
   }
 
+  def convert(implicit finalFlag: FinalFlagContext): FieldFlag[G] = finalFlag match {
+    case FinalFlag0(_) => Final()
+  }
+
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
-    case Field0(t, ids, _) =>
-      convert(ids).map(name => new InstanceField[G](convert(t), Set.empty)(SourceNameOrigin(name, origin(field))))
+    case Field0(finalFlag, t, ids, _) =>
+      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(SourceNameOrigin(name, origin(field))))
   }
 
   def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
@@ -150,7 +154,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: ImplicationExprContext): Expr[G] = expr match {
-    case ImplicationExpr0(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case ImplicationExpr0(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case ImplicationExpr1(inner) => convert(inner)
   }
 
@@ -161,7 +165,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: AndExprContext): Expr[G] = expr match {
     case AndExpr0(left, _, right) => And(convert(left), convert(right))
-    case AndExpr1(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case AndExpr1(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case AndExpr2(inner) => convert(inner)
   }
 
@@ -176,7 +180,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case RelExpr1(left, _, right) => AmbiguousLessEq(convert(left), convert(right))
     case RelExpr2(left, _, right) => AmbiguousGreaterEq(convert(left), convert(right))
     case RelExpr3(left, _, right) => AmbiguousGreater(convert(left), convert(right))
-    case RelExpr4(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case RelExpr4(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case RelExpr5(inner) => convert(inner)
   }
 
@@ -195,7 +199,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case MultExpr0(left, _, right) => AmbiguousMult(convert(left), convert(right))
     case MultExpr1(left, _, right) => FloorDiv(convert(left), convert(right))(blame(expr))
     case MultExpr2(left, _, right) => Mod(convert(left), convert(right))(blame(expr))
-    case MultExpr3(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case MultExpr3(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case MultExpr4(inner) => convert(inner)
   }
 
@@ -214,7 +218,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit expr: UnaryExprContext): Expr[G] = expr match {
     case UnaryExpr0(_, inner) => Not(convert(inner))
     case UnaryExpr1(_, inner) => UMinus(convert(inner))
-    case UnaryExpr2(op, inner) => convert(op, convert(inner))
+    case UnaryExpr2(op, inner) => convert(expr, op, convert(inner))
     case UnaryExpr3(inner) => convert(inner)
   }
 
@@ -231,7 +235,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
-    case PostfixExpr2(obj, specOp) => convert(specOp, convert(obj))
+    case PostfixExpr2(obj, specOp) => convert(expr, specOp, convert(obj))
     case PostfixExpr3(inner) => convert(inner)
   }
 
@@ -293,13 +297,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
     case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs))(blame(stat)), convert(body)))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs), None)(blame(stat)), convert(body)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
       Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
         cond.map(convert(_)).getOrElse(tt),
         update.map(convert(_)).getOrElse(Block(Nil)),
-        LoopInvariant(convert(invs))(blame(stat)),
+        LoopInvariant(convert(invs), None)(blame(stat)),
         convert(body)
       ))
     case PvlBlock(inner) => convert(inner)
@@ -660,20 +664,20 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValGivenMappings1(arg, _, v, _, more) => (new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)) +: convert(more)
   }
 
-  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
     case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
   }
 
-  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = mappings match {
-    case ValYieldsMappings0(target, _, res) => Seq((new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
-    case ValYieldsMappings1(target, _, res, _, more) => (new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], Ref[G, Variable[G]])] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
+    case ValYieldsMappings1(target, _, res, _, more) => (local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr[G]] = exprs match {
@@ -691,28 +695,28 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValTypeList1(t, _, ts) => convert(t) +: convert(ts)
   }
 
-  def convert(implicit impOp: ValImpOpContext, left: Expr[G], right: Expr[G]): Expr[G] = impOp match {
+  def convert(implicit root: ParserRuleContext, impOp: ValImpOpContext, left: Expr[G], right: Expr[G]): Expr[G] = impOp match {
     case ValImpOp0(_) => Wand(left, right)(origin(impOp))
     case ValImpOp1(_) => Implies(left, right)(origin(impOp))
   }
 
-  def convert(implicit andOp: ValAndOpContext, left: Expr[G], right: Expr[G]): Expr[G] = andOp match {
+  def convert(implicit root: ParserRuleContext, andOp: ValAndOpContext, left: Expr[G], right: Expr[G]): Expr[G] = andOp match {
     case ValAndOp0(_) => col.Star(left, right)(origin(andOp))
   }
 
-  def convert(implicit inOp: ValInOpContext, left: Expr[G], right: Expr[G]): Expr[G] = inOp match {
+  def convert(implicit root: ParserRuleContext, inOp: ValInOpContext, left: Expr[G], right: Expr[G]): Expr[G] = inOp match {
     case ValInOp0(_) => AmbiguousMember(left, right)
   }
 
-  def convert(implicit mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
+  def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
     case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
   }
 
-  def convert(implicit prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
+  def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
     case ValPrependOp0(_) => Cons(left, right)
   }
 
-  def convert(implicit postfixOp: ValPostfixContext, xs: Expr[G]): Expr[G] = postfixOp match {
+  def convert(implicit root: ParserRuleContext, postfixOp: ValPostfixContext, xs: Expr[G]): Expr[G] = postfixOp match {
     case ValPostfix0(_, _, to, _) => Take(xs, convert(to))
     case ValPostfix1(_, from, _, None, _) => Drop(xs, convert(from))
     case ValPostfix1(_, from, _, Some(to), _) => Slice(xs, convert(from), convert(to))
@@ -720,7 +724,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
-  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+  def convert(implicit root: ParserRuleContext, prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
     case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
   }
 
