@@ -59,6 +59,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         val err = ExpectedError("assertFailed:false", origin, AssertPassedNontrivialUnsatisfiable(contract))
         val onlyAssertBlame = FilterExpectedErrorBlame(PanicBlame("A boolean assert can only report assertFailed:false"), err)
         expectedErrors.top += err
+        // PB: this usage is dubious: pred can probably contain type variables?
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
         variables.scope {
           globalDeclarations.declare(procedure(

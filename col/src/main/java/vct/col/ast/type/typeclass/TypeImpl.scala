@@ -3,10 +3,8 @@ package vct.col.ast.`type`.typeclass
 import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.ref.Ref
-import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
+import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
-
-import scala.reflect.ClassTag
 
 trait TypeImpl[G] { this: Type[G] =>
   def superTypeOf(other: Type[G]): Boolean =

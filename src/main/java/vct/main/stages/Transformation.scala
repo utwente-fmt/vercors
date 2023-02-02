@@ -186,8 +186,11 @@ case class SilverTransformation
     EncodeSendRecv,
     ParBlockEncoder,
 
-    // Encode exceptional behaviour (no more continue/break/return/try/throw)
+    // Extract explicitly extracted code sections, which ban continue/break/return/goto outside them.
     SpecifyImplicitLabels,
+    EncodeExtract,
+
+    // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,

@@ -86,6 +86,8 @@ valStatement
  | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
  | 'atomic' '(' langId ')' langStatement # valAtomic
  | 'commit' langExpr ';' # valCommit
+ | 'extract' langStatement # valExtract
+ | 'frame' valContractClause* langStatement # valFrame
  ;
 
 valActionImpl
@@ -307,9 +309,10 @@ valKeywordNonExpr: (
  | VAL_MODIFIES | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT
  | VAL_LOOP_INVARIANT | VAL_KERNEL_INVARIANT | VAL_LOCK_INVARIANT | VAL_SIGNALS | VAL_DECREASES
  // Statement keywords
- | VAL_CREATE | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
+ | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
  | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_WORD_TO | VAL_RECV | VAL_FROM
  | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE | VAL_ACTION | VAL_ATOMIC
+ | VAL_EXTRACT | VAL_FRAME
  // Spec function keywords
  | VAL_REDUCIBLE | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION | VAL_HELD | VAL_HPERM | VAL_IDLE
  | VAL_PERM_VAL | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME | VAL_LEFT | VAL_RIGHT | VAL_VALUE
@@ -391,6 +394,8 @@ valEmbedContractBlock
 valEmbedStatementBlock
  : startSpec valStatement* endSpec
  | {specLevel>0}? valStatement+
+ | startSpec 'extract' endSpec langStatement
+ | startSpec 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
  ;
 
 valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
