@@ -88,14 +88,14 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
     val newEnsures = extract.extract(ensures)
     val newBody = extract.extract(body)
 
-    val (typeMap, inMap, outMap) = extract.finish()
+    val extract.Data(typeMap, inMap, inForOutMap, outMap, inForOutAssign) = extract.finish()
 
     val proc = globalDeclarations.declare(new Procedure[Post](
       returnType = TVoid(),
-      args = variables.dispatch(inMap.keys.toSeq),
+      args = variables.dispatch(inMap.keys.toSeq ++ inForOutMap.keys.map(_._1).toSeq),
       outArgs = variables.dispatch(outMap.keys.toSeq),
       typeArgs = variables.dispatch(typeMap.keys.toSeq),
-      body = Some(dispatch(newBody)),
+      body = Some(Block(Seq(dispatch(inForOutAssign), dispatch(newBody)))),
       contract = contract(
         UnsafeDontCare.Satisfiability("It is acceptable that paths are not reachable in a program."),
         requires = UnitAccountedPredicate(dispatch(newRequires)),
@@ -106,7 +106,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
 
     InvokeProcedure[Post](
       proc.ref,
-      args = inMap.values.map(dispatch).toSeq,
+      args = (inMap.values ++ inForOutMap.values).map(dispatch).toSeq,
       outArgs = outMap.values.map(dispatch).toSeq,
       typeArgs = typeMap.values.map(dispatch).toSeq,
       givenMap = Nil, yields = Nil,

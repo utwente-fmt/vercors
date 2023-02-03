@@ -1,0 +1,86 @@
+void test1() {
+    // only read, information hidden
+    int x = 3;
+    extract frame {
+        [/expect assertFailed:False]
+        assert x == 3;
+        [/end]
+    }
+}
+
+void test2() {
+    // only read, information required
+    int x = 3;
+    extract frame
+    requires x == 3; {
+        assert x == 3;
+    }
+}
+
+void test3() {
+    // only write, information hidden
+    int x;
+    extract frame {
+        x = 3;
+    }
+    [/expect assertFailed:false]
+    assert x == 3;
+    [/end]
+}
+
+void test4() {
+    // only write, information ensured
+    int x;
+    extract frame
+    ensures x == 3; {
+        x = 3;
+    }
+    assert x == 3;
+}
+
+void test5() {
+    // read and write, information hidden
+    int x = 2;
+    extract frame {
+        x = x * 2;
+    }
+    [/expect assertFailed:false]
+    assert x == 4;
+    [/end]
+}
+
+void test6() {
+    // read and write, only requirement
+    int x = 2;
+    extract frame
+    requires x == 2; {
+        x = x * 2;
+        assert x == 4;
+    }
+    [/expect assertFailed:false]
+    assert x == 4;
+    [/end]
+}
+
+void test7() {
+    // read and write, only ensures
+    int x = 2;
+    extract frame
+    ensures x == 4; {
+        x = x * 2;
+        assert x == 4;
+    }
+    assert x == 4;
+}
+
+void test8() {
+    // read and write, properly framed
+    int x = 2;
+    extract frame
+    requires x == 2;
+    ensures x == 4; {
+        x = x * 2;
+        assert x == 4;
+    }
+    assert x == 4;
+}
