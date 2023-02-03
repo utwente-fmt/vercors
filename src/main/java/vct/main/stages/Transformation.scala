@@ -158,6 +158,7 @@ case class SilverTransformation
 
     // Delete stuff that may be declared unsupported at a later stage
     FilterSpecIgnore,
+    FilterDeclarations,
 
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
