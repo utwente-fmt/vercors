@@ -106,6 +106,26 @@ case object FilterDeclarations extends RewriterBuilder {
 
     (program, totalDropped)
   }
+
+  case class IgnoreToFocus[Pre <: Generation]() extends Rewriter[Pre]() with LazyLogging {
+    override def dispatch(p: Program[Pre]): Program[Post] = {
+      val focused = p.collect {
+        case FilterIndicator(Ref(decl: ContractApplicable[Pre]), true, false) => decl
+      }.toIndexedSeq
+
+      if (focused.isEmpty) {
+        return p.rewrite()
+      }
+
+      val (program, dropped) = filterAndAbstract[Pre](p, focused)
+
+      if (dropped.nonEmpty) {
+        logger.info(s"Dropped ${dropped.length} declarations")
+      }
+
+      program
+    }
+  }
 }
 
 case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]]) extends Rewriter[Pre] {
