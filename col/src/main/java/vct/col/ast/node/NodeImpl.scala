@@ -83,6 +83,9 @@ trait NodeImpl[G] { this: Node[G] =>
   def collect[T](f: PartialFunction[Node[G], T]): LazyList[T] =
     transSubnodes.collect(f)
 
+  def foreach[T](f: Node[G] => T): Unit =
+    transSubnodes.foreach(f)
+
   def flatCollect[T](f: PartialFunction[Node[G], IterableOnce[T]]): LazyList[T] =
     transSubnodes.collect(f).flatten
 

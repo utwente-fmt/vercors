@@ -149,6 +149,7 @@ object AstBuildHelpers {
 
   implicit class PredicateBuildHelpers[Pre, Post](predicate: AbstractPredicate[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
     def rewrite(args: => Seq[Variable[Post]] = rewriter.variables.dispatch(predicate.args),
+                body: => Option[Expr[Post]] = body.map(rewriter.dispatch(_)),
                 inline: => Boolean = predicate.inline,
                 threadLocal: => Boolean = predicate.threadLocal,
                ): AbstractPredicate[Post] = predicate match {

@@ -3,21 +3,87 @@ package vct.col.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteProcedure, RewriteProgram}
-import vct.col.ast.{ADTFunctionInvocation, AbstractMethod, AxiomaticDataType, ContractApplicable, Declaration, Deref, Expr, FilterIndicator, Function, FunctionInvocation, InstanceField, InstanceFunction, InstanceFunctionInvocation, InstanceMethod, InvokeProcedure, MethodInvocation, Predicate, PredicateApply, Procedure, ProcedureInvocation, Program, Statement, TAxiomatic, Type}
+import vct.col.ast.{ADTFunctionInvocation, AbstractMethod, AbstractPredicate, ApplicableContract, AxiomaticDataType, ContractApplicable, Declaration, Deref, Expr, FilterFocus, FilterIgnore, FilterIndicator, Fold, Function, FunctionInvocation, InstanceField, InstanceFunction, InstanceFunctionInvocation, InstanceMethod, InstancePredicate, InstancePredicateApply, InvokeMethod, InvokeProcedure, MethodInvocation, Predicate, PredicateApply, Procedure, ProcedureInvocation, Program, Statement, TAxiomatic, Type, Unfold, Unfolding}
+import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
-import vct.col.rewrite.FilterDeclarations.filterAndAbstract
-import vct.col.util.AstBuildHelpers.MethodBuildHelpers
+import vct.col.rewrite.FilterDeclarations.{filterAndAbstract, ignoreToFocus}
+import vct.col.util.AstBuildHelpers.{MethodBuildHelpers, PredicateBuildHelpers}
 
 import scala.collection.mutable
 
-// TODO (RR): Don't think I abstract non-opened predicates here
-// TODO (RR): What about unfolding a predicate? Should we abstract it if it is not unfolded?
 // TODO (RR): Also make this work for the silver frontend. Then I can also do my original usecase, minimizing silver code, while also having an easily maintainable implementation for the java/pvl/c frontends
 
 case object FilterDeclarations extends RewriterBuilder {
   override def key: String = "filterDeclarations"
 
   override def desc: String = "Filter focused declarations appropriately"
+
+  // Returns true if focusing work needs to be done
+  case class IgnoreToFocus[Pre <: Generation]() extends Rewriter[Pre]() {
+    var containsFocus = false
+    override def dispatch(p: Program[Pre]): Program[Post] = {
+      val ignored = p.collect {
+        case FilterIndicator(Ref(decl), FilterIgnore()) => decl
+      }
+      val focused = p.collect {
+        case FilterIndicator(Ref(decl), FilterFocus()) => decl
+      }
+
+      // Focus overrides ignore, so only need to do work if there are only ignores
+      if (focused.isEmpty && ignored.nonEmpty) {
+        containsFocus = true
+
+        val newFocused = p.collect {
+          // Only select contractapplicables here, not sure how to handle non-contractapplicable decls
+          case ca: ContractApplicable[Pre] if !ignored.contains(ca) => ca
+        }.toSet
+
+        p.rewrite(globalDeclarations.collect {
+            p.declarations.foreach(dispatch(_))
+            newFocused.foreach { ca: ContractApplicable[Pre] =>
+              implicit val o = DiagnosticOrigin
+              globalDeclarations.declare(FilterIndicator(anySucc[Declaration[Post]](ca.asInstanceOf[Declaration[Pre]]), FilterFocus()))
+            }
+          }._1)
+      } else {
+        containsFocus = focused.nonEmpty
+        // Sneakily use the old program
+        p.asInstanceOf[Program[Post]]
+      }
+    }
+  }
+
+  def ignoreToFocus[G <: Generation](p: Program[G]): (Program[Rewritten[G]], Boolean) = {
+    val pass = IgnoreToFocus[G]()
+    (pass.dispatch(p), pass.containsFocus)
+  }
+  case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]]) extends Rewriter[Pre] {
+    var program: Program[Pre] = null
+
+    lazy val openedPredicates: Set[AbstractPredicate[Pre]] = program.collect {
+      case Unfold(e) => getPredicate(e)
+      case Fold(e) => getPredicate(e)
+      case Unfolding(e, _) => getPredicate(e)
+    }.toSet
+
+    def getPredicate(e: Expr[Pre]): AbstractPredicate[Pre] = e match {
+      case InstancePredicateApply(_, Ref(p), _, _) => p
+      case PredicateApply(Ref(p), _, _) => p
+    }
+
+    override def dispatch(decl: Declaration[Pre]): Unit = {
+      decl match {
+        case m: AbstractMethod[Pre] if !focusTargets.contains(m) => allScopes.anySucceedOnly(m, m.rewrite(body = None))
+        case p: AbstractPredicate[Pre] if !openedPredicates.contains(p) => allScopes.anySucceedOnly(p, p.rewrite(body = None))
+        case d => super.dispatch(d)
+      }
+    }
+
+    override def dispatch(program: Program[Pre]): Program[Post] = {
+      this.program = program
+      rewriteDefault(program)
+    }
+  }
 
   // Get all predicate usages, method usages, field usages, adt usages, adt function usages
   def getUsedDecls[G <: Generation](p: Program[G]): Seq[Declaration[G]] = {
@@ -35,6 +101,8 @@ case object FilterDeclarations extends RewriterBuilder {
           case ifi: InstanceFunctionInvocation[G] =>
             collected.top.add(ifi.ref.decl)
           case pa: PredicateApply[G] =>
+            collected.top.add(pa.ref.decl)
+          case pa: InstancePredicateApply[G] =>
             collected.top.add(pa.ref.decl)
           case afi: ADTFunctionInvocation[G] =>
             collected.top.add(afi.ref.decl)
@@ -56,6 +124,7 @@ case object FilterDeclarations extends RewriterBuilder {
       override def dispatch(s: Statement[G]): Statement[Rewritten[G]] = {
         s match {
           case ip: InvokeProcedure[G] => collected.top.add(ip.ref.decl)
+          case ip: InvokeMethod[G] => collected.top.add(ip.ref.decl)
           case _ =>
         }
         super.dispatch(s)
@@ -67,11 +136,10 @@ case object FilterDeclarations extends RewriterBuilder {
           collected.having(newCollected) {
             super.dispatch(decl)
           }
-          // A function using itself should not be counted as an actual use
+          // A decl using itself should not be counted as an actual use
           newCollected.remove(decl)
           // Same for an adt using its own functions
           decl match {
-            // TODO: Is this going okay here? I did not really think it through when refactoring...
             case a: AxiomaticDataType[G] => a.decls.foreach(f => newCollected.remove(f))
             case _ =>
           }
@@ -86,6 +154,28 @@ case object FilterDeclarations extends RewriterBuilder {
       Collector().dispatch(p)
     }
     res.toSeq
+  }
+
+  case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]]) extends Rewriter[Pre] with LazyLogging {
+    var dropped: mutable.Set[Declaration[Pre]] = mutable.Set()
+
+    def adtIsUsed(a: AxiomaticDataType[Pre]): Boolean =
+      used.contains(a) || a.decls.exists(used.contains(_))
+
+    override def dispatch(decl: Declaration[Pre]): Unit = {
+      decl match {
+        case _: Procedure[Pre] | _: Function[Pre] | _: Predicate[Pre] | _: InstancePredicate[Pre] | _: InstanceField[Pre] |
+             _: InstanceMethod[Pre] | _: InstanceFunction[Pre]
+          if !used.contains(decl) =>
+          decl.drop()
+          dropped.add(decl)
+        case a: AxiomaticDataType[Pre] if !adtIsUsed(a) =>
+          a.drop()
+          a.decls.foreach({ d => d.drop(); dropped.add(d) })
+          dropped.add(decl)
+        case _ => rewriteDefault(decl)
+      }
+    }
   }
 
   def filterAndAbstract[G <: Generation](p: Program[G], inputFocused: Seq[ContractApplicable[G]]): (Program[Rewritten[G]], Seq[Declaration[_]]) = {
@@ -106,74 +196,28 @@ case object FilterDeclarations extends RewriterBuilder {
 
     (program, totalDropped)
   }
-
-  case class IgnoreToFocus[Pre <: Generation]() extends Rewriter[Pre]() with LazyLogging {
-    override def dispatch(p: Program[Pre]): Program[Post] = {
-      val focused = p.collect {
-        case FilterIndicator(Ref(decl: ContractApplicable[Pre]), true, false) => decl
-      }.toIndexedSeq
-
-      if (focused.isEmpty) {
-        return p.rewrite()
-      }
-
-      val (program, dropped) = filterAndAbstract[Pre](p, focused)
-
-      if (dropped.nonEmpty) {
-        logger.info(s"Dropped ${dropped.length} declarations")
-      }
-
-      program
-    }
-  }
-}
-
-case class AbstractMaker[Pre <: Generation](focusTargets: Seq[Declaration[Pre]]) extends Rewriter[Pre] {
-  override def dispatch(decl: Declaration[Pre]): Unit = {
-    decl match {
-      case m: AbstractMethod[Pre] if !focusTargets.contains(m) => allScopes.anySucceedOnly(m, m.rewrite(body = None))
-      case d => super.dispatch(d)
-    }
-  }
-}
-
-case class RemoveUnused[Pre <: Generation](used: Seq[Declaration[Pre]]) extends Rewriter[Pre] with LazyLogging {
-  var dropped: mutable.Set[Declaration[Pre]] = mutable.Set()
-
-  def adtIsUsed(a: AxiomaticDataType[Pre]): Boolean =
-    used.contains(a) || a.decls.exists(used.contains(_))
-
-  override def dispatch(decl: Declaration[Pre]): Unit = {
-    decl match {
-      case _: Procedure[Pre] | _: Function[Pre] | _: Predicate[Pre] | _: InstanceField[Pre] if !used.contains(decl) =>
-        decl.drop()
-        dropped.add(decl)
-      case a: AxiomaticDataType[Pre] if !adtIsUsed(a) =>
-        a.drop()
-        a.decls.foreach({ d => d.drop(); dropped.add(d) })
-        dropped.add(decl)
-      case _ => rewriteDefault(decl)
-    }
-  }
 }
 
 case class FilterDeclarations[Pre <: Generation]() extends Rewriter[Pre]() with LazyLogging {
-  override def dispatch(p: Program[Pre]): Program[Post] = {
-    val focused = p.collect {
-      case FilterIndicator(Ref(decl: ContractApplicable[Pre]), true, false) => decl
-    }.toIndexedSeq
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    // Turn all ignore directives into inverted focus directives
+    val (focusedProgram, containsFocus) = ignoreToFocus[Pre](program)
 
-    if (focused.isEmpty) {
-      return p.rewrite()
+    if (!containsFocus) {
+      return focusedProgram
     }
 
-    val (program, dropped) = filterAndAbstract[Pre](p, focused)
+    val focused = focusedProgram.collect {
+      case FilterIndicator(Ref(decl: ContractApplicable[Post]), FilterFocus()) => decl
+    }
+
+    val (filteredProgram, dropped) = filterAndAbstract[Post](focusedProgram, focused)
 
     if (dropped.nonEmpty) {
       logger.info(s"Dropped ${dropped.length} declarations")
     }
 
-    program
+    filteredProgram.asInstanceOf[Program[Post]]
   }
 }
 

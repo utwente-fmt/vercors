@@ -773,7 +773,10 @@ final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaFocus[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaIgnore[G]()(implicit val o: Origin) extends JavaModifier[G]
 
-final case class FilterIndicator[G](decl: Ref[G, Declaration[G]], focus: Boolean = false, ignore: Boolean = false)(implicit val o: Origin) extends GlobalDeclaration[G]
+sealed trait FilterMode[G] extends NodeFamily[G]
+final case class FilterFocus[G]()(implicit val o: Origin = DiagnosticOrigin) extends FilterMode[G]
+final case class FilterIgnore[G]()(implicit val o: Origin = DiagnosticOrigin) extends FilterMode[G]
+final case class FilterIndicator[G](decl: Ref[G, Declaration[G]], mode: FilterMode[G])(implicit val o: Origin) extends GlobalDeclaration[G]
 
 final case class JavaVariableDeclaration[G](name: String, moreDims: Int, init: Option[Expr[G]])(implicit val o: Origin) extends NodeFamily[G] with JavaVariableDeclarationImpl[G]
 

@@ -355,6 +355,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: FilterMode[Pre]): FilterMode[Pre] = node
+  def postCoerce(node: FilterMode[Pre]): FilterMode[Post] = rewriteDefault(node)
+  override final def dispatch(node: FilterMode[Pre]): FilterMode[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -1661,5 +1665,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
+  }
+
+  def coerce(node: FilterMode[Pre]): FilterMode[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case FilterFocus() => FilterFocus()
+      case FilterIgnore() => FilterIgnore()
+    }
   }
 }
