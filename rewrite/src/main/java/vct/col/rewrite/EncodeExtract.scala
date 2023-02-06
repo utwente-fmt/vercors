@@ -2,8 +2,9 @@ package vct.col.rewrite
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.EncodeExtract.{ExtractMayNotReturn, ExtractedOnlyPost, FramedProofPostconditionFailed, FramedProofPreconditionFailed, LoopInvariantPreconditionFailed, ExtractMayNotJumpOut}
+import vct.col.rewrite.EncodeExtract.{ExtractMayNotJumpOut, ExtractMayNotReturn, ExtractedOnlyPost, FramedProofPostconditionFailed, FramedProofPreconditionFailed, LoopInvariantPreconditionFailed}
 import vct.col.util.AstBuildHelpers.contract
+import vct.col.util.Substitute
 import vct.result.VerificationError.UserError
 
 case object EncodeExtract extends RewriterBuilder {
@@ -90,6 +91,10 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
 
     val extract.Data(typeMap, inMap, inForOutMap, outMap, inForOutAssign) = extract.finish()
 
+    val fixedRequires = Substitute[Pre](inForOutMap.keys.map {
+      case (in, out) => Local[Pre](out.ref) -> Local[Pre](in.ref)
+    }.toMap).dispatch(newRequires)
+
     val proc = globalDeclarations.declare(new Procedure[Post](
       returnType = TVoid(),
       args = variables.dispatch(inMap.keys.toSeq ++ inForOutMap.keys.map(_._1).toSeq),
@@ -98,9 +103,9 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
       body = Some(Block(Seq(dispatch(inForOutAssign), dispatch(newBody)))),
       contract = contract(
         UnsafeDontCare.Satisfiability("It is acceptable that paths are not reachable in a program."),
-        requires = UnitAccountedPredicate(dispatch(newRequires)),
+        requires = UnitAccountedPredicate(dispatch(fixedRequires)),
         ensures = UnitAccountedPredicate(dispatch(newEnsures)),
-        decreases = Some(DecreasesClauseNoRecursion()),
+        decreases = None, // PB: sadly decreases + extract is therefore not working.
       ),
     )(ExtractedOnlyPost(postBlame)))
 

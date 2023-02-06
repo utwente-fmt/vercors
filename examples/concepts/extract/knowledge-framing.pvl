@@ -1,8 +1,16 @@
+/*
+The extract declaration may be placed directly in front of a statement that has a contract. You can also explicitly
+specify a contract via the "frame" statement.
+
+This can be a useful proof tool to e.g. verify that a loop invariant does not use any local knowledge, and as a speed-up
+when the branching factor becomes high, e.g. when there are many if's and while's whose conditions are orthogonal.
+*/
+
 void test1() {
     // only read, information hidden
     int x = 3;
     extract frame {
-        [/expect assertFailed:False]
+        [/expect assertFailed:false]
         assert x == 3;
         [/end]
     }
@@ -68,7 +76,9 @@ void test7() {
     extract frame
     ensures x == 4; {
         x = x * 2;
+        [/expect assertFailed:false]
         assert x == 4;
+        [/end]
     }
     assert x == 4;
 }
@@ -83,4 +93,30 @@ void test8() {
         assert x == 4;
     }
     assert x == 4;
+}
+
+void test9() {
+    // when not extracted, frames retain some local knowledge
+    int x = 3;
+    frame {
+        assert x == 3;
+    }
+}
+
+int test10() {
+    // you can also extract loops
+    int x = 2;
+    extract while(true) {
+        [/expect assertFailed:false]
+        assert x == 2;
+        [/end]
+    }
+}
+
+int test11() {
+    // if not extracted, loops have some local knowledge
+    int x = 2;
+    while(true) {
+        assert x == 2;
+    }
 }
