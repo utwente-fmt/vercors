@@ -202,7 +202,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
           matches
         case None =>
           val freeRight = FreeVariables.freeVariables(right).collect {
-            case FreeVariables.FreeVar(Local(Ref(v))) => v
+            case FreeVariables.ReadFreeVar(Local(Ref(v))) => v
           }.toSet
 
           val freeRightOfBindings = freeRight.intersect(bindingInst.values.toSet)
