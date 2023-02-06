@@ -65,7 +65,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   import EncodeBreakReturn._
 
   def needBreakReturnExceptions(stat: Statement[Pre]): Boolean =
-    stat.exists {
+    stat.transSubnodes.exists {
       case TryCatchFinally(_, Block(Nil), _) => false
       case TryCatchFinally(_, _, _) => true
       case _ => false
