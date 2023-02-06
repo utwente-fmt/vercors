@@ -36,6 +36,7 @@ object ColDefs {
     "CLocalDeclaration",
     "CParam",
     "JavaLocalDeclaration",
+    "VeyMontThread",
   )
 
   def scopes(kind: String): Term.Name =
@@ -82,6 +83,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
+    "VeyMontThread" -> Seq("VeyMontSeqProg")
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)

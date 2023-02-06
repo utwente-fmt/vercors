@@ -35,9 +35,21 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
     st match {
-      case Assign(target,value) => rewriteDefault(st)//throw VeyMontStructCheckError(st,"bla")
+      case Assign(target,value) if inRunMethod.nonEmpty =>
+        rewriteDefault(st)//throw VeyMontStructCheckError(st,"bla")
       case other => rewriteDefault(other)
     }
   }
+
+//  object Linter {
+//
+//    def syntaxAllowed(a : AssignExpression[Pre]) : Boolean =
+//      a.target match {
+//        case Deref(obj, ref) => a.value match
+//        case _ => false
+//      }
+//
+//    def getDerefObj(Expr)
+//  }
 
 }

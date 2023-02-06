@@ -748,6 +748,7 @@ case class Printer(out: Appendable,
       (phrase(name(ref.decl)), 110)
     case Deref(obj, ref) =>
       (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
+    case DerefVeyMontThread(ref) => (phrase(name(ref.decl)), 110)
     case ModelDeref(obj, ref) =>
       (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
     case DerefPointer(pointer) =>
@@ -1150,6 +1151,20 @@ case class Printer(out: Appendable,
       ???
     case field: ModelField[_] =>
       ???
+    case seqprog: VeyMontSeqProg[_] => phrase(
+      doubleline,
+      "seq_program", space, name(seqprog),"(",commas(seqprog.progArgs.map(NodePhrase)) ,")", space, "{",
+      indent(phrase(seqprog.members.map(NodePhrase): _*)),
+      "}",
+      doubleline)
+    case thread: VeyMontThread[_] => phrase(newline,"thread",space,name(thread),space,"=",space,thread.threadType,"(",commas(thread.args.map(NodePhrase)),")",newline)
+    case runMethod : RunMethod[_] => {
+      val header = phrase(runMethod.contract,"run")
+      runMethod.body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    }
   })
 
   def printApplicableContract(node: ApplicableContract[_]): Unit =

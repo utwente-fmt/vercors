@@ -51,6 +51,8 @@ sealed trait Referrable[G] {
     case RefModelField(decl) => Referrable.originName(decl)
     case RefModelProcess(decl) => Referrable.originName(decl)
     case RefModelAction(decl) => Referrable.originName(decl)
+    case RefSeqProg(decl) => Referrable.originName(decl)
+    case RefVeyMontThread(decl) => Referrable.originName(decl)
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
@@ -107,6 +109,8 @@ case object Referrable {
     case decl: CLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
+    case decl: VeyMontSeqProg[G] => RefSeqProg(decl)
+    case decl: VeyMontThread[G] => RefVeyMontThread(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -194,6 +198,9 @@ case class RefModelField[G](decl: ModelField[G]) extends Referrable[G] with Spec
 case class RefModelProcess[G](decl: ModelProcess[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefModelAction[G](decl: ModelAction[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] with PVLConstructorTarget[G]
+
+case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
+case class RefVeyMontThread[G](decl: VeyMontThread[G]) extends Referrable[G] with PVLNameTarget[G]
 
 case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
 case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]

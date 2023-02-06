@@ -27,6 +27,34 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ProgramDecl0(valDecl) => convert(valDecl)
     case ProgramDecl1(cls) => Seq(convert(cls))
     case ProgramDecl2(method) => Seq(convertProcedure(method))
+    case ProgramDecl3(seqProg) => Seq(convertVeyMontProg(seqProg))
+  }
+
+  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): VeyMontSeqProg[G] = cls match {
+    case DeclVeyMontSeqProg0(_,name,_,args,_,_,decls,_) =>
+      val seqargs = args.map(convert(_)).getOrElse(Nil)
+      val declseq : Seq[Declaration[G]] = decls.map(convert(_))
+      val runMethod = declseq.collectFirst{
+        case x: RunMethod[G] => x
+      }.getOrElse(throw new RuntimeException("TODO no run method found error"))
+      val methods = declseq.collect{
+        case m: InstanceMethod[G] => m
+      }
+      val threads = declseq.collect{
+        case v: VeyMontThread[G] => v
+      }
+      new VeyMontSeqProg(
+        seqargs,
+        threads,
+        runMethod,
+        methods
+    )(SourceNameOrigin(convert(name), origin(cls)))
+  }
+
+  def convert(implicit decl : SeqProgDeclContext): Declaration[G] = decl match {
+    case SeqProgMethod(methods) => convert(methods)
+    case SeqProgRunMethod(runMethod) => convert(runMethod).head
+    case SeqProgThread(_,threadId,_,threadType,_,args,_,_) => new VeyMontThread(convert(threadType),args.map(convert(_)).getOrElse(Nil))(SourceNameOrigin(convert(threadId), origin(decl)))
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {

@@ -47,11 +47,13 @@ DEC: '--';
 CONS: '::';
 
 CLASS: 'class';
+SEQ_PROGRAM: 'seq_program';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
 INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
 RUN: 'run';
+THREAD: 'thread';
 
 IF: 'if';
 ELSE: 'else';

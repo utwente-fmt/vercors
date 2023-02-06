@@ -1,0 +1,21 @@
+class Storage {
+  int v, temp;
+
+  constructor(int v) {
+    this.v = v;
+  }
+}
+
+seq_program SeqProgram(int x, int y) {
+   thread s1 = Storage(x);
+   thread s2 = Storage(y);
+
+  run {
+    s1.temp = s1.v;
+    s2.temp = s2.v;
+    s1.v = s2.temp;
+    s2.v = s1.temp;
+    assert s1.v == \old(s2.v);
+    assert s2.v == \old(s1.v);
+  }
+}

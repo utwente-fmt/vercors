@@ -16,7 +16,10 @@ object VeyMont extends LazyLogging {
     val collector = BlameCollector()
     val stages = Stages.veymontOfOptions(options, ConstantBlameProvider(collector))
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
-    stages.run(inputs)
+    stages.run(inputs) match {
+      case Left(value) => logger.error(value.text)
+      case Right(()) => logger.info("VeyMont terminated successfully.")
+    }
 
   }
 

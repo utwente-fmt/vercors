@@ -6,10 +6,16 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | method;
+programDecl : valGlobalDeclaration | declClass | method | declVeyMontSeqProg;
 
 declClass : contract 'class' identifier '{' classDecl* '}' ;
+declVeyMontSeqProg : 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
 classDecl : valClassDeclaration | constructor | method | field | runMethod;
+seqProgDecl
+ : 'thread' identifier '=' type '(' exprList? ')' ';' # seqProgThread
+ | runMethod # seqProgRunMethod
+ | method # seqProgMethod
+ ;
 
 field : type identifierList ';' ;
 
