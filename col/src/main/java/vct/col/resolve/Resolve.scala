@@ -27,11 +27,30 @@ case object ResolveTypes {
     resolveOne(node, ctx)
   }
 
+  def scanImport[G](imp: JavaImport[G], ctx: TypeResolutionContext[G]): Seq[Referrable[G]] /* importable? */ = imp match {
+    case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName :+ staticMember), /* star = */ false) =>
+      val staticType = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
+        .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
+      Seq(Java.findStaticMember(staticType, staticMember)
+        .getOrElse(throw NoSuchNameError("static member", (fullyQualifiedTypeName :+ staticMember).mkString("."), imp)))
+    case imp @ JavaImport(/* static = */ true, JavaName(fullyQualifiedTypeName), /* star = */ true) =>
+      val typeName = Java.findJavaTypeName(fullyQualifiedTypeName, ctx)
+        .getOrElse(throw NoSuchNameError("class", fullyQualifiedTypeName.mkString("."), imp))
+      Java.getStaticMembers(typeName)
+    // Non-static imports are resolved on demand
+    case _ => Seq()
+  }
+
   def enterContext[G](node: Node[G], ctx: TypeResolutionContext[G]): TypeResolutionContext[G] = node match {
     case Program(decls) =>
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
-      ctx.copy(stack=ns.declarations.flatMap(Referrable.from) +: ctx.stack, namespace=Some(ns))
+      // Static imports need to be imported at this stage, because they influence how names are resolved.
+      // E.g.: in the expressio f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
+      // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
+      // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
+      val ctxWithNs = ctx.copy(namespace=Some(ns))
+      ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -40,8 +59,8 @@ case object ResolveTypes {
   def resolveOne[G](node: Node[G], ctx: TypeResolutionContext[G]): Unit = node match {
     case javaClass @ JavaNamedType(genericNames) =>
       val names = genericNames.map(_._1)
-      javaClass.ref = Some(Java.findJavaTypeName(names, ctx).getOrElse(
-        throw NoSuchNameError("class", names.mkString("."), javaClass)))
+      javaClass.ref = Some(Java.findJavaTypeName(names, ctx)
+        .getOrElse(throw NoSuchNameError("class", names.mkString("."), javaClass)))
     case t @ JavaTClass(ref, _) =>
       ref.tryResolve(name => ???)
     case t @ CTypedefName(name) =>
@@ -63,12 +82,35 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-    case imp @ JavaImport(true, name, /* star = */ false) =>
-      Java.findJavaTypeName(name.names.init, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
-    case imp @ JavaImport(true, name, /* star = */ true) =>
-      Java.findJavaTypeName(name.names, ctx)
-        .getOrElse(throw NoSuchNameError("class", name.names.mkString("."), imp))
+    case local: JavaLocal[G] =>
+      Java.findJavaName(local.name, ctx) match {
+        case Some(
+        _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
+        _ // Statically imported, or regular previously imported typename
+        ) => // Nothing to do. Local will get properly resolved next phase
+        case None =>
+          // Unknown what this local refers though. Try importing it as a type; otherwise, it's the start of a package
+          Java.findJavaTypeName(Seq(local.name), ctx) match {
+            case Some(_) => // already imported so nothing to do
+            case None =>
+              local.ref = Some(RefUnloadedJavaNamespace(Seq(local.name)))
+          }
+      }
+    case deref: JavaDeref[G] =>
+      val ref = deref.obj match {
+        case javalocal : JavaLocal[G] =>  javalocal.ref
+        case javaderef : JavaDeref[G] => javaderef.ref
+        case _ => None
+      }
+      ref match {
+        case Some(RefUnloadedJavaNamespace(names)) =>
+          Java.findJavaTypeName(names :+ deref.field, ctx) match {
+            case Some(_) => // already imported so nothing to do
+            case None =>
+              deref.ref = Some(RefUnloadedJavaNamespace(names :+ deref.field))
+          }
+        case _ => // we did not find a package so we don't do anything
+      }
 
     case _ =>
   }
@@ -102,7 +144,7 @@ case object ResolveReferences {
     case _: Scope[G] => Nil
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
     case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
-      => Seq(decl)
+    => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
     case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
@@ -125,7 +167,9 @@ case object ResolveReferences {
 
   def enterContext[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean = false): ReferenceResolutionContext[G] = (node match {
     case ns: JavaNamespace[G] => ctx
-      .copy(currentJavaNamespace=Some(ns)).declare(ns.declarations)
+      .copy(currentJavaNamespace=Some(ns))
+      .copy(stack = ns.imports.flatMap(ResolveTypes.scanImport[G](_, ctx.asTypeResolutionContext)) +: ctx.stack)
+      .declare(ns.declarations)
     case cls: JavaClassOrInterface[G] => ctx
       .copy(currentJavaClass=Some(cls))
       .copy(currentThis=Some(RefJavaClass(cls)))
@@ -154,8 +198,8 @@ case object ResolveReferences {
       }))
     case func: CFunctionDefinition[G] =>
       var res = ctx
-      .copy(currentResult=Some(RefCFunctionDefinition(func)))
-      .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
+        .copy(currentResult=Some(RefCFunctionDefinition(func)))
+        .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
       if(func.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined)
         res = res.declare(scanShared(func.body))
       res
@@ -164,9 +208,9 @@ case object ResolveReferences {
         throw MultipleForwardDeclarationContractError(func)
       }
       ctx
-      .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
-      .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
-        .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
+        .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
+        .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
+          .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
@@ -182,7 +226,13 @@ case object ResolveReferences {
     case local @ CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
-      local.ref = Some(Java.findJavaName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+      local.ref = Some(
+        Java.findJavaName(name, ctx.asTypeResolutionContext)
+          .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
+            case Some(target: JavaNameTarget[G]) => Some(target)
+            case None => None
+          })
+          .getOrElse(RefUnloadedJavaNamespace(Seq(name))))
     case local @ PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ Local(ref) =>
@@ -226,7 +276,7 @@ case object ResolveReferences {
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv @ JavaInvocation(obj, _, method, args, givenMap, yields) =>
       inv.ref = Some((obj match {
-        case Some(obj) => Java.findMethod(obj, method, args, inv.blame)
+        case Some(obj) => Java.findMethod(ctx, obj, method, args, inv.blame)
         case None => Java.findMethod(ctx, method, args)
       }).getOrElse(throw NoSuchNameError("method", method, inv)))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
