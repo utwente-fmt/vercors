@@ -15,27 +15,30 @@ object StructureCheck extends RewriterBuilder {
   case class VeyMontStructCheckError(node : Node[_], msg: String) extends UserError { //SystemErrir fir unreachable errros
     override def code: String = "veyMontStructCheckError"
 
-    override def text: String = node match {
-      case Assign(_,_) => node.o.messageInContext("wong assignment" + msg)
-    }
+    override def text: String = node.o.messageInContext(msg)
   }
 
 }
 
 case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
 
-  val inRunMethod: ScopedStack[Unit] = ScopedStack()
-
-  override def dispatch(decl: Declaration[Pre]): Unit = {
-    decl match {
-      case dcl: RunMethod[Pre] => inRunMethod.having(()){rewriteDefault(dcl)}
-      case other => rewriteDefault(other)
-    }
+  override def dispatch(prog : Program[Pre]) : Program[Post] = {
+    if(!prog.declarations.exists {
+      case dcl: VeyMontSeqProg[Pre] =>
+        if(dcl.threads.isEmpty)
+          throw VeyMontStructCheckError(dcl,"A seq_prog needs to have at least 1 thread, but none was found!")
+        else true
+      case _ => false
+    })
+      throw VeyMontStructCheckError(prog,"VeyMont requires a seq_prog, but none was found!")
+    else rewriteDefault(prog)
   }
+
+
 
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
     st match {
-      case Assign(target,value) if inRunMethod.nonEmpty =>
+      case Assign(target,value) => //if inRunMethod.nonEmpty =>
         rewriteDefault(st)//throw VeyMontStructCheckError(st,"bla")
       case other => rewriteDefault(other)
     }

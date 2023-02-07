@@ -825,6 +825,8 @@ case class Printer(out: Appendable,
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
     case GreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
+    case AmbiguousGreaterEq(left, right) =>
+      (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case LessEq(left, right) =>
       (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
     case SubSet(left, right) =>
@@ -1153,6 +1155,7 @@ case class Printer(out: Appendable,
       ???
     case seqprog: VeyMontSeqProg[_] => phrase(
       doubleline,
+      seqprog.contract, newline,
       "seq_program", space, name(seqprog),"(",commas(seqprog.progArgs.map(NodePhrase)) ,")", space, "{",
       indent(phrase(seqprog.members.map(NodePhrase): _*)),
       "}",

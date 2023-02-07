@@ -31,24 +31,26 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): VeyMontSeqProg[G] = cls match {
-    case DeclVeyMontSeqProg0(_,name,_,args,_,_,decls,_) =>
+    case DeclVeyMontSeqProg0(contract,_,name,_,args,_,_,decls,_) =>
       val seqargs = args.map(convert(_)).getOrElse(Nil)
       val declseq : Seq[Declaration[G]] = decls.map(convert(_))
       val runMethod = declseq.collectFirst{
         case x: RunMethod[G] => x
-      }.getOrElse(throw new RuntimeException("TODO no run method found error"))
+      }.getOrElse(throw new RuntimeException("A seq_prog needs to have a run method, but none was found!"))
       val methods = declseq.collect{
         case m: InstanceMethod[G] => m
       }
       val threads = declseq.collect{
         case v: VeyMontThread[G] => v
       }
-      new VeyMontSeqProg(
-        seqargs,
-        threads,
-        runMethod,
-        methods
-    )(SourceNameOrigin(convert(name), origin(cls)))
+      withContract(contract, contract => {
+        new VeyMontSeqProg(
+          contract.consumeApplicableContract(blame(cls)),
+          seqargs,
+          threads,
+          runMethod,
+          methods)(SourceNameOrigin(convert(name), origin(cls)))
+    })
   }
 
   def convert(implicit decl : SeqProgDeclContext): Declaration[G] = decl match {

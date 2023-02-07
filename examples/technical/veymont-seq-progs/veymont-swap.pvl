@@ -4,8 +4,13 @@ class Storage {
   constructor(int v) {
     this.v = v;
   }
+  
+  void inc() {
+  	v = v+1;
+  }
 }
 
+requires x >= 0;
 seq_program SeqProgram(int x, int y) {
    thread s1 = Storage(x);
    thread s2 = Storage(y);
@@ -18,4 +23,5 @@ seq_program SeqProgram(int x, int y) {
     assert s1.v == \old(s2.v);
     assert s2.v == \old(s1.v);
   }
+  
 }

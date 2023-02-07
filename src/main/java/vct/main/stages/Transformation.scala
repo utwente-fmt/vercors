@@ -13,7 +13,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
-import vct.col.rewrite.veymont.StructureCheck
+import vct.col.rewrite.veymont.{AddVeyMontNodes, StructureCheck}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -267,6 +267,7 @@ case class SilverTransformation
 case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    AddVeyMontNodes,
     StructureCheck
   ))
 

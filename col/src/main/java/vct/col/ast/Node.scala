@@ -208,7 +208,7 @@ sealed abstract class GlobalDeclaration[G] extends Declaration[G] with GlobalDec
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
 final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
-final class VeyMontSeqProg[G](val progArgs : Seq[Variable[G]], val threads: Seq[VeyMontThread[G]], val runMethod: ClassDeclaration[G], val methods: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with VeyMontClassImpl[G]
+final class VeyMontSeqProg[G](val contract: ApplicableContract[G], val progArgs : Seq[Variable[G]], val threads: Seq[VeyMontThread[G]], val runMethod: ClassDeclaration[G], val methods: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with VeyMontSeqProgImpl[G]
 final class VeyMontThread[G](val threadType: Type[G], val args: Seq[Expr[G]])(implicit val o: Origin) extends Declaration[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
 final class Function[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],

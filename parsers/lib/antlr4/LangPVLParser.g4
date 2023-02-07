@@ -9,7 +9,7 @@ program  : programDecl* EOF EOF ;
 programDecl : valGlobalDeclaration | declClass | method | declVeyMontSeqProg;
 
 declClass : contract 'class' identifier '{' classDecl* '}' ;
-declVeyMontSeqProg : 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
+declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
 classDecl : valClassDeclaration | constructor | method | field | runMethod;
 seqProgDecl
  : 'thread' identifier '=' type '(' exprList? ')' ';' # seqProgThread
