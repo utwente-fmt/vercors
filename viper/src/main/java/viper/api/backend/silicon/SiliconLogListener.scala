@@ -1,6 +1,7 @@
 package viper.api.backend.silicon
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.progress.Progress
 import vct.col.ast.Neq
 import viper.api.transform.NodeInfo
 import viper.silicon.decider.PathConditionStack
@@ -74,6 +75,11 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
   def where(node: Node): Option[String] = node match {
     case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node.o.shortPosition)
+    case _ => None
+  }
+
+  def which(node: Node): Option[vct.col.ast.Node[_]] = node match {
+    case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node)
     case _ => None
   }
 
@@ -159,6 +165,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   override def appendDataRecord(r: DataRecord): Unit = {
     progress()
     openScopeFrames.head(r.id) = r
+    updateAsciiProgress()
   }
 
   override def appendScopingRecord(r: ScopingRecord, ignoreBranchingStack: Boolean): Unit = {
@@ -175,6 +182,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         }
       case _: OpenScopeRecord => // This is just done from datarecord; safe to ignore.
     }
+    updateAsciiProgress()
   }
 
   override def appendBranchingRecord(r: BranchingRecord): Unit = {
@@ -195,6 +203,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     }
 
     updateBranch("->")
+    updateAsciiProgress()
   }
 
   def invert(term: Term): Term = term match {
@@ -222,10 +231,14 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     advanceBranch()
 
     updateBranch("->")
+
+    updateAsciiProgress()
   }
 
   override def markBranchReachable(uidBranchPoint: Int): Unit = {
     progress()
+
+    updateAsciiProgress()
   }
 
   override def doEndBranchPoint(uidBranchPoint: Int): Unit = {
@@ -242,5 +255,22 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
     branchScopeCloseRecords = branchScopeCloseRecords.tail
     branchConditions = branchConditions.tail
+
+    updateAsciiProgress()
+  }
+
+  def updateAsciiProgress(): Unit = {
+    val nodes: Seq[vct.col.ast.Node[_]] = (for (records <- openScopeFrames.reverse; record <- records.values.toSeq.sortBy(_.id))
+      yield {
+        record match {
+          case member: MemberRecord => which(member.value)
+          case exec: ExecuteRecord => which(exec.value)
+          case produce: ProduceRecord => which(produce.value)
+          case consume: ConsumeRecord => which(consume.value)
+          case _ => None
+        }
+      }).collect { case Some(n) => n }
+
+    Progress.nextOrigin(nodes.map { n: vct.col.ast.Node[_] => n.o.context })
   }
 }

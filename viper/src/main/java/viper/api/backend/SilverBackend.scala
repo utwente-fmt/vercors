@@ -2,6 +2,8 @@ package viper.api.backend
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
+import hre.progress.Progress
+import hre.progress.Progress.OriginFocusFrame
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
@@ -99,15 +101,18 @@ trait SilverBackend extends Backend with LazyLogging {
       case None => throw PluginErrors(plugins.errors)
     }
 
-    val backendVerifies = // tracker.withEntities(transformedProgram) {
-      plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
-        case Success => true
-        case Failure(errors) =>
-          logger.debug(errors.toString())
-          logger.whenDebugEnabled()
-          errors.foreach(processError)
-          false
-      }
+    val backendVerifies = { // tracker.withEntities(transformedProgram) {
+      Progress.withFrame(OriginFocusFrame(Seq()))(
+        plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
+          case Success => true
+          case Failure(errors) =>
+            logger.debug(errors.toString())
+            logger.whenDebugEnabled()
+            errors.foreach(processError)
+            false
+        }
+      )
+    }
     // }
 
     stopVerifier(verifier)

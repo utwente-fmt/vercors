@@ -1279,7 +1279,7 @@ case class Printer(out: Appendable,
     say(node.names.mkString("."))
 
   def printLocation(loc: Location[_]): Unit = loc match {
-//    case FieldLocation(obj, field) =>
+    case FieldLocation(obj, field) => say(expr(obj)._1, ".", field.decl.o.preferredName)
 //    case ModelLocation(obj, field) =>
 //    case SilverFieldLocation(obj, field) =>
     case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", subscript, "]"), 100)
@@ -1288,7 +1288,7 @@ case class Printer(out: Appendable,
 //    case InstancePredicateLocation(predicate, obj, args) =>
     case AmbiguousLocation(expr) => say(expr)
     case x =>
-      say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
+      say(s"Unknown location type in Printer.scala: ${x.getClass.getCanonicalName}")
   }
 
   def printVerification(node: Verification[_]): Unit = {

@@ -128,7 +128,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
           // Scale the body if it contains permissions
           nonQuantVars.foldLeft(body)((body, iter) => {
             val scale = to(iter) - from(iter)
-            Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))
+            Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))(body.o)
           })
         } else {
           body
@@ -140,7 +140,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
             Seq(variables.dispatch(v)),
             Nil,
             (from(iter) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(iter)) ==> body
-          )(ParBlockNotInjective(block, e))
+          )(ParBlockNotInjective(block, e))(body.o)
         })
       }
     )
