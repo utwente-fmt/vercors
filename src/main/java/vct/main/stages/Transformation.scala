@@ -1,6 +1,7 @@
 package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
@@ -97,36 +98,38 @@ class Transformation
       case (_, _) =>
     }
 
-    var result: Verification[_ <: Generation] = input
+    TimeTravel.safelyRepeatable {
+      var result: Verification[_ <: Generation] = input
 
-    Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
-      onBeforePassKey.foreach {
-        case (key, action) => if(pass.key == key) action(result)
+      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+        onBeforePassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result = pass().dispatch(result)
+
+        result.check match {
+          case Nil => // ok
+          case errors => throw TransformationCheckError(errors)
+        }
+
+        onAfterPassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result = PrettifyBlocks().dispatch(result)
       }
 
-      result = pass().dispatch(result)
-
-      result.check match {
-        case Nil => // ok
-        case errors => throw TransformationCheckError(errors)
+      for ((feature, examples) <- Feature.examples(result)) {
+        logger.debug(f"$feature:")
+        for (example <- examples.take(3)) {
+          logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
+          logger.debug(f"  ${example.getClass.getSimpleName}")
+        }
       }
 
-      onAfterPassKey.foreach {
-        case (key, action) => if(pass.key == key) action(result)
-      }
-
-      result = PrettifyBlocks().dispatch(result)
+      result
     }
-
-    for((feature, examples) <- Feature.examples(result)) {
-      logger.debug(f"$feature:")
-      for(example <- examples.take(3)) {
-        logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
-        logger.debug(f"  ${example.getClass.getSimpleName}")
-      }
-    }
-
-    result
   }
 }
 
@@ -186,8 +189,11 @@ case class SilverTransformation
     EncodeSendRecv,
     ParBlockEncoder,
 
-    // Encode exceptional behaviour (no more continue/break/return/try/throw)
+    // Extract explicitly extracted code sections, which ban continue/break/return/goto outside them.
     SpecifyImplicitLabels,
+    EncodeExtract,
+
+    // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,
