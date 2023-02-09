@@ -39,7 +39,7 @@ case object Backend {
         if (options.devSiliconZ3LogFile.isDefined || options.siliconPrintQuantifierStats.isDefined) { Some(1) }
         else { options.devSiliconNumVerifiers }
       SilverBackend(Silicon(
-        z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
+        z3Settings = (printRawQuantifier ++ z3LogFile :+ "smt.arith.solver" -> "6").toMap,
         z3Path = options.z3Path,
         numberOfParallelVerifiers = numberOfParallelVerifiers,
         timeoutValue = options.devSiliconAssertTimeout,
