@@ -39,23 +39,24 @@ class Program {
 			assert m.state(1\2, m.incr()) ** m.state(1\2, m.incr()); // now we are left with this
 
 			// fork and join both threads, and distribute the model accordingly
-			par Thread1
-      requires m.state(1\2, m.incr());
-      ensures m.state(1\2, empty);
-			{
-				atomic (inv) {
-					action(m, 1\2, empty, m.incr()) { m.x = m.x + 2; }
-				}
-			}
-			and Thread2
-      requires m.state(1\2, m.incr());
-      ensures m.state(1\2, empty);
-			{
-				atomic (inv) {
-					action(m, 1\2, empty, m.incr()) { m.x = m.x + 2; }
-				}
-			}
-
+			parallel {
+                par Thread1
+                    requires m.state(1\2, m.incr());
+                    ensures m.state(1\2, empty);
+                        {
+                            atomic (inv) {
+                                action(m, 1\2, empty, m.incr()) { m.x = m.x + 2; }
+                            }
+                        }
+                par Thread2
+                requires m.state(1\2, m.incr());
+                ensures m.state(1\2, empty);
+                {
+                    atomic (inv) {
+                        action(m, 1\2, empty, m.incr()) { m.x = m.x + 2; }
+                    }
+                }
+            }
 			assert m.state(1\2, empty) ** m.state(1\2, empty); // after both threads have terminated, we are left with this
 			m.merge(1\2, empty, 1\2, empty); // we may merge the two models back into one again
 			assert m.state(1, empty); // which gives us this

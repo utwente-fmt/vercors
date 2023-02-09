@@ -342,7 +342,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           case None => new ParBlockDecl[G]()
           case Some(name) => new ParBlockDecl[G]()(SourceNameOrigin(convert(name), origin(region)))
         }
-
         ParBlock(
           decl,
           iter.map(convert(_)).getOrElse(Nil),
@@ -351,31 +350,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
           convert(impl),
         )(blame(region))
-      })
-    case PvlOldPar(_, pars) => ParParallel(convert(pars))(blame(region))
-  }
-
-  def convert(implicit pars: ParOldUnitListContext): Seq[ParBlock[G]] = pars match {
-    case ParOldUnitList0(par) => Seq(convert(par))
-    case ParOldUnitList1(par, _, pars) => convert(par) +: convert(pars)
-  }
-
-  def convert(implicit par: ParOldUnitContext): ParBlock[G] = par match {
-    case PvlOldParUnit(name, iter, contract, impl) =>
-      val decl = name match {
-        case None => new ParBlockDecl[G]()
-        case Some(name) => new ParBlockDecl[G]()(SourceNameOrigin(convert(name), origin(par)))
-      }
-
-      withContract(contract, contract => {
-        ParBlock(
-          decl,
-          iter.map(convert(_)).getOrElse(Nil),
-          AstBuildHelpers.foldStar(contract.consume(contract.context_everywhere)),
-          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
-          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
-          convert(impl),
-        )(blame(par))
       })
   }
 

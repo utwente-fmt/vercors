@@ -11,17 +11,19 @@ class C {
     void m() {
         int x = 3;
         int x_old = x;
-        par
-            context Perm(a, write);
-            ensures a == 2 * x;
-        {
-            a = 2 * x;
-        }
-        and
-            context Perm(b, write);
-            ensures b == 3 * x;
-        {
-            b = 3 * x;
+        parallel {
+            par
+                context Perm(a, write);
+                ensures a == 2 * x;
+            {
+                a = 2 * x;
+            }
+            par
+                context Perm(b, write);
+                ensures b == 3 * x;
+            {
+                b = 3 * x;
+            }
         }
 
         assert x == x_old;

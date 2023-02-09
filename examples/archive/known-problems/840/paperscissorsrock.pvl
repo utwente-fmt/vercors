@@ -50,33 +50,37 @@ class SeqProgram {
 		loop_invariant b.i - a.i <= 5;
 		loop_invariant a.draw() == b.draw() && b.draw() == c.draw();
 		while(a.draw() && b.draw() && c.draw()) {
-			par 
-			ensures a.i == \old(a.i) - 1;
-			ensures a.x == (\old(a.i) % 2 == 1 ? 1 : 0);
-			ensures b.x == a.x && c.x == a.x; 
-			{
-				a.x = a.i % 2 == 1 ? 1 : 0;
-				a.i = a.i-1;
-				b.x = a.x;
-				c.x = a.x;
-			} and
-			ensures b.i == \old(b.i) + 1;
-			ensures b.y == (\old(b.i) == 5 ? 0 : 1);
-			ensures b.y == a.y && b.y == c.y;
-			{
-				b.y = b.i == 5 ? 0 : 1;
-				b.i = b.i +1;
-				a.y = b.y;
-				c.y = b.y;
-			} and
-			context Perm( c.i , 1 );
-			ensures c.z == 2;
-			ensures c.z == a.z && c.z == b.z;
-			{
-				c.z = 2;
-				a.z = c.z;
-				b.z = c.z; //typo in paper hier
-			}
+			parallel {
+                par
+                ensures a.i == \old(a.i) - 1;
+                ensures a.x == (\old(a.i) % 2 == 1 ? 1 : 0);
+                ensures b.x == a.x && c.x == a.x;
+                {
+                    a.x = a.i % 2 == 1 ? 1 : 0;
+                    a.i = a.i-1;
+                    b.x = a.x;
+                    c.x = a.x;
+                }
+                par
+                ensures b.i == \old(b.i) + 1;
+                ensures b.y == (\old(b.i) == 5 ? 0 : 1);
+                ensures b.y == a.y && b.y == c.y;
+                {
+                    b.y = b.i == 5 ? 0 : 1;
+                    b.i = b.i +1;
+                    a.y = b.y;
+                    c.y = b.y;
+                }
+                par
+                context Perm( c.i , 1 );
+                ensures c.z == 2;
+                ensures c.z == a.z && c.z == b.z;
+                {
+                    c.z = 2;
+                    a.z = c.z;
+                    b.z = c.z; //typo in paper hier
+                }
+            }
 		}
 	}
 	
