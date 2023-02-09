@@ -504,7 +504,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         for(err <- errs) {
           logger.debug(err.text)
         }
-        throw IncoercibleText(expr, message)
+        throw IncoercibleExplanation(expr, message)
       case Right(value) => value
     }
   }
