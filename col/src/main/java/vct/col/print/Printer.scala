@@ -441,6 +441,10 @@ case class Printer(out: Appendable,
       statement("return", space, result)
     case Assign(target, value) =>
       statement(target, space, "=", space, value)
+    case va: VeyMontAssignExpression[_] =>
+      statement(va.assign.asInstanceOf[Assign[_]].target, space, "=", space, va.assign.asInstanceOf[Assign[_]].value)
+    case vc: VeyMontCommExpression[_] =>
+      statement(vc.assign.asInstanceOf[Assign[_]].target, space, "=", space, vc.assign.asInstanceOf[Assign[_]].value)
     case block: Block[_] =>
       printBlock(block, newline = true)
     case Scope(locals, body) =>
