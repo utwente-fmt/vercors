@@ -134,7 +134,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     // 1. the inline initialization of all fields
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
-      case fields: JavaFields[Pre] =>
+      case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
         Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
           yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
             case Some(value) => rw.dispatch(value)
