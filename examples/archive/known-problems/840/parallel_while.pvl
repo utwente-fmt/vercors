@@ -30,18 +30,22 @@ class SeqProgram {
 	requires b.x - c.x == c.x - a.x;
 	ensures a.x == b.x && b.x == c.x; 
 	run {
-		par
-		ensures b.left == a.x;
-		{
-				b.left = a.x;
-		} and
-		ensures c.left == b.x;
-		{
-				c.left = b.x;
-		} and
-		ensures a.left == c.x;
-		{
-				a.left = c.x;
+		parallel {
+            par
+            ensures b.left == a.x;
+            {
+                    b.left = a.x;
+            }
+            par
+            ensures c.left == b.x;
+            {
+                    c.left = b.x;
+            }
+            par
+            ensures a.left == c.x;
+            {
+                    a.left = c.x;
+            }
 		}
 		
 		loop_invariant b.x - c.x == c.x - a.x;
@@ -49,22 +53,26 @@ class SeqProgram {
 		loop_invariant (a.left != a.x) == (b.left != b.x);
 		loop_invariant (b.left != b.x) == (c.left != c.x);
 		while(a.left != a.x && b.left != b.x && c.left != c.x) {
-			par
-			ensures a.x == \old(a.x) + 1;
-			ensures b.left == a.x;
-			{
-				a.x = a.x + 1;
-				b.left = a.x;
-			} and
-			ensures b.x == \old(b.x) - 1;
-			ensures c.left == b.x;
-			{
-				b.x = b.x - 1;
-				c.left = b.x;
-			} and
-			ensures a.left == c.x;
-			{ 
-				a.left = c.x;
+			parallel {
+			    par
+                ensures a.x == \old(a.x) + 1;
+                ensures b.left == a.x;
+                {
+                    a.x = a.x + 1;
+                    b.left = a.x;
+                }
+                par
+                ensures b.x == \old(b.x) - 1;
+                ensures c.left == b.x;
+                {
+                    b.x = b.x - 1;
+                    c.left = b.x;
+                }
+                par
+                ensures a.left == c.x;
+                {
+                    a.left = c.x;
+                }
 			}
 		}
 	}

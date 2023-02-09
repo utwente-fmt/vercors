@@ -6,12 +6,15 @@
 class C {
     void m() {
         int x;
-        par
-        {
-            x = 1;
-        } and
-        {
-            x = 2;
+        parallel {
+            par
+            {
+                x = 1;
+            }
+            par
+            {
+                x = 2;
+            }
         }
     }
 }

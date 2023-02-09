@@ -92,41 +92,49 @@ class Main {
     }
     
     void aTimesTransp() {
-         par
-        { 
+        parallel {
+            par
+            {
             t0.initv();
             t0.runn();
             c.t0 = t0.v;
-            
-        } and 
-        {
+
+            }
+            par
+            {
             t1.initv();
             t1.runn();
             c.t1 = t1.v;
-        } and 
-        {
+            }
+            par
+            {
             t2.initv();
             t2.runn();
             c.t1 = t1.v;
+            }
         }
         c.flatten(); // x in c.result
-        par
-        {
-            t0.initv();
-            t0.u = c.result;
-            t0.runn();
-            c.t0 = t0.v;
-        } and
-        {
-            t1.initv();
-            t1.u = c.result;
-            t1.runn();
-            c.t1 = t1.v;
-        } and {
-            t2.initv();
-            t2.u = c.result;
-            t2.runn();
-            c.t2 = t2.v;
+       parallel {
+            par
+            {
+                t0.initv();
+                t0.u = c.result;
+                t0.runn();
+                c.t0 = t0.v;
+            }
+            par
+            {
+                t1.initv();
+                t1.u = c.result;
+                t1.runn();
+                c.t1 = t1.v;
+            }
+            par {
+                t2.initv();
+                t2.u = c.result;
+                t2.runn();
+                c.t2 = t2.v;
+            }
         }
         c.flatten(); // v in c.result
     }

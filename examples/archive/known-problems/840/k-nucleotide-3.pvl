@@ -37,24 +37,32 @@ class Main {
         m03.sequence = fr.sequence;
         m13.sequence = fr.sequence;
         m23.sequence = fr.sequence;
-        par
-        {
-            m01.result = m01.createFragmentMap(m01.sequence, m01.offset,m01.fragmentLength);            
-        } and
-        {
-            m02.result = m02.createFragmentMap(m02.sequence, m02.offset,m02.fragmentLength);
-        } and 
-        {
-            m12.result = m12.createFragmentMap(m12.sequence, m12.offset,m12.fragmentLength);
-        } and 
-        {
-            m03.result = m03.createFragmentMap(m03.sequence, m03.offset,m03.fragmentLength);
-        } and 
-        {
-            m13.result = m13.createFragmentMap(m13.sequence, m13.offset,m13.fragmentLength);
-        } and 
-        {
-            m23.result = m23.createFragmentMap(m23.sequence, m23.offset,m23.fragmentLength);
+        parallel
+            {
+            par
+            {
+                m01.result = m01.createFragmentMap(m01.sequence, m01.offset,m01.fragmentLength);
+            }
+            par
+            {
+                m02.result = m02.createFragmentMap(m02.sequence, m02.offset,m02.fragmentLength);
+            }
+            par
+            {
+                m12.result = m12.createFragmentMap(m12.sequence, m12.offset,m12.fragmentLength);
+            }
+            par
+            {
+                m03.result = m03.createFragmentMap(m03.sequence, m03.offset,m03.fragmentLength);
+            }
+            par
+            {
+                m13.result = m13.createFragmentMap(m13.sequence, m13.offset,m13.fragmentLength);
+            }
+            par
+            {
+                m23.result = m23.createFragmentMap(m23.sequence, m23.offset,m23.fragmentLength);
+            }
         }
         w1.totalCount = fr.sequence.length;
         w1.frequencies = m01.result;

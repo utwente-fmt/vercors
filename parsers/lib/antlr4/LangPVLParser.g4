@@ -187,18 +187,9 @@ forStatementList
 parRegion
  : 'parallel' '{' parRegion* '}' # pvlParallel
  | 'sequential' '{' parRegion* '}' # pvlSequential
- | 'block' identifier? parBlockIter? contract statement # pvlParBlock
- | 'par' parOldUnitList # pvlOldPar
+ | 'par' identifier? parBlockIter? contract statement # pvlParBlock
  ;
 
-parOldUnit
- : identifier? parBlockIter? contract statement # pvlOldParUnit
- ;
-
-parOldUnitList
- : parOldUnit
- | parOldUnit 'and' parOldUnitList
- ;
 
 
 declList
