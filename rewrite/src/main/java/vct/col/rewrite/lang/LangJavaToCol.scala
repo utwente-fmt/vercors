@@ -134,12 +134,26 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     // 1. the inline initialization of all fields
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
-      case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
+      case fields: JavaFields[Pre]  =>
         Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
-          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
-            case Some(value) => rw.dispatch(value)
-            case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)))
-          }, PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
+          yield init match {
+            case Some(value) =>
+              assignField[Post](
+                obj = diz,
+                field = javaFieldsSuccessor.ref((fields, idx)),
+                value = rw.dispatch(value),
+                blame = PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens.")
+              )
+            case None if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
+              assignField[Post](
+                obj = diz,
+                field = javaFieldsSuccessor.ref((fields, idx)),
+                value = Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t))),
+                blame = PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens.")
+              )
+            case None /* if modifiers contains final */ =>
+              Block(Nil)
+          }
         )
     })
 
