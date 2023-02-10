@@ -165,7 +165,6 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   override def appendDataRecord(r: DataRecord): Unit = {
     progress()
     openScopeFrames.head(r.id) = r
-    updateAsciiProgress()
   }
 
   override def appendScopingRecord(r: ScopingRecord, ignoreBranchingStack: Boolean): Unit = {
@@ -182,7 +181,6 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         }
       case _: OpenScopeRecord => // This is just done from datarecord; safe to ignore.
     }
-    updateAsciiProgress()
   }
 
   override def appendBranchingRecord(r: BranchingRecord): Unit = {
@@ -203,7 +201,6 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     }
 
     updateBranch("->")
-    updateAsciiProgress()
   }
 
   def invert(term: Term): Term = term match {
@@ -231,14 +228,10 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     advanceBranch()
 
     updateBranch("->")
-
-    updateAsciiProgress()
   }
 
   override def markBranchReachable(uidBranchPoint: Int): Unit = {
     progress()
-
-    updateAsciiProgress()
   }
 
   override def doEndBranchPoint(uidBranchPoint: Int): Unit = {
@@ -255,22 +248,5 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
     branchScopeCloseRecords = branchScopeCloseRecords.tail
     branchConditions = branchConditions.tail
-
-    updateAsciiProgress()
-  }
-
-  def updateAsciiProgress(): Unit = {
-    val nodes: Seq[vct.col.ast.Node[_]] = (for (records <- openScopeFrames.reverse; record <- records.values.toSeq.sortBy(_.id))
-      yield {
-        record match {
-          case member: MemberRecord => which(member.value)
-          case exec: ExecuteRecord => which(exec.value)
-          case produce: ProduceRecord => which(produce.value)
-          case consume: ConsumeRecord => which(consume.value)
-          case _ => None
-        }
-      }).collect { case Some(n) => n }
-
-    Progress.nextOrigin(nodes.map { n: vct.col.ast.Node[_] => n.o.context })
   }
 }
