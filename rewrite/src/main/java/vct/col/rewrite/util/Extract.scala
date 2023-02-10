@@ -6,6 +6,7 @@ import vct.col.rewrite.util.FreeVariables.{FreeThisModel, FreeThisObject, ReadFr
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal}
 import vct.col.util.Substitute
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 /**
@@ -22,7 +23,7 @@ case object Extract {
   /**
    * Note: expressions must be free of assignments to locals (not necessarily all side effects), and type variables.
    */
-  def extract[G](nodes: Expr[G]*): (Seq[Expr[G]], Map[Variable[G], Expr[G]]) = {
+  def extract[G](nodes: Expr[G]*): (Seq[Expr[G]], ListMap[Variable[G], Expr[G]]) = {
     val extract = Extract[G]()
     val result = nodes.map(extract.extract)
     val extract.Data(ts, in, inForOut, out, _) = extract.finish()
@@ -36,11 +37,11 @@ case object Extract {
 case class Extract[G]() {
   import Extract._
 
-  private val map = mutable.Map[FreeVariables.FreeVariable[G], Variable[G]]()
+  private val map = mutable.ListMap[FreeVariables.FreeVariable[G], Variable[G]]()
   private val write = mutable.Set[Local[G]]()
   private val read = mutable.Set[Local[G]]()
 
-  private def updateExprs(node: Node[G]): Map[Expr[G], Expr[G]] =
+  private def updateExprs(node: Node[G]): ListMap[Expr[G], Expr[G]] =
     FreeVariables.freeVariables(node).collect {
       case free @ ReadFreeVar(v) =>
         read += v
@@ -52,43 +53,50 @@ case class Extract[G]() {
         t -> Local(map.getOrElseUpdate(free, new Variable(TClass(t.cls))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisModel(t) =>
         t -> Local(map.getOrElseUpdate(free, new Variable(TModel(t.cls))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
-    }.toMap[Expr[G], Expr[G]]
+    }.to(ListMap)
 
-  private def updateTypes(node: Node[G]): Map[TVar[G], Type[G]] =
+  private def updateTypes(node: Node[G]): ListMap[TVar[G], Type[G]] =
     FreeVariables.freeVariables(node).collect {
       case free@ReadTypeVar(v) => v ->
         TVar(map.getOrElseUpdate(free, new Variable(v.ref.decl.t)(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
-    }.toMap[TVar[G], Type[G]]
+    }.to(ListMap)
 
   def extract(expr: Expr[G]): Expr[G] =
     Substitute(updateExprs(expr), updateTypes(expr)).dispatch(expr)
 
-  def extract(stat: Statement[G]): Statement[G] =
-    Substitute(updateExprs(stat), updateTypes(stat)).dispatch(stat)
+  /**
+   * Note: statements must not have jumps into them, or jumps out of the statement.
+   */
+  def extract(stat: Statement[G]): Statement[G] = {
+    val sub = Substitute(updateExprs(stat), updateTypes(stat))
+    sub.labelDecls.scope {
+      sub.dispatch(stat)
+    }
+  }
 
-  case class Data(types: Map[Variable[G], Type[G]],
-                  in: Map[Variable[G], Expr[G]],
-                  inForOut: Map[(Variable[G], Variable[G]), Expr[G]],
-                  out: Map[Variable[G], Expr[G]],
+  case class Data(types: ListMap[Variable[G], Type[G]],
+                  in: ListMap[Variable[G], Expr[G]],
+                  inForOut: ListMap[(Variable[G], Variable[G]), Expr[G]],
+                  out: ListMap[Variable[G], Expr[G]],
                   initialAssignments: Statement[G])
 
   def finish(): Data = {
     val types = map.collect {
       case (ReadTypeVar(v), extracted) => extracted -> v
-    }.toMap
+    }.to(ListMap)
 
     // Locals that are not written: their usage becomes a parameter
     val in = map.collect {
       case (ReadFreeVar(v), extracted) if !write.contains(v) => extracted -> v
       case (FreeThisObject(t), extracted) => extracted -> t
       case (FreeThisModel(t), extracted) => extracted -> t
-    }.toMap
+    }.to(ListMap)
 
     // Locals that are written and read: get an initial value as a parameter, all usages are an out parameter
     val inForOut = map.collect {
       case (ReadFreeVar(v), extracted) if read.contains(v) && write.contains(v) =>
         (new Variable[G](v.t)(v.ref.decl.o), extracted) -> v
-    }.toMap
+    }.to(ListMap)
 
     // Locals that are written and read: the out parameter is assigned the initial value immediately
     val initialAssignments = Block((for(((in, out), _) <- inForOut) yield {
@@ -99,7 +107,7 @@ case class Extract[G]() {
     // Locals that are written: get an out parameter. The initial value is skipped if not read.
     val out = map.collect {
       case (ReadFreeVar(v), extracted) if write.contains(v) => extracted -> v
-    }.toMap
+    }.to(ListMap)
 
     Data(types, in, inForOut, out, initialAssignments)
   }

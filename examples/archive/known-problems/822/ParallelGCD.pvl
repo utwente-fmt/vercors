@@ -45,6 +45,7 @@ class ParallelGCD {
     F.split(1\2, F.tx(), 1\2, F.ty());
 
     invariant inv(HPerm(F.x,write) ** HPerm(F.y,write) ** F.x > 0 ** F.y > 0) {
+      Parallel {
       par T0
       requires F.state(1\2, F.tx());
       ensures F.state(1\2, empty);
@@ -64,7 +65,7 @@ class ParallelGCD {
           }
         }
       }
-      and T1
+      par T1
       requires F.state(1\2,F.ty());
       ensures F.state(1\2,empty);
       {
@@ -87,6 +88,7 @@ class ParallelGCD {
             }
           }
         }
+      }
       }
     }
 
