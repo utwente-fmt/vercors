@@ -102,16 +102,14 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     val backendVerifies = { // tracker.withEntities(transformedProgram) {
-      Progress.withFrame(OriginFocusFrame(Seq()))(
-        plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
-          case Success => true
-          case Failure(errors) =>
-            logger.debug(errors.toString())
-            logger.whenDebugEnabled()
-            errors.foreach(processError)
-            false
-        }
-      )
+      plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
+        case Success => true
+        case Failure(errors) =>
+          logger.debug(errors.toString())
+          logger.whenDebugEnabled()
+          errors.foreach(processError)
+          false
+      }
     }
     // }
 

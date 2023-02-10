@@ -1,7 +1,6 @@
 package viper.api.backend.silicon
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.progress.Progress
 import vct.col.ast.Neq
 import viper.api.transform.NodeInfo
 import viper.silicon.decider.PathConditionStack
@@ -75,11 +74,6 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
   def where(node: Node): Option[String] = node match {
     case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node.o.shortPosition)
-    case _ => None
-  }
-
-  def which(node: Node): Option[vct.col.ast.Node[_]] = node match {
-    case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node)
     case _ => None
   }
 

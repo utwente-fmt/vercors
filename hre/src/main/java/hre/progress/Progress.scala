@@ -137,15 +137,6 @@ case object Progress {
     override def weightDone: Int = position
   }
 
-  case class OriginFocusFrame(var contexts: Seq[String]) extends Frame {
-    override def position: Int = 0
-    override def currentWeight: Int = 1
-    override def currentMessage: String = "XXX"
-    override def count: Int = 0
-    override def totalWeight: Int = 1
-    override def weightDone: Int = 1
-  }
-
   private var frames: Seq[Frame] = Nil
 
   /* private */ def withFrame[T](frame: Frame)(f: => T): T = {
@@ -230,38 +221,4 @@ case object Progress {
 
       update()
     }
-
-  def nextOrigin(os: Seq[String]): Unit = {
-    this.synchronized {
-      frames.last match {
-        case frame: OriginFocusFrame =>
-          val oldCtxs = frame.contexts
-          frame.contexts = os
-          if (oldCtxs != os) {
-            paintContexts()
-            update()
-          }
-        case _ => ???
-      }
-    }
-  }
-
-  def paintContexts(): Unit = {
-    frames.last match {
-      case OriginFocusFrame(ctxs) =>
-        val ansi = Ansi.ansi()
-        ansi.eraseScreen()
-          .saveCursorPosition()
-          .cursor(1, 1)
-        if (ctxs.nonEmpty) {
-          ansi.append(ctxs.head)
-        }
-        if (ctxs.length > 1) {
-          ansi.append(ctxs.last)
-        }
-        ansi.restoreCursorPosition()
-        System.out.print(ansi.toString)
-      case _ => ???
-    }
-  }
 }
