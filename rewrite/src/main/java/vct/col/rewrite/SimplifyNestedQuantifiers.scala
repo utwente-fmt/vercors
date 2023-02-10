@@ -518,6 +518,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
   case class Pointer[G](index: Expr[G], subnodes: Seq[Node[G]], array: Expr[G]) extends Subscript[G]
 
+  case class Sequence[G](index: Expr[G], subnodes: Seq[Node[G]], array: Expr[G]) extends Subscript[G]
+
     class FindLinearArrayAccesses(quantifierData: RewriteQuantifierData){
 
       // Search for linear array expressions
@@ -527,6 +529,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             testSubscript(Array(e.subscript, e.subnodes, e.array))
           case e @ ArraySubscript(_, _)  =>
             testSubscript(Array(e.index, e.subnodes, e.arr))
+          case e@SeqSubscript(seq, index) =>
+            testSubscript(Sequence(index, e.subnodes, seq))
           case e @ PointerSubscript(_, _)  =>
             testSubscript(Pointer(e.index, e.subnodes, e.pointer))
           case e @ PointerAdd(_, _) =>
@@ -737,6 +741,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             case arrayIndex: Array[Pre] =>
               Seq(Seq(ArraySubscript(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
                // Seq(ArrayLocation(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access")))
+              )
+            case sequenceIndex: Sequence[Pre] =>
+              Seq(Seq(SeqSubscript(newGen(sequenceIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
+                // Seq(ArrayLocation(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access")))
               )
             case arrayIndex: Pointer[Pre] =>
               Seq(Seq(PointerSubscript(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
