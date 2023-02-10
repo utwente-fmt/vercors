@@ -139,7 +139,7 @@ case object Progress {
 
   private var frames: Seq[Frame] = Nil
 
-  def withFrame[T](frame: Frame)(f: => T): T = {
+  private def withFrame[T](frame: Frame)(f: => T): T = {
     frames :+= frame
     update()
     try {
