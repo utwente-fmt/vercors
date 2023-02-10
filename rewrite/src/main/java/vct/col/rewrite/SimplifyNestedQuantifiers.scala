@@ -743,9 +743,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                // Seq(ArrayLocation(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access")))
               )
             case sequenceIndex: Sequence[Pre] =>
-              Seq(Seq(SeqSubscript(newGen(sequenceIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
-                // Seq(ArrayLocation(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access")))
-              )
+              Seq(Seq(SeqSubscript(newGen(sequenceIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))))
             case arrayIndex: Pointer[Pre] =>
               Seq(Seq(PointerSubscript(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))),
                 Seq(PointerAdd(newGen(arrayIndex.array), x_new_var)(PanicBlame("Only used as trigger, not as access"))))
