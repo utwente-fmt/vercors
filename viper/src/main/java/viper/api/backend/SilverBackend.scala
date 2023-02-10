@@ -2,8 +2,6 @@ package viper.api.backend
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
-import hre.progress.Progress
-import hre.progress.Progress.OriginFocusFrame
 import vct.col.origin.AccountedDirection
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.SystemError
