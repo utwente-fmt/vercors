@@ -1,7 +1,7 @@
 package hre.progress
 
 import hre.platform.Platform
-import org.fusesource.jansi.{Ansi, AnsiConsole, AnsiType}
+import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
 import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
 
@@ -139,7 +139,7 @@ case object Progress {
 
   private var frames: Seq[Frame] = Nil
 
-  /* private */ def withFrame[T](frame: Frame)(f: => T): T = {
+  def withFrame[T](frame: Frame)(f: => T): T = {
     frames :+= frame
     update()
     try {
