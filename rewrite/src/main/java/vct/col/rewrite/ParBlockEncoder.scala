@@ -351,6 +351,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
     case inv @ ParInvariant(decl, dependentInvariant, body) =>
       implicit val o: Origin = stat.o
+      // PB: this usage is dubious: dependentInvariant can probably contain type variables?
       val (Seq(frozenInvariant), mappings) = Extract.extract(dependentInvariant)
 
       decl.drop()

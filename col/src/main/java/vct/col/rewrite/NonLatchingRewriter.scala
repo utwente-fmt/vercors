@@ -5,9 +5,7 @@ import vct.col.ast._
 
 class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(context: Verification[Pre]): Verification[Post] = rewriteDefault(context)
-  override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] =
-    TimeTravel.safelyRepeatable { rewriteDefault(context) }
-
+  override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(context)
   override def dispatch(program: Program[Pre]): Program[Post] = rewriteDefault(program)
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)

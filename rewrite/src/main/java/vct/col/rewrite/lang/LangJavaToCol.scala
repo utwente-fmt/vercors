@@ -134,12 +134,26 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     // 1. the inline initialization of all fields
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
-      case fields: JavaFields[Pre] =>
+      case fields: JavaFields[Pre]  =>
         Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
-          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
-            case Some(value) => rw.dispatch(value)
-            case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)))
-          }, PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
+          yield init match {
+            case Some(value) =>
+              assignField[Post](
+                obj = diz,
+                field = javaFieldsSuccessor.ref((fields, idx)),
+                value = rw.dispatch(value),
+                blame = PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens.")
+              )
+            case None if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
+              assignField[Post](
+                obj = diz,
+                field = javaFieldsSuccessor.ref((fields, idx)),
+                value = Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t))),
+                blame = PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens.")
+              )
+            case None /* if modifiers contains final */ =>
+              Block(Nil)
+          }
         )
     })
 
@@ -322,6 +336,16 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     )
   }
 
+  /**
+   * Provides the singleton object needed to access static fields/methods of a class.
+   * @param cls - class for which we get the static singleton (lazy, because the class may not yet be known)
+   * @return a singleton object to access static class fields/methods
+   */
+  def statics(cls: => JavaClassOrInterface[Pre])(implicit o: Origin): Expr[Post] = {
+    val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(cls))
+    FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing."))
+  }
+
   def local(local: JavaLocal[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
 
@@ -329,12 +353,12 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefAxiomaticDataType(decl) => throw NotAValue(local)
       case RefVariable(decl) => Local(rw.succ(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
-      case RefJavaClass(decl) => throw NotAValue(local)
+      case RefJavaClass(decl) =>
+        throw NotAValue(local)
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
-          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decls)))
           Deref[Post](
-            obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
+            obj = statics(javaClassDeclToJavaClass(decls)),
             ref = javaFieldsSuccessor.ref((decls, idx)),
           )(local.blame)
         } else {
@@ -357,7 +381,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefModelField(decl) => ModelDeref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
       case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
       case RefJavaField(decls, idx) =>
-        Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
+        if (decls.modifiers.contains(JavaStatic[Pre]())) {
+          Deref[Post](
+            obj = statics(javaClassDeclToJavaClass(decls)),
+            ref = javaFieldsSuccessor.ref((decls, idx)),
+          )(deref.blame)
+        } else {
+          Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
+        }
       case BuiltinField(f) => rw.dispatch(f(deref.obj))
       case RefVariable(v) => ???
     }
@@ -395,9 +426,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
       case RefJavaMethod(decl) =>
         if(decl.modifiers.contains(JavaStatic[Pre]())) {
-          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decl)))
           MethodInvocation[Post](
-            obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(inv.blame),
+            obj = statics(javaClassDeclToJavaClass(decl)),
             ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },

@@ -6,15 +6,17 @@
 class C {
     void m() {
         boolean b = true;
-        par
-        {
-            b = false;
-        }
-        and
-            requires b;
-        {
-            invariant inv(b) {
-                atomic(inv) { }
+        parallel {
+            par
+            {
+                b = false;
+            }
+            par
+                requires b;
+            {
+                invariant inv(b) {
+                    atomic(inv) { }
+                }
             }
         }
     }

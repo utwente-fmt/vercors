@@ -38,18 +38,22 @@ class Main {
         s.check();
         //  System.out.println("stretch tree of depth " + s.stretchDepth + "\t check: "  +  s.check);
         l.init();
-        par 
-        context Perm(a,1\2) ** Perm(a.check,1) ** Perm(a.index,1) ** Perm(a.depth,1\2) ** Perm(a.MIN_DEPTH,1\2) ** Perm(a.iterations,1\2) ** a.iterations > 0;
-        {
-            a.check();
-        } and 
-        context Perm(b,1\2) ** Perm(b.check,1) ** Perm(b.index,1) ** Perm(b.depth,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(b.iterations,1\2) ** b.iterations > 0;
-        {
-            b.check();
-        }  and 
-        context Perm(c,1\2) ** Perm(c.check,1) ** Perm(c.index,1) ** Perm(c.depth,1\2) ** Perm(c.MIN_DEPTH,1\2) ** Perm(c.iterations,1\2) ** c.iterations > 0;
-        {
-            c.check();
+        parallel {
+            par
+            context Perm(a,1\2) ** Perm(a.check,1) ** Perm(a.index,1) ** Perm(a.depth,1\2) ** Perm(a.MIN_DEPTH,1\2) ** Perm(a.iterations,1\2) ** a.iterations > 0;
+            {
+                a.check();
+            }
+            par
+            context Perm(b,1\2) ** Perm(b.check,1) ** Perm(b.index,1) ** Perm(b.depth,1\2) ** Perm(b.MIN_DEPTH,1\2) ** Perm(b.iterations,1\2) ** b.iterations > 0;
+            {
+                b.check();
+            }
+            par
+            context Perm(c,1\2) ** Perm(c.check,1) ** Perm(c.index,1) ** Perm(c.depth,1\2) ** Perm(c.MIN_DEPTH,1\2) ** Perm(c.iterations,1\2) ** c.iterations > 0;
+            {
+                c.check();
+            }
         }
         //System.out.println(a.iterations + "\t trees of depth " + a.depth + "\t check: " + a.check);
         //System.out.println(b.iterations + "\t trees of depth " + b.depth + "\t check: " + b.check);

@@ -18,23 +18,25 @@ class ZeroMany {
             (\forall int j3 ; 0 <= j3 && j3 < N ;
               matrix[i3][j3]==0));
   void initialise(int M, int N, int[N] ar, int[M][N] matrix){
-    par
-      context Perm(x,1);
-      ensures x==0;
-    {
-      x=0;
-    }
-    and (int i = 0 .. N)
-      context Perm(ar[i],write);
-      ensures ar[i]==0;
-    {
-      ar[i]=0;
-    }
-    and (int i=0..M,int j=0..N)
-      context Perm(matrix[i][j],write);
-      ensures matrix[i][j]==0;
-    {
-      matrix[i][j]=0;
+    parallel {
+      par
+        context Perm(x,1);
+        ensures x==0;
+      {
+        x=0;
+      }
+      par (int i = 0 .. N)
+        context Perm(ar[i],write);
+        ensures ar[i]==0;
+      {
+        ar[i]=0;
+      }
+      par (int i=0..M,int j=0..N)
+        context Perm(matrix[i][j],write);
+        ensures matrix[i][j]==0;
+      {
+        matrix[i][j]=0;
+      }
     }
   }
 

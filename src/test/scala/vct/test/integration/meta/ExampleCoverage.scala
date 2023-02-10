@@ -1,7 +1,7 @@
 package vct.test.integration.meta
 
 import org.scalatest.flatspec.AnyFlatSpec
-import vct.test.integration.examples.{AbruptExamplesSpec, AlgorithmExamplesSpec, ArrayExamplesSpec, BasicExamplesSpec, CIncludeSpec, ClassesSpec, CounterSpec, DemoSpec, ForkJoinSpec, GotoSpec, GpgpuSpec, JavaImportSpec, LoopDependencySpec, MapsSpec, ModelsSpec, OpenMPSpec, ParallelSpec, PermissionSpec, PermutationSpec, PointerSpec, PredicatesSpec, PublicationsSpec, RefuteSpec, SequencesSpec, SetsSpec, SilverDomainSpec, SummationSpec, TechnicalAbruptSpec, TechnicalFloatSpec, TechnicalSpec, TechnicalVeymontSpec, TerminationSpec, TypeValuesSpec, VerifyThisSpec, VeymontSpec, WaitNotifySpec, WandSpec}
+import vct.test.integration.examples._
 import vct.test.integration.helper.{ExampleFiles, VercorsSpec}
 
 class ExampleCoverage extends AnyFlatSpec {
@@ -15,6 +15,8 @@ class ExampleCoverage extends AnyFlatSpec {
       new ClassesSpec(),
       new CounterSpec(),
       new DemoSpec(),
+      new FinalConstExprSpec(),
+      new ExtractSpec(),
       new ForkJoinSpec(),
       new GotoSpec(),
       new GpgpuSpec(),
@@ -37,6 +39,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new TechnicalAbruptSpec(),
       new TechnicalFloatSpec(),
       new TechnicalSpec(),
+      new TechnicalStaticSpec(),
       new TechnicalVeymontSpec(),
       new TerminationSpec(),
       new TypeValuesSpec(),

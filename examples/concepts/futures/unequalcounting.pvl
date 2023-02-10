@@ -31,21 +31,24 @@ class Program {
 		f.split(1\2, f.plus(n), 1\2, f.mult(n));
 		
 		invariant lockinv(HPerm(f.counter, write)) {
-			par T0
-      requires f.state(1\2, f.plus(n));
-      ensures f.state(1\2, empty);
+		    parallel
 			{
-				atomic(lockinv) {
-					action(f, 1\2, empty, f.plus(n)) { f.counter = f.counter + n; }
-				}
-			}
-			and T1
-      requires f.state(1\2, f.mult(n));
-      ensures f.state(1\2, empty);
-			{
-				atomic(lockinv) {
-					action(f, 1\2, empty, f.mult(n)) { f.counter = f.counter * n; }
-				}
+                par T0
+                requires f.state(1\2, f.plus(n));
+                ensures f.state(1\2, empty);
+                {
+                atomic(lockinv) {
+                    action(f, 1\2, empty, f.plus(n)) { f.counter = f.counter + n; }
+                }
+                }
+                par T1
+                requires f.state(1\2, f.mult(n));
+                ensures f.state(1\2, empty);
+                {
+                    atomic(lockinv) {
+                        action(f, 1\2, empty, f.mult(n)) { f.counter = f.counter * n; }
+                    }
+                }
 			}
 		}
 		

@@ -64,7 +64,7 @@ case object EncodeBreakReturn extends RewriterBuilder {
 case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
   import EncodeBreakReturn._
 
-  def hasFinally(stat: Statement[Pre]): Boolean =
+  def needBreakReturnExceptions(stat: Statement[Pre]): Boolean =
     stat.transSubnodes.exists {
       case TryCatchFinally(_, Block(Nil), _) => false
       case TryCatchFinally(_, _, _) => true
@@ -170,7 +170,7 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
         case None => rewriteDefault(method)
         case Some(body) =>
           allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(body = Some({
-            if (hasFinally(body)) {
+            if (needBreakReturnExceptions(body)) {
               implicit val o: Origin = body.o
               val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
               val returnClass = new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
