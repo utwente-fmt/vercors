@@ -1279,10 +1279,10 @@ case class Printer(out: Appendable,
     say(node.names.mkString("."))
 
   def printLocation(loc: Location[_]): Unit = loc match {
-//    case FieldLocation(obj, field) =>
+    case FieldLocation(obj, field) => say(obj)
 //    case ModelLocation(obj, field) =>
 //    case SilverFieldLocation(obj, field) =>
-    case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", subscript, "]"), 100)
+    case ArrayLocation(array, subscript) => say(phrase(assoc(100, array), "[", subscript, "]"))
     case PointerLocation(pointer) => say(pointer)
 //    case PredicateLocation(predicate, args) =>
 //    case InstancePredicateLocation(predicate, obj, args) =>

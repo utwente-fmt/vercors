@@ -119,8 +119,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     equalityChecker = ExpressionEqualityCheck(Some(infoGetter.getInfo(conditions)))
     val invariant = dispatch(loopInvariant.invariant)
     equalityChecker = ExpressionEqualityCheck()
+    val decreases = loopInvariant.decreases.map(element => dispatch(element))
 
-    LoopInvariant(invariant)(loopInvariant.o)
+    LoopInvariant(invariant, decreases)(loopInvariant.o)
   }
 
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
@@ -876,50 +877,54 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           }
         }
 
-        def simplify(e: Expr[Pre]): Expr[Pre] = {
-          val (plusses, value) = getPlusses(e)
-          if(value != 0) {
-            plusses.foldLeft(IntegerValue(value): Expr[Pre])(Plus[Pre])
-          } else if(plusses.isEmpty ) {
-            IntegerValue(0)
-          } else {
-            plusses.reduce(Plus[Pre])
+        def comparePlusses(lhs: Expr[Pre], rhs: Expr[Pre], remainingValue: BigInt) : (Option[Expr[Pre]], Option[Expr[Pre]], BigInt) = {
+          val (lhsP, lhsVal) = getPlusses(lhs)
+          var (rhsP, rhsVal) = getPlusses(rhs)
+          var remainingLeft: Seq[Expr[Pre]] = Seq()
+          var i = 0;
+          while(i < lhsP.size){
+            var found = false
+            var j = 0
+            while(j < rhsP.size && !found){
+              if(equalityChecker.equalExpressions(lhsP(i), rhsP(j))){
+                rhsP = rhsP.diff(Seq(rhsP(j)))
+                found = true
+              }
+              j += 1
+            }
+            if(!found){
+              remainingLeft = remainingLeft ++ Seq(lhsP(i))
+            }
+            i += 1
           }
+          (remainingLeft.reduceOption(Plus[Pre]), rhsP.reduceOption(Plus[Pre]), remainingValue + lhsVal - rhsVal)
         }
 
-        def simplifiedMinus(lhs_arg: Expr[Pre], rhs_arg: Expr[Pre]) : Expr[Pre] = {
-          val lhs = simplify(lhs_arg)
-          val rhs = simplify(rhs_arg)
-          (equalityChecker.isConstantInt(lhs), equalityChecker.isConstantInt(rhs)) match {
-            case (Some(l), Some(r)) => return IntegerValue(l - r)
-            case (_, Some(r)) if r == 0 => return lhs
-            case _ =>
-          }
-          (lhs, rhs) match {
-            case (Plus(l, r), rhs) =>
-              if (equalityChecker.equalExpressions(l, rhs)) return r
-              else if (equalityChecker.equalExpressions(r, rhs)) return l
-            case _ =>
-          }
-          (lhs, rhs) match {
-            case (Plus(l1, r1), Plus(l2, r2)) =>
-              if(equalityChecker.equalExpressions(l1 ,l2)) return Minus(r1, r2)
-              else if(equalityChecker.equalExpressions(l1 ,r2)) return Minus(r1, l2)
-              else if(equalityChecker.equalExpressions(r1 ,l2)) return Minus(l1, r2)
-              else if(equalityChecker.equalExpressions(r1 ,r2)) return Minus(l1, l2)
-            case _ =>
+        def simplifiedMinus(lhsArg: Expr[Pre], rhsArg: Expr[Pre], remainingValue: BigInt = 0) : Expr[Pre] = {
+          val (lhs, rhs, value) = comparePlusses(lhsArg, rhsArg, remainingValue) match {
+            case (Some(lhs), Some(rhs), value) => (lhs, rhs, value)
+            case (None, Some(rhs), value) =>
+              if(value != 0) return IntegerValue[Pre](value) - rhs
+              else return IntegerValue[Pre](-1) * rhs
+            case (Some(lhs), None , value) =>
+              if(value != 0) return  IntegerValue[Pre](value) + lhs
+              else return lhs
+            case (None, None, value) => return IntegerValue[Pre](value)
           }
 
           (lhs, rhs) match {
             case (Mult(l1, r1), Mult(l2, r2)) =>
-              if(equalityChecker.equalExpressions(l1 ,l2)) return Mult(l1, simplifiedMinus(r1, r2))
-              else if(equalityChecker.equalExpressions(l1 ,r2)) return Mult(l1, simplifiedMinus(r1, l2))
-              else if(equalityChecker.equalExpressions(r1 ,l2)) return Mult(r1, simplifiedMinus(l1, r2))
-              else if(equalityChecker.equalExpressions(r1 ,r2)) return Mult(r1, simplifiedMinus(l1, l2))
+              if(equalityChecker.equalExpressions(l1 ,l2)) return Mult(l1, simplifiedMinus(r1, r2, value))
+              else if(equalityChecker.equalExpressions(l1 ,r2)) return Mult(l1, simplifiedMinus(r1, l2, value))
+              else if(equalityChecker.equalExpressions(r1 ,l2)) return Mult(r1, simplifiedMinus(l1, r2, value))
+              else if(equalityChecker.equalExpressions(r1 ,r2)) return Mult(r1, simplifiedMinus(l1, l2, value))
             case _ =>
           }
 
-          Minus(lhs, rhs)
+          if(value != 0)
+            IntegerValue[Pre](value) + Minus(lhs, rhs)
+          else
+            Minus(lhs, rhs)
         }
 
         def simplifiedPlus(lhs: Expr[Pre], rhs: Expr[Pre]) : Expr[Pre] = {
