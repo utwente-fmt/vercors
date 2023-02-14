@@ -506,7 +506,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit t: TypeArgumentContext): Type[G] = t match {
     case TypeArgument0(t) => convert(t)
-    case TypeArgument1("?", None) => Wildcard()
+    case TypeArgument1("?", None) => JavaWildcard()
     case other: TypeArgument1Context => ??(other)
   }
 
