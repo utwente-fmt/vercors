@@ -375,4 +375,25 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
     """
+
+  vercors should verify using silicon in "example using negative array size" java
+    """
+    class C {
+      void m() {
+      /*[/expect arraySize]*/
+          int[] arr = new int[-2];
+      /*[/end]*/
+      }
+    }
+    """
+
+  vercors should verify using silicon in "example using negative array size in pvl" pvl
+    """
+    void m() {
+      /*[/expect arraySize]*/
+        int[] arr = new int[-2];
+      /*[/end]*/
+    }
+    """
 }
+
