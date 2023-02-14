@@ -42,6 +42,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       currentThis.having(ThisModel[Post](succ(model))) {
         globalDeclarations.succeed(model, model.rewrite())
       }
+    case seqProg: VeyMontSeqProg[Pre] =>
+      implicit val o: Origin = seqProg.o
+      currentThis.having(ThisSeqProg[Post](succ(seqProg))) {
+        globalDeclarations.succeed(seqProg, seqProg.rewrite())
+      }
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)

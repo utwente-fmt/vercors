@@ -770,6 +770,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         CurPerm(loc)
       case CurrentThreadId() =>
         CurrentThreadId()
+      //case deref @ DerefVeyMontThread(ref) =>
+        //DerefVeyMontThread( TVeyMontThread[Pre](ref))
       case deref @ Deref(obj, ref) =>
         Deref(cls(obj), ref)(deref.blame)
       case deref @ DerefPointer(p) =>
@@ -1180,6 +1182,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Then(value, post)
       case ThisModel(ref) =>
         ThisModel(ref)
+      case ThisSeqProg(ref) =>
+        ThisSeqProg(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
       case TupGet(tup, index) =>

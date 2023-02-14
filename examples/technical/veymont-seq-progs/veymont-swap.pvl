@@ -8,20 +8,34 @@ class Storage {
   void inc() {
   	v = v+1;
   }
+  
 }
+
 
 requires x >= 0;
 seq_program SeqProgram(int x, int y) {
    thread s1 = Storage(x);
    thread s2 = Storage(y);
 
+  int num() {
+  	return 1;
+  }
+  
+  void foo() {
+     s1.temp = 5;
+  
+  }
+
   run {
     s1.temp = s1.v;
     s2.temp = s2.v;
+    foo();
     s1.v = s2.temp;
     s2.v = s1.temp;
     assert s1.v == \old(s2.v);
     assert s2.v == \old(s1.v);
   }
   
+  
 }
+

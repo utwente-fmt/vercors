@@ -22,6 +22,16 @@ object StructureCheck extends RewriterBuilder {
 
 case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
 
+  val inSeqProg: ScopedStack[Unit] = ScopedStack()
+
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case dcl: VeyMontSeqProg[Pre] => inSeqProg.having(()) {
+        rewriteDefault(dcl)
+      }
+      case _ => rewriteDefault(decl)
+    }
+
   override def dispatch(prog : Program[Pre]) : Program[Post] = {
     if(!prog.declarations.exists {
       case dcl: VeyMontSeqProg[Pre] =>
@@ -34,15 +44,23 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
     else rewriteDefault(prog)
   }
 
-
-
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
-    st match {
-      case Assign(target,value) => //if inRunMethod.nonEmpty =>
-        rewriteDefault(st)//throw VeyMontStructCheckError(st,"bla")
-      case other => rewriteDefault(other)
-    }
+    if(inSeqProg.nonEmpty)
+      st match {
+        case VeyMontCommExpression(_,_,a) =>
+          checkVeyMontAssignment(a.asInstanceOf[Assign[Pre]].value)
+          rewriteDefault(st)
+        case VeyMontAssignExpression(_,a) =>
+          checkVeyMontAssignment (a.asInstanceOf[Assign[Pre]].value)
+          rewriteDefault (st)
+        case _ => rewriteDefault(st)
+      }
+    else rewriteDefault(st)
   }
+
+  private def checkVeyMontAssignment(value: Expr[Pre]) =
+    if (value.collect { case m: ProcedureInvocation[Pre] => m }.nonEmpty)
+      throw VeyMontStructCheckError(value,"Cannot call non-thread method in assignment!")
 
 //  object Linter {
 //
