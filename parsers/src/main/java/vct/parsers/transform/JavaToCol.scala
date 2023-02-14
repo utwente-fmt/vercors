@@ -40,7 +40,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
           imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
       })
-    case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
+    case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, Some(constants), _, None | Some(EnumBodyDeclarations0(_, Seq())), _)) =>
+      mods.map(convert(_)).foreach {
+        case JavaPublic() =>
+        case _ => fail(decl, "only public modifier allowed")
+      }
+      Seq(new Enum(convert(constants))(SourceNameOrigin(convert(name), origin(decl))))
+    case TypeDeclaration1(mods, enum @ EnumDeclaration0(a, b, c, d, e, f, g, h)) =>
+      fail(enum, "Enums with implements or class declarations, or without constants, are not supported")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
@@ -48,6 +55,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.flatMap(convert(_))))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
+  }
+
+  def convert(implicit constants: EnumConstantsContext): Seq[EnumConstant[G]] = constants match {
+    case EnumConstants0(constant) => Seq(convert(constant))
+    case EnumConstants1(constants, _, constant) => convert(constants) :+ convert(constant)
+  }
+
+  def convert(implicit constant: EnumConstantContext): EnumConstant[G] = constant match {
+    case EnumConstant0(Nil, name, None, None) => new EnumConstant()(SourceNameOrigin(convert(name), origin(constant)))
+    case constant => fail(constant, "Arguments, annotations, or class body on enum alternatives not supported")
   }
 
   def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[JavaAnnotationMethod[G]] = decl match {
@@ -483,6 +500,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit t: TypeArgumentContext): Type[G] = t match {
     case TypeArgument0(t) => convert(t)
+    case TypeArgument1("?", None) => JavaWildcard()
     case other: TypeArgument1Context => ??(other)
   }
 
