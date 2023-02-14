@@ -363,14 +363,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       rw.variables.declare(v)
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0))
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0)(PanicBlame("Array size cannot be negative")))
       result ++= Seq(decl, assign)
     })
     staticSharedMemNames.foreach{case (d,size) =>
     implicit val o: Origin = getCDecl(d).o
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0))
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0)(PanicBlame("Array size may not be negative")))
       result ++= Seq(decl, assign)
     }
 
@@ -621,7 +621,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         implicit val o: Origin = init.o
         val v = new Variable[Post](TArray(t))(varO)
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
-        val newArr = NewArray[Post](t, Seq((size)), 0)
+        val newArr = NewArray[Post](t, Seq((size)), 0)(PanicBlame("Array size cannot be negative"))
         Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
       case _ =>
         val v = new Variable[Post](t)(varO)

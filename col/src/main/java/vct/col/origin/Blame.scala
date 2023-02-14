@@ -454,6 +454,7 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def descInContext: String = "Map may not contain this key."
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
+sealed trait ArraySizeError extends VerificationFailure
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait ArrayLocationError extends ArraySubscriptError
 sealed trait AnyStarError extends VerificationFailure
@@ -461,6 +462,11 @@ case class ArrayNull(node: Expr[_]) extends ArrayLocationError with BuiltinError
   override def code: String = "arrayNull"
   override def descInContext: String = "Array may be null."
   override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
+}
+case class ArraySize(node: Expr[_]) extends ArraySizeError with NodeVerificationFailure {
+  override def code: String = "arraySize"
+  override def descInContext: String = "Array size may be negative."
+  override def inlineDescWithSource(source: String): String = s"Size of `$source` may be negative."
 }
 case class ArrayBounds(node: Node[_]) extends ArrayLocationError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
