@@ -4,9 +4,9 @@
 //:: verdict Pass
 
 class Clear {
-	requires A != null;
-	// requires (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
-	// ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
+	context_everywhere A != null;
+	context_everywhere (\forall* int j; 0 <= j && j < A.length; Perm(A[j], write));
+	ensures (\forall int j; 0 <= j && j < A.length; A[j] == 0);
 	void clear(int[] A) {
   		int i = 0;
 		
