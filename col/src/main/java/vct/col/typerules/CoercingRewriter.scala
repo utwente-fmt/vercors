@@ -903,7 +903,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         IsLeft(either(e)._1)
       case IsRight(e) =>
         IsRight(either(e)._1)
-      case lit @ JavaClassLiteral(t) => lit
       case deref @ JavaDeref(obj, field) => e
       case inv @ JavaInvocation(obj, typeParams, method, arguments, givenArgs, yields) => e
       case JavaLiteralArray(exprs) =>

@@ -718,7 +718,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(None, Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
-    case Primary6(t, ".", "class") => JavaClassLiteral(convert(t))
     case Primary7(_, _, _) => ??(expr)
     case _: Primary8Context => ??(expr)
     case Primary9(inner) => convert(inner)
