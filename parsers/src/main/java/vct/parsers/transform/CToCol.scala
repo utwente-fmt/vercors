@@ -1122,6 +1122,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       val indices = convert(firstIndex) +: pairs.map(_._1)
       val dims = convert(firstDim) +: pairs.map(_._2)
       NdIndex(indices, dims)
+    case ValNdLIndex(_, _, index, _, dims, _) => NdLinearIndex(convert(index), convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
   }
 

@@ -553,6 +553,7 @@ final case class PointerBlockOffset[G](pointer: Expr[G])(val blame: Blame[Pointe
 final case class PointerLength[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerLengthtImpl[G]
 final case class SharedMemSize[G](pointer: Expr[G])(implicit val o: Origin) extends Expr[G] with SharedMemSizeImpl[G]
 final case class NdIndex[G](indices: Seq[Expr[G]], dimensions: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with NdIndexImpl[G]
+final case class NdLinearIndex[G](index: Expr[G], dimensions: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with NdLinearIndexImpl[G]
 final case class NdLength[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with NdLengthImpl[G]
 
 final case class Cons[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with ConsImpl[G]

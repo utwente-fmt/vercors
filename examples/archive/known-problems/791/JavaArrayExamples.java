@@ -73,8 +73,8 @@ class JavaArrayExamples {
 	
   /*@ 
       context_everywhere ar != null ** M>0 ** N > 0 ** \ndlength(M, N) == ar.length;
-      context   (\forall* int k ; 0 <= k && k < ar.length ; Perm(ar[k],write));
-      ensures   (\forall  int k ; 0 <= k && k < ar.length ; ar[k]==0 ) ;
+      context   (\forall* int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N); Perm(ar[k],write));
+      ensures   (\forall  int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N); ar[k]==0 ) ;
    */
   public void zero_array_nested(int ar[],int M,int N){
     for(int i=0;i<M;i++)
@@ -97,14 +97,14 @@ class JavaArrayExamples {
 
   /*@ 
     context_everywhere ar != null ** M>0 ** N > 0 ** \ndlength(M, N) == ar.length;
-    context (\forall* int k ; 0 <= k && k < ar.length ; Perm(ar[k],write));
-    ensures (\forall  int k ; 0 <= k && k < ar.length ; ar[k]==0 ) ;
+    context (\forall* int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N); Perm(ar[k],write));
+    ensures (\forall  int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N) ; ar[k]==0 ) ;
   @*/
   public void zero_array_smart_nested(int ar[],int M,int N) {
     for(int i=0;i<M;i++)
     /*@
       context (\forall* int j=0 .. N; Perm(ar[\ndindex(i, M, j, N)], write));
-      ensures (\forall int i1=0 .. i, int j=0 .. N; ar[\ndindex(i1, M, j, N)] == 0);
+      ensures (\forall int j=0 .. N; ar[\ndindex(i, M, j, N)] == 0);
     @*/
     {
       for(int j=0;j<N;j++)

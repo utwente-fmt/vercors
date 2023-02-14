@@ -282,6 +282,7 @@ valPrimary
  | LANG_ID_ESCAPE # valIdEscape
  | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
  | '\\ndindex' '(' langExpr ',' langExpr valExprPair* ')' # valNdIndex
+ | '\\ndlindex' '(' langExpr ',' valExpressionList ')' # valNdLIndex
  | '\\ndlength' '(' valExpressionList ')' # ValNdLength
  ;
 
