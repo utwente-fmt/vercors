@@ -980,6 +980,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           Mult(int(left), int(right)),
           Mult(rat(left), rat(right)),
         )
+      case NdIndex(indices, dimensions) =>
+        NdIndex(indices.map(int), dimensions.map(int))
+      case NdLength(dimensions) =>
+        NdLength(dimensions.map(int))
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))

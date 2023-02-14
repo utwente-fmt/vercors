@@ -256,6 +256,8 @@ valIdentifier
  | {specLevel>0}? LANG_ID_ESCAPE
  ;
 
+valExprPair: ',' langExpr ',' langExpr;
+
 valPrimary
  : valPrimarySeq
  | valPrimaryOption
@@ -279,6 +281,8 @@ valPrimary
  | 'committed' '(' langExpr ')' # valCommitted
  | LANG_ID_ESCAPE # valIdEscape
  | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
+ | '\\ndindex' '(' langExpr ',' langExpr valExprPair* ')' # valNdIndex
+ | '\\ndlength' '(' valExpressionList ')' # ValNdLength
  ;
 
 // Out spec: defined meaning: a language local
