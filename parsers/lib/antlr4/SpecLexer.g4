@@ -152,6 +152,9 @@ MREP: '\\mrep';
 RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
+VAL_INDEX: '\\ndindex';
+VAL_LINDEX: '\\ndlindex';
+VAL_LENGTH: '\\ndlength';
 
 NONE: 'none';
 OPTION_NONE: 'None';

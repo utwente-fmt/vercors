@@ -225,6 +225,7 @@ case class SilverTransformation
     ResolveExpressionSideChecks,
 
     DesugarCollectionOperators,
+    EncodeNdIndex,
 
     // Translate internal types to domains
     FloatToRat,

@@ -72,22 +72,22 @@ class JavaArrayExamples {
   }
 	
   /*@ 
-      context_everywhere ar != null ** M>0 ** N > 0 ** M * N == ar.length;
-      context   (\forall* int k ; 0 <= k && k < ar.length ; Perm(ar[k],write));
-      ensures   (\forall  int k ; 0 <= k && k < ar.length ; ar[k]==0 ) ;
+      context_everywhere ar != null ** M>0 ** N > 0 ** \ndlength(M, N) == ar.length;
+      context   (\forall* int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N); Perm(ar[k],write));
+      ensures   (\forall  int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N); ar[k]==0 ) ;
    */
   public void zero_array_nested(int ar[],int M,int N){
     for(int i=0;i<M;i++)
     /*@
-      context (\forall* int k ; i*N <= k && k < (i+1)*N ; Perm(ar[k],write));
-      ensures (\forall  int k ; i*N <= k && k < (i+1)*N ; ar[k]==0 ) ;
+      context (\forall* int k ; \ndindex(i, M, 0, N) <= k && k < \ndindex(i+1, M, 0, N); Perm(ar[k],write));
+      ensures (\forall  int k ; \ndindex(i, M, 0, N) <= k && k < \ndindex(i+1, M, 0, N); ar[k]==0 ) ;
     @*/
     {
       for(int j=0;j<N;j++)
       /*@
 		context 0 <= i && i < M;
-        context Perm(ar[i*N+j],write);
-        ensures  ar[i*N+j]==0;
+        context Perm(ar[\ndindex(i, M, j, N)],write);
+        ensures ar[\ndindex(i, M, j, N)]==0;
       @*/
       {
         ar[i*N+j]=0;
@@ -96,16 +96,21 @@ class JavaArrayExamples {
   }
 
   /*@ 
-    context_everywhere ar != null ** M>0 ** N > 0 ** M * N == ar.length;
-    context (\forall* int k ; 0 <= k && k < ar.length ; Perm(ar[k],write));
-    ensures (\forall  int k ; 0 <= k && k < ar.length ; ar[k]==0 ) ;
+    context_everywhere ar != null ** M>0 ** N > 0 ** \ndlength(M, N) == ar.length;
+    context (\forall* int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N); Perm(ar[k],write));
+    ensures (\forall  int k ; 0 <= k && k < ar.length && \ndlindex(k, M, N) ; ar[k]==0 ) ;
   @*/
   public void zero_array_smart_nested(int ar[],int M,int N) {
-    for(int i=0;i<M;i++) {
+    for(int i=0;i<M;i++)
+    /*@
+      context (\forall* int j=0 .. N; Perm(ar[\ndindex(i, M, j, N)], write));
+      ensures (\forall int j=0 .. N; ar[\ndindex(i, M, j, N)] == 0);
+    @*/
+    {
       for(int j=0;j<N;j++)
       /*@
-        context Perm(ar[i*N+j],write);
-        ensures ar[i*N+j]==0;
+        context Perm(ar[\ndindex(i, M, j, N)],write);
+        ensures ar[\ndindex(i, M, j, N)]==0;
       @*/
       {
         ar[i*N+j]=0;
