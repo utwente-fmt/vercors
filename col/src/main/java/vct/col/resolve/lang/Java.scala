@@ -238,48 +238,6 @@ case object Java extends LazyLogging {
       })
     }
 
-  def findLibraryJavaTypesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] =
-    ctx.externalJavaLoader.map { loader =>
-      val xs: Seq[JavaTypeNameTarget[G]] = ctx.javaClassPath.flatMap { classPath =>
-        // We have an external class loader and a class path.
-        val maybeBasePath: Option[Path] = classPath match {
-          case JavaClassPathEntry.SourcePackageRoot =>
-            // Try to derive the base path, by the path of the current source file and the package.
-            // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
-            for {
-              ns <- ctx.namespace
-              ReadableOrigin(readable, _, _, _) <- Some(ns.o)
-              file <- readable.underlyingFile
-              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Some(file.getParentFile)) {
-                case (name, Some(file)) if file.getName == name => Some(file.getParentFile)
-                case _ => None
-              }
-            } yield baseFile.toPath
-          case JavaClassPathEntry.Path(root) => Some(root)
-        }
-
-        (maybeBasePath match { case Some(value) => Seq(value); case None => Seq() }) // Oof
-          .flatMap(loader.loadPkg[G](_, pkg))
-          .flatMap { ns =>
-            val javaTypeNames = ns.declarations.map(Referrable.from).collect {
-              case ref: JavaTypeNameTarget[G] => ref
-            }
-            if (javaTypeNames.nonEmpty) {
-              ctx.externallyLoadedElements += ns
-              ResolveTypes.resolve(ns, ctx)
-              javaTypeNames
-            } else {
-              Seq()
-            }
-          }
-      }
-
-      xs
-    } match {
-      case Some(xs) => xs
-      case None => Seq()
-    }
-
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     val potentialFQNames: Seq[Seq[String]] = names match {
       case Seq(singleName) =>
@@ -305,12 +263,6 @@ case object Java extends LazyLogging {
     FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
-  }
-
-  def findJavaTypeNamesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] = {
-    (findLoadedJavaTypeNamesInPackage[G](pkg, ctx)
-      ++ findLibraryJavaTypesInPackage[G](pkg, ctx)
-      ++ findRuntimeJavaTypesInPackage[G](pkg, ctx).map(RefJavaClass[G]))
   }
 
   def findJavaName[G](name: String, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
