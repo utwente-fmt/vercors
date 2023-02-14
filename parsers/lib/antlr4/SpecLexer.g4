@@ -84,6 +84,9 @@ VAL_ASSUME: 'assume';
 VAL_INHALE: 'inhale';
 VAL_EXHALE: 'exhale';
 VAL_LABEL: 'label';
+VAL_EXTRACT: 'extract';
+VAL_FRAME: 'frame';
+VAL_OUTLINE: 'outline';
 VAL_REFUTE: 'refute';
 VAL_WITNESS: 'witness';
 VAL_GHOST: 'ghost';
@@ -150,6 +153,8 @@ MREP: '\\mrep';
 RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
+VAL_INDEX: '\\ndindex';
+VAL_LENGTH: '\\ndlength';
 
 NONE: 'none';
 OPTION_NONE: 'None';

@@ -1,6 +1,6 @@
 package vct.parsers.transform
 
-import hre.util.{FuncTools, ScopedStack}
+import hre.util.FuncTools
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
 import vct.antlr4.generated.JavaParser._
@@ -19,15 +19,9 @@ import scala.collection.mutable
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol[G](originProvider, blameProvider, errors) {
-
-  val currentPackage: ScopedStack[Option[JavaName[G]]] = ScopedStack()
-
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
-      val pkgName = pkg.map(convert(_))
-      currentPackage.having(pkgName) {
-        Seq(new JavaNamespace(pkgName, imports.map(convert(_)), decls.flatMap(convert(_))))
-      }
+      Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
   }
 
   def convert(implicit pkg: PackageDeclarationContext): JavaName[G] = pkg match {
@@ -46,31 +40,14 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
           imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
       })
-    case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, Some(constants), _, None | Some(EnumBodyDeclarations0(_, Seq())), _)) =>
-      mods.map(convert(_)).foreach {
-        case JavaPublic() =>
-        case _ => fail(decl, "only public modifier allowed")
-      }
-      Seq(new Enum(convert(constants))(SourceNameOrigin(convert(name), origin(decl))))
-    case TypeDeclaration1(mods, enum @ EnumDeclaration0(a, b, c, d, e, f, g, h)) =>
-      fail(enum, "Enums with implements or class declarations, or without constants, are not supported")
+    case TypeDeclaration1(mods, enum) => fail(enum, "Enums are not supported.")
     case TypeDeclaration2(mods, InterfaceDeclaration0(_, name, args, ext, InterfaceBody0(_, decls, _))) =>
       Seq(new JavaInterface(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
         ext.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
     case TypeDeclaration3(mods, AnnotationTypeDeclaration0(_, _, name, AnnotationTypeBody0(_, decls, _))) =>
-      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.map(convert(_)).flatten))
+      Seq(new JavaAnnotationInterface(convert(name), mods.map(convert(_)), Java.JAVA_LANG_ANNOTATION_ANNOTATION, decls.flatMap(convert(_))))
     case TypeDeclaration4(inner) => convert(inner)
     case TypeDeclaration5(_) => Nil
-  }
-
-  def convert(implicit constants: EnumConstantsContext): Seq[EnumConstant[G]] = constants match {
-    case EnumConstants0(constant) => Seq(convert(constant))
-    case EnumConstants1(constants, _, constant) => convert(constants) :+ convert(constant)
-  }
-
-  def convert(implicit constant: EnumConstantContext): EnumConstant[G] = constant match {
-    case EnumConstant0(Nil, name, None, None) => new EnumConstant()(SourceNameOrigin(convert(name), origin(constant)))
-    case constant => fail(constant, "Arguments, annotations, or class body on enum alternatives not supported")
   }
 
   def convert(implicit decl: AnnotationTypeElementDeclarationContext): Option[JavaAnnotationMethod[G]] = decl match {
@@ -207,9 +184,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       Seq(new JavaConstructor(mods, convert(name), convert(params), convert(typeParams),
         signals.map(convert(_)).getOrElse(Nil), convert(body), c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
-    case MemberDeclaration6(annotation) => fail(annotation, "Inner annotations are not supported.")
+    case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
     case MemberDeclaration7(cls) => fail(cls, "Inner classes are not supported.")
-    case MemberDeclaration8(enum) => fail(enum, "Inner enums are not supported.")
+    case MemberDeclaration8(enum) => fail(enum, "Enums are not supported.")
   }
 
   def convert(implicit decl: InterfaceMemberDeclarationContext, mods: Seq[JavaModifier[G]], c: ContractCollector[G]): Seq[ClassDeclaration[G]] = decl match {
@@ -226,9 +203,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         convert(name), convert(params), convert(typeParams), signals.map(convert(_)).getOrElse(Nil),
         None, c.consumeApplicableContract(blame(decl)))(blame(decl)))
     case InterfaceMemberDeclaration3(interface) => fail(interface, "Inner interfaces are not supported.")
-    case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Inner annotations are not supported.")
+    case InterfaceMemberDeclaration4(annotation) => fail(annotation, "Annotations are not supported.")
     case InterfaceMemberDeclaration5(cls) => fail(cls, "Inner classes are not supported.")
-    case InterfaceMemberDeclaration6(enum) => fail(enum, "Inner enums are not supported.")
+    case InterfaceMemberDeclaration6(enum) => fail(enum, "Enums are not supported.")
   }
 
   def convert(implicit decls: VariableDeclaratorsContext): Seq[JavaVariableDeclaration[G]] = decls match {
@@ -506,7 +483,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit t: TypeArgumentContext): Type[G] = t match {
     case TypeArgument0(t) => convert(t)
-    case TypeArgument1("?", None) => JavaWildcard()
     case other: TypeArgument1Context => ??(other)
   }
 
@@ -718,6 +694,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       col.JavaInvocation(None, Nil, convert(name), convert(args),
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
+    case Primary6(_, _, _) => ??(expr)
     case Primary7(_, _, _) => ??(expr)
     case _: Primary8Context => ??(expr)
     case Primary9(inner) => convert(inner)
@@ -733,7 +710,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       }
       FloatValue(BigDecimal(num), t)
     case Literal2(_) => ??(expr)
-    case Literal3(data) => JavaStringValue(data.substring(1, data.length - 1), Java.JAVA_LANG_STRING_TYPE)
+    case Literal3(_) => ??(expr)
     case Literal4(value) => value match {
       case "true" => tt
       case "false" => ff
@@ -890,7 +867,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convertWith(implicit whiff: Option[ValWithContext], inner: Expr[G]): Expr[G] = whiff match {
     case None => inner
-    case Some(whiff @ ValWith0(_, stat)) => With(convert(stat), inner)(origin(whiff))
+    case Some(whiff@ValWith0(_, stat)) => With(convert(stat), inner)(origin(whiff))
   }
 
   def convertEmbedThen(implicit den: Option[ValEmbedThenContext], inner: Expr[G]): Expr[G] = den match {
@@ -901,7 +878,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convertThen(implicit den: Option[ValThenContext], inner: Expr[G]): Expr[G] = den match {
     case None => inner
-    case Some(den @ ValThen0(_, stat)) => Then(inner, convert(stat))(origin(den))
+    case Some(den@ValThen0(_, stat)) => Then(inner, convert(stat))(origin(den))
   }
 
   def convert(implicit whiff: ValEmbedWithContext): Statement[G] = whiff match {
@@ -1004,9 +981,18 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
   }
 
-  def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
+  def convert(implicit block: ValEmbedStatementBlockContext): Statement[G] = block match {
     case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
     case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
+    case ValEmbedStatementBlock2(_, _, _, stat) => Extract(convert(stat))
+    case ValEmbedStatementBlock3(_, _, clauses, _, _, body, _, _, _) =>
+      withContract(clauses, contract => {
+        FramedProof(
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          Block(body.map(convert(_))),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+        )(blame(block))
+      })
   }
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
@@ -1044,6 +1030,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
     case ValCommit(_, obj, _) =>
       Commit(convert(obj))(blame(stat))
+    case ValExtract(_, body) =>
+      Extract(convert(body))
+    case ValFrame(_, clauses, body) =>
+      withContract(clauses, contract => {
+        FramedProof(
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          convert(body),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+        )(blame(stat))
+      })
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {
@@ -1120,39 +1116,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
-    case ValInstanceOperatorFunction(contract, modifiers, "pure", t, name, "(", args, ")", definition) =>
-      Seq(withContract(contract, c => {
-        withModifiers(modifiers, m => {
-          transform(new InstanceOperatorFunction(
-            convert(t),
-            convert(name),
-            args.map(convert(_)).getOrElse(Nil),
-            convert(definition),
-            c.consumeApplicableContract(blame(decl)),
-            m.consume(m.inline),
-            m.consume(m.threadLocal)
-          )(blame(decl)))
-        })
-      }))
-    case ValInstanceOperatorMethod(contract, modifiers, t, name, "(", args, ")", definition) =>
-      Seq(withContract(contract, c => {
-        withModifiers(modifiers, m => {
-          transform(new InstanceOperatorMethod(
-            convert(t),
-            convert(name),
-            args.map(convert(_)).getOrElse(Nil),
-            convert(definition),
-            c.consumeApplicableContract(blame(decl)),
-            m.consume(m.inline),
-            m.consume(m.pure)
-          )(blame(decl)))
-        })
-      }))
-  }
-
-  def convert(implicit operator: ValOperatorNameContext): Operator[G] = operator match {
-    case ValOperatorName0("+") => OperatorLeftPlus()
-    case ValOperatorName1(id, "+") if convert(id) == "right" => OperatorRightPlus()
   }
 
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {
@@ -1273,6 +1236,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
+    case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
   }
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
@@ -1360,7 +1324,18 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
     case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
-    case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
+    case ValIdEscape(text) => local(e, text.substring(1, text.length - 1))
+    case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
+    case ValNdIndex(_, _, firstIndex, _, firstDim, parsePairs, _) =>
+      val pairs = parsePairs.map(convert(_))
+      val indices = convert(firstIndex) +: pairs.map(_._1)
+      val dims = convert(firstDim) +: pairs.map(_._2)
+      NdIndex(indices, dims)
+    case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+  }
+
+  def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {
+    case ValExprPair0(_, e1, _, e2) => (convert(e1), convert(e2))
   }
 
   def convert(implicit e: ValExprContext): Expr[G] = e match {
@@ -1371,7 +1346,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit id: ValIdentifierContext): String = id match {
     case ValIdentifier0(inner) => convertText(inner)
     case ValIdentifier1(ValKeywordNonExpr0(text)) => text
-    case ValIdentifier2(text) => text.substring(1, text.length-1)
+    case ValIdentifier2(text) => text.substring(1, text.length - 1)
   }
 
   def convertText(implicit res: ValKeywordExprContext): String = res match {

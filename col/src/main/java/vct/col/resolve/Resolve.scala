@@ -50,9 +50,8 @@ case object ResolveTypes {
       // E.g.: in the expressio f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
       // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
       // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
-      ctx.copy(
-        namespace=Some(ns),
-        stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctx))) +: ctx.stack)
+      val ctxWithNs = ctx.copy(namespace=Some(ns))
+      ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -89,13 +88,33 @@ case object ResolveTypes {
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
         case Some(
-          _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
-          _: RefJavaClass[G] | _: RefEnum[G] | _: RefEnumConstant[G] | _: RefAxiomaticDataType[G] // Statically imported, or regular previously imported typename
+        _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
+        _ // Statically imported, or regular previously imported typename
         ) => // Nothing to do. Local will get properly resolved next phase
         case None =>
           // Unknown what this local refers though. Try importing it as a type; otherwise, it's the start of a package
-          Java.findJavaTypeName(Seq(local.name), ctx)
+          Java.findJavaTypeName(Seq(local.name), ctx) match {
+            case Some(_) => // already imported so nothing to do
+            case None =>
+              local.ref = Some(RefUnloadedJavaNamespace(Seq(local.name)))
+          }
       }
+    case deref: JavaDeref[G] =>
+      val ref = deref.obj match {
+        case javalocal : JavaLocal[G] =>  javalocal.ref
+        case javaderef : JavaDeref[G] => javaderef.ref
+        case _ => None
+      }
+      ref match {
+        case Some(RefUnloadedJavaNamespace(names)) =>
+          Java.findJavaTypeName(names :+ deref.field, ctx) match {
+            case Some(_) => // already imported so nothing to do
+            case None =>
+              deref.ref = Some(RefUnloadedJavaNamespace(names :+ deref.field))
+          }
+        case _ => // we did not find a package so we don't do anything
+      }
+
     case _ =>
   }
 }
@@ -128,7 +147,7 @@ case object ResolveReferences {
     case _: Scope[G] => Nil
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
     case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
-      => Seq(decl)
+    => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
     case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
@@ -182,8 +201,8 @@ case object ResolveReferences {
       }))
     case func: CFunctionDefinition[G] =>
       var res = ctx
-      .copy(currentResult=Some(RefCFunctionDefinition(func)))
-      .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
+        .copy(currentResult=Some(RefCFunctionDefinition(func)))
+        .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
       if(func.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined)
         res = res.declare(scanShared(func.body))
       res
@@ -192,9 +211,9 @@ case object ResolveReferences {
         throw MultipleForwardDeclarationContractError(func)
       }
       ctx
-      .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
-      .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
-        .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
+        .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
+        .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
+          .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
@@ -213,8 +232,8 @@ case object ResolveReferences {
       local.ref = Some(
         Java.findJavaName(name, ctx.asTypeResolutionContext)
           .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
-              case Some(target: JavaNameTarget[G]) => Some(target)
-              case None => None
+            case Some(target: JavaNameTarget[G]) => Some(target)
+            case None => None
           })
           .getOrElse(RefUnloadedJavaNamespace(Seq(name))))
     case local @ PVLLocal(name) =>

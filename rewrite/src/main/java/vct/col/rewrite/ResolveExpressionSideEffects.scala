@@ -37,6 +37,13 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
     override def text: String =
       effector.o.messageInContext("This expression may have side effects, but it is in a position where that is not allowed.")
   }
+
+  case object BreakOrigin extends Origin {
+    override def preferredName: String = "condition_false"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At label generated to jump to when the side-effectful condition is false]"
+    override def inlineContext: String = "[Label: condition false]"
+  }
 }
 
 case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pre] {
@@ -237,12 +244,15 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           case (Nil, Nil, cond) =>
             Loop(dispatch(init), cond, dispatch(update), dispatch(contract), dispatch(body))
           case (variables, sideEffects, cond) =>
-            Scope(variables, Loop(
-              init = Block(dispatch(init) +: sideEffects),
-              cond = cond,
-              update = Block(dispatch(update) +: sideEffects),
-              contract = dispatch(contract),
-              body = dispatch(body),
+            val break = new LabelDecl[Post]()(BreakOrigin)
+
+            Block(Seq(
+              Loop(dispatch(init), tt, dispatch(update), dispatch(contract), Block(Seq(
+                Scope(variables,
+                  Block(sideEffects :+ Branch(Seq(Not(cond) -> Goto(break.ref))))),
+                dispatch(body),
+              ))),
+              Label(break, Block(Nil)),
             ))
         }
       case attempt: TryCatchFinally[Pre] => rewriteDefault(attempt)

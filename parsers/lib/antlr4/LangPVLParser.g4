@@ -20,8 +20,8 @@ applicableReference
  ;
 
 classDecl : valClassDeclaration | constructor | method | field | runMethod;
-
-field : type identifierList ';' ;
+finalFlag: 'final';
+field : finalFlag? type identifierList ';' ;
 
 method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
@@ -199,18 +199,9 @@ forStatementList
 parRegion
  : 'parallel' '{' parRegion* '}' # pvlParallel
  | 'sequential' '{' parRegion* '}' # pvlSequential
- | 'block' identifier? parBlockIter? contract statement # pvlParBlock
- | 'par' parOldUnitList # pvlOldPar
+ | 'par' identifier? parBlockIter? contract statement # pvlParBlock
  ;
 
-parOldUnit
- : identifier? parBlockIter? contract statement # pvlOldParUnit
- ;
-
-parOldUnitList
- : parOldUnit
- | parOldUnit 'and' parOldUnitList
- ;
 
 
 declList

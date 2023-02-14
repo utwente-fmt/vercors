@@ -375,6 +375,7 @@ class FeatureRainbow[G] {
     case node: PointerLength[G] => Pointers
     case node: TPointer[G] => Pointers
 
+    case node: Extract[G] => ProofHelpers
     case node: FramedProof[G] => ProofHelpers
     case node: IndeterminateInteger[G] => ProofHelpers
     case node: Refute[G] => ProofHelpers
@@ -644,16 +645,7 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
-    case node: StringValue[G] => return Nil
-    case node: EnumConstant[G] => return Nil
-    case node: Enum[G] => return Nil
-    case node: TEnum[G] => return Nil
-    case node: EnumUse[G] => return Nil
-    case node: CharValue[G] => return Nil
-    case node: InstanceOperatorMethod[G] => return Nil
-    case node: InstanceOperatorFunction[G] => return Nil
-    case node: Operator[G] => return Nil
-    case node: JavaStringValue[G] => return Nil
-    case node: StringConcat[G] => return Nil
+
+    case _ => return Nil
   })
 }

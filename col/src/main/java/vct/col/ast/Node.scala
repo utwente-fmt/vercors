@@ -175,6 +175,7 @@ final case class Unfold[G](res: Expr[G])(val blame: Blame[UnfoldFailed])(implici
 final case class WandApply[G](res: Expr[G])(val blame: Blame[WandApplyFailed])(implicit val o: Origin) extends NormallyCompletingStatement[G] with WandApplyImpl[G]
 final case class Havoc[G](loc: Expr[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with HavocImpl[G]
 final case class FramedProof[G](pre: Expr[G], body: Statement[G], post: Expr[G])(val blame: Blame[FramedProofFailure])(implicit val o: Origin) extends NormallyCompletingStatement[G] with FramedProofImpl[G]
+final case class Extract[G](contractedStatement: Statement[G])(implicit val o: Origin) extends NormallyCompletingStatement[G] with ExtractImpl[G]
 
 sealed trait ExceptionalStatement[G] extends Statement[G] with ExceptionalStatementImpl[G]
 final case class Eval[G](expr: Expr[G])(implicit val o: Origin) extends ExceptionalStatement[G] with EvalImpl[G]
@@ -310,7 +311,7 @@ case class UnitAccountedPredicate[G](pred: Expr[G])(implicit val o: Origin) exte
 case class SplitAccountedPredicate[G](left: AccountedPredicate[G], right: AccountedPredicate[G])(implicit val o: Origin) extends AccountedPredicate[G] with SplitAccountedPredicateImpl[G]
 
 sealed trait FieldFlag[G] extends NodeFamily[G] with FieldFlagImpl[G]
-final class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
+final case class Final[G]()(implicit val o: Origin) extends FieldFlag[G] with FinalImpl[G]
 
 sealed trait Coercion[G] extends NodeFamily[G] with CoercionImpl[G]
 final case class CoerceIdentity[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceIdentityImpl[G]
@@ -581,6 +582,8 @@ final case class PointerBlockLength[G](pointer: Expr[G])(val blame: Blame[Pointe
 final case class PointerBlockOffset[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerBlockOffsetImpl[G]
 final case class PointerLength[G](pointer: Expr[G])(val blame: Blame[PointerNull])(implicit val o: Origin) extends Expr[G] with PointerLengthtImpl[G]
 final case class SharedMemSize[G](pointer: Expr[G])(implicit val o: Origin) extends Expr[G] with SharedMemSizeImpl[G]
+final case class NdIndex[G](indices: Seq[Expr[G]], dimensions: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with NdIndexImpl[G]
+final case class NdLength[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with NdLengthImpl[G]
 
 final case class Cons[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin) extends Expr[G] with ConsImpl[G]
 final case class Head[G](xs: Expr[G])(val blame: Blame[SeqBoundFailure])(implicit val o: Origin) extends Expr[G] with HeadImpl[G]

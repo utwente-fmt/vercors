@@ -516,7 +516,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         for(err <- errs) {
           logger.debug(err.text)
         }
-        throw IncoercibleText(expr, message)
+        throw IncoercibleExplanation(expr, message)
       case Right(value) => value
     }
   }
@@ -1034,6 +1034,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           Mult(int(left), int(right)),
           Mult(rat(left), rat(right)),
         )
+      case NdIndex(indices, dimensions) =>
+        NdIndex(indices.map(int), dimensions.map(int))
+      case NdLength(dimensions) =>
+        NdLength(dimensions.map(int))
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
@@ -1311,6 +1315,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
+      case Extract(body) => Extract(body)
       case f @ Fold(assn) => Fold(res(assn))(f.blame)
       case f @ Fork(obj) => Fork(cls(obj))(f.blame)
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)

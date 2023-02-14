@@ -163,13 +163,13 @@ case object Java extends LazyLogging {
     })
 
     val fields = cls.getFields.map(field => {
-       new JavaFields(
-         modifiers =
-           (if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil) ++
-           (if((field.getModifiers & Modifier.FINAL) != 0) Seq(JavaFinal[G]()) else Nil),
-         t = translateRuntimeType(field.getType),
-         decls = Seq(JavaVariableDeclaration[G](field.getName, 0, None)),
-       )
+      new JavaFields(
+        modifiers =
+          (if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil) ++
+            (if((field.getModifiers & Modifier.FINAL) != 0) Seq(JavaFinal[G]()) else Nil),
+        t = translateRuntimeType(field.getType),
+        decls = Seq(JavaVariableDeclaration[G](field.getName, 0, None)),
+      )
     })
 
     if(cls.isAnnotation) {
@@ -217,8 +217,8 @@ case object Java extends LazyLogging {
               ns <- ctx.namespace
               ReadableOrigin(readable, _, _, _) <- Some(ns.o)
               file <- readable.underlyingFile
-              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Some(file.getParentFile)) {
-                case (name, Some(file)) if file.getName == name => Some(file.getParentFile)
+              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Option(file.getParentFile)) {
+                case (name, Some(file)) if file.getName == name => Option(file.getParentFile)
                 case _ => None
               }
             } yield baseFile.toPath
@@ -264,6 +264,7 @@ case object Java extends LazyLogging {
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
+
 
   def findJavaName[G](name: String, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {
@@ -393,8 +394,8 @@ case object Java extends LazyLogging {
 
   def getStaticMembers[G](javaTypeName: JavaTypeNameTarget[G]): Seq[Referrable[G]] = javaTypeName match {
     case RefJavaClass(cls) => cls.decls.collect {
-      case decl: JavaClassDeclaration[G] if decl.isStatic => Referrable.from(decl)
-    }.flatten
+        case decl: JavaClassDeclaration[G] if decl.isStatic => Referrable.from(decl)
+      }.flatten
     case RefEnum(enum) => enum.constants.map(RefEnumConstant(Some(enum), _))
   }
 

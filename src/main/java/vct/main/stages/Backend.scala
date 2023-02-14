@@ -45,6 +45,9 @@ case object Backend {
         timeoutValue = options.devSiliconAssertTimeout,
         proverLogFile = options.devViperProverLogFile,
         printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
+        reportOnNoProgress = options.devSiliconReportOnNoProgress,
+        traceBranchConditions = options.devSiliconTraceBranchConditions,
+        branchConditionReportInterval = options.devSiliconBranchConditionReportInterval,
         options = options.backendFlags,
       ), options.backendFile, if(options.devCache) Some(VerificationCache.getSiliconDirectory) else None)
 
