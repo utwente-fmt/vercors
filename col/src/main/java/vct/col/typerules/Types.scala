@@ -70,6 +70,8 @@ object Types {
     case (TClass(_), TAnyClass()) | (TAnyClass(), TClass(_)) =>
       TAnyClass()
 
+    // TODO similar stuff for JavaClass
+
     case (TUnion(left), TUnion(right)) => TUnion((left ++ right).distinct)
     case (TUnion(left), right) => TUnion((left :+ right).distinct)
     case (left, TUnion(right)) => TUnion((left +: right).distinct)
