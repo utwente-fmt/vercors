@@ -5,7 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, ArraySizeError, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefVariable, SpecInvocationTarget}
@@ -145,7 +145,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   private val dynamicSharedMemNames: mutable.Set[CNameTarget[Pre]] = mutable.Set()
   private val dynamicSharedMemLengthVar: mutable.Map[CNameTarget[Pre], Variable[Post]] = mutable.Map()
-  private val staticSharedMemNames: mutable.Map[CNameTarget[Pre], BigInt] = mutable.Map()
+  private val staticSharedMemNames: mutable.Map[CNameTarget[Pre], (BigInt, Option[Blame[ArraySizeError]])] = mutable.Map()
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
 
@@ -363,14 +363,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       rw.variables.declare(v)
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0)(PanicBlame("Array size cannot be negative")))
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0)(PanicBlame("Shared memory sizes cannot be negative.")))
       result ++= Seq(decl, assign)
     })
-    staticSharedMemNames.foreach{case (d,size) =>
+    staticSharedMemNames.foreach{case (d,(size, blame)) =>
     implicit val o: Origin = getCDecl(d).o
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0)(PanicBlame("Array size may not be negative")))
+        // Since we set the size and blame together, we can assume the blame is not None
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0)(blame.get))
       result ++= Seq(decl, assign)
     }
 
@@ -496,6 +497,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     var extern = false
     var innerType: Option[Type[Pre]] = None
     var arraySize: Option[Expr[Pre]] = None
+    var sizeBlame: Option[Blame[ArraySizeError]] = None
 
     specs.foreach {
       case GPULocal() => shared = true
@@ -503,9 +505,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case CSpecificationType(CTPointer(t)) =>
         arrayOrPointer = true
         innerType = Some(t)
-      case CSpecificationType(CTArray(size, t)) =>
+      case CSpecificationType(ctarr @ CTArray(size, t)) =>
         arraySize = size
         innerType = Some(t)
+        sizeBlame = Some(ctarr.blame)  // we set the blame here, together with the size
         arrayOrPointer = true
       case CExtern() => extern = true
       case _ =>
@@ -522,10 +525,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin,
-                      declStatement: CLocalDeclaration[Pre], arraySize: Option[Expr[Pre]]): Unit = arraySize match {
+                      declStatement: CLocalDeclaration[Pre], arraySize: Option[Expr[Pre]], sizeBlame: Option[Blame[ArraySizeError]]): Unit = arraySize match {
       case Some(IntegerValue(size)) =>
         val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
-        staticSharedMemNames(cRef) = size
+        staticSharedMemNames(cRef) = (size, sizeBlame)
         cNameSuccessor(cRef) = v
       case _ => throw WrongGPULocalType(declStatement)
   }
@@ -552,12 +555,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
           return true
         }
         if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && !prop.extern) {
-          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl, prop.arraySize)
+          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl, prop.arraySize, prop.sizeBlame)
           return true
         }
       case Some(OpenCLKernel()) =>
         if (!prop.global && prop.arrayOrPointer && prop.innerType.isDefined && !prop.extern) {
-          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl, prop.arraySize)
+          addStaticShared(init.decl, cRef, prop.innerType.get, varO, decl, prop.arraySize, prop.sizeBlame)
           return true
         }
       case None => throw Unreachable(f"This should have been called from inside a GPU kernel scope.")
@@ -616,12 +619,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val info = C.getDeclaratorInfo(init.decl)
     val varO: Origin = InterpretedOriginVariable(info.name, init.o)
     t match {
-      case CTArray(Some(size), t) =>
+      case cta @ CTArray(Some(size), t) =>
         if(init.init.isDefined) throw WrongCType(decl)
         implicit val o: Origin = init.o
         val v = new Variable[Post](TArray(t))(varO)
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
-        val newArr = NewArray[Post](t, Seq((size)), 0)(PanicBlame("Array size cannot be negative"))
+        val newArr = NewArray[Post](t, Seq(size), 0)(cta.blame)
         Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
       case _ =>
         val v = new Variable[Post](t)(varO)

@@ -674,8 +674,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit creator: ArrayCreatorRestContext, name: Type[G]): Expr[G] = creator match {
-    case ArrayCreatorRest0(dims, init) => JavaNewLiteralArray(name, convert(dims), convert(init))
-    case ArrayCreatorRest1(specDims, extraDims) => JavaNewDefaultArray(name, convert(specDims), extraDims.map(convert(_)).getOrElse(0))
+    case ArrayCreatorRest0(dims, init) => JavaNewLiteralArray(name, convert(dims), convert(init))(blame(creator))
+    case ArrayCreatorRest1(specDims, extraDims) => JavaNewDefaultArray(name, convert(specDims), extraDims.map(convert(_)).getOrElse(0))(blame(creator))
   }
 
   def convert(implicit expr: AnnotatedPrimaryContext): Expr[G] = expr match {

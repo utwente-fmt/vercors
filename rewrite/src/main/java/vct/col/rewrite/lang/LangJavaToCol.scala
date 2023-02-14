@@ -476,7 +476,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     rw.dispatch(arr.initializer)
 
   def newDefaultArray(arr: JavaNewDefaultArray[Pre]): Expr[Post] =
-    NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(PanicBlame("The specified dims cannot be negative"))(arr.o)
+    NewArray(rw.dispatch(arr.baseType), arr.specifiedDims.map(rw.dispatch), arr.moreDims)(arr.blame)(arr.o)
 
   def literalArray(arr: JavaLiteralArray[Pre]): Expr[Post] = {
     implicit val o: Origin = JavaInlineArrayInitializerOrigin(arr.o)

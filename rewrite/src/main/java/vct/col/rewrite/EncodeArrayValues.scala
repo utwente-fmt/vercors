@@ -48,7 +48,7 @@ case object EncodeArrayValues extends RewriterBuilder {
   case class ArrayCreationFailed(arr: NewArray[_]) extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit = error match {
       case PreconditionFailed(_, _, _) => arr.blame.blame(ArraySize(arr))
-      case ContextEverywhereFailedInPre(_, _) => arr.blame.blame(ArraySize(arr))
+      case ContextEverywhereFailedInPre(_, _) => arr.blame.blame(ArraySize(arr)) // Unnecessary?
       case other => throw Unreachable(s"Invalid invocation failure: $other")
     }
   }
@@ -156,12 +156,13 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val undefinedValue: Expr[Post] =
         dispatch(Java.zeroValue(FuncTools.repeat[Type[Pre]](TArray(_), undefinedDims, elementType)))
 
+      val requires = foldAnd(dimArgs.map(argument => GreaterEq(argument.get, const[Post](0))))
       procedure(
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
-        requires = UnitAccountedPredicate(GreaterEq(, const(0))),
+        requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures &* forall(definedDims, (access, _) => access === undefinedValue))
       )(ArrayCreationOrigin("make_array"))
     }))
