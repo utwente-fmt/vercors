@@ -83,8 +83,8 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-    case _: JavaStringValue[G] =>
-      Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
+//    case _: JavaStringValue[G] =>
+//      Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
         case Some(
