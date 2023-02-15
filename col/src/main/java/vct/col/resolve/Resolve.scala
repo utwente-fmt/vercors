@@ -7,7 +7,6 @@ import vct.col.check.CheckError
 import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
-import vct.result.VerificationError.Unreachable
 
 case object ResolveTypes {
   sealed trait JavaClassPathEntry
@@ -83,8 +82,6 @@ case object ResolveTypes {
     case cls: Class[G] =>
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
-//    case _: JavaStringValue[G] =>
-//      Java.findJavaTypeName(Java.JAVA_LANG_STRING, ctx)
     case local: JavaLocal[G] =>
       Java.findJavaName(local.name, ctx) match {
         case Some(
