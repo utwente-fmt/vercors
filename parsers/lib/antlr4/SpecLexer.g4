@@ -152,9 +152,9 @@ MREP: '\\mrep';
 RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
-VAL_INDEX: '\\ndindex';
-VAL_LINDEX: '\\ndlindex';
-VAL_LENGTH: '\\ndlength';
+VAL_INDEX: '\\nd_index';
+VAL_LENGTH: '\\nd_length';
+VAL_PARTIAL_INDEX: '\\nd_partial_index';
 
 NONE: 'none';
 OPTION_NONE: 'None';

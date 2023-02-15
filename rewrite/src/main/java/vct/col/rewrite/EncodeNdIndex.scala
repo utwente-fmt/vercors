@@ -108,37 +108,57 @@ case class EncodeNdIndex[Pre <: Generation]() extends Rewriter[Pre] {
         new ADTAxiom(Forall(indexVars ++ lengthVars, Seq(Seq(valOf)), Implies(linearCondition, Eq(unValOf, indexVars(i).get))))
     }
 
-    val linearIndex = new ADTFunction[Post](Seq(new Variable(TInt()), new Variable(lengthType)), TBool())(IndexAdtOrigin(s"linear_index${dim}"))
-    val linearIndexAx = {
+    val linearIndices = (0 until dim).map { definedDims =>
+      new ADTFunction[Post](
+        Seq.fill(definedDims)(new Variable[Post](TInt())) ++
+        Seq(new Variable[Post](TInt()), new Variable[Post](lengthType)),
+        TBool()
+      )(IndexAdtOrigin(s"linear_index${dim}"))
+    }
+    val linearIndexAxs = linearIndices.zipWithIndex.map { case (linearIndex, definedDims) =>
       val lengthVars = Seq.fill(dim)(new Variable[Post](TInt()))
       val lengthMk = ADTFunctionInvocation[Post](lengthTypeArg, mkLength.ref, lengthVars.map(_.get))
-      val valOfLength = ADTFunctionInvocation[Post](lengthTypeArg, lengthVal.ref, Seq(lengthMk))
 
       val valVar = new Variable[Post](TInt())
-      val valBounds = const[Post](0) <= valVar.get && valVar.get < valOfLength
-
-      val lemma = ADTFunctionInvocation[Post](indexTypeArg, linearIndex.ref, Seq(valVar.get, lengthMk))
 
       val indexVars = Seq.fill(dim)(new Variable[Post](TInt()))
       val mk = ADTFunctionInvocation[Post](indexTypeArg, mkIndex.ref, indexVars.map(_.get) :+ lengthMk)
       val valOf = ADTFunctionInvocation[Post](indexTypeArg, indexVal.ref, Seq(mk))
 
+      val lemma = ADTFunctionInvocation[Post](indexTypeArg, linearIndex.ref, indexVars.take(definedDims).map(_.get) ++ Seq(valVar.get, lengthMk))
+
+      val lowerBound = indexVars.zipWithIndex.take(definedDims).map {
+        case (indexVar, i) =>
+          val index = indexVar.get
+          (index +: lengthVars.drop(i + 1).map[Expr[Post]](_.get)).reduce(Mult(_, _))
+      }.reduceOption(Plus(_, _)).getOrElse(const(0))
+
+      val upperBound = indexVars.zipWithIndex.take(definedDims).map {
+        case (indexVar, i) =>
+          val index = if(i == definedDims-1) indexVar.get + const(1) else indexVar.get
+          (index +: lengthVars.drop(i + 1).map[Expr[Post]](_.get)).reduce(Mult(_, _))
+      }.reduceOption(Plus(_, _)).getOrElse(lengthVars.map[Expr[Post]](_.get).reduce(Mult(_, _)))
+
       val linearCondition = indexVars.zip(lengthVars).map {
         case (index, length) => const[Post](0) <= index.get && index.get < length.get
-      }.reduce(And(_, _))
+      }
 
-      new ADTAxiom(Forall(valVar +: lengthVars, Seq(Seq(lemma)),
+      val definedBound = linearCondition.take(definedDims).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
+      val undefinedBound = linearCondition.drop(definedDims).reduce[Expr[Post]](And(_, _))
+
+      new ADTAxiom(Forall(indexVars.take(definedDims) ++ Seq(valVar) ++ lengthVars, Seq(Seq(lemma)),
         lemma &&
-        Implies(valBounds,
+        Implies(
+          definedBound && lowerBound <= valVar.get && valVar.get < upperBound,
           Exists(
-            indexVars,
+            indexVars.drop(definedDims),
             Seq(Seq(valOf)),
-            linearCondition && Eq(valOf, valVar.get)
+            undefinedBound && Eq(valOf, valVar.get)
           )
         )))
     }
 
-    val indexDecls = Seq(mkIndex) ++ mkIndexInvs ++ mkIndexInvAxs ++ Seq(indexVal) ++ indexAxs ++ indexValInvs ++ indexValInvAxs ++ Seq(linearIndex, linearIndexAx)
+    val indexDecls = Seq(mkIndex) ++ mkIndexInvs ++ mkIndexInvAxs ++ Seq(indexVal) ++ indexAxs ++ indexValInvs ++ indexValInvAxs ++ linearIndices ++ linearIndexAxs
     val indexAdt: AxiomaticDataType[Post] = new AxiomaticDataType(indexDecls, Nil)(IndexAdtOrigin(s"Index${dim}"))
 
     globalDeclarations.declare(lengthAdt)
@@ -154,9 +174,9 @@ case class EncodeNdIndex[Pre <: Generation]() extends Rewriter[Pre] {
       ADTFunctionInvocation[Post](indexTypeArg, indexVal.ref,
         Seq(ADTFunctionInvocation[Post](indexTypeArg, mkIndex.ref, indices :+ getLength(dims))))
 
-    def getLinearIndex(index: Expr[Post], dims: Seq[Expr[Post]]): Expr[Post] =
-      ADTFunctionInvocation[Post](indexTypeArg, linearIndex.ref,
-        Seq(index, getLength(dims)))
+    def getPartialIndexLemma(indices: Seq[Expr[Post]], linearIndex: Expr[Post], dims: Seq[Expr[Post]]): Expr[Post] =
+      ADTFunctionInvocation[Post](indexTypeArg, linearIndices(indices.size).ref,
+        indices ++ Seq(linearIndex, getLength(dims)))
   }
 
   val indexAdt: mutable.Map[Int, IndexAdt] = mutable.Map()
@@ -165,7 +185,8 @@ case class EncodeNdIndex[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = e match {
     case NdLength(dims) => getIndexAdt(dims.size).getLengthVal(dims.map(dispatch))
     case NdIndex(indices, dims) => getIndexAdt(indices.size).getIndexVal(indices.map(dispatch), dims.map(dispatch))
-    case NdLinearIndex(index, dims) => getIndexAdt(dims.size).getLinearIndex(dispatch(index), dims.map(dispatch))
+    case NdPartialIndex(indices, linearIndex, dims) =>
+      getIndexAdt(dims.size).getPartialIndexLemma(indices.map(dispatch), dispatch(linearIndex), dims.map(dispatch))
     case other => rewriteDefault(other)
   }
 }

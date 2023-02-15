@@ -281,9 +281,9 @@ valPrimary
  | 'committed' '(' langExpr ')' # valCommitted
  | LANG_ID_ESCAPE # valIdEscape
  | '\\shared_mem_size' '(' langExpr ')' # valSharedMemSize
- | '\\ndindex' '(' langExpr ',' langExpr valExprPair* ')' # valNdIndex
- | '\\ndlindex' '(' langExpr ',' valExpressionList ')' # valNdLIndex
- | '\\ndlength' '(' valExpressionList ')' # ValNdLength
+ | '\\nd_index' '(' langExpr ',' langExpr valExprPair* ')' # valNdIndex
+ | '\\nd_partial_index' '(' valExpressionList ';' valExpressionList ')' # valNdLIndex
+ | '\\nd_length' '(' valExpressionList ')' # ValNdLength
  ;
 
 // Out spec: defined meaning: a language local
