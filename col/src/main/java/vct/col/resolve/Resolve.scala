@@ -50,14 +50,8 @@ case object ResolveTypes {
       // E.g.: in the expression f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
       // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
       // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
-//    case ns: JavaNamespace[G] => ctx
-//      .copy(currentJavaNamespace = Some(ns))
-//      .copy(stack = ns.imports.flatMap(ResolveTypes.scanImport[G](_, ctx.asTypeResolutionContext)) +: ctx.stack)
-//      .declare(ns.declarations
-
       val ctxWithNs = ctx.copy(namespace=Some(ns))
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
-
     case Scope(locals, body) => ctx
       .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
