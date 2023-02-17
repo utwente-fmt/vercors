@@ -74,13 +74,13 @@ class JavaArrayExamples {
   /*@ 
       context_everywhere ar != null ** M>0 ** N > 0 ** \nd_length(M, N) == ar.length;
       context   (\forall* int k ; 0 <= k && k < ar.length && \nd_partial_index(k; M, N); Perm(ar[k],write));
-      ensures   (\forall  int k ; 0 <= k && k < ar.length && \nd_partial_index(k; M, N); ar[k]==0 ) ;
+      ensures   (\forall  int k ; 0 <= k && k < ar.length && \nd_partial_index(k/N, k; M, N); ar[k]==0 ) ;
    */
   public void zero_array_nested(int ar[],int M,int N){
     for(int i=0;i<M;i++)
     /*@
       context (\forall* int k ; i*N <= k && k < (i+1)*N && \nd_partial_index(i, k; M, N); Perm(ar[k],write));
-      ensures (\forall  int k ; i*N <= k && k < (i+1)*N && \nd_partial_index(i, k; M, N); ar[k]==0 ) ;
+      ensures (\forall  int k ; i*N <= k && k < (i+1)*N && {:\nd_partial_index(i, k; M, N):}; ar[k]==0 ) ;
     @*/
     {
       for(int j=0;j<N;j++)
