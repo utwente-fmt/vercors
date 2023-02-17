@@ -177,6 +177,8 @@ case object ResolveReferences {
       .copy(currentJavaClass=Some(cls))
       .copy(currentThis=Some(RefJavaClass(cls)))
       .declare(cls.decls)
+    case deref: JavaDeref[G] => return ctx
+      .copy(topLevelJavaDeref = ctx.topLevelJavaDeref.orElse(Some(deref)))
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
@@ -223,7 +225,7 @@ case object ResolveReferences {
     case declarator: Declarator[G] => ctx
       .declare(declarator.declarations)
     case _ => ctx
-  })
+  }).copy(topLevelJavaDeref = None)
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local @ CLocal(name) =>
@@ -235,7 +237,9 @@ case object ResolveReferences {
             case Some(target: JavaNameTarget[G]) => Some(target)
             case None => None
           })
-          .getOrElse(RefUnloadedJavaNamespace(Seq(name))))
+          .getOrElse(
+            if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
+            else RefUnloadedJavaNamespace(Seq(name))))
     case local @ PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ Local(ref) =>
@@ -252,6 +256,10 @@ case object ResolveReferences {
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ JavaDeref(obj, field) =>
       deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
+      if (ctx.topLevelJavaDeref.contains(deref) && (deref.ref match {
+        case Some(RefUnloadedJavaNamespace(_)) => true
+        case _ => false
+      })) throw NoSuchNameError("field", field, deref)
     case deref @ PVLDeref(obj, field) =>
       deref.ref = Some(PVL.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ Deref(obj, field) =>
