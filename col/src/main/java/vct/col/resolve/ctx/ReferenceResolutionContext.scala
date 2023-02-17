@@ -9,6 +9,7 @@ import scala.collection.mutable
 case class ReferenceResolutionContext[G]
 (
   stack: Seq[Seq[Referrable[G]]] = Nil,
+  topLevelJavaDeref: Option[JavaDeref[G]] = None,
   externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
   checkContext: CheckContext[G] = CheckContext[G](),
   currentJavaNamespace: Option[JavaNamespace[G]] = None,

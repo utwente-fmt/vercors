@@ -1098,6 +1098,9 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       val indices = convert(firstIndex) +: pairs.map(_._1)
       val dims = convert(firstDim) +: pairs.map(_._2)
       NdIndex(indices, dims)
+    case ValNdLIndex(_, _, indices, _, dims, _) =>
+      val allIndices = convert(indices)
+      NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
   }
 
