@@ -245,6 +245,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                   addSingleBound(v, left, comp.flip)
                 case _ => dependentConditions.addOne(bound)
               }
+            } else {
+              dependentConditions.addOne(bound)
             }
           case None => bound match {
             // If we do not have a simple comparison, we support one special case: i \in {a..b}
