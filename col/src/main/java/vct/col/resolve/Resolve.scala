@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
+import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
 
@@ -46,11 +47,13 @@ case object ResolveTypes {
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
       // Static imports need to be imported at this stage, because they influence how names are resolved.
-      // E.g.: in the expressio f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
+      // E.g.: in the expression f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
       // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
       // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
       val ctxWithNs = ctx.copy(namespace=Some(ns))
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
+    case Scope(locals, body) => ctx
+      .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -174,6 +177,8 @@ case object ResolveReferences {
       .copy(currentJavaClass=Some(cls))
       .copy(currentThis=Some(RefJavaClass(cls)))
       .declare(cls.decls)
+    case deref: JavaDeref[G] => return ctx
+      .copy(topLevelJavaDeref = ctx.topLevelJavaDeref.orElse(Some(deref)))
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
@@ -220,7 +225,7 @@ case object ResolveReferences {
     case declarator: Declarator[G] => ctx
       .declare(declarator.declarations)
     case _ => ctx
-  })
+  }).copy(topLevelJavaDeref = None)
 
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local @ CLocal(name) =>
@@ -232,7 +237,9 @@ case object ResolveReferences {
             case Some(target: JavaNameTarget[G]) => Some(target)
             case None => None
           })
-          .getOrElse(RefUnloadedJavaNamespace(Seq(name))))
+          .getOrElse(
+            if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
+            else RefUnloadedJavaNamespace(Seq(name))))
     case local @ PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ Local(ref) =>
@@ -249,6 +256,10 @@ case object ResolveReferences {
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ JavaDeref(obj, field) =>
       deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
+      if (ctx.topLevelJavaDeref.contains(deref) && (deref.ref match {
+        case Some(RefUnloadedJavaNamespace(_)) => true
+        case _ => false
+      })) throw NoSuchNameError("field", field, deref)
     case deref @ PVLDeref(obj, field) =>
       deref.ref = Some(PVL.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref @ Deref(obj, field) =>
