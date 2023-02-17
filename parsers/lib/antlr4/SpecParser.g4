@@ -305,9 +305,9 @@ valKeywordNonExpr: (
    VAL_INLINE | VAL_ASSERT
  // Type keywords
  | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_REF | VAL_RATIONAL | VAL_SEQ | VAL_SET | VAL_BAG
- | VAL_POINTER | VAL_MAP | VAL_OPTION | VAL_EITHER | VAL_TUPLE | VAL_TYPE | VAL_ANY | VAL_NOTHING
+ | VAL_POINTER | VAL_MAP | VAL_OPTION | VAL_EITHER | VAL_TUPLE | VAL_TYPE | VAL_ANY | VAL_NOTHING | VAL_STRING
  // Annotation keywords
- | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS
+ | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS | VAL_BUILTIN_STRING
  // Declaration keywords
  | VAL_AXIOM | VAL_MODEL | VAL_ADT
  // Contract clause keywords
@@ -328,7 +328,7 @@ valGenericAdtInvocation
  ;
 
 valType
- : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing') # valPrimaryType
+ : ('resource' | 'process' | 'frac' | 'zfrac' | 'rational' | 'bool' | 'ref' | 'any' | 'nothing' | 'string') # valPrimaryType
  | 'seq' '<' langType '>' # valSeqType
  | 'set' '<' langType '>' # valSetType
  | 'bag' '<' langType '>' # valBagType
@@ -342,17 +342,24 @@ valType
 
 valGlobalDeclaration
  : 'axiom' langId '{' langExpr '}' # valAxiom
- | valModifier* 'resource' langId '(' valArgList? ')' valDef # valPredicate
- | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valFunction
+ | valModifier* 'resource' langId '(' valArgList? ')' valPureDef # valPredicate
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valPureDef # valFunction
  | 'model' langId '{' valModelDeclaration* '}' # valModel
  | 'ghost' langGlobalDecl # valGhostDecl
  | 'adt' langId valTypeVars? '{' valAdtDeclaration* '}' # valAdtDecl
  ;
 
 valClassDeclaration
- : valModifier* 'resource' langId '(' valArgList? ')' valDef # valInstancePredicate
- | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valDef # valInstanceFunction
+ : valModifier* 'resource' langId '(' valArgList? ')' valPureDef # valInstancePredicate
+ | valContractClause* valModifier* 'pure' langType langId valTypeVars? '(' valArgList? ')' valPureDef # valInstanceFunction
  | 'ghost' langClassDecl # valInstanceGhostDecl
+ | valContractClause* valModifier* 'pure' langType valOperatorName '(' valArgList? ')' valPureDef # valInstanceOperatorFunction
+ | valContractClause* valModifier*  langType valOperatorName '(' valArgList? ')' valImpureDef # valInstanceOperatorMethod
+ ;
+
+valOperatorName
+ : '+'
+ | langId '+' // identifier should be 'right'
  ;
 
 valModelDeclaration
@@ -370,9 +377,14 @@ valAdtDeclaration
  | 'pure' langType langId '(' valArgList? ')' ';' # valAdtFunction
  ;
 
-valDef
- : ';' # valAbstractBody
- | '=' langExpr ';' # valBody
+valPureDef
+ : ';'              # valPureAbstractBody
+ | '=' langExpr ';' # valPureBody
+ ;
+
+valImpureDef
+ : ';'           # valImpureAbstractBody
+ | langStatement # valImpureBody
  ;
 
 valModifier

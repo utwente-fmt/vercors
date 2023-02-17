@@ -25,9 +25,9 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
 object Transformation {
-  case class TransformationCheckError(errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
     override def text: String =
-      "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
+      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
@@ -110,7 +110,7 @@ class Transformation
 
         result.check match {
           case Nil => // ok
-          case errors => throw TransformationCheckError(errors)
+          case errors => throw TransformationCheckError(pass, errors)
         }
 
         onAfterPassKey.foreach {
@@ -165,6 +165,10 @@ case class SilverTransformation
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
+
+    EncodeString, // Encode spec string as seq<int>
+    EncodeChar,
+
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     ReadToValue, // resolve wildcard into fractional permission
@@ -229,6 +233,7 @@ case class SilverTransformation
 
     // Translate internal types to domains
     FloatToRat,
+    EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
     ImportMapCompat.withArg(adtImporter),

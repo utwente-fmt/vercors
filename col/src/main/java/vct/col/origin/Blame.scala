@@ -277,6 +277,21 @@ sealed trait FrontendDerefError extends VerificationFailure
 sealed trait FrontendAdditiveError extends VerificationFailure
 sealed trait FrontendSubscriptError extends VerificationFailure
 
+case class PlusProviderNull(node: Node[_]) extends FrontendAdditiveError with NodeVerificationFailure {
+  override def code: String = "plusProviderNull"
+  override def descInContext: String = "This expression might be null, which is prohibited because it is the subject of a custom plus operation."
+  override def inlineDescWithSource(source: String): String = s"The expression in $source might be null, which is prohibited for a custom plus operation."
+}
+
+case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) extends FrontendAdditiveError with WithContractFailure {
+  override def failure: ContractFailure = innerFailure.failure
+  override def code: String = failure.code
+  override def node: Node[_] = innerFailure.node
+  override def baseCode: String = innerFailure.baseCode
+  override def descInContext: String = innerFailure.descInContext
+  override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
+}
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"

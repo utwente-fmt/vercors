@@ -225,6 +225,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
+    case node: Operator[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -355,6 +356,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: Operator[Pre]): Operator[Pre] = node
+  def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
+  override final def dispatch(node: Operator[Pre]): Operator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -389,6 +394,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -489,7 +495,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
                   alt5: => T = throw IncoercibleDummy,
                   alt6: => T = throw IncoercibleDummy,
                   alt7: => T = throw IncoercibleDummy,
-                  alt8: => T = throw IncoercibleDummy) : T = {
+                  alt8: => T = throw IncoercibleDummy,
+                  alt9: => T = throw IncoercibleDummy,
+                  alt10: => T = throw IncoercibleDummy,
+                  alt11: => T = throw IncoercibleDummy) : T = {
     Left(Nil)
       .onCoercionError(alt1)
       .onCoercionError(alt2)
@@ -499,6 +508,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       .onCoercionError(alt6)
       .onCoercionError(alt7)
       .onCoercionError(alt8)
+      .onCoercionError(alt9)
+      .onCoercionError(alt10)
+      .onCoercionError(alt11)
     match {
       case Left(errs) =>
         for(err <- errs) {
@@ -667,11 +679,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           AmbiguousOr(process(left), process(right)),
         )
       case plus @ AmbiguousPlus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, bag, or string; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(string(left), string(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
@@ -687,7 +700,42 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          },
+          }, {
+            // Plus left case
+            val l = cls(left)
+            val decls = left.t match {
+              case TClass(Ref(cls)) => cls.declarations
+              case JavaTClass(Ref(cls), _) => cls.declarations
+            }
+            val validOperators = decls.collect {
+              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorLeftPlus[Pre]()
+                && CoercionUtils.getCoercion(right.t, m.args.head.t).isDefined => m
+              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorLeftPlus[Pre]()
+                && CoercionUtils.getCoercion(right.t, f.args.head.t).isDefined => f
+            }
+            validOperators match {
+              case Seq(op) => AmbiguousPlus(l, coerce(right, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(l, "This expression does not have a matching custom plus operator")
+            }
+          }, {
+            // TODO (RR): Definition of operators should be type checked for arity
+            // Plus right case
+            val r = cls(right)
+            val decls = r.t match {
+              case TClass(Ref(cls)) => cls.declarations
+              case JavaTClass(Ref(cls), _) => cls.declarations
+            }
+            val validOperators = decls.collect {
+              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorRightPlus[Pre]()
+                && CoercionUtils.getCoercion(left.t, m.args.head.t).isDefined => m
+              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorRightPlus[Pre]()
+                && CoercionUtils.getCoercion(left.t, f.args.head.t).isDefined => f
+            }
+            validOperators match {
+              case Seq(op) => AmbiguousPlus(r, coerce(left, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(r, "This expression does not have a matching custom right plus operator")
+            }
+          }
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
@@ -742,6 +790,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CastFloat(e, t) =>
         CastFloat(float(e), t)
       case CCast(e, t) => CCast(e, t)
+      case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
@@ -762,6 +811,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case StringConcat(left, right) =>
+        StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case CStructDeref(struct, field) =>
@@ -787,6 +838,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Empty(obj) =>
         Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
+      case use @ EnumUse(enum, const) => use
       case Eq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
@@ -859,6 +911,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
+      case str @ JavaStringValue(_, _) => str
+      case str @ StringValue(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -1323,6 +1377,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         dataType
       case clazz: Class[Pre] =>
         new Class[Pre](clazz.declarations, clazz.supports, res(clazz.intrinsicLockInvariant))
+      case enum: Enum[Pre] =>
+        enum
+      case enumConstant: EnumConstant[Pre] =>
+        enumConstant
       case model: Model[Pre] =>
         model
       case function: Function[Pre] =>
@@ -1355,6 +1413,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         field
       case method: RunMethod[Pre] =>
         method
+      case method: InstanceOperatorMethod[Pre] =>
+        method
+      case function: InstanceOperatorFunction[Pre] =>
+        new InstanceOperatorFunction[Pre](function.returnType, function.operator, function.args, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.o)
       case initialization: JavaSharedInitialization[Pre] =>
         initialization
       case fields: JavaFields[Pre] =>
@@ -1668,5 +1730,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
+  }
+
+  def coerce(node: Operator[Pre]): Operator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case OperatorLeftPlus() => OperatorLeftPlus()
+      case OperatorRightPlus() => OperatorRightPlus()
+    }
   }
 }

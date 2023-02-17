@@ -413,6 +413,7 @@ case class Printer(out: Appendable,
     say(program.declarations)
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
+    case Commit(obj) => phrase("\\commit(", obj, ")")
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
@@ -594,6 +595,10 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", field), 100)
     case JavaLiteralArray(exprs) =>
       (phrase("{", commas(exprs.map(NodePhrase)), "}"), 120)
+    case JavaStringValue(data, _) =>
+      (phrase(s""""${data}""""), 100)
+    case StringValue(data) =>
+      (phrase(s""""${data}""""), 100)
     case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {
         case Some(obj) =>
@@ -934,7 +939,7 @@ case class Printer(out: Appendable,
     )
     case TFloat(exponent, mantissa) => phrase(s"float[$exponent, $mantissa]")
     case TChar() => phrase("char")
-    case TString() => phrase("String")
+    case TString() => phrase("string")
     case TRef() => phrase("Ref")
     case TArray(element) => phrase(element, "[]")
     case TPointer(element) => phrase(element, "*")
@@ -1014,7 +1019,7 @@ case class Printer(out: Appendable,
     case rule: SimplificationRule[_] =>
       statement("axiom", space, name(rule), space, "{", newline, indent(rule.axiom), "}")
     case dataType: AxiomaticDataType[_] =>
-      ???
+      statement(s"axiomatic datatype ${dataType.o.preferredName} { ... omitted ... }")
     case function: Function[_] =>
       phrase(
         doubleline,

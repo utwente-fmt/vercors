@@ -9,6 +9,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
+import vct.col.util.SuccessionMap
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -45,8 +46,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
-
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
+
+    case method: JavaMethod[Pre] => java.rewriteMethod(method)
 
     case unit: CTranslationUnit[Pre] => c.rewriteUnit(unit)
     case cParam: CParam[Pre] => c.rewriteParam(cParam)
@@ -104,6 +106,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case RefJavaAnnotationMethod(decL) => ???
         case RefInstanceFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
+        case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
+        case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>
@@ -115,6 +119,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: JavaNewClass[Pre] => java.newClass(inv)
     case arr: JavaNewLiteralArray[Pre] => java.newLiteralArray(arr)
     case arr: JavaNewDefaultArray[Pre] => java.newDefaultArray(arr)
+    case str: JavaStringValue[Pre] => java.stringValue(str)
     case arr: JavaLiteralArray[Pre] => java.literalArray(arr)
 
     case Cast(inner, TypeValue(t)) if t == Java.float[Pre] || t == Java.double[Pre] =>

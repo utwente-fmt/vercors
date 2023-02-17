@@ -187,6 +187,12 @@ case object Spec {
       case ref @ RefADTFunction(f) if ref.name == name => f
     }
 
+  def findAdtFunction[G](adtName: String, functionName: String, ctx: ReferenceResolutionContext[G]): Option[ADTFunction[G]] = {
+    ctx.stack.flatten.collectFirst {
+      case ref @ RefAxiomaticDataType(adt) if ref.name == adtName => adt
+    }.flatMap(findAdtFunction(_, functionName))
+  }
+
   def findAdtFunction[G](name: String, ctx: ReferenceResolutionContext[G]): Option[(AxiomaticDataType[G], ADTFunction[G])] = {
     for(adt <- ctx.stack.flatten.collect { case RefAxiomaticDataType(adt) => adt }) {
       findAdtFunction(adt, name) match {
