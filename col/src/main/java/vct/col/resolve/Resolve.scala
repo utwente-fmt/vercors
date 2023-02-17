@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.ast.util.Declarator
 import vct.col.check.CheckError
 import vct.col.origin._
+import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
 
@@ -46,11 +47,13 @@ case object ResolveTypes {
       ctx.copy(stack=decls.flatMap(Referrable.from) +: ctx.stack)
     case ns: JavaNamespace[G] =>
       // Static imports need to be imported at this stage, because they influence how names are resolved.
-      // E.g.: in the expressio f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
+      // E.g.: in the expression f.g, f is either a 1) variable, 2) parameter or 3) field. If none of those, it must be a
       // 4) statically imported field or typename, or 5) a non-static imported typename. If it's not that, it's a package name.
       // ctx.stack needs to be modified for this, and hence this importing is done in enterContext instead of in resolveOne.
       val ctxWithNs = ctx.copy(namespace=Some(ns))
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
+    case Scope(locals, body) => ctx
+      .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
