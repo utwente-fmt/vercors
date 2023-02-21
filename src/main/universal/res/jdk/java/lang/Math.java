@@ -14,5 +14,11 @@ class Math {
         // Blatantly wrong!
         return x;
     }
+
+    ghost
+    public static pure int random() {
+        // also blatantly wrong!
+        return 0;
+    }
     */
 }
