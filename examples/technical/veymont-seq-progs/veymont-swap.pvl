@@ -9,6 +9,9 @@ class Storage {
   	v = v+1;
   }
   
+  int num() {
+  	return 2;
+  }
 }
 
 
@@ -27,6 +30,8 @@ seq_program SeqProgram(int x, int y) {
   }
 
   run {
+    s1.temp = s1.num();
+    s1.temp = num();
     s1.temp = s1.v;
     s2.temp = s2.v;
     foo();

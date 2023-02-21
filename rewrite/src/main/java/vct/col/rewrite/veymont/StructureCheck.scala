@@ -48,29 +48,13 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
     if(inSeqProg.nonEmpty)
       st match {
         case VeyMontCommExpression(_,_,a) =>
-          checkVeyMontAssignment(a.asInstanceOf[Assign[Pre]].value)
           rewriteDefault(st)
         case VeyMontAssignExpression(_,a) =>
-          checkVeyMontAssignment (a.asInstanceOf[Assign[Pre]].value)
           rewriteDefault (st)
         case _ => rewriteDefault(st)
       }
     else rewriteDefault(st)
   }
 
-  private def checkVeyMontAssignment(value: Expr[Pre]) =
-    if (value.collect { case m: ProcedureInvocation[Pre] => m }.nonEmpty)
-      throw VeyMontStructCheckError(value,"Cannot call non-thread method in assignment!")
-
-//  object Linter {
-//
-//    def syntaxAllowed(a : AssignExpression[Pre]) : Boolean =
-//      a.target match {
-//        case Deref(obj, ref) => a.value match
-//        case _ => false
-//      }
-//
-//    def getDerefObj(Expr)
-//  }
 
 }

@@ -772,7 +772,10 @@ case class Printer(out: Appendable,
     case FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-      (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+      obj match {
+        case o:ThisSeqProg[_] => (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+        case _ => (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+      }
     case InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case UMinus(arg) =>
