@@ -19,7 +19,7 @@ case class CollectingErrorListener(originProvider: OriginProvider) extends ANTLR
       case token: Token if anyToken != null =>
         errors :+= ParseError(originProvider(token, token), message)
       case _ =>
-        throw Unreachable("ANTLR gave us a null or mistyped token while reporting a syntax error.")
+        errors :+= ParseError(originProvider(line-1, line-1, Some((charPositionInLine-1, charPositionInLine-1))), message)
     }
   }
 
