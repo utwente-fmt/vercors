@@ -375,4 +375,40 @@ class TechnicalSpec extends VercorsSpec {
       }
     }
     """
+
+  vercors should verify using silicon in "example using string primitive" pvl
+    """
+    void g() {
+        "xuz";
+        assert "abc" == "abc";
+        assert "abc" != "xyz";
+
+        string xxx;
+        string s1 = "aaa";
+        string s2 = "bbb";
+        string s3 = s1 + s2;
+    }
+    """
+
+  vercors should verify using silicon in "example using plus operator overloading" pvl
+    """
+    class C {
+      int x;
+
+      ensures Perm(x, 1) ** x == v;
+      constructor(int v) {
+        x = v;
+      }
+
+      context Perm(x, 1\2) ** Perm(other.x, 1\2);
+      ensures Perm(\result.x, 1) ** \result.x == x + other.x;
+      C +(C other) {
+        return new C(x + other.x);
+      }
+    }
+
+    void m() {
+      assert (new C(1) + new C(2)).x == 3;
+    }
+    """
 }

@@ -3,6 +3,7 @@ package vct.col.origin
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
+import vct.col.ast.Node
 
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -314,6 +315,19 @@ case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
   override def shortPosition: String = inner.shortPosition
   override def context: String = inner.context
   override def inlineContext: String = inner.inlineContext
+
+  override def toString: String =
+    s"$name at $inner"
+}
+
+trait PreferredNameOrigin extends Origin {
+  def name: String
+  def inner: Origin
+
+  def preferredName: String = name
+  def shortPosition: String = inner.shortPosition
+  def context: String = inner.context
+  def inlineContext: String = inner.inlineContext
 
   override def toString: String =
     s"$name at $inner"

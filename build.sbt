@@ -122,6 +122,7 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation",
       "-feature",
       "-unchecked",
+//      "-Ystatistics",
 //      "-Xno-patmat-analysis",
 //      "-Ystatistics:typer",
 //      "-Xprint:typer",

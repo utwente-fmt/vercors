@@ -2,6 +2,7 @@ package vct.col.util
 
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 
@@ -127,6 +128,8 @@ object AstBuildHelpers {
         new RewriteProcedure(procedure).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure, blame = blame)
       case method: InstanceMethod[Pre] =>
         new RewriteInstanceMethod(method).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure, blame = blame)
+      case method: InstanceOperatorMethod[Pre] =>
+        new RewriteInstanceOperatorMethod(method).rewrite(returnType = returnType, operator = rewriter.dispatch(method.operator), args = args, body = body, contract = contract, inline = inline, pure = pure, blame = blame)
     }
   }
 
@@ -144,6 +147,8 @@ object AstBuildHelpers {
         new RewriteFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
       case function: InstanceFunction[Pre] =>
         new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
+      case function: InstanceOperatorFunction[Pre] =>
+        new RewriteInstanceOperatorFunction(function).rewrite(returnType = returnType, operator = rewriter.dispatch(function.operator), args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
     }
   }
 
@@ -288,6 +293,26 @@ object AstBuildHelpers {
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
       inline)(blame)
 
+  def functionInvocation[G]
+                        (blame: Blame[InvocationFailure],
+                         ref: Ref[G, Function[G]],
+                         args: Seq[Expr[G]] = Nil,
+                         typeArgs: Seq[Type[G]] = Nil,
+                         givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                         yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): FunctionInvocation[G] =
+    FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
+
+  def methodInvocation[G]
+                      (blame: Blame[InstanceInvocationFailure],
+                       obj: Expr[G],
+                       ref: Ref[G, InstanceMethod[G]],
+                       args: Seq[Expr[G]] = Nil,
+                       outArgs: Seq[Expr[G]] = Nil,
+                       typeArgs: Seq[Type[G]] = Nil,
+                       givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                       yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
+    MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+
   case object GeneratedQuantifier extends Origin {
     override def preferredName: String = "i"
     override def shortPosition: String = "generated"
@@ -324,6 +349,35 @@ object AstBuildHelpers {
       triggers = triggers(i),
       body = body(i),
     )
+  }
+
+  def foralls[G]
+            (ts: Seq[Type[G]],
+             body: Seq[Local[G]] => Expr[G],
+             triggers: Seq[Local[G]] => Seq[Seq[Expr[G]]] = (_: Seq[Local[G]]) => Nil,
+            ): Forall[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val i_vars: Seq[Variable[G]] = ts.map(new Variable[G](_))
+    val is: Seq[Local[G]] = i_vars.map((x: Variable[G]) => Local[G](x.ref))
+    Forall(
+      bindings = i_vars,
+      triggers = triggers(is),
+      body = body(is),
+    )
+  }
+
+  case object GeneratedLet extends Origin {
+    override def preferredName: String = "x"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At generated let]"
+    override def inlineContext: String = "[Generated let]"
+  }
+
+  def let[G](t: Type[G], x: Expr[G], body: Local[G] => Expr[G]): Let[G] = {
+    implicit val o: Origin = GeneratedQuantifier
+    val x_var: Variable[G] = new Variable[G](t)
+    val x_local: Local[G] = Local(x_var.ref)
+    Let(x_var, x, body(x_local))
   }
 
   def assignLocal[G](local: Local[G], value: Expr[G])(implicit o: Origin): Assign[G] =

@@ -1,6 +1,6 @@
 package vct.col.resolve.lang
 
-import vct.col.ast._
+import vct.col.ast.{TNotAValue, _}
 import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
@@ -39,6 +39,9 @@ case object PVL {
 
   def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[PVLDerefTarget[G]] =
     obj.t match {
+      case TNotAValue(RefEnum(enum)) => enum.constants.flatMap(Referrable.from).collectFirst {
+        case ref: RefEnumConstant[G] if ref.name == name => ref
+      }
       case _: TNotAValue[G] => Spec.builtinField(obj, name, blame)
       case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
         case ref: RefModelField[G] if ref.name == name => ref
