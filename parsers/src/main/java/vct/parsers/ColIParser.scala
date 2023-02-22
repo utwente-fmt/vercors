@@ -13,12 +13,14 @@ case class ColIParser(override val originProvider: OriginProvider, override val 
       originProvider.setTokenStream(tokens)
       val parser = new CParser(tokens)
 
-      noErrorsOrThrow(parser, lexer, originProvider) {
+      val (errors, tree) = noErrorsOrThrow(parser, lexer, originProvider) {
         val errors = expectedErrors(tokens, LangCLexer.EXPECTED_ERROR_CHANNEL, LangCLexer.VAL_EXPECT_ERROR_OPEN, LangCLexer.VAL_EXPECT_ERROR_CLOSE)
         val tree = parser.compilationUnit()
-        val decls = CToCol[G](originProvider, blameProvider, errors).convert(tree)
-        ParseResult(decls, errors.map(_._3))
+        (errors, tree)
       }
+
+      val decls = CToCol[G](originProvider, blameProvider, errors).convert(tree)
+      ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>
         throw ParseMatchError(m.getMessage())
