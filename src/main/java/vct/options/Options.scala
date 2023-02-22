@@ -4,7 +4,7 @@ import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
-import vct.options.types.{Backend, ClassPathEntry, Mode, PathOrStd, ReadLanguage, Verbosity}
+import vct.options.types.{Backend, ClassPathEntry, FloatMode, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
@@ -227,6 +227,9 @@ case object Options {
       opt[Path]("path-c-preprocessor").valueName("<path>")
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
+      opt[FloatMode]("floats").valueName(FloatMode.valueName)
+        .action((mode, c) => c.copy(floatMode = mode))
+        .text("Set the floating point interpretation for this verification run ('rational' is default)"),
 
       note(""),
       note("VeyMont Mode"),
@@ -333,6 +336,7 @@ case class Options
   cPreprocessorPath: Path = Resources.getCcPath,
 
   siliconPrintQuantifierStats: Option[Int] = None,
+  floatMode: FloatMode = FloatMode.Rational,
 
   // Verify options - hidden
   devAbruptExc: Boolean = false,
