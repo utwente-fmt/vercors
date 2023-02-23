@@ -13,12 +13,14 @@ case class ColJavaParser(override val originProvider: OriginProvider, override v
       val lexer = new LangJavaLexer(stream)
       val tokens = new CommonTokenStream(lexer)
       originProvider.setTokenStream(tokens)
-      val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new JavaParser(tokens)
 
-      val tree = noErrorsOrThrow(parser, lexer, originProvider) {
-        parser.compilationUnit()
+      val (errors, tree) = noErrorsOrThrow(parser, lexer, originProvider) {
+        val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE)
+        val tree = parser.compilationUnit()
+        (errors, tree)
       }
+
       val decls = JavaToCol[G](originProvider, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {
