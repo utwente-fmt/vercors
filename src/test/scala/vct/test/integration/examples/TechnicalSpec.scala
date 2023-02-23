@@ -413,4 +413,14 @@ class TechnicalSpec extends VercorsSpec {
     """
 
   vercors should verify using anyBackend example "technical/labeledEmbeddedStatement.c"
+
+  vercors should verify using anyBackend in "usage of given/yields in C" c """
+    /*@
+    given int x;
+    yields int y;
+    requires x == 3;
+    ensures y == 8;
+    @*/
+    void test();
+  """
 }
