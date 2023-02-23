@@ -514,6 +514,10 @@ statement
     |   iterationStatement
     |   jumpStatement
     |   ('__asm' | '__asm__') ('volatile' | '__volatile__') '(' logicalOrExpressionList? logicalOrExpressionListColonList ')' ';'
+    |   valEmbedStatementBlock
+    |   {specLevel>0}? valStatement
+    |   gpgpuBarrier
+    |   gpgpuAtomicBlock
     ;
 
 logicalOrExpressionListColonList
@@ -545,10 +549,6 @@ blockItemList
 blockItem
     :   declaration
     |   statement
-    |   valEmbedStatementBlock
-    |   {specLevel>0}? valStatement
-    |   gpgpuBarrier
-    |   gpgpuAtomicBlock
     ;
 
 expressionStatement

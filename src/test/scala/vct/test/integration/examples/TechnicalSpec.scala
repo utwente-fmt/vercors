@@ -411,4 +411,6 @@ class TechnicalSpec extends VercorsSpec {
       assert (new C(1) + new C(2)).x == 3;
     }
     """
+
+  vercors should verify using anyBackend example "technical/labeledEmbeddedStatement.c"
 }
