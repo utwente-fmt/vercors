@@ -456,13 +456,19 @@ case class Printer(out: Appendable,
     case Branch(branches) =>
       val `if` = (phrase("if(", branches.head._1, ")"), branches.head._2)
       val others = branches.tail.map {
-        case (cond, impl) => (phrase("else if(", cond, ")"), impl)
+        case (cond, impl) =>
+          if(cond match{ case BooleanValue(value) => value}) { //if cond == true
+            (phrase("else"),impl)
+          } else
+            (phrase("else if(", cond, ")"), impl) //never reached since the two branches in else { if(cond) statement } are mapped separately
       }
       controls(`if` +: others)
     case Switch(expr, body) =>
       control(phrase("switch(", expr, ")"), body)
     case Loop(init, cond, update, invariant, body) =>
-      control(phrase("for(", init, "; ", cond, "; ", update, ")"), body)
+      if(isSkip(init) && isSkip(update))
+        control(phrase("while(", cond, ")"), body)
+      else control(phrase("for(", init, "; ", cond, "; ", update, ")"), body)
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -568,6 +574,11 @@ case class Printer(out: Appendable,
       statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
   })
 
+  private def isSkip(st: Statement[_]): Boolean = st match {
+    case Block(stmts) => stmts.isEmpty
+    case _ => false
+  }
+
   def printExpr(e: Expr[_]): Unit =
     say(expr(e)._1)
 
@@ -658,6 +669,8 @@ case class Printer(out: Appendable,
       (phrase("running", "(", thread, ")"), 100)
     case Starall(bindings, triggers, body) =>
       (phrase("(", "\\forall*", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
+    case VeyMontCondition(c) =>
+      (phrase(intersperse(" && ", c.map{case (t,e) => e})),40)
     case Star(left, right) =>
       (phrase(assoc(40, left), space, "**", space, assoc(40, right)), 40)
     case Wand(left, right) =>
@@ -828,13 +841,19 @@ case class Printer(out: Appendable,
       (phrase(bind(50, left), space, "!=", space, bind(50, right)), 50)
     case Greater(left, right) =>
       (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
+    case AmbiguousGreater(left, right) =>
+      (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
     case Less(left, right) =>
+      (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
+    case AmbiguousLess(left, right) =>
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
     case GreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case AmbiguousGreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case LessEq(left, right) =>
+      (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
+    case AmbiguousLessEq(left, right) =>
       (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
     case SubSet(left, right) =>
       ???

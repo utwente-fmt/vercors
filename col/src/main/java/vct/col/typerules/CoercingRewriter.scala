@@ -1237,6 +1237,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+      case VeyMontCondition(c) => VeyMontCondition(c)
     }
   }
 

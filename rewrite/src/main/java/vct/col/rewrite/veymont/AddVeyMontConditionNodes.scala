@@ -1,12 +1,15 @@
 package vct.col.rewrite.veymont
 
 
-import vct.col.ast.{And, Branch, Expr, Loop, Node, Statement, VeyMontCondition, VeyMontThread}
+import hre.util.ScopedStack
+import vct.col.ast.{And, Block, BooleanValue, Branch, Declaration, Expr, Loop, Node, Statement, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
 import vct.col.ref.Ref
 import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{getDerefsFromExpr, getThreadDeref}
 import vct.col.rewrite.veymont.AddVeyMontConditionNodes.AddVeyMontConditionError
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
+
+import scala.reflect.internal.util.TriState.True
 
 object AddVeyMontConditionNodes  extends RewriterBuilder {
   override def key: String = "addVeyMontConditionNodes"
@@ -22,35 +25,78 @@ object AddVeyMontConditionNodes  extends RewriterBuilder {
 
 case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
 
-  override def dispatch(st: Statement[Pre]): Statement[Post] = st match {
-    case Branch(branches) => {
-      val postbranches = branches.map{case (c,s) => rewriteBranch(c,s)}
-      Branch(postbranches)(st.o)
+  val inSeqProg: ScopedStack[Int] = ScopedStack()
+
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case dcl: VeyMontSeqProg[Pre] =>
+        inSeqProg.push(dcl.threads.size)
+        try {
+          rewriteDefault(dcl)
+        } finally {
+          inSeqProg.pop()
+        }
+      case _ => rewriteDefault(decl)
     }
-    case l@Loop(init,cond,update,contract,body) => {
-      val (postcond,postbody) = rewriteBranch(cond,body)
-      Loop(rewriteDefault(init),postcond,rewriteDefault(update),rewriteDefault(contract),postbody)(l.o)
-    }
-    case _ => rewriteDefault(st)
+
+  override def dispatch(st: Statement[Pre]): Statement[Post] = {
+    if(inSeqProg.nonEmpty) {
+      st match {
+      case Branch(branches) => {
+        val postbranches = branches.map{case (c,s) => rewriteBranch(c,s)}
+        Branch(postbranches)(st.o)
+      }
+      case l: Loop[Pre] =>
+          rewriteLoop(l)
+      case _ => rewriteDefault(st)
+      }
+    } else rewriteDefault(st)
   }
 
-  private def rewriteBranch(cond: Expr[Pre], st: Statement[Pre]) : (VeyMontCondition[Post],Statement[Post]) = {
-    val condMap = getConditionMap(cond)
-    val vc = VeyMontCondition[Post](condMap.toList)(st.o)
-    (vc, rewriteDefault(st))
+  private def rewriteBranch(cond: Expr[Pre], st: Statement[Pre]) : (Expr[Post],Statement[Post]) = {
+    val condMap = checkConditionAndGetConditionMap(cond)
+    if(condMap.isEmpty) //in case of else statement
+      (dispatch(cond),dispatch(st))
+    else (VeyMontCondition[Post](condMap.toList)(st.o), dispatch(st))
   }
 
-  private def getConditionMap(e: Expr[Pre]): Map[Ref[Post, VeyMontThread[Post]], Expr[Post]] = {
-    val condEls = collectConditionElements(e)
-    val derefs = condEls.map(el => (getDerefsFromExpr(el),el))
+  private def rewriteLoop(l: Loop[Pre]): Loop[Post] = {
+    val condMap = checkConditionAndGetConditionMap(l.cond)
+    if (condMap.isEmpty)
+      throw AddVeyMontConditionError(l.cond, "Conditions of loops cannot be `true'!")
+    else  Loop(rewriteDefault(l.init),
+      VeyMontCondition[Post](condMap.toList)(l.cond.o),
+      rewriteDefault(l.update),
+      rewriteDefault(l.contract),
+      dispatch(l.body))(l.o)
+  }
+
+  private def checkConditionAndGetConditionMap(e: Expr[Pre]): Map[Ref[Post, VeyMontThread[Post]], Expr[Post]] = {
+    if (isTrue(e))
+      Map.empty
+    else {
+      val condEls = collectConditionElements(e)
+      if(condEls.size == inSeqProg.top) {
+        getConditionMap(condEls,e)
+      } else throw AddVeyMontConditionError(e, "Conditions of if/while need to reference each thread exactly once!")
+    }
+  }
+
+  private def getConditionMap(condEls: List[Expr[Pre]], e : Expr[Pre]): Map[Ref[Post, VeyMontThread[Post]], Expr[Post]] = {
+    val derefs = condEls.map(el => (getDerefsFromExpr(el), el))
     derefs.foldRight(Map.empty[Ref[Post, VeyMontThread[Post]], Expr[Post]]) { case ((d, el), m) =>
       if (d.size != 1)
-        throw AddVeyMontConditionError(e, "Conditions of if/while need to reference exactly one thread!")
+        throw AddVeyMontConditionError(e, "Conditions of if/while need to reference each thread exactly once!")
       else {
         val thread = getThreadDeref(d.head, n => AddVeyMontConditionError(n, "Conditions of if/while can only reference threads, so nothing else!"))
-        m + (succ(thread) -> succ(el))
+        m + (succ(thread) -> dispatch(el))
       }
     }
+  }
+
+  private def isTrue(e : Expr[Pre]) = e match {
+    case BooleanValue(value) => value
+    case _ => false
   }
 
   private def collectConditionElements(e: Expr[Pre]) : List[Expr[Pre]] = e match {
