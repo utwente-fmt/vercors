@@ -196,6 +196,14 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case Statement4(stat) => convert(stat)
     case Statement5(stat) => convert(stat)
     case _: Statement6Context => ??(stat)
+    case Statement7(embedStats) => convert(embedStats)
+    case Statement8(embedStat) => convert(embedStat)
+    case Statement9(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
+      GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
+        , convert(specifier))(blame(stat))
+    })
+    case Statement10(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
+      GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
   }
 
   def convert(implicit block: CompoundStatementContext): Statement[G] = block match {
@@ -212,14 +220,6 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case BlockItem0(decl) =>
       CDeclarationStatement(new CLocalDeclaration(convert(decl)))
     case BlockItem1(stat) => convert(stat)
-    case BlockItem2(embedStats) => convert(embedStats)
-    case BlockItem3(embedStat) => convert(embedStat)
-    case BlockItem4(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
-      GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
-        , convert(specifier))(blame(stat))
-    })
-    case BlockItem5(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
-      GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
   }
 
   def convert(implicit spec: GpgpuMemFenceListContext): Seq[GpuMemoryFence[G]] = spec match {
