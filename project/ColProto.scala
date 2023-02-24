@@ -18,7 +18,8 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     val parts: Seq[String] = Map(
       Seq("instance", "of") -> Seq("vct", "instance", "of"),
       Seq("class") -> Seq("vct", "class"),
-      Seq("empty") -> Seq("vct", "empty")
+      Seq("empty") -> Seq("vct", "empty"),
+      Seq("assert") -> Seq("vct", "assert"),
     ).getOrElse(unsafeParts, unsafeParts)
 
     def snake: String = parts.mkString("_")
@@ -180,6 +181,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     DECLARATION_KINDS.filter(kind => !info.defs.exists(_.baseName == kind)).map(kind => {
       boxedTypeFamily(TName(kind)) = kind
       message(kind)
+        .addField(field("id").setType(PType.TYPE_INT64))
         .addOneofDecl(oneOf("v"))
         .addAllField(info.defs.filter(defn => info.supports(kind)(defn.baseName)).map(defn =>
           field(defn.baseName).setTypeName(Name(defn.baseName).ucamel).setOneofIndex(0).build()
@@ -232,14 +234,25 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       field.getName + " = " +
       (idx + 1).toString + ";"
 
-  def renderFields(message: DescriptorProto): String =
-    if(message.getOneofDeclCount == 0) {
-      message.getFieldList.asScala.zipWithIndex.map { case (field, idx) => renderField(field, idx) }.mkString("\n")
-    } else if(message.getOneofDeclCount == 1) {
-      f"""  oneof ${message.getOneofDecl(0).getName} {
-         |${message.getFieldList.asScala.zipWithIndex.map { case (field, idx) => renderField(field, idx, inOneof=true) }.mkString("\n")}
-         |  }""".stripMargin
-    } else ???
+  def renderFields(message: DescriptorProto): String = {
+    val oneofs =
+      for(i <- 0 until message.getOneofDeclCount)
+        yield f"""  oneof ${message.getOneofDecl(i).getName} {
+          |${message.getFieldList.asScala.zipWithIndex.collect {
+              case (field, idx) if field.hasOneofIndex && field.getOneofIndex == i =>
+                renderField(field, idx, inOneof = true) }.mkString("\n")}
+          |  }""".stripMargin
+
+    val normalFields =
+      message.getFieldList.asScala.zipWithIndex.collect {
+        case (field, idx) if !field.hasOneofIndex =>
+          renderField(field, idx)
+      }
+
+    val flatNormalFields = if(normalFields.nonEmpty) Seq(normalFields.mkString("\n")) else Nil
+
+    (flatNormalFields ++ oneofs).mkString("\n\n")
+  }
 
   def render(message: DescriptorProto): String = {
     f"""message ${message.getName} {
