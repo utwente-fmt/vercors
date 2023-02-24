@@ -30,8 +30,14 @@ seq_program SeqProgram(int x, int y) {
   }
 
   run {
-    s1.temp = s1.num();
-    s1.temp = num();
+    if(s1.v == 5 && s2.v == 6) {
+    	s1.temp = s1.num();
+ //     s1.temp = num();
+ //       s1.temp = s1.v + s2.v;
+ 
+    } else if(s1.v == 0 && s2.v == 0) {
+    	s1.temp = 5;
+    }
     s1.temp = s1.v;
     s2.temp = s2.v;
     foo();
