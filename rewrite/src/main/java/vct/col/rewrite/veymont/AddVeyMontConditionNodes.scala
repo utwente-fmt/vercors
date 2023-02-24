@@ -76,8 +76,9 @@ case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
       Map.empty
     else {
       val condEls = collectConditionElements(e)
-      if(condEls.size == inSeqProg.top) {
-        getConditionMap(condEls,e)
+      val m = getConditionMap(condEls,e)
+      if(m.keys.toSet.size == inSeqProg.top) {
+        m
       } else throw AddVeyMontConditionError(e, "Conditions of if/while need to reference each thread exactly once!")
     }
   }

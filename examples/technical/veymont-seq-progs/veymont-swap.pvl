@@ -40,9 +40,12 @@ seq_program SeqProgram(int x, int y) {
     	  s1.temp = 5;
     	}
     }
-    for(s1.temp = 0; s1.temp > 10 && s2.v == 4; s1.v = s1.v+1) {
+    for(s1.temp = 0; s1.temp > 10 && s2.v == 6; s1.v = s1.v+1) {
     	s2.temp = 6;
     }
+//    if(s1.temp > 10 && s1.v == 6) {
+    	s2.v = 2;
+//    }
     s1.temp = s1.v;
     s2.temp = s2.v;
     foo();
