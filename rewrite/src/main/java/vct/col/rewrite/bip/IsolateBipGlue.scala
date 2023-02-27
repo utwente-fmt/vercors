@@ -4,6 +4,11 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.origin.Origin
 
+/**
+  * This pass scans the program for bip glues. For each java namespace where there is a glue, only the glue is included,
+  * not the namespace itself. This is because for the JavaBIP paper this namespace containing the glue only contains
+  * configuration code that vercors cannot analyze yet.
+  */
 case object IsolateBipGlue extends LazyLogging {
   def isolate[G](p: Program[G]): Program[G] = {
     val declsNew: Seq[GlobalDeclaration[G]] = p.declarations.map {
