@@ -9,9 +9,10 @@ package quickselect;
 * Helper class to print arrays for the QuickSelect example.
 */
 public class ArrayPrinter {
-    
+
+    //@ requires false;
     public static void printArray(int[] a, int l, int h){
-        for(int i=0; i<a.length; i++){
+        for(int i=0; i < a.length; i++){
             if(i==l || i==h+1) {
                 System.out.print("|");
             } else {

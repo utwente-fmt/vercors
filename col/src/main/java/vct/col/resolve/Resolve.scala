@@ -204,7 +204,7 @@ case object ResolveReferences {
     case func: CFunctionDefinition[G] =>
       var res = ctx
         .copy(currentResult=Some(RefCFunctionDefinition(func)))
-        .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body)) // FIXME suspect wrt contract declarations and stuff
+        .declare(C.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
       if(func.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined)
         res = res.declare(scanShared(func.body))
       res
@@ -213,7 +213,7 @@ case object ResolveReferences {
         throw MultipleForwardDeclarationContractError(func)
       }
       ctx
-        .declare(C.paramsFromDeclarator(func.decl.inits.head.decl))
+        .declare(C.paramsFromDeclarator(func.decl.inits.head.decl) ++ func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
         .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
           .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
     case par: ParStatement[G] => ctx
