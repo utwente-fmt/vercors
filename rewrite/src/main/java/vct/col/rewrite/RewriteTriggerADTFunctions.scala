@@ -32,20 +32,6 @@ case class RewriteTriggerADTFunctions[Pre <: Generation]() extends Rewriter[Pre]
           triggers.map(_.map(dispatch))
         })
 
-      case FunctionInvocation(Ref(func), argsOut, typeArgsOut, Nil, Nil) if inTrigger.nonEmpty =>
-        implicit val origin: Origin = e.o
-        func.body match {
-          case Some(ADTFunctionInvocation(typeArgs, ref, args))
-            if func.args.map(_.get) == args && func.typeArgs.map( v => TVar[Pre](v.ref)) == typeArgs.map(_._2).getOrElse(Nil) =>
-              ADTFunctionInvocation[Post](
-                typeArgs.map(someTypeArgs => (succ(someTypeArgs._1.decl), typeArgsOut.map(dispatch))),
-                succ(ref.decl),
-                argsOut.map(dispatch))
-          case _ => rewriteDefault(e)
-
-        }
-
-
       case other => rewriteDefault(other)
 
     }
