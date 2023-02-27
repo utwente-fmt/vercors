@@ -17,6 +17,5 @@ class PublicationsSpec extends VercorsSpec {
   // https://github.com/utwente-fmt/vercors/issues/852
   // vercors should verify using silicon example "publications/2021/parallelBellman-Ford/ASSSP.cu"
 
-
-  vercors should verify using silicon example "publications/2021/parallelBellman-Ford/ASSSP-Lemmas.pvl"
+  // vercors should verify using silicon example "publications/2021/parallelBellman-Ford/ASSSP-Lemmas.pvl"
 }

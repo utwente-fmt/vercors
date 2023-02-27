@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{JavaClass, PinnedDecl, JavaFields, JavaMethod, Type}
+import vct.col.ast.{JavaClass, JavaFields, JavaMethod, Type}
 import vct.col.resolve.ctx._
 
 trait JavaClassImpl[G] { this: JavaClass[G] =>

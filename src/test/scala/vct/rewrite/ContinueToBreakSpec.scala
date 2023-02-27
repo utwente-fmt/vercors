@@ -21,7 +21,7 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true))(blame),
+          LoopInvariant(BooleanValue(true), None)(blame),
           Block(Seq(
             Continue[G](Some(loopLabel.ref))
           ))
@@ -37,7 +37,7 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true))(blame),
+          LoopInvariant(BooleanValue(true), None)(blame),
           Label(continueLoopLabel,
             Block(Seq(
               Break[G](Some(continueLoopLabel.ref))
@@ -61,13 +61,13 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true))(blame),
+          LoopInvariant(BooleanValue(true), None)(blame),
           Label(innerLoop,
             Loop(
               Block(Nil),
               BooleanValue(true),
               Block(Nil),
-              LoopInvariant(BooleanValue(true))(blame),
+              LoopInvariant(BooleanValue(true), None)(blame),
               Block(Seq(
                 Continue(Some(outerLoop.ref))
               ))
@@ -87,14 +87,14 @@ class ContinueToBreakSpec extends AnyFlatSpec with should.Matchers {
           Block(Nil),
           BooleanValue(true),
           Block(Nil),
-          LoopInvariant(BooleanValue(true))(blame),
+          LoopInvariant(BooleanValue(true), None)(blame),
           Label(continueOuterLoop,
             Label(innerLoop,
               Loop(
                 Block(Nil),
                 BooleanValue(true),
                 Block(Nil),
-                LoopInvariant(BooleanValue(true))(blame),
+                LoopInvariant(BooleanValue(true), None)(blame),
                 Block(Seq(
                   Break(Some(continueOuterLoop.ref))
                 ))

@@ -34,9 +34,17 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   // java constexprs or something similar.
   // Below just happens to be the subset needed to encode string literals.
   def isAllowedValue(e: Expr[Pre]): Boolean = e match {
+    case ThisObject(_) => true
     case IntegerValue(_) => true
     case LiteralSeq(_, vals) => vals.forall(isAllowedValue)
-    case FunctionInvocation(_, args, _, givenMap, _) => args.forall(isAllowedValue) && givenMap.forall { case (_, e) => isAllowedValue(e) }
+    case FunctionInvocation(func, args, _, givenMap, _) => func.decl.contract.decreases.isDefined &&
+      func.decl.contract.contextEverywhere.t.equals(TBool[Pre]()) &&
+      unfoldPredicate(func.decl.contract.requires).forall(_.t == TBool[Pre]()) &&
+      args.forall(isAllowedValue) && givenMap.forall { case (_, e) => isAllowedValue(e) }
+    case InstanceFunctionInvocation(obj, func, args, _, givenMap, Seq()) =>  func.decl.contract.decreases.isDefined &&
+      func.decl.contract.contextEverywhere.t == TBool[Pre]() &&
+      unfoldPredicate(func.decl.contract.requires).forall(_.t == TBool[Pre]()) &&
+      isAllowedValue(obj) && args.forall(isAllowedValue) && givenMap.forall { case (_, e) => isAllowedValue(e) }
     case _ => false
   }
 
@@ -95,7 +103,6 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case Assign(Deref(obj, Ref(field)), value) if isFinal(field) && finalValueMap.contains(field) => Block(Nil)(stat.o)
     case Eval(PreAssignExpression(Deref(obj, Ref(field)), value)) if isFinal(field) && finalValueMap.contains(field) => Block(Nil)(stat.o)
-
     case Assign(Deref(obj, Ref(field)), value) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
     case Eval(PreAssignExpression(Deref(obj, Ref(field)), value)) if isFinal(field) => makeInhale(obj, field, value)(stat.o)
     case other => rewriteDefault(other)

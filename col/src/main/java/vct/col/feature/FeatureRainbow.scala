@@ -375,6 +375,7 @@ class FeatureRainbow[G] {
     case node: PointerLength[G] => Pointers
     case node: TPointer[G] => Pointers
 
+    case node: Extract[G] => ProofHelpers
     case node: FramedProof[G] => ProofHelpers
     case node: IndeterminateInteger[G] => ProofHelpers
     case node: Refute[G] => ProofHelpers
@@ -644,33 +645,7 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
-    case node: JavaStringConcatOperator[G] => return Nil
-    case node: JavaLangString[G] => return Nil
-    case node: InternedString[G] => return Nil
-    case node: StringLiteral[G] => return Nil
-    case node: EnumConstant[G] => return Nil
-    case node: Enum[G] => return Nil
-    case node: TEnum[G] => return Nil
-    case node: EnumUse[G] => return Nil
-    case node: BipStatePredicate[G] => return Nil
-    case node: BipTransition[G] => return Nil
-    case node: BipComponent[G] => return Nil
-    case node: BipPort[G] => return Nil
-    case node: BipEnforceable[G] => return Nil
-    case node: BipGuard[G] => return Nil
-    case node: BipGuardInvocation[G] => return Nil
-    case node: BipData[G] => return Nil
-    case node: BipIncomingData[G] => return Nil
-    case node: BipOutgoingData[G] => return Nil
-    case node: BipLocalIncomingData[G] => return Nil
-    case node: JavaBipGlueContainer[G] => return Nil
-    case node: JavaBipGlue[G] => return Nil
-    case node: JavaBipGlueElement[G] => return Nil
-    case node: JavaBipGlueName[G] => return Nil
-    case node: BipGlue[G] => return Nil
-    case node: BipGlueRequires[G] => return Nil
-    case node: BipGlueAccepts[G] => return Nil
-    case node: BipGlueDataWire[G] => return Nil
-    case node: BipTransitionSignature[G] => return Nil
+
+    case _ => return Nil
   })
 }

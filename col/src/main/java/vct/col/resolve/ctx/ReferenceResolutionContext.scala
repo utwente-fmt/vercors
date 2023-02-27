@@ -13,6 +13,7 @@ case class ReferenceResolutionContext[G]
 (
   javaParser: SpecExprParser,
   stack: Seq[Seq[Referrable[G]]] = Nil,
+  topLevelJavaDeref: Option[JavaDeref[G]] = None,
   externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),
   checkContext: CheckContext[G] = CheckContext[G](),
   currentJavaNamespace: Option[JavaNamespace[G]] = None,
@@ -26,7 +27,7 @@ case class ReferenceResolutionContext[G]
   javaBipGuardsEnabled: Boolean = false,
 ) {
   def asTypeResolutionContext: TypeResolutionContext[G] =
-    TypeResolutionContext(stack, currentJavaNamespace, None, externallyLoadedElements)
+    TypeResolutionContext(stack, currentJavaNamespace, None, Nil, externallyLoadedElements)
 
   def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     copy(stack = decls.flatMap(Referrable.from) +: stack)

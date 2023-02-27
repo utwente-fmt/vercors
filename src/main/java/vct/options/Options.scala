@@ -4,7 +4,7 @@ import scopt.{OParser, OptionDef}
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
-import vct.options.types.{Backend, Mode, PathOrStd, ReadLanguage, Verbosity}
+import vct.options.types.{Backend, ClassPathEntry, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
 
 import java.nio.file.{Path, Paths}
@@ -98,9 +98,9 @@ case object Options {
       opt[Backend]("backend").valueName(Backend.valueName)
         .action((backend, c) => c.copy(backend = backend))
         .text("Set the backend to verify with (default: silicon)"),
-      opt[PathOrStd]("backend-file").valueName("<path>")
+      opt[Path]("backend-file-base").valueName("<path>")
         .action((backendFile, c) => c.copy(backendFile = Some(backendFile)))
-        .text("In addition to verification, output the resulting AST for the backend to a file"),
+        .text("In addition to verification, output the resulting ASTs for the backend to files, appended with -<number>.<extension>"),
       opt[Unit]("backend-debug")
         .action((_, c) => c.copy(logLevels = c.logLevels :+ ("viper", Verbosity.Debug)))
         .text("Instruct the backend to print as much debugging information as possible"),
@@ -131,6 +131,12 @@ case object Options {
       opt[Int]("silicon-print-quantifier-stats").valueName("<amount>")
         .action((amount, c) => c.copy(siliconPrintQuantifierStats = Some(amount)))
         .text("Print quantifier instantiation statistics from Z3 via silicon, every <amount> instantiations, every 5 seconds. Implies --dev-silicon-num-verifiers 1"),
+      opt[Unit]("silicon-quiet")
+        .action((_, c) => c.copy(
+          devSiliconReportOnNoProgress = false,
+          devSiliconTraceBranchConditions = false,
+          devSiliconBranchConditionReportInterval = None))
+        .text("Disable various diagnostics of the silicon backend."),
 
       opt[PathOrStd]("bip-report-file").valueName("<path>")
         .action((p, c) => c.copy(bipReportFile = Some(p)))
@@ -161,25 +167,43 @@ case object Options {
       opt[String]("dev-simplify-debug-filter-rule").maybeHidden()
         .action((rule, c) => c.copy(devSimplifyDebugFilterRule = Some(rule)))
         .text("Debug only applications of a particular rule, by name"),
+      opt[Unit]("dev-cache").maybeHidden()
+        .action((_, c) => c.copy(devCache = true))
+        .text("Cache verification results (slow, experimental)"),
+      opt[Unit]("dev-split-verification-by-procedure").maybeHidden()
+        .action((_, c) => c.copy(devSplitVerificationByProcedure = true))
+        .text("Invoke separate instances of the backend for each procedure at the end of the rewrite chain (slow, experimental)"),
 
-      opt[Int]("dev-silicon-num-verifiers").hidden()
+      opt[Int]("dev-silicon-num-verifiers").maybeHidden()
         .action((amount, c) => c.copy(devSiliconNumVerifiers = Some(amount)))
         .text("Indicate the number of verifiers for silicon to use. In practice the number of silicon threads equals this number + 1"),
+      opt[Int]("dev-silicon-branch-condition-report-interval").maybeHidden()
+        .action((interval, c) => c.copy(devSiliconBranchConditionReportInterval = Some(interval)))
+        .text("The interval of branch trace records at which to report the current path condition"),
+      opt[Unit]("dev-silicon-no-branch-condition-report").maybeHidden()
+        .action((_, c) => c.copy(devSiliconBranchConditionReportInterval = None))
+        .text("Do not report the current branch condition at an interval"),
+      opt[Unit]("dev-silicon-trace-branch-conditions").maybeHidden()
+        .action((_, c) => c.copy(devSiliconTraceBranchConditions = true, devSiliconBranchConditionReportInterval = None))
+        .text("Trace all branch condition records, rendered as a tree"),
+      opt[Unit]("dev-silicon-no-report-on-no-progress").maybeHidden()
+        .action((_, c) => c.copy(devSiliconReportOnNoProgress = false))
+        .text("Do not report the current state of silicon when no progress is made for some time"),
 
-      opt[Int]("dev-assert-timeout").hidden()
+      opt[Int]("dev-assert-timeout").maybeHidden()
         .action((amount, c) => c.copy(devSiliconAssertTimeout = amount))
         .text("Indicate, in seconds, the timeout value for a single assert statement. If the verification gets stuck " +
           "on a single SMT check for longer than this timeout, the verification will fail."),
 
-      opt[Path]("dev-silicon-z3-log-file").hidden()
+      opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
 
-      opt[Path]("dev-carbon-boogie-log-file").hidden()
+      opt[Path]("dev-carbon-boogie-log-file").maybeHidden()
         .action((p, c) => c.copy(devCarbonBoogieLogFile = Some(p)))
         .text("Path for boogie to write smt2 log file to"),
 
-      opt[Path]("dev-viper-prover-log-file").hidden()
+      opt[Path]("dev-viper-prover-log-file").maybeHidden()
         .action((p, c) => c.copy(devViperProverLogFile = Some(p)))
         .text("Path for viper to write boogie or smt2 input file to, depending on selected backend"),
 
@@ -203,9 +227,12 @@ case object Options {
       opt[Path]("path-c-system").valueName("<path>")
         .action((path, c) => c.copy(cIncludePath = path))
         .text("Set the include path for system headers (-isystem)"),
-      opt[Path]("path-jre").valueName("<path>")
-        .action((path, c) => c.copy(jrePath = path))
-        .text("Set the directory where specified JRE files are stored"),
+      opt[Unit]("no-std-class-path")
+        .action((_, c) => c.copy(classPath = c.classPath.collect { case ClassPathEntry.SourcePath(p) => ClassPathEntry.SourcePath(p) }))
+        .text("Remove the @jre (the default path to specified classes in the java runtime) and @source (the sources root computed via the package entry of submitted sources) entry"),
+      opt[ClassPathEntry]("class-path").valueName("<path>|@jre|@source").unbounded()
+        .action((cp, c) => c.copy(classPath = c.classPath :+ cp))
+        .text("Add an entry to the sources class path"),
       opt[Path]("path-z3").valueName("<path>")
         .action((path, c) => c.copy(z3Path = path))
         .text("Set the location of the z3 binary"),
@@ -297,7 +324,7 @@ case class Options
   // Verify Options
   language: Option[Language] = None,
   backend: Backend = Backend.Silicon,
-  backendFile: Option[PathOrStd] = None,
+  backendFile: Option[Path] = None,
 
   outputAfterPass: Map[String, PathOrStd] = Map.empty,
   outputBeforePass: Map[String, PathOrStd] = Map.empty,
@@ -315,7 +342,7 @@ case class Options
   adtPath: Path = Resources.getAdtPath,
   cc: Path = Resources.getCcPath,
   cIncludePath: Path = Resources.getCIncludePath,
-  jrePath: Path = Resources.getJrePath,
+  classPath: Seq[ClassPathEntry] = Seq(ClassPathEntry.DefaultJre, ClassPathEntry.SourcePackageRoot),
   z3Path: Path = viper.api.Resources.getZ3Path,
   boogiePath: Path = viper.api.Resources.getBoogiePath,
   cPreprocessorPath: Path = Resources.getCcPath,
@@ -333,10 +360,15 @@ case class Options
   devSimplifyDebugNoMatch: Boolean = false,
   devSimplifyDebugFilterInputKind: Option[String] = None,
   devSimplifyDebugFilterRule: Option[String] = None,
+  devCache: Boolean = false,
+  devSplitVerificationByProcedure: Boolean = false,
 
   devSiliconNumVerifiers: Option[Int] = None,
   devSiliconZ3LogFile: Option[Path] = None,
   devSiliconAssertTimeout: Int = 30,
+  devSiliconReportOnNoProgress: Boolean = true,
+  devSiliconBranchConditionReportInterval: Option[Int] = Some(1000),
+  devSiliconTraceBranchConditions: Boolean = false,
 
   devCarbonBoogieLogFile: Option[Path] = None,
 

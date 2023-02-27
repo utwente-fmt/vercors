@@ -42,12 +42,12 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends I
   private lazy val arrayLen = find[ADTFunction[Post]](arrayAdt, "alen")
   private lazy val arrayLoc = find[Function[Post]](arrayFile, "aloc")
 
-  val arrayField: mutable.Map[Type[Post], SilverField[Post]] = mutable.Map()
+  val arrayField: mutable.Map[Type[Pre], SilverField[Post]] = mutable.Map()
 
   private def getArrayField(arr: Expr[Pre]): Ref[Post, SilverField[Post]] = {
-    val tElement = dispatch(arr.t.asArray.get.element)
+    val tElement = arr.t.asArray.get.element
     arrayField.getOrElseUpdate(tElement, {
-      globalDeclarations.declare(new SilverField(tElement)(ArrayField(tElement)))
+      globalDeclarations.declare(new SilverField(dispatch(tElement))(ArrayField(tElement)))
     }).ref
   }
 
@@ -56,12 +56,12 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends I
     case other => super.applyCoercion(e, other)
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TArray(_) => TOption(TAxiomatic(arrayAdt.ref, Nil))
     case other => rewriteDefault(other)
   }
 
-  override def dispatch(location: Location[Pre]): Location[Post] = location match {
+  override def postCoerce(location: Location[Pre]): Location[Post] = location match {
     case loc@ArrayLocation(arr, index) =>
       SilverFieldLocation(
         obj = FunctionInvocation[Post](

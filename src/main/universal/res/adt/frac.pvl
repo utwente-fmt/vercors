@@ -1,15 +1,12 @@
 adt `frac` {
   pure rational frac_val(`frac` f);
 
-  axiom
-    (\forall `frac` f; true;
-      (\forall `frac` g; true;
-        {:frac_val(f):} == {:frac_val(g):} ==> f == g));
+  axiom (\forall `frac` f, `frac` g; {:frac_val(f):} == {:frac_val(g):} ==> f == g);
 
-  axiom
-    (\forall `frac` f; true; none < {:frac_val(f):} && frac_val(f) <= write);
+  axiom (\forall `frac` f; true; none < {:frac_val(f):} && frac_val(f) <= write);
 }
 
+decreases;
 requires none < p && p <= write;
 ensures `frac`.frac_val(\result) == p;
 pure `frac` new_frac(rational p);

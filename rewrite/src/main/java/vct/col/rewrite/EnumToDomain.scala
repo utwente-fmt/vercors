@@ -139,7 +139,7 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case other => super.postCoerce(other)
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TEnum(enum) => TOption(T(enum.decl)(t.o))(t.o)
     case other => rewriteDefault(other)
   }

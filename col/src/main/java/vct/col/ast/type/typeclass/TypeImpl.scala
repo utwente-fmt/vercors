@@ -3,10 +3,8 @@ package vct.col.ast.`type`.typeclass
 import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.ref.Ref
-import vct.col.rewrite.{NonLatchingRewriter, Rewriter}
+import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
-
-import scala.reflect.ClassTag
 
 trait TypeImpl[G] { this: Type[G] =>
   def superTypeOf(other: Type[G]): Boolean =
@@ -19,6 +17,7 @@ trait TypeImpl[G] { this: Type[G] =>
   def asBag: Option[TBag[G]] = CoercionUtils.getAnyBagCoercion(this).map(_._2)
   def asPointer: Option[TPointer[G]] = CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] = CoercionUtils.getAnyArrayCoercion(this).map(_._2)
+  def asCArray: Option[CTArray[G]] = CoercionUtils.getAnyCArrayCoercion(this).map(_._2)
   def asOption: Option[TOption[G]] = CoercionUtils.getAnyOptionCoercion(this).map(_._2)
   def asMap: Option[TMap[G]] = CoercionUtils.getAnyMapCoercion(this).map(_._2)
   def asTuple: Option[TTuple[G]] = CoercionUtils.getAnyTupleCoercion(this).map(_._2)

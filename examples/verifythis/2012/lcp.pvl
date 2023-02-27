@@ -1,28 +1,39 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: cases LeastCommonPrefix
 
 class LCP {
-	context_everywhere a != null;
-	context_everywhere (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
-	context_everywhere 0 <= x && x < a.length;
-	context_everywhere 0 <= y && y < a.length;
-	ensures 0 <= \result + x && \result + x <= a.length;
-	ensures 0 <= \result + y && \result + y <= a.length;
-	ensures (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
-	ensures (\forall int k; 0 <= k && k < \result; a[x+k] == a[y+k]);
-	int lcp(int[] a, int x, int y) {
-	        int l = 0;
+    context_everywhere a != null;
+    context_everywhere (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
+    context_everywhere 0 <= x && x < a.length;
+    context_everywhere 0 <= y && y < a.length;
+    ensures 0 <= \result + x && \result + x <= a.length;
+    ensures 0 <= \result + y && \result + y <= a.length;
+    ensures (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
+    // ensures (\forall int k; 0 <= k && k < \result; a[x+k] == a[y+k]);
+    ensures (\forall int i, int j;
+        (\let int k1 = i-x;
+        (\let int k2 = j-x;
+        k1 == k2 && 0 <= k1 && k1 < \result ==>
+        a[i] == a[j]
+    )));
+    int lcp(int[] a, int x, int y) {
+        int l = 0;
 
-					loop_invariant 0 <= l && l <= a.length; 
-					loop_invariant 0 <= x+l && x+l <= a.length;
-					loop_invariant 0 <= y+l && y+l <= a.length;
-					loop_invariant (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
-					loop_invariant (\forall int k; 0 <= k && k < l; a[x+k] == a[y+k]); 
-	        while (x+l < a.length && y+l < a.length && a[x+l] == a[y+l]) {
-	          l = l + 1;
-					}
-					
-	        return l;
-	    }
+        loop_invariant 0 <= l && l <= a.length;
+        loop_invariant 0 <= x+l && x+l <= a.length;
+        loop_invariant 0 <= y+l && y+l <= a.length;
+        loop_invariant (\forall* int k; 0 <= k && k < a.length; Value(a[k]));
+        // loop_invariant (\forall int k; 0 <= k && k < l; a[x+k] == a[y+k]);
+        loop_invariant (\forall int i, int j;
+            (\let int k1 = i-x;
+            (\let int k2 = j-y;
+            k1 == k2 && 0 <= k1 && k1 < l ==>
+            a[i] == a[j]
+        )));
+        while (x+l < a.length && y+l < a.length && a[x+l] == a[y+l]) {
+            l = l + 1;
+        }
+
+        return l;
+    }
 
 }

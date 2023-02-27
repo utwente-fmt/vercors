@@ -1,18 +1,17 @@
 package vct.col.rewrite
 
+import hre.debug.TimeTravel
 import vct.col.ast._
 
 class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(context: Verification[Pre]): Verification[Post] = rewriteDefault(context)
   override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(context)
-
   override def dispatch(program: Program[Pre]): Program[Post] = rewriteDefault(program)
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
   override def dispatch(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
   override def dispatch(t: Type[Pre]): Type[Post] = rewriteDefault(t)
   override def dispatch(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
-  override def dispatch(specialDecl: PinnedDecl[Pre]): PinnedDecl[Post] = rewriteDefault(specialDecl)
 
   override def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Post] = rewriteDefault(node)
   override def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
@@ -48,4 +47,5 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = rewriteDefault(node)
 
   override def dispatch(node: Coercion[Pre]): Coercion[Post] = rewriteDefault(node)
+  override def dispatch(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
 }

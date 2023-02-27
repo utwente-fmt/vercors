@@ -1,12 +1,13 @@
 package hre.io
 
-import java.io.Reader
+import java.io.{File, Reader}
 import java.nio.CharBuffer
 import java.util.Scanner
 import scala.collection.mutable
 
 trait Readable {
   def fileName: String
+  def underlyingFile: Option[File] = None
   def isRereadable: Boolean
   protected def getReader: Reader
 

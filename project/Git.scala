@@ -14,15 +14,15 @@ object Git {
 
   def hasGit = commandExists("git") || commandExists("git.exe")
 
-  def gitHasChanges =
+  def gitHasChanges: Option[Boolean] =
     if (hasGit) {
       if ((Seq("git", "diff-index", "--quiet", "HEAD", "--") ! ProcessLogger(a => (), b => ())) == 1) {
-        "with changes"
+        Some(true)
       } else {
-        "no changes"
+        Some(false)
       }
     } else {
-      "unknown if there are changes"
+      None
     }
 
   def currentBranch: String =
@@ -30,6 +30,13 @@ object Git {
       (Seq("git", "rev-parse", "--abbrev-ref", "HEAD") !!).stripLineEnd
     } else {
       "unknown branch"
+    }
+
+  def currentCommit: String =
+    if (hasGit) {
+      (Seq("git", "rev-parse", "--short", "HEAD") !!).stripLineEnd
+    } else {
+      "unknown commit"
     }
 
   def currentShortCommit: String =

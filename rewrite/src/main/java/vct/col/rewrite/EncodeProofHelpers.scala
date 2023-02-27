@@ -1,9 +1,8 @@
 package vct.col.rewrite
 
 import vct.col.ast._
+import vct.col.origin._
 import vct.col.rewrite.EncodeProofHelpers.{FramedProofLoopInvariantFailed, Indet, Once}
-import vct.col.origin.{Blame, ExhaleFailed, FramedProofPostFailed, FramedProofPreFailed, LoopInvariantFailure, LoopInvariantNotEstablished, LoopInvariantNotMaintained, Origin, PanicBlame}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 
 case object EncodeProofHelpers extends RewriterBuilder {
@@ -46,7 +45,8 @@ case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
 
         contract = LoopInvariant(
           (once.get ==> dispatch(pre)) &*
-            (!once.get ==> dispatch(post))
+            (!once.get ==> dispatch(post)),
+          Some(DecreasesClauseNoRecursion[Post]()),
         )(FramedProofLoopInvariantFailed(proof)),
         body = dispatch(body),
       ))

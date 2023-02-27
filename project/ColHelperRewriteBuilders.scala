@@ -2,7 +2,7 @@ import ColDefs._
 
 import scala.meta._
 
-case class ColHelperRewriteBuilders(info: ColDescription) {
+case class ColHelperRewriteBuilders(info: ColDescription) extends ColHelperMaker {
   def builderVar(param: Term.Param): Stat =
     q"var ${Pat.Var(Term.Name(param.name.value))}: Option[${ColHelperUtil.substituteTypeName("G", t"Post")(param.decltpe.get)}] = None"
 

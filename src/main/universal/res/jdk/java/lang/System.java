@@ -11,7 +11,7 @@ class System {
     /*@
     ghost
     ensures out != null ** err != null;
-    public void staticInvariant() {
+    public static void staticInvariant() {
         //@ assume false;
     }
     */

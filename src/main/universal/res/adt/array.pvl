@@ -12,6 +12,7 @@ adt array {
   axiom (\forall array a; {:alen(a):} >= 0);
 }
 
+decreases;
 requires 0 <= i && i < `array`.alen(a);
 ensures `array`.loc_inv_1(\result) == a;
 ensures `array`.loc_inv_2(\result) == i;

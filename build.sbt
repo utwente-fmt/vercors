@@ -14,9 +14,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#30396357d472af235c42875ef6cde52589dc9dcc")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#e7d6d79e6b420f880dc057a85a4e17dd9976508f")
-val silicon_url = uri("git:https://github.com/niomaster/silicon.git#88c2a546121902f48e2ca722f19042d1fe4202c3")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#11bde93e486e983141c01ac7df270e9f06e8ab06")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#44f9225dcde2374c3b8051b6d56ac88c7c4ffdd5")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#f844927fe6f54c3dbc5adbccfa011034c8036640")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -62,6 +62,9 @@ ProjectRef(silver_url, "common") / scalaVersion := (silver_ref / scalaVersion).v
 ProjectRef(carbon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 ProjectRef(silicon_url, "common") / scalaVersion := (silver_ref / scalaVersion).value
 
+carbon_ref / unmanagedResources / excludeFilter := "logback*.xml"
+silicon_ref / unmanagedResources / excludeFilter := "logback*.xml"
+
 // Disable doc generation in all viper projects
 carbon_ref / packageDoc / publishArtifact := false
 silver_ref / packageDoc / publishArtifact := false
@@ -75,6 +78,14 @@ lazy val printRuntimeClasspath = taskKey[Unit]("Prints classpath of vercors in r
 lazy val benchPrintExternalDeps = taskKey[Unit]("For util/bench/flatten-sources.sh: print only the external dependencies, available without compilation.")
 lazy val benchPrintSources = taskKey[Unit]("For util/bench/flatten-sources.sh: print all source directories, including viper.")
 
+lazy val fetchGitInfo = taskKey[Seq[String]]("Explicitly depend on git information to generate BuildInfo")
+
+fetchGitInfo := {
+  Seq(Git.currentBranch, Git.currentCommit, Git.currentShortCommit, Git.gitHasChanges.toString)
+}
+
+Compile / buildInfo := (Compile / buildInfo).dependsOn(fetchGitInfo).value
+
 lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, rewrite, viper, parsers)
   .aggregate(hre, col, rewrite, viper, parsers)
@@ -82,7 +93,7 @@ lazy val vercors: Project = (project in file("."))
     fork := true,
     name := "Vercors",
     organization := "nl.utwente",
-    version := "2.0.0-javabip-alpha",
+    version := "2.0.0-beta.1",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -147,6 +158,9 @@ lazy val vercors: Project = (project in file("."))
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
       BuildInfoKey.action("currentBranch") {
         Git.currentBranch
+      },
+      BuildInfoKey.action("currentCommit") {
+        Git.currentCommit
       },
       BuildInfoKey.action("currentShortCommit") {
         Git.currentShortCommit

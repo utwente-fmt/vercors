@@ -10,7 +10,7 @@ trait AmbiguousMultImpl[G] { this: AmbiguousMult[G] =>
   def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(left.t).isDefined
   def isBagOp: Boolean = CoercionUtils.getAnyBagCoercion(left.t).isDefined
 
-  override def t: Type[G] =
+  override lazy val t: Type[G] =
     if(isProcessOp) TProcess()
     else if(isIntOp) TInt()
     else if(TFloats.isFloatOp(left.t, right.t)) {

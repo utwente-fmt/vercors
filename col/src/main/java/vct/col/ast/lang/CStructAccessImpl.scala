@@ -5,7 +5,7 @@ import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 
 trait CStructAccessImpl[G] { this: CStructAccess[G] =>
-  override def t: Type[G] = ref.get match {
+  override lazy val t: Type[G] = ref.get match {
     case ref: RefModelField[G] => ref.decl.t
     case ref: RefFunction[G] => Types.notAValue(ref)
     case ref: RefProcedure[G] => Types.notAValue(ref)
