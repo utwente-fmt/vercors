@@ -99,7 +99,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
     case declaration: CLocalDeclaration[Pre] =>
       declaration.decl.inits.foreach(init => {
         implicit val o: Origin = init.o
-        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl)
+        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl, context = Some(declaration))
         cLocalDeclarations.declare(declaration.rewrite(
           decl = declaration.decl.rewrite(
             specs = specs,
@@ -112,7 +112,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
     case declaration: CGlobalDeclaration[Pre] =>
       declaration.decl.inits.foreach(init => {
         implicit val o: Origin = init.o
-        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl)
+        val (specs, decl) = normalizeCDeclaration(declaration.decl.specs, init.decl, context = Some(declaration))
         globalDeclarations.declare(declaration.rewrite(
           decl = declaration.decl.rewrite(
             specs = specs,
@@ -124,7 +124,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       })
     case declaration: CFunctionDefinition[Pre] =>
       implicit val o: Origin = declaration.o
-      val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator)
+      val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator, context = Some(declaration))
       globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
     case cls: JavaClass[Pre] =>
       rewriteDefault(cls)
