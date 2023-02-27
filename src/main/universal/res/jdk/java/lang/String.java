@@ -73,4 +73,48 @@ public class String {
     decreases;
     public pure boolean isEmpty();
      @*/
+
+
+    // Since VerCors does not support Object... varargs, in order to be able to comfortably specific examples that use
+    //  String.format, I am adding a few possible scenarios which could be used in verification.
+    /*@
+    ghost
+    decreases;
+    public static String format(String other, int arg1, String arg2) {
+        return other;
+    }
+     @*/
+
+    /*@
+    ghost
+    decreases;
+    public static String format(String other, int arg1) {
+        return other;
+    }
+     @*/
+
+    /*@
+    ghost
+    decreases;
+    public static String format(String other, int arg1, int arg2) {
+        return other;
+    }
+     @*/
+
+    /*@
+    ghost
+    decreases;
+    public static String format(String other, String arg1, String arg2) {
+        return other;
+    }
+     @*/
+
+    /*@
+    ghost
+    decreases;
+    public static String format(String other, String arg1) {
+        return other;
+    }
+     @*/
+
 }
