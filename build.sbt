@@ -101,7 +101,7 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
-      ThisBuild / scalacOptions ++= Seq(
+    ThisBuild / scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
       "-unchecked",
@@ -174,10 +174,10 @@ lazy val vercors: Project = (project in file("."))
   )
 
 Global / printMainClasspath := {
-    val paths = (vercors / Compile / fullClasspath).value
-    val joinedPaths = paths
-        .map(_.data)
-        .mkString(pathSeparator)
-    println(joinedPaths)
+  val paths = (vercors / Compile / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
 }
 

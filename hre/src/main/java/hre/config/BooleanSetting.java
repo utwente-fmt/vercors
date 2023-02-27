@@ -38,8 +38,9 @@ public class BooleanSetting {
         set(true);
       } else if (value.equalsIgnoreCase("false")||value.equalsIgnoreCase("off")){
         set(false);
+      } else {
+        Fail("cannot parse %s", value);
       }
-      Fail("cannot parse %s",value);
     }
   }
   

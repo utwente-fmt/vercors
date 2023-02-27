@@ -15,7 +15,7 @@ import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
-import vct.col.veymont.{Preprocessor, Util}
+import vct.col.veymont.Util
 import vct.main.Main.backend_option
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
@@ -32,6 +32,7 @@ object Main {
 
   def main(args: Array[String]): Unit =
     new Main().run(args)
+
   //def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 
@@ -593,9 +594,11 @@ class Main {
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
           newArgs = runVeyMontPrePasses(args)
         }
+        val verCorsStart = System.currentTimeMillis
         parseInputs(inputPaths)
         exit = doPasses(getPasses)
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
+          Progress("[VeyMont] VerCors took %d ms",Long.box(System.currentTimeMillis - verCorsStart) )
           runVeyMontPostPasses(newArgs)
         }
       }
