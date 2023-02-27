@@ -1,6 +1,7 @@
 package viper.api;
 
 import hre.util.Triple;
+import scala.math.BigInt;
 
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ public interface ExpressionFactory<O,T,E> {
 
   /** Create an integer constant. */
   E Constant(O o, int i);
+  E Constant(O o, BigInt i);
 
   /** Create a boolean constant. */
   E Constant(O o, boolean b);

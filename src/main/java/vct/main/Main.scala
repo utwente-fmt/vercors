@@ -4,7 +4,7 @@ import java.io._
 import java.time.{Instant, ZoneId}
 import java.util
 import hre.ast.FileOrigin
-import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, LinearCollectSetting, OptionParser, StringListSetting, StringSetting}
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
@@ -15,7 +15,8 @@ import vct.silver.ErrorDisplayVisitor
 import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
 import vct.col.features.{Feature, RainbowVisitor}
-import vct.col.veymont.{Util}
+import vct.col.veymont.Util
+import vct.main.Main.backend_option
 import vct.main.Passes.BY_KEY
 import vct.test.CommandLineTesting
 
@@ -25,11 +26,13 @@ import java.time.format.DateTimeFormatter
 import java.util.TimeZone
 
 object Main {
+  val backend_option = new LinearCollectSetting
+
   var counters = new util.HashMap[String, SpecialCountVisitor]
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     new Main().run(args)
-  }
+
   //def main(args: Array[String]): Unit = Preprocessor.main(args)
 }
 
@@ -104,6 +107,7 @@ class Main {
     clops.add(abruptTerminationViaExceptions.getEnable("Force compilation of abrupt termination to exceptions"), "at-via-exceptions")
     clops.add(trigger_generation.getOptionalAssign("Try to simplify universal quantifiers and generate triggers for them."), "triggers")
     clops.add(learn.getEnable("Learn unit times for AST nodes."), "learn")
+    clops.add(backend_option.getAddOption("Options to pass to the backend"), "backend-option")
     CommandLineTesting.addOptions(clops)
     Configuration.add_options(clops)
     val parseres = clops.parse(args)

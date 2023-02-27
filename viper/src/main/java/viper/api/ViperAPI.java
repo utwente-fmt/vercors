@@ -36,6 +36,7 @@ public abstract class ViperAPI<O, T,E,S,DFunc,DAxiom,P> {
   public abstract List<? extends ViperError<O>> verify(
       Path z3Path,
       Properties z3Settings,
+      List<String> backendOptions,
       P program,
       VerificationControl<O> control);
   

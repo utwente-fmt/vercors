@@ -109,6 +109,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source) {
             case _ => addFeature(NoLockInvariantProof, c)
           }
         case None =>
+          addFeature(NoLockInvariantProof, c)
       }
     }
     if(c.super_classes.exists(_.getName == "RecursiveAction"))

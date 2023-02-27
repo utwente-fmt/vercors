@@ -1,8 +1,6 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case ParallelVectorExample1
 //:: tools silicon
-// fails due to https://github.com/viperproject/silicon/issues/512
-//:: suite problem-fail
+//:: verdict Pass
 
 /*
  * Further test case for a vector block.

@@ -14,6 +14,7 @@ import hre.util
 class SilverExpressionFactory[O] extends ExpressionFactory[O,Type,Exp] with FactoryUtils[O] {
    
   override def Constant(o:O, i:Int): Exp = IntLit(i)(NoPosition,new OriginInfo(o))
+  override def Constant(o:O, bi:BigInt): Exp = IntLit(bi)(NoPosition,new OriginInfo(o))
   override def Constant(o:O, b:Boolean): Exp =
     if(b) TrueLit()(NoPosition,new OriginInfo(o)) else FalseLit()(NoPosition,new OriginInfo(o))
  

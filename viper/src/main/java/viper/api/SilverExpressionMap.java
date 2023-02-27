@@ -10,6 +10,7 @@ import hre.lang.HREError;
 import static hre.lang.System.Abort;
 
 import hre.util.Triple;
+import scala.math.BigInt;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -59,15 +60,20 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   @Override
   public E map(ConstantExpression e) {
     if (e.value() instanceof IntegerValue) {
-      int v = ((IntegerValue) e.value()).value();
+      boolean isInIntRange = ((IntegerValue) e.value()).toInt().isDefined();
+      BigInt v = ((IntegerValue) e.value()).value();
       if (e.getType().isFraction()) {
-        switch (v) {
-          case 0:
-            return create.no_perm(e.getOrigin());
-          case 1:
-            return create.write_perm(e.getOrigin());
-          default:
-            return create.frac(e.getOrigin(), create.Constant(e.getOrigin(), v), create.Constant(e.getOrigin(), 1));
+        if (isInIntRange && (v.intValue() == 0 || v.intValue() == 1)) {
+          switch (v.intValue()) {
+            case 0:
+              return create.no_perm(e.getOrigin());
+            case 1:
+              return create.write_perm(e.getOrigin());
+            default:
+              return null;
+          }
+        } else {
+          return create.frac(e.getOrigin(), create.Constant(e.getOrigin(), v), create.Constant(e.getOrigin(), 1));
         }
       } else {
         return create.Constant(e.getOrigin(), v);

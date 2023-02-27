@@ -1,5 +1,7 @@
 //:: case QuickSelectImpl
-//:: suite problem-fail
+//:: suite helper-file
+// File is not included in testing: it is only there as a helper to execute a verified file.
+
 package quickselect;
 
 /**

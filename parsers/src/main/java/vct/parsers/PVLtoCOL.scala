@@ -386,7 +386,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case NonTargetUnit12("id", "(", exp, ")") => expr(exp)
     case NonTargetUnit13("|", seq, "|") => create expression(Size, expr(seq))
     case NonTargetUnit14("?", id) => create expression(BindOutput, convertIDName(id))
-    case NonTargetUnit15(num) => create constant Integer.parseInt(num)
+    case NonTargetUnit15(num) => create constant BigInt(num)
     case NonTargetUnit16(seq) => ??(tree)
     case NonTargetUnit17("(", exp, ")") => expr(exp)
     case NonTargetUnit18(id) => convertIDName(id)
