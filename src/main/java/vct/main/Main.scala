@@ -598,7 +598,7 @@ class Main {
         parseInputs(inputPaths)
         exit = doPasses(getPasses)
         if(Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) {
-          Output("[VeyMont] VerCors took %d ms",Long.box(System.currentTimeMillis - verCorsStart) )
+          Progress("[VeyMont] VerCors took %d ms",Long.box(System.currentTimeMillis - verCorsStart) )
           runVeyMontPostPasses(newArgs)
         }
       }
@@ -616,7 +616,6 @@ class Main {
         Verdict("The final verdict is Error")
     } finally {
       Progress("entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
-      Output("[VeyMont] entire run took %d ms", Long.box(System.currentTimeMillis - wallStart))
       if(notifySetting.get()) {
         Notifier.notify("VerCors", "Verification is complete")
       }
