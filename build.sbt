@@ -72,28 +72,24 @@ ProjectRef(silver_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(carbon_url, "common") / packageDoc / publishArtifact := false
 ProjectRef(silicon_url, "common") / packageDoc / publishArtifact := false
 
-lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main veymont executable")
+lazy val printMainClasspath = taskKey[Unit]("Prints classpath of main vercors executable")
 
-lazy val veymont: Project = (project in file("."))
+lazy val vercors: Project = (project in file("."))
   .dependsOn(hre, col, viper_api, parsers)
   .aggregate(hre, col, viper_api, parsers)
   .settings(
-    name := "VeyMont",
-    //    organization := "University of Twente",
-    //    version := "1.4.0-SNAPSHOT",
-    version := "1.0.0-SNAPSHOT",
-    //    maintainer := "VerCors Team <vercors@lists.utwente.nl>",
-    maintainer := "Petra van den Bos and Sung-Shik Jongmans",
-    //    packageSummary := "A tool for static verification of parallel programs",
-    packageSummary := "VeyMont: Parallelising Verified Programs instead of Verifying Parallel Programs",
-    //    packageDescription :=
-    //      """VerCors is a tool for static verification of parallel programs. VerCors aims to verify
-    //        |many different concurrency constructs, including: heterogeneous concurrency (Java and C), GPU kernels
-    //        |using barriers and atomics (OpenCL), and compiler directives as used in deterministic parallelism
-    //        |(OpenMP). VerCors is able to prove data-race freedom, memory safety, and functional correctness of
-    //        |(concurrent) programs written in Java, C, OpenCL, OpenMP, and its own Prototypal Verification Language
-    //        |PVL. """.stripMargin.replaceAll("\n", ""),
-
+    name := "Vercors",
+    organization := "University of Twente",
+    version := "1.4.0-SNAPSHOT",
+    maintainer := "VerCors Team <vercors@lists.utwente.nl>",
+    packageSummary := "A tool for static verification of parallel programs",
+    packageDescription :=
+      """VerCors is a tool for static verification of parallel programs. VerCors aims to verify
+        |many different concurrency constructs, including: heterogeneous concurrency (Java and C), GPU kernels
+        |using barriers and atomics (OpenCL), and compiler directives as used in deterministic parallelism
+        |(OpenMP). VerCors is able to prove data-race freedom, memory safety, and functional correctness of
+        |(concurrent) programs written in Java, C, OpenCL, OpenMP, and its own Prototypal Verification Language
+        |PVL. """.stripMargin.replaceAll("\n", ""),
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.2",
@@ -105,7 +101,7 @@ lazy val veymont: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
-      ThisBuild / scalacOptions ++= Seq(
+    ThisBuild / scalacOptions ++= Seq(
       "-deprecation",
       "-feature",
       "-unchecked",
@@ -178,10 +174,10 @@ lazy val veymont: Project = (project in file("."))
   )
 
 Global / printMainClasspath := {
-    val paths = (veymont / Compile / fullClasspath).value
-    val joinedPaths = paths
-        .map(_.data)
-        .mkString(pathSeparator)
-    println(joinedPaths)
+  val paths = (vercors / Compile / fullClasspath).value
+  val joinedPaths = paths
+    .map(_.data)
+    .mkString(pathSeparator)
+  println(joinedPaths)
 }
 
