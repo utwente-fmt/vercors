@@ -13,9 +13,9 @@ case class ColPVLParser(override val originProvider: OriginProvider, override va
       originProvider.setTokenStream(tokens)
       val errors = expectedErrors(tokens, LangPVLLexer.EXPECTED_ERROR_CHANNEL, LangPVLLexer.VAL_EXPECT_ERROR_OPEN, LangPVLLexer.VAL_EXPECT_ERROR_CLOSE)
       val parser = new PVLParser(tokens)
-      val ec = errorCounter(parser, lexer, originProvider)
-
-      val tree = parser.program()
+      val tree = noErrorsOrThrow(parser, lexer, originProvider) {
+        parser.program()
+      }
       val decls = PVLToCol[G](originProvider, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {

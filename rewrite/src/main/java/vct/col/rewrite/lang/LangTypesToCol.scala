@@ -2,7 +2,7 @@ package vct.col.rewrite.lang
 
 import vct.col.ast._
 import vct.col.origin.Origin
-import vct.col.resolve.ctx.{RefAxiomaticDataType, RefClass, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
+import vct.col.resolve.ctx.{RefAxiomaticDataType, RefClass, RefEnum, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
@@ -43,8 +43,12 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         t.ref.get match {
           case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
           case RefModel(decl) => TModel[Post](succ(decl))
-          case RefJavaClass(decl) => JavaTClass[Post](succ(decl), Nil /* TODO */)
+          case RefJavaClass(decl) =>
+            assert(t.names.init.map(_._2).forall((x: Option[Seq[Type[Pre]]]) => x.isEmpty))
+            val x = JavaTClass[Post](succ(decl), t.names.last._2.getOrElse(Nil).map(dispatch))
+            x
           case RefVariable(v) => TVar[Post](succ(v))
+          case RefEnum(enum) => TEnum[Post](succ(enum))
         }
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {
@@ -52,6 +56,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           case RefModel(decl) => TModel(succ(decl))
           case RefVariable(decl) => TVar(succ(decl))
           case RefClass(decl) => TClass(succ(decl))
+          case RefEnum(decl) => TEnum(succ(decl))
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))
@@ -82,12 +87,6 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case None =>
         CName[Post](info.name)
-    }
-    declarator match {
-      case CArrayDeclarator(_, Some(size), _) =>
-        val spec = CSpecificationType[Post](dispatch(baseType)) +: otherSpecifiers
-        return (spec, CArrayDeclarator(Seq(), Some(dispatch(size)), newDeclarator))
-      case _ =>
     }
 
     (newSpecifiers, newDeclarator)
@@ -127,6 +126,8 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = declaration.o
       val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator)
       globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
+    case cls: JavaClass[Pre] =>
+      rewriteDefault(cls)
     case other => rewriteDefault(other)
   }
 

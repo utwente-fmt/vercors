@@ -26,7 +26,7 @@ case class ImportMap[Pre <: Generation](importer: ImportADTImporter) extends Imp
     Seq(dispatch(mapType.key), dispatch(mapType.value))
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TMap(k, v) => TAxiomatic(mapAdt.ref, Seq(dispatch(k), dispatch(v)))
     case other => rewriteDefault(other)
   }

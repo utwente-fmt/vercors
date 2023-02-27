@@ -57,13 +57,13 @@ case object SilverToCol {
     }
 
   def parse[G](path: Path, blameProvider: BlameProvider): col.Program[G] =
-    transform(path, SilverParserDummyFrontend.parse(path), blameProvider)
+    transform(path, SilverParserDummyFrontend().parse(path), blameProvider)
 
   def parse[G](input: String, diagnosticPath: Path, blameProvider: BlameProvider): col.Program[G] =
-    transform(diagnosticPath, SilverParserDummyFrontend.parse(input, diagnosticPath), blameProvider)
+    transform(diagnosticPath, SilverParserDummyFrontend().parse(input, diagnosticPath), blameProvider)
 
   def parse[G](readable: Readable, blameProvider: BlameProvider): col.Program[G] =
-    transform(Paths.get(readable.fileName), SilverParserDummyFrontend.parse(readable), blameProvider)
+    transform(Paths.get(readable.fileName), SilverParserDummyFrontend().parse(readable), blameProvider)
 }
 
 case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider) {
@@ -214,7 +214,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
       col.InvokeProcedure[G](
         ref = new UnresolvedRef(methodName),
         args = args.map(transform),
-        outArgs = targets.map(transform).map(_.ref),
+        outArgs = targets.map(transform),
         typeArgs = Nil, givenMap = Nil, yields = Nil,
       )(blame(s))(origin(s))
     case silver.Exhale(exp) =>
@@ -247,7 +247,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
         init = col.Block(Nil)(origin(s)),
         cond = transform(cond),
         update = col.Block(Nil)(origin(s)),
-        contract = col.LoopInvariant(foldStar(invs.map(transform))(origin(s)))(blame(s))(origin(s)),
+        contract = col.LoopInvariant(foldStar(invs.map(transform))(origin(s)), None)(blame(s))(origin(s)),
         body = transform(body),
       )(origin(s))
     case silver.Label(name, invs) =>

@@ -26,7 +26,7 @@ case class ImportSeq[Pre <: Generation](importer: ImportADTImporter) extends Imp
   private lazy val seqArithAdd = find[ADTFunction[Post]](seqAdt, "seq_+")
   private lazy val seqArithSub = find[ADTFunction[Post]](seqAdt, "seq_-")
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TSeq(t) => TAxiomatic(seqAdt.ref, Seq(dispatch(t)))
     case other => rewriteDefault(other)
   }

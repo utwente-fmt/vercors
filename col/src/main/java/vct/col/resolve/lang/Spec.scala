@@ -33,13 +33,12 @@ case object Spec {
       }
     }
 
-  def resolveYields[G](ctx: ReferenceResolutionContext[G], yields: Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])], target: Referrable[G], blame: Node[G]): Unit =
+  def resolveYields[G](ctx: ReferenceResolutionContext[G], yields: Seq[(Expr[G], Ref[G, Variable[G]])], target: Referrable[G], blame: Node[G]): Unit =
     if(yields.nonEmpty) {
       val contract = getContract(target, blame)
       val args = contract.yieldsArgs.flatMap(Referrable.from)
       yields.foreach {
-        case (tgt, res) =>
-          tgt.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, blame)))
+        case (_, res) =>
           res.tryResolve(name => args.collectFirst {
             case ref: RefVariable[G] if ref.name == name => ref.decl
           }.getOrElse(throw NoSuchNameError("'yields' argument", name, blame)))
@@ -187,6 +186,12 @@ case object Spec {
     decl.decls.flatMap(Referrable.from).collectFirst {
       case ref @ RefADTFunction(f) if ref.name == name => f
     }
+
+  def findAdtFunction[G](adtName: String, functionName: String, ctx: ReferenceResolutionContext[G]): Option[ADTFunction[G]] = {
+    ctx.stack.flatten.collectFirst {
+      case ref @ RefAxiomaticDataType(adt) if ref.name == adtName => adt
+    }.flatMap(findAdtFunction(_, functionName))
+  }
 
   def findAdtFunction[G](name: String, ctx: ReferenceResolutionContext[G]): Option[(AxiomaticDataType[G], ADTFunction[G])] = {
     for(adt <- ctx.stack.flatten.collect { case RefAxiomaticDataType(adt) => adt }) {

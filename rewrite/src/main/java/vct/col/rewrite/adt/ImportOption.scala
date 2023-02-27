@@ -38,7 +38,7 @@ case class ImportOption[Pre <: Generation](importer: ImportADTImporter) extends 
   def optGet(e: Expr[Post], t: Type[Post], blame: Blame[PreconditionFailed])(implicit o: Origin): Expr[Post] =
     FunctionInvocation[Post](optionGet.ref, Seq(e), Seq(t), Nil, Nil)(NoContext(blame))
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TOption(element) => TAxiomatic(optionAdt.ref, Seq(dispatch(element)))
     case other => rewriteDefault(other)
   }

@@ -66,6 +66,8 @@ case class ResolveScale[Pre <: Generation]() extends Rewriter[Pre] {
       case Select(cond, whenTrue, whenFalse) => Select(dispatch(cond), scale(whenTrue, amount), scale(whenFalse, amount))
       case s: Starall[Pre] => s.rewrite(body = scale(s.body, amount))
 
+      case l: Let[Pre] => l.rewrite(main = scale(l.main, amount))
+
       case other => throw WrongScale(other)
     }
   }

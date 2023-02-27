@@ -14,7 +14,7 @@ class TechnicalSpec extends VercorsSpec {
           loop_invariant Value(arr) ** \array(arr, T);
           loop_invariant Perm(arr[*], write);
           loop_invariant 0 <= i && i <= T;
-          loop_invariant (\forall int j = 0 .. i; (\forall int k = 0 .. i; j != k ==> {:arr[j]:} != {:arr[k]:}));
+          loop_invariant (\forall int j = 0 .. i, int k = 0 .. i; j != k ==> {:arr[j]:} != {:arr[k]:});
           loop_invariant (\forall int j, int k; 0 <= j && j < i && 0 <= k && k < i; j != k ==> {:arr[j]:} != {:arr[k]:});
         @*/
         for (int i = 0; i < T; i++) {
@@ -358,5 +358,57 @@ class TechnicalSpec extends VercorsSpec {
               this.x = new Integer(0);
           }
       }
+    """
+
+  vercors should verify using silicon in "example using adts" java
+    """
+    /*@ adt MyADT {
+      pure boolean f();
+      axiom f();
+    }
+
+    @*/
+
+    class C {
+      void m() {
+          //@ assert MyADT.f();
+      }
+    }
+    """
+
+  vercors should verify using silicon in "example using string primitive" pvl
+    """
+    void g() {
+        "xuz";
+        assert "abc" == "abc";
+        assert "abc" != "xyz";
+
+        string xxx;
+        string s1 = "aaa";
+        string s2 = "bbb";
+        string s3 = s1 + s2;
+    }
+    """
+
+  vercors should verify using silicon in "example using plus operator overloading" pvl
+    """
+    class C {
+      int x;
+
+      ensures Perm(x, 1) ** x == v;
+      constructor(int v) {
+        x = v;
+      }
+
+      context Perm(x, 1\2) ** Perm(other.x, 1\2);
+      ensures Perm(\result.x, 1) ** \result.x == x + other.x;
+      C +(C other) {
+        return new C(x + other.x);
+      }
+    }
+
+    void m() {
+      assert (new C(1) + new C(2)).x == 3;
+    }
     """
 }

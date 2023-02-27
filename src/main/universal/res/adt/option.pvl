@@ -10,10 +10,12 @@ adt `option`<T> {
   axiom (\forall `option`<T> opt; {:some(option_get(opt)):} == opt);
 }
 
+decreases;
 requires opt != `option`<T>.`None`();
 ensures `option`<T>.some(\result) == opt;
 pure T opt_get<T>(`option`<T> opt) = `option`<T>.option_get(opt);
 
+decreases;
 ensures opt == `option`<T>.`None`() ==> \result == alt;
 ensures opt != `option`<T>.`None`() ==> \result == opt_get<T>(opt);
 pure T opt_or_else<T>(`option`<T> opt, T alt) =

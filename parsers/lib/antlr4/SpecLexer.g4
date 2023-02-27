@@ -49,6 +49,7 @@ VAL_TUPLE: 'tuple';
 VAL_TYPE: 'type';
 VAL_ANY: 'any';
 VAL_NOTHING: 'nothing';
+VAL_STRING: 'string';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
@@ -83,6 +84,9 @@ VAL_ASSUME: 'assume';
 VAL_INHALE: 'inhale';
 VAL_EXHALE: 'exhale';
 VAL_LABEL: 'label';
+VAL_EXTRACT: 'extract';
+VAL_FRAME: 'frame';
+VAL_OUTLINE: 'outline';
 VAL_REFUTE: 'refute';
 VAL_WITNESS: 'witness';
 VAL_GHOST: 'ghost';
@@ -149,6 +153,9 @@ MREP: '\\mrep';
 RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
+VAL_INDEX: '\\nd_index';
+VAL_LENGTH: '\\nd_length';
+VAL_PARTIAL_INDEX: '\\nd_partial_index';
 
 NONE: 'none';
 OPTION_NONE: 'None';

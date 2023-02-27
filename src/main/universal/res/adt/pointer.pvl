@@ -28,9 +28,11 @@ adt `pointer` {
       {:pointer_offset(pointer_of(b, offset)):} == offset);
 }
 
+decreases;
 pure ref ptr_deref(`pointer` p) =
   `block`.loc(`pointer`.pointer_block(p), `pointer`.pointer_offset(p));
 
+decreases;
 requires 0 <= `pointer`.pointer_offset(p) + offset;
 requires `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p));
 pure `pointer` ptr_add(`pointer` p, int offset) =

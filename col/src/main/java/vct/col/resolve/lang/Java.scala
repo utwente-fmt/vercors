@@ -1,21 +1,31 @@
 package vct.col.resolve.lang
 
+import com.typesafe.scalalogging.LazyLogging
+import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ApplicableContract, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
+import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
+import java.io.File
 import java.lang.reflect.{Modifier, Parameter}
+import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
 
-case object Java {
+case object Java extends LazyLogging {
+  case class UnexpectedJreDefinition(expectedKind: String, fullyQualifiedName: Seq[String]) extends UserError {
+    override def text: String = s"Did not get a $expectedKind when resolving $fullyQualifiedName"
+    override def code: String = "unexpectedJreDefinition"
+  }
+
   case class JavaSystemOrigin(preferredName: String) extends Origin {
     override def shortPosition: String = "reflection"
     override def context: String = s"At: [Class loaded from JRE with reflection]"
@@ -24,10 +34,15 @@ case object Java {
 
   private implicit val o: Origin = DiagnosticOrigin
   def JAVA_LANG_OBJECT[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
-  def JAVA_LANG_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
+  def JAVA_LANG_ANNOTATION_ANNOTATION[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("annotation", None), ("Annotation", None)))
+  def JAVA_LANG_STRING_TYPE[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("String", None)))
+  def JAVA_LANG_STRING_NAME[G]: JavaName[G] = JavaName(JAVA_LANG_STRING)
+  def JAVA_LANG_CLASS: Seq[String] = JAVA_LANG :+ "Class"
+  def JAVA_LANG_STRING: Seq[String] = JAVA_LANG :+ "String"
+  def JAVA_LANG: Seq[String] = Seq("java", "lang")
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
-    (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
+    (ctx.stack.lastOption.getOrElse(Seq()) ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
       case RefJavaNamespace(ns: JavaNamespace[G]) =>
         for(decl <- ns.declarations) {
           Referrable.from(decl).foreach {
@@ -43,6 +58,14 @@ case object Java {
 
     None
   }
+
+  def findLoadedJavaTypeNamesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaTypeNameTarget[G]] =
+    (ctx.stack.last ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).collect {
+      case RefJavaNamespace(ns: JavaNamespace[G]) if ns.pkg.map(_.names).getOrElse(Nil) == pkg =>
+        ns.declarations.flatMap(Referrable.from(_)).collect {
+          case target: JavaTypeNameTarget[G] => target
+        }
+    }.flatten
 
   private val currentlyLoading = mutable.Map[Seq[String], mutable.ArrayBuffer[JavaNamedType[_ <: Any]]]()
 
@@ -65,7 +88,7 @@ case object Java {
     implicit val o: Origin = JavaSystemOrigin("unknown_jre")
     currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
 
-    println(s"[warning] No specification was found for class ${potentialFQName.mkString(".")}, so a shim will be loaded from the JRE.")
+    logger.warn(s"Attempting to load a shim of ${potentialFQName.mkString(".")} via reflection.")
 
     try {
       val classLoader = this.getClass.getClassLoader
@@ -79,12 +102,19 @@ case object Java {
         ((t : JavaNamedType[_]).unsafeTransmuteGeneration[JavaNamedType, G] : JavaNamedType[G]).ref = Some(RefJavaClass(colClass))
       }
 
+      logger.warn(s"No specification was found for class ${potentialFQName.mkString(".")}, so a shim was loaded from the JRE.")
+
       Some(colClass)
     } catch {
       case _: ClassNotFoundException =>
         currentlyLoading.remove(potentialFQName)
         None
     }
+  }
+
+  def findRuntimeJavaTypesInPackage[G](pkg: Seq[String], ctx: TypeResolutionContext[G]): Seq[JavaClassOrInterface[G]] = {
+    // TODO...
+    Nil
   }
 
   def translateRuntimeType[G](t: Class[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): Type[G] = t match {
@@ -133,16 +163,23 @@ case object Java {
     })
 
     val fields = cls.getFields.map(field => {
-       new JavaFields(
-         modifiers =
-           (if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil) ++
-           (if((field.getModifiers & Modifier.FINAL) != 0) Seq(JavaFinal[G]()) else Nil),
-         t = translateRuntimeType(field.getType),
-         decls = Seq(JavaVariableDeclaration[G](field.getName, 0, None)),
-       )
+      new JavaFields(
+        modifiers =
+          (if((field.getModifiers & Modifier.STATIC) != 0) Seq(JavaStatic[G]()) else Nil) ++
+            (if((field.getModifiers & Modifier.FINAL) != 0) Seq(JavaFinal[G]()) else Nil),
+        t = translateRuntimeType(field.getType),
+        decls = Seq(JavaVariableDeclaration[G](field.getName, 0, None)),
+      )
     })
 
-    if(cls.isInterface) {
+    if(cls.isAnnotation) {
+      new JavaAnnotationInterface[G](
+        name = cls.getName.split('.').last,
+        modifiers = Nil,
+        ext = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx))(0),
+        decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
+      )(SourceNameOrigin(cls.getName.split('.').last, o))
+    } else if(cls.isInterface) {
       new JavaInterface[G](
         name = cls.getName.split('.').last,
         modifiers = Nil,
@@ -163,22 +200,42 @@ case object Java {
     }
   }
 
+  /**
+   * Attempt to find a class by its fully qualified name.
+   * @param name Fully qualified name of the class
+   * @param ctx Queried for the external class loader, and the source class paths
+   */
   def findLibraryJavaType[G](name: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] =
-    ctx.externalJavaLoader match {
-      case Some(loader) =>
-        loader.load[G](name) match {
-          case Some(ns) =>
-            ctx.externallyLoadedElements += ns
-            ResolveTypes.resolve(ns, ctx)
-            ns.declarations match {
-              case Seq(cls: JavaClass[G]) => Some(RefJavaClass(cls))
-              case Seq(cls: JavaInterface[G]) => Some(RefJavaClass(cls))
-              case Seq(cls: JavaAnnotationInterface[G]) => Some(RefJavaClass(cls))
-              case _ => ???
-            }
-          case None => None
+    ctx.externalJavaLoader.flatMap { loader =>
+      FuncTools.firstOption(ctx.javaClassPath, (classPath: ResolveTypes.JavaClassPathEntry) => {
+        // We have an external class loader and a class path.
+        val maybeBasePath: Option[Path] = classPath match {
+          case JavaClassPathEntry.SourcePackageRoot =>
+            // Try to derive the base path, by the path of the current source file and the package.
+            // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
+            for {
+              ns <- ctx.namespace
+              ReadableOrigin(readable, _, _, _) <- Some(ns.o)
+              file <- readable.underlyingFile
+              baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Option(file.getParentFile)) {
+                case (name, Some(file)) if file.getName == name => Option(file.getParentFile)
+                case _ => None
+              }
+            } yield baseFile.toPath
+          case JavaClassPathEntry.Path(root) => Some(root)
         }
-      case None => None
+
+        for {
+          basePath <- maybeBasePath
+          ns <- loader.load[G](basePath, name)
+          cls <- ns.declarations.flatMap(Referrable.from).collectFirst {
+            case ref: JavaTypeNameTarget[G] if ref.name == name.last =>
+              ctx.externallyLoadedElements += ns
+              ResolveTypes.resolve(ns, ctx)
+              ref
+          }
+        } yield cls
+      })
     }
 
   def findJavaTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
@@ -208,27 +265,27 @@ case object Java {
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
 
-  def findJavaName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[JavaNameTarget[G]] = {
+
+  def findJavaName[G](name: String, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {
       case target: JavaNameTarget[G] if target.name == name => target
-    }.orElse(ctx.currentJavaNamespace.flatMap(ns => {
-      // First find all classes that belong to each import that we can use
-      val potentialClasses: Seq[JavaTypeNameTarget[G]] = ns.imports.collect {
-        case JavaImport(true, importName, /* star = */ false) if importName.names.last == name => importName.names.init
-        case JavaImport(true, importName, /* star = */ true) => importName.names
-      }.flatMap(findJavaTypeName(_, ctx.asTypeResolutionContext))
+    }.orElse(ctx.namespace.flatMap(ns => {
+      def classOrEnum(target: JavaTypeNameTarget[G]): JavaNameTarget[G] = target match {
+        case r @ RefJavaClass(_) => r
+        case r @ RefEnum(_) => r
+      }
+      val potentialRefs: Seq[JavaNameTarget[G]] = ns.imports.collect {
+        case JavaImport(/* static = */ false, JavaName(fqn), /* star = */ false) if fqn.last == name =>
+          findJavaTypeName(fqn, ctx).map(classOrEnum)
+        case JavaImport(/* static = */ false, JavaName(pkg), /* star = */ true) =>
+          findJavaTypeName(pkg :+ name, ctx).map(classOrEnum)
+      }.flatten
 
-      // From each class, get the field we are looking for
-      potentialClasses.collect({
-        case RefJavaClass(cls: JavaClass[G]) => cls.getClassField(name)
-      }).flatten match {
+      potentialRefs match {
         // If we find only one, or none, then that's good
-        case Seq(field) => Some(field)
+        case Seq(ref) => Some(ref)
         case Nil => None
-        // Otherwise there is ambiguity: abort
-        // Currently we do not support duplicate imports. E.g. "import static A.X; import static B.*;", given that B
-        // would also define a static X, would technically be allowed.
-        case _ => throw OverlappingJavaImports(ns, "field", name)
+        case _ => throw OverlappingJavaImports(ns, "type", name)
       }
     }))
   }
@@ -243,6 +300,8 @@ case object Java {
           decl.decls.flatMap(Referrable.from).collectFirst {
             case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic[G]()) => ref
           }
+        case RefEnum(enum) =>
+          enum.getConstant(name)
         case _ => None
       }
       case TModel(Ref(model)) => model.declarations.flatMap(Referrable.from).collectFirst {
@@ -264,19 +323,23 @@ case object Java {
     }
 
   @tailrec
-  final def findMethodOnType[G](t: Type[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
+  final def findMethodOnType[G](ctx: ReferenceResolutionContext[G], t: Type[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
     t match {
       case TModel(ref) => ref.decl.declarations.flatMap(Referrable.from).collectFirst {
         case ref: RefModelAction[G] if ref.name == method => ref
         case ref: RefModelProcess[G] if ref.name == method => ref
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
-      case TUnion(ts) => findMethodOnType(Types.leastCommonSuperType(ts), method, args)
+      case TUnion(ts) => findMethodOnType(ctx, Types.leastCommonSuperType(ts), method, args)
+      case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G])) => findMethodInClass(cls, method, args)
+      case TNotAValue(RefAxiomaticDataType(adt)) => adt.decls.flatMap(Referrable.from).collectFirst {
+        case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      }
       case _ => None
     }
 
-  def findMethod[G](obj: Expr[G], method: String, args: Seq[Expr[G]], blame: Blame[BuiltinError]): Option[JavaInvocationTarget[G]] =
-    findMethodOnType(obj.t, method, args).orElse(Spec.builtinInstanceMethod(obj, method, blame))
+  def findMethod[G](ctx: ReferenceResolutionContext[G], obj: Expr[G], method: String, args: Seq[Expr[G]], blame: Blame[BuiltinError]): Option[JavaInvocationTarget[G]] =
+    findMethodOnType(ctx, obj.t, method, args).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
   def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] = {
     val selectMatchingSignature: PartialFunction[Referrable[G], JavaInvocationTarget[G]] = {
@@ -329,6 +392,16 @@ case object Java {
     case _ => None
   }
 
+  def getStaticMembers[G](javaTypeName: JavaTypeNameTarget[G]): Seq[Referrable[G]] = javaTypeName match {
+    case RefJavaClass(cls) => cls.decls.collect {
+        case decl: JavaClassDeclaration[G] if decl.isStatic => Referrable.from(decl)
+      }.flatten
+    case RefEnum(enum) => enum.constants.map(RefEnumConstant(Some(enum), _))
+  }
+
+  def findStaticMember[G](javaTypeName: JavaTypeNameTarget[G], name: String): Option[Referrable[G]] =
+    getStaticMembers(javaTypeName).find(_.name == name)
+
   case class WrongTypeForDefaultValue(t: Type[_]) extends UserError {
     override def code: String = "wrongDefaultType"
     override def text: String =
@@ -367,6 +440,7 @@ case object Java {
     case t: TModel[G] => throw WrongTypeForDefaultValue(t)
     case TClass(_) => Null()
     case JavaTClass(_, _) => Null()
+    case TEnum(_) => Null()
     case TAnyClass() => Null()
 
     case t: TAxiomatic[G] => throw WrongTypeForDefaultValue(t)

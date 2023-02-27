@@ -1,0 +1,9 @@
+//:: cases RequireConstructor
+//:: tools silicon
+
+// This example works: the constructor no longer commits the lock invariant.
+
+lock_invariant Perm(f, write) ** f > 10;
+class Test {
+    int f;
+}

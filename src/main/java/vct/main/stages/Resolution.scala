@@ -1,7 +1,7 @@
 package vct.main.stages
 
 import hre.stages.Stage
-import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, VerificationContext}
+import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
@@ -13,10 +13,12 @@ import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
+import vct.options.types.ClassPathEntry
 import vct.parsers.ParseResult
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
+import viper.silver.frontend.DefaultStates.Initial
 
 import java.nio.file.Path
 
@@ -29,33 +31,39 @@ case object Resolution {
   def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =
     Resolution(
       blameProvider = blameProvider,
-      javaLibraryPath = options.jrePath,
+      classPath = options.classPath.map {
+        case ClassPathEntry.DefaultJre => ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath)
+        case ClassPathEntry.SourcePackageRoot => ResolveTypes.JavaClassPathEntry.SourcePackageRoot
+        case ClassPathEntry.SourcePath(root) => ResolveTypes.JavaClassPathEntry.Path(root)
+      },
     )
 }
 
 case class Resolution[G <: Generation]
 (
   blameProvider: BlameProvider,
-  javaLibraryPath: Path = Resources.getJrePath,
-) extends Stage[ParseResult[G], VerificationContext[_ <: Generation]] {
+  classPath: Seq[ResolveTypes.JavaClassPathEntry] = Seq(
+    ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath),
+    ResolveTypes.JavaClassPathEntry.SourcePackageRoot
+  ),
+) extends Stage[ParseResult[G], Verification[_ <: Generation]] {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
 
-  override def run(in: ParseResult[G]): VerificationContext[_ <: Generation] = {
+  override def run(in: ParseResult[G]): Verification[_ <: Generation] = {
     in.decls.foreach(_.transSubnodes.foreach {
       case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
         if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
           throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
         }
       })
-      case addrOf: AddrOf[_] => throw TemporarilyUnsupported("&", Seq(addrOf))
       case _ =>
     })
 
     implicit val o: Origin = FileSpanningOrigin
 
     val parsedProgram = Program(in.decls)(blameProvider())
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(javaLibraryPath, blameProvider)))
+    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(blameProvider)), classPath)
     val joinedProgram = Program(parsedProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
     ResolveReferences.resolve(typedProgram) match {
@@ -70,6 +78,6 @@ case class Resolution[G <: Generation]
       case some => throw InputResolutionError(some)
     }
 
-    VerificationContext(resolvedProgram, in.expectedErrors)
+    Verification(Seq(VerificationContext(resolvedProgram)), in.expectedErrors)
   }
 }
