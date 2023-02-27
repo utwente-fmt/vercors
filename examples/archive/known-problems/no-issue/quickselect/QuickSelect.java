@@ -22,6 +22,7 @@ public class QuickSelect {
     //@ context Perm(a[*], 1\2);
     static void printArray(int[] a, int l, int h);
 
+    //@ requires 0 <= l ** l < a.length;
     //@ context a != null;
     //@ context Perm(a[l], write) ** Perm(a[h], write);
     //@ ensures a[l] == \old(a[h]);
@@ -64,7 +65,7 @@ public class QuickSelect {
             //@ loop_invariant l<=h;
             //@ loop_invariant (\exists int i; l<=i && i<=h; a[i] == pivot);
             //@ loop_invariant (\forall int i; 0<=i && i<low; (\forall int j; low<=j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<low; (\forall int m; low<=m && m<a.length; a[k] <= a[m]));
-            //@ loop_invariant (\forall int i; 0<=i && i<=high; (\forall int j; high<j && j<a.length; \old(a[i]) <= \old(a[j]))) ==> (\forall int k; 0<=k && k<=high; (\forall int m; high<m && m<a.length; a[k] <= a[m]));
+            //@ loop_invariant (\forall int i = 0 ..high, int j = high ..a.length; \old(a[i]) <= \old(a[j]) ) ==> (\forall int k = 0 ..high, int m = high ..a.length; a[k] <= a[m]);
             while(a[l] < pivot && l<h){
                 l = l+1;
             }
