@@ -37,6 +37,13 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
     override def text: String =
       effector.o.messageInContext("This expression may have side effects, but it is in a position where that is not allowed.")
   }
+
+  case object BreakOrigin extends Origin {
+    override def preferredName: String = "condition_false"
+    override def shortPosition: String = "generated"
+    override def context: String = "[At label generated to jump to when the side-effectful condition is false]"
+    override def inlineContext: String = "[Label: condition false]"
+  }
 }
 
 case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pre] {
@@ -208,18 +215,18 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         frameAll(obj +: args, {
           case obj :: args => Scope(Seq(res),
             InvokeMethod[Post](
-              obj, succ(method), args, res.ref +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+              obj, succ(method), args, res.get(inv.o) +: outArgs.map(dispatch),
               typeArgs.map(dispatch),
               givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-              yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame))
+              yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame))
         })
       case inv @ InvokeProcedure(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(args, args => Scope(Seq(res),
           InvokeProcedure[Post](succ(method), args,
-            res.ref +: outArgs.map(arg => succ[Variable[Post]](arg.decl)), typeArgs.map(dispatch),
+            res.get(inv.o) +: outArgs.map(dispatch), typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)))
+            yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)))
       case decl: LocalDecl[Pre] => rewriteDefault(decl)
       case Return(result) =>
         frame(result, e => Block(Seq(
@@ -227,7 +234,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           Return(Void()),
         )))
       case ass @ Assign(target, value) =>
-        frame(PostAssignExpression[Pre](target, value)(ass.blame), Eval(_))
+        frame(PreAssignExpression[Pre](target, value)(ass.blame), Eval(_))
       case block: Block[Pre] => rewriteDefault(block)
       case scope: Scope[Pre] => rewriteDefault(scope)
       case Branch(branches) => doBranches(branches)
@@ -237,12 +244,15 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
           case (Nil, Nil, cond) =>
             Loop(dispatch(init), cond, dispatch(update), dispatch(contract), dispatch(body))
           case (variables, sideEffects, cond) =>
-            Scope(variables, Loop(
-              init = Block(dispatch(init) +: sideEffects),
-              cond = cond,
-              update = Block(dispatch(update) +: sideEffects),
-              contract = dispatch(contract),
-              body = dispatch(body),
+            val break = new LabelDecl[Post]()(BreakOrigin)
+
+            Block(Seq(
+              Loop(dispatch(init), tt, dispatch(update), dispatch(contract), Block(Seq(
+                Scope(variables,
+                  Block(sideEffects :+ Branch(Seq(Not(cond) -> Goto(break.ref))))),
+                dispatch(body),
+              ))),
+              Label(break, Block(Nil)),
             ))
         }
       case attempt: TryCatchFinally[Pre] => rewriteDefault(attempt)
@@ -258,10 +268,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case label: Label[Pre] => rewriteDefault(label)
       case goto: Goto[Pre] => rewriteDefault(goto)
       case exhale: Exhale[Pre] => rewriteDefault(exhale)
+      case assert @ Assert(expr) if TBool().superTypeOf(expr.t) => frame(expr, Assert(_)(assert.blame))
       case assert: Assert[Pre] => rewriteDefault(assert)
       case refute: Refute[Pre] => rewriteDefault(refute)
       case inhale: Inhale[Pre] => rewriteDefault(inhale)
-      case assume: Assume[Pre] => rewriteDefault(assume)
+      case Assume(expr) => frame(expr, Assume(_))
       case ignore: SpecIgnoreStart[Pre] => rewriteDefault(ignore)
       case ignore: SpecIgnoreEnd[Pre] => rewriteDefault(ignore)
       case t @ Throw(obj) => frame(obj, Throw(_)(t.blame))
@@ -269,7 +280,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case notify @ Notify(obj) => frame(obj, Notify(_)(notify.blame))
       case f @ Fork(obj) => frame(obj, Fork(_)(f.blame))
       case j @ Join(obj) => frame(obj, Join(_)(j.blame))
-      case Lock(obj) => frame(obj, Lock(_))
+      case l @ Lock(obj) => frame(obj, Lock(_)(l.blame))
       case unlock @ Unlock(obj) => frame(obj, Unlock(_)(unlock.blame))
       case fold: Fold[Pre] => rewriteDefault(fold)
       case unfold: Unfold[Pre] => rewriteDefault(unfold)
@@ -402,10 +413,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         obj = inlined(obj),
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.ref[Variable[Post]] +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+        outArgs = res.get(inv.o) +: outArgs.map(inlined),
         typeArgs = typeArgs.map(dispatch),
-        givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-        yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
+        givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
+        yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
       stored(res.get(SideEffectOrigin), method.returnType)
     case inv @ ProcedureInvocation(Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
@@ -414,10 +425,10 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       effect(InvokeProcedure[Post](
         ref = succ(method),
         args = args.map(inlined),
-        outArgs = res.ref[Variable[Post]] +: outArgs.map(arg => succ[Variable[Post]](arg.decl)),
+        outArgs = res.get(inv.o) +: outArgs.map(inlined),
         typeArgs = typeArgs.map(dispatch),
         givenMap.map { case (Ref(v), e) => (succ(v), inlined(e)) },
-        yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) },
+        yields.map { case (e, Ref(v)) => (inlined(e), succ(v)) },
       )(inv.blame)(e.o))
       stored(res.get(SideEffectOrigin), method.returnType)
     case other =>

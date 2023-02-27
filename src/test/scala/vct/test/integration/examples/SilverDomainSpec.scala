@@ -4,5 +4,6 @@ import vct.test.integration.helper.VercorsSpec
 
 class SilverDomainSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/domains/list.sil"
-  vercors should fail withCode "preFailed" using anyBackend example "concepts/domains/option.sil"
+  vercors should verify using anyBackend example "concepts/domains/float.sil"
+  vercors should fail withCode "preFailed:false" using anyBackend example "concepts/domains/option.sil"
 }

@@ -1,11 +1,11 @@
 package vct.col.rewrite
 
+import hre.debug.TimeTravel
 import vct.col.ast._
 
 class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(context: Verification[Pre]): Verification[Post] = rewriteDefault(context)
   override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(context)
-
   override def dispatch(program: Program[Pre]): Program[Post] = rewriteDefault(program)
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
@@ -47,4 +47,5 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
 
   override def dispatch(node: Coercion[Pre]): Coercion[Post] = rewriteDefault(node)
+  override def dispatch(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
 }

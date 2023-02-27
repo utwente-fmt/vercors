@@ -8,6 +8,14 @@ check with vct --silicon Counter.java
 class Counter {
   private int val;
 
+  /*@
+  ensures Perm(val, 1);
+  ensures this.val == 0;
+  @*/
+  public Counter() {
+      this.val = 0;
+  }
+
   /*@ 
     requires Perm(val,1);
     ensures  Perm(val,1) ** val==\old(val)+1;

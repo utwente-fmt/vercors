@@ -19,7 +19,7 @@ variables is the sum of the processed array elements.
 
 /*@
   context_everywhere a != NULL;
-  requires \length(a)==len;
+  requires \pointer_length(a) >= len;
 @*/
 int sum(int len,int a[]){
   int i;

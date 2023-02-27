@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter}
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable}
@@ -20,14 +20,16 @@ case object CoercingRewriter {
     override def text: String =
       "Internal type error: CoercionErrors must not bubble. " + (this match {
         case IncoercibleDummy => "(No alternative matched, see stack trace)"
-        case Incoercible(e, target) => s"Expression $e could not be coerced to $target"
-        case IncoercibleText(e, message) => s"Expression $e could not be coerced. $message."
+        case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
+        case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
+        case IncoercibleExplanation(e, message) => s"At `$e`: $message"
       })
   }
 
   case object IncoercibleDummy extends CoercionError
   case class Incoercible(e: Expr[_], target: Type[_]) extends CoercionError
-  case class IncoercibleText(e: Expr[_], message: String) extends CoercionError
+  case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
+  case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
 
   case class CoercionOrigin(of: Expr[_]) extends Origin {
     override def preferredName: String = "unknown"
@@ -37,8 +39,10 @@ case object CoercingRewriter {
   }
 }
 
-abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pre, Rewritten[Pre]] with LazyLogging {
   import CoercingRewriter._
+
+  type Post = Rewritten[Pre]
 
   val coercedDeclaration: SuccessionMap[Declaration[Pre], Declaration[Pre]] = SuccessionMap()
 
@@ -163,6 +167,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceBoolResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
+      case CoerceBoundIntFloat(_, _) => e
       case CoerceJoinUnion(_, _, _) => e
       case CoerceSelectUnion(inner, _, _, _) => applyCoercion(e, inner)
 
@@ -180,7 +185,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CoerceNullPointer(_) => e
       case CoerceFracZFrac() => e
       case CoerceZFracRat() => e
-      case CoerceFloatRat() => e
+      case CoerceFloatRat(_) => e
       case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
       case CoerceUnboundInt(_) => e
@@ -220,23 +225,24 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
+    case node: Operator[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
   def postCoerce(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
-  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+  override final def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
     case other => postCoerce(coerce(preCoerce(other)))
   }
 
   def preCoerce(stat: Statement[Pre]): Statement[Pre] = stat
   def postCoerce(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
-  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+  override final def dispatch(stat: Statement[Pre]): Statement[Post] =
     postCoerce(coerce(preCoerce(stat)))
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
   def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
-  override def dispatch(decl: Declaration[Pre]): Unit = {
+  override final def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
     coercedDeclaration(decl) = coercedDecl
     postCoerce(coercedDecl)
@@ -244,8 +250,115 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
 
   def preCoerce(region: ParRegion[Pre]): ParRegion[Pre] = region
   def postCoerce(region: ParRegion[Pre]): ParRegion[Post] = rewriteDefault(region)
-  override def dispatch(region: ParRegion[Pre]): ParRegion[Post] =
+  override final def dispatch(region: ParRegion[Pre]): ParRegion[Post] =
     postCoerce(coerce(preCoerce(region)))
+
+
+
+  def preCoerce(node: Verification[Pre]): Verification[Pre] = node
+  def postCoerce(node: Verification[Pre]): Verification[Post] = rewriteDefault(node)
+  override final def dispatch(node: Verification[Pre]): Verification[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: VerificationContext[Pre]): VerificationContext[Pre] = node
+  def postCoerce(node: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(node)
+  override final def dispatch(node: VerificationContext[Pre]): VerificationContext[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Program[Pre]): Program[Pre] = node
+  def postCoerce(node: Program[Pre]): Program[Post] = rewriteDefault(node)
+  override final def dispatch(node: Program[Pre]): Program[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Type[Pre]): Type[Pre] = node
+  def postCoerce(node: Type[Pre]): Type[Post] = rewriteDefault(node)
+  override final def dispatch(node: Type[Pre]): Type[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: LoopContract[Pre]): LoopContract[Pre] = node
+  def postCoerce(node: LoopContract[Pre]): LoopContract[Post] = rewriteDefault(node)
+  override final def dispatch(node: LoopContract[Pre]): LoopContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CatchClause[Pre]): CatchClause[Pre] = node
+  def postCoerce(node: CatchClause[Pre]): CatchClause[Post] = rewriteDefault(node)
+  override final def dispatch(node: CatchClause[Pre]): CatchClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: IterVariable[Pre]): IterVariable[Pre] = node
+  def postCoerce(node: IterVariable[Pre]): IterVariable[Post] = rewriteDefault(node)
+  override final def dispatch(node: IterVariable[Pre]): IterVariable[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: SignalsClause[Pre]): SignalsClause[Pre] = node
+  def postCoerce(node: SignalsClause[Pre]): SignalsClause[Post] = rewriteDefault(node)
+  override final def dispatch(node: SignalsClause[Pre]): SignalsClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: DecreasesClause[Pre]): DecreasesClause[Pre] = node
+  def postCoerce(node: DecreasesClause[Pre]): DecreasesClause[Post] = rewriteDefault(node)
+  override final def dispatch(node: DecreasesClause[Pre]): DecreasesClause[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: ApplicableContract[Pre]): ApplicableContract[Pre] = node
+  def postCoerce(node: ApplicableContract[Pre]): ApplicableContract[Post] = rewriteDefault(node)
+  override final def dispatch(node: ApplicableContract[Pre]): ApplicableContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: AccountedPredicate[Pre]): AccountedPredicate[Pre] = node
+  def postCoerce(node: AccountedPredicate[Pre]): AccountedPredicate[Post] = rewriteDefault(node)
+  override final def dispatch(node: AccountedPredicate[Pre]): AccountedPredicate[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: FieldFlag[Pre]): FieldFlag[Pre] = node
+  def postCoerce(node: FieldFlag[Pre]): FieldFlag[Post] = rewriteDefault(node)
+  override final def dispatch(node: FieldFlag[Pre]): FieldFlag[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  override final def dispatch(node: Coercion[Pre]): Coercion[Rewritten[Pre]] = {
+    throw Unreachable("Coercions are rewritten by the Expr dispatch")
+  }
+
+
+  def preCoerce(node: Location[Pre]): Location[Pre] = node
+  def postCoerce(node: Location[Pre]): Location[Post] = rewriteDefault(node)
+  override final def dispatch(node: Location[Pre]): Location[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Pre] = node
+  def postCoerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(node)
+  override final def dispatch(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CTypeQualifier[Pre]): CTypeQualifier[Pre] = node
+  def postCoerce(node: CTypeQualifier[Pre]): CTypeQualifier[Post] = rewriteDefault(node)
+  override final def dispatch(node: CTypeQualifier[Pre]): CTypeQualifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPointer[Pre]): CPointer[Pre] = node
+  def postCoerce(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPointer[Pre]): CPointer[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CDeclarator[Pre]): CDeclarator[Pre] = node
+  def postCoerce(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
+  override final def dispatch(node: CDeclarator[Pre]): CDeclarator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CInit[Pre]): CInit[Pre] = node
+  def postCoerce(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
+  override final def dispatch(node: CInit[Pre]): CInit[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CDeclaration[Pre]): CDeclaration[Pre] = node
+  def postCoerce(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
+  override final def dispatch(node: CDeclaration[Pre]): CDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = node
+  def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
+  override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
+  def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaName[Pre]): JavaName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaImport[Pre]): JavaImport[Pre] = node
+  def postCoerce(node: JavaImport[Pre]): JavaImport[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaImport[Pre]): JavaImport[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaModifier[Pre]): JavaModifier[Pre] = node
+  def postCoerce(node: JavaModifier[Pre]): JavaModifier[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaModifier[Pre]): JavaModifier[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = node
+  def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Operator[Pre]): Operator[Pre] = node
+  def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
+  override final def dispatch(node: Operator[Pre]): Operator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -268,12 +381,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case (Ref(v), e) => (v.ref, coerce(e, v.t))
     }
 
-  def coerceYields(yields: Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Ref[Pre, Variable[Pre]], Ref[Pre, Variable[Pre]])] =
+  def coerceYields(yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])] =
     yields.map {
-      case (Ref(target), Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
-        case None => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
-        case Some(CoerceIdentity(_)) => (target.ref, yieldArg.ref)
-        case Some(_) => throw IncoercibleText(blame, "The target for a yielded argument does not exactly match the yields type.")
+      case (target, Ref(yieldArg)) => CoercionUtils.getCoercion[Pre](yieldArg.t, target.t) match {
+        case None => throw IncoercibleExplanation(blame, "The target for a yielded argument does not exactly match the yields type.")
+        case Some(CoerceIdentity(_)) => (target, yieldArg.ref)
+        case Some(_) => throw IncoercibleExplanation(blame, "The target for a yielded argument does not exactly match the yields type.")
       }
     }
 
@@ -281,6 +394,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -288,67 +402,67 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
     CoercionUtils.getAnyOptionCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected an option here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"option")
     }
   def tuple(e: Expr[Pre]): (Expr[Pre], TTuple[Pre]) =
     CoercionUtils.getAnyTupleCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a tuple here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"tuple")
     }
   def seq(e: Expr[Pre]): (Expr[Pre], TSeq[Pre]) =
     CoercionUtils.getAnySeqCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a sequence here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"sequence")
     }
   def set(e: Expr[Pre]): (Expr[Pre], TSet[Pre]) =
     CoercionUtils.getAnySetCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a set here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"set")
     }
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a bag here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"bag")
     }
   def map(e: Expr[Pre]): (Expr[Pre], TMap[Pre]) =
     CoercionUtils.getAnyMapCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a map here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"map")
     }
   def sized(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
     CoercionUtils.getAnySizedCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a collection type here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"collection type")
     }
   def array(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyArrayCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected an array here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"array")
     }
   def arrayMatrix(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyMatrixArrayCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a two-dimensional array here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"two-dimensional array")
     }
   def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a pointer here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"pointer")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a matrix here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"matrix")
     }
   def model(e: Expr[Pre]): (Expr[Pre], TModel[Pre]) =
     CoercionUtils.getAnyModelCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected a model here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"model")
     }
   def either(e: Expr[Pre]): (Expr[Pre], TEither[Pre]) =
     CoercionUtils.getAnyEitherCoercion(e.t) match {
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
-      case None => throw IncoercibleText(e, s"Expected an either here, but got ${e.t}")
+      case None => throw IncoercibleText(e, s"either")
     }
 
   def firstOkHelper[T](thing: Either[Seq[CoercionError], T], onError: => T): Either[Seq[CoercionError], T] =
@@ -381,7 +495,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
                   alt5: => T = throw IncoercibleDummy,
                   alt6: => T = throw IncoercibleDummy,
                   alt7: => T = throw IncoercibleDummy,
-                  alt8: => T = throw IncoercibleDummy) : T = {
+                  alt8: => T = throw IncoercibleDummy,
+                  alt9: => T = throw IncoercibleDummy,
+                  alt10: => T = throw IncoercibleDummy,
+                  alt11: => T = throw IncoercibleDummy) : T = {
     Left(Nil)
       .onCoercionError(alt1)
       .onCoercionError(alt2)
@@ -391,12 +508,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       .onCoercionError(alt6)
       .onCoercionError(alt7)
       .onCoercionError(alt8)
+      .onCoercionError(alt9)
+      .onCoercionError(alt10)
+      .onCoercionError(alt11)
     match {
       case Left(errs) =>
         for(err <- errs) {
           logger.debug(err.text)
         }
-        throw IncoercibleText(expr, message)
+        throw IncoercibleExplanation(expr, message)
       case Right(value) => value
     }
   }
@@ -559,11 +679,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           AmbiguousOr(process(left), process(right)),
         )
       case plus @ AmbiguousPlus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, bag, or string; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(string(left), string(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
@@ -579,7 +700,42 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          },
+          }, {
+            // Plus left case
+            val l = cls(left)
+            val decls = left.t match {
+              case TClass(Ref(cls)) => cls.declarations
+              case JavaTClass(Ref(cls), _) => cls.declarations
+            }
+            val validOperators = decls.collect {
+              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorLeftPlus[Pre]()
+                && CoercionUtils.getCoercion(right.t, m.args.head.t).isDefined => m
+              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorLeftPlus[Pre]()
+                && CoercionUtils.getCoercion(right.t, f.args.head.t).isDefined => f
+            }
+            validOperators match {
+              case Seq(op) => AmbiguousPlus(l, coerce(right, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(l, "This expression does not have a matching custom plus operator")
+            }
+          }, {
+            // TODO (RR): Definition of operators should be type checked for arity
+            // Plus right case
+            val r = cls(right)
+            val decls = r.t match {
+              case TClass(Ref(cls)) => cls.declarations
+              case JavaTClass(Ref(cls), _) => cls.declarations
+            }
+            val validOperators = decls.collect {
+              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorRightPlus[Pre]()
+                && CoercionUtils.getCoercion(left.t, m.args.head.t).isDefined => m
+              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorRightPlus[Pre]()
+                && CoercionUtils.getCoercion(left.t, f.args.head.t).isDefined => f
+            }
+            validOperators match {
+              case Seq(op) => AmbiguousPlus(r, coerce(left, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(r, "This expression does not have a matching custom right plus operator")
+            }
+          }
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
@@ -634,9 +790,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case CastFloat(e, t) =>
         CastFloat(float(e), t)
       case CCast(e, t) => CCast(e, t)
+      case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
+      case c @ Committed(obj) =>
+        Committed(cls(obj))(c.blame)
       case ComputationalAnd(left, right) =>
         ComputationalAnd(bool(left), bool(right))
       case ComputationalOr(left, right) =>
@@ -652,6 +811,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case StringConcat(left, right) =>
+        StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case CStructDeref(struct, field) =>
@@ -677,6 +838,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case Empty(obj) =>
         Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
+      case use @ EnumUse(enum, const) => use
       case Eq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
@@ -749,6 +911,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
+      case str @ JavaStringValue(_, _) => str
+      case str @ StringValue(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -792,7 +956,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (coercedRight, rightType) = map(right)
 
         if(leftType.key != rightType.key)
-          throw IncoercibleText(e, s"Expected both operands to have a map type of which the key type is equal, " +
+          throw IncoercibleExplanation(e, s"Expected both operands to have a map type of which the key type is equal, " +
             s"but got ${leftType.key} and ${rightType.key}")
 
         val sharedType = Types.leastCommonSuperType(leftType.value, rightType.value)
@@ -803,7 +967,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         val (coercedRight, rightType) = map(right)
 
         if(leftType.key != rightType.key)
-          throw IncoercibleText(e, s"Expected both operands to have a map type of which the key type is equal, " +
+          throw IncoercibleExplanation(e, s"Expected both operands to have a map type of which the key type is equal, " +
             s"but got ${leftType.key} and ${rightType.key}")
 
         val sharedType = Types.leastCommonSuperType(leftType.value, rightType.value)
@@ -870,6 +1034,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
           Mult(int(left), int(right)),
           Mult(rat(left), rat(right)),
         )
+      case NdIndex(indices, dimensions) =>
+        NdIndex(indices.map(int), dimensions.map(int))
+      case NdLength(dimensions) =>
+        NdLength(dimensions.map(int))
+      case NdPartialIndex(indices, linearIndex, dimensions) =>
+        NdPartialIndex(indices.map(int), int(linearIndex), dimensions.map(int))
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
@@ -1147,6 +1317,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
+      case Extract(body) => Extract(body)
       case f @ Fold(assn) => Fold(res(assn))(f.blame)
       case f @ Fork(obj) => Fork(cls(obj))(f.blame)
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
@@ -1164,7 +1335,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
       case LocalDecl(local) => LocalDecl(local)
-      case Lock(obj) => Lock(cls(obj))
+      case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
       case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
@@ -1206,6 +1377,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         dataType
       case clazz: Class[Pre] =>
         new Class[Pre](clazz.declarations, clazz.supports, res(clazz.intrinsicLockInvariant))
+      case enum: Enum[Pre] =>
+        enum
+      case enumConstant: EnumConstant[Pre] =>
+        enumConstant
       case model: Model[Pre] =>
         model
       case function: Function[Pre] =>
@@ -1238,6 +1413,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
         field
       case method: RunMethod[Pre] =>
         method
+      case method: InstanceOperatorMethod[Pre] =>
+        method
+      case function: InstanceOperatorFunction[Pre] =>
+        new InstanceOperatorFunction[Pre](function.returnType, function.operator, function.args, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.o)
       case initialization: JavaSharedInitialization[Pre] =>
         initialization
       case fields: JavaFields[Pre] =>
@@ -1294,6 +1473,270 @@ abstract class CoercingRewriter[Pre <: Generation]() extends Rewriter[Pre] with 
       case region @ ParSequential(regions) => ParSequential(regions)(region.blame)
       case region @ ParBlock(decl, iters, context_everywhere, requires, ensures, content) =>
         ParBlock(decl, iters, res(context_everywhere), res(requires), res(ensures), content)(region.blame)
+    }
+  }
+
+  def coerce(node: Verification[Pre]): Verification[Pre] = {
+    implicit val o: Origin = node.o
+    val Verification(tasks, expectedErrors) = node
+    Verification(tasks, expectedErrors)
+  }
+
+  def coerce(node: VerificationContext[Pre]): VerificationContext[Pre] = {
+    implicit val o: Origin = node.o
+    val VerificationContext(program) = node
+    VerificationContext(program)
+  }
+
+  def coerce(node: Program[Pre]): Program[Pre] = {
+    implicit val o: Origin = node.o
+    val Program(decl) = node
+    Program(decl)(node.blame)
+  }
+
+  def coerce(node: Type[Pre]): Type[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case value: TNotAValue[_] =>
+        value
+      case TUnion(types) =>
+        TUnion(types)
+      case TArray(element) =>
+        TArray(element)
+      case TPointer(element) =>
+        TPointer(element)
+      case TType(t) =>
+        TType(t)
+      case TVar(ref) =>
+        TVar(ref)
+      case compositeType: CompositeType[_] =>
+        compositeType
+      case primitiveType: PrimitiveType[_] =>
+        primitiveType
+      case declaredType: DeclaredType[_] =>
+        declaredType
+      case cType: CType[_] =>
+        cType
+      case javaType: JavaType[_] =>
+        javaType
+      case lType: PVLType[_] =>
+        lType
+      case silverType: SilverType[_] =>
+        silverType
+    }
+  }
+
+  def coerce(node: LoopContract[Pre]): LoopContract[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case li @ LoopInvariant(invariant, decreases) =>
+        LoopInvariant(res(invariant), decreases)(li.blame)
+      case ic @ IterationContract(requires, ensures, context_everywhere) =>
+        IterationContract(res(requires), res(ensures), res(context_everywhere))(ic.blame)
+    }
+  }
+
+  def coerce(node: CatchClause[Pre]): CatchClause[Pre] = {
+    implicit val o: Origin = node.o
+    val CatchClause(decl, body) = node
+    CatchClause(decl, body)
+  }
+
+  def coerce(node: IterVariable[Pre]): IterVariable[Pre] = {
+    implicit val o: Origin = node.o
+    val IterVariable(variable, from, to) = node
+    IterVariable(variable, int(from), int(to))
+  }
+
+  def coerce(node: SignalsClause[Pre]): SignalsClause[Pre] = {
+    implicit val o: Origin = node.o
+    val SignalsClause(binding, assn) = node
+    SignalsClause(binding, res(assn))
+  }
+
+  def coerce(node: DecreasesClause[Pre]): DecreasesClause[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case DecreasesClauseAssume() =>
+        DecreasesClauseAssume()
+      case DecreasesClauseNoRecursion() =>
+        DecreasesClauseNoRecursion()
+      case DecreasesClauseTuple(exprs) =>
+        DecreasesClauseTuple(exprs.map(int))  // Since we currently only support integers
+    }
+  }
+
+  def coerce(node: ApplicableContract[Pre]): ApplicableContract[Pre] = {
+    implicit val o: Origin = node.o
+    val ApplicableContract(requires, ensures, context_everywhere, signals, givenArgs, yieldsArgs, decreases) = node
+    ApplicableContract(requires, ensures, res(context_everywhere), signals, givenArgs, yieldsArgs, decreases)(node.blame)
+  }
+
+  def coerce(node: AccountedPredicate[Pre]): AccountedPredicate[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case UnitAccountedPredicate(pred) =>
+        UnitAccountedPredicate(res(pred))
+      case SplitAccountedPredicate(left, right) =>
+        SplitAccountedPredicate(left, right)
+    }
+  }
+
+  def coerce(node: FieldFlag[Pre]): FieldFlag[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case value: Final[_] => value
+    }
+  }
+
+
+  def coerce(node: Location[Pre]): Location[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case FieldLocation(obj, field) =>
+        FieldLocation(cls(obj), field)
+      case ModelLocation(obj, field) =>
+        ModelLocation(model(obj)._1, field)
+      case SilverFieldLocation(obj, field) =>
+        SilverFieldLocation(ref(obj), field)
+      case a @ ArrayLocation(arrayObj, subscript) =>
+        ArrayLocation(array(arrayObj)._1, int(subscript))(a.blame)
+      case p @ PointerLocation(pointerExp) =>
+        PointerLocation(pointer(pointerExp)._1)(p.blame)
+      case PredicateLocation(predicate, args) =>
+        PredicateLocation(predicate, coerceArgs(args, predicate.decl))
+      case InstancePredicateLocation(predicate, obj, args) =>
+        InstancePredicateLocation(predicate, cls(obj), coerceArgs(args, predicate.decl))
+      case al @ AmbiguousLocation(expr) =>
+        AmbiguousLocation(expr)(al.blame)
+    }
+  }
+
+  def coerce(node: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPure() => CPure()
+      case CInline() => CInline()
+      case CTypedef() => CTypedef()
+      case CExtern() => CExtern()
+      case CStatic() => CStatic()
+      case GPULocal() => GPULocal()
+      case GPUGlobal() => GPUGlobal()
+      case CVoid() => CVoid()
+      case CChar() => CChar()
+      case CShort() => CShort()
+      case CInt() => CInt()
+      case CLong() => CLong()
+      case CSigned() => CSigned()
+      case CUnsigned() => CUnsigned()
+      case CBool() => CBool()
+      case CTypedefName(name) => CTypedefName(name)
+      case CSpecificationType(t) => CSpecificationType(t)
+      case CTypeQualifierDeclarationSpecifier(typeQual) =>
+        CTypeQualifierDeclarationSpecifier(typeQual)
+      case specifier: CFunctionSpecifier[Pre] => specifier
+      case specifier: CAlignmentSpecifier[Pre] => specifier
+      case ck @ CUDAKernel() => CUDAKernel()(ck.blame)
+      case ok @ OpenCLKernel() => OpenCLKernel()(ok.blame)
+    }
+  }
+
+  def coerce(node: CTypeQualifier[Pre]): CTypeQualifier[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CConst() => CConst()
+      case CRestrict() => CRestrict()
+      case CVolatile() => CVolatile()
+      case CAtomic() => CAtomic()
+    }
+  }
+
+  def coerce(node: CPointer[Pre]): CPointer[Pre] = {
+    implicit val o: Origin = node.o
+    val CPointer(qualifiers) = node
+    CPointer(qualifiers)
+  }
+
+  def coerce(node: CDeclarator[Pre]): CDeclarator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPointerDeclarator(pointers, inner) =>
+        CPointerDeclarator(pointers, inner)
+      case CArrayDeclarator(qualifiers, size, inner) =>
+        CArrayDeclarator(qualifiers, size.map(int), inner)
+      case CTypedFunctionDeclarator(params, varargs, inner) =>
+        CTypedFunctionDeclarator(params, varargs, inner)
+      case CAnonymousFunctionDeclarator(params, inner) =>
+        CAnonymousFunctionDeclarator(params, inner)
+      case CName(name) =>
+        CName(name)
+    }
+  }
+
+  def coerce(node: CInit[Pre]): CInit[Pre] = {
+    implicit val o: Origin = node.o
+    val CInit(decl, init) = node
+    CInit(decl, init)
+  }
+
+  def coerce(node: CDeclaration[Pre]): CDeclaration[Pre] = {
+    implicit val o: Origin = node.o
+    val CDeclaration(contract, kernelInvariant, specs, init) = node
+    CDeclaration(contract, res(kernelInvariant), specs, init)
+  }
+
+  def coerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case GpuLocalMemoryFence() => GpuLocalMemoryFence()
+      case GpuGlobalMemoryFence() => GpuGlobalMemoryFence()
+      case GpuZeroMemoryFence(value) => GpuZeroMemoryFence(value)
+    }
+  }
+
+  def coerce(node: JavaName[Pre]): JavaName[Pre] = {
+    implicit val o: Origin = node.o
+    val JavaName(names) = node
+    JavaName(names)
+  }
+
+  def coerce(node: JavaImport[Pre]): JavaImport[Pre] = {
+    implicit val o: Origin = node.o
+    val JavaImport(isStatic, name, star) = node
+    JavaImport(isStatic, name, star)
+  }
+
+  def coerce(node: JavaModifier[Pre]): JavaModifier[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case JavaPublic() => JavaPublic()
+      case JavaProtected() => JavaProtected()
+      case JavaPrivate() => JavaPrivate()
+      case JavaStatic() => JavaStatic()
+      case JavaAbstract() => JavaAbstract()
+      case JavaFinal() => JavaFinal()
+      case JavaStrictFP() => JavaStrictFP()
+      case JavaNative() => JavaNative()
+      case js @ JavaSynchronized() => JavaSynchronized()(js.blame)
+      case JavaTransient() => JavaTransient()
+      case JavaVolatile() => JavaVolatile()
+      case JavaAnnotation(name, args) => JavaAnnotation(name, args)
+      case JavaPure() => JavaPure()
+      case JavaInline() => JavaInline()
+    }
+  }
+
+  def coerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Pre] = {
+    implicit val o: Origin = node.o
+    val JavaVariableDeclaration(name, dim, init) = node
+    JavaVariableDeclaration(name, dim, init)
+  }
+
+  def coerce(node: Operator[Pre]): Operator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case OperatorLeftPlus() => OperatorLeftPlus()
+      case OperatorRightPlus() => OperatorRightPlus()
     }
   }
 }

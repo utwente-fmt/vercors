@@ -2,7 +2,7 @@ import ColDefs._
 
 import scala.meta._
 
-case class ColHelperRewriteHelpers(info: ColDescription) {
+case class ColHelperRewriteHelpers(info: ColDescription) extends ColHelperMaker {
   def rewriteHelperParam(param: Term.Param): Term.Param =
     Term.Param(List(),
       param.name,
@@ -14,7 +14,7 @@ case class ColHelperRewriteHelpers(info: ColDescription) {
       def rewriteDefault(): ${cls.typ}[Post] = rewrite()
 
       def rewrite(..${cls.params.map(rewriteHelperParam) ++
-        cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"subject.blame"))) :+
+        cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"rewriter.dispatch(subject.blame)"))) :+
         Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = {
         ${ColDefs.DECLARATION_NAMESPACE.foldLeft(
           cls.make(cls.params.map(p => Term.Name(p.name.value)), q"blame", q"o")

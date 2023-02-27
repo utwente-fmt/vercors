@@ -74,7 +74,7 @@ modifier
     ;
 
 classOrInterfaceModifier
-    :   annotation       // class or interface
+    : annotation       // class or interface
     |   (   'public'     // class or interface
         |   'protected'  // class or interface
         |   'private'    // class or interface

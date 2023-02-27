@@ -36,7 +36,7 @@ class Maps {
 
     void m4() {
         map<int, int> a = map<int, int> {3 -> 9};
-        if (a[4] == 4) {
+        if (/*[/expect mapKey]*/ a[4] == 4 /*[/end]*/) {
             m();
         }
     }

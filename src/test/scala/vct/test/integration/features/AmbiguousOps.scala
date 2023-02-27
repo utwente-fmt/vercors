@@ -19,14 +19,14 @@ class AmbiguousOps extends VercorsSpec {
   vercors should verify using anyBackend in "example showing collapsed addition to sequence in java" java """
     class T {
       void test() {
-        //@ seq<int> xs;
-        //@ seq<int> xs += [1, 2, 3];
+        //@ ghost seq<int> xs;
+        //@ ghost xs += [1, 2, 3];
       }
     }
   """
 
   vercors should verify using anyBackend in "example showing collapsed pointer arithmetic" c """
-    //@ requires x != NULL ** Perm(x, write);
+    //@ requires x != NULL ** Perm(x, write) ** \pointer_block_length(x) >= 2 + \pointer_block_offset(x);
     void test(int *x) {
       int *y = x;
       y += 1;

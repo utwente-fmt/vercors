@@ -8,6 +8,7 @@ import vct.col.rewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite._
+import vct.col.util.Compare
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
@@ -201,7 +202,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
           matches
         case None =>
           val freeRight = FreeVariables.freeVariables(right).collect {
-            case FreeVariables.FreeVar(Local(Ref(v))) => v
+            case FreeVariables.ReadFreeVar(Local(Ref(v))) => v
           }.toSet
 
           val freeRightOfBindings = freeRight.intersect(bindingInst.values.toSet)
@@ -226,7 +227,10 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       }
     }
 
-    Comparator.compare(pattern, subject).foreach {
+    Compare.compare(pattern, subject) {
+      // SAFETY: the result of a match arm MUST NOT again match a case.
+      case _ if false => ???
+    } foreach {
       case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
       case Comparator.MatchingDeclaration(_, _) =>
@@ -355,7 +359,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      Progress.nextPhase(s"`$e`")
+      Progress.nextMessage(s"`$e`")
       countApply = 0
       countSuccess = 0
       currentExpr = e

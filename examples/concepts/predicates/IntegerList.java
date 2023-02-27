@@ -49,7 +49,7 @@ public class IntegerList {
             ghost int tmp=next.min;
             fold next.state();
         @*/
-		IntegerList res = new IntegerList(val, next) /*@ with { mmin = tmp; } @*/;
+		IntegerList res = new IntegerList(val, next) /*@ given { mmin = tmp } @*/;
         return res;
     }
 
@@ -59,7 +59,7 @@ public class IntegerList {
         ensures \result != null ** \result.state() ** \result.check_min(mmin);
     @*/
     public static IntegerList single(int val){
-		IntegerList res = new IntegerList(val, null) /*@ with { mmin=mmin ; } */;
+		IntegerList res = new IntegerList(val, null) /*@ given { mmin=mmin  } */;
         return res;
     }
 
@@ -68,13 +68,15 @@ public class IntegerList {
     }*/
 
     static void main(){
-        IntegerList list = single(3) /*@ with { mmin = 1 ; } */;
+        IntegerList list = single(3) /*@ given { mmin = 1  } */;
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
         list = cons(2,list);
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
         list = cons(1,list);
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
+        /*[/expect preFailed:false]*/
         list = cons(0,list);
+        /*[/end]*/
         /*  spec_ignore @* / System.out.printf("List is %s%n",list);*/
     }
 

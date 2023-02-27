@@ -7,5 +7,7 @@
 pure int len(seq<int> xs) = |xs|==0 ? 0 : 1 + len(xs.tail);
 
 void main(seq<int> xs, seq<int> ys){
+  /*[/expect assertFailed:false]*/
   assert len(xs+ys) == len(xs)+len(ys);
+  /*[/end]*/
 }

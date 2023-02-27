@@ -26,7 +26,18 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit decl: ProgramDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case ProgramDecl0(valDecl) => convert(valDecl)
     case ProgramDecl1(cls) => Seq(convert(cls))
-    case ProgramDecl2(method) => Seq(convertProcedure(method))
+    case ProgramDecl2(enum) => Seq(convert(enum))
+    case ProgramDecl3(method) => Seq(convertProcedure(method))
+  }
+
+  def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
+    case EnumDecl0(_, name, _, constants, _, _) =>
+      new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(Nil))(SourceNameOrigin(convert(name), origin(enum)))
+  }
+
+  def convertConstants(implicit identifierList: IdentifierListContext): Seq[EnumConstant[G]] = identifierList match {
+    case IdentifierList0(id) => Seq(new vct.col.ast.EnumConstant[G]()(SourceNameOrigin(convert(id), origin(identifierList))))
+    case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(SourceNameOrigin(convert(id), origin(identifierList))) +: convertConstants(tail)
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {
@@ -45,7 +56,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       }))
   }
 
-  def convert(implicit cls: DeclClassContext): Class[G] = cls match {
+  def convert(implicit cls: DeclClassContext): GlobalDeclaration[G] = cls match {
     case DeclClass0(contract, _, name, _, decls, _) =>
       withContract(contract, contract => {
         new Class(
@@ -91,9 +102,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         new PVLConstructor(contract.consumeApplicableContract(blame(constructor)), args.map(convert(_)).getOrElse(Nil), convert(body))(blame(constructor))))
   }
 
+  def convert(implicit finalFlag: FinalFlagContext): FieldFlag[G] = finalFlag match {
+    case FinalFlag0(_) => Final()
+  }
+
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
-    case Field0(t, ids, _) =>
-      convert(ids).map(name => new InstanceField[G](convert(t), Set.empty)(SourceNameOrigin(name, origin(field))))
+    case Field0(finalFlag, t, ids, _) =>
+      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(SourceNameOrigin(name, origin(field))))
   }
 
   def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
@@ -150,7 +165,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: ImplicationExprContext): Expr[G] = expr match {
-    case ImplicationExpr0(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case ImplicationExpr0(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case ImplicationExpr1(inner) => convert(inner)
   }
 
@@ -161,7 +176,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: AndExprContext): Expr[G] = expr match {
     case AndExpr0(left, _, right) => And(convert(left), convert(right))
-    case AndExpr1(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case AndExpr1(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case AndExpr2(inner) => convert(inner)
   }
 
@@ -176,7 +191,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case RelExpr1(left, _, right) => AmbiguousLessEq(convert(left), convert(right))
     case RelExpr2(left, _, right) => AmbiguousGreaterEq(convert(left), convert(right))
     case RelExpr3(left, _, right) => AmbiguousGreater(convert(left), convert(right))
-    case RelExpr4(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case RelExpr4(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case RelExpr5(inner) => convert(inner)
   }
 
@@ -195,7 +210,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case MultExpr0(left, _, right) => AmbiguousMult(convert(left), convert(right))
     case MultExpr1(left, _, right) => FloorDiv(convert(left), convert(right))(blame(expr))
     case MultExpr2(left, _, right) => Mod(convert(left), convert(right))(blame(expr))
-    case MultExpr3(left, specOp, right) => convert(specOp, convert(left), convert(right))
+    case MultExpr3(left, specOp, right) => convert(expr, specOp, convert(left), convert(right))
     case MultExpr4(inner) => convert(inner)
   }
 
@@ -214,7 +229,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit expr: UnaryExprContext): Expr[G] = expr match {
     case UnaryExpr0(_, inner) => Not(convert(inner))
     case UnaryExpr1(_, inner) => UMinus(convert(inner))
-    case UnaryExpr2(op, inner) => convert(op, convert(inner))
+    case UnaryExpr2(op, inner) => convert(expr, op, convert(inner))
     case UnaryExpr3(inner) => convert(inner)
   }
 
@@ -231,7 +246,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       PVLInvocation(Some(convert(obj)), convert(field), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
     case PostfixExpr1(xs, _, i, _) => AmbiguousSubscript(convert(xs), convert(i))(blame(expr))
-    case PostfixExpr2(obj, specOp) => convert(specOp, convert(obj))
+    case PostfixExpr2(obj, specOp) => convert(expr, specOp, convert(obj))
     case PostfixExpr3(inner) => convert(inner)
   }
 
@@ -239,20 +254,22 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case Unit0(inner) => convert(inner)
     case Unit1(_) => AmbiguousThis()
     case Unit2(_) => Null()
-    case Unit3(n) => const(Integer.parseInt(n))
+    case Unit3(n) => const(BigInt(n))
     case Unit4(n) => FloatValue(BigDecimal(n), PVL.float64)
-    case Unit5(n) => FloatValue(BigDecimal(n.init /* take off final "f" */), PVL.float32)
-    case Unit6(_, inner, _) => convert(inner)
-    case Unit7(id, None) => local(id, convert(id))
-    case Unit7(id, Some(Call0(typeArgs, args, given, yields))) =>
+    case Unit5(s"${n}f") /* take off final "f" */ => FloatValue(BigDecimal(n), PVL.float32)
+    case Unit6(data) => StringValue(data.substring(1, data.length - 1))
+    case Unit7(s"'$data'") => CharValue(data.codePointAt(0))
+    case Unit8(_, inner, _) => convert(inner)
+    case Unit9(id, None) => local(id, convert(id))
+    case Unit9(id, Some(Call0(typeArgs, args, given, yields))) =>
       PVLInvocation(None, convert(id), convert(args), typeArgs.map(convert(_)).getOrElse(Nil),
         convertGiven(given), convertYields(yields))(blame(expr))
-    case Unit8(inner) => convert(inner)
+    case Unit10(inner) => convert(inner)
   }
 
   def convert(implicit stat: StatementContext): Statement[G] = stat match {
     case PvlReturn(_, value, _) => Return(value.map(convert(_)).getOrElse(Void()))
-    case PvlLock(_, obj, _) => Lock(convert(obj))
+    case PvlLock(_, obj, _) => Lock(convert(obj))(blame(stat))
     case PvlUnlock(_, obj, _) => Unlock(convert(obj))(blame(stat))
     case PvlWait(_, obj, _) => Wait(convert(obj))(blame(stat))
     case PvlNotify(_, obj, _) => Notify(convert(obj))(blame(stat))
@@ -293,13 +310,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
     case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs))(blame(stat)), convert(body)))
+      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs), None)(blame(stat)), convert(body)))
     case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
       Scope(Nil, Loop(
         init.map(convert(_)).getOrElse(Block(Nil)),
         cond.map(convert(_)).getOrElse(tt),
         update.map(convert(_)).getOrElse(Block(Nil)),
-        LoopInvariant(convert(invs))(blame(stat)),
+        LoopInvariant(convert(invs), None)(blame(stat)),
         convert(body)
       ))
     case PvlBlock(inner) => convert(inner)
@@ -338,7 +355,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           case None => new ParBlockDecl[G]()
           case Some(name) => new ParBlockDecl[G]()(SourceNameOrigin(convert(name), origin(region)))
         }
-
         ParBlock(
           decl,
           iter.map(convert(_)).getOrElse(Nil),
@@ -347,31 +363,6 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
           convert(impl),
         )(blame(region))
-      })
-    case PvlOldPar(_, pars) => ParParallel(convert(pars))(blame(region))
-  }
-
-  def convert(implicit pars: ParOldUnitListContext): Seq[ParBlock[G]] = pars match {
-    case ParOldUnitList0(par) => Seq(convert(par))
-    case ParOldUnitList1(par, _, pars) => convert(par) +: convert(pars)
-  }
-
-  def convert(implicit par: ParOldUnitContext): ParBlock[G] = par match {
-    case PvlOldParUnit(name, iter, contract, impl) =>
-      val decl = name match {
-        case None => new ParBlockDecl[G]()
-        case Some(name) => new ParBlockDecl[G]()(SourceNameOrigin(convert(name), origin(par)))
-      }
-
-      withContract(contract, contract => {
-        ParBlock(
-          decl,
-          iter.map(convert(_)).getOrElse(Nil),
-          AstBuildHelpers.foldStar(contract.consume(contract.context_everywhere)),
-          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
-          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
-          convert(impl),
-        )(blame(par))
       })
   }
 
@@ -441,12 +432,12 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit t: NonArrayTypeContext): Type[G] = t match {
     case NonArrayType0(inner) => convert(inner)
     case NonArrayType1(name) => name match {
-      case "string" => TString()
       case "int" => TInt()
       case "boolean" => TBool()
       case "void" => TVoid()
       case "float32" => PVL.float32
       case "float64" => PVL.float64
+      case "char" => TChar()
     }
     case NonArrayType2(inner) => convert(inner)
   }
@@ -660,20 +651,20 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValGivenMappings1(arg, _, v, _, more) => (new UnresolvedRef[G, Variable[G]](convert(arg)), convert(v)) +: convert(more)
   }
 
-  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertEmbedYields(implicit given: Option[ValEmbedYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValEmbedYields0(_, inner, _)) => convertYields(inner)
     case Some(ValEmbedYields1(inner)) => convertYields(Some(inner))
   }
 
-  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = given match {
+  def convertYields(implicit given: Option[ValYieldsContext]): Seq[(Expr[G], Ref[G, Variable[G]])] = given match {
     case None => Nil
     case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
   }
 
-  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Ref[G, Variable[G]], Ref[G, Variable[G]])] = mappings match {
-    case ValYieldsMappings0(target, _, res) => Seq((new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
-    case ValYieldsMappings1(target, _, res, _, more) => (new UnresolvedRef[G, Variable[G]](convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
+  def convert(implicit mappings: ValYieldsMappingsContext): Seq[(Expr[G], Ref[G, Variable[G]])] = mappings match {
+    case ValYieldsMappings0(target, _, res) => Seq((local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))))
+    case ValYieldsMappings1(target, _, res, _, more) => (local(target, convert(target)), new UnresolvedRef[G, Variable[G]](convert(res))) +: convert(more)
   }
 
   def convert(implicit exprs: ValExpressionListContext): Seq[Expr[G]] = exprs match {
@@ -691,28 +682,28 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValTypeList1(t, _, ts) => convert(t) +: convert(ts)
   }
 
-  def convert(implicit impOp: ValImpOpContext, left: Expr[G], right: Expr[G]): Expr[G] = impOp match {
+  def convert(implicit root: ParserRuleContext, impOp: ValImpOpContext, left: Expr[G], right: Expr[G]): Expr[G] = impOp match {
     case ValImpOp0(_) => Wand(left, right)(origin(impOp))
     case ValImpOp1(_) => Implies(left, right)(origin(impOp))
   }
 
-  def convert(implicit andOp: ValAndOpContext, left: Expr[G], right: Expr[G]): Expr[G] = andOp match {
+  def convert(implicit root: ParserRuleContext, andOp: ValAndOpContext, left: Expr[G], right: Expr[G]): Expr[G] = andOp match {
     case ValAndOp0(_) => col.Star(left, right)(origin(andOp))
   }
 
-  def convert(implicit inOp: ValInOpContext, left: Expr[G], right: Expr[G]): Expr[G] = inOp match {
+  def convert(implicit root: ParserRuleContext, inOp: ValInOpContext, left: Expr[G], right: Expr[G]): Expr[G] = inOp match {
     case ValInOp0(_) => AmbiguousMember(left, right)
   }
 
-  def convert(implicit mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
+  def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
     case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
   }
 
-  def convert(implicit prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
+  def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
     case ValPrependOp0(_) => Cons(left, right)
   }
 
-  def convert(implicit postfixOp: ValPostfixContext, xs: Expr[G]): Expr[G] = postfixOp match {
+  def convert(implicit root: ParserRuleContext, postfixOp: ValPostfixContext, xs: Expr[G]): Expr[G] = postfixOp match {
     case ValPostfix0(_, _, to, _) => Take(xs, convert(to))
     case ValPostfix1(_, from, _, None, _) => Drop(xs, convert(from))
     case ValPostfix1(_, from, _, Some(to), _) => Slice(xs, convert(from), convert(to))
@@ -720,13 +711,22 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPostfix3(_, name, _, args, _) => CoalesceInstancePredicateApply(xs, new UnresolvedRef[G, InstancePredicate[G]](convert(name)), args.map(convert(_)).getOrElse(Nil), WritePerm())
   }
 
-  def convert(implicit prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
+  def convert(implicit root: ParserRuleContext, prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
     case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
   }
 
-  def convert(implicit block: ValEmbedStatementBlockContext): Block[G] = block match {
+  def convert(implicit block: ValEmbedStatementBlockContext): Statement[G] = block match {
     case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
     case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
+    case ValEmbedStatementBlock2(_, _, _, stat) => Extract(convert(stat))
+    case ValEmbedStatementBlock3(_, _, clauses, _, _, body, _, _, _) =>
+      withContract(clauses, contract => {
+        FramedProof(
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          Block(body.map(convert(_))),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+        )(blame(block))
+      })
   }
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
@@ -762,6 +762,18 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       })
     case ValAtomic(_, _, invariant, _, body) =>
       ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
+    case ValCommit(_, obj, _) =>
+      Commit(convert(obj))(blame(stat))
+    case ValExtract(_, body) =>
+      Extract(convert(body))
+    case ValFrame(_, clauses, body) =>
+      withContract(clauses, contract => {
+        FramedProof(
+          AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+          convert(body),
+          AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+        )(blame(stat))
+      })
   }
 
   def convert(implicit block: ValBlockContext): Seq[Statement[G]] = block match {
@@ -838,6 +850,39 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
+    case ValInstanceOperatorFunction(contract, modifiers, "pure", t, name, "(", args, ")", definition) =>
+      Seq(withContract(contract, c => {
+        withModifiers(modifiers, m => {
+          transform(new InstanceOperatorFunction(
+            convert(t),
+            convert(name),
+            args.map(convert(_)).getOrElse(Nil),
+            convert(definition),
+            c.consumeApplicableContract(blame(decl)),
+            m.consume(m.inline),
+            m.consume(m.threadLocal)
+          )(blame(decl)))
+        })
+      }))
+    case ValInstanceOperatorMethod(contract, modifiers, t, name, "(", args, ")", definition) =>
+      Seq(withContract(contract, c => {
+        withModifiers(modifiers, m => {
+          transform(new InstanceOperatorMethod(
+            convert(t),
+            convert(name),
+            args.map(convert(_)).getOrElse(Nil),
+            convert(definition),
+            c.consumeApplicableContract(blame(decl)),
+            m.consume(m.inline),
+            m.consume(m.pure)
+          )(blame(decl)))
+        })
+      }))
+  }
+
+  def convert(implicit operator: ValOperatorNameContext): Operator[G] = operator match {
+    case ValOperatorName0("+") => OperatorLeftPlus()
+    case ValOperatorName1(id, "+") if convert(id) == "right" => OperatorRightPlus()
   }
 
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {
@@ -873,9 +918,14 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         SourceNameOrigin(convert(name), origin(decl)))
   }
 
-  def convert(implicit definition: ValDefContext): Option[Expr[G]] = definition match {
-    case ValAbstractBody(_) => None
-    case ValBody(_, expr, _) => Some(convert(expr))
+  def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
+    case ValPureAbstractBody(_) => None
+    case ValPureBody(_, expr, _) => Some(convert(expr))
+  }
+
+  def convert(implicit definition: ValImpureDefContext): Option[Statement[G]] = definition match {
+    case ValImpureAbstractBody(_) => None
+    case ValImpureBody(statement) => Some(convert(statement))
   }
 
   def convert(implicit t: ValTypeContext): Type[G] = t match {
@@ -889,6 +939,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       case "ref" => TRef()
       case "any" => TAny()
       case "nothing" => TNothing()
+      case "string" => TString()
     }
     case ValSeqType(_, _, element, _) => TSeq(convert(element))
     case ValSetType(_, _, element, _) => TSet(convert(element))
@@ -952,6 +1003,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
+    case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
   }
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
@@ -1031,14 +1083,29 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
-      InlinePattern(convert(pattern), open.count(_ == '<'), if(groupText.isEmpty) 0 else groupText.toInt)
+      InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)
     case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))(blame(e))
     case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
     case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
-    case ValIdEscape(text) => local(e, text.substring(1, text.length-1))
+    case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
+    case ValIdEscape(text) => local(e, text.substring(1, text.length - 1))
+    case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
+    case ValNdIndex(_, _, firstIndex, _, firstDim, parsePairs, _) =>
+      val pairs = parsePairs.map(convert(_))
+      val indices = convert(firstIndex) +: pairs.map(_._1)
+      val dims = convert(firstDim) +: pairs.map(_._2)
+      NdIndex(indices, dims)
+    case ValNdLIndex(_, _, indices, _, dims, _) =>
+      val allIndices = convert(indices)
+      NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
+    case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+  }
+
+  def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {
+    case ValExprPair0(_, e1, _, e2) => (convert(e1), convert(e2))
   }
 
   def convert(implicit e: ValExprContext): Expr[G] = e match {

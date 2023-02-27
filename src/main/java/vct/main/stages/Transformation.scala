@@ -1,11 +1,13 @@
 package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
+import vct.col.feature.Feature
 import vct.col.rewrite._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.adt._
@@ -23,9 +25,9 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
 object Transformation {
-  case class TransformationCheckError(errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
     override def text: String =
-      "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
+      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
@@ -58,6 +60,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
     }
 }
@@ -78,11 +81,11 @@ class Transformation
   val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val passes: Seq[RewriterBuilder]
-) extends Stage[VerificationContext[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
+) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
 
-  override def run(input: VerificationContext[_ <: Generation]): Verification[_ <: Generation] = {
+  override def run(input: Verification[_ <: Generation]): Verification[_ <: Generation] = {
     val tempUnsupported = Set[feature.Feature](
       feature.MatrixVector,
       feature.NumericReductionOperator,
@@ -95,28 +98,38 @@ class Transformation
       case (_, _) =>
     }
 
-    var result: Verification[_ <: Generation] = Verification(Seq(input))(FileSpanningOrigin)
+    TimeTravel.safelyRepeatable {
+      var result: Verification[_ <: Generation] = input
 
-    Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
-      onBeforePassKey.foreach {
-        case (key, action) => if(pass.key == key) action(result)
+      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+        onBeforePassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result = pass().dispatch(result)
+
+        result.check match {
+          case Nil => // ok
+          case errors => throw TransformationCheckError(pass, errors)
+        }
+
+        onAfterPassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result = PrettifyBlocks().dispatch(result)
       }
 
-      result = pass().dispatch(result)
-
-      result.check match {
-        case Nil => // ok
-        case errors => throw TransformationCheckError(errors)
+      for ((feature, examples) <- Feature.examples(result)) {
+        logger.debug(f"$feature:")
+        for (example <- examples.take(3)) {
+          logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
+          logger.debug(f"  ${example.getClass.getSimpleName}")
+        }
       }
 
-      onAfterPassKey.foreach {
-        case (key, action) => if(pass.key == key) action(result)
-      }
-
-      result = PrettifyBlocks().dispatch(result)
+      result
     }
-
-    result
   }
 }
 
@@ -141,6 +154,7 @@ case class SilverTransformation
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   checkSat: Boolean = true,
+  splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
@@ -151,10 +165,15 @@ case class SilverTransformation
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
+
+    EncodeString, // Encode spec string as seq<int>
+    EncodeChar,
+
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     ReadToValue, // resolve wildcard into fractional permission
-    DesugarCoalescingOperators, // no .!
+    TrivialAddrOf,
+    DesugarCoalescingOperators, // no ?.
     PinCollectionTypes, // no anonymous sequences, sets, etc.
     QuantifySubscriptAny, // no arr[*]
     IterationContractToParBlock,
@@ -174,38 +193,47 @@ case class SilverTransformation
     EncodeSendRecv,
     ParBlockEncoder,
 
-    // Encode exceptional behaviour (no more continue/break/return/try/throw)
+    // Extract explicitly extracted code sections, which ban continue/break/return/goto outside them.
     SpecifyImplicitLabels,
+    EncodeExtract,
+
+    // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,
 
-    SplitQuantifiers,
     ) ++ simplifyBeforeRelations ++ Seq(
     SimplifyQuantifiedRelations,
     SimplifyNestedQuantifiers,
+    TupledQuantifiers,
     ) ++ simplifyAfterRelations ++ Seq(
+    UntupledQuantifiers,
 
     // Encode proof helpers
     EncodeProofHelpers,
+
+    // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
+    // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
+    // value is pure and therefore be put in the contract of the constant function.
+    ConstantifyFinalFields,
 
     // Resolve side effects including method invocations, for encodetrythrowsignals.
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
 
     // No more classes
-    ConstantifyFinalFields,
     ClassToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
 
     ResolveExpressionSideChecks,
-    RejoinQuantifiers,
 
     DesugarCollectionOperators,
+    EncodeNdIndex,
 
     // Translate internal types to domains
     FloatToRat,
+    EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
     ImportMapCompat.withArg(adtImporter),
@@ -223,6 +251,7 @@ case class SilverTransformation
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)
+    FinalizeArguments,
     ResolveScale,
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
@@ -233,4 +262,6 @@ case class SilverTransformation
     SilverIntRatCoercion,
     // PB TODO: PinSilverNodes has now become a collection of Silver oddities, it should be more structured / split out.
     PinSilverNodes,
+
+    Explode.withArg(splitVerificationByProcedure),
   ))

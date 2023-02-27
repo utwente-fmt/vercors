@@ -1,8 +1,6 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import RewriteHelpers._
 import hre.util.ScopedStack
 
 import scala.collection.mutable.ArrayBuffer
@@ -22,7 +20,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
       }
       dispatch(i.inner)
 
-    case f: Forall[Pre] if f.triggers.isEmpty =>
+    case f: Forall[Pre] =>
       variables.scope {
         val (patternsHere, body) = patterns.collect {
           dispatch(f.body)
@@ -32,12 +30,12 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
         val triggers = sortedGroups.map(_.map(_._2).map(dispatch))
         Forall(
           bindings = variables.collect { f.bindings.foreach(dispatch) }._1,
-          triggers = triggers,
+          triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
           body = body
         )(f.o)
       }
 
-    case f: Starall[Pre] if f.triggers.isEmpty =>
+    case f: Starall[Pre] =>
       variables.scope {
         val (patternsHere, body) = patterns.collect {
           dispatch(f.body)
@@ -49,12 +47,12 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
           bindings = variables.collect {
             f.bindings.foreach(dispatch)
           }._1,
-          triggers = triggers,
+          triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
           body = body
         )(f.blame)(f.o)
       }
 
-    case f: Exists[Pre] if f.triggers.isEmpty =>
+    case f: Exists[Pre] =>
       variables.scope {
         val (patternsHere, body) = patterns.collect {
           dispatch(f.body)
@@ -66,7 +64,7 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]() extends Rewriter
           bindings = variables.collect {
             f.bindings.foreach(dispatch)
           }._1,
-          triggers = triggers,
+          triggers = f.triggers.map(_.map(dispatch)) ++ triggers,
           body = body
         )(f.o)
       }

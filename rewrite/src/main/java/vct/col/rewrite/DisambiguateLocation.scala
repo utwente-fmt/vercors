@@ -11,7 +11,13 @@ case object DisambiguateLocation extends RewriterBuilder {
   case class NotALocation(expr: Expr[_]) extends UserError {
     override def code: String = "notALocation"
 
-    override def text: String = expr.o.messageInContext("This expression is not a heap location.")
+    def hint: Option[String] = expr match {
+      case PointerSubscript(_, _) => Some(" (Hint: perhaps you meant to prepend `&`)")
+      case DerefPointer(_) => Some(" (Hint: perhaps you meant to prepend `&`)")
+      case _ => None
+    }
+
+    override def text: String = expr.o.messageInContext("This expression is not a heap location." + hint.getOrElse(""))
   }
   override def key: String = "disambiguateLocation"
 

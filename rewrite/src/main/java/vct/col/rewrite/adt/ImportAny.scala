@@ -22,7 +22,7 @@ case class ImportAny[Pre <: Generation](importer: ImportADTImporter) extends Imp
     case other => super.applyCoercion(e, other)
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TType(TAny()) =>
       // Only the any adt definition refers to itself, so this is the only place this trick is necessary.
       if(inAnyLoad.isEmpty) rewriteDefault(t)

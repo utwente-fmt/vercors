@@ -14,22 +14,24 @@ void example(int a[],int b[],int c[],int len){
     requires a != NULL;
     requires b != NULL;
     requires c != NULL;
-    requires Perm(a[i],1\2);
-    requires i==0 ==> Perm(a[i],1\2);
-    requires i < len-1 ==> Perm(a[i+1],1\2);
-    requires Perm(b[i],1\2);
-    requires Perm(c[i],write);
+    requires Perm(&a[i],1\2);
+    requires i==0 ==> Perm(&a[i],1\2);
+    requires i < len-1 ==> Perm(&a[i+1],1\2);
+    requires Perm(&b[i],1\2);
+    requires Perm(&c[i],write);
 
-    ensures  Perm(a[i],write);
-    ensures  Perm(b[i],1\2);
-    ensures  Perm(c[i],write);
+    ensures  Perm(&a[i],write);
+    ensures  Perm(&b[i],1\2);
+    ensures  Perm(&c[i],write);
    @*/
     {
+    /*[/expect assignFieldFailed]*/
     a[i]=b[i]+1;
+    /*[/end]*/
     //@ recv S;
     if (i < len-1) {
       c[i]=a[i+1]+2;
     }
-    //@ send S, 1: a != NULL ** Perm(a[i+1], 1\2);
+    //@ send S, 1: a != NULL ** Perm(&a[i+1], 1\2);
   }
 }

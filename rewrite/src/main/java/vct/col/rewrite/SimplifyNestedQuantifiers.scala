@@ -68,8 +68,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           case None =>
             val res = rewriteDefault(e)
             res match {
-              case Starall(_, triggers, _) if triggers.isEmpty => logger.warn(f"The binder '$e' contains no triggers")
-              case Forall(_, triggers, _) if triggers.isEmpty => logger.warn(f"The binder '$e' contains no triggers")
+              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+                logger.warn(f"The binder `$e` contains no triggers")
+              case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+                logger.warn(f"The binder `$e` contains no triggers")
               case _ =>
             }
             res
@@ -136,6 +138,12 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     }
 
     if (e.bindings.exists(_.t != TInt())) return None
+
+    // PB: do not attempt to reshape quantifiers that already have patterns
+    if (originalBody.exists { case _: InlinePattern[Pre] => true }) {
+      logger.debug(s"Not rewriting $e because it contains patterns")
+      return None
+    }
 
     val quantifierData = new RewriteQuantifierData(originalBody, e, this)
     quantifierData.setData()
@@ -237,6 +245,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                   addSingleBound(v, left, comp.flip)
                 case _ => dependentConditions.addOne(bound)
               }
+            } else {
+              dependentConditions.addOne(bound)
             }
           case None => bound match {
             // If we do not have a simple comparison, we support one special case: i \in {a..b}
@@ -440,7 +450,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
       mainRewriter.variables.collect {linearAccesses.search(body)} match {
         case (bindings, Some(substituteForall)) =>
           if(bindings.size != 1){
-            Unreachable("Only one new variable should be declared with SimplifyNestedQuantifiers.")
+            throw Unreachable("Only one new variable should be declared with SimplifyNestedQuantifiers.")
           }
           val sub = ForallSubstitute(substituteForall.substituteOldVars)
           val newBody = sub.dispatch(body)
@@ -461,7 +471,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     def result(): Option[Expr[Post]] = {
       // If we changed something we always return a result, even if we could not rewrite further
       val res = if(newBinder) {
-        val select = independentConditions ++ dependentConditions
+        val select = independentConditions
         if (bindings.isEmpty) {
           if (select.isEmpty) Some(body) else Some(Implies(AstBuildHelpers.foldAnd(select.toSeq), body))
         } else {
@@ -479,6 +489,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                 select.addOne(lowerBound <= i )
               )
           }
+          // PB: In general reordering conditions is not safe, because a condintion may frame the well-formedness of a
+          // subsequent expression. Heuristic: more often than not, independent conditions frame the bounds, which then
+          // frame any other dependent conditions.
+          select ++= dependentConditions
           val new_body = if (select.nonEmpty) Implies(AstBuildHelpers.foldAnd(select.toSeq), body)
           else body
 
@@ -614,7 +628,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                     Plus(old, currentMultiplier.getOrElse(IntegerValue(1)))
                 }
               } else {
-                Unreachable("We should not end up here, the precondition of \'FindLinearArrayAccesses\' was not uphold.")
+                throw Unreachable("We should not end up here, the precondition of \'FindLinearArrayAccesses\' was not uphold.")
               }
             case _ =>
               isLinear = false

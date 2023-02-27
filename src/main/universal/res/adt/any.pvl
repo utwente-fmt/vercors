@@ -1,6 +1,8 @@
 adt `any` {}
 
+decreases;
 pure T any_as<T>(`any` t);
 
+decreases;
 ensures any_as<T>(\result) == t;
 pure `any` as_any<T>(T t);

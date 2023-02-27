@@ -13,8 +13,10 @@ class Incr {
   {
     int tmp;
     tmp=n;
-    /*@ 
+    /*@
+      /*[/expect perm]*/
       loop_invariant val+tmp == \old(val)+n && tmp>0;
+      /*[/end]*/
       loop_invariant Perm(val,1); 
 	@*/
     while(tmp>0)

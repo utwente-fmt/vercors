@@ -3,13 +3,12 @@
 class Worker {
   OwickiGries store;
   
-  ensures Value(store) ** store==og;
+  ensures Value(store) ** store==og ** idle(this);
   constructor(OwickiGries og){
     store=og;
   }
   
-  requires Value(store);
-  ensures  Value(store);
+  context Value(store) ** store != null ** committed(store);
   run {
     lock store;
     store.x=store.x+1;

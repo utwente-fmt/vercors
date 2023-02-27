@@ -5,8 +5,9 @@
 public class BoogieExample {
 
   /*@
-    ensures \result <= 91;     // Do you believe this one is true?
+    ensures  \result  <= 91;     // Do you believe this one is true?
   @*/
+  /*[/expect postFailed:false]*/
   public static int G(int n) {
     int r;
     if (100 < n) {
@@ -18,6 +19,7 @@ public class BoogieExample {
       return r;
     }
   }
+  /*[/end]*/
 
   /*@
     ensures 100 < n ==> \result == n - 10;  // This postcondition is easy to check by hand

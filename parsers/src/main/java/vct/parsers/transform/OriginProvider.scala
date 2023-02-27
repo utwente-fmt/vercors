@@ -27,6 +27,7 @@ abstract class OriginProvider extends PositionContextProvider[Origin] {
   def setTokenStream(tokenStream: CommonTokenStream): Unit = _tokenStream = Some(tokenStream)
   def tokenStream: CommonTokenStream = _tokenStream.get
 }
+
 trait BlameProvider extends PositionContextProvider[Blame[VerificationFailure]]
 
 case class ConstantBlameProvider(globalBlame: Blame[VerificationFailure]) extends BlameProvider {

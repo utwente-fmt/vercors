@@ -2,11 +2,12 @@ package vct.col.ast.family.parregion
 
 import vct.col.ast.util.Declarator
 import vct.col.ast.{Declaration, Expr, Local, ParBlock, Starall, Variable}
+import vct.col.check.CheckContext
 import vct.col.origin.{Blame, ReceiverNotInjective}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 
-trait ParBlockImpl[G] extends Declarator[G] { this: ParBlock[G] =>
+trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] { this: ParBlock[G] =>
   override def declarations: Seq[Declaration[G]] = iters.map(_.variable)
 
   def quantify(expr: Expr[G], blame: Blame[ReceiverNotInjective]): Expr[G] = {
@@ -17,4 +18,8 @@ trait ParBlockImpl[G] extends Declarator[G] { this: ParBlock[G] =>
       Starall(Seq(v), Nil, (iter.from <= v.get && v.get < iter.to) ==> body)(blame)
     })
   }
+
+  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
+    context.copy(roScopes = context.scopes.size, roScopeReason = Some(this)).withScope(declarations.toSet)
+
 }

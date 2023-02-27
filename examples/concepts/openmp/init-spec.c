@@ -13,20 +13,15 @@
 
 
 /*@
-  requires len>0 && \length(a)==len;
-  requires (\forall* int k;0 <= k && k < len ; Perm(a[k],1));
-  ensures  len>0 && \length(a)==len;
-  ensures  (\forall* int k;0 <= k && k < len ; Perm(a[k],1));
+  requires len > 0;
+  context \pointer(a, len, write);
 @*/
 void init(int len,int a[],int ppid){
   int i;
   #pragma omp parallel for private(i)
   for(i=0;i<len;i++)
   /*@
-    requires len>0 && \length(a)==len;
-    requires Perm(a[i],1);
-    ensures  len>0 && \length(a)==len;
-    ensures  Perm(a[i],1);
+    context len>0 ** \pointer_index(a, i, write);
   @*/
   {
     int iam = omp_get_thread_num();

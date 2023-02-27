@@ -83,13 +83,13 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
       if(proc.pure)
         FunctionInvocation[Post](succ(proc), args.map(dispatch), typeArgs.map(dispatch),
           givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)(e.o)
+          yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
     case inv @ MethodInvocation(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
       if(method.pure)
         InstanceFunctionInvocation[Post](dispatch(obj), succ(method), args.map(dispatch), typeArgs.map(dispatch),
           givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (succ(e), succ(v)) })(inv.blame)(e.o)
+          yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) })(inv.blame)(e.o)
       else rewriteDefault(inv)
     case other => rewriteDefault(other)
   }

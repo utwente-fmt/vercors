@@ -3,7 +3,7 @@ import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
-case class ColHelperComparator(info: ColDescription) {
+case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
   def valueEqual(t: Type, left: Term, right: Term): Term = t match {
     case Type.Apply(Type.Name(name), List(Type.Name("G"))) if info.supports("Node")(name) => q"true"
 
@@ -99,7 +99,7 @@ case class ColHelperComparator(info: ColDescription) {
     case q"Comparator.MatchingReference(..$_)" => term
     case q"Comparator.StructuralDifference(..$_)" => term
     case other =>
-      println(s"Warning: Not recursing simplifier into unknown term $term")
+      println(s"[warn] [ColHelper] Not recursing simplifier into unknown term $term")
       other
   }
 

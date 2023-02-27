@@ -1,6 +1,6 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.Class
+import vct.col.ast.{Class}
 import vct.col.ast.util.Declarator
 import vct.result.VerificationError.Unreachable
 

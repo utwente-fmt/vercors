@@ -4,12 +4,15 @@ lock_invariant Perm(used,1)**Perm(data,1);
 class Queue {
   int data;
   boolean used;
-  
+
+  ensures committed(this);
   constructor(){
     data=37;
     used=false;
+    commit this;
   }
-  
+
+  requires committed(this);
   void put(int x){
     lock this;
     loop_invariant Perm(used,1)**Perm(data,1)**held(this);
@@ -21,7 +24,8 @@ class Queue {
     notify this;
     unlock this;
   }
-  
+
+  requires committed(this);
   int take(){
     int res;
     lock this;

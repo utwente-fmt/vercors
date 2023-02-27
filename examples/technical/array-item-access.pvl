@@ -14,6 +14,7 @@ class Test {
     requires this.sequence != null;
     requires this.sequence.length > 0;
     requires (\forall* int i; 0 <= i && i < this.sequence.length; Perm(sequence[i], write));
+    requires (\forall int i = 0..sequence.length, int j = 0..sequence.length; sequence[i] == sequence[j] ==> i == j);
     requires (\forall* int i; 0 <= i && i < this.sequence.length; Perm(sequence[i].value, write));
     void test() {
         if(sequence[0].value == 0) {

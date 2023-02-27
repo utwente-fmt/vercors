@@ -1,7 +1,7 @@
 package vct.test.integration.meta
 
 import org.scalatest.flatspec.AnyFlatSpec
-import vct.test.integration.examples.{AbruptExamplesSpec, AlgorithmExamplesSpec, ArrayExamplesSpec, BasicExamplesSpec, CIncludeSpec, ClassesSpec, CounterSpec, DemoSpec, ForkJoinSpec, GotoSpec, GpgpuSpec, JavaImportSpec, LoopDependencySpec, MapsSpec, ModelsSpec, OpenMPSpec, ParallelSpec, PermissionSpec, PredicatesSpec, PublicationsSpec, RefuteSpec, SequencesSpec, SetsSpec, SilverDomainSpec, SummationSpec, TechnicalAbruptSpec, TechnicalSpec, TechnicalVeymontSpec, TypeValuesSpec, VerifyThisSpec, VeymontSpec, WaitNotifySpec, WandSpec}
+import vct.test.integration.examples._
 import vct.test.integration.helper.{ExampleFiles, VercorsSpec}
 
 class ExampleCoverage extends AnyFlatSpec {
@@ -13,28 +13,37 @@ class ExampleCoverage extends AnyFlatSpec {
       new BasicExamplesSpec(),
       new CIncludeSpec(),
       new ClassesSpec(),
+      new CounterSpec(),
       new DemoSpec(),
-      new JavaImportSpec(),
-      new SilverDomainSpec(),
+      new FinalConstExprSpec(),
+      new ExtractSpec(),
       new ForkJoinSpec(),
       new GotoSpec(),
-      new ModelsSpec(),
       new GpgpuSpec(),
+      new JavaImportSpec(),
       new LoopDependencySpec(),
-      new CounterSpec(),
       new MapsSpec(),
+      new ModelsSpec(),
       new OpenMPSpec(),
       new ParallelSpec(),
       new PermissionSpec(),
+      new PermutationSpec(),
+      new PointerSpec(),
       new PredicatesSpec(),
       new PublicationsSpec(),
       new RefuteSpec(),
       new SequencesSpec(),
       new SetsSpec(),
+      new SilverDomainSpec(),
       new SummationSpec(),
-      new TechnicalSpec(),
       new TechnicalAbruptSpec(),
+      new TechnicalEnumSpec(),
+      new TechnicalFloatSpec(),
+      new TechnicalJavaSpec(),
+      new TechnicalSpec(),
+      new TechnicalStaticSpec(),
       new TechnicalVeymontSpec(),
+      new TerminationSpec(),
       new TypeValuesSpec(),
       new VerifyThisSpec(),
       new VeymontSpec(),

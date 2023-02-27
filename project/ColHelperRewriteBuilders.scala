@@ -2,7 +2,7 @@ import ColDefs._
 
 import scala.meta._
 
-case class ColHelperRewriteBuilders(info: ColDescription) {
+case class ColHelperRewriteBuilders(info: ColDescription) extends ColHelperMaker {
   def builderVar(param: Term.Param): Stat =
     q"var ${Pat.Var(Term.Name(param.name.value))}: Option[${ColHelperUtil.substituteTypeName("G", t"Post")(param.decltpe.get)}] = None"
 
@@ -19,7 +19,7 @@ case class ColHelperRewriteBuilders(info: ColDescription) {
   def rewriteBuilder(cls: ClassDef): (String, List[Stat]) = cls.rewriteBuilderName.value -> List(q"""
     class ${cls.rewriteBuilderName}[Pre, Post](subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
       def build(): ${cls.typ}[Post] = {
-        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(subject.blame)", q"o.getOrElse(rewriter.dispatch(subject.o))")}
+        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(rewriter.dispatch(subject.blame))", q"o.getOrElse(rewriter.dispatch(subject.o))")}
       }
 
       var o: Option[Origin] = None

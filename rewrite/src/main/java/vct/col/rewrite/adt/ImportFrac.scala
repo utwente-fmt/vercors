@@ -60,7 +60,7 @@ case class ImportFrac[Pre <: Generation](importer: ImportADTImporter) extends Im
     case other => super.applyCoercion(e, other)
   }
 
-  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+  override def postCoerce(t: Type[Pre]): Type[Post] = t match {
     case TFraction() => TAxiomatic[Post](fracAdt.ref, Nil)(t.o)
     case TZFraction() => TAxiomatic(zfracAdt.ref, Nil)
     case other => rewriteDefault(other)

@@ -11,12 +11,9 @@
 #include <omp.h>
 
 /*@
-  context_everywhere a != NULL && b != NULL && c != NULL;
-  context_everywhere len>0 && (len % 4 == 0) && \length(a)==len && \length(b)==len && \length(c)==len;
-  context   (\forall* int k;0 <= k && k < len ; Perm(a[k],1\2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(b[k],1\2));
-  context   (\forall* int k;0 <= k && k < len ; Perm(c[k],1));
-  ensures   (\forall  int k;0 <= k && k < len ; c[k]==a[k]+b[k]);
+  context_everywhere len > 0 && (len % 4 == 0) && a != NULL && b != NULL && c != NULL;
+  context \pointer(a, len, 1\2) ** \pointer(b, len, 1\2) ** \pointer(c, len, 1\2);
+  ensures (\forall int k = 0 .. len; c[k]==a[k]+b[k]);
 @*/
 void add(int len,int a[],int b[],int c[]){
   #pragma omp parallel

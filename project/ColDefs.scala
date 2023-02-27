@@ -28,6 +28,7 @@ object ColDefs {
     "ClassDeclaration",
     "ADTDeclaration",
     "ModelDeclaration",
+    "EnumConstant",
     "Variable",
     "LabelDecl",
     "SendDecl",
@@ -48,6 +49,7 @@ object ColDefs {
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
     "ModelDeclaration" -> Seq("Program"),
+    "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
       "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
@@ -66,6 +68,7 @@ object ColDefs {
       "Function", "Procedure",
       "InstanceFunction", "InstanceMethod",
       "JavaConstructor", "JavaMethod",
+      "CFunctionDefinition",
       "PVLConstructor",
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),

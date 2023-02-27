@@ -6,12 +6,10 @@ adt `block` {
   pure int loc_inv_2(ref r);
 
   // block length is non-negative
-  axiom (\forall `block` b; true; block_length(b) >= 0);
+  axiom (\forall `block` b; block_length(b) >= 0);
 
   // loc is injective: a (block, index) pair indicates a unique ref
-  axiom
-    (∀ `block` b, int i;
-      loc_inv_1(loc(b, i)) == b && loc_inv_2(loc(b, i)) == i);
+  axiom (∀ `block` b, int i; loc_inv_1({:loc(b, i):}) == b && loc_inv_2(loc(b, i)) == i);
 }
 
 adt `pointer` {
@@ -30,9 +28,11 @@ adt `pointer` {
       {:pointer_offset(pointer_of(b, offset)):} == offset);
 }
 
+decreases;
 pure ref ptr_deref(`pointer` p) =
   `block`.loc(`pointer`.pointer_block(p), `pointer`.pointer_offset(p));
 
+decreases;
 requires 0 <= `pointer`.pointer_offset(p) + offset;
 requires `pointer`.pointer_offset(p) + offset < `block`.block_length(`pointer`.pointer_block(p));
 pure `pointer` ptr_add(`pointer` p, int offset) =

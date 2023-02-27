@@ -5,7 +5,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
 
 trait GpgpuCudaKernelInvocationImpl[G] { this: GpgpuCudaKernelInvocation[G] =>
-  override def t: Type[G] = ref.get match {
+  override lazy val t: Type[G] = ref.get match {
     case RefFunction(decl) => decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefPredicate(decl) => decl.returnType

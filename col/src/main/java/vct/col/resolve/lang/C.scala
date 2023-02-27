@@ -47,12 +47,11 @@ case object C {
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(
         innerInfo.params,
-        t => FuncTools.repeat[Type[G]](TPointer(_), pointers.size, innerInfo.typeOrReturnType(t)),
+        t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](CTPointer(_), pointers.size, t)),
         innerInfo.name)
-    case CArrayDeclarator(_, _, inner) =>
+    case CArrayDeclarator(_, size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
-      // TODO PB: I think pointer is not correct here.
-      DeclaratorInfo(innerInfo.params, t => TPointer(innerInfo.typeOrReturnType(t)), innerInfo.name)
+      DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t)), innerInfo.name)
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)
@@ -73,6 +72,7 @@ case object C {
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case Seq(CSpecificationType(typ)) => typ
+      case spec :: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CTypeNotSupported(context)
     }
 

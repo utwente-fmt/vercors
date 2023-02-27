@@ -3,18 +3,8 @@ adt `tuple`<A, B> {
   pure A fst(`tuple`<A, B> t);
   pure B snd(`tuple`<A, B> t);
 
-  axiom
-    (\forall A a; true;
-      (\forall B b; true;
-        {:fst(tup(a, b)):} == a));
+  axiom (\forall A a, B b; fst({:tup(a, b):}) == a);
+  axiom (\forall A a, B b; snd({:tup(a, b):}) == b);
 
-  axiom
-    (\forall A a; true;
-      (\forall B b; true;
-        {:snd(tup(a, b)):} == b));
-
-  axiom
-    (\forall A a1; true; (\forall A a2; true;
-      (\forall B b1; true; (\forall B b2; true;
-        tup(a1, b1) == tup(a2, b2) ==> a1 == a2 && b1 == b2))));
+  axiom (\forall A a1, A a2, B b1, B b2; {:tup(a1, b1):} == {:tup(a2, b2):} ==> a1 == a2 && b1 == b2);
 }

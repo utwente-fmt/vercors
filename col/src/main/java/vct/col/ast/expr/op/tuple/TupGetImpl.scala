@@ -10,7 +10,7 @@ trait TupGetImpl[G] extends ExprImpl[G] { this: TupGet[G] =>
   override def t: Type[G] = tupleType.elements(index)
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) match {
-      case Nil => if(0 <= index && index < tupleType.elements.size) Nil else Seq(col.check.TypeErrorText(this, _ => "Tuple getter exceeds tuple size"))
+      case Nil => if(0 <= index && index < tupleType.elements.size) Nil else Seq(col.check.TypeErrorExplanation(this, "Tuple getter exceeds tuple size"))
       case some => some
     }
 }

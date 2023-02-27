@@ -6,7 +6,7 @@ import vct.col.resolve.lang.C
 import vct.col.typerules.Types
 
 trait CLocalImpl[G] { this: CLocal[G] =>
-  override def t: Type[G] = ref.get match {
+  override lazy val t: Type[G] = ref.get match {
     case ref: RefCParam[G] => C.typeOrReturnTypeFromDeclaration(ref.decl.specifiers, ref.decl.declarator)
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case RefVariable(decl) => decl.t

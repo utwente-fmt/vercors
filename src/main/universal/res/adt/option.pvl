@@ -5,15 +5,17 @@ adt `option`<T> {
 
   pure T option_get(`option`<T> opt);
 
-  axiom (\forall T x; true; `None`() != {:some(x):});
-  axiom (\forall T x; true; option_get({:some(x):}) == x);
-  axiom (\forall `option`<T> opt; true; {:some(option_get(opt)):} == opt);
+  axiom (\forall T x; `None`() != {:some(x):});
+  axiom (\forall T x; option_get({:some(x):}) == x);
+  axiom (\forall `option`<T> opt; {:some(option_get(opt)):} == opt);
 }
 
+decreases;
 requires opt != `option`<T>.`None`();
 ensures `option`<T>.some(\result) == opt;
 pure T opt_get<T>(`option`<T> opt) = `option`<T>.option_get(opt);
 
+decreases;
 ensures opt == `option`<T>.`None`() ==> \result == alt;
 ensures opt != `option`<T>.`None`() ==> \result == opt_get<T>(opt);
 pure T opt_or_else<T>(`option`<T> opt, T alt) =

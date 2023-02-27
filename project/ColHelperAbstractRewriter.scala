@@ -3,7 +3,7 @@ import ColHelperUtil.NonemptyMatch
 
 import scala.meta._
 
-case class ColHelperAbstractRewriter(info: ColDescription) {
+case class ColHelperAbstractRewriter(info: ColDescription) extends ColHelperMaker {
   def rewriteDefaultCases(baseType: String): List[Term] = {
     val classes = info.defs.filter(cls => info.supports(baseType)(cls.baseName))
 
@@ -46,6 +46,7 @@ case class ColHelperAbstractRewriter(info: ColDescription) {
       implicit val rewriter: AbstractRewriter[Pre, Post] = this
 
       def dispatch(o: Origin): Origin = o
+      def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = blame
 
       def dispatch(decl: Declaration[Pre]): Unit
 

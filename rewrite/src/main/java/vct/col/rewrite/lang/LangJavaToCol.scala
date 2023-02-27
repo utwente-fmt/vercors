@@ -4,15 +4,15 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultJavaConstructor, RefADTFunction, RefAxiomaticDataType, RefEnum, RefEnumConstant, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefJavaAnnotationMethod, RefJavaClass, RefJavaConstructor, RefJavaField, RefJavaLocalDeclaration, RefJavaMethod, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefUnloadedJavaNamespace, RefVariable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.col.resolve.lang.Java
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
 
@@ -84,6 +84,11 @@ case object LangJavaToCol {
     override def text: String = initializer.o.messageInContext("This literal array is nested more deeply than its indicated type allows.")
     override def code: String = "invalidNesting"
   }
+
+  case class NotSupportedInJavaLangStringClass(decl: ClassDeclaration[_]) extends UserError {
+    override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
+    override def text: String = "notSupportedInStringClass"
+  }
 }
 
 case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -115,7 +120,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     case _: ClassDeclaration[_] => false // FIXME we should have a way of translating static specification-type declarations
   }
 
-  def makeJavaClass(prefName: String, decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]], wantDefaultConstructor: Boolean)(implicit o: Origin): Unit = {
+  def makeJavaClass(prefName: String, decls: Seq[ClassDeclaration[Pre]], ref: Ref[Post, Class[Post]], isStaticPart: Boolean)(implicit o: Origin): Unit = {
     // First, declare all the fields, so we can refer to them.
     decls.foreach {
       case fields: JavaFields[Pre] =>
@@ -134,12 +139,26 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     // 1. the inline initialization of all fields
 
     val fieldInit = (diz: Expr[Post]) => Block[Post](decls.collect {
-      case fields: JavaFields[Pre] =>
+      case fields: JavaFields[Pre]  =>
         Block(for((JavaVariableDeclaration(_, dims, init), idx) <- fields.decls.zipWithIndex)
-          yield assignField[Post](diz, javaFieldsSuccessor.ref((fields, idx)), init match {
-            case Some(value) => rw.dispatch(value)
-            case None => Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)))
-          }, PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens."))
+          yield init match {
+            case Some(value) =>
+              assignField[Post](
+                obj = diz,
+                field = javaFieldsSuccessor.ref((fields, idx)),
+                value = rw.dispatch(value),
+                blame = PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens.")
+              )
+            case None if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
+              assignField[Post](
+                obj = diz,
+                field = javaFieldsSuccessor.ref((fields, idx)),
+                value = Java.zeroValue(FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t))),
+                blame = PanicBlame("The inline initialization of a field must have permission, because it is the first initialization that happens.")
+              )
+            case None /* if modifiers contains final */ =>
+              Block(Nil)
+          }
         )
     })
 
@@ -155,8 +174,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     // 3. the body of the constructor
 
-    val declsDefault = if(wantDefaultConstructor && decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
-      javaDefaultConstructor(currentJavaClass.top) = new JavaConstructor(
+    val declsDefault = if(decls.collect { case _: JavaConstructor[Pre] => () }.isEmpty) {
+      val cons = new JavaConstructor(
         modifiers = Nil,
         name = prefName,
         parameters = Nil,
@@ -165,7 +184,11 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         body = Block(Nil),
         contract = ApplicableContract(
           requires = UnitAccountedPredicate(tt),
-          ensures = UnitAccountedPredicate(foldStar(decls.collect {
+          /* Hack: don't generate the permissions for the default constructor. Problem: the "local" method further down will use
+             the Statics function instead of \result from the procedure. Statics constructor is only used for static final
+             field assignments required for ConstantifyFinalFields.
+           */
+          ensures = UnitAccountedPredicate(if(isStaticPart) tt[Pre] else foldStar(decls.collect {
             case fields: JavaFields[Pre] if fields.modifiers.collectFirst { case JavaFinal() => () }.isEmpty =>
               fields.decls.indices.map(decl => {
                 val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
@@ -175,8 +198,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           }.flatten)),
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
-      )(PanicBlame("The postcondition of a default constructor cannot fail (but what about commit?)."))
-      javaDefaultConstructor(currentJavaClass.top) +: decls
+      )(PanicBlame("The postcondition of a default constructor cannot fail."))
+      if (!isStaticPart) javaDefaultConstructor(currentJavaClass.top) = cons
+      cons +: decls
     } else decls
 
     declsDefault.foreach {
@@ -197,7 +221,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 fieldInit(res),
                 sharedInit(res),
                 rw.dispatch(cons.body),
-                Commit(res)(cons.blame),
                 Return(res),
               )))) },
               contract = rw.currentThis.having(result) { cons.contract.rewrite(
@@ -211,24 +234,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
           ))
         }
-      case method: JavaMethod[Pre] =>
-        rw.labelDecls.scope {
-          javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
-            returnType = rw.dispatch(method.returnType),
-            args = rw.variables.dispatch(method.parameters),
-            outArgs = Nil, typeArgs = Nil,
-            body = method.modifiers.collectFirst { case sync @ JavaSynchronized() => sync } match {
-              case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame))
-              case None => method.body.map(rw.dispatch)
-            },
-            contract = method.contract.rewrite(
-              signals = method.contract.signals.map(rw.dispatch) ++
-                method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-            ),
-            inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
-            pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
-          )(method.blame)(JavaMethodOrigin(method)))
-        }
+      case method: JavaMethod[Pre] => rw.dispatch(method)
       case method: JavaAnnotationMethod[Pre] =>
         rw.classDeclarations.succeed(method, new InstanceMethod(
           returnType = rw.dispatch(method.returnType),
@@ -242,6 +248,28 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case other => rw.dispatch(other)
     }
   }
+
+  def rewriteMethod(method: JavaMethod[Pre]): Unit = {
+    implicit val o: Origin = method.o
+    rw.labelDecls.scope {
+      javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
+        returnType = rw.dispatch(method.returnType),
+        args = rw.variables.dispatch(method.parameters),
+        outArgs = Nil, typeArgs = Nil,
+        body = method.modifiers.collectFirst { case sync@JavaSynchronized() => sync } match {
+          case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
+          case None => method.body.map(rw.dispatch)
+        },
+        contract = method.contract.rewrite(
+          signals = method.contract.signals.map(rw.dispatch) ++
+            method.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+        ),
+        inline = method.modifiers.collectFirst { case JavaInline() => () }.nonEmpty,
+        pure = method.modifiers.collectFirst { case JavaPure() => () }.nonEmpty,
+      )(method.blame)(JavaMethodOrigin(method)))
+    }
+  }
+
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
@@ -268,7 +296,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
       val instanceClass = rw.currentThis.having(ThisObject(javaInstanceClassSuccessor.ref(cls))) {
         new Class[Post](rw.classDeclarations.collect {
-          makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), wantDefaultConstructor = true)
+          makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
         }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))
       }
 
@@ -278,7 +306,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       if(staticDecls.nonEmpty) {
         val staticsClass = new Class[Post](rw.classDeclarations.collect {
           rw.currentThis.having(ThisObject(javaStaticsClassSuccessor.ref(cls))) {
-            makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), wantDefaultConstructor = false)
+            makeJavaClass(cls.name + "Statics", staticDecls, javaStaticsClassSuccessor.ref(cls), isStaticPart = true)
           }
         }._1, Nil, tt)(JavaStaticsClassOrigin(cls))
 
@@ -323,6 +351,16 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     )
   }
 
+  /**
+   * Provides the singleton object needed to access static fields/methods of a class.
+   * @param cls - class for which we get the static singleton (lazy, because the class may not yet be known)
+   * @return a singleton object to access static class fields/methods
+   */
+  def statics(cls: => JavaClassOrInterface[Pre])(implicit o: Origin): Expr[Post] = {
+    val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(cls))
+    FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing."))
+  }
+
   def local(local: JavaLocal[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
 
@@ -330,12 +368,12 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefAxiomaticDataType(decl) => throw NotAValue(local)
       case RefVariable(decl) => Local(rw.succ(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
-      case RefJavaClass(decl) => throw NotAValue(local)
+      case RefJavaClass(decl) =>
+        throw NotAValue(local)
       case RefJavaField(decls, idx) =>
         if(decls.modifiers.contains(JavaStatic[Pre]())) {
-          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decls)))
           Deref[Post](
-            obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Statics singleton function requires nothing.")),
+            obj = statics(javaClassDeclToJavaClass(decls)),
             ref = javaFieldsSuccessor.ref((decls, idx)),
           )(local.blame)
         } else {
@@ -345,6 +383,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ModelDeref[Post](rw.currentThis.top, rw.succ(field))(local.blame)
       case RefJavaLocalDeclaration(decls, idx) =>
         Local(javaLocalsSuccessor.ref((decls, idx)))
+      case RefEnumConstant(Some(enum), constant) =>
+        EnumUse(rw.succ(enum), rw.succ(constant))
     }
   }
 
@@ -358,7 +398,18 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefModelField(decl) => ModelDeref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
       case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
       case RefJavaField(decls, idx) =>
-        Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
+        if (decls.modifiers.contains(JavaStatic[Pre]())) {
+          Deref[Post](
+            obj = statics(javaClassDeclToJavaClass(decls)),
+            ref = javaFieldsSuccessor.ref((decls, idx)),
+          )(deref.blame)
+        } else {
+          Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
+        }
+      case RefEnumConstant(_, constant) => deref.obj.t match {
+        case TNotAValue(RefEnum(enum: Enum[Pre])) =>
+          EnumUse(rw.succ(enum), rw.succ(constant))
+      }
       case BuiltinField(f) => rw.dispatch(f(deref.obj))
       case RefVariable(v) => ???
     }
@@ -371,21 +422,21 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefFunction(decl) =>
         FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefProcedure(decl) =>
         ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefPredicate(decl) =>
         PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefInstanceFunction(decl) =>
         InstanceFunctionInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefInstanceMethod(decl) =>
         MethodInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case RefInstancePredicate(decl) =>
         InstancePredicateApply[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), WritePerm())
       case RefADTFunction(decl) =>
@@ -396,13 +447,12 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
       case RefJavaMethod(decl) =>
         if(decl.modifiers.contains(JavaStatic[Pre]())) {
-          val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(javaClassDeclToJavaClass(decl)))
           MethodInvocation[Post](
-            obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(inv.blame),
+            obj = statics(javaClassDeclToJavaClass(decl)),
             ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
+            yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
           )(inv.blame)
         } else {
           MethodInvocation[Post](
@@ -410,7 +460,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
             ref = javaMethod.ref(decl),
             args = args.map(rw.dispatch), outArgs = Nil, typeParams.map(rw.dispatch),
             givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-            yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) },
+            yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
           )(inv.blame)
         }
       case RefJavaAnnotationMethod(decl) =>
@@ -432,14 +482,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case RefJavaConstructor(cons) =>
         ProcedureInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case ImplicitDefaultJavaConstructor() =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
         val ref = new LazyRef[Post, Procedure[Post]](javaConstructor(javaDefaultConstructor(cls)))
         ProcedureInvocation[Post](ref,
           args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (Ref(e), Ref(v)) => (rw.succ(e), rw.succ(v)) })(inv.blame)
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
   }
 
@@ -461,6 +511,22 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     ), array.get))
   }
 
-  def classType(t: JavaTClass[Pre]): Type[Post] =
-    TClass(javaInstanceClassSuccessor.ref(t.ref.decl))
+  def stringValue(str: JavaStringValue[Pre]): Expr[Post] = {
+    val JavaTClass(Ref(stringClass), Seq()) = str.t
+    val intern: JavaMethod[Pre] = stringClass.declarations.collectFirst {
+      case m: JavaMethod[Pre] if m.name == "vercorsIntern" => m
+    }.get
+
+    val classStaticsFunction: LazyRef[Post, Function[Post]] = new LazyRef(javaStaticsFunctionSuccessor(stringClass))
+    MethodInvocation[Post](
+      obj = FunctionInvocation[Post](classStaticsFunction, Nil, Nil, Nil, Nil)(PanicBlame("Class static cannot fail"))(str.o),
+      ref = javaMethod.ref(intern),
+      args = Seq(StringValue(str.data)(str.o)),
+      Nil, Nil, Nil, Nil
+    )(PanicBlame("Interning cannot fail"))(str.o)
+  }
+
+  def classType(t: JavaTClass[Pre]): Type[Post] = t.ref.decl match {
+    case classOrInterface: JavaClassOrInterface[Pre] => TClass(javaInstanceClassSuccessor.ref(classOrInterface))
+  }
 }

@@ -1,4 +1,4 @@
-VerCors Verification Toolset ![GitHub Workflow Status (master)](https://img.shields.io/github/workflow/status/utwente-fmt/vercors/Vercors%20build%20and%20test%20workflow/master?label=master&style=flat-square) ![GitHub Workflow Status (dev)](https://img.shields.io/github/workflow/status/utwente-fmt/vercors/Vercors%20build%20and%20test%20workflow/dev?label=dev&style=flat-square)
+VerCors Verification Toolset ![GitHub Workflow Status (master)](https://img.shields.io/github/actions/workflow/status/utwente-fmt/vercors/scalatest.yml?branch=master&label=master&style=flat-square) ![GitHub Workflow Status (dev)](https://img.shields.io/github/actions/workflow/status/utwente-fmt/vercors/scalatest.yml?branch=dev&label=dev&style=flat-square)
 =======
 
 This repository hosts VerCors, a toolset for the verification of concurrent and parallel programs. VerCors aims to verify many different concurrency constructs, including: heterogeneous concurrency (Java and C), GPU kernels using barriers and atomics (OpenCL), and compiler directives as used in deterministic parallelism (OpenMP). VerCors is able to prove data-race freedom, memory safety, and functional correctness of (concurrent) programs written in Java, C, OpenCL, OpenMP, and PVL (Prototypal Verification Language, a procedural toy language for prototyping new verification features). Moreover, VerCors is designed to be language-independent, which makes adding new front-end languages a straightforward engineering effort.
@@ -95,7 +95,7 @@ The VerCors toolset can be used by running `vercors --silicon <filepath>`, with 
 A complete list of papers on the VerCors project is given [here](https://vercors.ewi.utwente.nl/publications).
 
 ## License
-Copyright (c) 2008 - 2022 Formal Methods and Tools, University of Twente
+Copyright (c) 2008 - 2023 Formal Methods and Tools, University of Twente
 All rights reserved.
 
 The license to VerCors is a mozilla open source license as described in LICENSE.TXT in the root of this project. It is a free to use, share-alike license. Should this license be too restrictive for your purpose, please let us know by creating an issue in our bug tracker. Direct contributors (people who send us pull-requests or edit this repository directly) are expected to agree with any license that the University of Twente might decide. If you do not agree with future license changes, please instead fork this repository as allowed under the conditions of LICENSE.TXT.

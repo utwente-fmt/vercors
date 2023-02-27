@@ -12,21 +12,23 @@ void example(int a[],int b[],int c[],int len){
   for(int i=0;i < len;i++)
    /*@
     requires a != NULL && b != NULL && c != NULL;
-    requires Perm(a[i],write);
-    ensures  Perm(a[i],1\2);
-    ensures  i>0 ==> Perm(a[i-1],1\2);
-    ensures  i==len-1 ==> Perm(a[i],1\2);
+    requires Perm(&a[i],write);
+    ensures  Perm(&a[i],1\2);
+    ensures  i>0 ==> Perm(&a[i-1],1\2);
+    ensures  i==len-1 ==> Perm(&a[i],1\2);
 
-    context  Perm(b[i],1\2);
-    context  Perm(c[i],write);
+    context  Perm(&b[i],1\2);
+    context  Perm(&c[i],write);
    @*/
     {
 
     a[i]=b[i]+1;
-    //@ send S, 1: a != NULL ** Perm(a[i],1\2);
+    //@ send S, 1: a != NULL ** Perm(&a[i],1\2);
     //@ recv S;
     if (i>0) {
+      /*[/expect ptrPerm]*/
       c[i]=a[i+1]+2;
+      /*[/end]*/
     }
   }
 }

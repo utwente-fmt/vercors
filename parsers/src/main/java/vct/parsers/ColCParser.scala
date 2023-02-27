@@ -57,9 +57,12 @@ case class ColCParser(override val originProvider: OriginProvider,
       )
       new Thread(() => {
         val writer = new OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
-        readable.read { reader =>
-          val written = reader.transferTo(writer)
-          logger.debug(s"Wrote $written bytes to clang")
+        try {
+          readable.read { reader =>
+            val written = reader.transferTo(writer)
+            logger.debug(s"Wrote $written bytes to clang")
+          }
+        } finally {
           writer.close()
         }
       }).start()

@@ -11,12 +11,14 @@ public class LoopInv {
     int res, i;
     res = 0;
     i = 0;
+    /*[/expect notMaintained:false]*/
     //@ loop_invariant res == i * n;
-    //@ loop_invariant [/expect notMaintained:false] i < n [/end];
+    //@ loop_invariant  i < n;
     while (i < n) {
       res = res + n;
       i = i + 1;
     }
+    /*[/end]*/
     return res;
   }
 }

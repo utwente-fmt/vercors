@@ -6,10 +6,13 @@ lock_invariant Perm(x,1);
 class OwickiGries {
   int x;
 
+  ensures committed(this);
   constructor(){
     x=0;
+    commit this;
   }
 
+  requires committed(this);
   void main(){
     Worker w1=new Worker(this);
     Worker w2=new Worker(this);

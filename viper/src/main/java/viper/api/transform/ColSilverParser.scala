@@ -11,5 +11,5 @@ case class ColSilverParser(override val originProvider: OriginProvider, override
     throw Unreachable("Should not parse silver files from CharStream: Viper is not parsed via ANTLR.")
 
   override def parse[G](readable: Readable): ParseResult[G] =
-    ParseResult(SilverToCol.parse(readable).declarations, Nil)
+    ParseResult(SilverToCol.parse(readable, blameProvider).declarations, Nil)
 }

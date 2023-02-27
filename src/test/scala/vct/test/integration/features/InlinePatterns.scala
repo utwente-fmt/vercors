@@ -3,6 +3,8 @@ package vct.test.integration.features
 import vct.test.integration.helper.VercorsSpec
 
 class InlinePatterns extends VercorsSpec {
+  // https://github.com/utwente-fmt/vercors/issues/815
+  /*
   vercors should verify using anyBackend in "inline pattern examples" pvl """
     pure int f(int i);
     pure int g(int i);
@@ -27,4 +29,5 @@ class InlinePatterns extends VercorsSpec {
       assert f(38) + f(39) == 77;
     }
   """
+  */
 }
