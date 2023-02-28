@@ -1,5 +1,6 @@
 package hre.progress
 
+import hre.platform.Platform
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
 import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
