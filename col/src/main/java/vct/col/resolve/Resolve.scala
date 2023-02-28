@@ -239,11 +239,14 @@ case object ResolveReferences extends LazyLogging {
         .declareJavaBipGuards(scanJavaBipGuards(cls.decls))
         .declareJavaBipStatePredicates(scanJavaBipStatePredicates(cls.modifiers))
 
-      /* TODO (RR): JavaBIP _name keys_ of guard annotations cut in line because transitions need to refer to them,
-          _by string value_, so they are fully resolved directly... That's probably bad.
-          This can be improved by having the javabip annotation specification parser use something like a "BipLocal" node
-          instead of a "JavaLocal" node for local variable references. Then these can be handled separately in the
-          resolution phase
+      /* JavaBIP _name keys_ of guard annotations/states cut in line because transitions need to refer to them,
+          _by string value_. So they are fully resolved before proceeding.
+          E.g. the following two annotations on a method are considered equivalent by the current JavaBIP engine implementation,
+          given that INIT is some static final field containing "initState":
+          @Transition(source = INIT, ...)
+          @Transition(source = "initState", ...)
+          To make this stringly lookup work, state predicate names & guard names must be resolved before
+          anything else in java classes
           */
       newCtx.javaBipGuards.keys.map(resolve(_, newCtx))
       newCtx.javaBipStatePredicates.keys.map(resolve(_, newCtx))
