@@ -32,12 +32,6 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
 
   val currentAbstractMethod: ScopedStack[AbstractMethod[Pre]] = ScopedStack()
 
-//  def collectAssignments(v: Variable[Pre], s: Statement[Pre]): Seq[Assignment[Pre]] = stat match {
-//    case Return(_) => Seq()
-//    case Block(stats) => stats.flatMap(collectAssignments(v, _))
-//    case Branch(branches) =>
-//  }
-
   def countAssignments(v: Variable[Pre], s: Statement[Pre]): Option[Int] = s match {
     case Return(_) => Some(0)
     case Block(stats) =>
