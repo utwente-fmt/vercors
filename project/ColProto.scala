@@ -1,7 +1,6 @@
 import ColDefs.DECLARATION_KINDS
-import com.google.protobuf.DescriptorProtos._
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.{Type => PType}
-import com.google.protobuf.Descriptors.{Descriptor, FieldDescriptor}
+import com.google.protobuf.DescriptorProtos._
 
 import java.io.File
 import scala.collection.JavaConverters._
@@ -133,7 +132,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     t match {
       case TBool => builder.setType(PType.TYPE_BOOL)
       case TRef => builder.setTypeName("Ref")
-      case TInt => builder.setType(PType.TYPE_INT64)
+      case TInt => builder.setType(PType.TYPE_INT32)
       case TBigInt => builder.setTypeName("BigInt")
       case TBigDecimal => builder.setTypeName("BigDecimal")
       case TString => builder.setType(PType.TYPE_STRING)
@@ -167,7 +166,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       .addField(field("data").setType(PType.TYPE_BYTES))
       .build(),
     message("BigDecimal")
-      .addField(field("scale").setType(PType.TYPE_INT64))
+      .addField(field("scale").setType(PType.TYPE_INT32))
       .addField(field("unscaledValue").setTypeName("BigInt"))
       .build(),
     message("Ref")
@@ -218,6 +217,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
   def renderType(field: FieldDescriptorProto): String = field.getType match {
     case PType.TYPE_INT64 => "int64"
+    case PType.TYPE_INT32 => "int32"
     case PType.TYPE_BOOL => "bool"
     case PType.TYPE_STRING => "string"
     case PType.TYPE_BYTES => "bytes"
