@@ -4,7 +4,7 @@ import org.javabip.annotations.*;
 import org.javabip.api.PortType;
 
 @ComponentType(initial = INIT, name = NAME)
-@Port(name = GO)
+@Port(name = GO, type = PortType.enforceable)
 @Invariant("x >= 0")
 public class TransitionPostconditionFailed {
     public static final String INIT = "initialState";

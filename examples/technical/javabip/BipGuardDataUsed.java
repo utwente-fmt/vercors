@@ -5,7 +5,7 @@ import org.javabip.api.PortType;
 
 @ComponentType(initial = INIT, name = NAME)
 @StatePredicate(state = "xyz", expr = "true")
-@Port(name = GO)
+@Port(name = GO, type = PortType.enforceable)
 public class GuardIsUsed {
     public static final String INIT = "initialState";
     public static final String NAME = "oneComponentOneTransition";
