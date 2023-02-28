@@ -108,6 +108,12 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "final" => JavaFinal()
       case "strictfp" => JavaStrictFP()
     }
+    case ClassOrInterfaceModifier2(mods) => withModifiers(mods, m => {
+      if (m.consume(m.pure)) JavaPure[G]()
+      else if (m.consume(m.inline)) JavaInline[G]()
+      else if (m.consume(m.bipAnnotation)) JavaBipAnnotation[G]()
+      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
+    })
   }
 
   def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
