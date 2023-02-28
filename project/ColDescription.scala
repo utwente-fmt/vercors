@@ -28,7 +28,6 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
   }
 
   def baseName: String = names.last
-  def qualifiedName: String = names.mkString(".")
 
   def term: Term =
     if(names.size == 1) Term.Name(baseName)
@@ -39,10 +38,10 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
     else Type.Select(termQual, Type.Name(baseName))
 
   def rewriteHelperName: Type.Name =
-    Type.Name("Rewrite" + qualifiedName)
+    Type.Name("Rewrite" + baseName)
 
   def rewriteBuilderName: Type.Name =
-    Type.Name(qualifiedName + "Builder")
+    Type.Name(baseName + "Builder")
 
   private def termQual: Term.Ref = {
     val qualNames = names.init.map(Term.Name(_))
