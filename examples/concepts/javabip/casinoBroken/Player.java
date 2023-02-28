@@ -10,7 +10,7 @@ import static casino.Constants.*;
 @Port(name = PLACE_BET, type = PortType.enforceable)
 @Port(name = RECEIVE_MONEY, type = PortType.enforceable)
 @ComponentType(initial = GAME_AVAILABLE, name = PLAYER_SPEC)
-@Invariant("purse >= 0")
+@Invariant("purse >= 0 && id != null")
 @StatePredicate(state = BET_PREPARED, expr = "guess != null && bet >= 0")
 public class Player {
     final Integer id;
@@ -18,10 +18,12 @@ public class Player {
     Coin guess;
     int purse;
 
+    //@ requires purse >= 0;
     Player(int id, int purse) {
         this.id = new Integer(id);
         this.purse = purse;
-        System.out.println("PLAYER" + id + ": INITIALIZED");
+        //@ ghost System.staticInvariant();
+        System.out.println("PLAYER" + this.id.toString() + ": INITIALIZED");
     }
     
     // Player prepares a bet
@@ -30,13 +32,19 @@ public class Player {
         bet = (int) (Math.random() * purse);
         guess = Math.random() < 0.5 ? HEADS : TAILS;
         purse = purse - bet;
-        System.out.println("PLAYER" + id + ": bet " + bet + " prepared, purse: " + purse);
+        //@ ghost System.staticInvariant();
+        System.out.println("PLAYER" + id.toString()
+                + ": bet " + new Integer(bet).toString()
+                + " prepared, purse: " + new Integer(purse).toString());
     }
 
     // Player places a bet
     @Transition(name = PLACE_BET, source = BET_PREPARED, target = GAME_AVAILABLE)
     public void placeBet() {
-        System.out.println("PLAYER" + id + ": bet " + bet + " placed, purse: " + purse);
+        //@ ghost System.staticInvariant();
+        System.out.println("PLAYER" + id.toString()
+                + ": bet " + new Integer(bet).toString()
+                + " placed, purse: " + new Integer(purse).toString());
         bet = 0;
         guess = null;
     }
@@ -47,7 +55,10 @@ public class Player {
     )
     public void receiveContribution(@Data(name = INCOMING_MONEY) int win) {
         purse += win;
-        System.out.println("PLAYER" + id + ": won " + win + " purse: " + purse);
+        //@ ghost System.staticInvariant();
+        System.out.println("PLAYER" + id.toString()
+                + ": won " + new Integer(win).toString()
+                + " purse: " + new Integer(purse).toString());
     }
 
     @Data(name = OUTGOING_BET)

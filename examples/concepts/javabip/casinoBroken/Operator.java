@@ -13,7 +13,7 @@ import static casino.Constants.*;
 @Port(name = PREPARE_TO_ADD, type = PortType.enforceable)
 @Port(name = PREPARE_TO_REMOVE, type = PortType.enforceable)
 @ComponentType(initial = WORKING, name = OPERATOR_SPEC)
-@Invariant("pot >= 0 && wallet >= 0")
+@Invariant("pot >= 0 && wallet >= 0 && id != null")
 @StatePredicate(state = PUT_FUNDS, expr = "amountToMove >= 0")
 @StatePredicate(state = WITHDRAW_FUNDS, expr = "0 <= amountToMove && amountToMove <= pot")
 public class Operator {
@@ -22,12 +22,14 @@ public class Operator {
     int pot;
     int amountToMove;
 
+    //@ requires id != null;
     Operator (Integer id, int funds) throws Exception {
         this.id = id;
         if (funds < 0) throw new Exception("Cannot have negative funds");
         wallet = funds;
         amountToMove = 0;
-        System.out.println("OPERATOR" + id + " created with wallet: " + wallet);
+        //@ ghost System.staticInvariant();
+        System.out.println("OPERATOR" + id.toString() + " created with wallet: " + new Integer(wallet).toString());
     }
 
     @Transition(name = CREATE_GAME, source = WORKING, target = WORKING, requires = "newPot >= 0")
@@ -38,33 +40,46 @@ public class Operator {
     @Transition(name = DECIDE_BET, source = WITHDRAW_FUNDS, target = WITHDRAW_FUNDS, requires = "newPot >= 0")
     public void gameStep(@Data(name = AVAILABLE_FUNDS) int newPot) {
         this.pot = newPot;
-        System.out.println("OPERATOR" + id + ": making one step in the game");
+        //@ ghost System.staticInvariant();
+        System.out.println("OPERATOR" + id.toString() + ": making one step in the game");
     }
 
     @Transition(name = PREPARE_TO_ADD, source = WORKING, target = PUT_FUNDS, guard = ENOUGH_FUNDS)
     public void prepareAmountToPut() {
         amountToMove = (int) (Math.random() * wallet); // Note: Math.random is replaced with 0 here (temporary workaround for static method access)
         wallet -= amountToMove;
-        System.out.println("OPERATOR" + id + ": decided to put " + amountToMove + ", wallet: " + wallet);
+        //@ ghost System.staticInvariant();
+        System.out.println("OPERATOR" + id.toString()
+                + ": decided to put " + new Integer(amountToMove).toString()
+                + ", wallet: " + new Integer(wallet).toString());
     }
 
     @Transition(name = PREPARE_TO_REMOVE, source = WORKING, target = WITHDRAW_FUNDS)
     public void prepareAmountToWithdraw() {
         amountToMove = (int) (Math.random() * pot); // Note: Math.random is replaced with 0 here (temporary workaround for static method access)
-        System.out.println("OPERATOR" + id + ": decided to withdraw " + amountToMove + ", wallet: " + wallet);
+        //@ ghost System.staticInvariant();
+        System.out.println("OPERATOR" + id.toString()
+                + ": decided to withdraw " + new Integer(amountToMove).toString()
+                + ", wallet: " + new Integer(wallet).toString());
     }
 
     @Transition(name = ADD_TO_POT, source = PUT_FUNDS, target = WORKING, requires = "newPot >= 0")
     public void addToPot (@Data(name = AVAILABLE_FUNDS) int newPot) {
         this.pot = newPot + amountToMove;
-        System.out.println("OPERATOR" + id + ": added " + amountToMove + " to pot, wallet: " + wallet);
+        //@ ghost System.staticInvariant();
+        System.out.println("OPERATOR" + id.toString()
+                + ": added " + new Integer(amountToMove).toString()
+                + " to pot, wallet: " + new Integer(wallet).toString());
     }
 
     @Transition(name = REMOVE_FROM_POT, source = WITHDRAW_FUNDS, target = WORKING)
     public void removeFromPot (@Data(name = AVAILABLE_FUNDS) int newPot) {
         wallet += amountToMove;
         this.pot = newPot - amountToMove;
-        System.out.println("OPERATOR" + id + ": removed " + amountToMove + " from pot, wallet: " + wallet);
+        //@ ghost System.staticInvariant();
+        System.out.println("OPERATOR" + id.toString() +
+                ": removed " + new Integer(amountToMove).toString()
+                + " from pot, wallet: " + new Integer(wallet).toString());
     }
 
     @Pure
