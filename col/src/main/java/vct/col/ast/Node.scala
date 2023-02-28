@@ -14,6 +14,7 @@ import vct.col.ast.expr.`type`._
 import vct.col.ast.expr.ambiguous._
 import vct.col.ast.expr.apply._
 import vct.col.ast.expr.binder._
+import vct.col.ast.expr.bip.{BipGuardInvocationImpl, BipLocalIncomingDataImpl, JavaBipGlueImpl}
 import vct.col.ast.family.coercion._
 import vct.col.ast.expr.context._
 import vct.col.ast.expr.heap.alloc._
@@ -864,9 +865,7 @@ final case class JavaStringValue[G](data: String, t: Type[G])(implicit val o: Or
 
 final class JavaBipGlueContainer[G](val job: Expr[G])(implicit val o: Origin) extends JavaGlobalDeclaration[G]
 
-final case class JavaBipGlue[G](elems: Seq[JavaBipGlueElement[G]])(val blame: Blame[BipGlueFailure])(implicit val o: Origin) extends JavaExpr[G] {
-  override def t: Type[G] = new TNotAValue()
-}
+final case class JavaBipGlue[G](elems: Seq[JavaBipGlueElement[G]])(val blame: Blame[BipGlueFailure])(implicit val o: Origin) extends JavaExpr[G] with JavaBipGlueImpl[G]
 
 final case class JavaBipGlueName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends NodeFamily[G] {
   var data: Option[(JavaClass[G], String)] = None
@@ -875,8 +874,6 @@ sealed trait JavaBipGlueElement[G] extends NodeFamily[G]
 final case class JavaBipGlueRequires[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
 final case class JavaBipGlueAccepts[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
 final case class JavaBipGlueSynchron[G](port0: JavaBipGlueName[G], port1: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
-// dataOut is the output data. In other words, this data provides some data to the data it is wired to.
-// In other words, data flows from dataOut to dataIn
 final case class JavaBipGlueDataWire[G](dataOut: JavaBipGlueName[G], dataIn: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
 
 final class BipGlue[G](val requires: Seq[BipGlueRequires[G]], val accepts: Seq[BipGlueAccepts[G]], val dataWires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipGlueFailure])(implicit val o: Origin) extends GlobalDeclaration[G]
@@ -884,18 +881,10 @@ final case class BipGlueRequires[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G,
 final case class BipGlueAccepts[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
 final case class BipGlueDataWire[G](dataOut: Ref[G, BipOutgoingData[G]], dataIn: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends NodeFamily[G]
 
-sealed trait BipData[G] extends ClassDeclaration[G] {
-  def t: Type[G]
-}
+sealed trait BipData[G] extends ClassDeclaration[G] with BipDataImpl[G]
 final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends BipData[G]
-// TODO (RR): Probably blame should be bip specific, something like, outgoing data cannot be verified with read-only invariants as precondition, in a bip category
-// Note: There is a precondition here, but not because the intention is that the user specifies one. Instead, the precondition in JavaBIP of a data is implicit.
-// Specifically, it only consists of the component invariant and permissions belonging to that.
-// Future work: also allowing use of the state invariant in the data.
 final class BipOutgoingData[G](val t: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends BipData[G]
-final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] {
-  override def t: Type[G] = ref.decl.t
-}
+final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] with BipLocalIncomingDataImpl[G]
 
 final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
 final case class BipTransitionSignature[G](portName: String, sourceStateName: String, targetStateName: String, textualGuard: Option[String])(implicit val o: Origin) extends NodeFamily[G] with BipTransitionSignatureImpl[G]
@@ -906,11 +895,9 @@ final class BipTransition[G](val signature: BipTransitionSignature[G],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
                             )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val pure: Boolean)(val blame: Blame[BipGuardFailure])(implicit val o: Origin) extends ClassDeclaration[G]
-final case class BipGuardInvocation[G](obj: Expr[G], guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] {
-  override def t: Type[G] = TBool()
-}
+final case class BipGuardInvocation[G](obj: Expr[G], guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] with BipGuardInvocationImpl[G]
 final class BipComponent[G](val fqn: Seq[String], val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
-                            val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] { }
+                            val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G]
 
 final class BipPort[G](val t: BipPortType[G])(implicit val o: Origin) extends ClassDeclaration[G]
 sealed trait BipPortType[G] extends NodeFamily[G]
