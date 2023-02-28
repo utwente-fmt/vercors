@@ -124,7 +124,6 @@ lazy val vercors: Project = (project in file("."))
       "-deprecation",
       "-feature",
       "-unchecked",
-//      "-Ywarn-unused",
 //      "-Ystatistics",
 //      "-Xno-patmat-analysis",
 //      "-Ystatistics:typer",
@@ -140,7 +139,7 @@ lazy val vercors: Project = (project in file("."))
     Compile / javacOptions ++= Seq(
       "-Xlint:deprecation",
       "-Xlint:unchecked",
-      "-deprecation",
+      "-deprecation"
     ),
 
     Runtime / javacOptions ++= Seq(
