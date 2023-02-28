@@ -60,21 +60,6 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
       implicit val o = enum.o
       implicit val enumImp: Enum[Pre] = enum
-
-      // eqOptDef
-      val ax = new Variable(TOption(T(enum)))
-      val bx = new Variable(TOption(T(enum)))
-      eqOptDefs(enum) = globalDeclarations.declare(function[Post](
-        args = Seq(ax, bx),
-        returnType = TBool(),
-        body = Some(Select(
-          (ax.get === OptNone()) || (bx.get === OptNone()),
-          ax.get === bx.get,
-          enumEq(OptGet(ax.get)(PanicBlame("None check is done")), OptGet(bx.get)(PanicBlame("None check is done"))))),
-        blame = PanicBlame("Contract should be ok"),
-        contractBlame = PanicBlame("Contract should be satisfiable")
-      )(EqOptOrigin(enum.o)))
-
       currentEnum.having(enum) {
         enumSucc(enum) = globalDeclarations.declare(new AxiomaticDataType(
           // Scoped, or, collectScoped? ADT decls are scoped by program so I guess no? I want these decls to leak out
@@ -118,6 +103,20 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
           }._1, Seq())
         )
       }
+
+      // eqOptDef
+      val ax = new Variable(TOption(T(enum)))
+      val bx = new Variable(TOption(T(enum)))
+      eqOptDefs(enum) = globalDeclarations.declare(function[Post](
+        args = Seq(ax, bx),
+        returnType = TBool(),
+        body = Some(Select(
+          (ax.get === OptNone()) || (bx.get === OptNone()),
+          ax.get === bx.get,
+          enumEq(OptGet(ax.get)(PanicBlame("None check is done")), OptGet(bx.get)(PanicBlame("None check is done"))))),
+        blame = PanicBlame("Contract should be ok"),
+        contractBlame = PanicBlame("Contract should be satisfiable")
+      )(EqOptOrigin(enum.o)))
 
     case const: EnumConstant[Pre] =>
       constSucc(const) = aDTDeclarations.declare(new ADTFunction(Seq(), T(currentEnum.top)(const.o))(const.o))
