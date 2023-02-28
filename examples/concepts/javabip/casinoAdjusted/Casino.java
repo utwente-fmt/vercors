@@ -33,53 +33,62 @@ public class Casino {
         this.operator = operator;
         pot = 0;
         bet = 0;
-        System.out.println("CASINO" + id + ": INITIALIZED");
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString() + ": INITIALIZED");
         secretNumber = new Integer(-1); // TODO: Different from original
     }
 
     // Add money to pot
-    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, requires = "funds >= 0" /* different from original */)
-    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, requires = "funds >= 0")
-    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, requires = "funds >= 0")
+    @Transition(name = ADD_TO_POT, source = IDLE, target = IDLE, guard = IS_OPERATOR, requires = "sender != null && funds >= 0" /* different from original */)
+    @Transition(name = ADD_TO_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = IS_OPERATOR, requires = "sender != null && funds >= 0")
+    @Transition(name = ADD_TO_POT, source = BET_PLACED, target = BET_PLACED, guard = IS_OPERATOR, requires = "sender != null && funds >= 0")
     public void addToPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot + funds;
-        System.out.println("CASINO" + id + ": " + funds +
-                " received from operator " + sender +
-                ", pot: " + pot);
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString() + ": " + new Integer(funds).toString() +
+                " received from operator " + sender.toString() +
+                ", pot: " + new Integer(pot).toString());
     }
 
     // Remove money from pot
-    @Transition(name = REMOVE_FROM_POT, source = IDLE, target = IDLE, 
+    @Transition(name = REMOVE_FROM_POT, source = IDLE, target = IDLE,
+        requires = "sender != null",
         // If we add a guard that checks if the funds can actually be removed, then VerCors can prove the component invariant again.
         guard = "IS_OPERATOR && ENOUGH_FUNDS"
         )
-    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE, guard = "IS_OPERATOR && ENOUGH_FUNDS")
+    @Transition(name = REMOVE_FROM_POT, source = GAME_AVAILABLE, target = GAME_AVAILABLE,
+            requires = "sender != null",
+            guard = "IS_OPERATOR && ENOUGH_FUNDS")
     public void removeFromPot(@Data(name = OPERATOR) Integer sender, @Data(name = INCOMING_FUNDS) int funds) {
         pot = pot - funds;
-        System.out.println("CASINO" + id + ": " + funds +
-                " removed by operator " + sender +
-                ", pot: " + pot);
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString() + ": " + new Integer(funds).toString() +
+                " removed by operator " + sender.toString() +
+                ", pot: " + new Integer(pot).toString());
     }
 
     // Operator opens the game
     @Transition(name = CREATE_GAME, source = IDLE, target = GAME_AVAILABLE, guard = IS_OPERATOR)
     public void createGame(@Data(name = OPERATOR) Integer sender) {
         secretNumber = new Integer((int) (Math.random() * 100));
-        System.out.println("CASINO" + id + ": GAME CREATED");
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString() + ": GAME CREATED");
     }
 
     // Operator receives a bet
     @Transition(name = RECEIVE_BET, source = GAME_AVAILABLE, target = BET_PLACED,
             guard = "IS_NOT_OPERATOR && ALLOWABLE_BET",
-            requires = "0 <= bet && guess != null")
+            requires = "0 <= bet && guess != null && sender != null")
     public void receiveBet(@Data(name = PLAYER) Integer sender,
                            @Data(name = INCOMING_GUESS) Coin guess, @Data(name = INCOMING_BET) int bet) {
         player = sender;
         this.guess = guess;
         this.bet = bet;
-        System.out.println("CASINO" + id + ": received bet: " + bet +
-                ", guess: " + guess +
-                " from player " + player);
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString()
+                + ": received bet: " + new Integer(bet).toString() +
+                ", guess: " + (guess == Coin.HEADS ? "HEADS" : "TAILS") +
+                " from player " + player.toString());
     }
 
     @Transition(name = CASINO_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR && !GUESSED")
@@ -89,8 +98,10 @@ public class Casino {
         bet = 0;
         guess = null;
         player = null;
-        System.out.println("CASINO" + id + ": " + won + " won" +
-                ", pot: " + pot);
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString() + ": "
+                + new Integer(won).toString() + " won" +
+                ", pot: " + new Integer(pot).toString());
     }
 
     @Transition(name = PLAYER_WIN, source = BET_PLACED, target = IDLE, guard = "IS_OPERATOR && GUESSED && IS_PLAYER")
@@ -100,8 +111,10 @@ public class Casino {
         bet = 0;
         guess = null;
         player = null;
-        System.out.println("CASINO" + id + ": " + lost + " lost" +
-                ", pot: " + pot);
+        //@ ghost System.staticInvariant();
+        System.out.println("CASINO" + new Integer(id).toString()
+                + ": " + new Integer(lost).toString() + " lost" +
+                ", pot: " + new Integer(pot).toString());
     }
 
     @Pure

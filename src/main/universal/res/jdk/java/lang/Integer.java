@@ -14,4 +14,10 @@ class Integer {
     ghost
     pure public int intValue();
      */
+
+    //@ ensures \result != null;
+    public String toString() {
+       //@ assume false;
+        return null;
+    }
 }
