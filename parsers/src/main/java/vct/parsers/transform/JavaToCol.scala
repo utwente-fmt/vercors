@@ -1,5 +1,6 @@
 package vct.parsers.transform
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
@@ -18,7 +19,7 @@ import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](originProvider, blameProvider, errors) {
+  extends ToCol[G](originProvider, blameProvider, errors) with LazyLogging {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
       Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
@@ -133,13 +134,16 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit pairs: ElementValuePairsContext): Seq[(String, Expr[G])] = pairs match {
-    case ElementValuePairs0(pair) => Seq(convert(pair))
-    case ElementValuePairs1(more, _, pair) => convert(more) :+ convert(pair)
+    case ElementValuePairs0(pair) => convert(pair).toSeq
+    case ElementValuePairs1(more, _, pair) => convert(more) ++ convert(pair).toSeq
     case _ => ???
   }
 
-  def convert(implicit pair: ElementValuePairContext): (String, Expr[G]) = pair match {
-    case ElementValuePair0(name, _, ElementValue1(expr)) => (convert(name), convert(expr))
+  def convert(implicit pair: ElementValuePairContext): Option[(String, Expr[G])] = pair match {
+    case ElementValuePair0(name, _, ElementValue0(expr)) =>
+      logger.warn(s"Annotation array initializer at ${originProvider(pair).shortPosition} is discarded")
+      None
+    case ElementValuePair0(name, _, ElementValue1(expr)) => Some((convert(name), convert(expr)))
     case x => ??(x)
   }
 
@@ -210,7 +214,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
     case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
     case MemberDeclaration7(cls) => fail(cls, "Inner classes are not supported.")
-    case MemberDeclaration8(enum) => fail(enum, "Enums are not supported.")
+    case MemberDeclaration8(enum) => fail(enum, "Inner enums are not supported.")
   }
 
   def convert(implicit decl: InterfaceMemberDeclarationContext, mods: Seq[JavaModifier[G]], c: ContractCollector[G]): Seq[ClassDeclaration[G]] = decl match {
@@ -1498,6 +1502,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit e: ValExprContext): Expr[G] = e match {
     case ValExpr0(inner) => convert(inner)
     case ValExpr1(inner) => convert(inner)
+    case ValExpr2(_, _, _, replacer, _, _, inner , _, _, _) => convert(replacer)
   }
 
   def convert(implicit id: ValIdentifierContext): String = id match {

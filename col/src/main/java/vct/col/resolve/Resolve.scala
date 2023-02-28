@@ -16,12 +16,6 @@ import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
 
 case object Resolve {
-  // TODO: Can probably delete this
-//  def resolve(program: Program[_], jp: Resolve.SpecExprParser, externalJavaLoader: Option[ExternalJavaLoader] = None): Seq[CheckError] = {
-//    ResolveTypes.resolve(program, externalJavaLoader)
-//    ResolveReferences.resolve(program, jp)
-//  }
-
   case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
     override def code: String = "badBipAnnotation"
 

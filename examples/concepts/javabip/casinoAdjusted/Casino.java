@@ -130,7 +130,7 @@ public class Casino {
     }
 
     @Pure
-    @Data(name = OUTGOING_MONEY, accessTypePort = /*@ \replacing(0) */ DataOut.AccessType.allowed /*@ \replacing_done */, ports = {PLAYER_WIN})
+    @Data(name = OUTGOING_MONEY, accessTypePort = /*@ \replacing(0) */ DataOut.AccessType.allowed /*@ \replacing_done @*/, ports = {PLAYER_WIN})
     public int getWin() {
         return 2*bet;
     }

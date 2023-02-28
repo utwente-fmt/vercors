@@ -49,7 +49,6 @@ public interface DataOut<T> extends Data<T> {
 	 * The Enum AccessType.
 	 */
 	public enum AccessType {
-
 		/** The 'any' specifies that data is available via any port participating in the interaction. */
 		any,
 		/** The 'witness' specifies that data is available even if no port is participating in the interaction. */
