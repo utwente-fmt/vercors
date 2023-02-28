@@ -9,7 +9,10 @@ import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import java.io.FileNotFoundException
 
 abstract class JavaBipSpecHelper extends VercorsSpec {
-  def fromExamples(s: String): PathOrStd.Path = PathOrStd.Path(Paths.get(s"examples/$s"))
+  def fromExamples(s: String): PathOrStd.Path = {
+    coveredExamples ++= Seq(Paths.get("examples", s))
+    PathOrStd.Path(Paths.get(s"examples/$s"))
+  }
 
   def failingTest(code: String, report: String, files: String*)(implicit pos: source.Position): Unit = bipTest(files, report, Seq(code))
   def failingTest(codes: Seq[String], report: String, files: String*)(implicit pos: source.Position): Unit = bipTest(files, report, codes)
