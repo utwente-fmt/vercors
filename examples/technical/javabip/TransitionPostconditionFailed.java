@@ -18,7 +18,7 @@ public class TransitionPostconditionFailed {
 
     private int x;
 
-    @Transition(name = GO, source = INIT, target = DONE, pre = "x >= 0", post = "x < 3")
+    @Transition(name = GO, source = INIT, target = DONE, requires = "x >= 0", ensures = "x < 3")
     public void goTransition() {
         x = 4;
     }
