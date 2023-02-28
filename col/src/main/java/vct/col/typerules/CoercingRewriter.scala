@@ -367,6 +367,34 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
   override final def dispatch(node: Operator[Pre]): Operator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: BipPortType[Pre]): BipPortType[Pre] = node
+  def postCoerce(node: BipPortType[Pre]): BipPortType[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipPortType[Pre]): BipPortType[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
+  def postCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipTransitionSignature[Pre]): BipTransitionSignature[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
+  def postCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueDataWire[Pre]): BipGlueDataWire[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
+  def postCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueRequires[Pre]): BipGlueRequires[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
+  def postCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueAccepts[Pre]): BipGlueAccepts[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
+  def postCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
+  def postCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaBipGlueName[Pre]): JavaBipGlueName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -1771,4 +1799,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case OperatorRightPlus() => OperatorRightPlus()
     }
   }
+
+  def coerce(node: BipPortType[Pre]): BipPortType[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case BipEnforceable() =>  BipEnforceable()
+      case BipSpontaneous() => BipSpontaneous()
+      case BipInternal() => BipInternal()
+    }
+  }
+
+  def coerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
+  def coerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
+  def coerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
+  def coerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
+
+  def coerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
+  def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
 }

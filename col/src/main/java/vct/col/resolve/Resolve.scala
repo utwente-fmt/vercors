@@ -313,10 +313,10 @@ case object ResolveReferences extends LazyLogging {
           .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
             case Some(target: JavaNameTarget[G]) => Some(target)
             case None => None
-          })
+          }))
           .getOrElse(
             if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
-            else RefUnloadedJavaNamespace(Seq(name)))))
+            else RefUnloadedJavaNamespace(Seq(name))))
     case local @ PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
