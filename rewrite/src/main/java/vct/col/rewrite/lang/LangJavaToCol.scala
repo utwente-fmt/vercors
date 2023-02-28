@@ -205,7 +205,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
              the Statics function instead of \result from the procedure. Statics constructor is only used for static final
              field assignments required for ConstantifyFinalFields.
            */
-          ensures = UnitAccountedPredicate(if(isStaticPart) tt[Pre] else fieldPerms),
+          ensures = if(isStaticPart) UnitAccountedPredicate(tt[Pre]) else fieldPerms,
           contextEverywhere = tt, signals = Nil, givenArgs = Nil, yieldsArgs = Nil, decreases = None,
         )(TrueSatisfiable)
       )(PanicBlame("The postcondition of a default constructor cannot fail."))
@@ -274,7 +274,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     rw.labelDecls.scope {
       javaMethod(method) = rw.classDeclarations.declare(new InstanceMethod(
         returnType = rw.dispatch(method.returnType),
-        args = rw.variables.dispatch(method.parameters),
+        args = rw.variables.collect(method.parameters.map(rw.dispatch(_)))._1,
         outArgs = Nil, typeArgs = Nil,
         body = method.modifiers.collectFirst { case sync@JavaSynchronized() => sync } match {
           case Some(sync) => method.body.map(body => Synchronized(rw.currentThis.top, rw.dispatch(body))(sync.blame)(method.o))
