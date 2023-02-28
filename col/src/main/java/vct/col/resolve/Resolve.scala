@@ -493,16 +493,11 @@ case object ResolveReferences extends LazyLogging {
       })
 
     case ann@JavaAnnotation(_, _) if isBip(ann, "Transition") =>
-      // TODO (RR): I would like some indication that vercors is in BIP verification mode, somehow. General message after parsing or resolution?
-//      logger.info(s"BIP Transition @ ${ann.o}")
-
       val guard: Option[Expr[G]] = ann.get("guard").map { g =>
         val expr: Expr[G] = ctx.javaParser.parse(getLit(g), g.o)
         // TODO: What about check errors here?
         resolve(expr, ctx.enableJavaBipGuards())
         expr
-        // TODO: Get rid of this?
-//        Java.findJavaBipGuard(ctx, getLit(g)).getOrElse(throw MalformedBipAnnotation(ann, "Guard name does not exist"))
       }
 
       def extractExpr(s: Option[Expr[_]]): (String, Origin) = s match {
@@ -549,8 +544,13 @@ case object ResolveReferences extends LazyLogging {
       ann.data = Some(BipGuard(getLit(ann.expect("name"))))
 
     case ann: JavaAnnotation[G] if isBip(ann, "Port") =>
-      // TODO (RR): Also do port type
-      ann.data = Some(BipPort[G](getLit(ann.expect("name")), BipEnforceable()(ann.o))(ann.o))
+      val portType: BipPortType[G] = ann.expect("type") match {
+        case p @ JavaDeref(_, "enforceable") => BipEnforceable[G]()(p.o)
+        case p @ JavaDeref(_, "spontaneous") => BipSpontaneous[G]()(p.o)
+        case p @ JavaDeref(_, "internal") => BipInternal[G]()(p.o)
+        case e => throw MalformedBipAnnotation(e, "Can be either PortType.enforceable, spontaneous, or internal")
+      }
+      ann.data = Some(BipPort[G](getLit(ann.expect("name")), portType)(ann.o))
 
     case ann: JavaAnnotation[G] if isBip(ann, "Pure") =>
       ann.data = Some(BipPure[G]())
