@@ -4,6 +4,7 @@ import vct.test.integration.helper.VercorsSpec
 
 class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/AddAssignJava.java"
+  vercors should verify using anyBackend example "concepts/basic/JavaStandardLib.java"
   vercors should error withCode "resolutionError" example "concepts/basic/ArrayAsObject.java"
   vercors should verify using anyBackend example "concepts/basic/BasicAssert.java"
   vercors should verify using anyBackend example "concepts/basic/BasicAssert-e1.java"

@@ -6,8 +6,6 @@ import org.javabip.api.PortType;
 @Port(name = "MyPort", type = PortType.enforceable)
 @ComponentType(initial = "initialState", name = "myComponentSpec")
 public class MyComponent {
-    int x;
-
     /* If the precondition is an untruth, all aspects of the transition should be "not proven", as we cannot know
        in that case.
      */
