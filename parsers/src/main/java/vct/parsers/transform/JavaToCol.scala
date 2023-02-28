@@ -585,7 +585,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(expr, valPostfix, convert(expr))
-    case JavaNew(_, Some(_), Creator1(createdName, creatorRest), None, None) /* TODO: if isTwoSynchronGlueBuilderName(createdName) */ =>
+    case JavaNew(_, Some(_), Creator1(createdName, creatorRest), None, None) =>
       convertBipGlue(creatorRest)
     case JavaNew(_, None, creator, given, yields) =>
       convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
@@ -676,6 +676,10 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convertBipGlue(implicit p: ParserRuleContext): JavaBipGlue[G] = p match {
+    /* TODO: This block of code, and related functions, can be removed once we add typechecking for all features
+         required by examples/concepts/javabip/casinoBroken/Main.java; then it's possible to pick this structure out in
+         LangBipToCol.
+     */
     case CreatorRest1(ClassCreatorRest0(Arguments0(_, None, _), Some(classBody))) => convertBipGlue(classBody)
     case ClassBody0(_, Seq(decl), _) => convertBipGlue(decl)
     case ClassBodyDeclaration2(None, _, MemberDeclaration0(method)) => convertBipGlue(method)
@@ -1497,6 +1501,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit e: ValExprContext): Expr[G] = e match {
     case ValExpr0(inner) => convert(inner)
     case ValExpr1(inner) => convert(inner)
+    // TODO: Remove this when we support nested enums (for the JavaBIP casino example)
     case ValExpr2(_, _, _, replacer, _, _, inner , _, _, _) => convert(replacer)
   }
 

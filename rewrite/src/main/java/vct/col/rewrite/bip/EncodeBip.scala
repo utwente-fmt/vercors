@@ -27,9 +27,6 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  /* The next three classes seem repetitive. Can probably factor out a common core,
-     e.g., handle postcondition failed, panic on the rest? That does hurt understandability.
-   */
   case class TransitionPostconditionFailed(results: VerificationResults, transition: BipTransition[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
@@ -49,7 +46,6 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  // Could be refactor with postblamesplit
   case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {

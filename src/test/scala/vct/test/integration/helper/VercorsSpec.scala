@@ -90,7 +90,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     }
   }
 
-  private def matchVerdict[T](verdict: Verdict, value: Either[VerificationError, (Seq[VerificationFailure], VerificationReport)]): Unit = {
+  private def matchVerdict(verdict: Verdict, value: Either[VerificationError, (Seq[VerificationFailure], VerificationReport)]): Unit = {
     value match {
       case Left(err: TemporarilyUnsupported) =>
         println(err)

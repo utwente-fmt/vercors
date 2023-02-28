@@ -43,12 +43,10 @@ case object Verify extends LazyLogging {
     val bipResults = BIP.VerificationResults()
     val stages = Stages.ofOptions(options, ConstantBlameProvider(collector), bipResults)
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
-    val r = stages.run(inputs) match {
+    stages.run(inputs) match {
       case Left(error) => Left(error)
       case Right(()) => Right((collector.errs.toSeq, bipResults.toStandalone()))
     }
-    val x = 3
-    r
   }
 
   /**

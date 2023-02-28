@@ -44,17 +44,6 @@ case object Options {
 
     implicit val readPath: scopt.Read[Path] = scopt.Read.reads(Paths.get(_))
 
-    def parseSep(sep: String)(s: String): (String, String) =
-      s.split(sep).toSeq match {
-        case Seq(a, b) => (a, b)
-      }
-
-    def parseLink(s: String): ((String, String), (String, String)) =
-      parseSep(":")(s) match {
-        case (l, r) =>
-          (parseSep("\\.")(l), parseSep("\\.")(r))
-      }
-
     val parser = OParser.sequence(
       programName(BuildInfo.name),
       head(BuildInfo.name, BuildInfo.version),
