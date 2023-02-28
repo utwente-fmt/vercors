@@ -3,7 +3,7 @@ package vct.examples.technical.javabip;
 import org.javabip.annotations.*;
 import org.javabip.api.PortType;
 
-@Port(name = GO)
+@Port(name = GO, type = PortType.enforceable)
 @ComponentType(initial = INIT, name = NAME)
 @StatePredicate(state = "doneState", expr = "x >= 3")
 public class StateInvariantNotMaintained {

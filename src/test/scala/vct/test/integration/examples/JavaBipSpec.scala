@@ -25,13 +25,4 @@ class JavaBipSpec extends JavaBipSpecHelper {
     "concepts/javabip/casinoAdjusted/Casino.java",
     "concepts/javabip/casinoAdjusted/Operator.java",
   )
-
-  // TODO (RR): Make this test sensible, and then make it passing, or delete it
-  // failingTest("concepts/javabip/deviation/deviation.json",
-  //   "concepts/javabip/deviation/CalculatorSpec.java",
-  //   "concepts/javabip/deviation/Constants.java",
-  //   "concepts/javabip/deviation/DeviatorSpec.java",
-  //   "concepts/javabip/deviation/GeneratorSpec.java",
-  //   "concepts/javabip/deviation/Main.java",
-  // )
 }

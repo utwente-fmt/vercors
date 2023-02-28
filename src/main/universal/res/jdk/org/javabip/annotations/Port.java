@@ -20,17 +20,17 @@
 
 package jdk.org.javabip.annotations;
 
-// import java.lang.annotation.Retention;
-// import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
-// import org.javabip.api.PortType;
+import org.javabip.api.PortType;
 
 /**
  * It specifies the name and the type of the port.
  * 
  * @author Alina Zolotukhina
  */
-// Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME)
 public /*@ bip_annotation @*/ @interface Port {
 
 	/**
@@ -45,6 +45,6 @@ public /*@ bip_annotation @*/ @interface Port {
 	 * 
 	 * @return the type of the port.
 	 */
-	// PortType type(); // TODO (RR): When enums are back, turn this on again
+	PortType type();
 
 }
