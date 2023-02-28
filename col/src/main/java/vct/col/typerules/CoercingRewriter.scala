@@ -1752,7 +1752,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case js @ JavaSynchronized() => JavaSynchronized()(js.blame)
       case JavaTransient() => JavaTransient()
       case JavaVolatile() => JavaVolatile()
-      case JavaAnnotation(name, args) => JavaAnnotation(name, args)
+      case annotation @ JavaAnnotation(name, args) => JavaAnnotation(name, args)(annotation.blame)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
     }

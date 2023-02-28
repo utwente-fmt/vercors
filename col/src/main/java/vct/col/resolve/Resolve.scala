@@ -34,13 +34,13 @@ case object Resolve {
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
-    case JavaStringLiteral(guardName) =>
+    case JavaStringValue(guardName, _) =>
       Some(guardName)
     case local @ JavaLocal(_) =>
       local.ref match {
         case Some(RefJavaField(decls, id)) =>
           decls.decls(id).init match {
-            case Some(JavaStringLiteral(data)) => Some(data)
+            case Some(JavaStringValue(data, _)) => Some(data)
             case _ => None
           }
         case _ => None
@@ -316,7 +316,7 @@ case object ResolveReferences extends LazyLogging {
           })
           .getOrElse(
             if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
-            else RefUnloadedJavaNamespace(Seq(name))))
+            else RefUnloadedJavaNamespace(Seq(name)))))
     case local @ PVLLocal(name) =>
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
@@ -507,7 +507,7 @@ case object ResolveReferences extends LazyLogging {
 
       def extractExpr(s: Option[Expr[_]]): (String, Origin) = s match {
         case None => ("true", ann.o)
-        case Some(s @ JavaStringLiteral(data)) => (data, s.o)
+        case Some(s @ JavaStringValue(data, _)) => (data, s.o)
         case Some(n) => throw MalformedBipAnnotation(n, "pre- and post-conditions must be string literals")
       }
 
