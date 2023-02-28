@@ -50,58 +50,52 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
   def T(enum: Enum[Pre])(implicit o: Origin): Type[Post] =
     TAxiomatic(enumSucc.ref[Post, AxiomaticDataType[Post]](enum), Seq())
 
-  override def postCoerce(stat: Statement[Pre]): Statement[Post] = {
-    super.postCoerce(stat)
-  }
-
   override def postCoerce(decl: Declaration[Pre]): Unit = decl match {
     case enum: ast.Enum[Pre] =>
-      enum.drop()
-
       implicit val o = enum.o
       implicit val enumImp: Enum[Pre] = enum
       currentEnum.having(enum) {
-        enumSucc(enum) = globalDeclarations.declare(new AxiomaticDataType(
-          // Scoped, or, collectScoped? ADT decls are scoped by program so I guess no? I want these decls to leak out
-          aDTDeclarations.collect {
-            enum.constants.foreach(dispatch)
+        aDTDeclarations.scope {
+          enumSucc(enum) = globalDeclarations.declare(new AxiomaticDataType(
+            aDTDeclarations.collect {
+              enum.constants.foreach(dispatch)
 
-            val eqDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum)), new Variable(T(enum))), TBool())(EqOrigin(enum.o)))
-            eqDefs(enum) = eqDef
-            val toIntDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum))), TInt())(ToIntOrigin(enum.o)))
-            val toInt: Expr[Post] => Expr[Post] = e => ADTFunctionInvocation(None, toIntDef.ref[ADTFunction[Post]], Seq(e))
+              val eqDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum)), new Variable(T(enum))), TBool())(EqOrigin(enum.o)))
+              eqDefs(enum) = eqDef
+              val toIntDef: ADTFunction[Post] = aDTDeclarations.declare(new ADTFunction(Seq(new Variable(T(enum))), TInt())(ToIntOrigin(enum.o)))
+              val toInt: Expr[Post] => Expr[Post] = e => ADTFunctionInvocation(None, toIntDef.ref[ADTFunction[Post]], Seq(e))
 
-            // eqDef
-            aDTDeclarations.declare(new ADTAxiom(
-              foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
-                (InlinePattern(enumEq(a, b))
-                  ===
-                  (toInt(a) === toInt(b)))
-              })))
+              // eqDef
+              aDTDeclarations.declare(new ADTAxiom(
+                foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
+                  (InlinePattern(enumEq(a, b))
+                    ===
+                    (toInt(a) === toInt(b)))
+                })))
 
-            // eqPost
-            aDTDeclarations.declare(new ADTAxiom(
-              foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
-                (InlinePattern(enumEq(a, b))
-                  ==>
-                  (a === b))
-              })))
+              // eqPost
+              aDTDeclarations.declare(new ADTAxiom(
+                foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
+                  (InlinePattern(enumEq(a, b))
+                    ==>
+                    (a === b))
+                })))
 
-            /// toIntAlts
-            aDTDeclarations.declare(new ADTAxiom(
-              foldAnd(
-                enum.constants.zipWithIndex.map { case (eConst, i) =>
-                  (toInt(getConst(eConst)) === const(i))
-                }
-              )
-            ))
+              /// toIntAlts
+              aDTDeclarations.declare(new ADTAxiom(
+                foldAnd(
+                  enum.constants.zipWithIndex.map { case (eConst, i) =>
+                    (toInt(getConst(eConst)) === const(i))
+                  }
+                )
+              ))
 
-            // toIntRange
-            aDTDeclarations.declare(new ADTAxiom(
-              forall[Post](T(enum), e => (const(0) <= InlinePattern(toInt(e))) && (toInt(e) < const(enum.constants.length)))
-            ))
-          }._1, Seq())
-        )
+              // toIntRange
+              aDTDeclarations.declare(new ADTAxiom(
+                forall[Post](T(enum), e => (const(0) <= InlinePattern(toInt(e))) && (toInt(e) < const(enum.constants.length)))
+              ))
+            }._1, Seq()))
+        }
       }
 
       // eqOptDef
@@ -120,7 +114,7 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
 
     case const: EnumConstant[Pre] =>
       constSucc(const) = aDTDeclarations.declare(new ADTFunction(Seq(), T(currentEnum.top)(const.o))(const.o))
-    case _ => super.postCoerce(decl)
+    case _ => rewriteDefault(decl)
   }
 
   object EqTL {
