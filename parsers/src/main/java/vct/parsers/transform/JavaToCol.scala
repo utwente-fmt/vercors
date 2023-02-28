@@ -975,6 +975,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "pure" => collector.pure += mod
       case "inline" => collector.inline += mod
       case "thread_local" => collector.threadLocal += mod
+      case "bip_annotation" => collector.bipAnnotation += mod
     }
     case ValStatic(_) => collector.static += mod
   }

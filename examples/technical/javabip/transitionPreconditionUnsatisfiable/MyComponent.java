@@ -11,7 +11,7 @@ public class MyComponent {
     /* If the precondition is an untruth, all aspects of the transition should be "not proven", as we cannot know
        in that case.
      */
-    @Transition(name = "MyPort", source = "initialState", target = "initialState", pre = "42 == 1337")
+    @Transition(name = "MyPort", source = "initialState", target = "initialState", requires = "1 == 2")
     public void myUpdateFunction() {
 
     }

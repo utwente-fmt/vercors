@@ -12,7 +12,7 @@ public class MyComponent {
        it does not invalidate the postcondition, state, or component invariant. So those should all verify,
        and be indicated as such in the verification report.
      */
-    @Transition(name = "MyPort", source = "initialState", target = "initialState", pre = "x == 0")
+    @Transition(name = "MyPort", source = "initialState", target = "initialState", requires = "x == 0")
     public void myUpdateFunction() {
 
     }
