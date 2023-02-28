@@ -17,8 +17,8 @@ case class ColJavaParser(override val originProvider: OriginProvider, override v
       val tokens = new CommonTokenStream(lexer)
       originProvider.setTokenStream(tokens)
       val parser = new JavaParser(tokens)
-      /* TODO (RR): This is needed for JavaBIP, to allow Perm at the top level.
-                    If changed, this should also be made consistent with the parser below. */
+      /* This is needed for JavaBIP, to allow Perm at the top level.
+         If changed, this should also be made consistent with the parser below. */
       if (!specCommentsNeeded) {
         parser.specLevel = 1
       }
