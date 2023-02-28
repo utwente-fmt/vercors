@@ -299,11 +299,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         rw.variables.declare(new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o)))
     }
 
-  //  def makeJavaBipComponent(oldCls: Class[Pre], cls: Class[Post]): JavaBipComponent[Post] = {
-//    // TODO (RR): JavaBIp components seem to be a subset of java classes, so they should be explicitly modeled like that, instead of the java/nesting approach I was thinking of here
-//    JavaBipComponent[Post](Seq(), cls, null, null, null)(DiagnosticOrigin).declareDefault(rw)
-//  }
-
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
     implicit val o: Origin = cls.o
 

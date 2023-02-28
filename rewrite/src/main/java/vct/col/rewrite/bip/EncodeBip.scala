@@ -334,7 +334,6 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       // Mark that the default case is that verification is succesfull
       results.declare(component, transition)
 
-      // TODO (RR): I would really like to have put the textual names of the transitions.datas in the origin of the variable below...
       // Better debugging
       val incomingDataToVariable = ListMap.from(transition.data.map { case Ref(data) =>
         (data, new Variable(dispatch(data.t)))

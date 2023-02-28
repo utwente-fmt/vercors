@@ -21,7 +21,7 @@ case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
       q"($left.isEmpty && $right.isEmpty) || ($left.nonEmpty && $right.nonEmpty && ${valueEqual(inner, q"$left.get", q"$right.get")})"
 
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
-      // TODO (RR): Rewrite in above form
+      // TODO (RR): Do I keep this? JavaBIP doesn't need it. Also there are no simplification rules below
       q"""
         ($left.isLeft, $right.isLeft) match {
           case (true, true) => ${valueEqual(t1, q"$left.left.get", q"$right.left.get")}
@@ -29,7 +29,6 @@ case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
           case _ => false
         }
        """
-      // TODO (RR): Add simplification rules for this case below?
 
     case Type.Tuple(args) =>
       args.zipWithIndex.map {
@@ -52,8 +51,6 @@ case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
 
     case Type.Apply(Type.Name("Option"), List(inner)) =>
       q"if($left.nonEmpty) ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
-      // TODO (RR): Fix the below "improvement"?
-      // q"if($left.nonEmpty) right.nonEmpty && ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
 
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
       q"""

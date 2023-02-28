@@ -584,7 +584,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case _ => false
   }
 
-  // TODO (RR): Generalize this to ghost statement/expr to exclude arbitrary fragments?
   def isThrowAwayExpr(expr: ExprContext): Boolean = expr match {
     case JavaPrimary(inner) => isThrowAwayAnnotatedPrimary(inner)
     case parse.JavaDeref(obj, _, _) => isThrowAwayExpr(obj)

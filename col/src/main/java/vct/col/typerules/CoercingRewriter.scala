@@ -742,7 +742,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
               case _ => throw IncoercibleText(left, "This expression does not have a matching custom plus operator")
             }
           }, {
-            // TODO (RR): Definition of operators should be type checked for arity
+            // TODO: Definition of operators should be type checked for arity
             val validOperators = plus.getValidOperatorsOf(OperatorRightPlus())
             validOperators match {
               case Some(Seq(op)) => AmbiguousPlus(cls(right), coerce(left, op.args.head.t))(plus.blame)

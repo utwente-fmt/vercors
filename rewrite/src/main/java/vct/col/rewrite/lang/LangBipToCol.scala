@@ -77,8 +77,6 @@ case object LangBipToCol {
   }
 }
 
-// TODO (RR): More specific origins (e.g. avoid SourceNameOrigin), errors, panicBlame...
-
 case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
@@ -169,8 +167,6 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteGuard(m: JavaMethod[Pre]): Unit = {
-    // TODO (RR): Add ensures to @Guard
-    // TODO (RR): Add purity to guards
     val jad.BipGuard(_) = jad.BipGuard.get(m).get
 
     if (m.returnType != TBool[Pre]()) { throw LangBipToCol.WrongGuardReturnType(m) }

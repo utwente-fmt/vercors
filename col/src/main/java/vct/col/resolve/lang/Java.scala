@@ -521,7 +521,6 @@ case object JavaAnnotationData {
         case m: JavaMethod[G] => m.modifiers
         case _ => return None
       }
-      // TODO (RR): Why asInstanceOf here?
       modifiers.collectFirst { case JavaAnnotationEx(_, _, d @ BipData(_)) => d.asInstanceOf[BipData[G]] }
     }
   }

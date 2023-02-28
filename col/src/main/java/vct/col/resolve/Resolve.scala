@@ -240,7 +240,11 @@ case object ResolveReferences extends LazyLogging {
         .declareJavaBipStatePredicates(scanJavaBipStatePredicates(cls.modifiers))
 
       /* TODO (RR): JavaBIP _name keys_ of guard annotations cut in line because transitions need to refer to them,
-          _by string value_, so they are fully resolved directly... That's probably bad. */
+          _by string value_, so they are fully resolved directly... That's probably bad.
+          This can be improved by having the javabip annotation specification parser use something like a "BipLocal" node
+          instead of a "JavaLocal" node for local variable references. Then these can be handled separately in the
+          resolution phase
+          */
       newCtx.javaBipGuards.keys.map(resolve(_, newCtx))
       newCtx.javaBipStatePredicates.keys.map(resolve(_, newCtx))
       newCtx
