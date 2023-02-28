@@ -58,7 +58,6 @@ case class SpecExprParseError(msg: String) extends UserError {
 
 case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecExprParser {
   override def parse[G](input: String, o: Origin): Expr[G] = {
-    // TODO (RR): The behavior of redirecting origins works now but its is ugly, refactor
     val sr = StringReadable(input)
     val cjp = ColJavaParser(RedirectOriginProvider(o, input), blameProvider)
     val x = try {
