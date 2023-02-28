@@ -69,8 +69,8 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
               aDTDeclarations.declare(new ADTAxiom(
                 foralls[Post](Seq(T(enum), T(enum)), { case Seq(a, b) =>
                   (InlinePattern(enumEq(a, b))
-                    ===
-                    (toInt(a) === toInt(b)))
+                  ===
+                  (toInt(a) === toInt(b)))
                 })))
 
               // eqPost
@@ -129,7 +129,7 @@ case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {
     case EnumUse(_, const) => OptSome(getConst(const.decl)(e.o))(e.o)
     case EqTL(Eq(a, b), TEnum(enum)) => enumOptEq(dispatch(a), dispatch(b))(enum.decl, e.o)
     case EqTL(Neq(a, b), TEnum(enum)) => implicit val o = e.o; !enumOptEq(dispatch(a), dispatch(b))(enum.decl, e.o)
-    case other => super.postCoerce(other)
+    case other => rewriteDefault(other)
   }
 
   override def postCoerce(t: Type[Pre]): Type[Post] = t match {
