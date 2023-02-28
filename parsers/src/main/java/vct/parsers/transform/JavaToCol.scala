@@ -91,11 +91,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "transient" => JavaTransient()
       case "volatile" => JavaVolatile()
     }
-//    case Modifier2(mods) => withModifiers(mods, m => {
-//      if(m.consume(m.pure)) JavaPure[G]()
-//      else if(m.consume(m.inline)) JavaInline[G]()
-//      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
-//    })
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier[G] = modifier match {
