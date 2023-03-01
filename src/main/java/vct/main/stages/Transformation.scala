@@ -107,7 +107,6 @@ class Transformation
         }
 
         result = pass().dispatch(result)
-        result = Deserialize.deserialize(Serialize.serialize(result))
 
         result.check match {
           case Nil => // ok
