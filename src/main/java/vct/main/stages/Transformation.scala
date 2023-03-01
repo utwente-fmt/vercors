@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{IterationContract, Procedure, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{Deserialize, IterationContract, Procedure, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -256,6 +256,7 @@ case class SilverTransformation
     ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
+    RewriteTriggerADTFunctions,
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)

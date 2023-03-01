@@ -1,7 +1,6 @@
 import ColDefs.DECLARATION_KINDS
-import com.google.protobuf.DescriptorProtos._
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.{Type => PType}
-import com.google.protobuf.Descriptors.{Descriptor, FieldDescriptor}
+import com.google.protobuf.DescriptorProtos._
 
 import java.io.File
 import scala.collection.JavaConverters._
@@ -10,9 +9,9 @@ import scala.meta.{Type => SType}
 
 case class ColProto(info: ColDescription, output: File, writer: (File, String) => Unit) {
   case class Name(orig: String) {
-    private val upperIndices = orig.capitalize.zipWithIndex.collect { case (c, i) if c.isUpper => i } :+ orig.length
+    private val upperIndices = orig.capitalize.zipWithIndex.collect { case (c, i) if c.isUpper || c == '_' => i } :+ orig.length
     private val unsafeParts = upperIndices.zip(upperIndices.tail).map {
-      case (from, to) => orig.slice(from, to).toLowerCase
+      case (from, to) => orig.slice(from, to).toLowerCase.replace("_", "")
     }
 
     val parts: Seq[String] = Map(
@@ -29,7 +28,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
   sealed trait Typ {
     def isPrimitive: Boolean = this match {
-      case TBool | TRef | TInt | TBigInt | TBigDecimal | TString => true
+      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString => true
       case TName(_) => true
       case TOption(t) if t.isMarkable => true
       case TSeq(t) if t.isMarkable => true
@@ -38,14 +37,14 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     }
 
     def isMarkable: Boolean = this match {
-      case TBool | TRef | TInt | TBigInt | TBigDecimal | TString => true
+      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString => true
       case TName(_) => true
       case _ => false
     }
 
     override def toString: String = this match {
       case TBool => "Bool"
-      case TRef => "Ref"
+      case TRef() => "Ref"
       case TInt => "Int"
       case TBigInt => "BigInt"
       case TBigDecimal => "BigDecimal"
@@ -59,29 +58,29 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   }
 
   case object TBool extends Typ
-  case object TRef extends Typ
   case object TInt extends Typ
   case object TBigInt extends Typ
   case object TBigDecimal extends Typ
   case object TString extends Typ
+  case class TRef()(val scalaArg: SType) extends Typ
   case class TName(name: String) extends Typ
-  case class TOption(t: Typ) extends Typ
-  case class TSeq(t: Typ) extends Typ
-  case class TSet(t: Typ) extends Typ
-  case class TTuple(ts: Seq[Typ]) extends Typ
+  case class TOption(t: Typ)(val scalaArg: SType) extends Typ
+  case class TSeq(t: Typ)(val scalaArg: SType) extends Typ
+  case class TSet(t: Typ)(val scalaArg: SType) extends Typ
+  case class TTuple(ts: Seq[Typ])(val scalaArg: Seq[SType]) extends Typ
 
   def getType(t: SType): Typ = t match {
     case SType.Apply(SType.Name("Seq"), List(SType.Name("ExpectedError"))) => TName("ExpectedErrors")
 
-    case SType.Apply(SType.Name("Seq"), List(arg)) => TSeq(getType(arg))
-    case SType.Apply(SType.Name("Option"), List(arg)) => TOption(getType(arg))
-    case SType.Apply(SType.Name("Set"), List(arg)) => TSet(getType(arg))
-    case SType.Tuple(ts) => TTuple(ts.map(getType))
+    case SType.Apply(SType.Name("Seq"), List(arg)) => TSeq(getType(arg))(arg)
+    case SType.Apply(SType.Name("Option"), List(arg)) => TOption(getType(arg))(arg)
+    case SType.Apply(SType.Name("Set"), List(arg)) => TSet(getType(arg))(arg)
+    case SType.Tuple(ts) => TTuple(ts.map(getType))(ts)
 
     case SType.Apply(SType.Name(decl), List(SType.Name("G"))) if DECLARATION_KINDS.contains(decl) => TName(decl)
     case SType.Apply(SType.Name(node), List(SType.Name("G"))) if info.families.contains(node) => TName(node)
 
-    case SType.Apply(SType.Name("Ref"), List(SType.Name("G"), _)) => TRef
+    case SType.Apply(SType.Name("Ref"), List(SType.Name("G"), decl)) => TRef()(decl)
     case SType.Name("Int") => TInt
     case SType.Name("String") => TString
     case SType.Name("Boolean") => TBool
@@ -123,17 +122,17 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     case TSet(inner) if inner.isMarkable => t
     case TOption(inner) if inner.isMarkable => t
 
-    case TSeq(t) => TSeq(box(t))
-    case TSet(t) => TSet(box(t))
-    case TOption(t) => TOption(box(t))
+    case st @ TSeq(t) => TSeq(box(t))(st.scalaArg)
+    case st @ TSet(t) => TSet(box(t))(st.scalaArg)
+    case st @ TOption(t) => TOption(box(t))(st.scalaArg)
     case other => box(other)
   }
 
   def setPrimitivizedType(builder: FieldDescriptorProto.Builder, t: Typ): Unit =
     t match {
       case TBool => builder.setType(PType.TYPE_BOOL)
-      case TRef => builder.setTypeName("Ref")
-      case TInt => builder.setType(PType.TYPE_INT64)
+      case TRef() => builder.setTypeName("Ref")
+      case TInt => builder.setType(PType.TYPE_INT32)
       case TBigInt => builder.setTypeName("BigInt")
       case TBigDecimal => builder.setTypeName("BigDecimal")
       case TString => builder.setType(PType.TYPE_STRING)
@@ -167,7 +166,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       .addField(field("data").setType(PType.TYPE_BYTES))
       .build(),
     message("BigDecimal")
-      .addField(field("scale").setType(PType.TYPE_INT64))
+      .addField(field("scale").setType(PType.TYPE_INT32))
       .addField(field("unscaledValue").setTypeName("BigInt"))
       .build(),
     message("Ref")
@@ -202,7 +201,14 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
   def node(defn: ClassDef): DescriptorProto = {
     boxedTypeFamily(TName(defn.baseName)) = defn.baseName
-    message(defn.baseName)
+    val msg = message(defn.baseName)
+
+    if(DECLARATION_KINDS.contains(defn.baseName)) {
+      // Singleton declaration, e.g. Variable
+      msg.addField(field("id").setType(PType.TYPE_INT64))
+    }
+
+    msg
       .addAllField(defn.params.map(param =>
         field(param.name.value, Some(param.decltpe.get))
           .build()
@@ -218,6 +224,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
   def renderType(field: FieldDescriptorProto): String = field.getType match {
     case PType.TYPE_INT64 => "int64"
+    case PType.TYPE_INT32 => "int32"
     case PType.TYPE_BOOL => "bool"
     case PType.TYPE_STRING => "string"
     case PType.TYPE_BYTES => "bytes"
