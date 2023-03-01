@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{Deserialize, IterationContract, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -107,6 +107,7 @@ class Transformation
         }
 
         result = pass().dispatch(result)
+        result = Deserialize.deserialize(Serialize.serialize(result))
 
         result.check match {
           case Nil => // ok

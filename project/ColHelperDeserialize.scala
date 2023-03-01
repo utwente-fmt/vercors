@@ -6,24 +6,25 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
   def serTypeV(name: String): Type = t"ser.${Term.Name(proto.Name(name).ucamel)}.V"
   def serTypeVKind(name: String, kind: String): Type = t"${q"ser.${Term.Name(proto.Name(name).ucamel)}.V"}.${Type.Name(proto.Name(kind).ucamel)}"
 
-  def makeFamilyDispatch(family: String): List[Stat] = List(q"""
+  def makeFamilyDispatch(family: String, decl: Boolean): List[Stat] = List(q"""
     def deserialize(node: ${serType(family)}): ${Type.Name(family)}[G] =
       ${if(info.defs.exists(_.baseName == family)) {
-        q"${Term.Name("deserialize" + family)}(node)"
+        if(decl) q"decls.getOrElseUpdate(node.id, ${Term.Name("deserialize" + family)}(node)).asInstanceOf[${Type.Name(family)}[G]]"
+        else q"${Term.Name("deserialize" + family)}(node)"
       } else {
-        q"Deserialize.${Term.Name(family + "Lut")}(node.v.getClass)(this, node).asInstanceOf[${Type.Name(family)}[G]]"
+        q"Deserialize.${Term.Name(family + "Lut")}(node.v.getClass).deserialize(this, node)"
       }}
   """)
 
   def makeFamilyDispatchLut(family: String, decl: Boolean): List[Stat] =
     if(info.defs.exists(_.baseName == family)) Nil
     else List(q"""
-      val ${Pat.Var(Term.Name(family + "Lut"))}: Map[java.lang.Class[_], (Deserialize[_], ${serType(family)}) => ${t"${Type.Name(family)}[_]"}] = Map(..${
+      val ${Pat.Var(Term.Name(family + "Lut"))}: Map[java.lang.Class[_], DeserializeFunc[${serType(family)}, ${Type.Name(family)}]] = Map(..${
         info.defs.filter(d => info.supports(family)(d.baseName)).map { defn =>
           val t = serTypeVKind(family, defn.baseName)
           val v = q"s.${Term.Name("deserialize" + defn.baseName)}(n.v.asInstanceOf[$t].value)"
-          val update = if(decl) q"s.decls.getOrElseUpdate(n.id, $v.asInstanceOf).asInstanceOf" else v
-          q"classOf[$t] -> ((s: Deserialize[_], n: ${serType(family)}) => $update)"
+          val update = if(decl) q"s.decls.getOrElseUpdate(n.id, $v).asInstanceOf[${Type.Name(family)}[G]]" else v
+          q"classOf[$t] -> new DeserializeFunc[${serType(family)}, ${Type.Name(family)}] { override def deserialize[G](s: Deserialize[G], n: ${serType(family)}): ${Type.Name(family)}[G] = $update }"
         }.toList
       })
     """)
@@ -33,7 +34,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       case proto.TName("ExpectedErrors") => q"Nil"
 
       case proto.TBool => term
-      case proto.TRef => q"ref($term.index)"
+      case r @ proto.TRef() => q"ref[${r.scalaArg}]($term.index)"
       case proto.TInt => term
       case proto.TBigInt => q"BigInt(new java.math.BigInteger($term.data.toByteArray()))"
       case proto.TBigDecimal => q"BigDecimal(${deserializeTerm(q"$term.unscaledValue", proto.TBigInt)}, $term.scale)"
@@ -78,8 +79,14 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
         override def shortPosition: String = "serialized"
       }
 
-      def deserialize[G](program: ser.Program): Program[G] = {
+      def deserialize[G](program: ser.Program): Program[G] =
         Deserialize[G](mutable.Map()).deserializeProgram(program)
+
+      def deserialize[G](verification: ser.Verification): Verification[G] =
+        Deserialize[G](mutable.Map()).deserializeVerification(verification)
+
+      trait DeserializeFunc[S, N[_] <: Node[_]] {
+        def deserialize[G](s: Deserialize[G], n: S): N[G]
       }
 
       ..${DECLARATION_KINDS.flatMap(makeFamilyDispatchLut(_, decl = true)).toList}
@@ -90,8 +97,8 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       def ref[T <: Declaration[G]](id: Long)(implicit tag: ClassTag[T]): Ref[G, T] =
         new LazyRef[G, T](decls(id))
 
-      ..${DECLARATION_KINDS.flatMap(makeFamilyDispatch).toList}
-      ..${info.families.flatMap(makeFamilyDispatch).toList}
+      ..${DECLARATION_KINDS.flatMap(makeFamilyDispatch(_, decl = true)).toList}
+      ..${info.families.flatMap(makeFamilyDispatch(_, decl = false)).toList}
       ..${info.defs.flatMap(makeNodeDeserialize).toList}
     }
   """.stats
