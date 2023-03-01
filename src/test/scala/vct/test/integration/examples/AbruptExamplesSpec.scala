@@ -9,6 +9,7 @@ class AbruptExamplesSpec extends VercorsSpec {
 
   // Difference between carbon and silicon
   vercors should verify using silicon example "concepts/abrupt/KeYAbruptTerminationChallengeSilicon.java"
+  vercors should verify using carbon example "concepts/abrupt/KeYAbruptTerminationChallengeCarbon.java"
 
   // Technical examples
   vercors should error withCode "resolutionError" example "concepts/abrupt/CatchTypesIdenticalBad.java"
@@ -51,6 +52,4 @@ class AbruptExamplesSpec extends VercorsSpec {
   // vercors should error withCode "?" example "concepts/abrupt/TypecheckThrowsThrowBad.java"
   // vercors should error withCode "?" example "concepts/abrupt/UnusedCheckedCatchBad.java"
 
-  // https://github.com/utwente-fmt/vercors/issues/834
-  // vercors should verify using carbon example "concepts/abrupt/KeYAbruptTerminationChallengeCarbon.java"
 }
