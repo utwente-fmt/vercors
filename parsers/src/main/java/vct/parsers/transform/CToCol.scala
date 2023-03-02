@@ -162,7 +162,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit decl: DirectDeclaratorContext): CDeclarator[G] = decl match {
     case DirectDeclarator0(name) => CName(convert(name))
     case DirectDeclarator1(inner, _, quals, dim, _) =>
-      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner))
+      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner))(blame(decl))
     case DirectDeclarator2(_, _, _, _, _, _) => ??(decl)
     case DirectDeclarator3(_, _, _, _, _, _) => ??(decl)
     case DirectDeclarator4(_, _, _, _, _) => ??(decl)
