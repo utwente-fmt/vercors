@@ -71,7 +71,13 @@ trait SilverBackend extends Backend with LazyLogging {
     val f = File.createTempFile("vercors-", ".sil")
     f.deleteOnExit()
     Using(new FileOutputStream(f)) { out =>
-      out.write(silverProgram.toString().getBytes())
+      out.write(
+        silverProgram
+          .toString()
+          .replace("requires decreasing", "decreasing")
+          .replace("invariant decreasing", "decreasing")
+          .getBytes()
+      )
     }
     SilverParserDummyFrontend().parse(f.toPath) match {
       case Left(errors) =>
