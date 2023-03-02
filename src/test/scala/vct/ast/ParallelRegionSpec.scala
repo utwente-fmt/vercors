@@ -19,7 +19,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
       composite.ParallelBlock("B1", builder.getContract, decs, new BlockStatement, deps)
     )
     
-    val region = new ParallelRegion(contract, blocks)
+    val region = new ParallelRegion(null, contract, blocks)
     region.contract should be (contract)
     region.blocks.isEmpty should be (false)
     region.blocks.count(_ => true) should be (1)
@@ -34,7 +34,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
       composite.ParallelBlock("B1", builder.getContract, decs, new BlockStatement, deps)
     )
     
-    val region = new ParallelRegion(contract, blocks)
+    val region = new ParallelRegion(null, contract, blocks)
     region.contract should be (contract)
     region.blocks.isEmpty should be (false)
     region.blocks.count(_ => true) should be (1)
@@ -49,7 +49,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
     val blocks = new java.util.ArrayList[ParallelBlock]()
     blocks.add(composite.ParallelBlock("B1", builder.getContract, decs, new BlockStatement, deps))
     
-    val region = new ParallelRegion(contract, blocks)
+    val region = new ParallelRegion(null, contract, blocks)
     region.contract should be (contract)
     region.blocks.isEmpty should be (false)
     region.blocks.count(_ => true) should be (1)
@@ -60,7 +60,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
     val contract = builder.getContract
     val blocks : List[ParallelBlock] = null
     a [IllegalArgumentException] should be thrownBy {
-      val region = new ParallelRegion(contract, blocks)
+      val region = new ParallelRegion(null, contract, blocks)
     }
   }
   
@@ -69,7 +69,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
     val contract = builder.getContract
     val blocks : Array[ParallelBlock] = null
     a [NullPointerException] should be thrownBy {
-      val region = new ParallelRegion(contract, blocks)
+      val region = new ParallelRegion(null, contract, blocks)
     }
   }
   
@@ -80,7 +80,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
     val deps = Array[ASTNode](new DeclarationStatement("dep1", null))
     val blocks = new java.util.ArrayList[ParallelBlock]()
     blocks.add(composite.ParallelBlock("B1", builder.getContract, decs, new BlockStatement, deps))
-    val region = new ParallelRegion(contract, blocks)
+    val region = new ParallelRegion(null, contract, blocks)
     
     region.blocks.count(_ => true) should be (1)
     blocks.add(composite.ParallelBlock("B2", builder.getContract, decs, new BlockStatement, deps))
@@ -98,7 +98,7 @@ class ParallelRegionSpec extends FlatSpec with Matchers {
       composite.ParallelBlock("B1", builder.getContract, decs, new BlockStatement, deps)
     )
     
-    val region = new ParallelRegion(contract, blocks)
+    val region = new ParallelRegion(null, contract, blocks)
     a [UnsupportedOperationException] should be thrownBy {
       region.blocksJava.add(composite.ParallelBlock("B1", builder.getContract, decs, new BlockStatement, deps))
     }

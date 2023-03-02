@@ -80,6 +80,16 @@ public class Configuration {
     public static final BooleanSetting enable_post_check=new BooleanSetting(true);
 
     /**
+     * List of gpu optimalizations to perform.
+     */
+    public static final StringListSetting gpu_optimizations= new StringListSetting();
+
+    /**
+     * The option for session type generation
+     */
+    public static final StringSetting gpuopt_output_file=new StringSetting(null);
+
+    /**
      * The include path passed to the C pre processor.
      */
     public static final StringListSetting cpp_include_path=new StringListSetting();
@@ -123,6 +133,8 @@ public class Configuration {
         clops.add(cpp_defines.getAppendOption("add to the CPP defined variables"),'D');
         clops.add(profiling_option, "profile");
         clops.add(skip.getAppendOption("comma separated list of methods that may be skipped during verification"),"skip");
+        clops.add(gpuopt_output_file.getAssign("filename for storing the gpu optimized program"),"encoded-gpuopt");
+        clops.add(gpu_optimizations.getAppendOption("perform gpu optimizations"),"gpuopt");
         clops.add(debugBackend.getEnable("Instruct the selected backend to output debug information"), "debug-backend");
         clops.add(ansi.getEnable("Add pretty-printing features for terminals supporting ANSI escape sequences"), "ansi");
         clops.add(veymont.getExplicitOption(Configuration.veymont_check,

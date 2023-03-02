@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import vct.col.ast.langspecific.c.*;
+import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.stmt.composite.Switch.Case;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
@@ -207,13 +208,21 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
 
   @Override
-  public void visit(LoopStatement s) {
+  public void visit(GPUOpt opt) {
+    //TODO what does dispatch do
+    opt.argsJava().forEach(this::dispatch);
+  }
+
+  @Override
+  public void  visit(LoopStatement s) {
+    //TODO add dispatch here after adding GPUOpt
     dispatch(s.get_before());
     dispatch(s.getInitBlock());
     dispatch(s.getEntryGuard());
     dispatch(s.getUpdateBlock());
     dispatch(s.getContract());
     s.getBody().accept(this);
+    dispatch(s.getGpuopt());
     dispatch(s.getExitGuard());
     dispatch(s.get_after());
   }
@@ -233,6 +242,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
       dispatch(c.signals);
     }
     dispatch(m.getBody());
+    dispatch(m.getGpuOpts());
     if (c!=null) {
       // TODO: this is where \result should be declared.
       dispatch(c.post_condition);      
@@ -312,6 +322,7 @@ public class RecursiveVisitor<T> extends ASTFrame<T> implements ASTVisitor<T> {
   }
   
   public void visit(ParallelRegion region){
+    dispatch(region.fuse());
     dispatch(region.contract());
     dispatch(region.blocksJava());
   }

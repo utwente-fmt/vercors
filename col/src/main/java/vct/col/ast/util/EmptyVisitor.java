@@ -185,6 +185,11 @@ public class EmptyVisitor<T> implements ASTVisitor<T> {
   }
 
   @Override
+  public void visit(GPUOpt contract) {
+
+  }
+
+  @Override
   public void visit(ASTSpecial special) {
     // TODO Auto-generated method stub
     

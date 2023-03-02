@@ -1,0 +1,26 @@
+class MergingAndUnrollingOrig
+{
+
+  context_everywhere array != null;
+  context (\forall* int i; i >= 0 && i < array.length; Perm(array[i], 1));
+  ensures (\forall int i; i >= 0 && i < array.length; array[i] == \old(array[i]) + 105*i);
+  void merging_unrolling_orig(int[] array)
+  {
+    par threads (int tid = 0 .. array.length)
+    context Perm(array[tid], 1);
+    ensures array[tid] == \old(array[tid]) + 105*tid;
+    {
+
+      gpuopt iter_merge j 7;
+      loop_invariant j >= 0 && j <= 107;
+      loop_invariant Perm(array[tid], 1);
+      loop_invariant array[tid] == \old(array[tid]) + j*tid;
+      for(int j = 0; j < 105; j++)
+      {
+        int k = tid;
+
+        array[tid] = array[k] + k;
+      }
+    }
+  }
+}

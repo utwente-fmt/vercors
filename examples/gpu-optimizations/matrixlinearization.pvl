@@ -1,0 +1,19 @@
+class MatrixRepOrig
+{
+
+  gpuopt matrix_lin matrix C M N;
+
+  context_everywhere matrix != null;
+  context_everywhere matrix.length == M * N;
+  context (\forall* int i; i >= 0 && i < M; (\forall* int j; j >= 0 && j < N; Perm(matrix[i][j], 1)));
+  ensures (\forall* int i; i >= 0 && i < M; (\forall* int j; j >= 0 && j < N; matrix[i][j] == \old(matrix[i][j]) + 1));
+  void matrix_representation(int[M][N] matrix, int M, int N)
+  {
+    par threads (int tidX = 0 .. M, int tidY = 0 .. N)
+    context Perm(matrix[tidX][tidY], 1);
+    ensures matrix[tidX][tidY] == \old(matrix[tidX][tidY]) + 1;
+    {
+       matrix[tidX][tidY] = matrix[tidX][tidY] + 1;
+    }
+  }
+}

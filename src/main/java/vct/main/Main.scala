@@ -1,29 +1,28 @@
 package vct.main
 
-import java.io._
-import java.time.{Instant, ZoneId}
-import java.util
 import hre.ast.FileOrigin
-import hre.config.{BooleanSetting, ChoiceSetting, CollectSetting, Configuration, IntegerSetting, LinearCollectSetting, OptionParser, StringListSetting, StringSetting}
+import hre.config._
+import hre.io.ForbiddenPrintStream
 import hre.lang.HREExitException
 import hre.lang.System._
 import hre.tools.TimeKeeper
-import vct.col.ast.stmt.decl.ProgramUnit
-import vct.experiments.learn.SpecialCountVisitor
-import vct.logging.PassReport
-import vct.silver.ErrorDisplayVisitor
-import hre.io.ForbiddenPrintStream
 import hre.util.Notifier
+import vct.col.ast.stmt.decl.{GPUOptFlags, ProgramUnit}
 import vct.col.features.{Feature, RainbowVisitor}
 import vct.col.veymont.Util
+import vct.experiments.learn.SpecialCountVisitor
+import vct.logging.PassReport
 import vct.main.Main.backend_option
 import vct.main.Passes.BY_KEY
+import vct.silver.ErrorDisplayVisitor
 import vct.test.CommandLineTesting
 
-import scala.jdk.CollectionConverters._
+import java.io._
 import java.nio.file.Paths
 import java.time.format.DateTimeFormatter
-import java.util.TimeZone
+import java.time.{Instant, ZoneId}
+import java.util
+import scala.jdk.CollectionConverters._
 
 object Main {
   val backend_option = new LinearCollectSetting
@@ -161,6 +160,7 @@ class Main {
       CommandLineTesting.enabled,
       silver.used,
       pass_list.asScala.nonEmpty,
+      !Configuration.gpu_optimizations.isEmpty,
       Configuration.veymont.get() != null,
     ).forall(!_)) {
       Fail("no back-end or passes specified")
@@ -257,6 +257,36 @@ class Main {
 
   }
 
+  private def collectPassesForGPUOpts: Seq[AbstractPass] = {
+    var passes = Seq(Passes.BY_KEY("splitCompositeDeclarations"), Passes.BY_KEY("checkTypesJava"))
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.matrixLin.toString)) {
+      passes ++= Seq(Passes.BY_KEY("linearizeMatrices"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.fusion.toString)) {
+      passes ++= Seq(Passes.BY_KEY("fuseKernels"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.iterMerge.toString)) {
+      passes ++= Seq(Passes.BY_KEY("mergeLoopIterations"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.dataLoc.toString)) {
+      passes ++= Seq(Passes.BY_KEY("globalMemoryLocToRegister"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.tiling.toString)) {
+      passes ++= Seq(Passes.BY_KEY("tileKernel"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+    }
+    if (Configuration.gpu_optimizations.contains(GPUOptFlags.loopUnrolling.toString)) {
+      passes ++= Seq(Passes.BY_KEY("unrollLoops"))
+      passes ++= Seq(Passes.BY_KEY("checkTypesJava"))
+      passes ++= collectPassesForSilver
+    }
+    passes ++= Seq(Passes.BY_KEY("printGpuOptOut"))
+    passes
+  }
 
   private def collectPassesForVeyMontPre : Seq[AbstractPass] = {
     silver.set("silicon")
@@ -410,7 +440,7 @@ class Main {
     chain
   }
 
-  def computeGoal(featuresIn: Set[Feature]): Option[Seq[AbstractPass]] = {
+  def computeGoal(featuresIn: Set[Feature]): scala.Option[Seq[AbstractPass]] = {
     val toolPass = silver.get() match {
       case "carbon" => BY_KEY("applyCarbon")
       case "silicon" => BY_KEY("applySilicon")
@@ -486,6 +516,7 @@ class Main {
         case Some(pass) => pass
       }).toSeq
     }
+    else if (!Configuration.gpu_optimizations.isEmpty) collectPassesForGPUOpts
     else if (silver.used) collectPassesForSilver
     else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_check)) collectPassesForSilver
     else if (Configuration.veymont.get() != null && Configuration.veymont.is(Configuration.veymont_decompose)) collectPassesForVeyMontPost

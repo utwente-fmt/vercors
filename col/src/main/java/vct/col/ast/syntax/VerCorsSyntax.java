@@ -30,8 +30,8 @@ public class VerCorsSyntax {
     syntax.addFunction(Old,"\\old");
     syntax.addFunction(Length,"\\length");
     syntax.addOperator(Size,999,"|","|");
-    syntax.addOperator(RangeSeq,-1,"{","..","}");
-    syntax.addLeftFix(Concat,"+++",5);
+    syntax.addOperator(RangeSeq,-1,"","..","");
+    syntax.addLeftFix(Concat,"+",5);
     syntax.addLeftFix(Star,"**",4);
     
     syntax.addPrimitiveType(PrimitiveSort.ZFraction,"zfrac");
@@ -45,6 +45,7 @@ public class VerCorsSyntax {
     syntax.addReserved(LocalThreadId, "\\ltid");
     syntax.addReserved(Pure,"pure");
     syntax.addReserved(Any,"*");
+    syntax.addReserved(This,"this");
     syntax.addPrefix(BindOutput,"?",666);
     
     syntax.addReserved(FullPerm,"write");

@@ -20,10 +20,10 @@ field : type identifierList ';' ;
 
 modifier : ( 'static' | 'thread_local' | 'inline' | 'pure' );
 
-methodDecl : contract modifier* type identifier '(' args? ')' methodBody ;
+methodDecl : gpuopts? contract modifier* type identifier '(' args? ')' methodBody ;
 methodBody : '=' expr ';' | constructorBody ;
 
-constructor : contract identifier '(' args? ')' constructorBody ;
+constructor : gpuopts? contract identifier '(' args? ')' constructorBody ;
 constructorBody : ';' | block ;
 
 contract : valContractClause* ;
@@ -207,12 +207,12 @@ statement
  | valStatement
  | 'if' '(' expr ')' statement elseBlock?
  | 'barrier' '(' identifier barrierTags? ')' barrierBody
- | contract 'par' parUnitList
+ | gpuopt? contract 'par' parUnitList
  | 'vec' '(' iter ')' block
  | 'invariant' identifier '(' expr ')' block
  | 'atomic' '(' identifierList ')' block
- | invariantList 'while' '(' expr ')' statement
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
+ | gpuopt? invariantList 'while' '(' expr ')' statement
+ | gpuopt? invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement
  | block
  | '{*' expr '*}'
  | 'goto' identifier ';'
@@ -264,6 +264,23 @@ idArg: identifier | '*';
 invariantList: invariant*;
 invariant: 'loop_invariant' expr ';';
 
+gpuopt
+    : 'gpuopt' 'loop_unroll' identifier NUMBER ';'
+    | 'gpuopt' 'iter_merge' identifier NUMBER ';'
+    | 'gpuopt' 'matrix_lin' identifier ('C'|'R') expr expr ';'
+    | 'gpuopt' 'glob_to_reg' expr exprSeq ';'
+    | 'gpuopt' 'tile' ('inter'| 'intra') NUMBER ';'
+    | 'gpuopt' 'fuse' NUMBER NUMBER ';'
+    ;
+gpuopts
+    : gpuopt
+    | gpuopt gpuopts
+    ;
+
+exprSeq
+    : expr
+    | expr exprSeq
+    ;
 nonArrayType
  : container '<' type '>'
  | 'option' '<' type '>'

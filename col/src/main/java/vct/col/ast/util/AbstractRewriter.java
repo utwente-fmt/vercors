@@ -4,6 +4,7 @@ import scala.jdk.javaapi.CollectionConverters;
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
 import scala.Option;
+import scala.collection.JavaConverters;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.expr.constant.StructValue;
@@ -18,7 +19,6 @@ import vct.col.ast.stmt.terminal.AssignmentStatement;
 import vct.col.ast.stmt.terminal.ReturnStatement;
 import vct.col.ast.type.*;
 import hre.util.LambdaHelper;
-
 
 import java.util.*;
 
@@ -368,7 +368,32 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public void visit(ConstantExpression e) {
     result=new ConstantExpression(e.value(),e.getType(),e.getOrigin());
   }
-  
+
+  @Override
+  public void visit(GPUOpt o) {
+    if (o instanceof LoopUnrolling) {
+      LoopUnrolling opt = (LoopUnrolling) o;
+      result= create.opt_loop_unroll(rewrite(opt.itervar()), rewrite(opt.K()));
+    } else if (o instanceof MatrixLinearization) {
+      MatrixLinearization opt = (MatrixLinearization) o;
+      result= create.opt_matrix_lin(rewrite(opt.matrixName()), opt.rowOrColumn(), rewrite(opt.dimX()), rewrite(opt.dimY()));
+    } else if (o instanceof IterationMerging) {
+      IterationMerging opt = (IterationMerging) o;
+      result= create.opt_iter_merge(rewrite(opt.itervar()), rewrite(opt.M()));
+    } else if (o instanceof DataLocation) {
+      DataLocation opt = (DataLocation) o;
+      result= create.opt_glob_to_reg(rewrite(opt.arrayName()), rewrite(JavaConverters.bufferAsJavaList(opt.locations().toBuffer())));
+    } else if (o instanceof Tiling) {
+      Tiling opt = (Tiling) o;
+      result= create.opt_tiling(opt.interOrIntra(), rewrite(opt.tileSize()));
+    } else if (o instanceof KernelFusion) {
+      KernelFusion opt = (KernelFusion) o;
+      result= create.opt_fusion(rewrite(opt.F()), rewrite(opt.N()));
+    } else {
+      Fail("Rewrite rule not defined for this specific GPUOpt.");
+    }
+  }
+
   @Override
   public void visit(DeclarationStatement s) {
     Type t=s.getType();
@@ -440,6 +465,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     if (tmp!=null) res.setEntryGuard(tmp.apply(this));
     tmp=s.getExitGuard();
     if (tmp!=null) res.setExitGuard(tmp.apply(this));
+    res.setGpuopt(rewrite(s.getGpuopt()));
     res.appendContract(rewrite(s.getContract()));
     tmp=s.getBody();
     res.setBody(tmp.apply(this));
@@ -476,7 +502,9 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
     Type rt=rewrite(m.getReturnType());
     Type[] signals = rewrite(m.signals);
     ASTNode body=rewrite(m.getBody());
-    result=create.method_kind(kind, rt, signals, c, name, args, m.usesVarArgs(), body);
+    List<GPUOpt> gpuopts =rewrite(m.getGpuOpts());
+    result=create.method_kind(kind, rt, signals, c, name, args, gpuopts, m.usesVarArgs(), body);
+
   }
 
   @Override
@@ -637,7 +665,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   
   @Override
   public void visit(ParallelRegion region){
-    result = create.region(rewrite(region.contract()), rewrite(region.blocksJava()));
+    result = create.region(rewrite(region.fuse()), rewrite(region.contract()), rewrite(region.blocksJava()));
   }
   
   @Override
@@ -683,7 +711,7 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
    * The following functions make generating code easier...
    */
   
-  public ASTNode constant(int c){
+  public ConstantExpression constant(int c){
   	return create.constant(c);
   }
   public NameExpression name(String name){
@@ -714,6 +742,15 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode lte(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.LTE,e1,e2);
   }
+  public ASTNode gte(ASTNode e1,ASTNode e2){
+  	return create.expression(StandardOperator.GTE,e1,e2);
+  }
+  public ASTNode gt(ASTNode e1,ASTNode e2){
+  	return create.expression(StandardOperator.GT,e1,e2);
+  }
+  public ASTNode ite(ASTNode e1,ASTNode e2,ASTNode e3){
+  	return create.expression(StandardOperator.ITE,e1,e2,e3);
+  }
   public ASTNode neq(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.NEQ,e1,e2);
   }
@@ -726,14 +763,27 @@ public class AbstractRewriter extends AbstractVisitor<ASTNode> {
   public ASTNode size(ASTNode e1) {
     return create.expression(StandardOperator.Size, e1);
   }
+  public ASTNode concat(ASTNode e1, ASTNode e2) { return create.expression(StandardOperator.Concat, e1, e2); }
   public ASTNode star(ASTNode e1,ASTNode e2){
   	return create.expression(StandardOperator.Star,e1,e2);
+  }
+  public ASTNode implies(ASTNode e1,ASTNode e2){
+  	return create.expression(StandardOperator.Implies,e1,e2);
   }
   public ASTNode invoke(ASTNode object,String method,ASTNode ... args){
   	return create.invokation(object, null, method, args);
   }
   public ASTNode get(ASTNode e1, ASTNode index){
     return create.expression(StandardOperator.Subscript, e1, index);
+  }
+  public ASTNode not(ASTNode e1){
+    return create.expression(StandardOperator.Not, e1);
+  }
+  public ASTNode mod(ASTNode e1, ASTNode e2){
+    return create.expression(StandardOperator.Mod, e1, e2);
+  }
+  public ASTNode floordiv(ASTNode e1, ASTNode e2){
+    return create.expression(StandardOperator.FloorDiv, e1, e2);
   }
 
 

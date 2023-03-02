@@ -56,6 +56,7 @@ public class Method extends ASTDeclaration {
   }
  
   private final Type return_type;
+  private final List<GPUOpt> gpuOpts;
   private DeclarationStatement[] args;
   private final boolean var_args;
   private Hashtable<String, Contract> spec=new Hashtable<String,Contract>();
@@ -67,15 +68,20 @@ public class Method extends ASTDeclaration {
   }
   
   public Method(String name, Type return_type, Type[] signals, Contract contract, DeclarationStatement args[], boolean varArgs, ASTNode body){
-    this(Kind.Plain,name,return_type, signals,contract,args,varArgs,body);
+    this(Kind.Plain,name,return_type, signals,contract,args,new ArrayList<>(), varArgs,body);
   }
-  
+
+  public Method(Kind kind, String name, Type return_type, Type[] signals, Contract contract, DeclarationStatement args[], boolean varArgs, ASTNode body){
+    this(kind,name,return_type, signals,contract,args,new ArrayList<>(), varArgs,body);
+  }
+
   public Method(Kind kind,
                 String name,
                 Type return_type,
                 Type[] signals,
                 Contract contract,
                 DeclarationStatement[] args,
+                List<GPUOpt> gpuOpts,
                 boolean varArgs,
                 ASTNode body)
   {
@@ -87,6 +93,8 @@ public class Method extends ASTDeclaration {
     for(int i=0;i<args.length;i++){
       if (this.args[i].getParent()==null) this.args[i].setParent(this);
     }
+    this.gpuOpts = gpuOpts;
+    this.gpuOpts.forEach(o -> o.setParent(this));
     this.body=body;
     this.kind=kind;
     setContract(contract);
@@ -139,6 +147,9 @@ public class Method extends ASTDeclaration {
   }
   public Type getReturnType() {
     return return_type;
+  }
+  public List<GPUOpt> getGpuOpts() {
+    return gpuOpts;
   }
 
   public Type[] getArgType() {

@@ -101,7 +101,7 @@ class GlobalProgPerms(override val source: ProgramUnit) extends AbstractRewriter
       cb.getContract
       create.parallel_block(b.label,cb.getContract,b.iters.toArray,rewrite(b.block))
     }
-    result = create.region(rewrite(p.contract),contractblocks.toArray:_*)
+    result = create.region(null, rewrite(p.contract),contractblocks.toArray:_*)
   }
 
   private def getAssignmentVars(b : BlockStatement) : (Array[Dereference],Array[Dereference]) = {

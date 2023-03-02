@@ -1,17 +1,16 @@
 package vct.col.ast.util;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import vct.col.ast.expr.MethodInvokation;
-import vct.col.ast.expr.NameExpression;
-import vct.col.ast.expr.OperatorExpression;
-import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTNode;
+import vct.col.ast.stmt.composite.BlockStatement;
+import vct.col.ast.stmt.composite.LoopStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ASTUtils {
 
@@ -68,6 +67,14 @@ public class ASTUtils {
   
   public static ASTNode replace(ASTNode a, ASTNode b, ASTNode tree) {
     AbstractRewriter rw = new AbstractRewriter((ProgramUnit)null) {
+      public void visit(Dereference d) {
+        if(d.equals(a)) {
+          result = b;
+        } else  {
+          super.visit(d);
+        }
+      }
+
       public void visit(NameExpression e) {
         if(e.equals(a)) {
           result = b;
@@ -87,6 +94,22 @@ public class ASTUtils {
           result = b;
         } else  {
           super.visit(e);
+        }
+      }
+      @Override
+      public void visit(LoopStatement s) {
+        if(s.equals(a)) {
+          result = b;
+        } else  {
+          super.visit(s);
+        }
+      }
+      @Override
+      public void visit(BlockStatement s) {
+        if(s.equals(a)) {
+          result = b;
+        } else  {
+          super.visit(s);
         }
       }
     };

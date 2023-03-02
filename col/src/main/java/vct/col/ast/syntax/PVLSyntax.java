@@ -35,7 +35,39 @@ public class PVLSyntax extends Syntax {
       syntax.addPostfix(PostDecr,"--",140);
       syntax.addOperator(NewArray,-1,"new ","[","]");
       syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
-        syntax.addInfix(Implies,"==>",30);
+      syntax.addOperator(Cast,145,"((",")",")");
+      syntax.addInfix(Implies,"==>",30);
+      syntax.addOperator(IndependentOf, -1 , "(" ,"!",")");
+
+      syntax.addLeftFix(StructSelect,".",-1);
+      syntax.addLeftFix(LeftMerge,"||_",30);
+
+      syntax.addOperator(Member,-1,"(","\\memberof",")");
+      syntax.addFunction(TypeOf,"\\typeof");
+      syntax.addFunction(CurrentPerm,"perm");
+      syntax.addOperator(Scale,130,"[","]","");
+      syntax.addFunction(History,"Hist");
+      syntax.addFunction(AbstractState,"AbstractState");
+      syntax.addFunction(Contribution,"Contribution");
+      syntax.addFunction(SizeOf,"\\sizeof");
+      syntax.addFunction(AddrOf,"\\addrof");
+      syntax.addFunction(Indirection,"\\indirect");
+      syntax.addFunction(StructDeref,"\\structderef");
+
+      syntax.addFunction(Values,"\\values");
+      syntax.addOperator(ReducibleSum,-1,"Reducible(",",+)");
+
+      syntax.addReserved(Inline,"inline");
+      syntax.addReserved(ThreadLocal,"thread_local");
+      syntax.addReserved(Pure,"pure");
+
+      syntax.addFunction(ValidPointer,"\\pointer");
+      syntax.addFunction(ValidPointerIndex, "\\pointer_index");
+
+      //syntax.addInfix(SubType,"<:",90);
+      //syntax.addInfix(SuperType,":>",90);
+      syntax.addInfix(Implies,"==>",30);
+      //syntax.addInfix(IFF,"<==>",30);
       syntax.addLeftFix(Wand,"-*",30);
       syntax.addFunction(Perm,"Perm");
       syntax.addFunction(HistoryPerm,"HPerm");
@@ -70,7 +102,10 @@ public class PVLSyntax extends Syntax {
 
       syntax.addOperator(Size,-1,"|","|");
       syntax.addOperator(Member,45,"","in","");
-      syntax.addOperator(Slice, 10, "[","","..","","]");
+      syntax.addOperator(Slice, 10, "", "[","..","]");
+      syntax.addOperator(SeqUpdate, 10,  "", "[","->","]");
+      syntax.addOperator(Drop, 85,"", "[", "..]");
+      syntax.addOperator(Take, 85, "", "[..", "]");
 
       syntax.addPrefix(Not, "!", 130);
       syntax.addPrefix(UMinus, "-", 130);

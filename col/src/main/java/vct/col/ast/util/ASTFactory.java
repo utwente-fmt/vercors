@@ -1,6 +1,10 @@
 // -*- tab-width:2 ; indent-tabs-mode:nil -*-
 package vct.col.ast.util;
 
+import scala.Enumeration;
+import scala.collection.JavaConverters;
+import scala.collection.JavaConverters.*;
+
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -11,6 +15,7 @@ import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
 import vct.col.ast.stmt.decl.*;
+import vct.col.ast.stmt.decl.Major.*;
 import vct.col.ast.stmt.decl.ASTClass.ClassKind;
 import vct.col.ast.stmt.decl.ASTSpecial.Kind;
 import vct.col.ast.stmt.composite.Switch.Case;
@@ -364,8 +369,8 @@ public class ASTFactory<E> implements FrameControl {
   }
 
   public DeclarationStatement field_decl(Origin o,String name, Type type,ASTNode init) {
-    if (type.isNull()){
-      Abort("cannot declare variable %s of <<null>> type.",name);
+    if (type == null){
+      Abort("cannot declare variable %s of <<null>> type at %s.",name, o);
     }
     DeclarationStatement res=new DeclarationStatement(name,type,init);
     res.setOrigin(o);
@@ -383,6 +388,51 @@ public class ASTFactory<E> implements FrameControl {
     res.accept_if(post);
     return res;
   }
+
+  public GPUOpt opt_loop_unroll(NameExpression itervar, ConstantExpression K) {
+    GPUOpt res=new LoopUnrolling(itervar, K);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+  public GPUOpt opt_iter_merge(NameExpression itervar, ConstantExpression M) {
+    GPUOpt res=new IterationMerging(itervar, M);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+  public GPUOpt opt_matrix_lin(NameExpression matrixName, Enumeration.Value rowOrColumn, ASTNode dimX, ASTNode dimY) {
+    GPUOpt res=new MatrixLinearization(matrixName, rowOrColumn, dimX, dimY);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+  public GPUOpt opt_tiling(Enumeration.Value interOrIntra, ConstantExpression tileSize) {
+    GPUOpt res=new Tiling(interOrIntra, tileSize);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+  public GPUOpt opt_fusion(ConstantExpression fuse, ConstantExpression tblocks) {
+    GPUOpt res=new KernelFusion(fuse, tblocks);
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+  public GPUOpt opt_glob_to_reg(ASTNode arrayName, List<ASTNode> locations) {
+    GPUOpt res=new DataLocation(arrayName, JavaConverters.asScalaBuffer(locations).toList());
+    res.setOrigin(origin_stack.get());
+    res.accept_if(post);
+    return res;
+  }
+
+
+
+
 
   /**
    * Fold left of a non-empty list. 
@@ -469,18 +519,39 @@ public class ASTFactory<E> implements FrameControl {
         res.accept_if(post);
         return res;    
       }
+
+      public LoopStatement loop(ASTNode init_block,
+                                ASTNode entry_guard,
+                                ASTNode exit_guard,
+                                ASTNode update_block,
+                                ASTNode body,
+                                Contract contract
+      ){
+        LoopStatement res=new LoopStatement();
+
+        res.setInitBlock(init_block);
+        res.setEntryGuard(entry_guard);
+        res.setExitGuard(exit_guard);
+        res.setUpdateBlock(update_block);
+        res.setBody(body);
+        res.setContract(contract);
+        res.setOrigin(origin_stack.get());
+        res.accept_if(post);
+        return res;
+      }
     
     public LoopStatement for_loop(ASTNode init, ASTNode test, ASTNode update, ASTNode body,ASTNode ... invariant){
       return for_loop(init, test, update, body, Arrays.asList(invariant));
     }
           
-    public LoopStatement for_loop(ASTNode init, ASTNode test, ASTNode update, ASTNode body,Contract contract){
+    public LoopStatement for_loop(ASTNode init, ASTNode test, ASTNode update, ASTNode body, GPUOpt gpuopt, Contract contract){
       LoopStatement res=new LoopStatement();
       res.setEntryGuard(test);
       res.setInitBlock(init);
       res.setUpdateBlock(update);
       res.setBody(body);
       res.setOrigin(origin_stack.get());
+      res.setGpuopt(gpuopt);
       res.setContract(contract);
       res.accept_if(post);
       return res;    
@@ -669,7 +740,7 @@ public class ASTFactory<E> implements FrameControl {
     return method_kind(Method.Kind.Plain,returns,contract,name,args,false,body);
   }
   public Method method_decl(Type returns, Type[] signals, Contract contract,String name,DeclarationStatement[] args,ASTNode body){
-    return method_kind(Method.Kind.Plain,returns,signals,contract,name,args,false,body);
+    return method_kind(origin_stack.get(), Method.Kind.Plain,returns,signals,contract,name,args,new ArrayList<>(),false,body);
   }
   public Method method_decl(Type returns,Contract contract,String name,List<DeclarationStatement> args,ASTNode body){
     return method_kind(Method.Kind.Plain,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),false,body);
@@ -688,14 +759,30 @@ public class ASTFactory<E> implements FrameControl {
     return method_kind(kind,returns,contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
   }
   public Method method_kind(Method.Kind kind,Type returns, Type[] signals, Contract contract,String name,List<DeclarationStatement> args,boolean varArgs,ASTNode body){
-    return method_kind(kind,returns, signals, contract,name,args.toArray(new DeclarationStatement[args.size()]),varArgs,body);
+    return method_kind(origin_stack.get(), kind,returns, signals, contract,name,args.toArray(new DeclarationStatement[args.size()]),new ArrayList<>(),varArgs,body);
   }
   public Method method_kind(Method.Kind kind,Type returns,Contract contract,String name,DeclarationStatement args[],boolean varArgs,ASTNode body){
-    return method_kind(kind, returns, new Type[0], contract, name, args, varArgs, body);
+    return method_kind(origin_stack.get(), kind, returns, new Type[0], contract, name, args, new ArrayList<>(), varArgs, body);
   }
-  public Method method_kind(Method.Kind kind,Type returns, Type[] signals, Contract contract,String name,DeclarationStatement[] args,boolean varArgs,ASTNode body){
-    Method res=new Method(kind,name,returns,signals,contract,args,varArgs,body);
-    res.setOrigin(origin_stack.get());
+  public Method method_kind(Method.Kind kind,Type returns, Type[] signals, Contract contract,String name,DeclarationStatement[] args, boolean varArgs,ASTNode body){
+    return method_kind(origin_stack.get(), kind,returns,signals,contract,name,args, new ArrayList<>(),varArgs,body);
+  }
+
+  public Method method_kind(Method.Kind kind,Type returns, Contract contract,String name,DeclarationStatement[] args, List<GPUOpt> gpuOpts,ASTNode body){
+    return method_kind(origin_stack.get(), kind,returns,new Type[0],contract,name,args, gpuOpts,false,body);
+  }
+
+  public Method method_kind(Method.Kind kind,Type returns, Type[] signals, Contract contract,String name,DeclarationStatement[] args, List<GPUOpt> gpuOpts, boolean varArgs,ASTNode body){
+    return method_kind(origin_stack.get(), kind, returns, signals, contract, name, args, gpuOpts, varArgs, body);
+  }
+
+  public Method method_kind(Origin origin, Method.Kind kind,Type returns, Contract contract,String name,DeclarationStatement[] args, List<GPUOpt> gpuOpts, boolean varArgs,ASTNode body){
+    return method_kind(origin, kind, returns, new Type[0], contract, name, args, gpuOpts, varArgs, body);
+  }
+
+  public Method method_kind(Origin origin, Method.Kind kind,Type returns, Type[] signals, Contract contract,String name,DeclarationStatement[] args, List<GPUOpt> gpuOpts, boolean varArgs,ASTNode body){
+    Method res=new Method(kind,name,returns,signals,contract,args,gpuOpts,varArgs,body);
+    res.setOrigin(origin);
     res.accept_if(post);
     return res;
   }
@@ -1092,25 +1179,35 @@ public VariableDeclaration variable_decl(Type type) {
 /**
  * Create a new while loop.
  */
-public LoopStatement while_loop(ASTNode test,ASTNode body,ASTNode ... invariant){
+public LoopStatement while_loop(ASTNode test,ASTNode body, ASTNode ... invariant) {
+  return while_loop(test,body, null, invariant);
+}
+
+public LoopStatement while_loop (ASTNode test,ASTNode body, GPUOpt gpuopt, ASTNode ... invariant){
   LoopStatement res=new LoopStatement();
   res.setEntryGuard(test);
   res.setBody(body);
   res.setOrigin(origin_stack.get());
+  res.setGpuopt(null);
   for (ASTNode inv:invariant) res.appendInvariant(inv);
   res.fixate();
   res.accept_if(post);
-  return res;    
+  return res;
 }
 
 /**
  * Create a new while loop.
  */
-public LoopStatement while_loop(ASTNode test,ASTNode body,Contract contract){
+public LoopStatement while_loop(ASTNode test,ASTNode body, Contract contract) {
+  return while_loop(test,body, null, contract);
+}
+
+public LoopStatement while_loop(ASTNode test,ASTNode body, GPUOpt gpuOpt, Contract contract){
   LoopStatement res=new LoopStatement();
   res.setEntryGuard(test);
   res.setBody(body);
   res.setOrigin(origin_stack.get());
+  res.setGpuopt(gpuOpt);
   res.setContract(contract);
   res.accept_if(post);
   return res;    
@@ -1242,16 +1339,16 @@ public Axiom axiom(String name, ASTNode exp){
     return res;
   }
 
-  public ParallelRegion region(Contract c,ParallelBlock ... blocks) {
-    return region(origin_stack.get(),c,blocks);
+  public ParallelRegion region(KernelFusion fuse, Contract c,ParallelBlock ... blocks) {
+    return region(origin_stack.get(), fuse, c,blocks);
   }
   
-  public ParallelRegion region(Contract c, List<ParallelBlock> blocks) {
-    return region(origin_stack.get(), c, blocks);
+  public ParallelRegion region(KernelFusion fuse, Contract c, List<ParallelBlock> blocks) {
+    return region(origin_stack.get(), fuse, c, blocks);
   }
 
-  public ParallelRegion region(Origin origin,Contract c,ParallelBlock ... blocks) {
-    ParallelRegion res=new ParallelRegion(c,blocks);
+  public ParallelRegion region(Origin origin,KernelFusion fuse, Contract c,ParallelBlock ... blocks) {
+    ParallelRegion res=new ParallelRegion(fuse, c,blocks);
     res.setOrigin(origin);
     res.accept_if(post);
     return res;
@@ -1261,15 +1358,15 @@ public Axiom axiom(String name, ASTNode exp){
         return expression(op,n,ns.toArray(new ASTNode[ns.size()]));
     }
 
-  public ParallelRegion region(Origin origin, Contract c, List<ParallelBlock> blocks) {
-    ParallelRegion res=new ParallelRegion(c, blocks);
+  public ParallelRegion region(Origin origin, KernelFusion fuse, Contract c, List<ParallelBlock> blocks) {
+    ParallelRegion res=new ParallelRegion(fuse, c, blocks);
 	res.setOrigin(origin);
 	res.accept_if(post);
 	return res;
   }
 
-  public ASTNode region(Contract c,ArrayList<ParallelBlock> res) {
-    return region(c,res.toArray(new ParallelBlock[res.size()]));
+  public ASTNode region(KernelFusion fuse, Contract c,ArrayList<ParallelBlock> res) {
+    return region(fuse, c,res.toArray(new ParallelBlock[res.size()]));
   }
 
   public Method function_decl(Type t, Contract contract, String name,
@@ -1334,6 +1431,10 @@ public Axiom axiom(String name, ASTNode exp){
   
   public StructValue struct_value(Type type,Map<String, Integer> map, List<ASTNode> values) {
     return struct_value(origin_stack.get(),type,map,values.toArray(new ASTNode[values.size()]));
+  }
+
+  public StructValue sequence(Type elementType,ASTNode... values) {
+    return struct_value(origin_stack.get(),primitive_type(PrimitiveSort.Sequence, elementType),null,values);
   }
 
   public VectorBlock vector_block(DeclarationStatement iter,BlockStatement block) {

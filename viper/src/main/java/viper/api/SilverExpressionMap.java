@@ -353,6 +353,11 @@ public class SilverExpressionMap<T,E> implements ASTMapping<E> {
   }
 
   @Override
+  public E map(GPUOpt go) {
+    return null;
+  }
+
+  @Override
   public E map(BindingExpression e) {
     Origin o = e.getOrigin();
     switch (e.binder()) {

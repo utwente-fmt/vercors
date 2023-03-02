@@ -1,6 +1,7 @@
 package vct.col.util;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -8,6 +9,7 @@ import hre.lang.HREExitException;
 import scala.Option;
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.ConstantExpression;
+import vct.col.ast.expr.constant.IntegerValue;
 import vct.col.ast.expr.constant.StructValue;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.*;
@@ -404,6 +406,52 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
     check_loc_val(s.location().getType(),s.expression());
   }
 
+  @Override
+  public void visit(GPUOpt opt) {
+    if (opt instanceof LoopUnrolling) {
+      if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
+        Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
+      }
+      visit(((LoopUnrolling) opt).itervar());
+    } else if (opt instanceof IterationMerging) {
+      if (opt.getParent() != null && !(opt.getParent() instanceof LoopStatement)) {
+        Fail("The loop unroll optimization can only be used above loop statements (e.g. for and while loops) at %s", opt.getOrigin());
+      }
+      visit(((IterationMerging) opt).itervar());
+    } else if (opt instanceof MatrixLinearization) {
+      if (opt.getParent() != null && !(opt.getParent() instanceof Method)) {
+        Fail("The matrix linearization optimization can only be used above methods at %s", opt.getOrigin());
+      }
+      MatrixLinearization ml = (MatrixLinearization) opt;
+      ml.dimX().apply(this);
+      ml.dimY().apply(this);
+
+      if (!(ml.dimX().getType().isPrimitive(PrimitiveSort.Integer) )) {
+          Fail("Third argument of matrix linearization is required to be an integer at %s", ml.dimX().getOrigin());
+        } else if (!(ml.dimY().getType().isPrimitive(PrimitiveSort.Integer) )) {
+          Fail("Fourth argument of matrix linearization is required to be an integer at %s", ml.dimY().getOrigin());
+        }
+
+        Method method = (Method) opt.getParent();
+        Set<DeclarationStatement> ns = new HashSet<>();
+
+//        if (method.getBody()!= null) ns = JavaConverters.setAsJavaSet(NameScanner.localVars(method.getBody()));
+//
+//        if (ns.stream().noneMatch(d -> d.name().equals(ml.matrixName().getName())) &&
+//                Arrays.stream(method.getArgs()).noneMatch(d -> d.name().equals(ml.matrixName().getName()))
+//        ) {
+//          Fail("%s is not an argument nor a local variable at %s", ml.matrixName(), ml.matrixName().getOrigin());
+//        }
+    } else if (opt instanceof DataLocation || opt instanceof Tiling || opt instanceof KernelFusion) {
+      //TODO OS check whether we need to skip DataLocation after rewriting grammar
+      // No checks needed for KernelFusion
+    } else {
+      Fail("Unsupported optimization %s", opt.getClass().toString());
+    }
+
+    opt.setType(new PrimitiveType(PrimitiveSort.Void));
+  }
+
   public void visit(VariableDeclaration decl) {
     HashMap<String, Type> map = new HashMap<>();
     MultiSubstitution sub = new MultiSubstitution(source(), map);
@@ -481,7 +529,25 @@ public class AbstractTypeCheck extends RecursiveVisitor<Type> {
         n.accept(this);
       }
     }
-    if (body!=null && (body instanceof BlockStatement)) {
+    if (m.getGpuOpts() != null) {
+      List<GPUOpt> gpuOptNames = m.getGpuOpts()
+              .stream()
+              .filter(o -> !(o instanceof MatrixLinearization))
+              .filter(o -> !(o instanceof DataLocation))
+              .collect(Collectors.toList());
+      if (gpuOptNames.size() != new HashSet<>(gpuOptNames).size()) {
+        Fail("Some optimizations are defined multiple times at %s", m.getOrigin());
+      }
+
+      Map<ASTNode, Long> matlins = m.getGpuOpts().stream()
+              .filter(o -> o instanceof MatrixLinearization)
+              .map(on -> (ASTNode) ((MatrixLinearization) on).matrixName())
+              .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+      for (ASTNode k: matlins.keySet()) {
+        if (matlins.get(k) > 1) Fail("The matrix linearization optimization is defined twice for %s at %s", k, m.getOrigin());
+      }
+    }
+    if ((body instanceof BlockStatement)) {
       //TODO: determine type of block
       return;
     }

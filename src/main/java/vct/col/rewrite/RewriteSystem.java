@@ -141,6 +141,12 @@ class MatchLinear implements ASTMapping1<Boolean,ASTNode> {
   }
 
   @Override
+  public Boolean map(GPUOpt t, ASTNode a) {
+
+    return null;
+  }
+
+  @Override
   public Boolean map(RecordType t, ASTNode a) {
     
     return null;

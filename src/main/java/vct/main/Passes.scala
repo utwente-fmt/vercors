@@ -1,23 +1,21 @@
 package vct.main
 
 import hre.config.Configuration
-
-import java.io.{File, FileNotFoundException, FileOutputStream, IOException, PrintWriter}
-import hre.lang.System.{Abort, Debug, Fail}
-import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, ProgramUnit}
+import hre.lang.System.{Abort, Debug, Progress, Warning}
+import vct.col.ast.stmt.decl.{ASTClass, ASTSpecial, GPUOptFlags, ProgramUnit}
 import vct.col.ast.syntax.{JavaDialect, JavaSyntax, PVLSyntax}
 import vct.col.features
 import vct.col.features.Feature
 import vct.col.rewrite._
+import vct.col.rewrite.gpgpuoptimizations._
 import vct.col.util.{JavaTypeCheck, LocalVariableChecker}
-import vct.col.veymont.{Decompose, GenerateForkJoinMain, GlobalProgPerms, JavaForkJoin, LocalProgConstructors, PrintVeyMontProg, StructureCheck, TerminationCheck, Util}
+import vct.col.veymont._
 import vct.experiments.learn.{NonLinCountVisitor, Oracle}
 import vct.logging.{ExceptionMessage, PassReport}
-import vct.parsers.rewrite.{AnnotationInterpreter, ConvertTypeExpressions, EncodeAsClass, FilterSpecIgnore, FlattenVariableDeclarations, InferADTTypes, RewriteWithThen, StripUnusedExtern}
+import vct.parsers.rewrite._
 
-import java.util
+import java.io._
 import scala.jdk.CollectionConverters._
-import vct.col.veymont.{ Decompose, GenerateForkJoinMain,  GlobalProgPerms,  LocalProgConstructors, PrintVeyMontProg, StructureCheck, TerminationCheck, Util}
 
 object Passes {
   val DIAGNOSTIC: Seq[AbstractPass] = Seq(
@@ -175,6 +173,69 @@ object Passes {
       ),
       removes=Set(features.ImplicitConstructorInvokation),
       introduces=Feature.DEFAULT_INTRODUCE + features.Constructors,
+    ),
+  )
+
+  val GPUOPTIMIZATIONS: Seq[AbstractPass] = Seq(
+    SimplePass("unrollLoops",
+      "Unroll specified loops",
+      new UnrollLoops(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("printGpuOptOut",
+      "Prints the gpu optimized PVL file",
+      arg => {
+          if (Configuration.gpuopt_output_file.get() == null) {
+            Warning("No output file generated for  gpgpu optimalizations.")
+            Warning("To output the optimized program to a file, use the --encoded-gpuopt flag.")
+          } else {
+            try {
+              val f = new File(Configuration.gpuopt_output_file.get());
+              val b = f.createNewFile();
+              if (!b) {
+                Debug("File %s already exists and is now overwritten", Configuration.gpuopt_output_file.get());
+              }
+              val out = new PrintWriter(new FileOutputStream(f));
+              var toPrint = arg
+              if (Configuration.gpu_optimizations.contains(GPUOptFlags.loopUnrolling.toString)) {
+                toPrint = UnrollLoops.unrolledProgram
+              }
+              PVLSyntax.get().print(out, toPrint)
+              out.close()
+
+              Progress("Optimized program written to %s", f.getName)
+            } catch {
+              case e: IOException => Debug(e.getMessage);
+            }
+          }
+        arg
+      },
+      permits=Set.empty,
+    ),
+    SimplePass("linearizeMatrices",
+      "Linearize matrices",
+      new LinearizeMatrices(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("mergeLoopIterations",
+      "Merge Iterations",
+      new MergeIterations(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("globalMemoryLocToRegister",
+      "Pull information from global memory locations to registers",
+      new GlobalToRegister(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("tileKernel",
+      "Tile a kernel",
+      new TileKernel(_).rewriteAll,
+      permits=Set.empty,
+    ),
+    SimplePass("fuseKernels",
+      "Fuse kernels.",
+      new FuseKernels(_).rewriteAll,
+      permits=Set.empty,
     ),
   )
 
@@ -958,6 +1019,7 @@ object Passes {
     ONE_SHOT_FEATURE ++
     BACKEND_COMPAT ++
     SIMPLIFYING ++
+    GPUOPTIMIZATIONS ++
     BACKENDS ++
     VEYMONT ++
     OLD_OR_UNUSED).map(pass => (pass.key, pass)).toMap

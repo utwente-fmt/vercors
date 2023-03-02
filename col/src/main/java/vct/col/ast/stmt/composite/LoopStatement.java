@@ -5,6 +5,7 @@ import hre.ast.MessageOrigin;
 import hre.lang.HREError;
 import hre.util.ScalaHelper;
 import vct.col.ast.expr.StandardOperator;
+import vct.col.ast.stmt.decl.GPUOpt;
 import vct.col.ast.util.ASTMapping;
 import vct.col.ast.util.ASTMapping1;
 import vct.col.ast.generic.ASTNode;
@@ -24,6 +25,7 @@ public class LoopStatement extends ASTNode implements BeforeAfterAnnotations {
   }
 
   private ContractBuilder cb=new ContractBuilder();
+  private GPUOpt gpuopt;
   private Contract contract;
   private ASTNode body;
   private ASTNode entry_guard;
@@ -46,7 +48,15 @@ public class LoopStatement extends ASTNode implements BeforeAfterAnnotations {
     cb=null;
     this.contract=contract;
   }
-  
+
+  public void setGpuopt(GPUOpt gpuopt){
+    this.gpuopt = gpuopt;
+  }
+
+  public GPUOpt getGpuopt(){
+    return this.gpuopt;
+  }
+
   public Contract getContract(){
     if (contract==null){
       throw new HREError("contract has not been fixated");

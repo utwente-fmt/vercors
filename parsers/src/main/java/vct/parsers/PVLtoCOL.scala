@@ -101,9 +101,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   }
 
   def convertMethod(method: MethodDeclContext): Method = origin(method, method match {
-    case MethodDecl0(contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
+    case MethodDecl0(maybeGPUOpts, contract, modifiers, returnType, name, "(", maybeArgs, ")", bodyNode) =>
       val returns = convertType(returnType)
       var (kind, body) = convertBody(bodyNode)
+      val gpuopts = maybeGPUOpts.map(convertGPUOpts).getOrElse(Seq.empty[GPUOpt])
 
       modifiers.foreach {
         case Modifier0("pure") =>
@@ -115,7 +116,7 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
         kind = Kind.Predicate
 
       val result = create method_kind(kind, returns, convertContract(contract),
-        convertID(name), maybeArgs.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
+        convertID(name), maybeArgs.map(convertArgs).getOrElse(Seq()).toArray, gpuopts.asJava, body.orNull)
 
       modifiers.map(convertModifier).foreach(mod => {
         /* These flags have special status in InlinePredicatesRewriter and CurrentThreadRewriter. Probably we should
@@ -143,11 +144,13 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
   })
 
   def convertConstructor(method: ConstructorContext): Method = origin(method, method match {
-    case Constructor0(contract, name, "(", args, ")", bodyNode) =>
+    case Constructor0(maybeGPUopts, contract, name, "(", args, ")", bodyNode) =>
       val returns = create primitive_type PrimitiveSort.Void
       val (_, body) = convertBody(bodyNode)
-      create method_kind(Kind.Constructor, returns, convertContract(contract),
-        convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, body.orNull)
+      val gpuopts = maybeGPUopts.map(convertGPUOpts).getOrElse(Seq.empty[GPUOpt])
+
+        create method_kind(Kind.Constructor, returns, convertContract(contract),
+        convertID(name), args.map(convertArgs).getOrElse(Seq()).toArray, gpuopts.asJava, body.orNull)
   })
 
   def convertContract(contract: ParserRuleContext): Contract = origin(contract, contract match {
@@ -233,6 +236,14 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case Some(args) => convertExpList(args)
     case None => Seq()
   }
+
+  def convertExpSeq(args: ExprSeqContext): Seq[ASTNode] = args match {
+    case ExprSeq0(exp) =>
+      Seq(expr(exp))
+    case ExprSeq1(exp, expList) =>
+      expr(exp) +: convertExpSeq(expList)
+  }
+
 
   def convertExpList(args: ExprListContext): Seq[ASTNode] = args match {
     case ExprList0(exp) =>
@@ -529,10 +540,10 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       builder.appendInvariant(expr(exp))
   }
 
-  def convertBlock(block: ParserRuleContext): BlockStatement = block match {
+  def convertBlock(block: ParserRuleContext): BlockStatement = origin(block, block match {
     case Block0(_, statements, _) =>
       create block(statements.flatMap(convertStat):_*)
-  }
+  })
 
   def convertStat(stat: ParserRuleContext): Seq[ASTNode] = origin(stat, Seq[ASTNode](stat match {
     case Statement0("return", None, _) => create.return_statement()
@@ -572,24 +583,36 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
       }
       val tagsJavaList = new JavaArrayList[String](tags.asJava)
       create barrier(convertID(name), contract, tagsJavaList, maybeBody.orNull)
-    case Statement11(contract, "par", parUnitList) =>
+    case Statement11(maybeFuse, contract, "par", parUnitList) =>
       val parUnits = convertParUnitList(parUnitList)
       val javaParUnits = new JavaArrayList[ParallelBlock](parUnits.asJava)
-      create region(convertContract(contract), javaParUnits)
+      val opt:KernelFusion = maybeFuse.map(convertGPUOpt) match {
+        case None => null
+        case Some(f) if f.isInstanceOf[KernelFusion] => f.asInstanceOf[KernelFusion]
+        case Some(f) => fail(stat, "Only fusion allowed for parallel regions.")
+      }
+
+      create region(opt,convertContract(contract), javaParUnits)
     case Statement12("vec", "(", iter, ")", block) =>
       create vector_block(convertParIter(iter), convertBlock(block))
     case Statement13("invariant", label, "(", resource, ")", block) =>
       create invariant_block(convertID(label), expr(resource), convertBlock(block))
     case Statement14("atomic", "(", invariants, ")", block) =>
       create parallel_atomic(convertBlock(block), convertIDList(invariants):_*)
-    case Statement15(invariants, "while", "(", cond, ")", body) =>
-      create while_loop(expr(cond), flattenIfSingleStatement(convertStat(body)), convertContract(invariants))
-    case Statement16(invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
+    case Statement15(maybeGPUopt, invariants, "while", "(", cond, ")", body) =>
+      create while_loop(
+        expr(cond),
+        flattenIfSingleStatement(convertStat(body)),
+        maybeGPUopt.map(convertGPUOpt).orNull,
+        convertContract(invariants)
+      )
+    case Statement16(maybeGPUopt, invariants, "for", "(", maybeInit, ";", maybeCond, ";", maybeUpdate, ")", body) =>
       create for_loop(
         maybeInit.map(convertStatList).map(create block(_:_*)).orNull,
         maybeCond.map(expr).getOrElse(create constant true),
         maybeUpdate.map(convertStatList).map(create block(_:_*)).orNull,
         flattenIfSingleStatement(convertStat(body)),
+        maybeGPUopt.map(convertGPUOpt).orNull,
         convertContract(invariants)
       )
     case Statement17(block) => convertBlock(block)
@@ -614,6 +637,34 @@ case class PVLtoCOL(fileName: String, tokens: CommonTokenStream, parser: PVLPars
     case AllowedForStatement3(target, "=", exp) =>
       create assignment(expr(target), expr(exp))
   }))
+
+  def convertGPUOpt(tree: GpuoptContext): GPUOpt = origin(tree, tree match {
+    case Gpuopt0(gpuOptKeyword, "loop_unroll", itervar, k, _) => {
+      create.opt_loop_unroll(convertIDName(itervar), create constant Integer.parseInt(k))
+    }
+    case Gpuopt1(gpuOptKeyword, "iter_merge" , itervar, m, _) => create.opt_iter_merge(convertIDName(itervar), create constant Integer.parseInt(m))
+    case Gpuopt2(gpuOptKeyword, "matrix_lin" , matrixName, major, dimX, dimY, _) =>
+      val toMajor = major match {
+        case "C" => Major.Column
+        case "R" => Major.Row
+      }
+      create.opt_matrix_lin(convertIDName(matrixName), toMajor, expr(dimX), expr(dimY))
+    case Gpuopt3(gpuOptKeyword, "glob_to_reg", arr, locs, _) => create.opt_glob_to_reg(expr(arr), convertExpSeq(locs).asJava)
+    case Gpuopt4(gpuOptKeyword, "tile", interOrIntra, tileSize, _) =>
+      val config = interOrIntra match {
+        case "inter" => TilingConfig.Inter
+        case "intra" => TilingConfig.Intra
+      }
+      create.opt_tiling(config, create constant Integer.parseInt(tileSize))
+    case Gpuopt5(gpuOptKeyword, "fuse", fuse, tblocks, _) =>
+      create.opt_fusion(create constant Integer.parseInt(fuse), create constant Integer.parseInt(tblocks))
+  })
+
+  def convertGPUOpts(tree: GpuoptsContext): Seq[GPUOpt] = tree match {
+    case Gpuopts0(gpuopt) => Seq(convertGPUOpt(gpuopt))
+    case Gpuopts1(gpuopt, gpuopts) => Seq(convertGPUOpt(gpuopt))++convertGPUOpts(gpuopts)
+  }
+
 
   def convertStatList(tree: ForStatementListContext): Seq[ASTNode] = tree match {
     case ForStatementList0(x) => convertStat(x)
