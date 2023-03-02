@@ -1,5 +1,6 @@
 package hre.progress
 
+import hre.perf.Profile
 import hre.platform.Platform
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
@@ -97,6 +98,7 @@ case object Progress {
   }
 
   def update(): Unit = {
+    Profile.update(frames.map(_.currentMessage))
     System.out.print(undoProgressMessage)
     System.out.print(progressMessage)
   }

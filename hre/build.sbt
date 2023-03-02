@@ -12,4 +12,12 @@ lazy val hre = (project in file(".")).settings(
   // Disable documentation generation
   Compile / doc / sources := Nil,
   Compile / packageDoc / publishArtifact := false,
+
+  Compile / PB.targets := Seq(
+    scalapb.gen(flatPackage = true) -> (Compile / sourceManaged).value / "scalapb"
+  ),
+
+  Compile / PB.protoSources ++= Seq(
+    (Compile / sourceManaged).value / "protobuf"
+  ),
 )

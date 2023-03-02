@@ -2,6 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
+import hre.perf.Profile
 import hre.progress.Progress
 import org.slf4j.LoggerFactory
 import scopt.OParser
@@ -74,19 +75,23 @@ case object Main extends LazyLogging {
 
     Progress.install(options.progress)
 
-    options.mode match {
-      case Mode.Verify =>
-        logger.info("Starting verification")
-        Verify.runOptions(options)
-      case Mode.HelpVerifyPasses =>
-        logger.info("Available passes:")
-        Transformation.ofOptions(options).passes.foreach { pass =>
-          logger.info(s" - ${pass.key}")
-          logger.info(s"    ${pass.desc}")
-        }
-        EXIT_CODE_SUCCESS
-      case Mode.VeyMont => ???
-      case Mode.BatchTest => ???
+    try {
+      options.mode match {
+        case Mode.Verify =>
+          logger.info("Starting verification")
+          Verify.runOptions(options)
+        case Mode.HelpVerifyPasses =>
+          logger.info("Available passes:")
+          Transformation.ofOptions(options).passes.foreach { pass =>
+            logger.info(s" - ${pass.key}")
+            logger.info(s"    ${pass.desc}")
+          }
+          EXIT_CODE_SUCCESS
+        case Mode.VeyMont => ???
+        case Mode.BatchTest => ???
+      }
+    } finally {
+      Profile.finish()
     }
   }
 }
