@@ -35,6 +35,7 @@ public class PVLSyntax extends Syntax {
       syntax.addPostfix(PostDecr,"--",140);
       syntax.addOperator(NewArray,-1,"new ","[","]");
       syntax.addOperator(Subscript,145,"","[","]"); // TODO: check if relative order to Select is OK!
+      syntax.addOperator(Cast,145,"((",")",")");
       syntax.addInfix(Implies,"==>",30);
       syntax.addOperator(IndependentOf, -1 , "(" ,"!",")");
 
