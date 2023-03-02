@@ -9,14 +9,5 @@ class silver_optimize {
   seq<int> xs;
   
   axiom head1 { head (xs) == xs[0] }
-
-//  axiom move_implication {
-//     (e1 ==> (\forall* int i; e2 ; e3 ))
-//     ==
-//     (\forall* int i; e1 && e2 ; e3 )
-//  }
-
-// to avoid capture: write e1!i to mean that it's an e1 in which i does not occur as a FV
-// a -> b -> c = (a & b) -> c
 }
 

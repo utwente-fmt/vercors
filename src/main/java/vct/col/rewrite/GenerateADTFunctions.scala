@@ -8,7 +8,7 @@ import vct.col.ast.stmt.decl.{DeclarationStatement, ProgramUnit}
 import vct.col.ast.util.{AbstractRewriter, ContractBuilder, FieldAccessCollector}
 
 import scala.jdk.CollectionConverters._
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable
 
 object GenerateADTFunctions {
   val getRemoveFromSeqName: mutable.Map[Type, String] = mutable.Map()
@@ -59,7 +59,6 @@ class GenerateADTFunctions(source: ProgramUnit) extends AbstractRewriter(source)
     binding.binder match {
       case Binder.SetComp =>
         // Get Arguments
-        var boundedVariables = binding.asInstanceOf[SetComprehension].variables
         val args = binding.asInstanceOf[SetComprehension].variables.values().asScala
 
         result = create.invokation(null,

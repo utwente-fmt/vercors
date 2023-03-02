@@ -1,7 +1,6 @@
 package hre.ast;
 
-import hre.ast.BranchOrigin;
-import hre.ast.Origin;
+
 
 public class AssertOrigin extends BranchOrigin {
     public RestOfContractOrigin restOfContractOrigin;

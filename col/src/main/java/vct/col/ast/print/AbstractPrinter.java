@@ -14,6 +14,7 @@ import vct.col.ast.stmt.decl.Contract;
 import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.SignalsClause;
 import vct.col.ast.type.ASTReserved;
+import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.type.TypeExpression;
 import vct.col.ast.util.ASTUtils;
@@ -55,17 +56,11 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
       expr_level=0;
     }
   }
-  
-  private static final Origin missing=new MessageOrigin("unknown location");
-  
+
   public void pre_visit(ASTNode node){
     super.pre_visit(node);
     if (in_expr) {
       expr_level++;
-    }
-    Origin o=node.getOrigin();
-    if (o==null){
-      o=missing;
     }
     out.enter(node.getOrigin());
   }
@@ -207,8 +202,12 @@ public class AbstractPrinter extends AbstractVisitor<Object> {
     setExpr();    
     if (N<0){
       out.print(op_syntax[0]);
-      if(args.length>0){
-        args[0].accept(this);
+      if(args.length > 0){
+        if(args.length > 1 && args[0] instanceof PrimitiveType && ((PrimitiveType) args[0]).sort == PrimitiveSort.Option
+                && ((PrimitiveType) args[0]).args().head() instanceof PrimitiveType && ((PrimitiveType) ((PrimitiveType) args[0]).args().head()).sort == PrimitiveSort.Array) {
+          ((PrimitiveType) ((PrimitiveType) args[0]).args().head()).args().head().accept(this);
+        }
+        else args[0].accept(this);
       }
       for(int i=1;i<args.length;i++){
         out.print(op_syntax[1]);

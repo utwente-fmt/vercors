@@ -1,0 +1,36 @@
+//:: cases RoleMethodType5
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Error
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(this);
+	}
+	
+	void run() {
+		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	int x;
+	
+	Role(Main v) {
+		x = 1;
+	}
+
+}
+
+class Other {
+
+}

@@ -2,16 +2,16 @@ package hre.config;
 
 public interface Option {
 
-  public boolean needsArgument();
+  boolean needsArgument();
 
-  public boolean allowsArgument();
+  boolean allowsArgument();
 
-  public void pass();
+  void pass();
 
-  public void pass(String arg);
+  void pass(String arg);
 
-  public String getHelp();
+  String getHelp();
 
-  public boolean used();
+  boolean used();
 
 }

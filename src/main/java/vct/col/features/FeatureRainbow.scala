@@ -20,7 +20,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
-class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true) {
+class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source) {
   val features: mutable.Set[Feature] = mutable.Set()
   val blames: mutable.Map[Feature, ArrayBuffer[ASTNode]] = mutable.Map()
 
@@ -81,6 +81,7 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
     super.visit(v)
   }
 
+
   override def visit(c: ASTClass): Unit = {
     super.visit(c)
     if(c.kind != ClassKind.Record && c.methods().asScala.nonEmpty)
@@ -108,8 +109,11 @@ class RainbowVisitor(source: ProgramUnit) extends RecursiveVisitor(source, true)
             case _ => addFeature(NoLockInvariantProof, c)
           }
         case None =>
+          addFeature(NoLockInvariantProof, c)
       }
     }
+    if(c.super_classes.exists(_.getName == "RecursiveAction"))
+      addFeature(RecursiveActionInheritance,c)
   }
 
   private def isPure(m: Method): Boolean =
@@ -610,6 +614,7 @@ object Feature {
     SubscriptRange,
     Dereference,
     Inheritance,
+    RecursiveActionInheritance,
     Null,
     This,
     JavaAtomic,
@@ -738,6 +743,7 @@ object Feature {
     SubscriptRange,
     Dereference,
     Inheritance,
+    RecursiveActionInheritance,
     Null,
     This,
     JavaAtomic,
@@ -840,6 +846,7 @@ case object ImproperlySortedBeforeAfter extends ScannableFeature
 case object SubscriptRange extends ScannableFeature // no pass
 case object Dereference extends ScannableFeature
 case object Inheritance extends ScannableFeature
+case object RecursiveActionInheritance extends ScannableFeature
 case object Null extends ScannableFeature
 case object This extends ScannableFeature
 case object JavaAtomic extends ScannableFeature

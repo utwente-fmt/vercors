@@ -6,17 +6,13 @@ import java.util.HashSet;
 import static hre.lang.System.Abort;
 
 public class ChoiceSetting {
-    private String setting = null;
+    private String setting;
     private HashSet<String> allowedSettings;
 
     public ChoiceSetting(String[] settings, String devault) {
         this.setting = devault;
         this.allowedSettings = new HashSet<>();
         Collections.addAll(this.allowedSettings, settings);
-    }
-
-    public ChoiceSetting(String[] settings) {
-        this(settings, null);
     }
 
     private class SetOption extends AbstractOption {

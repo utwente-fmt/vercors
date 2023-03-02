@@ -30,9 +30,5 @@ public class Message {
   public Object getArg(int i){
     return args[i];
   }
-
-  public String getFormattedMessage() {
-    return String.format(format, args);
-  }
 }
 

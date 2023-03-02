@@ -58,7 +58,7 @@ abstract class Type(val args:List[ASTNode]) extends ASTNode {
   
   final def apply[T](map:TypeMapping[T]) : T = {
     map.pre_map(this)
-    var result = accept_simple(map)
+    val result = accept_simple(map)
     map.post_map(this, result)
   }
   

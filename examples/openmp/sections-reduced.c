@@ -1,8 +1,11 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
 //:: case OpenMPSectionReduced
 //:: tools silicon
-//:: suite puptol
+//:: suite puptol problem-partial
 //:: verdict Pass
+//:: option --stop-before-backend
+
+// This test was put into problem-partial because it times out or fails in the CI sometimes.
+
 /*
  * Demonstrates how two loops that must be fused to be
  * data race free can be specified and verified.

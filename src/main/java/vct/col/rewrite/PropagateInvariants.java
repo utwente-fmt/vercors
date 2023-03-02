@@ -101,7 +101,7 @@ public class PropagateInvariants extends AbstractRewriter {
     ContractBuilder cb=new ContractBuilder();
     for(ASTNode inv:invariants) { cb.prependInvariant(inv); }
     rewrite(pb.contract(), cb);
-    ParallelBlock res=create.parallel_block(
+    result= create.parallel_block(
         pb.label(),
         // Make sure the contract remains null if the original contract is null,
         // and non-null if the original contract is
@@ -110,6 +110,5 @@ public class PropagateInvariants extends AbstractRewriter {
         rewrite(pb.block()),
         rewrite(pb.deps())
     );
-    result=res;
   }
 }

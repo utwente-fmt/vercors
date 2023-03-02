@@ -2,7 +2,6 @@ package viper.api;
 
 import hre.ast.MessageOrigin;
 import hre.ast.Origin;
-import hre.lang.HREError;
 import hre.util.Triple;
 import vct.col.ast.expr.StandardOperator;
 import vct.col.ast.generic.ASTNode;
@@ -169,14 +168,6 @@ public class VerCorsStatementFactory implements
     ASTNode loop=create.while_loop(cond, block, invs.toArray(new ASTNode[invs.size()]));
     leave();
     return loop;
-  }
-
-  private BlockStatement checkBlock(ASTNode body) {
-    if (body instanceof BlockStatement){
-      return (BlockStatement)body;
-    } else {
-      throw new HREError("not a block statement");
-    }
   }
 
 }

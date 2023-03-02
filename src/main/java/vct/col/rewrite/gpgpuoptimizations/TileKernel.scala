@@ -733,24 +733,24 @@ case class TileKernel(override val source: ProgramUnit) extends AbstractRewriter
   private def findUpperbound(m: Method, opt: Tiling, tid: String, upperBoundNode: ASTNode) = {
     upperBoundNode match {
       case c: ConstantExpression =>
-        c.value.asInstanceOf[IntegerValue].value
+        c.value.asInstanceOf[IntegerValue].value.intValue
       case _ =>
         val possibleUpperBounds = ASTUtils.conjuncts(create.expression(And, m.getContract.invariant, m.getContract.pre_condition), Star, And).asScala
           .map {
             case o: OperatorExpression =>
               o.operator match {
                 case EQ if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue)
                 case EQ if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue)
                 case GTE if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue)
                 case GT if o.first.`match`(upperBoundNode) && o.second.isInstanceOf[ConstantExpression] =>
-                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
+                  Some(o.second.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue + 1)
                 case LTE if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue)
                 case LT if o.second.`match`(upperBoundNode) && o.first.isInstanceOf[ConstantExpression] =>
-                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + 1)
+                  Some(o.first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue + 1)
                 case _ => None
               }
             case _ => None

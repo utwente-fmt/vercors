@@ -31,7 +31,7 @@ public class ErrorDisplayVisitor implements MessageVisitor {
   public void visit(TaskEnd end) {
     long duration=(end.nanoTime()-end.begin.nanoTime())/1000000L;
     if(duration>1L) {
-      Progress("task %s took %d ms",end.begin.description,duration);
+      Progress("Task %s took %d ms",end.begin.description,duration);
     }
 
     

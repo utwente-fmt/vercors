@@ -12,7 +12,5 @@ package hre.util;
  * @param <T2>
  */
 public interface Function<T1, T2> {
-
-  public T2 apply(T1 arg);
-
+  T2 apply(T1 arg);
 }

@@ -92,19 +92,19 @@ public abstract class ASTFrame<T> {
 
   /**
    * Create a new frame with just a source program unit.
-   * 
+   *
    * @param source
    */
-  public ASTFrame(ProgramUnit source,boolean do_scope){
-    this(source,null,do_scope);
+  public ASTFrame(ProgramUnit source){
+    this(source,null);
   }
   
   /**
    * Create a new frame with both source and target program units.
-   * 
+   *
    * @param source
    */
-  public ASTFrame(ProgramUnit source,ProgramUnit target,boolean do_scope){
+  public ASTFrame(ProgramUnit source, ProgramUnit target){
     this.source=source;
     this.target=target;
     node_stack=new Stack<ASTNode>();
@@ -171,7 +171,7 @@ public abstract class ASTFrame<T> {
     if (scope!=null) scope.leave_after(node);
   }
 
-  enum Action {ENTER,LEAVE,ENTER_AFTER,LEAVE_AFTER};
+  enum Action {ENTER,LEAVE,ENTER_AFTER,LEAVE_AFTER}
   
   final ManageScope scope;
       
@@ -241,9 +241,9 @@ public abstract class ASTFrame<T> {
     public void visit(OperatorExpression node){
       switch(action){
       case ENTER:
-        switch(((OperatorExpression)node).operator()){
+        switch((node).operator()){
           case BindOutput:{
-            ASTNode e=((OperatorExpression) node).arg(0);
+            ASTNode e=( node).arg(0);
             if (e instanceof NameExpression){
               NameExpression name=(NameExpression) e;
               variables.add(name.getName(),new VariableInfo(node, NameExpressionKind.Output));
@@ -277,10 +277,9 @@ public abstract class ASTFrame<T> {
     }
    
     @Override
-    public void visit(DeclarationStatement node){
+    public void visit(DeclarationStatement decl){
       switch(action){
       case ENTER:
-        DeclarationStatement decl=(DeclarationStatement)node;
         if (decl.getParent() instanceof BlockStatement || decl.getParent()==null){
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
         }
@@ -296,7 +295,7 @@ public abstract class ASTFrame<T> {
     public void visit(ASTSpecial node){
       switch(action){
       case ENTER:
-        switch(((ASTSpecial)node).kind){
+        switch((node).kind){
         case Witness:{
           for(NameExpression name:node.getArg(0).getLabels()){
             variables.add(name.getName(),new VariableInfo(node, NameExpressionKind.Label));
@@ -310,7 +309,7 @@ public abstract class ASTFrame<T> {
           break;          
         }
         case CreateHistory:
-           scan_labels(((ASTSpecial)node).args[0]);
+           scan_labels((node).args[0]);
         default:
           break;
         }
@@ -327,10 +326,10 @@ public abstract class ASTFrame<T> {
     public void visit(ASTClass node){
       switch(action){
       case ENTER:
-        class_stack.push((ASTClass)node);
+        class_stack.push(node);
         variables.enter();
-        recursively_add_class_info((ASTClass)node);
-        Contract contract=((ASTClass)node).getContract();
+        recursively_add_class_info(node);
+        Contract contract=(node).getContract();
         if (contract!=null){
           for (DeclarationStatement decl:contract.given){
             variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Field));
@@ -374,19 +373,18 @@ public abstract class ASTFrame<T> {
     }
 
     @Override
-    public void visit(BlockStatement node){
+    public void visit(BlockStatement blockStatement){
       switch(action){
       case ENTER:
         variables.enter();
-        if (node.getParent() instanceof MethodInvokation){
-          MethodInvokation s=(MethodInvokation)node.getParent();
+        if (blockStatement.getParent() instanceof MethodInvokation){
+          MethodInvokation s=(MethodInvokation)blockStatement.getParent();
           Method def=s.getDefinition();
           add_contract_vars(def);
         }
-        BlockStatement block=(BlockStatement)node;
-        int N=block.size();
+        int N=blockStatement.size();
         for(int i=0;i<N;i++){
-          scan_labels(block.getStatement(i));
+          scan_labels(blockStatement.getStatement(i));
         }
         break;
       case LEAVE:
@@ -433,11 +431,10 @@ public abstract class ASTFrame<T> {
     }
 
     @Override
-    public void visit(ForEachLoop node){
+    public void visit(ForEachLoop loop){
       switch(action){
       case ENTER:
         variables.enter();
-        ForEachLoop loop=(ForEachLoop)node;
         for(DeclarationStatement decl:loop.decls){
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
         }
@@ -455,7 +452,7 @@ public abstract class ASTFrame<T> {
       switch(action){
       case ENTER:
         variables.enter();
-        for(DeclarationStatement decl:((BindingExpression)node).getDeclarations()){
+        for(DeclarationStatement decl:node.getDeclarations()){
           variables.add(decl.name(), new VariableInfo(decl, NameExpressionKind.Local));
         }
         break;
@@ -533,7 +530,7 @@ public abstract class ASTFrame<T> {
           break;
       }
     }
-  };
+  }
   
   private void recursively_add_class_info(ASTClass cl) {
     for (int i=0;i<cl.super_classes.length;i++){

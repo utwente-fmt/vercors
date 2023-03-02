@@ -6,7 +6,6 @@ import vct.col.ast.type.ASTReserved;
 import vct.col.ast.type.PrimitiveSort;
 import vct.col.ast.type.PrimitiveType;
 import vct.col.ast.type.Type;
-import vct.col.ast.util.ASTFactory;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -92,7 +91,7 @@ public class SequenceUtils {
 
         // The sequence may be wrapped by an option once, which must again contain a primitive type
         if(sequenceType.isPrimitive(PrimitiveSort.Option)) {
-            if(((Type) sequenceType.firstarg()) instanceof PrimitiveType) {
+            if(( sequenceType.firstarg()) instanceof PrimitiveType) {
                 sequenceType = (PrimitiveType) sequenceType.firstarg();
             } else {
                 return null;
@@ -170,14 +169,6 @@ public class SequenceUtils {
         return expectSortType(type, message, PrimitiveSort.Array);
     }
 
-    public static SequenceInfo expectSequence(ASTNode node, String message) {
-        return expectSort(node, message, PrimitiveSort.Sequence);
-    }
-
-    public static SequenceInfo expectSequenceType(Type t, String message) {
-        return expectSortType(t, message, PrimitiveSort.Sequence);
-    }
-
     /**
      * Subscript a sequence-like object correctly, depending on the type.
      * @param create The factory to use to create AST nodes
@@ -223,10 +214,6 @@ public class SequenceUtils {
         return create.expression(StandardOperator.Subscript, seq, index);
     }
 
-    public static void validSequence(ASTFactory<?> create, Consumer<ASTNode> cb, ASTNode seq) {
-        validSequenceUsingType(create, cb, seq.getType(), seq);
-    }
-
     public static void validSequenceUsingType(ASTFactory<?> create, Consumer<ASTNode> cb, Type type, ASTNode seq) {
         SequenceInfo info = getTypeInfo(type);
         Objects.requireNonNull(info, String.format("Expected %s to be of a sequence type", seq));
@@ -242,18 +229,6 @@ public class SequenceUtils {
 
     public static Type arrayCell(ASTFactory<?> create, Type elementType) {
         return create.primitive_type(PrimitiveSort.Array,
-            create.primitive_type(PrimitiveSort.Cell,
-                elementType
-            )
-        );
-    }
-
-    public static Type optSeqCell(ASTFactory<?> create, Type elementType) {
-        return create.primitive_type(PrimitiveSort.Option, seqCell(create, elementType));
-    }
-
-    public static Type seqCell(ASTFactory<?> create, Type elementType) {
-        return create.primitive_type(PrimitiveSort.Sequence,
             create.primitive_type(PrimitiveSort.Cell,
                 elementType
             )

@@ -39,7 +39,7 @@ public class StreamConverterThread extends Thread {
     } catch (IOException e){
       queue.add(new Message("IOException %s",e.getMessage()));
       // if exception at any place other than during close, try to close.
-      if (line!=null) try { in.close(); } catch (IOException ee) {};
+      if (line!=null) try { in.close(); } catch (IOException ee) {}
       return;
     }
   }

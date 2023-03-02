@@ -1,22 +1,9 @@
 package viper.api
 
 import viper.silver.ast._
-
 import scala.jdk.CollectionConverters._
-import scala.jdk.CollectionConverters._
-import viper.silver.verifier.{AbortedExceptionally, Failure, Success, VerificationError}
 import java.util.List
-import java.util.Properties
-import java.util.SortedMap
-
-import scala.math.BigInt.int2bigInt
-import viper.silver.ast.SeqAppend
-import java.nio.file.Path
-
 import hre.util
-import viper.silver.parser.PLocalVarDecl
-
-import scala.collection.mutable.WrappedArray
 
 
 class SilverStatementFactory[O] extends StatementFactory[O,Type,Exp,Stmt] with FactoryUtils[O] {

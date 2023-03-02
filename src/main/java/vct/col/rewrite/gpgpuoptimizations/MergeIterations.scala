@@ -34,7 +34,7 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
     val itervar = s.getGpuopt.args.head.asInstanceOf[NameExpression]
     val M = s.getGpuopt.args(1)
       .asInstanceOf[ConstantExpression].value
-      .asInstanceOf[IntegerValue].value
+      .asInstanceOf[IntegerValue].value.intValue
     if (M <= 1) {
       Fail("Iteration merging optimization is not performed for zero or one at %s", s.getGpuopt.getOrigin)
       return
@@ -47,7 +47,7 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
     val op = updateStmt._1
     val C = updateStmt._2
       .asInstanceOf[ConstantExpression].value
-      .asInstanceOf[IntegerValue].value
+      .asInstanceOf[IntegerValue].value.intValue
 
     if (!bounds._1.isInstanceOf[ConstantExpression] &&
       !(bounds._1.isInstanceOf[OperatorExpression] &&
@@ -63,12 +63,12 @@ case class MergeIterations(override val source: ProgramUnit) extends AbstractRew
       Fail("The upperbound of %s is not a constant, but %s", itervar, bounds._2)
     }
     val a = bounds._1 match {
-      case const: ConstantExpression => const.value.asInstanceOf[IntegerValue].value + bounds._3
-      case _ => -1* bounds._1.asInstanceOf[OperatorExpression].first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value  + bounds._3
+      case const: ConstantExpression => const.value.asInstanceOf[IntegerValue].value.intValue + bounds._3
+      case _ => -1* bounds._1.asInstanceOf[OperatorExpression].first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue  + bounds._3
     }
     val b = bounds._2 match {
-      case const: ConstantExpression => const.value.asInstanceOf[IntegerValue].value + bounds._4
-      case _ => -1* bounds._2.asInstanceOf[OperatorExpression].first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value + bounds._4
+      case const: ConstantExpression => const.value.asInstanceOf[IntegerValue].value.intValue + bounds._4
+      case _ => -1* bounds._2.asInstanceOf[OperatorExpression].first.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue + bounds._4
     }
 
     val (start, cond, update) = op match {

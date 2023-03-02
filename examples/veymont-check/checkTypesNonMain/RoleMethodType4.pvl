@@ -1,0 +1,36 @@
+//:: cases RoleMethodType4
+//:: suite veymont veymont-check
+//:: option --veymont tmp.pvl
+//:: verdict Pass
+class Main {
+
+	Role a;
+
+	Main() {
+		a = new Role(new Other());
+	}
+	
+	void run() {
+		
+	}
+	
+	void main() {
+		Main m = new Main();
+		m.run();
+	}
+
+}
+
+class Role {
+
+	Other x;
+	
+	Role(Other v) {
+		x = v;
+	}
+
+}
+
+class Other {
+
+}

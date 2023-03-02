@@ -29,6 +29,7 @@ import static hre.lang.System.Debug;
 public class Method extends ASTDeclaration {
 
   public static final String JavaConstructor = "<<constructor>>";
+  public static final String LockInvariant = "lock_invariant";
   public final Type[] signals;
 
   @Override
@@ -47,13 +48,13 @@ public class Method extends ASTDeclaration {
   }
 
   /** Enumeration of kinds of methods. */
-  public static enum Kind{
+  public enum Kind{
     Constructor,
     Predicate,
     Pure,
     Plain
-  };
-
+  }
+ 
   private final Type return_type;
   private final List<GPUOpt> gpuOpts;
   private DeclarationStatement[] args;
@@ -306,11 +307,6 @@ public class Method extends ASTDeclaration {
     }
     Abort("missing case in isRecursive: %s",node.getClass());
     return true;
-  }
-
-  public boolean isOverloaded() {
-    ASTClass cl=(ASTClass)getParent();
-    return cl.isOverloaded(name());
   }
 
   /**

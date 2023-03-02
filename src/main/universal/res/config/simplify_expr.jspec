@@ -1,5 +1,3 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
 class simplify_expr {
   int x;
   

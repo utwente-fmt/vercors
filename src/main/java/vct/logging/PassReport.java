@@ -2,8 +2,6 @@ package vct.logging;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import hre.util.TestReport;
-import hre.util.TestReport.Verdict;
 import vct.col.ast.stmt.decl.ProgramUnit;
 
 import static hre.lang.System.Output;
@@ -27,14 +25,6 @@ public class PassReport {
   
   public PassReport(ProgramUnit in){
     input=in;
-  }
-  
-  public PassReport(ProgramUnit in,TestReport report){
-    input=in;
-    output=in;
-    if(report.getVerdict()!=Verdict.Pass){
-      fatal=1;
-    }
   }
   
   public ProgramUnit setOutput(ProgramUnit pu){
@@ -67,13 +57,4 @@ public class PassReport {
     visitors.remove(visitor);
   }
 
-  public void listFatals() {
-    Output("fatal count is %d",fatal);
-    for(Message m:entries){
-      if (m.isFatal()){
-        Output("fatal entry %s",m.getClass());
-        Output("fatal entry %s",m);
-      }
-    }
-  }
 }

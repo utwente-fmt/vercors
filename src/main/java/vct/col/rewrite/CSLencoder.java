@@ -15,7 +15,7 @@ import vct.logging.ErrorMapping;
 
 public class CSLencoder extends AbstractRewriter {
  
-  public CSLencoder(ProgramUnit source, ErrorMapping map) {
+  public CSLencoder(ProgramUnit source, ErrorMapping errorMapping) {
     super(source);
   }
   
@@ -38,15 +38,6 @@ public class CSLencoder extends AbstractRewriter {
     }
   }
 
-  private boolean has_csl_inv(ASTClass cl){
-    for(Method m:cl.dynamicMethods()){
-      if (m.name().equals("csl_invariant")){
-        return true;
-      }
-    }
-    return false;
-  }
-  
   @Override
   public void visit(Method m){
     // TODO PB: disabling this is unsound, but this logic cannot be combined with JavaEncoder: it was already disabled accidentally.

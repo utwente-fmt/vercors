@@ -37,7 +37,7 @@ class LoopUnrolling(val itervar: NameExpression, val K: ConstantExpression)
   extends GPUOpt(List(itervar, K)) {
     require(K.value.isInstanceOf[IntegerValue], "The constant K is not an integer constant")
 
-    def getK: Int = K.value.asInstanceOf[IntegerValue].value
+    def getK: Int = K.value.asInstanceOf[IntegerValue].value.intValue
 }
 
 class IterationMerging(val itervar: NameExpression, val M: ConstantExpression)
@@ -69,7 +69,7 @@ class Tiling(val interOrIntra: TilingConfig, val tileSize: ConstantExpression)
   extends GPUOpt(List(tileSize)) {
     require(tileSize.value.isInstanceOf[IntegerValue], "The tilesize is not an integer constant")
 
-    val tileSizeInt: Int = tileSize.value.asInstanceOf[IntegerValue].value
+    val tileSizeInt: Int = tileSize.value.asInstanceOf[IntegerValue].value.intValue
 }
 
 class KernelFusion(val F: ConstantExpression, val N: ConstantExpression)

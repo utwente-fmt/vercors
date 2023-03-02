@@ -5,23 +5,23 @@ import vct.col.ast.type.*;
 
 public interface TypeMapping<R> {
   
-  public void pre_map(Type t);
+  void pre_map(Type t);
   
-  public R post_map(Type t,R res);
-    
-  public R map(ClassType t);
-  
-  public R map(FunctionType t);
-  
-  public R map(PrimitiveType t);
-  
-  public R map(RecordType t);
-  
-  public R map(TupleType t);
+  R post_map(Type t,R res);
 
-  public R map(TypeExpression t);
+  R map(ClassType t);
+  
+  R map(FunctionType t);
+  
+  R map(PrimitiveType t);
+  
+  R map(RecordType t);
+  
+  R map(TupleType t);
 
-  public R map(TypeVariable v);
+  R map(TypeExpression t);
 
-  public R map(CFunctionType t);
+  R map(TypeVariable v);
+
+  R map(CFunctionType t);
 }

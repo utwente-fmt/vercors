@@ -1,0 +1,110 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases 2017_challenge4
+//:: tools silicon
+//:: verdict Pass
+
+// https://formal.iti.kit.edu/ulbrich/verifythis2017
+
+
+class BufImpl {
+  int h;
+  seq<int> xs;
+  int xs_len;
+  seq<int> ys;
+	
+	resource state() = Perm(h, write) ** Perm(xs, write) 
+		** Perm(xs_len, write) ** Perm(ys, write) ** Perm(xs_spec, write);
+	
+	requires state();
+	int h_spec() = unfolding state() in h;
+	
+	/* ghost */ seq<int> xs_spec;
+	
+	requires i >= 0 && i < |xs|;
+	pure int get(seq<int> xs, int i) = i == 0 ? head(xs) : get(tail(xs), i-1);
+	
+	requires 0 <= n && n < |xs|;
+	pure seq<int> skip(seq<int> xs, int n) = n == 0 ? xs : skip(tail(xs), n-1);
+	
+	requires 0 <= n;
+	pure seq<int> take(int n, seq<int> xs) = n == 0 ? xs :
+	(|xs| == 0 ? seq<int> { } : seq<int> { head(xs) } + take(n-1, tail(xs)));
+	
+	//requires Perm(xs, write) ** Perm(ys, write) ** Perm(xs_spec, write);
+	requires state();
+	requires unfolding state() in (|xs_spec| >= |xs| + |ys|);
+	pure boolean f() = unfolding state() in (
+		(\forall int i; 0 <= i && i < |xs|; get(xs_spec, i) == get(xs, i)) &&
+		(\forall int i; 0 <= i && i < |ys|; get(xs_spec, i + |xs|) == get(ys, i))
+	);
+	
+	ensures state();
+	ensures h_spec() == h;
+	ensures unfolding state() in (|xs_spec| >= |xs| + |ys|);
+	ensures f();
+	BufImpl(int h) {
+		this.h = h;
+		xs = seq<int> { };
+		xs_len = 0;
+		ys = seq<int> { };
+		xs_spec = seq<int> { };
+		fold state();
+	}
+
+	given seq<int> old_xs;
+	requires state();
+	requires unfolding state() in (|xs_spec| >= |xs| + |ys|);
+	requires old_xs == \unfolding state() \in xs;
+	requires f();
+	ensures state();
+	ensures h_spec() == \old(h_spec());
+	ensures unfolding state() in (|xs_spec| >= |xs| + |ys|);
+	ensures f();
+	void add(int x) {
+		unfold state();
+		
+		assert (\forall int i; 0 <= i && i < |xs|; get(xs_spec, i) == get(xs, i));
+		assert (\forall int i; 0 <= i && i < |ys|; get(xs_spec, i + |xs|) == get(ys, i));
+		
+		seq<int> old_xs_spec = xs_spec;
+        xs_spec = seq<int> { x } + xs_spec;
+		
+		assert get(xs_spec, 0) == x;
+        assert tail(xs_spec) == old_xs_spec;
+		assert (\forall int i; 0 <= i && i < |xs|; get(xs_spec, i+1) == get(xs, i));
+		
+	  if (|xs| == h - 1) {
+			ys = seq<int> {x} + xs;
+            assert tail(ys) == xs;
+			assert (\forall int i; 0 <= i && i < |ys|; get(xs_spec, i) == get(ys, i));
+			xs = seq<int> {};
+		 	xs_len = 0;
+			assert xs == seq<int> { };
+			assert xs + ys == seq<int> { x } + old_xs;
+			assert |xs_spec| >= |xs| + |ys|;
+			assert (\forall int i; 0 <= i && i < |xs|; get(xs_spec, i) == get(xs, i));
+			assert |xs| == 0;
+			assert (\forall int i; 0 <= i && i < |ys|; get(xs_spec, i + |xs|) == get(ys, i));
+			fold state();
+			assert f();
+		}
+		else {
+			seq<int> xs_before = xs;
+            xs = seq<int> {x} + xs;
+            assert tail(xs) == xs_before;
+		 	xs_len = xs_len + 1;
+			fold state();
+			assert f();
+		}
+		// fold state();
+	}
+	
+	/* 
+    requires state();
+	ensures \result == take(h_spec(), xs_spec);
+	seq<int> get2() {
+		unfold state();
+		return take(h, xs + ys);
+	}
+    */
+}

@@ -95,13 +95,12 @@ public class DynamicStaticInheritance extends AbstractRewriter {
           break;
         case Open:{
           MethodInvokation i=(MethodInvokation)e.getArg(0);
-          MethodInvokation res=create.invokation(
+          result= create.invokation(
               rewrite(i.object()),
               null,
               "open_"+i.method()+AT_STRING+i.dispatch().getFullName(),
               rewrite(i.getArgs())
             );
-          result=res;
           break;
         }
         default:
@@ -168,13 +167,12 @@ public class DynamicStaticInheritance extends AbstractRewriter {
           break;
         case Open:{
           MethodInvokation i=(MethodInvokation)e.getArg(0);
-          MethodInvokation res=create.invokation(
+          result= create.invokation(
               rewrite(i.object()),
               null,
               "open_"+i.method()+AT_STRING+i.dispatch().getFullName(),
               rewrite(i.getArgs())
             );
-          result=res;
           break;
         }
         default:

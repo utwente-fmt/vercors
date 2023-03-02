@@ -38,7 +38,7 @@ public class ColJavaParser extends Parser {
 
         JavaParser.CompilationUnitContext tree = parser.compilationUnit();
         ec.report();
-        Progress("first parsing pass took %dms",tk.show());
+        Progress("First parsing pass took %dms",tk.show());
 
         pu=JavaJMLtoCOL.convert(tree,file_name,tokens,parser);
         Progress("AST conversion took %dms",tk.show());

@@ -3,7 +3,7 @@ package vct.test
 import java.util.concurrent.Callable
 import java.util.regex.Pattern
 import hre.io.{Message, MessageProcessEnvironment}
-import hre.util.TestReport.Verdict
+import hre.util.Verdict
 
 import scala.collection.mutable
 

@@ -83,8 +83,18 @@ public class CreateReturnParameter extends AbstractRewriter {
         MethodInvokation methodInvokation = (MethodInvokation) expr;
         Method m = methodInvokation.getDefinition();
         Objects.requireNonNull(m, () -> requireDefinitionError(methodInvokation));
-        if (m.kind == Method.Kind.Plain) {
-          res.add(invokationIntoVariable(methodInvokation, create.local_name(RETURN_VAR)));
+        switch (m.kind) {
+          case Pure:
+            res.add(create.assignment(create.local_name(RETURN_VAR),rewrite(expr)));
+            break;
+          case Constructor:
+          case Plain:
+            res.add(invokationIntoVariable(methodInvokation, create.local_name(RETURN_VAR)));
+            break;
+          case Predicate:
+            s.getOrigin().report("error", "Cannot return a predicate");
+            Fail("Cannot return a predicate");
+            break;
         }
       } else {
         res.add(create.assignment(create.local_name(RETURN_VAR),rewrite(expr)));

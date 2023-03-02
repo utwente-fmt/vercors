@@ -27,9 +27,7 @@ class SilverImplementation[O](o:OriginFactory[O])
     pw.write(program.toString())
   }
   
-  private def getOrigin(e : Object) : O = e.asInstanceOf[Infoed].info.asInstanceOf[O]
-  
- 
+
   private def show(text: String, obj: Any): Unit = {
     println(s"$text (${obj.getClass.getSimpleName}): $obj")
   }
@@ -50,8 +48,8 @@ class SilverImplementation[O](o:OriginFactory[O])
     }
   }
  
-  override def verify(z3Path:Path,z3Settings:Properties,prog:Prog,
-      control:VerificationControl[O]) : List[viper.api.ViperError[O]] = {
+  override def verify(z3Path:Path,z3Settings:Properties,backendOptions: List[String],prog:Prog,
+      control:VerificationControl[O] ) : List[viper.api.ViperError[O]] = {
     val program = Program(prog.domains.asScala.toList,
               prog.fields.asScala.toList,
               prog.functions.asScala.toList,
@@ -95,10 +93,11 @@ class SilverImplementation[O](o:OriginFactory[O])
     val detail = Reachable.gonogo.detail();
     
     val report = new java.util.ArrayList[viper.api.ViperError[O]]()
-    val verifier=createVerifier(z3Path,z3Settings)
+    val verifier=createVerifier(z3Path,z3Settings, backendOptions.asScala.toSeq)
     //println("verifier: "+ verifier);
     //Progress("running verify");
     val res = verifier.verify(program)
+    verifier.stop()
     //Progress("finished verify");
     //println("verifier output: "+ res);
     res match {
@@ -161,7 +160,7 @@ class SilverImplementation[O](o:OriginFactory[O])
   }
  
   // Members declared in viper.api.SilverImplementation
-  def createVerifier(z3Path: java.nio.file.Path, z3Settings: java.util.Properties): 
+  def createVerifier(z3Path: java.nio.file.Path, z3Settings: java.util.Properties, backendOptions: Seq[String]):
    viper.silver.verifier.Verifier = {
      new viper.silver.verifier.NoVerifier
   }

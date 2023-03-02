@@ -1,12 +1,12 @@
 package vct.col.ast.`type`
 
 import vct.col.ast.stmt.decl.ProgramUnit
-import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping, VisitorHelper}
+import vct.col.ast.util.{ASTMapping, ASTMapping1, ASTVisitor, TypeMapping}
 import vct.col.ast.util.VisitorHelper
 
 case class TypeVariable(val name:String) extends Type with VisitorHelper {
   override def isNumeric = false
-  override def hashCode() = name.hashCode();
+  override def hashCode() = name.hashCode()
   override def supertypeof(context:ProgramUnit, t:Type) = false
 
   override def accept_simple[T,A](m:ASTMapping1[T,A], arg:A) = m.map(this, arg)

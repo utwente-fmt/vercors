@@ -12,11 +12,11 @@ public interface FrameControl {
    * store its current value on an internal stack. The value
    * can be either kept or reset to some initial value.
    */
-  public void enter();
+  void enter();
   /**
    * Leave a stack frame.
    * 
    * Restore the previous state of the object.
    */
-  public void leave();
+  void leave();
 }

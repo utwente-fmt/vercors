@@ -36,7 +36,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
       Fail("Expected a pointer type here, but got %s", t)
     }
 
-    var value = input
+    val value = input
 
     conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
     conditions += lte(size, create.array_length_dereference(value))
@@ -60,7 +60,7 @@ class DesugarValidPointer(source: ProgramUnit) extends AbstractRewriter(source) 
       Fail("Expected a pointer type here, but got %s", t)
     }
 
-    var value = input
+    val value = input
     conditions += neq(value, create.reserved_name(ASTReserved.OptionNone))
     conditions += less(index, create.array_length_dereference(value))
 

@@ -187,14 +187,6 @@ public class CPrinter extends AbstractPrinter {
     out.printf("}");
 	}
 
-	public static TrackingTree dump_expr(PrintWriter out, ASTNode node) {
-		TrackingOutput track_out = new TrackingOutput(out, false);
-		CPrinter printer = new CPrinter(track_out);
-		printer.setExpr();
-		node.accept(printer);
-		return track_out.close();
-	}
-
 	public static TrackingTree dump(PrintWriter out, ProgramUnit program) {
 		hre.lang.System.Debug("Dumping C code...");
 		try {
@@ -209,12 +201,4 @@ public class CPrinter extends AbstractPrinter {
 			throw new Error("abort");
 		}
 	}
-
-	public static void dump(PrintWriter out, ASTNode cl) {
-		TrackingOutput track_out = new TrackingOutput(out, false);
-		CPrinter printer = new CPrinter(track_out);
-		cl.accept(printer);
-		track_out.close();
-	}
-
 }

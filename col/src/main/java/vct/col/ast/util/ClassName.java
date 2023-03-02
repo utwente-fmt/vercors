@@ -56,16 +56,6 @@ public class ClassName {
     return Arrays.copyOf(name,name.length);
   }
   
-  public static boolean prefixOf(String name1[],String name2[]){
-    int N=name1.length;
-    if (name2.length!=N) return false;
-    N--;
-    for (int i=0;i<N;i++){
-      if (!name1[i].equals(name2[i])) return false;
-    }
-    return name2[N].startsWith(name1[N]);
-  }
-
   public int hashCode(){
     return toString(".").hashCode();
   }

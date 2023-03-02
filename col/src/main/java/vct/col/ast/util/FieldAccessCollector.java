@@ -1,7 +1,6 @@
 package vct.col.ast.util;
 
 import vct.col.ast.expr.Dereference;
-import vct.col.ast.util.RecursiveVisitor;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -44,7 +44,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
     for (st <- s.getStatements) {
       st match {
         case pr: ParallelRegion if pr.fuse != null => {
-          val f = pr.fuse.F.value.asInstanceOf[IntegerValue].value
+          val f = pr.fuse.F.value.asInstanceOf[IntegerValue].value.intValue
           if (f == 0) {
             Warning("Number of fusions is zero, no optimization applied.", pr.fuse.getOrigin)
           } else {
@@ -747,7 +747,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
       case o: OperatorExpression if o.operator == Minus => interpretPermission(o.first) - interpretPermission(o.second)
       case o: OperatorExpression if o.operator == UMinus => -1 * interpretPermission(o.first)
       case o: OperatorExpression if o.operator == Wrap => interpretPermission(o.first)
-      case c: ConstantExpression if c.value.isInstanceOf[IntegerValue] => c.value.asInstanceOf[IntegerValue].value
+      case c: ConstantExpression if c.value.isInstanceOf[IntegerValue] => c.value.asInstanceOf[IntegerValue].value.intValue
       case anyelse =>
         Fail("Could not interpret %s as a concrete permission.", anyelse)
         return -1
@@ -850,7 +850,7 @@ class FuseKernels(override val source: ProgramUnit) extends AbstractRewriter(sou
 
   def getConstantInteger(node: ASTNode): Option[Int] = {
     if (isConstantInteger(node))
-      Some(node.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value)
+      Some(node.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue)
     else
       None
   }

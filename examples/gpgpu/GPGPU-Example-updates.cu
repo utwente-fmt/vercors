@@ -1,5 +1,10 @@
 //:: case GPGPUExampleUpdates
 
+/* This is the realistic version of GPGPU-Example.cu, with the difference that this version uses actual CUDA functions,
+ * such as cudaMemcpy. Unfortunately this file cannot be verified yet as VerCors does not yet support these primitives.
+ * Therefore it is not included in the test suite.
+ */
+
 /***********************************************************************************
 Created by Mohsen Safari.
 ************************************************************************************/

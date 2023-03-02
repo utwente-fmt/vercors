@@ -30,9 +30,7 @@ import vct.logging.ErrorMapping;
 import vct.logging.VerCorsError.ErrorCode;
 
 public class WandEncoder extends AbstractRewriter {
-  
-  public final static String VALID="valid";
-  
+
   private HashSet<String> wands=new HashSet<String>();
   
   private class WandUtil {

@@ -1,0 +1,40 @@
+// -*- tab-width:4 ; indent-tabs-mode:nil -*-
+//:: cases 2017_challenge3_2D
+//:: tools silicon
+//:: verdict Pass
+
+// https://formal.iti.kit.edu/ulbrich/verifythis2017
+
+class ChallengeThree2D {
+	
+	context_everywhere N > 0 && A != null && N == A.length;
+	requires (\forall* int k; 0 <= k && k < N; (\forall* int l; 0 <= l && l < N; Perm(A[k][l], write)));
+	ensures (\forall* int k; 0 <= k && k < N; (\forall* int l; 0 <= l && l < N; Value(A[k][l])));
+	void oddeven(int N, int[N][N] A) {
+		int i = 0;
+
+		loop_invariant 0 <= i && i <= N-1;
+		//loop_invariant (\forall* int k; 0 <= k && k < N; Perm(A[k][i+1], write));
+		//loop_invariant (\forall* int k; 0 <= k && k < N; (\forall* int j; 0 <= j && j <= i; Value(A[k][j])));
+		while (i < N - 1) {
+			
+			/*
+			par thread(int tid = 0..N-1)
+				requires (0 <= tid && tid < N-2 && tid%2 == 0) ==> Perm(A[tid][i+1], write) ** Perm(A[tid+1][i+1], write);
+				requires (tid == N-1 && (N-1)%2==0) ==> Perm(A[tid][i+1], write);
+				ensures (0 <= tid && tid < N-2 && (tid+(N-1))%2 == 0) ==> Perm(A[tid][i+1], write) ** Perm(A[tid+1][i+1], write);
+				ensures (tid == 0 && (N-1)%2 == 1 ==> Perm(A[tid][i+1], write));
+				context (\forall* int k; 0 <= k && k < N; (\forall* int j; 0 <= j && j <= i; Value(A[k][j])));
+			{
+				if (0 <= tid && tid < N-2 && (tid+i)%2 == 0) {
+					A[tid][i+1] = A[tid+1][i];
+					A[tid+1][i+1] = A[tid][i];
+				}
+			}
+			*/
+			
+			i = i + 1;
+		}
+		
+	}
+}

@@ -27,6 +27,16 @@ case class ProveLockInvariantInConstructors(override val source: ProgramUnit) ex
       throw new Error()
     }
 
+    val constructors = cls.asScala.toSeq.filter {
+      case method: Method => method.kind == Method.Kind.Constructor
+      case _ => false
+    }
+
+    if (constructors.isEmpty && lockInvariants.nonEmpty) {
+      lockInvariants.head.getOrigin.report("error", "cannot generate implicit constructor for class with lock invariant")
+      throw new Error()
+    }
+
     haveLockInvariant = lockInvariants.nonEmpty
 
     super.visit(cls)

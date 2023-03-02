@@ -1,7 +1,5 @@
 package vct.col.ast.`type`
 
-import hre.lang.System.Debug
-import vct.col.ast._
 import vct.col.ast.expr.NameExpression
 import vct.col.ast.generic.ASTNode
 import vct.col.ast.stmt.decl.{ASTClass, ASTDeclaration, NameSpace, ProgramUnit}

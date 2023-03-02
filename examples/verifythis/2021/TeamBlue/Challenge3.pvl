@@ -1,0 +1,193 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis2021C3
+//:: tools silicon
+//:: suite medium
+//:: verdict Pass
+
+/** For the challenge, see https://ethz.ch/content/dam/ethz/special-interest/infk/chair-program-method/pm/documents/Verify%20This/Challenges2021/challenge3.pdf
+  * We managed to prove parts of Tasks 1 (memory safety, but not termination) and 3 (sortedness of columns, but not proper sortedness of rows).
+  * We proved Tasks 4 and 5 (equivalence of the three versions of shearshort), although only with respect to the tasks mentioned above.
+  * We did not work on Tasks 2 (permutation property) and 6 (implementation of helper methods).
+  */
+
+class Challenge3 {
+
+  /// compute 2 to the power of given value
+    requires x >= 0;
+    ensures \result >= 1;
+    ensures x>0 ==> \result > 1 && pow2(x-1) == \result / 2;
+    ensures \result > 1 ==> x>0;
+  pure static int pow2(int x) 
+    = x<=0 ? 1 : 2*pow2(x-1);
+    
+  /// compute logarithm of given value (rounded down)
+    requires x > 0;
+    ensures \result >= 0;
+    ensures x>1 ==> \result>0 && log2(x/2)==\result-1;
+    ensures pow2(\result) <= x && pow2(\result+1) >= x+1;
+  pure int log2(int x) { 
+    if(x/2 > 0) {
+      return log2(x/2)+1;
+    } else {
+      return 0; 
+    }
+  }
+  
+  /// compute logarithm of given value (rounded up)
+    requires x > 0;
+    ensures \result >= 0;
+    ensures x>1 ==> \result>0;
+    ensures pow2(\result) >= x;
+    ensures x>1 ==> pow2(\result-1) < x;
+  pure int log(int x)
+    = x == 1 ? 0
+             : log2(x-1) + 1;
+  
+  
+  
+    context M != null ** M.length > 0;
+    context (\forall int i; 0<=i && i<M.length; M[i].length == M.length);
+    context (\forall* int i; 0<=i && i<M.length; 
+                (\forall* int j; 0<=j && j<M.length; Perm(M[i][j], write))); /// 1) Memory safety
+    ensures M.length == \old(M.length);
+    ensures (\forall int i; 0<=i && i<M.length; 
+                (\forall int j; 0<=j && j<M.length; M[i][j] == \old(M[j][i])));
+  void transpose(int[][] M);
+
+    context M != null ** M.length > 0;
+    context 0<=row ** row<M.length;
+    context M[row].length == M.length;
+    context (\forall* int i; 0<=i && i<M[row].length; Perm(M[row][i], write)); /// 1) Memory safety
+    ensures M.length == \old(M.length) ** M[row].length == \old(M[row].length);
+    /// If ascending then the row is sorted ascendingly
+    ensures ascending ==> (\forall int i; 0<=i && i<M.length-1; M[row][i] <= M[row][i+1]); 
+    /// If !ascending then the row is sorted descendingly
+    ensures !ascending ==> (\forall int i; 0<=i && i<M.length-1; M[row][i+1] <= M[row][i]); 
+  void sortRow(int[][] M, int row, boolean ascending);
+  
+    context M != null ** M.length > 0;
+    context 0<=column ** column<M.length;
+    context (\forall* int i; 0<=i && i<M.length; M[i].length == M.length);
+    context (\forall* int i; 0<=i && i<M.length; Perm( {: M[i][column] :}, write)); /// 1) Memory safety
+    ensures M.length == \old(M.length);
+    ensures (\forall int i; 0<=i && i<M.length-1; {: M[i][column] :} <= M[i+1][column]); /// The columns are sorted
+  void sortColumn(int[][] M, int column);
+  
+  
+    
+    context_everywhere n > 0;
+    context_everywhere M != null ** M.length == n;
+    context (\forall* int i; 0<=i && i<n; M[i].length == n);
+    context (\forall* int i; 0<=i && i<n; (\forall* int j; 0<=j && j<n; Perm(M[i][j], write))); /// 1) Memory safety
+    ensures (\forall int k; 0 <= k && k < n-1; 
+                (\forall int j; 0 <= j && j < n; M[k][j] <= M[k+1][j])); /// The columns are sorted
+  void shearshort(int n, int[][] M) {
+    int maxLog = log(n) + 1;
+    
+      loop_invariant 0<=i && i<=maxLog;
+      loop_invariant (\forall* int i; 0<=i && i<n; M[i].length == n);
+      loop_invariant (\forall* int i; 0 <= i && i < n; 
+                        (\forall* int j; 0<=j && j<n; Perm(M[i][j], write))); /// 1) Memory safety
+      loop_invariant i > 0 ==> (\forall int k; 0 <= k && k < n-1; 
+                                (\forall int j; 0 <= j && j < n; M[k][j] <= M[k+1][j])); /// The columns are sorted
+    for (int i = 0; i < maxLog; i++) {
+      par threadX (int tid = 0 .. n) 
+        context M[tid].length == n;
+        context (\forall* int i; 0<=i && i<n; Perm(M[tid][i], write)); /// 1) Memory safety
+        /// Even rows are sorted 'normally'; Odd rows are sorted in reverse
+        ensures tid%2 == 0 ==> (\forall int i; 0<=i && i<n-1; M[tid][i] <= M[tid][i+1]);
+        ensures tid%2 == 1 ==> (\forall int i; 0<=i && i<n-1; M[tid][i+1] <= M[tid][i]); 
+      {
+        sortRow(M, tid, tid%2 == 0);
+      }
+      
+      par threadY (int tid = 0 .. n) 
+        context (\forall* int i; 0<=i && i<M.length; M[i].length == n);
+        context (\forall* int i; 0<=i && i<M.length; Perm( {: M[i][tid] :}, write)); /// 1) Memory safety
+        ensures (\forall int i; 0<=i && i<n-1; {: M[i][tid] :} <= M[i+1][tid]); /// The columns are sorted
+      {
+        sortColumn(M, tid);
+      }
+    }
+  }
+  
+
+
+  
+    context_everywhere n > 0;
+    context_everywhere M != null ** M.length == n;
+    context (\forall* int i; 0<=i && i<n; M[i].length == n);
+    context (\forall* int i; 0<=i && i<n; (\forall* int j; 0<=j && j<n; Perm(M[i][j], write)));
+    ensures (\forall int k; 0 <= k && k < n-1; 
+                (\forall int j; 0 <= j && j < n; M[k][j] <= M[k+1][j])); /// The columns are sorted
+  void alternativeShearsort(int n, int[][] M) {
+    int maxLog = log(n) + 1;
+    
+      loop_invariant 0<=i && i<=maxLog;
+      loop_invariant (\forall* int i; 0<=i && i<n; M[i].length == n);
+      loop_invariant (\forall* int i; 0<=i && i<n; (\forall* int j; 0<=j && j<n; Perm(M[i][j], write)));
+      loop_invariant i > 0 ==> (\forall int k; 0 <= k && k < n-1; 
+                                (\forall int j; 0 <= j && j < n; M[k][j] <= M[k+1][j])); /// The columns are sorted
+    for (int i = 0; i < maxLog; i++) {
+      par threadX (int tid = 0 .. n) 
+        context M[tid].length == n;
+        context (\forall* int i; 0<=i && i<n; Perm(M[tid][i], write));
+        ensures tid%2 == 0 ==> (\forall int i; 0<=i && i<n-1; M[tid][i] <= M[tid][i+1]);
+        ensures tid%2 == 1 ==> (\forall int i; 0<=i && i<n-1; M[tid][i+1] <= M[tid][i]);
+      {
+        sortRow(M, tid, tid%2 == 0);
+      }
+      transpose(M);
+    
+    
+      par threadY (int tid = 0 .. n)
+        context M[tid].length == n;
+        context (\forall* int i; 0<=i && i<n; Perm( {: M[tid][i] :}, write));
+        ensures (\forall int i; 0<=i && i<n-1; {: M[tid][i] :} <= M[tid][i+1]);
+      {
+        sortRow(M, tid, true);
+      }
+      transpose(M);
+    }
+  }
+
+
+    context_everywhere n > 0;
+    context_everywhere M != null ** M.length == n;
+    context (\forall* int i; 0<=i && i<n; M[i].length == n);
+    context (\forall* int i; 0<=i && i<n; (\forall* int j; 0<=j && j<n; Perm(M[i][j], write))); /// 1) Memory safety
+    ensures (\forall int k; 0 <= k && k < n-1; 
+                (\forall int j; 0 <= j && j < n; M[k][j] <= M[k+1][j])); /// The columns are sorted
+  void shearshort_sequential(int n, int[][] M) {
+    int maxLog = log(n) + 1;
+    
+      loop_invariant 0<=i && i<=maxLog;
+      loop_invariant (\forall* int i; 0<=i && i<n; M[i].length == n);
+      loop_invariant (\forall* int i; 0 <= i && i < n; 
+                        (\forall* int j; 0<=j && j<n; Perm(M[i][j], write))); /// 1) Memory safety
+      loop_invariant i > 0 ==> (\forall int k; 0 <= k && k < n-1; 
+                                (\forall int j; 0 <= j && j < n; M[k][j] <= M[k+1][j])); /// The columns are sorted
+    for (int i = 0; i < maxLog; i++) {
+        loop_invariant 0<=tid && tid<=n;
+        loop_invariant (\forall int j; 0<=j && j<n; M[j].length == n);
+        loop_invariant (\forall* int j; 0<=j && j<n; 
+                            (\forall* int i; 0<=i && i<n; Perm(M[j][i], write))); /// 1) Memory safety
+        /// Even rows are sorted 'normally'; Odd rows are sorted in reverse
+        loop_invariant (\forall int j; 0<=j && j<tid; j%2 == 0 ==> (\forall int i; 0<=i && i<n-1; M[j][i] <= M[j][i+1]));
+        loop_invariant (\forall int j; 0<=j && j<tid; j%2 == 1 ==> (\forall int i; 0<=i && i<n-1; M[j][i+1] <= M[j][i])); 
+      for (int tid = 0; tid < n; tid++) {
+        sortRow(M, tid, tid%2 == 0);
+      }
+      
+        loop_invariant 0<=tid && tid<=n;
+        loop_invariant (\forall int i; 0<=i && i<M.length; M[i].length == n);
+        loop_invariant (\forall* int j; 0<=j && j<n; 
+                            (\forall* int i; 0<=i && i<n; Perm(M[j][i], write))); /// 1) Memory safety
+        loop_invariant (\forall int j; 0<=j && j<tid; (\forall int i; 0<=i && i<n-1; {: M[i][j] :} <= M[i+1][j])); /// The columns are sorted
+      for (int tid = 0; tid < n; tid++) {
+        sortColumn(M, tid);
+      }
+    }
+  }
+
+}

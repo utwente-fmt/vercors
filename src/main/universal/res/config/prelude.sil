@@ -62,6 +62,10 @@ domain VCTOption[T] {
     forall x: T :: {VCTSome(x)} VCTNone() != VCTSome(x)
   }
 
+  axiom equal_vct {
+    forall x: T, y: T :: {VCTSome(x), VCTSome(y)} (VCTSome(x) == VCTSome(y)) == (x == y)
+  }
+
   axiom get_axiom_vct {
     forall x: T :: {getVCTOption(VCTSome(x))} getVCTOption(VCTSome(x)) == x
   }
@@ -161,7 +165,7 @@ domain VectorExpression[T] {
     forall xs: VectorExpression[T], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= 0 && j > i) ==> vsum(vrange(i, j), xs) == vadd(vsum(vrange(i, j-1), xs), vget(xs, j-1))
   }
   axiom extend_vsum_r2 {
-    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i < 0 || i >= j || j >= vsize(xs)) ==> (vsum(vrange(i, j), xs) == 0)
+    forall xs: VectorExpression[Int], i: Int, j: Int :: { vsum(vrange(i, j), xs) } (i >= j) ==> (vsum(vrange(i, j), xs) == 0)
   }
 }
 

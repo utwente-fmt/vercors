@@ -246,7 +246,7 @@ case class UnrollLoops(override val source: ProgramUnit, generateCheck: Boolean 
   def transformBoundsInLoopContract(s: LoopStatement, K: Int, itervar: ASTNode, updateStmnt: (StandardOperator, ASTNode)): Contract = {
     val cb = new ContractBuilder
     val op = updateStmnt._1
-    val C = updateStmnt._2.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value
+    val C = updateStmnt._2.asInstanceOf[ConstantExpression].value.asInstanceOf[IntegerValue].value.intValue
 
     ASTUtils.conjuncts(s.getContract.invariant, Star, And).forEach {
       case e: OperatorExpression => e.operator match {

@@ -1,19 +1,16 @@
 package vct.col.ast.util;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import vct.col.ast.expr.*;
 import vct.col.ast.expr.constant.BooleanValue;
 import vct.col.ast.expr.constant.ConstantExpression;
 import vct.col.ast.generic.ASTNode;
 import vct.col.ast.stmt.composite.BlockStatement;
 import vct.col.ast.stmt.composite.LoopStatement;
-import vct.col.ast.stmt.decl.DeclarationStatement;
 import vct.col.ast.stmt.decl.ProgramUnit;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ASTUtils {
 
@@ -67,29 +64,6 @@ public class ASTUtils {
     }
     return res;
   }
-
-  public static void collectNames(HashSet<NameExpression> names, ASTNode tree) {
-    RecursiveVisitor<Boolean> scanner = new RecursiveVisitor<Boolean>((ProgramUnit) null) {
-      public void visit(NameExpression n) {
-        names.add(n);
-      }
-    };
-    tree.accept(scanner);
-  }
-  
-  public static int countOccurences(String name, ASTNode node) {
-    AtomicInteger res = new AtomicInteger(0);
-    RecursiveVisitor<Boolean>scanner=new RecursiveVisitor<Boolean>((ProgramUnit)null){
-      public void visit(NameExpression e) {
-        if(e.getName().equals(name)){ {
-          res.incrementAndGet();
-        }
-        }
-      }
-    };
-    node.accept(scanner);
-    return res.get();
-  }
   
   public static ASTNode replace(ASTNode a, ASTNode b, ASTNode tree) {
     AbstractRewriter rw = new AbstractRewriter((ProgramUnit)null) {
@@ -140,13 +114,5 @@ public class ASTUtils {
       }
     };
     return rw.rewrite(tree);
-  }
-  
-  public static boolean coversAllNames(Iterable<DeclarationStatement> declarations, ASTNode tree) {
-    boolean res = true;
-    for(DeclarationStatement declaration: declarations) {
-      res &= find_name(tree, declaration.name());
-    }
-    return res;
   }
 }

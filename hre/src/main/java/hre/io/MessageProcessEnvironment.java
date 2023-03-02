@@ -41,16 +41,8 @@ public class MessageProcessEnvironment {
     path.add(newPath);
   }
 
-  public void setWorkingDirectory(Path workingDirectory) {
-    this.workingDirectory = workingDirectory;
-  }
-
   public void setTemporaryWorkingDirectory() throws IOException {
     this.workingDirectory = Files.createTempDirectory(null);
-  }
-
-  public Path getWorkingDirectory() {
-    return this.workingDirectory;
   }
 
   public void addArg(String arg) {

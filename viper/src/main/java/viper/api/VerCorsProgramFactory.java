@@ -312,7 +312,7 @@ public class VerCorsProgramFactory implements
     // Save the encountered sat check assert origins for later
     satCheckAsserts = stat.satCheckAsserts;
 
-    hre.lang.System.Progress("conversion took %dms", tk.show());
+    hre.lang.System.Progress("Conversion to silver AST took %dms", tk.show());
     return program;
   }
 

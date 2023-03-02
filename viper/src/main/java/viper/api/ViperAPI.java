@@ -30,13 +30,13 @@ public abstract class ViperAPI<O, T,E,S,DFunc,DAxiom,P> {
   
   /**
    * Verify a program.
-   * @param tool_home The root directory of the third party tools.
    * @param program The program to be verified.
    * @return test report
    */
   public abstract List<? extends ViperError<O>> verify(
       Path z3Path,
       Properties z3Settings,
+      List<String> backendOptions,
       P program,
       VerificationControl<O> control);
   

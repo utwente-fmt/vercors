@@ -10,7 +10,6 @@ import vct.col.ast.expr.NameExpression;
 import vct.col.ast.expr.OperatorExpression;
 import vct.col.ast.stmt.decl.ProgramUnit;
 import vct.col.ast.type.PrimitiveSort;
-import vct.col.ast.type.Type;
 import vct.col.ast.util.AbstractRewriter;
 import vct.col.ast.util.ClassName;
 
@@ -31,7 +30,7 @@ import java.util.Objects;
 public class Standardize extends AbstractRewriter {
 
   public Standardize(ProgramUnit source) {
-    super(source,true);
+    super(source);
   }
 
   @Override
@@ -117,7 +116,6 @@ public class Standardize extends AbstractRewriter {
   public void visit(OperatorExpression e){
     switch (e.operator()) {
       case Empty: {
-        Type seqElementType = e.arg(0).getType();
         ASTNode seq = e.arg(0).apply(this);
         result = eq(constant(0), size(seq));
         break;

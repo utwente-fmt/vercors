@@ -1,4 +1,5 @@
 //:: cases BasicOpenCL
+//:: tool silicon
 //:: verdict Pass
 
 #include <opencl.h>
