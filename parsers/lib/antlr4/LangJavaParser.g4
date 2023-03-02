@@ -70,11 +70,10 @@ modifier
         |   'transient'
         |   'volatile'
         )
-    |   valEmbedModifier
     ;
 
 classOrInterfaceModifier
-    :   annotation       // class or interface
+    : annotation       // class or interface
     |   (   'public'     // class or interface
         |   'protected'  // class or interface
         |   'private'    // class or interface
@@ -83,6 +82,7 @@ classOrInterfaceModifier
         |   'final'      // class only -- does not apply to interfaces
         |   'strictfp'   // class or interface
         )
+    |   valEmbedModifier
     ;
 
 variableModifier
@@ -398,9 +398,9 @@ elementValuePair
     ;
 
 elementValue
-    :   expression
-    |   annotation
-    |   elementValueArrayInitializer
+    : elementValueArrayInitializer
+    | expression
+    | annotation
     ;
 
 elementValueArrayInitializer
@@ -586,6 +586,10 @@ expression
     : valEmbedWith? expr valEmbedThen?
     ;
 
+vercorsBipJob
+    : startSpec 'vercorsBipJob' endSpec
+    ;
+
 expr
     :   annotatedPrimary # javaPrimary
     |   expr '.' javaIdentifier # javaDeref
@@ -597,7 +601,7 @@ expr
     |   expr '->' javaIdentifier arguments # javaNonNullInvocation
     |   expr '.' javaIdentifier predicateEntryType? arguments valEmbedGiven? valEmbedYields? # javaInvocation
     |   expr postfixOp # javaValPostfix
-    |   'new' creator valEmbedGiven? valEmbedYields? # javaNew
+    |   'new' vercorsBipJob? creator valEmbedGiven? valEmbedYields? # javaNew
     |   '(' type ')' expr # javaCast
     |   expr ('++' | '--') # javaPostfixIncDec
     |   ('+'|'-'|'++'|'--') expr # javaPrefixOp

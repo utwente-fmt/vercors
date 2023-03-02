@@ -49,9 +49,11 @@ VAL_TUPLE: 'tuple';
 VAL_TYPE: 'type';
 VAL_ANY: 'any';
 VAL_NOTHING: 'nothing';
+VAL_STRING: 'string';
 
 VAL_PURE: 'pure';
 VAL_THREAD_LOCAL: 'thread_local';
+VAL_BIP_ANNOTATION: 'bip_annotation';
 
 VAL_WITH: 'with';
 VAL_THEN: 'then';
@@ -96,6 +98,8 @@ VAL_FROM: 'from';
 VAL_TRANSFER: 'transfer';
 VAL_CSL_SUBJECT: 'csl_subject';
 VAL_SPEC_IGNORE: 'spec_ignore';
+VAL_SPEC_REPLACE_EXPR_DONE: '\\replacing_done';
+VAL_SPEC_REPLACE_EXPR: '\\replacing';
 VAL_ACTION: 'action';
 VAL_ATOMIC: 'atomic';
 VAL_COMMIT: 'commit';
@@ -152,9 +156,9 @@ MREP: '\\mrep';
 RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
-VAL_INDEX: '\\ndindex';
-VAL_LINDEX: '\\ndlindex';
-VAL_LENGTH: '\\ndlength';
+VAL_INDEX: '\\nd_index';
+VAL_LENGTH: '\\nd_length';
+VAL_PARTIAL_INDEX: '\\nd_partial_index';
 
 NONE: 'none';
 OPTION_NONE: 'None';

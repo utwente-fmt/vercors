@@ -127,6 +127,10 @@ case object Options {
           devSiliconBranchConditionReportInterval = None))
         .text("Disable various diagnostics of the silicon backend."),
 
+      opt[PathOrStd]("bip-report-file").valueName("<path>")
+        .action((p, c) => c.copy(bipReportFile = Some(p)))
+        .text("Write JavaBIP verification report to file, or standard out if \"-\" is used"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -333,6 +337,8 @@ case class Options
   cPreprocessorPath: Path = Resources.getCcPath,
 
   siliconPrintQuantifierStats: Option[Int] = None,
+
+  bipReportFile: Option[PathOrStd] = None,
 
   // Verify options - hidden
   devAbruptExc: Boolean = false,

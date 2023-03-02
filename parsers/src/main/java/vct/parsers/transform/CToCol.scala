@@ -196,6 +196,14 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case Statement4(stat) => convert(stat)
     case Statement5(stat) => convert(stat)
     case _: Statement6Context => ??(stat)
+    case Statement7(embedStats) => convert(embedStats)
+    case Statement8(embedStat) => convert(embedStat)
+    case Statement9(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
+      GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
+        , convert(specifier))(blame(stat))
+    })
+    case Statement10(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
+      GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
   }
 
   def convert(implicit block: CompoundStatementContext): Statement[G] = block match {
@@ -212,14 +220,6 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case BlockItem0(decl) =>
       CDeclarationStatement(new CLocalDeclaration(convert(decl)))
     case BlockItem1(stat) => convert(stat)
-    case BlockItem2(embedStats) => convert(embedStats)
-    case BlockItem3(embedStat) => convert(embedStat)
-    case BlockItem4(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
-      GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
-        , convert(specifier))(blame(stat))
-    })
-    case BlockItem5(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
-      GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
   }
 
   def convert(implicit spec: GpgpuMemFenceListContext): Seq[GpuMemoryFence[G]] = spec match {
@@ -948,9 +948,14 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         SourceNameOrigin(convert(name), origin(decl)))
   }
 
-  def convert(implicit definition: ValDefContext): Option[Expr[G]] = definition match {
-    case ValAbstractBody(_) => None
-    case ValBody(_, expr, _) => Some(convert(expr))
+  def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
+    case ValPureAbstractBody(_) => None
+    case ValPureBody(_, expr, _) => Some(convert(expr))
+  }
+
+  def convert(implicit definition: ValImpureDefContext): Option[Statement[G]] = definition match {
+    case ValImpureAbstractBody(_) => None
+    case ValImpureBody(statement) => Some(convert(statement))
   }
 
   def convert(implicit t: ValTypeContext): Type[G] = t match {
@@ -1122,7 +1127,9 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       val indices = convert(firstIndex) +: pairs.map(_._1)
       val dims = convert(firstDim) +: pairs.map(_._2)
       NdIndex(indices, dims)
-    case ValNdLIndex(_, _, index, _, dims, _) => NdLinearIndex(convert(index), convert(dims))
+    case ValNdLIndex(_, _, indices, _, dims, _) =>
+      val allIndices = convert(indices)
+      NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
   }
 
