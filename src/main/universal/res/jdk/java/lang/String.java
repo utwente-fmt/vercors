@@ -24,10 +24,6 @@ public class String {
     }
     @*/
 
-    String(String other) {
-        // TODO (RR): Assume empty string here somehow...? Need spec syntax for strings
-    }
-
     //@ requires other != null;
     String(String other) {
         //@ assume data() == other.data();

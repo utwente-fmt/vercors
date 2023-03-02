@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{Deserialize, IterationContract, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{Deserialize, IterationContract, Procedure, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -14,6 +14,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
+import vct.col.rewrite.bip.{BIP, ComputeBipGlue, EncodeBip, EncodeBipPermissions, InstantiateBipSynchronizations}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -50,7 +51,7 @@ object Transformation {
       debugFilterRule = options.devSimplifyDebugFilterRule,
     )
 
-  def ofOptions(options: Options): Transformation =
+  def ofOptions(options: Options, bipResults: BIP.VerificationResults = BIP.VerificationResults()): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
@@ -60,6 +61,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          bipResults = bipResults,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
     }
@@ -153,9 +155,15 @@ case class SilverTransformation
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  bipResults: BIP.VerificationResults,
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    ComputeBipGlue,
+    InstantiateBipSynchronizations,
+    EncodeBipPermissions,
+    EncodeBip.withArg(bipResults),
+
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
 

@@ -248,6 +248,7 @@ valPrimaryContext
 valExpr
  : {specLevel>0}? valPrimary
  | {specLevel>0}? valKeywordExpr
+ | startSpec '\\replacing' '(' langExpr ')' endSpec langExpr startSpec '\\replacing_done' endSpec
  ;
 
 valIdentifier
@@ -307,7 +308,7 @@ valKeywordNonExpr: (
  | VAL_RESOURCE | VAL_PROCESS | VAL_FRAC | VAL_ZFRAC | VAL_BOOL | VAL_REF | VAL_RATIONAL | VAL_SEQ | VAL_SET | VAL_BAG
  | VAL_POINTER | VAL_MAP | VAL_OPTION | VAL_EITHER | VAL_TUPLE | VAL_TYPE | VAL_ANY | VAL_NOTHING | VAL_STRING
  // Annotation keywords
- | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS
+ | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS | VAL_BIP_ANNOTATION
  // Declaration keywords
  | VAL_AXIOM | VAL_MODEL | VAL_ADT
  // Contract clause keywords
@@ -388,7 +389,7 @@ valImpureDef
  ;
 
 valModifier
- : ('pure' | 'inline' | 'thread_local')
+ : ('pure' | 'inline' | 'thread_local' | 'bip_annotation')
  | langStatic # valStatic
  ;
 

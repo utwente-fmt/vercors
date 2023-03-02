@@ -1,5 +1,6 @@
 package vct.parsers.transform
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.col.ast._
@@ -18,7 +19,7 @@ import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](originProvider, blameProvider, errors) {
+  extends ToCol[G](originProvider, blameProvider, errors) with LazyLogging {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
       Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
@@ -78,7 +79,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   }
 
   def convert(implicit default: DefaultValueContext): Expr[G] = default match {
-    case DefaultValue0(_, ElementValue0(expr)) => convert(expr)
+    case DefaultValue0(_, ElementValue1(expr)) => convert(expr)
     case DefaultValue0(_, elementValue) => ??(elementValue)
   }
 
@@ -90,11 +91,6 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "transient" => JavaTransient()
       case "volatile" => JavaVolatile()
     }
-    case Modifier2(mods) => withModifiers(mods, m => {
-      if(m.consume(m.pure)) JavaPure[G]()
-      else if(m.consume(m.inline)) JavaInline[G]()
-      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
-    })
   }
 
   def convert(implicit modifier: ClassOrInterfaceModifierContext): JavaModifier[G] = modifier match {
@@ -108,10 +104,17 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "final" => JavaFinal()
       case "strictfp" => JavaStrictFP()
     }
+    case ClassOrInterfaceModifier2(mods) => withModifiers(mods, m => {
+      if (m.consume(m.pure)) JavaPure[G]()
+      else if (m.consume(m.inline)) JavaInline[G]()
+      else if (m.consume(m.bipAnnotation)) JavaBipAnnotation[G]()
+      else fail(m.nodes.head, "This modifier cannot be attached to a declaration in Java")
+    })
   }
 
   def convert(implicit annotation: AnnotationContext): JavaAnnotation[G] = annotation match {
-    case Annotation0(_, name, annotationArgs) => JavaAnnotation(convert(name), annotationArgs.map(convert(_)).getOrElse(Seq()))
+    case Annotation0(_, name, annotationArgs) =>
+      JavaAnnotation(convert(name), annotationArgs.map(convert(_)).getOrElse(Seq()))(blame(annotation))
   }
 
   def convert(implicit annotationName: AnnotationNameContext): JavaNamedType[G] = annotationName match {
@@ -121,18 +124,21 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit annotationArgs: AnnotationArgsContext): Seq[(String, Expr[G])] = annotationArgs match {
     case AnnotationArgs0(_, None, _ ) => Seq()
     case AnnotationArgs0(_, Some(AnnotationArgsElems0(pairs)), _ ) => convert(pairs)
-    case AnnotationArgs0(_, Some(AnnotationArgsElems1(ElementValue0(expr))), _) => Seq(("value", convert(expr)))
+    case AnnotationArgs0(_, Some(AnnotationArgsElems1(ElementValue1(expr))), _) => Seq(("value", convert(expr)))
     case _ => ??(annotationArgs)
   }
 
   def convert(implicit pairs: ElementValuePairsContext): Seq[(String, Expr[G])] = pairs match {
-    case ElementValuePairs0(pair) => Seq(convert(pair))
-    case ElementValuePairs1(more, _, pair) => convert(more) :+ convert(pair)
+    case ElementValuePairs0(pair) => convert(pair).toSeq
+    case ElementValuePairs1(more, _, pair) => convert(more) ++ convert(pair).toSeq
     case _ => ???
   }
 
-  def convert(implicit pair: ElementValuePairContext): (String, Expr[G]) = pair match {
-    case ElementValuePair0(name, _, ElementValue0(expr)) => (convert(name), convert(expr))
+  def convert(implicit pair: ElementValuePairContext): Option[(String, Expr[G])] = pair match {
+    case ElementValuePair0(name, _, ElementValue0(expr)) =>
+      logger.warn(s"Annotation array initializer at ${originProvider(pair).shortPosition} is discarded")
+      None
+    case ElementValuePair0(name, _, ElementValue1(expr)) => Some((convert(name), convert(expr)))
     case x => ??(x)
   }
 
@@ -203,7 +209,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case MemberDeclaration5(interface) => fail(interface, "Inner interfaces are not supported.")
     case MemberDeclaration6(annotation) => fail(annotation, "Annotations are not supported.")
     case MemberDeclaration7(cls) => fail(cls, "Inner classes are not supported.")
-    case MemberDeclaration8(enum) => fail(enum, "Enums are not supported.")
+    case MemberDeclaration8(enum) => fail(enum, "Inner enums are not supported.")
   }
 
   def convert(implicit decl: InterfaceMemberDeclarationContext, mods: Seq[JavaModifier[G]], c: ContractCollector[G]): Seq[ClassDeclaration[G]] = decl match {
@@ -245,26 +251,26 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       JavaVariableDeclaration(convert(name), dims.map(convert(_)).getOrElse(0), Some(convert(init)))
   }
 
-  def convert(implicit params: FormalParametersContext): Seq[Variable[G]] = params match {
+  def convert(implicit params: FormalParametersContext): Seq[JavaParam[G]] = params match {
     case FormalParameters0(_, params, _) => params.map(convert(_)).getOrElse(Nil)
   }
 
-  def convert(implicit params: FormalParameterListContext): Seq[Variable[G]] = params match {
+  def convert(implicit params: FormalParameterListContext): Seq[JavaParam[G]] = params match {
     case FormalParameterList0(varargs) => ??(varargs)
     case FormalParameterList1(params) => convert(params)
     case FormalParameterList2(_, _, varargs) => ??(varargs)
   }
 
-  def convert(implicit params: InitFormalParameterListContext): Seq[Variable[G]] = params match {
+  def convert(implicit params: InitFormalParameterListContext): Seq[JavaParam[G]] = params match {
     case InitFormalParameterList0(param) => Seq(convert(param))
     case InitFormalParameterList1(param, _, params) => convert(param) +: convert(params)
   }
 
-  def convert(implicit param: FormalParameterContext): Variable[G] = param match {
-    case FormalParameter0(_, tNode, nameDims) =>
+  def convert(implicit param: FormalParameterContext): JavaParam[G] = param match {
+    case FormalParameter0(modifiers, tNode, nameDims) =>
       val (name, dims) = convert(nameDims)
       val t = FuncTools.repeat(TArray[G](_), dims, convert(tNode))
-      new Variable(t)(SourceNameOrigin(name, origin(param)))
+      new JavaParam(modifiers.map(convert(_)), name, t)(SourceNameOrigin(name, origin(param)))
   }
 
   def convert(implicit dims: DimsContext): Int = dims match {
@@ -579,7 +585,9 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         convertEmbedGiven(given), convertEmbedYields(yields))(
         blame(expr))
     case JavaValPostfix(expr, PostfixOp0(valPostfix)) => convert(expr, valPostfix, convert(expr))
-    case JavaNew(_, creator, given, yields) =>
+    case JavaNew(_, Some(_), Creator1(createdName, creatorRest), None, None) =>
+      convertBipGlue(creatorRest)
+    case JavaNew(_, None, creator, given, yields) =>
       convert(creator, convertEmbedGiven(given), convertEmbedYields(yields))
     case JavaCast(_, t, _, inner) => Cast(convert(inner), TypeValue(convert(t)))
     case JavaPostfixIncDec(inner, postOp) =>
@@ -665,6 +673,103 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         case "<<=" => BitShl(target, value)
         case "%=" => Mod(target, value)(blame(expr))
       })(blame(expr))
+  }
+
+  def convertBipGlue(implicit p: ParserRuleContext): JavaBipGlue[G] = p match {
+    /* TODO: This block of code, and related functions, can be removed once we add typechecking for all features
+         required by examples/concepts/javabip/casinoBroken/Main.java; then it's possible to pick this structure out in
+         LangBipToCol.
+     */
+    case CreatorRest1(ClassCreatorRest0(Arguments0(_, None, _), Some(classBody))) => convertBipGlue(classBody)
+    case ClassBody0(_, Seq(decl), _) => convertBipGlue(decl)
+    case ClassBodyDeclaration2(None, _, MemberDeclaration0(method)) => convertBipGlue(method)
+    case MethodDeclaration0(
+    TypeOrVoid0(_),
+    JavaIdentifier0("configure"),
+    FormalParameters0(_, None, _),
+    None, None, MethodBodyOrEmpty1(m@MethodBody0(Block0(_, statements, _)))
+    ) => JavaBipGlue(statements.map(convertBipGlueElement(_)))(blame(m))
+    case _ => ??(p)
+  }
+
+  object JavaId {
+    def unapply(javaIdentifier: JavaIdentifierContext): Option[String] = Some(javaIdentifier.start.getText)
+  }
+
+  object Arguments {
+    def unapply(arguments: ArgumentsContext): Option[Seq[ExpressionContext]] = arguments match {
+      case Arguments0("(", None, ")") => Some(Nil)
+      case Arguments0("(", Some(exprList), ")") => Some(getExprs(exprList))
+    }
+
+    def getExprs(exprList: ExpressionListContext): Seq[ExpressionContext] = exprList match {
+      case ExpressionList0(expression) => Seq(expression)
+      case ExpressionList1(expression, _, exprList) => expression +: getExprs(exprList)
+    }
+  }
+
+  object CleanPrimary {
+    def unapply(ann: ParserRuleContext): Option[PrimaryContext] = ann match {
+      case Expression0(None, parse.JavaPrimary(AnnotatedPrimary0(None, primary, None)), None) => Some(primary)
+      case parse.JavaPrimary(AnnotatedPrimary0(None, primary, None)) => Some(primary)
+      case AnnotatedPrimary0(None, primary, None) => Some(primary)
+      case _ => None
+    }
+  }
+
+  def convertDotClassToType(implicit e: ExpressionContext): Type[G] = e match {
+    case CleanPrimary(Primary6(t, _, _)) => convert(t)
+  }
+
+  def convertPorts(args: Seq[ExpressionContext]): Seq[JavaBipGlueName[G]] = {
+    assert((args.length % 2) == 0)
+    args.grouped(2).map { case Seq(portType, portName) =>
+      JavaBipGlueName(convertDotClassToType(portType), convert(portName))(origin(portType))
+    }.toSeq
+  }
+
+  def convertPort(implicit e: ExprContext): Option[JavaBipGlueName[G]] = e match {
+    case CleanPrimary(
+    Primary5(JavaIdentifier0("port"), None, Arguments(Seq(portType, portName)), None, None)
+    ) => Some(JavaBipGlueName(convertDotClassToType(portType), convert(portName)))
+    case _ => None
+  }
+
+  def convertSynchron(implicit e: ExprContext): Option[JavaBipGlueName[G]] = e match {
+    case CleanPrimary(
+    Primary5(JavaIdentifier0("synchron"), None, Arguments(Seq(portType, portName)), None, None)
+    ) => Some(JavaBipGlueName(convertDotClassToType(portType), convert(portName)))
+    case _ => None
+  }
+
+  def convertData(implicit e: ExprContext): Option[JavaBipGlueName[G]] = e match {
+    case CleanPrimary(
+    Primary5(JavaIdentifier0("data"), None, Arguments(Seq(portType, portName)), None, None)
+    ) => Some(JavaBipGlueName(convertDotClassToType(portType), convert(portName)))
+    case _ => None
+  }
+
+  def convertBipGlueElement(implicit s: ParserRuleContext): JavaBipGlueElement[G] = s match {
+    case BlockStatement1(statement) => convertBipGlueElement(statement)
+    case Statement16(StatementExpression0(expr), _) => convertBipGlueElement(expr)
+    case Expression0(None, expr, None) => convertBipGlueElement(expr)
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("requiresNothing"), None, Arguments(Seq()), None, None) =>
+      JavaBipGlueRequires(convertPort(obj).get, Seq())
+    case parse.JavaInvocation(obj, _, JavaIdentifier0("acceptsNothing"), None, Arguments(Seq()), None, None) =>
+      JavaBipGlueAccepts(convertPort(obj).get, Seq())
+    case parse.JavaInvocation(obj, _, JavaId("accepts"), None, Arguments(args), None, None) =>
+      JavaBipGlueAccepts(convertPort(obj).get, convertPorts(args))
+    case parse.JavaInvocation(obj, _, JavaId("requires"), None, Arguments(args), None, None) =>
+      JavaBipGlueRequires(convertPort(obj).get, convertPorts(args))
+    case parse.JavaInvocation(obj, _, JavaId("to"), None, args@Arguments(Seq(portType, portName)), None, None) =>
+      (convertSynchron(obj), convertData(obj)) match {
+        case (Some(synchronPortName), _) =>
+          JavaBipGlueSynchron(synchronPortName, JavaBipGlueName(convertDotClassToType(portType), convert(portName))(origin(args)))
+        case (_, Some(dataName)) =>
+          JavaBipGlueDataWire(dataName, JavaBipGlueName(convertDotClassToType(portType), convert(portName))(origin(args)))
+        case _ => ??(s)
+      }
+    case _ => ??(s)
   }
 
   def convert(implicit invocation: ExplicitGenericInvocationSuffixContext,
@@ -873,6 +978,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
       case "pure" => collector.pure += mod
       case "inline" => collector.inline += mod
       case "thread_local" => collector.threadLocal += mod
+      case "bip_annotation" => collector.bipAnnotation += mod
     }
     case ValStatic(_) => collector.static += mod
   }
@@ -1395,6 +1501,8 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
   def convert(implicit e: ValExprContext): Expr[G] = e match {
     case ValExpr0(inner) => convert(inner)
     case ValExpr1(inner) => convert(inner)
+    // TODO: Remove this when we support nested enums (for the JavaBIP casino example)
+    case ValExpr2(_, _, _, replacer, _, _, inner , _, _, _) => convert(replacer)
   }
 
   def convert(implicit id: ValIdentifierContext): String = id match {

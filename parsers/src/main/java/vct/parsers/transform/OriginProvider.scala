@@ -42,6 +42,14 @@ case class ReadableOriginProvider(readable: Readable) extends OriginProvider {
   override def apply(): Origin = FileSpanningOrigin
 }
 
+case class RedirectOriginProvider(o: Origin, textualOrigin: String) extends OriginProvider {
+  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): RedirectOrigin = {
+    RedirectOrigin(o, textualOrigin, startLineIdx, endLineIdx, cols)
+  }
+
+  override def apply(): Origin = FileSpanningOrigin
+}
+
 case class InterpretedFileOriginProvider(original: OriginProvider, interpreted: Readable) extends OriginProvider {
   private def getLineOffset(lineIdx: Int): Option[Int] = {
     val firstTokenAtOrPastLine = (0 until tokenStream.size()).find(i => tokenStream.get(i).getLine-1 >= lineIdx).getOrElse(return None)

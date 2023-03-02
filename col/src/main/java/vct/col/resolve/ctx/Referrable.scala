@@ -37,6 +37,7 @@ sealed trait Referrable[G] {
     case RefJavaLocalDeclaration(decls, idx) => decls.decls(idx).name
     case RefJavaConstructor(decl) => decl.name
     case RefJavaMethod(decl) => decl.name
+    case RefJavaParam(decl) => decl.name
     case RefJavaAnnotationMethod(decl) => decl.name
     case RefInstanceFunction(decl) => Referrable.originName(decl)
     case RefInstanceMethod(decl) => Referrable.originName(decl)
@@ -67,6 +68,8 @@ sealed trait Referrable[G] {
     case RefCudaVecX(_) => "x"
     case RefCudaVecY(_) => "y"
     case RefCudaVecZ(_) => "z"
+    case RefJavaBipStatePredicate(name, _) => name
+    case ImplicitDefaultJavaBipStatePredicate(name) => name
   }
 }
 
@@ -94,6 +97,7 @@ case object Referrable {
     case decl: JavaFields[G] => return decl.decls.indices.map(RefJavaField(decl, _))
     case decl: JavaConstructor[G] => RefJavaConstructor(decl)
     case decl: JavaMethod[G] => RefJavaMethod(decl)
+    case decl: JavaParam[G] => RefJavaParam(decl)
     case decl: JavaAnnotationMethod[G] => RefJavaAnnotationMethod(decl)
     case decl: InstanceFunction[G] => RefInstanceFunction(decl)
     case decl: InstanceMethod[G] => RefInstanceMethod(decl)
@@ -115,6 +119,7 @@ case object Referrable {
     case decl: CLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
+    case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -164,6 +169,8 @@ sealed trait ResultTarget[G] extends Referrable[G]
 sealed trait JavaConstructorTarget[G] extends Referrable[G]
 sealed trait PVLConstructorTarget[G] extends Referrable[G]
 
+sealed trait JavaBipStatePredicateTarget[G] extends Referrable[G]
+
 case class RefCTranslationUnit[G](decl: CTranslationUnit[G]) extends Referrable[G]
 case class RefCParam[G](decl: CParam[G]) extends Referrable[G] with CNameTarget[G]
 case class RefCFunctionDefinition[G](decl: CFunctionDefinition[G]) extends Referrable[G] with CNameTarget[G] with CInvocationTarget[G] with ResultTarget[G]
@@ -187,6 +194,7 @@ case class RefJavaField[G](decls: JavaFields[G], idx: Int) extends Referrable[G]
 case class RefJavaLocalDeclaration[G](decls: JavaLocalDeclaration[G], idx: Int) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaConstructor[G](decl: JavaConstructor[G]) extends Referrable[G] with JavaConstructorTarget[G]
 case class RefJavaMethod[G](decl: JavaMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
+case class RefJavaParam[G](decl: JavaParam[G]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaAnnotationMethod[G](decl: JavaAnnotationMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceFunction[G](decl: InstanceFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceMethod[G](decl: InstanceMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
@@ -206,6 +214,9 @@ case class RefModelField[G](decl: ModelField[G]) extends Referrable[G] with Spec
 case class RefModelProcess[G](decl: ModelProcess[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefModelAction[G](decl: ModelAction[G]) extends Referrable[G] with SpecInvocationTarget[G]
 case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] with PVLConstructorTarget[G]
+case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
+case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
+case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
 
 case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
 case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]
@@ -214,6 +225,8 @@ case class PVLBuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) ex
 
 case class ImplicitDefaultJavaConstructor[G]() extends Referrable[G] with JavaConstructorTarget[G]
 case class ImplicitDefaultPVLConstructor[G]() extends Referrable[G] with PVLConstructorTarget[G]
+
+case class ImplicitDefaultJavaBipStatePredicate[G](state: String) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 
 sealed trait RefCudaVec[G] extends Referrable[G] with CNameTarget[G]
 case class RefCudaThreadIdx[G]() extends RefCudaVec[G]

@@ -14,6 +14,7 @@ import vct.col.ast.expr.`type`._
 import vct.col.ast.expr.ambiguous._
 import vct.col.ast.expr.apply._
 import vct.col.ast.expr.binder._
+import vct.col.ast.expr.bip.{BipGuardInvocationImpl, BipLocalIncomingDataImpl, JavaBipGlueImpl}
 import vct.col.ast.family.coercion._
 import vct.col.ast.expr.context._
 import vct.col.ast.expr.heap.alloc._
@@ -63,6 +64,7 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve._
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.JavaAnnotationData
 import vct.col.resolve.lang.Java
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError.Unreachable
@@ -800,10 +802,15 @@ final case class JavaNative[G]()(implicit val o: Origin) extends JavaModifier[G]
 final case class JavaSynchronized[G]()(val blame: Blame[LockRegionFailure])(implicit val o: Origin) extends JavaModifier[G] with JavaSynchronizedImpl[G]
 final case class JavaTransient[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaTransientImpl[G]
 final case class JavaVolatile[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaVolatileImpl[G]
-final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])])(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G]
+final case class JavaAnnotation[G](name: Type[G], args: Seq[(String, Expr[G])]
+                                  )(val blame: Blame[JavaAnnotationFailure]
+                                  )(implicit val o: Origin) extends JavaModifier[G] with JavaAnnotationImpl[G] {
+  var data: Option[JavaAnnotationData[G]] = None
+}
 
 final case class JavaPure[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaPureImpl[G]
 final case class JavaInline[G]()(implicit val o: Origin) extends JavaModifier[G] with JavaInlineImpl[G]
+final case class JavaBipAnnotation[G]()(implicit val o: Origin) extends JavaModifier[G]
 
 final case class JavaVariableDeclaration[G](name: String, moreDims: Int, init: Option[Expr[G]])(implicit val o: Origin) extends NodeFamily[G] with JavaVariableDeclarationImpl[G]
 
@@ -818,8 +825,10 @@ final class JavaAnnotationInterface[G](val name: String, val modifiers: Seq[Java
 sealed trait JavaClassDeclaration[G] extends ClassDeclaration[G] with JavaClassDeclarationImpl[G]
 final class JavaSharedInitialization[G](val isStatic: Boolean, val initialization: Statement[G])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaSharedInitializationImpl[G]
 final class JavaFields[G](val modifiers: Seq[JavaModifier[G]], val t: Type[G], val decls: Seq[JavaVariableDeclaration[G]])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaFieldsImpl[G]
-final class JavaConstructor[G](val modifiers: Seq[JavaModifier[G]], val name: String, val parameters: Seq[Variable[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Statement[G], val contract: ApplicableContract[G])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaConstructorImpl[G]
-final class JavaMethod[G](val modifiers: Seq[JavaModifier[G]], val returnType: Type[G], val dims: Int, val name: String, val parameters: Seq[Variable[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaMethodImpl[G]
+final class JavaConstructor[G](val modifiers: Seq[JavaModifier[G]], val name: String, val parameters: Seq[JavaParam[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Statement[G], val contract: ApplicableContract[G])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaConstructorImpl[G]
+final class JavaParam[G](val modifiers: Seq[JavaModifier[G]], val name: String, val t: Type[G])(implicit val o: Origin) extends Declaration[G]
+
+final class JavaMethod[G](val modifiers: Seq[JavaModifier[G]], val returnType: Type[G], val dims: Int, val name: String, val parameters: Seq[JavaParam[G]], val typeParameters: Seq[Variable[G]], val signals: Seq[Type[G]], val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaMethodImpl[G]
 final class JavaAnnotationMethod[G](val returnType: Type[G], val name: String, val default: Option[Expr[G]])(implicit val o: Origin) extends JavaClassDeclaration[G] with JavaAnnotationMethodImpl[G]
 
 final class JavaLocalDeclaration[G](val modifiers: Seq[JavaModifier[G]], val t: Type[G], val decls: Seq[JavaVariableDeclaration[G]])(implicit val o: Origin) extends Declaration[G] with JavaLocalDeclarationImpl[G]
@@ -853,6 +862,51 @@ final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], nam
 final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
 final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
 final case class JavaStringValue[G](data: String, t: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaStringValueImpl[G]
+
+final class JavaBipGlueContainer[G](val job: Expr[G])(implicit val o: Origin) extends JavaGlobalDeclaration[G]
+
+final case class JavaBipGlue[G](elems: Seq[JavaBipGlueElement[G]])(val blame: Blame[BipGlueFailure])(implicit val o: Origin) extends JavaExpr[G] with JavaBipGlueImpl[G]
+
+final case class JavaBipGlueName[G](t: Type[G], e: Expr[G])(implicit val o: Origin) extends NodeFamily[G] {
+  var data: Option[(JavaClass[G], String)] = None
+}
+sealed trait JavaBipGlueElement[G] extends NodeFamily[G]
+final case class JavaBipGlueRequires[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
+final case class JavaBipGlueAccepts[G](port: JavaBipGlueName[G], others: Seq[JavaBipGlueName[G]])(implicit val o: Origin) extends JavaBipGlueElement[G]
+final case class JavaBipGlueSynchron[G](port0: JavaBipGlueName[G], port1: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
+final case class JavaBipGlueDataWire[G](dataOut: JavaBipGlueName[G], dataIn: JavaBipGlueName[G])(implicit val o: Origin) extends JavaBipGlueElement[G]
+
+final class BipGlue[G](val requires: Seq[BipGlueRequires[G]], val accepts: Seq[BipGlueAccepts[G]], val dataWires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipGlueFailure])(implicit val o: Origin) extends GlobalDeclaration[G]
+final case class BipGlueRequires[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
+final case class BipGlueAccepts[G](port: Ref[G, BipPort[G]], others: Seq[Ref[G, BipPort[G]]])(implicit val o: Origin) extends NodeFamily[G]
+final case class BipGlueDataWire[G](dataOut: Ref[G, BipOutgoingData[G]], dataIn: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends NodeFamily[G]
+
+sealed trait BipData[G] extends ClassDeclaration[G] with BipDataImpl[G]
+final class BipIncomingData[G](val t: Type[G])(implicit val o: Origin) extends BipData[G]
+final class BipOutgoingData[G](val t: Type[G], val body: Statement[G], val pure: Boolean)(val blame: Blame[CallableFailure])(implicit val o: Origin) extends BipData[G]
+final case class BipLocalIncomingData[G](ref: Ref[G, BipIncomingData[G]])(implicit val o: Origin) extends Expr[G] with BipLocalIncomingDataImpl[G]
+
+final class BipStatePredicate[G](val expr: Expr[G])(implicit val o: Origin) extends ClassDeclaration[G] { }
+final case class BipTransitionSignature[G](portName: String, sourceStateName: String, targetStateName: String, textualGuard: Option[String])(implicit val o: Origin) extends NodeFamily[G] with BipTransitionSignatureImpl[G]
+final class BipTransition[G](val signature: BipTransitionSignature[G],
+                             val port: Ref[G, BipPort[G]],
+                             val source: Ref[G, BipStatePredicate[G]], val target: Ref[G, BipStatePredicate[G]],
+                             val data: Seq[Ref[G, BipIncomingData[G]]], val guard: Expr[G],
+                             val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
+                            )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val pure: Boolean)(val blame: Blame[BipGuardFailure])(implicit val o: Origin) extends ClassDeclaration[G]
+final case class BipGuardInvocation[G](obj: Expr[G], guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] with BipGuardInvocationImpl[G]
+final class BipComponent[G](val fqn: Seq[String], val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
+                            val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G]
+
+final class BipPort[G](val t: BipPortType[G])(implicit val o: Origin) extends ClassDeclaration[G]
+sealed trait BipPortType[G] extends NodeFamily[G]
+final case class BipEnforceable[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
+final case class BipSpontaneous[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
+final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) extends BipPortType[G]
+
+final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
+final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

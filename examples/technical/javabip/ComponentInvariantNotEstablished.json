@@ -1,0 +1,11 @@
+{
+  "vct.examples.technical.javabip.ComponentInvariantNotEstablished": {
+    "constructor": {
+      "componentInvariant": "not proven",
+      "stateInvariant": "not proven"
+    },
+    "transitions": [
+
+    ]
+  }
+}

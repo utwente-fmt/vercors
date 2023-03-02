@@ -3,14 +3,18 @@ package vct.col.resolve.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.util.FuncTools
+import vct.col.ast.lang.JavaAnnotationEx
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void, BipPortType, JavaParam, JavaAnnotation, Node}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
+import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipTransition}
+import vct.col.resolve.Resolve.{getLit, isBip}
+import vct.result.VerificationError.{Unreachable, UserError}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -131,8 +135,8 @@ case object Java extends LazyLogging {
     case cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)
   }
 
-  def translateRuntimeParameter[G](param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext[G]): Variable[G] = {
-    new Variable(translateRuntimeType(param.getType))(SourceNameOrigin(param.getName, o))
+  def translateRuntimeParameter[G](param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaParam[G] = {
+    new JavaParam(Seq(), param.getName, translateRuntimeType(param.getType))(SourceNameOrigin(param.getName, o))
   }
 
   def translateRuntimeClass[G](cls: Class[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaClassOrInterface[G] = {
@@ -315,7 +319,7 @@ case object Java extends LazyLogging {
 
   def findMethodInClass[G](cls: JavaClassOrInterface[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
     cls.decls.flatMap(Referrable.from).collectFirst {
-      case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) => ref
       case ref: RefJavaAnnotationMethod[G] if ref.name == method && args.length == 0 => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
@@ -343,7 +347,7 @@ case object Java extends LazyLogging {
 
   def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] = {
     val selectMatchingSignature: PartialFunction[Referrable[G], JavaInvocationTarget[G]] = {
-      case ref: RefJavaMethod[G] if ref.name == method && Util.compat(args, ref.decl.parameters) => ref
+      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) => ref
       case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
@@ -380,7 +384,7 @@ case object Java extends LazyLogging {
   def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[JavaConstructorTarget[G]] = t match {
     case JavaTClass(Ref(cls), _) =>
       val definedConstructor = cls.decls.collectFirst {
-        case cons: JavaConstructor[G] if Util.compat(args, cons.parameters) => RefJavaConstructor(cons)
+        case cons: JavaConstructor[G] if Util.compatJavaParams(args, cons.parameters) => RefJavaConstructor(cons)
       }
 
       args match {
@@ -391,6 +395,18 @@ case object Java extends LazyLogging {
       Some(RefModel(model))
     case _ => None
   }
+
+
+  def findJavaBipStatePredicate[G](ctx: ReferenceResolutionContext[G], state: String): JavaBipStatePredicateTarget[G] = {
+    val m = ctx.javaBipStatePredicates.map { case (k, v) => (getLit(k), v) }
+    m.get(state) match {
+      case Some(ann) => RefJavaBipStatePredicate(state, ann)
+      case None => ImplicitDefaultJavaBipStatePredicate(state)
+    }
+  }
+
+  def findJavaBipGuard[G](ctx: ReferenceResolutionContext[G], name: String): Option[JavaMethod[G]] =
+    ctx.javaBipGuards.map { case (k, v) => (getLit(k), v) }.get(name)
 
   def getStaticMembers[G](javaTypeName: JavaTypeNameTarget[G]): Seq[Referrable[G]] = javaTypeName match {
     case RefJavaClass(cls) => cls.decls.collect {
@@ -453,4 +469,79 @@ case object Java extends LazyLogging {
 
   def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit
   def float[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_32bit
+}
+
+sealed trait JavaAnnotationData[G]
+case object JavaAnnotationData {
+
+  case object BipTransition {
+    def get[G](m: JavaMethod[G]): Seq[BipTransition[G]] =
+      m.modifiers.collect { case ja @ JavaAnnotationEx(_, _, b: BipTransition[G]) => b }
+  }
+  final case class BipTransition[G](portName: String,
+                                    source: JavaBipStatePredicateTarget[G],
+                                    target: JavaBipStatePredicateTarget[G],
+                                    guardText: Option[String], guard: Option[Expr[G]], requires: Expr[G], ensures: Expr[G]
+                                   )(implicit val o: Origin) extends JavaAnnotationData[G]
+
+
+  case object BipInvariant {
+    def get[G](jc: JavaClassOrInterface[G]): Option[BipInvariant[G]] =
+      jc.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case bi: BipInvariant[G] => bi }
+
+  }
+  final case class BipInvariant[G](expr: Expr[G]) extends JavaAnnotationData[G]
+
+  case object BipPort {
+    def getAll[G](c: JavaClass[G]): Seq[BipPort[G]] =
+      c.modifiers.collect { case JavaAnnotationEx(_, _, bp: BipPort[G]) => bp}
+  }
+  final case class BipPort[G](name: String, portType: BipPortType[G])(implicit val o: Origin) extends JavaAnnotationData[G]
+
+  case object BipComponent {
+    def get[G](jc: JavaClassOrInterface[G]): Option[BipComponent[G]] =
+      jc.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case bct: BipComponent[G] => bct }
+  }
+  final case class BipComponent[G](name: String, initial: JavaBipStatePredicateTarget[G]) extends JavaAnnotationData[G]
+
+  case object BipStatePredicate {
+    def getAll[G](c: JavaClass[G]): Seq[BipStatePredicate[G]] =
+      c.modifiers.collect { case JavaAnnotationEx(_, _, bsp: BipStatePredicate[G]) => bsp}
+  }
+  final case class BipStatePredicate[G](name: String, expr: Expr[G])(implicit val o: Origin) extends JavaAnnotationData[G]
+
+  case object BipData {
+    def get[G](node: Node[G]): Option[BipData[G]] = {
+      val modifiers = node match {
+        case p: JavaParam[G] => p.modifiers
+        case m: JavaMethod[G] => m.modifiers
+        case _ => return None
+      }
+      modifiers.collectFirst { case JavaAnnotationEx(_, _, d @ BipData(_)) => d.asInstanceOf[BipData[G]] }
+    }
+  }
+  final case class BipData[G](name: String)(implicit val o: Origin) extends JavaAnnotationData[G]
+
+  case object BipGuard {
+    def get[G](m: JavaMethod[G]): Option[BipGuard[G]] =
+      m.modifiers
+        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collectFirst { case b: BipGuard[G] => b }
+
+    def getName[G](method: JavaMethod[G]): Option[Expr[G]] =
+      method.modifiers.collectFirst {
+        case ann: JavaAnnotation[G] if isBip(ann, "Guard") => ann.expect("name")
+      }
+  }
+  final case class BipGuard[G](name: String) extends JavaAnnotationData[G]
+
+  case object BipPure {
+    def isPure[G](m: JavaMethod[G]): Boolean =
+      m.modifiers.collectFirst { case ja @ JavaAnnotationEx(_, _, BipPure()) => ja }.isDefined
+  }
+  final case class BipPure[G]() extends JavaAnnotationData[G]
 }

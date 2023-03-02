@@ -3,11 +3,10 @@ package vct.col.origin
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
-import vct.col.ast.Node
-
+import vct.col.origin.RedirectOrigin.StringReadable
+import java.io.{Reader, StringReader}
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
 
 case object Origin {
   val BOLD_HR = "======================================\n"
@@ -318,6 +317,45 @@ case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
 
   override def toString: String =
     s"$name at $inner"
+}
+
+case object RedirectOrigin {
+  case class StringReadable(data: String) extends Readable {
+    override def isRereadable: Boolean = true
+
+    override protected def getReader: Reader =
+      new StringReader(data)
+
+    override def fileName: String = "<unknown filename>"
+  }
+}
+
+case class RedirectOrigin(o: Origin, textualOrigin: String, startLine: Int, endLine: Int, cols: Option[(Int, Int)]) extends Origin {
+  override def preferredName: String = o.preferredName
+
+  override def inlineContext: String = transposedOrigin.inlineContext
+
+  override def shortPosition: String = transposedOrigin.shortPosition
+
+  def transposedOrigin: Origin = o match {
+    case ReadableOrigin(readable, baseStartLine, baseEndLine, baseCols) =>
+      val realStartLine = baseStartLine + startLine
+      val realEndLine = baseEndLine + endLine
+      val c: Option[(Int, Int)] = (baseCols, cols) match {
+        case (Some((baseStartCol, _)), Some((innerStartCol, innerEndCol))) =>
+          // + 1 because need to account for starting quote that must be skipped
+          val realStart = (if(startLine == 0) baseStartCol + innerStartCol else innerStartCol) + 1
+          val realEnd = (if(endLine == 0) baseStartCol + innerEndCol else innerEndCol) + 1
+          Some((realStart, realEnd))
+        case (Some(baseCols), None) => if(startLine == 0) Some(baseCols) else None
+        case (None, cols) => cols
+      }
+      ReadableOrigin(readable, realStartLine, realEndLine, c)
+    case o: Origin =>
+      InterpretedOrigin(StringReadable(textualOrigin), startLine, endLine, cols, o)
+  }
+
+  override def context: String = transposedOrigin.context
 }
 
 trait PreferredNameOrigin extends Origin {

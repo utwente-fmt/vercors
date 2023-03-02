@@ -37,6 +37,7 @@ object ColDefs {
     "CLocalDeclaration",
     "CParam",
     "JavaLocalDeclaration",
+    "JavaParam",
   )
 
   def scopes(kind: String): Term.Name =
@@ -84,6 +85,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
+    "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)

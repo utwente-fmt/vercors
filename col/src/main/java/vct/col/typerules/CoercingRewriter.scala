@@ -226,6 +226,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
     case node: Operator[Pre] => node
+    case node: BipPortType[Pre] => node
+    case node: JavaBipGlueName[Pre] => node
+    case node: JavaBipGlueElement[Pre] => node
+    case node: BipGlueRequires[Pre] => node
+    case node: BipGlueAccepts[Pre] => node
+    case node: BipGlueDataWire[Pre] => node
+    case node: BipTransitionSignature[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -359,6 +366,34 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: Operator[Pre]): Operator[Pre] = node
   def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
   override final def dispatch(node: Operator[Pre]): Operator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipPortType[Pre]): BipPortType[Pre] = node
+  def postCoerce(node: BipPortType[Pre]): BipPortType[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipPortType[Pre]): BipPortType[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
+  def postCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipTransitionSignature[Pre]): BipTransitionSignature[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
+  def postCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueDataWire[Pre]): BipGlueDataWire[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
+  def postCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueRequires[Pre]): BipGlueRequires[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
+  def postCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueAccepts[Pre]): BipGlueAccepts[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
+  def postCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
+  def postCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaBipGlueName[Pre]): JavaBipGlueName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -701,39 +736,17 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
           }, {
-            // Plus left case
-            val l = cls(left)
-            val decls = left.t match {
-              case TClass(Ref(cls)) => cls.declarations
-              case JavaTClass(Ref(cls), _) => cls.declarations
-            }
-            val validOperators = decls.collect {
-              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorLeftPlus[Pre]()
-                && CoercionUtils.getCoercion(right.t, m.args.head.t).isDefined => m
-              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorLeftPlus[Pre]()
-                && CoercionUtils.getCoercion(right.t, f.args.head.t).isDefined => f
-            }
+            val validOperators = plus.getValidOperatorsOf(OperatorLeftPlus())
             validOperators match {
-              case Seq(op) => AmbiguousPlus(l, coerce(right, op.args.head.t))(plus.blame)
-              case _ => throw IncoercibleText(l, "This expression does not have a matching custom plus operator")
+              case Some(Seq(op)) => AmbiguousPlus(cls(left), coerce(right, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(left, "This expression does not have a matching custom plus operator")
             }
           }, {
-            // TODO (RR): Definition of operators should be type checked for arity
-            // Plus right case
-            val r = cls(right)
-            val decls = r.t match {
-              case TClass(Ref(cls)) => cls.declarations
-              case JavaTClass(Ref(cls), _) => cls.declarations
-            }
-            val validOperators = decls.collect {
-              case m: InstanceOperatorMethod[Pre] if m.operator == OperatorRightPlus[Pre]()
-                && CoercionUtils.getCoercion(left.t, m.args.head.t).isDefined => m
-              case f: InstanceOperatorFunction[Pre] if f.operator == OperatorRightPlus[Pre]()
-                && CoercionUtils.getCoercion(left.t, f.args.head.t).isDefined => f
-            }
+            // TODO: Definition of operators should be type checked for arity
+            val validOperators = plus.getValidOperatorsOf(OperatorRightPlus())
             validOperators match {
-              case Seq(op) => AmbiguousPlus(r, coerce(left, op.args.head.t))(plus.blame)
-              case _ => throw IncoercibleText(r, "This expression does not have a matching custom right plus operator")
+              case Some(Seq(op)) => AmbiguousPlus(cls(right), coerce(left, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(right, "This expression does not have a matching custom right plus operator")
             }
           }
         )
@@ -771,6 +784,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (right, TBag(rightT)) = bag(ys)
         val sharedElement = Types.leastCommonSuperType(leftT, rightT)
         BagMinus(coerce(left, TBag(sharedElement)), coerce(right, TBag(sharedElement)))
+      case bgi @ BipGuardInvocation(obj, ref) =>
+        BipGuardInvocation(cls(obj), ref)
       case BitAnd(left, right) =>
         BitAnd(int(left), int(right))
       case BitNot(arg) =>
@@ -1292,6 +1307,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+      case localIncoming: BipLocalIncomingData[Pre] => localIncoming
+      case glue: JavaBipGlue[Pre] => glue
     }
   }
 
@@ -1429,6 +1446,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         constructor
       case method: JavaMethod[Pre] =>
         method
+      case param: JavaParam[Pre] =>
+        param
       case method: JavaAnnotationMethod[Pre] =>
         method
       case constructor: PVLConstructor[Pre] =>
@@ -1463,6 +1482,25 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
+      case bc: BipComponent[Pre] =>
+        new BipComponent(bc.fqn, bc.constructors, res(bc.invariant), bc.initial)
+      case bsp: BipStatePredicate[Pre] =>
+        new BipStatePredicate(bool(bsp.expr))
+      case trans: BipTransition[Pre] =>
+        new BipTransition(trans.signature, trans.port, trans.source, trans.target, trans.data, trans.guard,
+          bool(trans.requires),
+          bool(trans.ensures),
+          trans.body
+        )(trans.blame)
+      case data: BipIncomingData[Pre] => data
+      case data: BipOutgoingData[Pre] => data
+      case data: BipData[Pre] => data
+      case guard: BipGuard[Pre] => guard
+      case port: BipPort[Pre] => port
+      case glue: JavaBipGlueContainer[Pre] => glue
+      case glue: BipGlue[Pre] => glue
+      case synchronization: BipPortSynchronization[Pre] => synchronization
+      case synchronization: BipTransitionSynchronization[Pre] => synchronization
     }
   }
 
@@ -1720,7 +1758,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case js @ JavaSynchronized() => JavaSynchronized()(js.blame)
       case JavaTransient() => JavaTransient()
       case JavaVolatile() => JavaVolatile()
-      case JavaAnnotation(name, args) => JavaAnnotation(name, args)
+      case annotation @ JavaAnnotation(name, args) => JavaAnnotation(name, args)(annotation.blame)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
     }
@@ -1739,4 +1777,21 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case OperatorRightPlus() => OperatorRightPlus()
     }
   }
+
+  def coerce(node: BipPortType[Pre]): BipPortType[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case BipEnforceable() =>  BipEnforceable()
+      case BipSpontaneous() => BipSpontaneous()
+      case BipInternal() => BipInternal()
+    }
+  }
+
+  def coerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
+  def coerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
+  def coerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
+  def coerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
+
+  def coerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
+  def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
 }

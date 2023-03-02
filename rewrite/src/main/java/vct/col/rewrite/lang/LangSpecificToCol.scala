@@ -4,10 +4,13 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
+import vct.col.lang.LangBipToCol
 import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.resolve._
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.result.VerificationError.UserError
 import vct.col.util.SuccessionMap
 
@@ -30,6 +33,7 @@ case object LangSpecificToCol extends RewriterBuilder {
 
 case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
+  val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
@@ -46,6 +50,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
+    case p: JavaParam[Pre] => java.rewriteParameter(p)
+
     case cons: PVLConstructor[Pre] => pvl.rewriteConstructor(cons)
 
     case method: JavaMethod[Pre] => java.rewriteMethod(method)
@@ -67,6 +73,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
           globalDeclarations.succeed(cls, cls.rewrite(decls))
         }
       }
+
+    case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
     case other => rewriteDefault(other)
   }
