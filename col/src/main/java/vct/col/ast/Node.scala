@@ -572,7 +572,7 @@ final case class SubBagEq[G](left: Expr[G], right: Expr[G])(implicit val o: Orig
 
 final case class Select[G](condition: Expr[G], whenTrue: Expr[G], whenFalse: Expr[G])(implicit val o: Origin) extends Expr[G] with SelectImpl[G]
 final case class NewObject[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with NewObjectImpl[G]
-final case class NewArray[G](element: Type[G], dims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends Expr[G] with NewArrayImpl[G]
+final case class NewArray[G](element: Type[G], dims: Seq[Expr[G]], moreDims: Int)(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends Expr[G] with NewArrayImpl[G]
 final case class Old[G](expr: Expr[G], at: Option[Ref[G, LabelDecl[G]]])(val blame: Blame[LabelNotReached])(implicit val o: Origin) extends Expr[G] with OldImpl[G]
 final case class AmbiguousSubscript[G](collection: Expr[G], index: Expr[G])(val blame: Blame[FrontendSubscriptError])(implicit val o: Origin) extends Expr[G] with AmbiguousSubscriptImpl[G]
 final case class SeqSubscript[G](seq: Expr[G], index: Expr[G])(val blame: Blame[SeqBoundFailure])(implicit val o: Origin) extends Expr[G] with SeqSubscriptImpl[G]
@@ -726,7 +726,7 @@ final class CParam[G](val specifiers: Seq[CDeclarationSpecifier[G]], val declara
 
 sealed trait CDeclarator[G] extends NodeFamily[G] with CDeclaratorImpl[G]
 final case class CPointerDeclarator[G](pointers: Seq[CPointer[G]], inner: CDeclarator[G])(implicit val o: Origin) extends CDeclarator[G] with CPointerDeclaratorImpl[G]
-final case class CArrayDeclarator[G](qualifiers: Seq[CTypeQualifier[G]], size: Option[Expr[G]], inner: CDeclarator[G])(implicit val o: Origin) extends CDeclarator[G] with CArrayDeclaratorImpl[G]
+final case class CArrayDeclarator[G](qualifiers: Seq[CTypeQualifier[G]], size: Option[Expr[G]], inner: CDeclarator[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends CDeclarator[G] with CArrayDeclaratorImpl[G]
 final case class CTypedFunctionDeclarator[G](params: Seq[CParam[G]], varargs: Boolean, inner: CDeclarator[G])(implicit val o: Origin) extends CDeclarator[G] with CTypedFunctionDeclaratorImpl[G]
 final case class CAnonymousFunctionDeclarator[G](params: Seq[String], inner: CDeclarator[G])(implicit val o: Origin) extends CDeclarator[G] with CAnonymousFunctionDeclaratorImpl[G]
 final case class CName[G](name: String)(implicit val o: Origin) extends CDeclarator[G] with CNameImpl[G]
@@ -782,7 +782,7 @@ final case class CCast[G](expr: Expr[G], t: Type[G])(implicit val o: Origin) ext
 sealed trait CType[G] extends Type[G] with CTypeImpl[G]
 final case class CPrimitiveType[G](specifiers: Seq[CDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CPrimitiveTypeImpl[G]
 final case class CTPointer[G](innerType: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTPointerImpl[G]
-final case class CTArray[G](size: Option[Expr[G]], innerType: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTArrayImpl[G]
+final case class CTArray[G](size: Option[Expr[G]], innerType: Type[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTArrayImpl[G]
 final case class CTCudaVec[G]()(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTCudaVecImpl[G]
 
 final case class JavaName[G](names: Seq[String])(implicit val o: Origin) extends NodeFamily[G] with JavaNameImpl[G] {
@@ -859,8 +859,8 @@ final case class JavaInvocation[G](obj: Option[Expr[G]], typeParams: Seq[Type[G]
 final case class JavaNewClass[G](args: Seq[Expr[G]], typeArgs: Seq[Type[G]], name: Type[G], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(val blame: Blame[InvocationFailure])(implicit val o: Origin) extends JavaExpr[G] with JavaNewClassImpl[G] {
   var ref: Option[JavaConstructorTarget[G]] = None
 }
-final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
-final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
+final case class JavaNewLiteralArray[G](baseType: Type[G], dims: Int, initializer: Expr[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends JavaExpr[G] with JavaNewLiteralArrayImpl[G]
+final case class JavaNewDefaultArray[G](baseType: Type[G], specifiedDims: Seq[Expr[G]], moreDims: Int)(val blame: Blame[ArraySizeError])(implicit val o: Origin) extends JavaExpr[G] with JavaNewDefaultArrayImpl[G]
 final case class JavaStringValue[G](data: String, t: Type[G])(implicit val o: Origin) extends JavaExpr[G] with JavaStringValueImpl[G]
 
 final class JavaBipGlueContainer[G](val job: Expr[G])(implicit val o: Origin) extends JavaGlobalDeclaration[G]

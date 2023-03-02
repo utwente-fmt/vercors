@@ -1058,8 +1058,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
-      case NewArray(element, dims, moreDims) =>
-        NewArray(element, dims.map(int), moreDims)
+      case na @ NewArray(element, dims, moreDims) =>
+        NewArray(element, dims.map(int), moreDims)(na.blame)
       case NewObject(cls) =>
         NewObject(cls)
       case NoPerm() =>
@@ -1700,8 +1700,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     node match {
       case CPointerDeclarator(pointers, inner) =>
         CPointerDeclarator(pointers, inner)
-      case CArrayDeclarator(qualifiers, size, inner) =>
-        CArrayDeclarator(qualifiers, size.map(int), inner)
+      case C @ CArrayDeclarator(qualifiers, size, inner) =>
+        CArrayDeclarator(qualifiers, size.map(int), inner)(C.blame)
       case CTypedFunctionDeclarator(params, varargs, inner) =>
         CTypedFunctionDeclarator(params, varargs, inner)
       case CAnonymousFunctionDeclarator(params, inner) =>

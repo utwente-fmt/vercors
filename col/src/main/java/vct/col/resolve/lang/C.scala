@@ -49,9 +49,9 @@ case object C {
         innerInfo.params,
         t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](CTPointer(_), pointers.size, t)),
         innerInfo.name)
-    case CArrayDeclarator(_, size, inner) =>
+    case c @ CArrayDeclarator(_, size, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
-      DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t)), innerInfo.name)
+      DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t)(c.blame)), innerInfo.name)
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)
