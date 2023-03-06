@@ -264,9 +264,13 @@ public class ExpressionTransformer<T> {
         // FIFO calls require prior waiting, so handle them differently
         if (expr.getRight() instanceof FunctionCallExpression fun_expr && expr.getLeft() instanceof SCPortSCSocketExpression sc_port
                 && SCPORTSCSOCKETTYPE.SC_FIFO_ALL.contains(sc_port.getSCPortSCSocket().getConType())) {
-            result = transform_fifo_call_expression(sc_port, fun_expr, sc_inst, obj, null, "=");
+            result = transform_fifo_call_expression(sc_port, fun_expr, sc_inst, obj, null, "");
         }
-        // TODO signal
+        // Signal calls cannot be translated directly, since their methods are not direct translations of the SystemC functions
+        else if (expr.getRight() instanceof FunctionCallExpression fun_expr && expr.getLeft() instanceof SCPortSCSocketExpression sc_port
+                && SCPORTSCSOCKETTYPE.SC_SIGNAL_ALL.contains(sc_port.getSCPortSCSocket().getConType())) {
+            result = transform_signal_call_expression(sc_port, fun_expr, sc_inst, obj, null, "");
+        }
         else {
             SCClassInstance next_inst = sc_inst;
             if (expr.getLeft() instanceof SCClassInstanceExpression cls_inst_expr) {
@@ -323,6 +327,12 @@ public class ExpressionTransformer<T> {
                 && SCPORTSCSOCKETTYPE.SC_FIFO_ALL.contains(sc_port.getSCPortSCSocket().getConType())
                 && acc_e.getRight() instanceof FunctionCallExpression fun_expr) {
             result = transform_fifo_call_expression(sc_port, fun_expr, sc_inst, obj, assign_to, expr.getOp());
+        }
+        // Signal calls cannot be translated directly, since their methods are not direct translations of the SystemC functions
+        else if (expr.getRight() instanceof AccessExpression acc_e && acc_e.getLeft() instanceof SCPortSCSocketExpression sc_port
+                && SCPORTSCSOCKETTYPE.SC_SIGNAL_ALL.contains(sc_port.getSCPortSCSocket().getConType())
+                && acc_e.getRight() instanceof FunctionCallExpression fun_expr) {
+            result = transform_signal_call_expression(sc_port, fun_expr, sc_inst, obj, null, "");
         }
         // Otherwise simply transform the assign
         else {
@@ -959,6 +969,58 @@ public class ExpressionTransformer<T> {
 
         // Put it all together and return
         return new Block<>(List.from(CollectionConverters.asScala(all_stmts)), OriGen.create());
+    }
+
+    // TODO: Also support transformation of signal call to expression
+    /**
+     * Transforms a call to a signal channel function (either read or write). Appropriately transforms the method
+     * invocation and, if <code>assign_to</code> is given, assigns its value to the given variable expression.
+     *
+     * @param signal Expression representing the signal channel
+     * @param fun Expression representing the function call to the signal channel
+     * @param sc_inst The SystemC class instance these expressions refer to
+     * @param obj COL expression encoding the accesses to this point
+     * @param assign_to (Optional) The variable the result of the FIFO call should be written to
+     * @param op String encoding the assignment operator
+     * @return If <code>assign_to</code> is given, an assignment of the function call result to the given variable
+     *         expression, else a lone function invocation of the given signal channel function
+     */
+    private Statement<T> transform_signal_call_expression(SCPortSCSocketExpression signal, FunctionCallExpression fun, SCClassInstance sc_inst,
+                                                          Expr<T> obj, Expr<T> assign_to, String op) {
+
+        // Get signal instance
+        SCPort sc_port = signal.getSCPortSCSocket();
+        SCKnownType channel = col_system.get_primitive_port_connection(sc_inst, sc_port);
+        Expr<T> sc_signal = transform_sc_port_sc_socket_expression(signal, sc_inst);
+
+        // Get method
+        SCFunction sc_fun = fun.getFunction();
+        int method_index = switch (sc_fun.getName()) {
+            case "write" -> Constants.SIGNAL_WRITE_METHOD;
+            case "read" -> Constants.SIGNAL_READ_METHOD;
+            default -> throw new UnsupportedException("Signal method " + sc_fun.getName() + " is not supported!", fun);
+        };
+        InstanceMethod<T> signal_method = col_system.get_primitive_instance_method(channel, method_index);
+        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, new GenericClassTag<>());
+
+        // Decode function call parameters
+        java.util.List<Expr<T>> args = new java.util.ArrayList<>();
+        for (Expression param : fun.getParameters()) {
+            Expr<T> arg = create_expression(param, sc_inst, obj);
+            if (arg == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!", param);
+            args.add(arg);
+        }
+
+        // Create final statement, depending on whether a variable to assign to is given
+        if (assign_to == null) {
+            return new InvokeMethod<>(sc_signal, method_ref, List.from(CollectionConverters.asScala(args)), col_system.NO_EXPRS,
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        }
+        else {
+            MethodInvocation<T> method_invocation = new MethodInvocation<>(sc_signal, method_ref, List.from(CollectionConverters.asScala(args)),
+                    col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+            return decode_assignment(assign_to, op, method_invocation);
+        }
     }
 
     /**
