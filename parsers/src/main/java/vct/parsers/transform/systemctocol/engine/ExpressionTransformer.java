@@ -332,7 +332,7 @@ public class ExpressionTransformer<T> {
         else if (expr.getRight() instanceof AccessExpression acc_e && acc_e.getLeft() instanceof SCPortSCSocketExpression sc_port
                 && SCPORTSCSOCKETTYPE.SC_SIGNAL_ALL.contains(sc_port.getSCPortSCSocket().getConType())
                 && acc_e.getRight() instanceof FunctionCallExpression fun_expr) {
-            result = transform_signal_call_expression(sc_port, fun_expr, sc_inst, obj, null, "");
+            result = transform_signal_call_expression(sc_port, fun_expr, sc_inst, obj, assign_to, expr.getOp());
         }
         // Otherwise simply transform the assign
         else {
