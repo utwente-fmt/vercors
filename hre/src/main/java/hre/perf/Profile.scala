@@ -1,5 +1,6 @@
 package hre.perf
 
+import ch.qos.logback.core.property.ResourceExistsPropertyDefiner
 import com.google.perftools
 import com.google.perftools.profiles.{Sample, ValueType}
 
@@ -14,7 +15,6 @@ case object Profile {
 
   private val epochStartNanos = System.currentTimeMillis() * 1_000_000L
 
-  private var lastProcessUsage = ResourceUsage.getProcess.get
   private var lastChildUsage = ResourceUsage.getAggregateChildren.get
 
   private val valueTypes = Seq(
@@ -29,15 +29,19 @@ case object Profile {
 
   private val samples = mutable.ArrayBuffer[Sample]()
 
-  def update(stack: Seq[String]): Unit = {
-    val processUsage = ResourceUsage.getProcess.get
-    val childUsage = ResourceUsage.getAggregateChildren.get
+  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = {
+    val deltaChild = if(doUpdateChildUsage) {
+      val childUsage = ResourceUsage.getAggregateChildren.get
+      val deltaChild = childUsage - lastChildUsage
+      lastChildUsage = childUsage
+      deltaChild
+    } else {
+      ResourceUsage(0, 0, 0, 0, 0, 0)
+    }
 
-    val deltaProcess = processUsage - lastProcessUsage
-    val deltaChild = childUsage - lastChildUsage
-    val deltaAgg = deltaProcess + deltaChild
+    val deltaAgg = deltaChild + ownUsage
 
-    val locations = stack.reverse.map(loc)
+    val locations = stack.map(loc)
 
     samples += Sample(
       locationId = locations,
@@ -45,15 +49,12 @@ case object Profile {
         deltaAgg.userTime + deltaAgg.systemTime,
         deltaAgg.userTime,
         deltaAgg.systemTime,
-        deltaProcess.userTime,
-        deltaProcess.systemTime,
+        ownUsage.userTime,
+        ownUsage.systemTime,
         deltaChild.userTime,
         deltaChild.systemTime
       ),
     )
-
-    lastProcessUsage = processUsage
-    lastChildUsage = childUsage
   }
 
   def finish(): Unit = {
