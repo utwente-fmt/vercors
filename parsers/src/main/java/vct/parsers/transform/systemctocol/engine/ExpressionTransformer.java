@@ -884,10 +884,17 @@ public class ExpressionTransformer<T> {
         SCPort sc_port = fifo.getSCPortSCSocket();
         SCKnownType channel = col_system.get_primitive_port_connection(sc_inst, sc_port);
         Expr<T> fifo_queue = transform_sc_port_sc_socket_expression(fifo, sc_inst);
-        InstanceField<T> fifo_buffer = col_system.get_primitive_instance_field(channel);
+        InstanceField<T> fifo_buffer = col_system.get_primitive_instance_field(channel, Constants.FIFO_BUFFER);
         Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(fifo_buffer, new GenericClassTag<>());
         Deref<T> buf_deref = new Deref<>(fifo_queue, buf_ref, new GeneratedBlame<>(), OriGen.create());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
+        InstanceField<T> fifo_written = col_system.get_primitive_instance_field(channel, Constants.FIFO_WRITTEN);
+        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(fifo_written, new GenericClassTag<>());
+        Deref<T> written_deref = new Deref<>(fifo_queue, written_ref, new GeneratedBlame<>(), OriGen.create());
+        Size<T> written_size = new Size<>(written_deref, OriGen.create());
+        InstanceField<T> fifo_num_read = col_system.get_primitive_instance_field(channel, Constants.FIFO_NUM_READ);
+        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(fifo_num_read, new GenericClassTag<>());
+        Deref<T> read_deref = new Deref<>(fifo_queue, read_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Decode the function call
         Expr<T> cond;
@@ -895,12 +902,13 @@ public class ExpressionTransformer<T> {
         int wait_event_index;
         switch (fun.getFunction().getName()) {
             case "write" -> {
-                cond = new GreaterEq<>(buf_size, new IntegerValue<>(BigInt.apply(16), OriGen.create()), OriGen.create());   // TODO: Parameterize buffer bound!
+                Plus<T> total_size = new Plus<>(buf_size, written_size, OriGen.create());
+                cond = new GreaterEq<>(total_size, new IntegerValue<>(BigInt.apply(16), OriGen.create()), OriGen.create());  // TODO: Parameterize buffer bound!
                 method_index = Constants.FIFO_WRITE_METHOD;
                 wait_event_index = Constants.FIFO_READ_EVENT;
             }
             case "read" -> {
-                cond = new Eq<>(buf_size, col_system.ZERO, OriGen.create());
+                cond = new LessEq<>(buf_size, read_deref, OriGen.create());
                 method_index = Constants.FIFO_READ_METHOD;
                 wait_event_index = Constants.FIFO_WRITE_EVENT;
             }

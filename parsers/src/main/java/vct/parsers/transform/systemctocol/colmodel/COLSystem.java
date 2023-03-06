@@ -65,6 +65,8 @@ public class COLSystem<T> {
     public final BooleanValue<T> TRUE = new BooleanValue<>(true, OriGen.create());
     /** Constant boolean value for false */
     public final BooleanValue<T> FALSE = new BooleanValue<>(false, OriGen.create());
+    /** Constant integer value for 1 */
+    public final IntegerValue<T> ONE = new IntegerValue<>(BigInt.apply(1), OriGen.create());
     /** Constant integer value for 0 */
     public final IntegerValue<T> ZERO = new IntegerValue<>(BigInt.apply(0), OriGen.create());
     /** Constant integer value for -1 */
@@ -90,7 +92,6 @@ public class COLSystem<T> {
     /** Type object for integer sequence type */
     public final TSeq<T> T_SEQ_INT = new TSeq<>(T_INT, OriGen.create());
     /** Type object for boolean sequence type */
-    @SuppressWarnings("unused")
     public final TSeq<T> T_SEQ_BOOL = new TSeq<>(T_BOOL, OriGen.create());
     /** Type object for void type */
     public final TVoid<T> T_VOID = new TVoid<>(OriGen.create());
@@ -201,20 +202,22 @@ public class COLSystem<T> {
     private final java.util.List<String> enums;
 
     /**
-     * The Main class; may be accessed through a LazyRef with the getter method for this attribute during conversion,
-     * although it is only populated at a later point.
+     * The Main class of the COL encoding.
      */
     private Class<T> main;
 
     /**
-     * Global permission invariant. May be accessed through a LazyRef with the getter method for this attribute during
-     * conversion, although it is only populated at a later point.
+     * Global permission invariant.
      */
     private InstancePredicate<T> global_perms;
 
     /**
-     * Scheduler permission invariant. May be accessed through a LazyRef with the getter method for this attribute
-     * during conversion, although it is only populated at a later point.
+     * Permission invariant with
+     */
+    private InstancePredicate<T> update_perms;
+
+    /**
+     * Scheduler permission invariant.
      */
     private InstancePredicate<T> scheduler_perms;
 
@@ -224,14 +227,19 @@ public class COLSystem<T> {
     private final java.util.Map<SCKnownType, InstancePredicate<T>> prim_channel_perms;
 
     /**
-     * Field for the process_state sequence.
+     * Field for the <code>process_state</code> sequence.
      */
     private InstanceField<T> process_state;
 
     /**
-     * Field for the event_state sequence.
+     * Field for the <code>event_state</code> sequence.
      */
     private InstanceField<T> event_state;
+
+    /**
+     * Field for the <code>primitive_channel_update</code> sequence.
+     */
+    private InstanceField<T> primitive_channel_update;
 
     /**
      * A list of all global declarations (e.g. classes) in the system; represents the top-level AST node during
@@ -318,8 +326,7 @@ public class COLSystem<T> {
     private final java.util.Map<Pair<SCClassInstance, SCPort>, SCClassInstance> hierarchical_port_connections;
 
     /**
-     * A map from primitive channel instances in the SystemC design to their respective instances in the AST. As these
-     * are only populated later in the conversion process, they can be referenced to with LazyRefs during it.
+     * A map from primitive channel instances in the SystemC design to their respective instances in the AST.
      */
     private final java.util.Map<SCKnownType, InstanceField<T>> primitive_channels;
 
@@ -330,9 +337,9 @@ public class COLSystem<T> {
     private final java.util.Map<Pair<SCKnownType, Integer>, InstanceMethod<T>> primitive_instance_methods;
 
     /**
-     * Map from primitive channel instances to their respective buffer fields, if available.
+     * Map from primitive channel instances and the field index to their fields, if available.
      */
-    private final java.util.Map<SCKnownType, InstanceField<T>> primitive_instance_fields;
+    private final java.util.Map<Pair<SCKnownType, Integer>, InstanceField<T>> primitive_instance_fields;
 
     /**
      * Map from Strings representing labels in the SystemC system to their corresponding COL label declarations.
@@ -354,6 +361,11 @@ public class COLSystem<T> {
      * Total number of generated event IDs; can be used to find the next free ID.
      */
     private int total_nr_events;
+
+    /**
+     * Total number of primitive channel instances that exist in the SystemC system.
+     */
+    private int total_nr_primitive_channels;
 
     /**
      * Constructor. Initializes the various maps and lists that store information about the system.
@@ -383,6 +395,7 @@ public class COLSystem<T> {
         this.channel_events = new java.util.HashMap<>();
         this.shared_events = new java.util.HashMap<>();
         this.total_nr_events = 0;
+        this.total_nr_primitive_channels = 0;
 
         java.util.List<FieldFlag<T>> no_flags = java.util.List.of();
         this.NO_FLAGS = Set.from(CollectionConverters.asScala(no_flags));
@@ -468,6 +481,24 @@ public class COLSystem<T> {
     }
 
     /**
+     * Registers the update permission invariant.
+     *
+     * @param inv Update permission invariant
+     */
+    public void set_update_perms(InstancePredicate<T> inv) {
+        this.update_perms = inv;
+    }
+
+    /**
+     * Returns the update permission invariant.
+     *
+     * @return Update permission invariant
+     */
+    public InstancePredicate<T> get_update_perms() {
+        return update_perms;
+    }
+
+    /**
      * Registers the permission invariant for the scheduling variables.
      *
      * @param inv Scheduler permission invariant
@@ -549,6 +580,24 @@ public class COLSystem<T> {
      */
     public InstanceField<T> get_event_state() {
         return event_state;
+    }
+
+    /**
+     * Registers the field for the primitive channel update sequence.
+     *
+     * @param new_prim_update Primitive channel update sequence field
+     */
+    public void set_primitive_channel_update(InstanceField<T> new_prim_update) {
+        this.primitive_channel_update = new_prim_update;
+    }
+
+    /**
+     * Returns the <code>primitive_channel_update</code> sequence field.
+     *
+     * @return An instance field of the Main class containing the primitive channel updates
+     */
+    public InstanceField<T> get_primitive_channel_update() {
+        return primitive_channel_update;
     }
 
     /**
@@ -882,13 +931,15 @@ public class COLSystem<T> {
     }
 
     /**
-     * Registers the instance field in the Main class for the given SystemC channel instance.
+     * Registers the instance field in the Main class for the given SystemC channel instance and increases the count for
+     * the number of primitive channels in the system.
      *
      * @param sc_inst SystemC channel instance
      * @param main_field Main field containing the translated instance
      */
     public void add_primitive_channel(SCKnownType sc_inst, InstanceField<T> main_field) {
         this.primitive_channels.put(sc_inst, main_field);
+        total_nr_primitive_channels += 1;
     }
 
     /**
@@ -924,23 +975,25 @@ public class COLSystem<T> {
     }
 
     /**
-     * Registers the buffer for a FIFO channel, given by its SystemC channel instance.
+     * Registers a field for a FIFO channel, given by its SystemC channel instance and the field index.
      *
      * @param sc_inst SystemC channel instance
-     * @param buffer FIFO buffer
+     * @param index Index of the added field
+     * @param field FIFO field
      */
-    public void add_primitive_instance_field(SCKnownType sc_inst, InstanceField<T> buffer) {
-        this.primitive_instance_fields.put(sc_inst, buffer);
+    public void add_primitive_instance_field(SCKnownType sc_inst, int index, InstanceField<T> field) {
+        this.primitive_instance_fields.put(new Pair<>(sc_inst, index), field);
     }
 
     /**
-     * Returns the buffer field of the given SystemC channel instance's translation in COL.
+     * Returns the indexed field of the given SystemC channel instance's translation in COL.
      *
      * @param sc_inst SystemC channel instance
-     * @return Buffer field of the channel's translation if available, else null
+     * @param index Index of the desired field
+     * @return Field of the channel's translation
      */
-    public InstanceField<T> get_primitive_instance_field(SCKnownType sc_inst) {
-        return this.primitive_instance_fields.get(sc_inst);
+    public InstanceField<T> get_primitive_instance_field(SCKnownType sc_inst, int index) {
+        return this.primitive_instance_fields.get(new Pair<>(sc_inst, index));
     }
 
     /**
@@ -1021,5 +1074,14 @@ public class COLSystem<T> {
      */
     public int get_total_nr_events() {
         return total_nr_events;
+    }
+
+    /**
+     * Returns the number of primitive channels in the COL system.
+     *
+     * @return Number of primitive channel instances in the COL system
+     */
+    public int get_nr_primitive_channels() {
+        return total_nr_primitive_channels;
     }
 }

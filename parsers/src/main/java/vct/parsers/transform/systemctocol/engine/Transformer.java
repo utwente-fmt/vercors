@@ -250,6 +250,7 @@ public class Transformer<T> {
 	private void create_minimal_main() {
 		col_system.set_process_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("process_state")));
 		col_system.set_event_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("event_state")));
+		col_system.set_primitive_channel_update(new InstanceField<>(col_system.T_SEQ_BOOL, col_system.NO_FLAGS, OriGen.create("primitive_channel_update")));
 	}
 
 	/**
