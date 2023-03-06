@@ -13,6 +13,7 @@ import vct.col.ast.InstanceField;
 import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.*;
+import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.Timing;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
@@ -62,6 +63,8 @@ public class Transformer<T> {
 		scan_enums();
 		// Create references to necessary Main class attributes
 		create_minimal_main();
+		// Translate system parameters
+		translate_system_parameters();
 		// Transform known types
 		transform_known_types();
 		// Transform shared event variables to event IDs
@@ -251,6 +254,31 @@ public class Transformer<T> {
 		col_system.set_process_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("process_state")));
 		col_system.set_event_state(new InstanceField<>(col_system.T_SEQ_INT, col_system.NO_FLAGS, OriGen.create("event_state")));
 		col_system.set_primitive_channel_update(new InstanceField<>(col_system.T_SEQ_BOOL, col_system.NO_FLAGS, OriGen.create("primitive_channel_update")));
+	}
+
+	/**
+	 * Finds and translates system parameters, and also registers them in the COL system for later use.
+	 */
+	private void translate_system_parameters() {
+		// Transform explicitly defined system parameters
+		for (SCVariable global_variable : sc_system.getGlobalVariables()) {
+			// System parameters are declared as global const int fields		TODO: Discuss this encoding
+			if (global_variable.isConst() && col_system.parse_type(global_variable.getType()).equals(col_system.T_INT)) {
+				String var_name = "PARAM_" + global_variable.getName().toUpperCase();
+				InstanceField<T> parameter_field = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create(var_name));
+				col_system.add_parameter(global_variable, parameter_field);
+			}
+		}
+
+		// If the system uses FIFO queues, add a parameter for their size
+		for (SCClassInstance sc_inst : sc_system.getInstances()) {
+			// Check if any instance is a FIFO queue, add the parameter
+			if (sc_inst.getType().equals(Constants.CLASS_FIFO_INT) || sc_inst.getType().equals(Constants.CLASS_FIFO_BOOL)) {
+				InstanceField<T> buffer_size = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("BUFFER_SIZE"));
+				col_system.set_fifo_size_parameter(buffer_size);
+				break;
+			}
+		}
 	}
 
 	/**

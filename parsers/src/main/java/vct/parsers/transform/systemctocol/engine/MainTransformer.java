@@ -83,6 +83,11 @@ public class MainTransformer<T> {
     private InstancePredicate<T> scheduler_invariant;
 
     /**
+     * Parameter permission invariant.
+     */
+    private InstancePredicate<T> parameter_invariant;
+
+    /**
      * Global permission invariant.
      */
     private InstancePredicate<T> global_invariant;
@@ -140,6 +145,7 @@ public class MainTransformer<T> {
         // Create invariant predicates
         create_update_invariant();
         create_scheduler_invariant();
+        create_parameter_invariant();
         create_global_invariant();
         // Create the constructor
         create_main_constructor();
@@ -304,6 +310,38 @@ public class MainTransformer<T> {
     }
 
     /**
+     * Generates the parameter permission invariant. This invariant contains read permission to all system parameters
+     * as well as some simple constraints on them (if given).
+     */
+    private void create_parameter_invariant() {
+        java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
+
+        // Add permission for each parameter to the invariant
+        for (InstanceField<T> parameter : col_system.get_all_parameters()) {
+            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(parameter, new GenericClassTag<>());
+            FieldLocation<T> param_loc = new FieldLocation<>(col_system.THIS, param_ref, OriGen.create());
+            conditions.add(new Perm<>(param_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
+        }
+
+        // If the fifo size parameter is set, add its conditions to the invariant, too
+        InstanceField<T> fifo_param = col_system.get_fifo_size_parameter();
+        if (fifo_param != null) {
+            Ref<T, InstanceField<T>> fifo_ref = new DirectRef<>(fifo_param, new GenericClassTag<>());
+            Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, new GeneratedBlame<>(), OriGen.create());
+            FieldLocation<T> fifo_loc = new FieldLocation<>(col_system.THIS, fifo_ref, OriGen.create());
+            // Permission to the parameter
+            conditions.add(new Perm<>(fifo_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
+            // Parameter must be positive
+            conditions.add(new Greater<>(fifo_deref, col_system.ZERO, OriGen.create()));
+        }
+
+        // Put it all together and register the invariant in the COL system context
+        parameter_invariant = new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(conditions)),
+                false, true, OriGen.create("parameter_invariant"));
+        col_system.set_parameter_perms(parameter_invariant);
+    }
+
+    /**
      * Generates the global permission invariant. The global permission invariant contains the scheduler invariant, all
      * primitive channel invariants and permission to every instance and every field of every instance, except for the
      * Main reference field of processes.
@@ -314,6 +352,11 @@ public class MainTransformer<T> {
         // Create call to scheduler invariant
         Ref<T, InstancePredicate<T>> ref_scheduler_invariant = new DirectRef<>(scheduler_invariant, new GenericClassTag<>());
         conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_scheduler_invariant, col_system.NO_EXPRS,
+                new WritePerm<>(OriGen.create()), OriGen.create()));
+
+        // Create call to parameter invariant
+        Ref<T, InstancePredicate<T>> ref_parameter_invariant = new DirectRef<>(parameter_invariant, new GenericClassTag<>());
+        conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_parameter_invariant, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create()));
 
         // Create calls to all primitive channel invariants
@@ -1144,10 +1187,13 @@ public class MainTransformer<T> {
         declarations.addAll(processes);
         declarations.addAll(state_classes);
         declarations.addAll(channels);
+        declarations.addAll(col_system.get_all_parameters());
+        if (col_system.get_fifo_size_parameter() != null) declarations.add(col_system.get_fifo_size_parameter());
 
         // Add all instance predicates to the class
         declarations.add(update_permission_invariant);
         declarations.add(scheduler_invariant);
+        declarations.add(parameter_invariant);
         declarations.addAll(col_system.get_all_prim_channel_invariants());
         declarations.add(global_invariant);
 

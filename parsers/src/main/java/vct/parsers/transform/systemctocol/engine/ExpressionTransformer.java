@@ -906,6 +906,10 @@ public class ExpressionTransformer<T> {
         Ref<T, InstanceField<T>> read_ref = new DirectRef<>(fifo_num_read, new GenericClassTag<>());
         Deref<T> read_deref = new Deref<>(fifo_queue, read_ref, new GeneratedBlame<>(), OriGen.create());
 
+        // Get a reference to the FIFO size parameter
+        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), new GenericClassTag<>());
+        Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
+
         // Decode the function call
         Expr<T> cond;
         int method_index;
@@ -913,7 +917,7 @@ public class ExpressionTransformer<T> {
         switch (fun.getFunction().getName()) {
             case "write" -> {
                 Plus<T> total_size = new Plus<>(buf_size, written_size, OriGen.create());
-                cond = new GreaterEq<>(total_size, new IntegerValue<>(BigInt.apply(16), OriGen.create()), OriGen.create());  // TODO: Parameterize buffer bound!
+                cond = new GreaterEq<>(total_size, fifo_size_deref, OriGen.create());
                 method_index = Constants.FIFO_WRITE_METHOD;
                 wait_event_index = Constants.FIFO_READ_EVENT;
             }
@@ -1520,6 +1524,15 @@ public class ExpressionTransformer<T> {
         if (local_variables.containsKey(sc_var)) {
             Variable<T> var = local_variables.get(sc_var);
             return new Local<>(new DirectRef<>(var, new GenericClassTag<>()), var.o());
+        }
+
+        // If the variable is a parameter, return a reference of the Main class field
+        if (col_system.is_parameter(sc_var)) {
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+            InstanceField<T> param = col_system.get_parameter(sc_var);
+            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, new GenericClassTag<>());
+            return new Deref<>(m_deref, param_ref, new GeneratedBlame<>(), OriGen.create());
         }
 
         // Else find it in the global system

@@ -4,6 +4,15 @@ public class Constants {
 
     // =================== ALL PRIMITIVE CHANNELS =================== //
 
+    /** Class name of a FIFO queue with integer type in the SystemC system */
+    public static final String CLASS_FIFO_INT = "sc_fifo_int";
+    /** Class name of a FIFO queue with boolean type in the SystemC system */
+    public static final String CLASS_FIFO_BOOL = "sc_fifo_bool";
+    /** Class name of a signal channel with integer type in the SystemC system */
+    public static final String CLASS_SIGNAL_INT = "sc_signal_int";
+    /** Class name of a signal channel with boolean type in the SystemC system */
+    public static final String CLASS_SIGNAL_BOOL = "sc_signal_bool";
+
     /** Index of the update method in all primitive channel classes */
     public static final int PRIMITIVE_UPDATE_METHOD_INDEX = 0;
 

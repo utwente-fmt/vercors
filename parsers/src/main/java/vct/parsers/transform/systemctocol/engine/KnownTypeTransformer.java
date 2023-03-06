@@ -77,10 +77,10 @@ public class KnownTypeTransformer<T> {
 
         // Transform the primitive channel
         Class<T> cls = switch (sc_class.getName()) {
-            case "sc_fifo_int" -> transform_fifo(OriGen.create(name), col_system.T_INT);
-            case "sc_fifo_bool" -> transform_fifo(OriGen.create(name), col_system.T_BOOL);
-            case "sc_signal_int" -> transform_signal(OriGen.create(name), col_system.T_INT);
-            case "sc_signal_bool" -> transform_signal(OriGen.create(name), col_system.T_BOOL);
+            case Constants.CLASS_FIFO_INT -> transform_fifo(OriGen.create(name), col_system.T_INT);
+            case Constants.CLASS_FIFO_BOOL -> transform_fifo(OriGen.create(name), col_system.T_BOOL);
+            case Constants.CLASS_SIGNAL_INT -> transform_signal(OriGen.create(name), col_system.T_INT);
+            case Constants.CLASS_SIGNAL_BOOL -> transform_signal(OriGen.create(name), col_system.T_BOOL);
             default -> throw new UnsupportedException("The known type " + sc_class.getName() + " is not supported.", sc_inst);
         };
 
@@ -183,6 +183,10 @@ public class KnownTypeTransformer<T> {
         FieldLocation<T> written_loc = new FieldLocation<>(fifo_deref, written_ref, written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
 
+        // Create references to size parameter
+        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), new GenericClassTag<>());
+        Deref<T> fifo_size_deref = new Deref<>(col_system.THIS, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
+
         // Create permissions for invariant
         Perm<T> perm_fifo = new Perm<>(fifo_loc, new ReadPerm<>(OriGen.create()), OriGen.create());
         Perm<T> perm_m = new Perm<>(m_loc, new ReadPerm<>(OriGen.create()), m.o());
@@ -196,7 +200,7 @@ public class KnownTypeTransformer<T> {
         LessEq<T> read_n_neg = new LessEq<>(col_system.ZERO, read_deref, OriGen.create());
         LessEq<T> read_in_bound = new LessEq<>(read_deref, buf_size, OriGen.create());
         Plus<T> total_size = new Plus<>(buf_size, written_size, OriGen.create());
-        LessEq<T> buf_in_bound = new LessEq<>(total_size, new IntegerValue<>(BigInt.apply(16), OriGen.create()), OriGen.create());  // TODO: Parameterize bound!
+        LessEq<T> buf_in_bound = new LessEq<>(total_size, fifo_size_deref, OriGen.create());
 
         // Put it all together and return
         java.util.List<Expr<T>> comps = java.util.List.of(perm_fifo, fifo_not_null, perm_m, m_is_this, perm_buf, perm_read,
@@ -363,10 +367,13 @@ public class KnownTypeTransformer<T> {
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
 
+        // Get parameter references
+        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), new GenericClassTag<>());
+        Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
+
         // Create precondition
-        IntegerValue<T> bound = new IntegerValue<>(BigInt.apply(16), OriGen.create()); // TODO: Parameterize bound!
         Plus<T> total_size = new Plus<>(buf_size, written_size, OriGen.create());
-        Less<T> within_bound = new Less<>(total_size, bound, OriGen.create());
+        Less<T> within_bound = new Less<>(total_size, fifo_size_deref, OriGen.create());
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(new Star<>(perms, within_bound, OriGen.create()), OriGen.create());
 
         // Unchanged variables
@@ -809,18 +816,21 @@ public class KnownTypeTransformer<T> {
         Held<T> held_m = new Held<>(m_deref, OriGen.create());
         Eq<T> this_is_self = new Eq<>(self_deref, col_system.THIS, OriGen.create());
 
-        // Select permission invariant
+        // Get permission predicates
         Ref<T, InstancePredicate<T>> perm_inv;
         if (include_scheduler_permissions) perm_inv = new LazyRef<>(col_system::get_scheduler_perms, Option.empty(), new GenericClassTag<>());
         else perm_inv = new LazyRef<>(col_system::get_update_perms, Option.empty(), new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> param_inv = new LazyRef<>(col_system::get_parameter_perms, Option.empty(), new GenericClassTag<>());
 
         // Apply predicates
         InstancePredicateApply<T> scheduler_perms = new InstancePredicateApply<>(m_deref, perm_inv, col_system.NO_EXPRS,
+                new WritePerm<>(OriGen.create()), OriGen.create());
+        InstancePredicateApply<T> parameter_perms = new InstancePredicateApply<>(m_deref, param_inv, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create());
         InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, new DirectRef<>(col_system.get_prim_channel_inv(sc_inst), new GenericClassTag<>()),
                 col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
 
         // Connect the individual conditions with stars and return
-        return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, scheduler_perms, channel_perms, this_is_self));
+        return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, scheduler_perms, parameter_perms, channel_perms, this_is_self));
     }
 }

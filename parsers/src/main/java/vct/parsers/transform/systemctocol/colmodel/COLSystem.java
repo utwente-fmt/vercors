@@ -222,6 +222,11 @@ public class COLSystem<T> {
     private InstancePredicate<T> scheduler_perms;
 
     /**
+     * Parameter permission invariant.
+     */
+    private InstancePredicate<T> parameter_perms;
+
+    /**
      * Map from SystemC primitive channel instances to the predicates generated for them in the Main class.
      */
     private final java.util.Map<SCKnownType, InstancePredicate<T>> prim_channel_perms;
@@ -295,6 +300,16 @@ public class COLSystem<T> {
      * class.
      */
     private final java.util.Map<COLClass, InstanceField<T>> instance_mappings;
+
+    /**
+     * A map from global SystemC variables to the parameters they are transformed into in the COL system.
+     */
+    private final java.util.Map<SCVariable, InstanceField<T>> parameter_mappings;
+
+    /**
+     * Field encoding the automatically generated parameter for the FIFO buffer size.
+     */
+    private InstanceField<T> fifo_size_parameter;
 
     /**
      * A map from COL instance fields to the classes that contain them.
@@ -384,6 +399,7 @@ public class COLSystem<T> {
         this.instance_field_mappings = new java.util.HashMap<>();
         this.variable_mappings = new java.util.HashMap<>();
         this.instance_mappings = new java.util.HashMap<>();
+        this.parameter_mappings = new java.util.HashMap<>();
         this.field_containing_classes = new java.util.HashMap<>();
         this.method_containing_classes = new java.util.HashMap<>();
         this.instance_methods = new java.util.HashMap<>();
@@ -514,6 +530,24 @@ public class COLSystem<T> {
      */
     public InstancePredicate<T> get_scheduler_perms() {
         return scheduler_perms;
+    }
+
+    /**
+     * Registers the permission invariant for the system parameters.
+     *
+     * @param inv Parameter permission invariant
+     */
+    public void set_parameter_perms(InstancePredicate<T> inv) {
+        this.parameter_perms = inv;
+    }
+
+    /**
+     * Returns the permission invariant for the system parameters.
+     *
+     * @return Parameter permission invariant
+     */
+    public InstancePredicate<T> get_parameter_perms() {
+        return parameter_perms;
     }
 
     /**
@@ -815,6 +849,63 @@ public class COLSystem<T> {
      */
     public InstanceField<T> get_instance_by_class(COLClass col_class) {
         return this.instance_mappings.get(col_class);
+    }
+
+    /**
+     * Registers a system parameter, encoded by a global SystemC variable, in the COL system.
+     *
+     * @param sc_var SystemC global variable encoding the parameter
+     * @param parameter Parameter in the COL system
+     */
+    public void add_parameter(SCVariable sc_var, InstanceField<T> parameter) {
+        this.parameter_mappings.put(sc_var, parameter);
+    }
+
+    /**
+     * Returns the parameter encoded by the given global SystemC variable.
+     *
+     * @param sc_var SystemC global variable encoding the parameter
+     * @return The parameter the given variable has been transformed into
+     */
+    public InstanceField<T> get_parameter(SCVariable sc_var) {
+        return this.parameter_mappings.get(sc_var);
+    }
+
+    /**
+     * Returns all system parameters.
+     *
+     * @return A list of all system parameters
+     */
+    public java.util.List<InstanceField<T>> get_all_parameters() {
+        return new java.util.ArrayList<>(parameter_mappings.values());
+    }
+
+    /**
+     * Checks whether the given SystemC variable is a parameter of the system.
+     *
+     * @param sc_var SystemC variable
+     * @return <code>true</code> if <code>sc_var</code> is a parameter, <code>false</code> otherwise
+     */
+    public boolean is_parameter(SCVariable sc_var) {
+        return this.parameter_mappings.containsKey(sc_var);
+    }
+
+    /**
+     * Registers the parameter for the size of the FIFO buffer.
+     *
+     * @param buffer_size FIFO size parameter
+     */
+    public void set_fifo_size_parameter(InstanceField<T> buffer_size) {
+        this.fifo_size_parameter = buffer_size;
+    }
+
+    /**
+     * Returns the parameter for the size of the FIFO buffer.
+     *
+     * @return FIFO size parameter
+     */
+    public InstanceField<T> get_fifo_size_parameter() {
+        return fifo_size_parameter;
     }
 
     /**
