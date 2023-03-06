@@ -40,4 +40,25 @@ case class ResourceUsage(
 ) {
   override def toString: String =
     s"user=${userTime}μs sys=${systemTime}μs in=${readBlocks}blocks out=${writtenBlocks}blocks voluntaryYield=${voluntaryContextSwitches} involuntaryYield=${involuntaryContextSwitches}"
+
+  def applyOp(op: (Long, Long) => Long)(other: ResourceUsage): ResourceUsage = {
+    val result = ResourceUsage(
+      userTime = op(userTime, other.userTime),
+      systemTime = op(systemTime, other.systemTime),
+      readBlocks = op(readBlocks, other.readBlocks),
+      writtenBlocks = op(writtenBlocks, other.writtenBlocks),
+      voluntaryContextSwitches = op(voluntaryContextSwitches, other.voluntaryContextSwitches),
+      involuntaryContextSwitches = op(involuntaryContextSwitches, other.involuntaryContextSwitches),
+    )
+    assert(result.userTime >= 0)
+    assert(result.systemTime >= 0)
+    assert(result.readBlocks >= 0)
+    assert(result.writtenBlocks >= 0)
+    assert(result.voluntaryContextSwitches >= 0)
+    assert(result.involuntaryContextSwitches >= 0)
+    result
+  }
+
+  def -(other: ResourceUsage): ResourceUsage = applyOp(_ - _)(other)
+  def +(other: ResourceUsage): ResourceUsage = applyOp(_ + _)(other)
 }

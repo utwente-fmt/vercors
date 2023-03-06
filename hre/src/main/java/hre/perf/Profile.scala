@@ -4,6 +4,7 @@ import com.google.perftools
 import com.google.perftools.profiles.{Sample, ValueType}
 
 import java.io.FileOutputStream
+import java.util.zip.GZIPOutputStream
 import scala.collection.mutable
 
 case object Profile {
@@ -32,19 +33,23 @@ case object Profile {
     val processUsage = ResourceUsage.getProcess.get
     val childUsage = ResourceUsage.getAggregateChildren.get
 
-    val selfUser = processUsage.userTime - lastProcessUsage.userTime
-    val selfSys = processUsage.systemTime - lastProcessUsage.systemTime
-    val childUser = childUsage.userTime - lastChildUsage.userTime
-    val childSys = childUsage.systemTime - lastChildUsage.userTime
-    val aggUser = selfUser + childUser
-    val aggSys = selfSys + childSys
-    val agg = aggUser + aggSys
+    val deltaProcess = processUsage - lastProcessUsage
+    val deltaChild = childUsage - lastChildUsage
+    val deltaAgg = deltaProcess + deltaChild
 
     val locations = stack.reverse.map(loc)
 
     samples += Sample(
       locationId = locations,
-      value = Seq(agg, aggUser, aggSys, selfUser, selfSys, childUser, childSys),
+      value = Seq(
+        deltaAgg.userTime + deltaAgg.systemTime,
+        deltaAgg.userTime,
+        deltaAgg.systemTime,
+        deltaProcess.userTime,
+        deltaProcess.systemTime,
+        deltaChild.userTime,
+        deltaChild.systemTime
+      ),
     )
 
     lastProcessUsage = processUsage
@@ -62,7 +67,7 @@ case object Profile {
       timeNanos = epochStartNanos,
       defaultSampleType = builder.str("agg"),
     )
-    val out = new FileOutputStream("profile.pprof")
+    val out = new GZIPOutputStream(new FileOutputStream("profile.pprof.gz"))
     result.writeTo(out)
     out.close()
   }
