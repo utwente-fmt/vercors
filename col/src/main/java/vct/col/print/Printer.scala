@@ -1324,6 +1324,10 @@ case class Printer(out: Appendable,
     say(spaced(node.inits.map(NodePhrase)))
   }
 
+  def printLLVMFunctionContract(node: LLVMFunctionContract[_]): Unit = {
+    say(spec(phrase(node.value)))
+  }
+
   def print(node: Node[_]): Unit =
     try {
       node match {
@@ -1351,6 +1355,7 @@ case class Printer(out: Appendable,
         case node: Verification[_] => printVerification(node)
         case node: VerificationContext[_] => printVerificationContext(node)
         case node: CDeclaration[_] => printCDeclaration(node)
+        case node: LLVMFunctionContract[_] => printLLVMFunctionContract(node)
         case x =>
           say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
       }
