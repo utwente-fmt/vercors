@@ -2,10 +2,8 @@ package vct.parsers.transform.systemctocol.engine;
 
 import de.tub.pes.syscir.sc_model.SCSystem;
 import de.tub.pes.syscir.sc_model.SCVariable;
-import de.tub.pes.syscir.sc_model.expressions.ConstantExpression;
 import de.tub.pes.syscir.sc_model.expressions.Expression;
 import de.tub.pes.syscir.sc_model.expressions.SCVariableDeclarationExpression;
-import de.tub.pes.syscir.sc_model.expressions.SCVariableExpression;
 import de.tub.pes.syscir.sc_model.variables.SCArray;
 import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import de.tub.pes.syscir.sc_model.variables.SCKnownType;
@@ -14,6 +12,7 @@ import scala.Tuple2;
 import scala.collection.immutable.List;
 import scala.jdk.javaapi.CollectionConverters;
 import scala.math.BigInt;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ast.Class;
 import vct.col.ref.DirectRef;
@@ -24,11 +23,8 @@ import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.colmodel.StateClass;
-import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
-import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -191,7 +187,7 @@ public class MainTransformer<T> {
                     for (ProcessClass process_class : process_classes) {
                         // Get field type
                         Class<T> transformed_class = col_system.get_col_class_translation(process_class);
-                        Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, new GenericClassTag<>());
+                        Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
                         Type<T> t = new TClass<>(ref_to_class, OriGen.create());
 
                         // Generate instance field
@@ -206,7 +202,7 @@ public class MainTransformer<T> {
                 if (state_class != null) {
                     // Get field type
                     Class<T> transformed_class = col_system.get_col_class_translation(state_class);
-                    Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, new GenericClassTag<>());
+                    Ref<T, Class<T>> ref_to_class = new DirectRef<>(transformed_class, ClassTag$.MODULE$.apply(Class.class));
                     Type<T> t = new TClass<>(ref_to_class, OriGen.create());
 
                     // Generate instance field
@@ -237,7 +233,7 @@ public class MainTransformer<T> {
     private void create_update_invariant() {
         // Create reference to primitive_channel_update
         InstanceField<T> prim_channel_update = col_system.get_primitive_channel_update();
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> update_loc = new FieldLocation<>(col_system.THIS, update_ref, OriGen.create());
 
@@ -263,10 +259,10 @@ public class MainTransformer<T> {
      */
     private void create_scheduler_invariant() {
         // Create references to the scheduling variables
-        Ref<T, InstanceField<T>> proc_state_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> proc_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> proc_state_deref = new Deref<>(col_system.THIS, proc_state_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> proc_state_loc = new FieldLocation<>(col_system.THIS, proc_state_ref, OriGen.create());
-        Ref<T, InstanceField<T>> ev_state_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> ev_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> ev_state_deref = new Deref<>(col_system.THIS, ev_state_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> ev_state_loc = new FieldLocation<>(col_system.THIS, ev_state_ref, OriGen.create());
 
@@ -277,7 +273,7 @@ public class MainTransformer<T> {
         IntegerValue<T> nr_events = new IntegerValue<>(BigInt.apply(col_system.get_total_nr_events()), OriGen.create());
 
         // Apply update permission invariant
-        Ref<T, InstancePredicate<T>> ref_update_invariant = new DirectRef<>(update_permission_invariant, new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> ref_update_invariant = new DirectRef<>(update_permission_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
         InstancePredicateApply<T> apply_update_perms = new InstancePredicateApply<>(col_system.THIS, ref_update_invariant,
                 col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
 
@@ -289,7 +285,7 @@ public class MainTransformer<T> {
 
         // Create forall statement variable
         Variable<T> i = new Variable<>(col_system.T_INT, OriGen.create("i"));
-        Local<T> i_loc = new Local<>(new DirectRef<>(i, new GenericClassTag<>()), OriGen.create());
+        Local<T> i_loc = new Local<>(new DirectRef<>(i, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
         GreaterEq<T> i_lower = new GreaterEq<>(i_loc, col_system.ZERO, OriGen.create());
         Less<T> i_upper = new Less<>(i_loc, proc_size, OriGen.create());
         And<T> i_bounds = new And<>(i_lower, i_upper, OriGen.create());
@@ -324,7 +320,7 @@ public class MainTransformer<T> {
 
         // Add permission for each parameter to the invariant
         for (InstanceField<T> parameter : col_system.get_all_parameters()) {
-            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(parameter, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(parameter, ClassTag$.MODULE$.apply(InstanceField.class));
             FieldLocation<T> param_loc = new FieldLocation<>(col_system.THIS, param_ref, OriGen.create());
             conditions.add(new Perm<>(param_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
         }
@@ -332,7 +328,7 @@ public class MainTransformer<T> {
         // If the fifo size parameter is set, add its conditions to the invariant, too
         InstanceField<T> fifo_param = col_system.get_fifo_size_parameter();
         if (fifo_param != null) {
-            Ref<T, InstanceField<T>> fifo_ref = new DirectRef<>(fifo_param, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> fifo_ref = new DirectRef<>(fifo_param, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> fifo_loc = new FieldLocation<>(col_system.THIS, fifo_ref, OriGen.create());
             // Permission to the parameter
@@ -356,19 +352,19 @@ public class MainTransformer<T> {
         java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
 
         // Create call to scheduler invariant
-        Ref<T, InstancePredicate<T>> ref_scheduler_invariant = new DirectRef<>(scheduler_invariant, new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> ref_scheduler_invariant = new DirectRef<>(scheduler_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
         conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_scheduler_invariant, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create()));
 
         // Create call to parameter invariant
-        Ref<T, InstancePredicate<T>> ref_parameter_invariant = new DirectRef<>(parameter_invariant, new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> ref_parameter_invariant = new DirectRef<>(parameter_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
         conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_parameter_invariant, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create()));
 
         // Create calls to all primitive channel invariants
         for (InstanceField<T> prim_channel : channels) {
             InstancePredicate<T> prim_channel_inv = col_system.get_prim_channel_inv(channel_by_field.get(prim_channel));
-            Ref<T, InstancePredicate<T>> ref_channel_invariant = new DirectRef<>(prim_channel_inv, new GenericClassTag<>());
+            Ref<T, InstancePredicate<T>> ref_channel_invariant = new DirectRef<>(prim_channel_inv, ClassTag$.MODULE$.apply(InstancePredicate.class));
             conditions.add(new InstancePredicateApply<>(col_system.THIS, ref_channel_invariant, col_system.NO_EXPRS,
                     new WritePerm<>(OriGen.create()), OriGen.create()));
         }
@@ -382,9 +378,10 @@ public class MainTransformer<T> {
         // the condition that they are equal to this object
         for (InstanceField<T> state : state_classes) {
             conditions.add(create_field_permissions(state));
-            Ref<T, InstanceField<T>> state_ref = new DirectRef<>(state, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> state_ref = new DirectRef<>(state, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
-            Ref<T, InstanceField<T>> state_m_ref = new DirectRef<>(col_system.get_class_main_ref(class_by_field.get(state)), new GenericClassTag<>());
+            Ref<T, InstanceField<T>> state_m_ref = new DirectRef<>(col_system.get_class_main_ref(class_by_field.get(state)),
+                    ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> state_m_deref = new Deref<>(state_deref, state_m_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> state_m_loc = new FieldLocation<>(state_deref, state_m_ref, OriGen.create());
             conditions.add(new Perm<>(state_m_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
@@ -407,7 +404,7 @@ public class MainTransformer<T> {
         java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
 
         // Get reference to the field instance
-        Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> field_loc = new FieldLocation<>(col_system.THIS, field_ref, OriGen.create());
 
@@ -423,7 +420,7 @@ public class MainTransformer<T> {
             InstanceField<T> f_field = field_entry.getValue();
 
             // Get references to the field
-            Ref<T, InstanceField<T>> f_field_ref = new DirectRef<>(f_field, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> f_field_ref = new DirectRef<>(f_field, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> f_field_deref = new Deref<>(field_deref, f_field_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> f_field_loc = new FieldLocation<>(field_deref, f_field_ref, OriGen.create());
 
@@ -486,7 +483,7 @@ public class MainTransformer<T> {
     private Statement<T> create_process_state_initialization() {
         // Get reference to process state field
         InstanceField<T> process_state = col_system.get_process_state();
-        Ref<T, InstanceField<T>> state_ref = new DirectRef<>(process_state, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> state_ref = new DirectRef<>(process_state, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Construct the literal sequence it should be initialized as ([-1] * #processes)
@@ -508,7 +505,7 @@ public class MainTransformer<T> {
     private Statement<T> create_event_state_initialization() {
         // Get reference to the event state field
         InstanceField<T> event_state = col_system.get_event_state();
-        Ref<T, InstanceField<T>> state_ref = new DirectRef<>(event_state, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> state_ref = new DirectRef<>(event_state, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Construct the literal sequence it should be initialized as ([-3] * #events)
@@ -531,7 +528,7 @@ public class MainTransformer<T> {
     private Statement<T> create_primitive_channel_update_initialization() {
         // Get reference to the primitive channel update field
         InstanceField<T> prim_channel_update = col_system.get_primitive_channel_update();
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Construct the literal sequence it should be initialized as ([false] * #primitive channels)
@@ -557,7 +554,7 @@ public class MainTransformer<T> {
         java.util.List<Expr<T>> parameters = new java.util.ArrayList<>(java.util.List.of(col_system.THIS));
 
         // Get reference to field
-        Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Find out which type of field it is
@@ -623,11 +620,11 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_immediate_wakeup() {
         // Create references to the event and process state variables
-        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create general permission context
@@ -689,11 +686,11 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_reset_events_no_delta() {
         // Create references to the event and process state variables
-        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create general permission context
@@ -755,9 +752,10 @@ public class MainTransformer<T> {
         List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(vals)));
 
         // Create appropriate references to the parameter and the method result
-        Ref<T, Variable<T>> vals_ref = new DirectRef<>(vals, new GenericClassTag<>());
+        Ref<T, Variable<T>> vals_ref = new DirectRef<>(vals, ClassTag$.MODULE$.apply(Variable.class));
         Local<T> vals_local = new Local<>(vals_ref, OriGen.create());
-        Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(this::get_find_minimum_advance, Option.empty(), new GenericClassTag<>());
+        Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(this::get_find_minimum_advance, Option.empty(),
+                ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> result = new Result<>(this_method, OriGen.create());
 
         // Create precondition
@@ -822,11 +820,11 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_wakeup_after_wait() {
         // Create references to the event and process state variables
-        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create general permission context
@@ -891,11 +889,11 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_reset_all_events() {
         // Create references to the event and process state variables
-        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create general permission context
@@ -955,7 +953,8 @@ public class MainTransformer<T> {
      */
     private Expr<T> create_helper_context() {
         // Create reference to scheduler permissions
-        Ref<T, InstancePredicate<T>> scheduler_perms = new LazyRef<>(col_system::get_scheduler_perms, Option.empty(), new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> scheduler_perms = new LazyRef<>(col_system::get_scheduler_perms, Option.empty(),
+                ClassTag$.MODULE$.apply(InstancePredicate.class));
 
         // Create conditions of method context
         Held<T> held_this = new Held<>(col_system.THIS, OriGen.create());
@@ -1004,7 +1003,7 @@ public class MainTransformer<T> {
         java.util.List<Fork<T>> forks = new java.util.ArrayList<>();
         java.util.List<Join<T>> joins = new java.util.ArrayList<>();
         for (InstanceField<T> process : processes) {
-            Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(process, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(process, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> proc_deref = new Deref<>(col_system.THIS, proc_ref, new GeneratedBlame<>(), OriGen.create());
 
             forks.add(new Fork<>(proc_deref, new GeneratedBlame<>(), OriGen.create()));
@@ -1033,19 +1032,19 @@ public class MainTransformer<T> {
      */
     private Statement<T> create_scheduler_loop_body() {
         // Prepare sequence accesses
-        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Lock the global lock
         Lock<T> lock_this = new Lock<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create());
 
         // Call immediate_wakeup
-        Ref<T, InstanceMethod<T>> iw_ref = new DirectRef<>(immediate_wakeup, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> iw_ref = new DirectRef<>(immediate_wakeup, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_iw = new InvokeMethod<>(col_system.THIS, iw_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
                 col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
         // Call reset_events_no_delta
-        Ref<T, InstanceMethod<T>> rend_ref = new DirectRef<>(reset_events_no_delta, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> rend_ref = new DirectRef<>(reset_events_no_delta, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_rend = new InvokeMethod<>(col_system.THIS, rend_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
                 col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
@@ -1075,12 +1074,12 @@ public class MainTransformer<T> {
      */
     private Statement<T> create_scheduler_loop_if_body() {
         // Prepare sequence accesses
-        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create local variable min_advance
         Variable<T> min_advance = new Variable<>(col_system.T_INT, OriGen.create("min_advance"));
-        Local<T> ma_local = new Local<>(new DirectRef<>(min_advance, new GenericClassTag<>()), OriGen.create());
+        Local<T> ma_local = new Local<>(new DirectRef<>(min_advance, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
 
         // Perform the update phase
         Statement<T> update_phase = create_update_phase();
@@ -1089,7 +1088,7 @@ public class MainTransformer<T> {
         LocalDecl<T> declare_ma = new LocalDecl<>(min_advance, OriGen.create());
 
         // Assign to min_advance
-        Ref<T, InstanceMethod<T>> fma_ref = new DirectRef<>(find_minimum_advance, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> fma_ref = new DirectRef<>(find_minimum_advance, ClassTag$.MODULE$.apply(InstanceMethod.class));
         java.util.List<Expr<T>> params = java.util.List.of(event_state_deref);
         MethodInvocation<T> fma_invoke = new MethodInvocation<>(col_system.THIS, fma_ref, List.from(CollectionConverters.asScala(params)),
                 col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
@@ -1114,12 +1113,12 @@ public class MainTransformer<T> {
         Assign<T> advance_delays = new Assign<>(event_state_deref, reset_literal, new GeneratedBlame<>(), OriGen.create());
 
         // Call wakeup_after_wait
-        Ref<T, InstanceMethod<T>> waw_ref = new DirectRef<>(wakeup_after_wait, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> waw_ref = new DirectRef<>(wakeup_after_wait, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_waw = new InvokeMethod<>(col_system.THIS, waw_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
                 col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
         // Call reset_all_events
-        Ref<T, InstanceMethod<T>> rae_ref = new DirectRef<>(reset_all_events, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> rae_ref = new DirectRef<>(reset_all_events, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_rae = new InvokeMethod<>(col_system.THIS, rae_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
                 col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
 
@@ -1136,12 +1135,12 @@ public class MainTransformer<T> {
             if (sc_inst instanceof SCKnownType channel) {       // TODO: Also support user-defined primitive channels
                 // Get reference to the channel field
                 InstanceField<T> channel_field = col_system.get_primitive_channel(channel);
-                Ref<T, InstanceField<T>> channel_ref = new DirectRef<>(channel_field, new GenericClassTag<>());
+                Ref<T, InstanceField<T>> channel_ref = new DirectRef<>(channel_field, ClassTag$.MODULE$.apply(InstanceField.class));
                 Deref<T> channel_deref = new Deref<>(col_system.THIS, channel_ref, new GeneratedBlame<>(), OriGen.create());
 
                 // Get reference to the update method
                 InstanceMethod<T> update_method = col_system.get_primitive_instance_method(channel, Constants.PRIMITIVE_UPDATE_METHOD_INDEX);
-                Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(update_method, new GenericClassTag<>());
+                Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(update_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
 
                 // Add update function call to body
                 statements.add(new InvokeMethod<>(channel_deref, method_ref, col_system.NO_EXPRS, col_system.NO_EXPRS, col_system.NO_TYPES,
@@ -1167,13 +1166,13 @@ public class MainTransformer<T> {
         java.util.List<Expr<T>> conditions = new java.util.ArrayList<>();
         for (InstanceField<T> proc : processes) {
             // Create references to the field
-            Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(proc, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(proc, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> proc_deref = new Deref<>(col_system.THIS, proc_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> proc_loc = new FieldLocation<>(col_system.THIS, proc_ref, OriGen.create());
 
             // Find field's Main attribute
             InstanceField<T> m = col_system.get_class_main_ref(class_by_field.get(proc));
-            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> m_deref = new Deref<>(proc_deref, m_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> m_loc = new FieldLocation<>(proc_deref, m_ref, OriGen.create());
 
@@ -1229,7 +1228,7 @@ public class MainTransformer<T> {
         declarations.add(reset_all_events);
 
         // Create lock invariant for the Main class
-        Ref<T, InstancePredicate<T>> global_invariant_ref = new DirectRef<>(global_invariant, new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> global_invariant_ref = new DirectRef<>(global_invariant, ClassTag$.MODULE$.apply(InstancePredicate.class));
         Expr<T> lock_invariant = new InstancePredicateApply<>(col_system.THIS, global_invariant_ref, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create());
 

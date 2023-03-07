@@ -1,12 +1,9 @@
 package vct.parsers.transform.systemctocol.engine;
 
 import de.tub.pes.syscir.sc_model.SCVariable;
-import de.tub.pes.syscir.sc_model.expressions.ConstantExpression;
-import de.tub.pes.syscir.sc_model.expressions.Expression;
-import de.tub.pes.syscir.sc_model.expressions.SCVariableExpression;
 import de.tub.pes.syscir.sc_model.variables.SCArray;
 import scala.Option;
-import scala.math.BigInt;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ref.DirectRef;
 import vct.col.ref.LazyRef;
@@ -14,10 +11,7 @@ import vct.col.ref.Ref;
 import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
-import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
-import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -91,10 +85,10 @@ public class SpecificationTransformer<T> {
      */
     public ApplicableContract<T> create_constructor_contract(java.util.Map<SCVariable, InstanceField<T>> fields, Variable<T> m_param) {
         // Get references to m and m_param
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, m_ref, OriGen.create());
-        Local<T> m_param_local = new Local<>(new DirectRef<>(m_param, new GenericClassTag<>()), OriGen.create());
+        Local<T> m_param_local = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
 
         // Always return permission to m and that m is set by m_param
         java.util.List<Expr<T>> conds = new java.util.ArrayList<>();
@@ -108,7 +102,7 @@ public class SpecificationTransformer<T> {
             InstanceField<T> field = translation.getValue();
 
             // Get references to the field
-            Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> field_loc = new FieldLocation<>(col_system.THIS, field_ref, OriGen.create());
 
@@ -140,13 +134,13 @@ public class SpecificationTransformer<T> {
      */
     private Expr<T> create_basic_invariant(Expr<T> path_condition) {
         // Create references to m
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, m_ref, OriGen.create());
 
         // Create reference to this class's instance in the Main class
         Ref<T, InstanceField<T>> this_ref = new LazyRef<>(() -> col_system.get_instance_by_class(col_class), Option.empty(),
-                new GenericClassTag<>());
+                ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> this_deref = new Deref<>(m_deref, this_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create the individual conditions
@@ -154,7 +148,8 @@ public class SpecificationTransformer<T> {
         Neq<T> m_not_null = new Neq<>(m_deref, col_system.NULL, OriGen.create());
         Committed<T> m_committed = new Committed<>(m_deref, new GeneratedBlame<>(), OriGen.create());
         Held<T> m_held = new Held<>(m_deref, OriGen.create());
-        Ref<T, InstancePredicate<T>> global_inv_ref = new LazyRef<>(col_system::get_global_perms, Option.empty(), new GenericClassTag<>());
+        Ref<T, InstancePredicate<T>> global_inv_ref = new LazyRef<>(col_system::get_global_perms, Option.empty(),
+                ClassTag$.MODULE$.apply(InstancePredicate.class));
         InstancePredicateApply<T> global_inv = new InstancePredicateApply<>(m_deref, global_inv_ref,
                 col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
         Eq<T> this_this = new Eq<>(this_deref, col_system.THIS, OriGen.create());
@@ -172,13 +167,13 @@ public class SpecificationTransformer<T> {
      */
     private Expr<T> create_run_method_invariant() {
         // Create references to m
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, m_ref, OriGen.create());
 
         // Create references to this class's instance in the Main class
         Ref<T, InstanceField<T>> this_ref = new LazyRef<>(() -> col_system.get_instance_by_class(col_class), Option.empty(),
-                new GenericClassTag<>());
+                ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> this_deref = new Deref<>(m_deref, this_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> this_loc = new FieldLocation<>(m_deref, this_ref, OriGen.create());
 

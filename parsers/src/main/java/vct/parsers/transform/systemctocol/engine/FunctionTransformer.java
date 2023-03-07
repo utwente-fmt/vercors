@@ -9,6 +9,7 @@ import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import scala.Option;
 import scala.collection.immutable.List;
 import scala.jdk.javaapi.CollectionConverters;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ref.DirectRef;
 import vct.col.ref.Ref;
@@ -17,7 +18,6 @@ import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -120,7 +120,7 @@ public class FunctionTransformer<T> {
         SCFunction run_method = process.get_generating_function();
 
         // Get reference to m
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create body
@@ -168,9 +168,9 @@ public class FunctionTransformer<T> {
         java.util.List<Statement<T>> statements = new java.util.ArrayList<>();
 
         // Add m assignment to body
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
-        Local<T> m_param_local = new Local<>(new DirectRef<>(m_param, new GenericClassTag<>()), OriGen.create());
+        Local<T> m_param_local = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
         statements.add(new Assign<>(m_deref, m_param_local, new GeneratedBlame<>(), OriGen.create()));
 
         // If there is a constructor given, add its parameters and statements to the parameters and body as well

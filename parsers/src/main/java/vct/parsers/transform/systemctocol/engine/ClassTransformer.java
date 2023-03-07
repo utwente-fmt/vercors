@@ -5,6 +5,7 @@ import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import scala.Option;
 import scala.collection.immutable.List;
 import scala.jdk.javaapi.CollectionConverters;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ast.Class;
 import vct.col.ref.LazyRef;
@@ -13,7 +14,6 @@ import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.colmodel.StateClass;
-import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -42,7 +42,7 @@ public class ClassTransformer<T> {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Transform class attributes
-        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), new GenericClassTag<>());
+        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
         InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(process, m);
@@ -79,7 +79,7 @@ public class ClassTransformer<T> {
         java.util.List<ClassDeclaration<T>> declarations = new java.util.ArrayList<>();
 
         // Transform class attributes
-        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), new GenericClassTag<>());
+        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
         InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(state_class, m);

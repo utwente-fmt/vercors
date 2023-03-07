@@ -10,6 +10,7 @@ import scala.Tuple2;
 import scala.collection.immutable.List;
 import scala.jdk.javaapi.CollectionConverters;
 import scala.math.BigInt;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ref.DirectRef;
 import vct.col.ref.LazyRef;
@@ -21,7 +22,10 @@ import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
-import vct.parsers.transform.systemctocol.util.*;
+import vct.parsers.transform.systemctocol.util.Constants;
+import vct.parsers.transform.systemctocol.util.GeneratedBlame;
+import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Timing;
 
 /*
 This class is responsible for translating SystemC intermediate representation expressions to either COL statements, if
@@ -269,7 +273,7 @@ public class ExpressionTransformer<T> {
         // Signal calls cannot be translated directly, since their methods are not direct translations of the SystemC functions
         else if (expr.getRight() instanceof FunctionCallExpression fun_expr && expr.getLeft() instanceof SCPortSCSocketExpression sc_port
                 && SCPORTSCSOCKETTYPE.SC_SIGNAL_ALL.contains(sc_port.getSCPortSCSocket().getConType())) {
-            result = transform_signal_call_expression(sc_port, fun_expr, sc_inst, obj, null, "");
+            result = transform_signal_call_expression_to_statement(sc_port, fun_expr, sc_inst, obj, null, "");
         }
         else {
             SCClassInstance next_inst = sc_inst;
@@ -332,7 +336,7 @@ public class ExpressionTransformer<T> {
         else if (expr.getRight() instanceof AccessExpression acc_e && acc_e.getLeft() instanceof SCPortSCSocketExpression sc_port
                 && SCPORTSCSOCKETTYPE.SC_SIGNAL_ALL.contains(sc_port.getSCPortSCSocket().getConType())
                 && acc_e.getRight() instanceof FunctionCallExpression fun_expr) {
-            result = transform_signal_call_expression(sc_port, fun_expr, sc_inst, obj, assign_to, expr.getOp());
+            result = transform_signal_call_expression_to_statement(sc_port, fun_expr, sc_inst, obj, assign_to, expr.getOp());
         }
         // Otherwise simply transform the assign
         else {
@@ -425,9 +429,9 @@ public class ExpressionTransformer<T> {
                 }
 
                 // Create reference to event sequence
-                Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+                Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
                 Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
-                Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+                Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
                 Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
 
                 // Create sequence update
@@ -501,7 +505,8 @@ public class ExpressionTransformer<T> {
         Ref<T, InstanceMethod<T>> col_fun = switch (sc_fun.getName()) {
             case "rand", "rand_r", "random" -> create_random_function(col_system.T_INT);
             case "srand", "sc_module" -> null;
-            default -> new LazyRef<>(() -> col_system.get_instance_method(sc_fun, sc_inst, corr_proc), Option.empty(), new GenericClassTag<>());
+            default -> new LazyRef<>(() -> col_system.get_instance_method(sc_fun, sc_inst, corr_proc), Option.empty(),
+                    ClassTag$.MODULE$.apply(InstanceMethod.class));
         };
 
         // Ignore the srand function and the sc_module constructor call
@@ -521,12 +526,12 @@ public class ExpressionTransformer<T> {
         COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);        // Not null, since the state class is transformed first
         if (obj == col_system.THIS && !containing_class.equals(col_class)) {
             // Create m reference
-            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
             // Create reference to the instance of the class containing the variable
             Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
-                    Option.empty(), new GenericClassTag<>());
+                    Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
 
             result = new InvokeMethod<>(containing_deref, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
@@ -550,7 +555,7 @@ public class ExpressionTransformer<T> {
      */
     private Statement<T> transform_go_to_expression(GoToExpression expr) {
         String jump = expr.getJumpLabel();
-        Ref<T, LabelDecl<T>> label = new LazyRef<>(() -> col_system.get_label(jump), Option.empty(), new GenericClassTag<>());
+        Ref<T, LabelDecl<T>> label = new LazyRef<>(() -> col_system.get_label(jump), Option.empty(), ClassTag$.MODULE$.apply(LabelDecl.class));
         Goto<T> result = new Goto<>(label, OriGen.create(jump));
 
         // Handle label
@@ -790,11 +795,11 @@ public class ExpressionTransformer<T> {
         java.util.List<Statement<T>> statements = new java.util.ArrayList<>();
 
         // Process and event field refs
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
-        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
         Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
 
@@ -885,9 +890,9 @@ public class ExpressionTransformer<T> {
         java.util.List<Statement<T>> all_stmts = new java.util.ArrayList<>();
 
         // Process field reference
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Decode the fifo queue
@@ -895,19 +900,19 @@ public class ExpressionTransformer<T> {
         SCKnownType channel = col_system.get_primitive_port_connection(sc_inst, sc_port);
         Expr<T> fifo_queue = transform_sc_port_sc_socket_expression(fifo, sc_inst);
         InstanceField<T> fifo_buffer = col_system.get_primitive_instance_field(channel, Constants.FIFO_BUFFER);
-        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(fifo_buffer, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(fifo_buffer, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> buf_deref = new Deref<>(fifo_queue, buf_ref, new GeneratedBlame<>(), OriGen.create());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
         InstanceField<T> fifo_written = col_system.get_primitive_instance_field(channel, Constants.FIFO_WRITTEN);
-        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(fifo_written, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(fifo_written, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> written_deref = new Deref<>(fifo_queue, written_ref, new GeneratedBlame<>(), OriGen.create());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
         InstanceField<T> fifo_num_read = col_system.get_primitive_instance_field(channel, Constants.FIFO_NUM_READ);
-        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(fifo_num_read, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(fifo_num_read, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> read_deref = new Deref<>(fifo_queue, read_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Get a reference to the FIFO size parameter
-        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Decode the function call
@@ -929,7 +934,7 @@ public class ExpressionTransformer<T> {
             default -> throw new UnsupportedException("FIFO method " + fun.getFunction().getName() + " is not supported.", fun);
         }
         InstanceMethod<T> fifo_method = col_system.get_primitive_instance_method(channel, method_index);
-        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(fifo_method, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(fifo_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
 
         // Decode function call parameters
         java.util.List<Expr<T>> args = new java.util.ArrayList<>();
@@ -975,7 +980,6 @@ public class ExpressionTransformer<T> {
         return new Block<>(List.from(CollectionConverters.asScala(all_stmts)), OriGen.create());
     }
 
-    // TODO: Also support transformation of signal call to expression
     /**
      * Transforms a call to a signal channel function (either read or write). Appropriately transforms the method
      * invocation and, if <code>assign_to</code> is given, assigns its value to the given variable expression.
@@ -989,8 +993,8 @@ public class ExpressionTransformer<T> {
      * @return If <code>assign_to</code> is given, an assignment of the function call result to the given variable
      *         expression, else a lone function invocation of the given signal channel function
      */
-    private Statement<T> transform_signal_call_expression(SCPortSCSocketExpression signal, FunctionCallExpression fun, SCClassInstance sc_inst,
-                                                          Expr<T> obj, Expr<T> assign_to, String op) {
+    private Statement<T> transform_signal_call_expression_to_statement(SCPortSCSocketExpression signal, FunctionCallExpression fun,
+                                                                       SCClassInstance sc_inst, Expr<T> obj, Expr<T> assign_to, String op) {
 
         // Get signal instance
         SCPort sc_port = signal.getSCPortSCSocket();
@@ -1005,7 +1009,7 @@ public class ExpressionTransformer<T> {
             default -> throw new UnsupportedException("Signal method " + sc_fun.getName() + " is not supported!", fun);
         };
         InstanceMethod<T> signal_method = col_system.get_primitive_instance_method(channel, method_index);
-        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, new GenericClassTag<>());
+        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
 
         // Decode function call parameters
         java.util.List<Expr<T>> args = new java.util.ArrayList<>();
@@ -1064,11 +1068,11 @@ public class ExpressionTransformer<T> {
      */
     private Loop<T> create_wait_loop(IntegerValue<T> process_id, IntegerValue<T> event_id) {
         // Process and event field refs
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
-        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
+        Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
         Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
 
@@ -1114,7 +1118,7 @@ public class ExpressionTransformer<T> {
         newly_generated_methods.add(randomizer);
 
         // Return reference to the new method
-        return new DirectRef<>(randomizer, new GenericClassTag<>());
+        return new DirectRef<>(randomizer, ClassTag$.MODULE$.apply(InstanceMethod.class));
     }
 
     /**
@@ -1289,7 +1293,8 @@ public class ExpressionTransformer<T> {
      */
     private Expr<T> transform_array_access_expression(ArrayAccessExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
         SCVariable array = expr.getVar();
-        Ref<T, InstanceField<T>> var_ref = new LazyRef<>(() -> col_system.get_instance_field(sc_inst, array), Option.empty(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> var_ref = new LazyRef<>(() -> col_system.get_instance_field(sc_inst, array), Option.empty(),
+                ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> var_deref = new Deref<>(col_system.THIS, var_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Get index    TODO: What about multidimensional arrays?
@@ -1317,8 +1322,32 @@ public class ExpressionTransformer<T> {
             throw new UnsupportedException("FIFO calls in binary expressions are not allowed!", expr);
         }
 
-        Expr<T> left = create_expression(expr.getLeft(), sc_inst, obj);
-        Expr<T> right = create_expression(expr.getRight(), sc_inst, obj);
+        // Get left side of binary expression
+        Expr<T> left;
+        // Channel expression (only signal allowed) needs to be handled separately
+        if (expr.getLeft() instanceof AccessExpression acc_l && acc_l.getLeft() instanceof SCPortSCSocketExpression sc_port_l
+                && acc_l.getRight() instanceof FunctionCallExpression fun
+                && SCPORTSCSOCKETTYPE.SC_FIFO_ALL.contains(sc_port_l.getSCPortSCSocket().getConType())) {
+            left = transform_signal_call_expression_to_expression(sc_port_l, fun, sc_inst);
+        }
+        // Otherwise recursively decode expression
+        else {
+            left = create_expression(expr.getLeft(), sc_inst, obj);
+        }
+
+        // Get right side of binary expression
+        Expr<T> right;
+        // Channel expression (only signal allowed) needs to be handled separately
+        if (expr.getRight() instanceof AccessExpression acc_r && acc_r.getLeft() instanceof SCPortSCSocketExpression sc_port_r
+                && acc_r.getRight() instanceof FunctionCallExpression fun
+                && SCPORTSCSOCKETTYPE.SC_FIFO_ALL.contains(sc_port_r.getSCPortSCSocket().getConType())) {
+            right = transform_signal_call_expression_to_expression(sc_port_r, fun, sc_inst);
+        }
+        // Otherwise recursively decode expression
+        else {
+            right = create_expression(expr.getRight(), sc_inst, obj);
+        }
+
         if (left == null || right == null) throw new ExpressionParseException("Cannot convert binary expression operands in " + expr, expr);
 
         // TODO: Are any binary operators missing?
@@ -1411,7 +1440,8 @@ public class ExpressionTransformer<T> {
         Ref<T, InstanceMethod<T>> col_fun = switch (sc_fun.getName()) {
             case "rand", "rand_r", "random" -> create_random_function(col_system.T_INT);
             case "srand", "sc_module" -> null;
-            default -> new LazyRef<>(() -> col_system.get_instance_method(sc_fun, sc_inst, corr_proc), Option.empty(), new GenericClassTag<>());
+            default -> new LazyRef<>(() -> col_system.get_instance_method(sc_fun, sc_inst, corr_proc), Option.empty(),
+                    ClassTag$.MODULE$.apply(InstanceMethod.class));
         };
 
         // Ignore the srand function and the sc_module constructor call
@@ -1485,7 +1515,7 @@ public class ExpressionTransformer<T> {
      */
     private Expr<T> transform_sc_port_sc_socket_expression(SCPortSCSocketExpression expr, SCClassInstance sc_inst) {
         // Main reference field
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Decode the port/socket expression
@@ -1496,11 +1526,11 @@ public class ExpressionTransformer<T> {
         // Find the corresponding field in the Main class
         Ref<T, InstanceField<T>> channel_ref;
         if (prim_channel != null) {
-            channel_ref = new DirectRef<>(col_system.get_primitive_channel(prim_channel), new GenericClassTag<>());
+            channel_ref = new DirectRef<>(col_system.get_primitive_channel(prim_channel), ClassTag$.MODULE$.apply(InstanceField.class));
         }
         else if (hier_channel != null) {
             channel_ref = new LazyRef<>(() -> col_system.get_instance_by_class(col_system.get_state_class(hier_channel)), Option.empty(),
-                    new GenericClassTag<>());
+                    ClassTag$.MODULE$.apply(InstanceField.class));
         }
         else throw new SystemCFormatException("SCPortSCSocketExpression " + expr + " does not have any connected channel!");
 
@@ -1523,34 +1553,34 @@ public class ExpressionTransformer<T> {
         // If the variable is local, return the local COL equivalent
         if (local_variables.containsKey(sc_var)) {
             Variable<T> var = local_variables.get(sc_var);
-            return new Local<>(new DirectRef<>(var, new GenericClassTag<>()), var.o());
+            return new Local<>(new DirectRef<>(var, ClassTag$.MODULE$.apply(Variable.class)), var.o());
         }
 
         // If the variable is a parameter, return a reference of the Main class field
         if (col_system.is_parameter(sc_var)) {
-            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
             InstanceField<T> param = col_system.get_parameter(sc_var);
-            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, ClassTag$.MODULE$.apply(InstanceField.class));
             return new Deref<>(m_deref, param_ref, new GeneratedBlame<>(), OriGen.create());
         }
 
         // Else find it in the global system
         VariableTransformer<T> variable_transformer = new VariableTransformer<>(sc_inst, col_system);
         InstanceField<T> var_field = variable_transformer.transform_variable_to_instance_field(sc_var);
-        Ref<T, InstanceField<T>> var_ref = new DirectRef<>(var_field, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> var_ref = new DirectRef<>(var_field, ClassTag$.MODULE$.apply(InstanceField.class));
 
         // If the variable is an attribute of this class, but not of the corresponding COL class, access it through the containing instance
         // This works because the containing class can only be the state class or this one
         COLClass containing_class = col_system.get_containing_class(var_field);
         if (obj == col_system.THIS && !containing_class.equals(col_class)) {
             // Create m reference
-            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
 
             // Create reference to the instance of the class containing the variable
             Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
-                    Option.empty(), new GenericClassTag<>());
+                    Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
 
             // Return the complete path to the variable
@@ -1608,6 +1638,37 @@ public class ExpressionTransformer<T> {
         else return new PostAssignExpression<>(original, incr_decr, new GeneratedBlame<>(), OriGen.create());
     }
 
+    /**
+     * Transforms a signal read function call to an expression that can be used, for instance, in a binary expression.
+     *
+     * @param signal Expression representing the signal channel
+     * @param fun Expression representing the function call to the signal channel
+     * @param sc_inst The SystemC class instance these expressions refer to
+     * @return Method invocation expression of the signal channel
+     */
+    private Expr<T> transform_signal_call_expression_to_expression(SCPortSCSocketExpression signal, FunctionCallExpression fun,
+                                                                   SCClassInstance sc_inst) {
+
+        // Get signal instance
+        SCPort sc_port = signal.getSCPortSCSocket();
+        SCKnownType channel = col_system.get_primitive_port_connection(sc_inst, sc_port);
+        Expr<T> sc_signal = transform_sc_port_sc_socket_expression(signal, sc_inst);
+
+        // Get method
+        if (!fun.getFunction().getName().equals("read")) {
+            throw new UnsupportedException("Only read method calls are supported for signal channels in expressions.", fun);
+        }
+        InstanceMethod<T> signal_method = col_system.get_primitive_instance_method(channel, Constants.SIGNAL_READ_METHOD);
+        Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
+
+        // The signal read method has no parameters
+        java.util.List<Expr<T>> args = java.util.List.of();
+
+        // Return the method invocation
+        return new MethodInvocation<>(sc_signal, method_ref, List.from(CollectionConverters.asScala(args)), col_system.NO_EXPRS,
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+    }
+
     // ============================================================================================================== //
     // ============================================================================================================== //
     // ============================================================================================================== //
@@ -1624,8 +1685,8 @@ public class ExpressionTransformer<T> {
     /**
      * Returns a boolean indicating whether the method containing the transformed expressions could be pure or not.
      *
-     * @return <code>false</code> if any expression transformed could have side effects outside of the containing
-     *         method, and <code>true</code> otherwise
+     * @return <code>false</code> if any expression transformed could have side effects outside the containing method,
+     *         and <code>true</code> otherwise
      */
     public boolean is_pure() {
         return pure;

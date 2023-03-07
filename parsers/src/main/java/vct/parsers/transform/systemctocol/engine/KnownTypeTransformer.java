@@ -7,6 +7,7 @@ import scala.collection.immutable.List;
 import scala.collection.immutable.Seq;
 import scala.jdk.javaapi.CollectionConverters;
 import scala.math.BigInt;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ast.Class;
 import vct.col.origin.Origin;
@@ -17,7 +18,6 @@ import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -90,7 +90,7 @@ public class KnownTypeTransformer<T> {
         col_system.add_global_declaration(cls);
 
         // Add channel field to COL system
-        Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, new GenericClassTag<>());
+        Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
         col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS, OriGen.create()));
     }
 
@@ -116,7 +116,7 @@ public class KnownTypeTransformer<T> {
      */
     private Class<T> transform_fifo(Origin o, Type<T> t) {
         // Class fields
-        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), new GenericClassTag<>());
+        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
         InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         InstanceField<T> buf = new InstanceField<>(new TSeq<>(t, OriGen.create()), col_system.NO_FLAGS, OriGen.create("buffer"));
         InstanceField<T> nr_read = new InstanceField<>(col_system.T_INT, col_system.NO_FLAGS, OriGen.create("num_read"));
@@ -157,34 +157,35 @@ public class KnownTypeTransformer<T> {
     private InstancePredicate<T> create_fifo_permission_invariant(InstanceField<T> m, InstanceField<T> buf, InstanceField<T> nr_read,
                                                                   InstanceField<T> written) {
         // Create references to FIFO object
-        Ref<T, InstanceField<T>> fifo_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> fifo_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(),
+                ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> fifo_loc = new FieldLocation<>(col_system.THIS, fifo_ref, OriGen.create());
 
         // Create references to m attribute
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(fifo_deref, m_ref, new GeneratedBlame<>(), m.o());
         FieldLocation<T> m_loc = new FieldLocation<>(fifo_deref, m_ref, m.o());
 
         // Create references to buffer attribute
-        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> buf_deref = new Deref<>(fifo_deref, buf_ref, new GeneratedBlame<>(), buf.o());
         FieldLocation<T> buf_loc = new FieldLocation<>(fifo_deref, buf_ref, buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
 
         // Create references to num_read attribute
-        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> read_deref = new Deref<>(fifo_deref, read_ref, new GeneratedBlame<>(), nr_read.o());
         FieldLocation<T> read_loc = new FieldLocation<>(fifo_deref, read_ref, nr_read.o());
 
         // Create references to written attribute
-        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> written_deref = new Deref<>(fifo_deref, written_ref, new GeneratedBlame<>(), written.o());
         FieldLocation<T> written_loc = new FieldLocation<>(fifo_deref, written_ref, written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
 
         // Create references to size parameter
-        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> fifo_size_deref = new Deref<>(col_system.THIS, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create permissions for invariant
@@ -227,28 +228,32 @@ public class KnownTypeTransformer<T> {
         List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(m_param)));
 
         // Constructor body
-        Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), new GeneratedBlame<>(), m.o());
-        Local<T> local_m_param = new Local<>(new DirectRef<>(m_param, new GenericClassTag<>()), m_param.o());
+        Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)),
+                new GeneratedBlame<>(), m.o());
+        Local<T> local_m_param = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), m_param.o());
         Assign<T> m_assign = new Assign<>(local_m, local_m_param, new GeneratedBlame<>(), OriGen.create());
 
-        Deref<T> local_buf = new Deref<>(col_system.THIS, new DirectRef<>(buf, new GenericClassTag<>()), new GeneratedBlame<>(), buf.o());
+        Deref<T> local_buf = new Deref<>(col_system.THIS, new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class)),
+                new GeneratedBlame<>(), buf.o());
         LiteralSeq<T> empty_seq = new LiteralSeq<>(t, col_system.NO_EXPRS, OriGen.create());
         Assign<T> buf_assign = new Assign<>(local_buf, empty_seq, new GeneratedBlame<>(), OriGen.create());
 
-        Deref<T> local_read = new Deref<>(col_system.THIS, new DirectRef<>(nr_read, new GenericClassTag<>()), new GeneratedBlame<>(), nr_read.o());
+        Deref<T> local_read = new Deref<>(col_system.THIS, new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class)),
+                new GeneratedBlame<>(), nr_read.o());
         Assign<T> read_assign = new Assign<>(local_read, col_system.ZERO, new GeneratedBlame<>(), OriGen.create());
 
-        Deref<T> local_written = new Deref<>(col_system.THIS, new DirectRef<>(written, new GenericClassTag<>()), new GeneratedBlame<>(), written.o());
+        Deref<T> local_written = new Deref<>(col_system.THIS, new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class)),
+                new GeneratedBlame<>(), written.o());
         Assign<T> written_assign = new Assign<>(local_written, empty_seq, new GeneratedBlame<>(), OriGen.create());
 
         java.util.List<Statement<T>> assignments = java.util.List.of(m_assign, buf_assign, read_assign, written_assign);
         Statement<T> body = new Block<>(List.from(CollectionConverters.asScala(assignments)), OriGen.create());
 
         // Constructor contract
-        FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), m.o());
-        FieldLocation<T> buf_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(buf, new GenericClassTag<>()), buf.o());
-        FieldLocation<T> read_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(nr_read, new GenericClassTag<>()), nr_read.o());
-        FieldLocation<T> written_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(written, new GenericClassTag<>()), written.o());
+        FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), m.o());
+        FieldLocation<T> buf_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class)), buf.o());
+        FieldLocation<T> read_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class)), nr_read.o());
+        FieldLocation<T> written_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class)), written.o());
 
         Perm<T> perm_m = new Perm<>(m_loc, new ReadPerm<>(OriGen.create()), OriGen.create());
         Perm<T> perm_buf = new Perm<>(buf_loc, new WritePerm<>(OriGen.create()), OriGen.create());
@@ -282,18 +287,18 @@ public class KnownTypeTransformer<T> {
         Expr<T> perms = create_general_contract(m, false);
 
         // Get field references
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
-        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, new GeneratedBlame<>(), buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
-        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, new GeneratedBlame<>(), nr_read.o());
-        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
 
         // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create precondition
@@ -305,8 +310,8 @@ public class KnownTypeTransformer<T> {
         Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Return value
-        Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD), Option.empty(),
-                new GenericClassTag<>());
+        Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
+                Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> ret = new Result<>(ref, OriGen.create());
         SeqSubscript<T> access = new SeqSubscript<>(buf_deref, read_deref, new GeneratedBlame<>(), OriGen.create());
         Eq<T> result = new Eq<>(ret, new Old<>(access, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
@@ -352,23 +357,23 @@ public class KnownTypeTransformer<T> {
         List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(new_val)));
 
         // Get field references
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
-        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, new GeneratedBlame<>(), buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
-        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, new GeneratedBlame<>(), nr_read.o());
-        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
 
         // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Get parameter references
-        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create precondition
@@ -381,7 +386,7 @@ public class KnownTypeTransformer<T> {
         Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Update to written
-        Ref<T, Variable<T>> ref_to_new_val = new DirectRef<>(new_val, new GenericClassTag<>());
+        Ref<T, Variable<T>> ref_to_new_val = new DirectRef<>(new_val, ClassTag$.MODULE$.apply(Variable.class));
         Seq<Expr<T>> literal_vals = List.from(CollectionConverters.asScala(java.util.List.of(new Local<>(ref_to_new_val, new_val.o()))));
         LiteralSeq<T> new_vals = new LiteralSeq<>(t, literal_vals, OriGen.create());
         Concat<T> concat = new Concat<>(written_deref, new_vals, OriGen.create());
@@ -417,25 +422,25 @@ public class KnownTypeTransformer<T> {
         Expr<T> perms = create_general_contract(m, true);
 
         // Get field references
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
-        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, new GeneratedBlame<>(), buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
-        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, new GeneratedBlame<>(), nr_read.o());
         Old<T> old_read = new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
         Old<T> old_wr_size = new Old<>(written_size, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
         // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, new GeneratedBlame<>(), OriGen.create());
         Size<T> ev_size = new Size<>(ev_deref, OriGen.create());
 
@@ -516,7 +521,7 @@ public class KnownTypeTransformer<T> {
      */
     private Class<T> transform_signal(Origin o, Type<T> t) {
         // Class fields
-        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), new GenericClassTag<>());
+        Ref<T, Class<T>> main_cls_ref = new LazyRef<>(col_system::get_main, Option.empty(), ClassTag$.MODULE$.apply(Class.class));
         InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         InstanceField<T> val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("val"));
         InstanceField<T> _val = new InstanceField<>(t, col_system.NO_FLAGS, OriGen.create("_val"));
@@ -551,19 +556,20 @@ public class KnownTypeTransformer<T> {
      */
     private InstancePredicate<T> create_signal_permission_invariant(InstanceField<T> m, InstanceField<T> val, InstanceField<T> _val) {
         // Create references to signal
-        Ref<T, InstanceField<T>> signal_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> signal_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(),
+                ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> signal_deref = new Deref<>(col_system.THIS, signal_ref, new GeneratedBlame<>(), OriGen.create());
         FieldLocation<T> signal_loc = new FieldLocation<>(col_system.THIS, signal_ref, OriGen.create());
 
         // Create references to m
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(signal_deref, m_ref, new GeneratedBlame<>(), m.o());
         FieldLocation<T> m_loc = new FieldLocation<>(signal_deref, m_ref, m.o());
 
         // Create references to val and val_
-        Ref<T, InstanceField<T>> val_ref = new DirectRef<>(val, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> val_ref = new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class));
         FieldLocation<T> val_loc = new FieldLocation<>(signal_deref, val_ref, OriGen.create());
-        Ref<T, InstanceField<T>> _val_ref = new DirectRef<>(_val, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> _val_ref = new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class));
         FieldLocation<T> _val_loc = new FieldLocation<>(signal_deref, _val_ref, OriGen.create());
 
         // Create permissions for invariant
@@ -597,16 +603,16 @@ public class KnownTypeTransformer<T> {
         List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(m_param)));
 
         // Constructor body
-        Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), new GeneratedBlame<>(), m.o());
-        Local<T> local_m_param = new Local<>(new DirectRef<>(m_param, new GenericClassTag<>()), m_param.o());
+        Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
+        Local<T> local_m_param = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), m_param.o());
         Assign<T> m_assign = new Assign<>(local_m, local_m_param, new GeneratedBlame<>(), OriGen.create());
 
         Statement<T> body = new Block<>(List.from(CollectionConverters.asScala(java.util.List.of(m_assign))), OriGen.create());
 
         // Constructor contract
-        FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), m.o());
-        FieldLocation<T> val_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(val, new GenericClassTag<>()), val.o());
-        FieldLocation<T> _val_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(_val, new GenericClassTag<>()), _val.o());
+        FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), m.o());
+        FieldLocation<T> val_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), val.o());
+        FieldLocation<T> _val_loc = new FieldLocation<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), _val.o());
 
         Perm<T> perm_m = new Perm<>(m_loc, new ReadPerm<>(OriGen.create()), OriGen.create());
         Perm<T> perm_val = new Perm<>(val_loc, new WritePerm<>(OriGen.create()), OriGen.create());
@@ -636,10 +642,10 @@ public class KnownTypeTransformer<T> {
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
 
         // Get references to relevant fields
-        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), new GeneratedBlame<>(), m.o());
-        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, new GenericClassTag<>()), new GeneratedBlame<>(), val.o());
-        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, new GenericClassTag<>()), new GeneratedBlame<>(), _val.o());
-        Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
+        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
+        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
+        Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, new GeneratedBlame<>(), col_system.get_process_state().o());
 
         // Unchanged variables
@@ -648,8 +654,8 @@ public class KnownTypeTransformer<T> {
         Eq<T> _val_is_old = new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Method return value
-        Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD), Option.empty(),
-                new GenericClassTag<>());
+        Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
+                Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> ret = new Result<>(ref, OriGen.create());
         Eq<T> result = new Eq<>(ret, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
@@ -684,14 +690,14 @@ public class KnownTypeTransformer<T> {
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
 
         // Get references to relevant fields
-        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), new GeneratedBlame<>(), m.o());
-        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, new GenericClassTag<>()), new GeneratedBlame<>(), val.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
+        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
         Old<T> old_val = new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, new GenericClassTag<>()), new GeneratedBlame<>(), _val.o());
-        Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
+        Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, new GeneratedBlame<>(), col_system.get_process_state().o());
         Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Local<T> new_val_local = new Local<>(new DirectRef<>(new_val, new GenericClassTag<>()), new_val.o());
+        Local<T> new_val_local = new Local<>(new DirectRef<>(new_val, ClassTag$.MODULE$.apply(Variable.class)), new_val.o());
 
         // Unchanged variables
         Eq<T> val_is_old = new Eq<>(val_deref, old_val, OriGen.create());
@@ -733,20 +739,20 @@ public class KnownTypeTransformer<T> {
         Expr<T> perms = create_general_contract(m, true);
 
         // Get field references
-        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, new GenericClassTag<>()), new GeneratedBlame<>(), m.o());
-        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, new GenericClassTag<>()), new GeneratedBlame<>(), val.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
+        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
         Old<T> old_val = new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, new GenericClassTag<>()), new GeneratedBlame<>(), _val.o());
+        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
         Old<T> old__val = new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
         // Get scheduling variable references
-        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
         Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
         Old<T> old_proc = new Old<>(proc_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, new GeneratedBlame<>(), OriGen.create());
         Old<T> old_ev = new Old<>(ev_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
 
@@ -804,10 +810,11 @@ public class KnownTypeTransformer<T> {
      */
     private Expr<T> create_general_contract(InstanceField<T> m, boolean include_scheduler_permissions) {
         // Create references
-        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, new GenericClassTag<>());
+        Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
         FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, m_ref, m.o());
-        Ref<T, InstanceField<T>> self_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(), new GenericClassTag<>());
+        Ref<T, InstanceField<T>> self_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(),
+                ClassTag$.MODULE$.apply(InstanceField.class));
         Deref<T> self_deref = new Deref<>(m_deref, self_ref, new GeneratedBlame<>(), OriGen.create());
 
         // Create individual contract conditions
@@ -818,17 +825,23 @@ public class KnownTypeTransformer<T> {
 
         // Get permission predicates
         Ref<T, InstancePredicate<T>> perm_inv;
-        if (include_scheduler_permissions) perm_inv = new LazyRef<>(col_system::get_scheduler_perms, Option.empty(), new GenericClassTag<>());
-        else perm_inv = new LazyRef<>(col_system::get_update_perms, Option.empty(), new GenericClassTag<>());
-        Ref<T, InstancePredicate<T>> param_inv = new LazyRef<>(col_system::get_parameter_perms, Option.empty(), new GenericClassTag<>());
+        if (include_scheduler_permissions) {
+            perm_inv = new LazyRef<>(col_system::get_scheduler_perms, Option.empty(), ClassTag$.MODULE$.apply(InstancePredicate.class));
+        }
+        else {
+            perm_inv = new LazyRef<>(col_system::get_update_perms, Option.empty(), ClassTag$.MODULE$.apply(InstancePredicate.class));
+        }
+        Ref<T, InstancePredicate<T>> param_inv = new LazyRef<>(col_system::get_parameter_perms, Option.empty(),
+                ClassTag$.MODULE$.apply(InstancePredicate.class));
 
         // Apply predicates
         InstancePredicateApply<T> scheduler_perms = new InstancePredicateApply<>(m_deref, perm_inv, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create());
         InstancePredicateApply<T> parameter_perms = new InstancePredicateApply<>(m_deref, param_inv, col_system.NO_EXPRS,
                 new WritePerm<>(OriGen.create()), OriGen.create());
-        InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, new DirectRef<>(col_system.get_prim_channel_inv(sc_inst), new GenericClassTag<>()),
-                col_system.NO_EXPRS, new WritePerm<>(OriGen.create()), OriGen.create());
+        Ref<T, InstancePredicate<T>> channel_inv = new DirectRef<>(col_system.get_prim_channel_inv(sc_inst), ClassTag$.MODULE$.apply(InstancePredicate.class));
+        InstancePredicateApply<T> channel_perms = new InstancePredicateApply<>(m_deref, channel_inv, col_system.NO_EXPRS,
+                new WritePerm<>(OriGen.create()), OriGen.create());
 
         // Connect the individual conditions with stars and return
         return col_system.fold_star(java.util.List.of(perm_m, m_not_null, held_m, scheduler_perms, parameter_perms, channel_perms, this_is_self));

@@ -19,6 +19,7 @@ import scala.collection.immutable.Seq;
 import scala.collection.immutable.Set;
 import scala.jdk.javaapi.CollectionConverters;
 import scala.math.BigInt;
+import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ast.Class;
 import vct.col.ast.Void;
@@ -29,7 +30,6 @@ import vct.parsers.ParseResult;
 import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
-import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 import java.util.stream.Collectors;
@@ -232,7 +232,7 @@ public class COLSystem<T> {
         else if (size_expr instanceof SCVariableExpression var_expr && is_parameter(var_expr.getVar())) {
             // Get parameter field
             InstanceField<T> param = get_parameter(var_expr.getVar());
-            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, new GenericClassTag<>());
+            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> param_deref = new Deref<>(m_deref, param_ref, new GeneratedBlame<>(), OriGen.create());
 
             // Add specification
@@ -726,7 +726,7 @@ public class COLSystem<T> {
     }
 
     /**
-     * Gets all processes that were generated for the given SystemC class instsance.
+     * Gets all processes that were generated for the given SystemC class instance.
      *
      * @param sc_inst SystemC class instance
      * @return A list of processes encoding the threads of <code>sc_inst</code>
