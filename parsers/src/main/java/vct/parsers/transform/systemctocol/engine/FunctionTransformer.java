@@ -152,11 +152,11 @@ public class FunctionTransformer<T> {
      * simply sets the Main reference and returns permission to all attributes if the given constructor is null.
      *
      * @param col_class Class (optionally) containing the constructor to be transformed
-     * @param fields Fields of the class that should be initialized by the constructor
+     * @param fields A map from SystemC variables to fields of the class that should be initialized by the constructor
      * @return A COL constructor that returns permission to all class attributes and implements the given constructor's
-     *         semantics, if applicable
+     *         semantics, if available
      */
-    public PVLConstructor<T> transform_constructor(COLClass col_class, java.util.List<InstanceField<T>> fields) {
+    public PVLConstructor<T> transform_constructor(COLClass col_class, java.util.Map<SCVariable, InstanceField<T>> fields) {
         // Create parameters
         java.util.List<Variable<T>> parameters = new java.util.ArrayList<>();
 
@@ -202,11 +202,11 @@ public class FunctionTransformer<T> {
     /**
      * Creates the specifications for a constructor.
      *
-     * @param fields A list of the class's fields that the constructor should return permission to
+     * @param fields A map from SystemC variables to the class's fields that the constructor should return permission to
      * @param m_param Constructor parameter for the Main field
      * @return A contract for the constructor
      */
-    private ApplicableContract<T> generate_constructor_specifications(java.util.List<InstanceField<T>> fields, Variable<T> m_param) {
+    private ApplicableContract<T> generate_constructor_specifications(java.util.Map<SCVariable, InstanceField<T>> fields, Variable<T> m_param) {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         return specification_transformer.create_constructor_contract(fields, m_param);
     }

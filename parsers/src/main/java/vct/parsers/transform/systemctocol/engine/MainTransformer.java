@@ -1,8 +1,12 @@
 package vct.parsers.transform.systemctocol.engine;
 
 import de.tub.pes.syscir.sc_model.SCSystem;
+import de.tub.pes.syscir.sc_model.SCVariable;
+import de.tub.pes.syscir.sc_model.expressions.ConstantExpression;
 import de.tub.pes.syscir.sc_model.expressions.Expression;
 import de.tub.pes.syscir.sc_model.expressions.SCVariableDeclarationExpression;
+import de.tub.pes.syscir.sc_model.expressions.SCVariableExpression;
+import de.tub.pes.syscir.sc_model.variables.SCArray;
 import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import de.tub.pes.syscir.sc_model.variables.SCKnownType;
 import scala.Option;
@@ -20,6 +24,8 @@ import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.colmodel.StateClass;
+import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
+import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.GenericClassTag;
@@ -410,14 +416,28 @@ public class MainTransformer<T> {
         conditions.add(new Neq<>(field_deref, col_system.NULL, OriGen.create()));
 
         // Add permissions to each field of the field instance
-        for (InstanceField<T> f_field : col_system.get_class_instance_fields(class_by_field.get(field))) {
+        java.util.Map<SCVariable, InstanceField<T>> field_fields = col_system.get_class_instance_fields(class_by_field.get(field));
+        for (java.util.Map.Entry<SCVariable, InstanceField<T>> field_entry : field_fields.entrySet()) {
+            // Unpack entry
+            SCVariable sc_var = field_entry.getKey();
+            InstanceField<T> f_field = field_entry.getValue();
+
+            // Get references to the field
             Ref<T, InstanceField<T>> f_field_ref = new DirectRef<>(f_field, new GenericClassTag<>());
+            Deref<T> f_field_deref = new Deref<>(field_deref, f_field_ref, new GeneratedBlame<>(), OriGen.create());
             FieldLocation<T> f_field_loc = new FieldLocation<>(field_deref, f_field_ref, OriGen.create());
 
-            conditions.add(new Perm<>(f_field_loc, new WritePerm<>(OriGen.create()), OriGen.create()));
+            // If the variable is an array, try to return array specifications. Also, only include read permission in
+            // the invariant for the array field itself
+            if (sc_var instanceof SCArray sc_arr) {
+                conditions.add(new Perm<>(f_field_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
+                conditions.addAll(col_system.get_array_specifications(sc_arr, f_field_deref, col_system.THIS));
+            }
+            // For all other fields, include write permission
+            else {
+                conditions.add(new Perm<>(f_field_loc, new WritePerm<>(OriGen.create()), OriGen.create()));
+            }
         }
-
-        // TODO: Add valid-array specifications for arrays that are initialized
 
         // Connect all individual conditions with the star operator
         return col_system.fold_star(conditions);

@@ -46,13 +46,13 @@ public class ClassTransformer<T> {
         InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(process, m);
-        java.util.List<InstanceField<T>> fields = create_fields(process.get_generating_function(), process.get_methods(),
+        java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(process.get_generating_function(), process.get_methods(),
                 process.get_attributes(), process.get_generating_instance());
-        declarations.addAll(fields);
+        declarations.addAll(fields.values());
 
         // Register class attributes in COL system
         col_system.set_class_instance_fields(process, fields);
-        for (InstanceField<T> field : fields) {
+        for (InstanceField<T> field : fields.values()) {
             col_system.add_containing_class(field, process);
         }
 
@@ -83,13 +83,13 @@ public class ClassTransformer<T> {
         InstanceField<T> m = new InstanceField<>(new TClass<>(main_cls_ref, OriGen.create()), col_system.NO_FLAGS, OriGen.create("m"));
         declarations.add(m);
         col_system.add_class_main_ref(state_class, m);
-        java.util.List<InstanceField<T>> fields = create_fields(null, state_class.get_methods(), state_class.get_attributes(),
-                state_class.get_generating_instance());
-        declarations.addAll(fields);
+        java.util.Map<SCVariable, InstanceField<T>> fields = create_fields(null, state_class.get_methods(),
+                state_class.get_attributes(), state_class.get_generating_instance());
+        declarations.addAll(fields.values());
 
         // Register class attributes in COL system
         col_system.set_class_instance_fields(state_class, fields);
-        for (InstanceField<T> field : fields) {
+        for (InstanceField<T> field : fields.values()) {
             col_system.add_containing_class(field, state_class);
         }
 
@@ -125,26 +125,26 @@ public class ClassTransformer<T> {
      * @param methods Other methods the SystemC class contains
      * @param attributes Attributes of the SystemC class
      * @param sc_inst Generating SystemC class instance
-     * @return A list of all local and class-level variables in the SystemC system, converted to COL
+     * @return A map from SystemC variables to their translations as fields in COL
      */
-    private java.util.List<InstanceField<T>> create_fields(SCFunction run_method, java.util.List<SCFunction> methods,
-                                                           java.util.List<SCVariable> attributes, SCClassInstance sc_inst) {
-        java.util.List<InstanceField<T>> result = new java.util.ArrayList<>();
+    private java.util.Map<SCVariable, InstanceField<T>> create_fields(SCFunction run_method, java.util.List<SCFunction> methods,
+                                                                      java.util.List<SCVariable> attributes, SCClassInstance sc_inst) {
+        java.util.Map<SCVariable, InstanceField<T>> result = new java.util.HashMap<>();
 
         // Create new VariableTransformer
         VariableTransformer<T> variable_transformer = new VariableTransformer<>(sc_inst, col_system);
 
         // Transform attribute variables
         for (SCVariable attribute : attributes) {
-            result.add(variable_transformer.transform_variable_to_instance_field(attribute));
+            result.put(attribute, variable_transformer.transform_variable_to_instance_field(attribute));
         }
 
         // Transform run method local variables
         if (run_method != null) {
             for (SCVariable local_var : run_method.getLocalVariables()) {
                 InstanceField<T> field = variable_transformer.transform_variable_to_instance_field(local_var, run_method.getName());
-                if (!result.contains(field)) {
-                    result.add(field);
+                if (!result.containsKey(local_var)) {
+                    result.put(local_var, field);
                 }
             }
         }
@@ -153,8 +153,8 @@ public class ClassTransformer<T> {
         for (SCFunction method : methods) {
             for (SCVariable local_var : method.getLocalVariables()) {
                 InstanceField<T> field = variable_transformer.transform_variable_to_instance_field(local_var, method.getName());
-                if (!result.contains(field)) {
-                    result.add(field);
+                if (!result.containsKey(local_var)) {
+                    result.put(local_var, field);
                 }
             }
         }
@@ -168,10 +168,10 @@ public class ClassTransformer<T> {
      *
      * @param col_class Class containing the constructor
      * @param m Main reference field of the transformed class
-     * @param fields Fields of the surrounding class
+     * @param fields A map from SystemC variables to the corresponding translated fields in COL
      * @return Constructor for the COL class
      */
-    private PVLConstructor<T> create_constructor(COLClass col_class, InstanceField<T> m, java.util.List<InstanceField<T>> fields) {
+    private PVLConstructor<T> create_constructor(COLClass col_class, InstanceField<T> m, java.util.Map<SCVariable, InstanceField<T>> fields) {
         FunctionTransformer<T> function_transformer = new FunctionTransformer<>(col_class.get_generating_instance(), m, col_system, col_class);
         return function_transformer.transform_constructor(col_class, fields);
     }

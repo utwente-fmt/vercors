@@ -4,6 +4,10 @@ import de.tub.pes.syscir.engine.util.Pair;
 import de.tub.pes.syscir.sc_model.SCFunction;
 import de.tub.pes.syscir.sc_model.SCPort;
 import de.tub.pes.syscir.sc_model.SCVariable;
+import de.tub.pes.syscir.sc_model.expressions.ConstantExpression;
+import de.tub.pes.syscir.sc_model.expressions.Expression;
+import de.tub.pes.syscir.sc_model.expressions.SCVariableExpression;
+import de.tub.pes.syscir.sc_model.variables.SCArray;
 import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import de.tub.pes.syscir.sc_model.variables.SCEvent;
 import de.tub.pes.syscir.sc_model.variables.SCKnownType;
@@ -19,10 +23,13 @@ import vct.col.ast.*;
 import vct.col.ast.Class;
 import vct.col.ast.Void;
 import vct.col.origin.ExpectedError;
+import vct.col.ref.DirectRef;
 import vct.col.ref.Ref;
 import vct.parsers.ParseResult;
+import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
+import vct.parsers.transform.systemctocol.util.GenericClassTag;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 import java.util.stream.Collectors;
@@ -192,6 +199,56 @@ public class COLSystem<T> {
         return new ApplicableContract<>(requires, ensures, TRUE, NO_SIGNALS, NO_VARS, NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
     }
 
+    /**
+     * Helper function for generating specifications for an array field. Returns a valid-array specification that
+     * contains the size of the array (arrays with no size throw an exception!) and write permission to all fields of
+     * the array.
+     *
+     * @param sc_arr Array variable in the SystemC system
+     * @param field_deref Variable expression for the COL translation of the array
+     * @param m_deref Variable expression for the Main object
+     * @return A list of specifications for the given array
+     */
+    public java.util.List<Expr<T>> get_array_specifications(SCArray sc_arr, Expr<T> field_deref, Expr<T> m_deref) {
+        java.util.List<Expr<T>> conds = new java.util.ArrayList<>();
+
+        // Get the size of the array
+        Expression size_expr = sc_arr.getDerivedSize();
+        // TODO: Should really all arrays without size be disallowed?
+        if (size_expr == null) throw new SystemCFormatException("Instance field array " + sc_arr + " declares no size!");
+
+        // If the array is of a constant size, add the specification that it is a valid array of the given size
+        if (size_expr instanceof ConstantExpression const_size) {
+            try {
+                long size = Long.parseLong(const_size.getValue());
+                IntegerValue<T> arr_size = new IntegerValue<>(BigInt.apply(size), OriGen.create());
+                conds.add(new ValidArray<>(field_deref, arr_size, OriGen.create()));
+            }
+            catch (NumberFormatException nfe) {
+                throw new SystemCFormatException("Array size is of constant non-integer type!");
+            }
+        }
+        // If the array's size is a parameter, use the parameter instead
+        else if (size_expr instanceof SCVariableExpression var_expr && is_parameter(var_expr.getVar())) {
+            // Get parameter field
+            InstanceField<T> param = get_parameter(var_expr.getVar());
+            Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, new GenericClassTag<>());
+            Deref<T> param_deref = new Deref<>(m_deref, param_ref, new GeneratedBlame<>(), OriGen.create());
+
+            // Add specification
+            conds.add(new ValidArray<>(field_deref, param_deref, OriGen.create()));
+        }
+        // Disallow all other array declarations for now        TODO: support arithmetics and maybe variables in array size declaration
+        else throw new UnsupportedException("Array size can only be a constant or a parameter!", sc_arr);
+
+        // Also add write permission to all fields of the array
+        Any<T> any_index = new Any<>(new GeneratedBlame<>(), OriGen.create());
+        ArrayLocation<T> arr_loc = new ArrayLocation<>(field_deref, any_index, new GeneratedBlame<>(), OriGen.create());
+        conds.add(new Perm<>(arr_loc, new WritePerm<>(OriGen.create()), OriGen.create()));
+
+        return conds;
+    }
+
     // ============================================================================================================== //
     // ============================================================================================================== //
     // ============================================================================================================== //
@@ -276,7 +333,7 @@ public class COLSystem<T> {
     /**
      * A map from intermediate representation classes to a list of their non-generated attributes.
      */
-    private final java.util.Map<COLClass, java.util.List<InstanceField<T>>> class_instance_fields;
+    private final java.util.Map<COLClass, java.util.Map<SCVariable, InstanceField<T>>> class_instance_fields;
 
     /**
      * A map from SystemC functions to a list of all process classes that call the function at some point.
@@ -739,22 +796,22 @@ public class COLSystem<T> {
     }
 
     /**
-     * Registers a list of fields that are generated for the given intermediate representation class.
+     * Registers a translation map of fields that are generated for the given intermediate representation class.
      *
      * @param col_class Intermediate representation class
-     * @param fields A list of COL instance fields
+     * @param fields A map from SystemC variables to their respective fields in COL
      */
-    public void set_class_instance_fields(COLClass col_class, java.util.List<InstanceField<T>> fields) {
+    public void set_class_instance_fields(COLClass col_class, java.util.Map<SCVariable, InstanceField<T>> fields) {
         this.class_instance_fields.put(col_class, fields);
     }
 
     /**
-     * Returns all instance fields that are generated for a given class.
+     * Returns the translation map of fields that are generated for a given class.
      *
      * @param col_class Intermediate representation class
-     * @return A list of all COL fields that are generated for that class
+     * @return A map from SystemC variables to the translated fields of the given class
      */
-    public java.util.List<InstanceField<T>> get_class_instance_fields(COLClass col_class) {
+    public java.util.Map<SCVariable, InstanceField<T>> get_class_instance_fields(COLClass col_class) {
         return this.class_instance_fields.get(col_class);
     }
 
