@@ -310,9 +310,10 @@ public class KnownTypeTransformer<T> {
         Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Return value
-        Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
+        /*Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
-        Result<T> ret = new Result<>(ref, OriGen.create());
+        Result<T> ret = new Result<>(ref, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
+        AmbiguousResult<T> ret = new AmbiguousResult<>(OriGen.create());
         SeqSubscript<T> access = new SeqSubscript<>(buf_deref, read_deref, new GeneratedBlame<>(), OriGen.create());
         Eq<T> result = new Eq<>(ret, new Old<>(access, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
@@ -654,9 +655,10 @@ public class KnownTypeTransformer<T> {
         Eq<T> _val_is_old = new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Method return value
-        Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
+        /*Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
-        Result<T> ret = new Result<>(ref, OriGen.create());
+        Result<T> ret = new Result<>(ref, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
+        AmbiguousResult<T> ret = new AmbiguousResult<>(OriGen.create());
         Eq<T> result = new Eq<>(ret, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Postcondition

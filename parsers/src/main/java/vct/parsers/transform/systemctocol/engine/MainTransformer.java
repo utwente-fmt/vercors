@@ -754,9 +754,10 @@ public class MainTransformer<T> {
         // Create appropriate references to the parameter and the method result
         Ref<T, Variable<T>> vals_ref = new DirectRef<>(vals, ClassTag$.MODULE$.apply(Variable.class));
         Local<T> vals_local = new Local<>(vals_ref, OriGen.create());
-        Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(this::get_find_minimum_advance, Option.empty(),
+        /*Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(this::get_find_minimum_advance, Option.empty(),
                 ClassTag$.MODULE$.apply(ContractApplicable.class));
-        Result<T> result = new Result<>(this_method, OriGen.create());
+        Result<T> result = new Result<>(this_method, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
+        AmbiguousResult<T> result = new AmbiguousResult<>(OriGen.create());
 
         // Create precondition
         Size<T> vals_size = new Size<>(vals_local, OriGen.create());
