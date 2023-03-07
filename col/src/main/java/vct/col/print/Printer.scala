@@ -1145,6 +1145,12 @@ case class Printer(out: Appendable,
       phrase(decl.decl)
     case decl: CGlobalDeclaration[_] =>
       phrase(decl.decl)
+    case definition: LLVMFunctionDefinition[_] =>
+      val header = phrase(
+        spec(definition.contract),
+        definition.returnType, space, name(definition), "(", commas(definition.args.map(NodePhrase)), ")"
+      )
+      control(header, definition.body)
     case decl: LabelDecl[_] =>
       ???
     case decl: ParBlockDecl[_] =>

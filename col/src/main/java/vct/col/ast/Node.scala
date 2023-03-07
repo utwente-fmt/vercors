@@ -910,6 +910,13 @@ final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTran
 
 final class LLVMFunctionContract[G](val value:String, val references:Set[(String, Ref[G, Declaration[G]])])(implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G]
 
+final class LLVMFunctionDefinition[G](val returnType: Type[G],
+                            val args: Seq[Variable[G]],
+                            val body: Statement[G],
+                            val contract: LLVMFunctionContract[G],
+                            val pure: Boolean = false)
+                           (val blame: Blame[CallableFailure])(implicit val o: Origin)
+  extends GlobalDeclaration[G] with LLVMFunctionDefinitionImpl[G]
 
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

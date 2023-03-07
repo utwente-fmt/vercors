@@ -1506,6 +1506,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case glue: BipGlue[Pre] => glue
       case synchronization: BipPortSynchronization[Pre] => synchronization
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
+      case definition: LLVMFunctionDefinition[Pre] => definition
     }
   }
 
