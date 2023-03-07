@@ -11,6 +11,11 @@ case object TaskRegistry {
   def install(): Unit = {
     mainThreadId = Thread.currentThread().getId
     mainThreadRootTask = RootTask()
+    mainThreadRootTask.start()
+  }
+
+  def finish(): Unit = {
+    mainThreadRootTask.end()
   }
 
   def isMainThread: Boolean = Thread.currentThread().getId == mainThreadId

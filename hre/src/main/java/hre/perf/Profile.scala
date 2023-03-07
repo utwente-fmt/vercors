@@ -1,6 +1,5 @@
 package hre.perf
 
-import ch.qos.logback.core.property.ResourceExistsPropertyDefiner
 import com.google.perftools
 import com.google.perftools.profiles.{Sample, ValueType}
 
@@ -29,14 +28,14 @@ case object Profile {
 
   private val samples = mutable.ArrayBuffer[Sample]()
 
-  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = {
+  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = Profile.synchronized {
     val deltaChild = if(doUpdateChildUsage) {
       val childUsage = ResourceUsage.getAggregateChildren.get
       val deltaChild = childUsage - lastChildUsage
       lastChildUsage = childUsage
       deltaChild
     } else {
-      ResourceUsage(0, 0, 0, 0, 0, 0)
+      ResourceUsage.zero
     }
 
     val deltaAgg = deltaChild + ownUsage

@@ -71,7 +71,8 @@ case object Layout {
         printedLines = lines.size
         lines.mkString("", f"%n", f"%n")
       } else {
-        f"[${progressEstimate * 100}%.1f%%] $framesText".take(maxWidth)
+        val lines = TaskRegistry.getRootTask.progressLines(maxWidth - 10)
+        f"[${progressEstimate * 100}%.1f%%] ${lines.last}"
       }
     } else ""
   } else {

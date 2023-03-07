@@ -6,14 +6,14 @@ case class UpdateableTask(superTask: Task) extends Task {
   override def profilingBreadcrumb: String = currentName.get
   override def progressText: String = currentName.get
 
-  def scope(f: => Unit): Unit =
+  def scope[T](f: (String => Unit) => T): T =
     try {
-      f
+      f(update)
     } finally {
       if(currentName.isDefined) end()
     }
 
-  def update(name: String): Unit = {
+  private def update(name: String): Unit = {
     if(currentName.isDefined) end()
     currentName = Some(name)
     start()

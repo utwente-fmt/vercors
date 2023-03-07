@@ -1,16 +1,17 @@
 package viper.api.backend.silicon
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.col.ast.Neq
+import hre.progress.TaskRegistry
+import hre.progress.task.Task
 import viper.api.transform.NodeInfo
 import viper.silicon.decider.PathConditionStack
-import viper.silicon.logger.records.data.{ConsumeRecord, DataRecord, ExecuteRecord, MemberRecord, ProduceRecord}
+import viper.silicon.logger.records.data._
 import viper.silicon.logger.records.scoping.{CloseScopeRecord, OpenScopeRecord, ScopingRecord}
 import viper.silicon.logger.records.structural.BranchingRecord
-import viper.silicon.logger.{LogConfig, MemberSymbExLogger, SymbExLogger}
-import viper.silicon.state.{State, terms}
+import viper.silicon.logger.{MemberSymbExLogger, SymbExLogger}
+import viper.silicon.state.terms
 import viper.silicon.state.terms.Term
-import viper.silver.ast.{Exp, Infoed, Member, Node, Not, Positioned}
+import viper.silver.ast._
 
 import java.util.{Timer, TimerTask}
 import scala.collection.mutable
@@ -23,17 +24,21 @@ case object SiliconLogListener {
   val logs: ArrayBuffer[SiliconMemberLogListener] = ArrayBuffer()
 }
 
-case class SiliconLogListener(reportOnNoProgress: Boolean,
-                              traceBranchConditions: Boolean,
-                              branchConditionReportInterval: Option[Int]) extends SymbExLogger[SiliconMemberLogListener] {
+case class SiliconLogListener(
+  reportOnNoProgress: Boolean,
+  traceBranchConditions: Boolean,
+  branchConditionReportInterval: Option[Int],
+) extends SymbExLogger[SiliconMemberLogListener] {
+  val superTask: Task = TaskRegistry.mostRecentlyStartedTaskInThread.get()
+
   override protected def newEntityLogger(member: Member, pcs: PathConditionStack): SiliconMemberLogListener = {
-    val log = new SiliconMemberLogListener(this, member, pcs)
+    val log = new SiliconMemberLogListener(this, member, pcs, superTask)
     SiliconLogListener.logs += log
     log
   }
 }
 
-class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
+class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack, superTask: Task) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
   sealed trait BranchCondition
   case class BranchConditionExp(e: Exp) extends BranchCondition
   case class BranchConditionTerm(t: Term) extends BranchCondition
@@ -47,9 +52,9 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   var timer = new Timer()
   var currentTimerTask: Option[TimerTask] = None
 
-  var doneTrace: Array[StackTraceElement] = _
+  def siliconProgress(): Unit = {
+    taskProgress()
 
-  def progress(): Unit = {
     if(!log.reportOnNoProgress) return
 
     currentTimerTask.foreach(_.cancel())
@@ -62,14 +67,15 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     try {
       timer.schedule(currentTimerTask.get, SiliconLogListener.NO_PROGRESS_TIMEOUT.toMillis)
     } catch {
-      case _: IllegalStateException =>
+      case e: IllegalStateException =>
         println("what")
+        e.printStackTrace()
     }
   }
 
   def done(): Unit = {
     timer.cancel()
-    doneTrace = Thread.currentThread().getStackTrace
+    endMember()
   }
 
   def where(node: Node): Option[String] = node match {
@@ -124,6 +130,65 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     }
   }
 
+  var memberTask: Option[DataRecordTask] = None
+  var statementTask: Option[DataRecordTask] = None
+  var inExhaleTask: Option[DataRecordTask] = None
+
+  def endInExhale(): Unit = {
+    inExhaleTask.foreach(_.end())
+    inExhaleTask = None
+  }
+
+  def endStatement(): Unit = {
+    endInExhale()
+    statementTask.foreach(_.end())
+    statementTask = None
+  }
+
+  def endMember(): Unit = {
+    endStatement()
+    memberTask.foreach(_.end())
+    memberTask = None
+  }
+
+  def taskProgress(): Unit = {
+    val records = openScopeFrames.flatMap(_.values)
+
+    records.collectFirst { case r: MemberRecord => r } match {
+      case None => endMember()
+      case Some(m) =>
+        if(memberTask.isEmpty || memberTask.get.record.value != m.value) {
+          endMember()
+          memberTask = Some(DataRecordTask(superTask, m))
+          memberTask.get.start()
+        }
+    }
+
+    if(memberTask.isEmpty) return
+
+    records.collectFirst { case e: ExecuteRecord => e } match {
+      case None => endStatement()
+      case Some(s) =>
+        if(statementTask.isEmpty || statementTask.get.record.value != s.value) {
+          endStatement()
+          statementTask = Some(DataRecordTask(memberTask.get, s))
+          statementTask.get.start()
+        }
+    }
+
+    if(statementTask.isEmpty) return
+
+    records.collectFirst { case p: ProduceRecord => p; case c: ConsumeRecord => c } match {
+      case None => endInExhale()
+      case Some(r) =>
+        if(inExhaleTask.isEmpty || inExhaleTask.get.record.value != r.value) {
+          endInExhale()
+          inExhaleTask = Some(DataRecordTask(statementTask.get, r))
+          inExhaleTask.get.start()
+        }
+    }
+  }
+
   def updateBranch(indicator: String): Unit = {
     if(log.traceBranchConditions) {
       val textCond = branchConditions.head match {
@@ -157,17 +222,13 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   }
 
   override def appendDataRecord(r: DataRecord): Unit = {
-    progress()
     openScopeFrames.head(r.id) = r
+    siliconProgress()
   }
 
   override def appendScopingRecord(r: ScopingRecord, ignoreBranchingStack: Boolean): Unit = {
-    progress()
     r match {
       case r: CloseScopeRecord =>
-        if(r.refId == main.id)
-          done()
-
         if(openScopeFrames.head.contains(r.refId)) {
           openScopeFrames.head.remove(r.refId)
         } else {
@@ -175,10 +236,14 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         }
       case _: OpenScopeRecord => // This is just done from datarecord; safe to ignore.
     }
+
+    r match {
+      case r: CloseScopeRecord if r.refId == main.id => done()
+      case _ => siliconProgress()
+    }
   }
 
   override def appendBranchingRecord(r: BranchingRecord): Unit = {
-    progress()
     openScopeFrames +:= mutable.Map()
     branchScopeCloseRecords +:= mutable.Set()
 
@@ -195,6 +260,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     }
 
     updateBranch("->")
+    siliconProgress()
   }
 
   def invert(term: Term): Term = term match {
@@ -215,21 +281,21 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     }) +: branchConditions.tail
 
   override def doSwitchToNextBranch(uidBranchPoint: Int): Unit = {
-    progress()
     openScopeFrames.head.clear()
     branchScopeCloseRecords.head.clear()
 
     advanceBranch()
 
     updateBranch("->")
+
+    siliconProgress()
   }
 
   override def markBranchReachable(uidBranchPoint: Int): Unit = {
-    progress()
+    siliconProgress()
   }
 
   override def doEndBranchPoint(uidBranchPoint: Int): Unit = {
-    progress()
     advanceBranch()
     updateBranch("<-")
     openScopeFrames = openScopeFrames.tail
@@ -242,5 +308,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
     branchScopeCloseRecords = branchScopeCloseRecords.tail
     branchConditions = branchConditions.tail
+
+    siliconProgress()
   }
 }

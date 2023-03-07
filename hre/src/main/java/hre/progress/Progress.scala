@@ -1,18 +1,55 @@
 package hre.progress
 
-import hre.progress.task.SimpleNamedTask
+import hre.progress.task.{NameSequenceTask, SimpleNamedTask, UpdateableTask}
 
-import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
+import java.util.{Timer, TimerTask}
 
 case object Progress {
+  val UPDATE_INTERVAL_MS: Int = 100
+
   def install(forceProgress: Boolean): Unit = {
     TaskRegistry.install()
     Layout.install(forceProgress)
   }
 
-  def update(): Unit = Layout.update()
+  def finish(): Unit = {
+    TaskRegistry.finish()
+  }
 
-  def foreach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit = {
+  private val blockLayoutUpdateTimer = new Timer()
+  private var blockLayoutUpdateTask: Option[TimerTask] = None
+  private var blockLayoutUpdate = false
+  private var newLayoutAfterTimeout = false
+
+  private def delayNextUpdate(): Unit = {
+    blockLayoutUpdate = true
+    blockLayoutUpdateTask.foreach(_.cancel())
+    blockLayoutUpdateTimer.purge()
+    blockLayoutUpdateTask = Some(new TimerTask {
+      override def run(): Unit = Progress.synchronized {
+        if (newLayoutAfterTimeout) {
+          Layout.update()
+          newLayoutAfterTimeout = false
+          delayNextUpdate()
+        } else {
+          blockLayoutUpdate = false
+        }
+      }
+    })
+    blockLayoutUpdateTimer.schedule(blockLayoutUpdateTask.get, UPDATE_INTERVAL_MS)
+  }
+
+  def update(): Unit = Progress.synchronized {
+    if(blockLayoutUpdate) {
+      newLayoutAfterTimeout = true
+    } else {
+      Layout.update()
+      newLayoutAfterTimeout = false
+      delayNextUpdate()
+    }
+  }
+
+  def foreach[T](xs: IterableOnce[T], desc: T => String)(f: T => Unit): Unit = {
     val superTask = TaskRegistry.mostRecentlyStartedTaskInThread.get()
     xs.foreach(x => {
       SimpleNamedTask(superTask, desc(x)).frame {
@@ -21,16 +58,7 @@ case object Progress {
     })
   }
 
-  def parForeach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit = {
-    val superTask = TaskRegistry.mostRecentlyStartedTaskInThread.get()
-    xs.par.foreach { x =>
-      SimpleNamedTask(superTask, desc(x)).frame {
-        f(x)
-      }
-    }
-  }
-
-  def map[T, S](xs: Iterable[T], desc: T => String)(f: T => S): Iterable[S] = {
+  def map[T, S](xs: IterableOnce[T], desc: T => String)(f: T => S): IterableOnce[S] = {
     val superTask = TaskRegistry.mostRecentlyStartedTaskInThread.get()
     xs.map(x => {
       SimpleNamedTask(superTask, desc(x)).frame {
@@ -38,4 +66,10 @@ case object Progress {
       }
     })
   }
+
+  def stages[T](names: Seq[(String, Int)])(f: (() => Unit) => T): T =
+    NameSequenceTask(TaskRegistry.mostRecentlyStartedTaskInThread.get(), names.map(_._1)).scope(f)
+
+  def dynamicMessages[T](count: Int)(f: (String => Unit) => T): T =
+    UpdateableTask(TaskRegistry.mostRecentlyStartedTaskInThread.get()).scope(f)
 }

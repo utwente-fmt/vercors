@@ -91,7 +91,7 @@ case object Main extends LazyLogging {
         case Mode.BatchTest => ???
       }
     } finally {
-      Profile.finish()
+      Progress.finish()
     }
   }
 }

@@ -28,6 +28,7 @@ object ResourceUsage {
     }
   }
 
+  def zero: ResourceUsage = ResourceUsage(0, 0, 0, 0, 0, 0)
 }
 
 case class ResourceUsage(

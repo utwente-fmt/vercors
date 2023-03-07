@@ -1,7 +1,7 @@
 package hre.progress.task
 
 import hre.perf.ResourceUsage
-import hre.progress.TaskRegistry
+import hre.progress.{Progress, TaskRegistry}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -9,7 +9,9 @@ abstract class Task {
   private val subTasks = ArrayBuffer[Task]()
 
   protected var startUsage: ResourceUsage = null
-  private var usageReported: ResourceUsage = ResourceUsage(0, 0, 0, 0, 0, 0)
+  private var usageReported: ResourceUsage = ResourceUsage.zero
+
+  private var ownerThread = -1L
 
   def superTask: Task
 
@@ -20,6 +22,9 @@ abstract class Task {
   def progress: Double = 0.5
 
   def poll(): ResourceUsage = this.synchronized {
+    if(Thread.currentThread().getId != ownerThread)
+      return TaskRegistry.ownUsage()
+
     val usage = TaskRegistry.ownUsage()
     val delta = usage - startUsage - usageReported
     TaskRegistry.reportUsage(delta, profilingTrail)
@@ -29,14 +34,23 @@ abstract class Task {
 
   def start(): Unit = superTask.synchronized {
     startUsage = superTask.poll()
+    ownerThread = Thread.currentThread().getId
     superTask.subTasks += this
     TaskRegistry.mostRecentlyStartedTaskInThread.set(this)
+    Progress.update()
   }
 
   def end(): Unit = superTask.synchronized {
+    assert(subTasks.isEmpty)
     poll()
     superTask.subTasks -= this
     superTask.usageReported += usageReported
+
+    usageReported = ResourceUsage.zero
+    startUsage = null
+    ownerThread = -1L
+
+    Progress.update()
   }
 
   private def prefix(tail: String, prefix: String, maxWidth: Int): String = {
@@ -60,7 +74,7 @@ abstract class Task {
 
   def progressLines(maxWidth: Int): Seq[String] = {
     val subLines = subTasks.toIndexedSeq.map(_.progressLines(maxWidth))
-    val myText = progressText.split('\n')
+    val myText = progressText.split('\n').map(_.take(maxWidth))
 
     subLines match {
       case Nil => myText
