@@ -29,7 +29,7 @@ case class SiliconLogListener(
   traceBranchConditions: Boolean,
   branchConditionReportInterval: Option[Int],
 ) extends SymbExLogger[SiliconMemberLogListener] {
-  val superTask: Task = TaskRegistry.mostRecentlyStartedTaskInThread.get()
+  val superTask: Task = TaskRegistry.currentTaskInThread
 
   override protected def newEntityLogger(member: Member, pcs: PathConditionStack): SiliconMemberLogListener = {
     val log = new SiliconMemberLogListener(this, member, pcs, superTask)

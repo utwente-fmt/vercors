@@ -67,6 +67,9 @@ case object Options {
       opt[Unit]("progress").abbr("p")
         .action((_, c) => c.copy(progress = true))
         .text("Print progress information, even if stdout is not a tty."),
+      opt[Unit]("profile")
+        .action((_, c) => c.copy(profile = true))
+        .text("Output profiling information in the current directory in the pprof format (https://github.com/google/pprof)"),
 
       opt[(String, Verbosity)]("dev-log-verbosity").unbounded().maybeHidden().keyValueName("<loggerKey>", "<verbosity>")
         .action((tup, c) => c.copy(logLevels = c.logLevels :+ tup))
@@ -308,6 +311,7 @@ case class Options
     ("viper.api", Verbosity.Info),
   ),
   progress: Boolean = false,
+  profile: Boolean = false,
   more: Boolean = false,
 
   // Verify Options

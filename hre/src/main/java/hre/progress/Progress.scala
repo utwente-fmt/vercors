@@ -8,9 +8,10 @@ import java.util.{Timer, TimerTask}
 case object Progress {
   val UPDATE_INTERVAL_MS: Int = 100
 
-  def install(forceProgress: Boolean): Unit = {
+  def install(forceProgress: Boolean, profile: Boolean): Unit = {
     TaskRegistry.install()
     Layout.install(forceProgress)
+    Profile.install(profile)
   }
 
   def finish(): Unit = {
@@ -57,8 +58,8 @@ case object Progress {
   }
 
   def foreach[T](xs: IterableOnce[T], desc: T => String)(f: T => Unit): Unit = {
-    val superTask = TaskRegistry.mostRecentlyStartedTaskInThread.get()
-    xs.foreach(x => {
+    val superTask = TaskRegistry.currentTaskInThread
+    xs.iterator.foreach(x => {
       SimpleNamedTask(superTask, desc(x)).frame {
         f(x)
       }
@@ -66,8 +67,8 @@ case object Progress {
   }
 
   def map[T, S](xs: IterableOnce[T], desc: T => String)(f: T => S): IterableOnce[S] = {
-    val superTask = TaskRegistry.mostRecentlyStartedTaskInThread.get()
-    xs.map(x => {
+    val superTask = TaskRegistry.currentTaskInThread
+    xs.iterator.map(x => {
       SimpleNamedTask(superTask, desc(x)).frame {
         f(x)
       }
@@ -75,8 +76,8 @@ case object Progress {
   }
 
   def stages[T](names: Seq[(String, Int)])(f: (() => Unit) => T): T =
-    NameSequenceTask(TaskRegistry.mostRecentlyStartedTaskInThread.get(), names.map(_._1)).scope(f)
+    NameSequenceTask(TaskRegistry.currentTaskInThread, names.map(_._1)).scope(f)
 
   def dynamicMessages[T](count: Int)(f: (String => Unit) => T): T =
-    UpdateableTask(TaskRegistry.mostRecentlyStartedTaskInThread.get()).scope(f)
+    UpdateableTask(TaskRegistry.currentTaskInThread).scope(f)
 }

@@ -8,6 +8,19 @@ import java.util.zip.GZIPOutputStream
 import scala.collection.mutable
 
 case object Profile {
+  private var currentProfile: Option[Profile] = None
+
+  def install(profile: Boolean): Unit =
+    if(profile) currentProfile = Some(Profile())
+
+  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit =
+    currentProfile.foreach(_.update(stack, ownUsage, doUpdateChildUsage))
+
+  def finish(): Unit =
+    currentProfile.foreach(_.finish())
+}
+
+case class Profile() {
   val builder = new ProfileBuilder()
 
   import builder.{loc, str}
@@ -29,8 +42,8 @@ case object Profile {
 
   private val samples = mutable.ArrayBuffer[Sample]()
 
-  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = Profile.synchronized {
-    val deltaChild = if(doUpdateChildUsage) {
+  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = synchronized {
+    val deltaChild = if (doUpdateChildUsage) {
       val childUsage = ResourceUsage.getAggregateChildren.get
       val deltaChild = childUsage - lastChildUsage
       lastChildUsage = childUsage

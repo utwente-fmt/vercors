@@ -73,7 +73,7 @@ case object Main extends LazyLogging {
       })
     }
 
-    Progress.install(options.progress)
+    Progress.install(options.progress, options.profile)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = Progress.abort()

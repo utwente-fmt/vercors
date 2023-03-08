@@ -4,11 +4,12 @@ import hre.perf.ResourceUsage
 import hre.progress.{Progress, TaskRegistry}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.chaining.scalaUtilChainingOps
 
 abstract class Task {
   private val subTasks = ArrayBuffer[Task]()
 
-  protected var startUsage: ResourceUsage = null
+  protected var startUsage: Option[ResourceUsage] = None
   private var usageReported: ResourceUsage = ResourceUsage.zero
 
   private var ownerThread = -1L
@@ -26,17 +27,17 @@ abstract class Task {
       return TaskRegistry.ownUsage()
 
     val usage = TaskRegistry.ownUsage()
-    val delta = usage - startUsage - usageReported
+    val delta = usage - startUsage.get - usageReported
     TaskRegistry.reportUsage(delta, profilingTrail)
     usageReported += delta
     usage
   }
 
   def start(): Unit = superTask.synchronized {
-    startUsage = superTask.poll()
+    startUsage = Some(superTask.poll())
     ownerThread = Thread.currentThread().getId
     superTask.subTasks += this
-    TaskRegistry.mostRecentlyStartedTaskInThread.set(this)
+    TaskRegistry.threadTaskStack.get() += this
     Progress.update()
   }
 
@@ -47,8 +48,10 @@ abstract class Task {
     superTask.usageReported += usageReported
 
     usageReported = ResourceUsage.zero
-    startUsage = null
+    startUsage = None
     ownerThread = -1L
+    assert(TaskRegistry.threadTaskStack.get().last == this)
+    TaskRegistry.threadTaskStack.get().pipe(s => s.remove(s.length - 1))
 
     Progress.update()
   }
