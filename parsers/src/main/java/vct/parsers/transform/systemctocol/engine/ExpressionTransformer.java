@@ -1469,7 +1469,7 @@ public class ExpressionTransformer<T> {
      * @return An expression encoding the semantics of the SystemC expression
      */
     private Expr<T> transform_new_array_expression(NewArrayExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
-        Type<T> array_type = col_system.parse_type(expr.getObjType());  // TODO: What about multi-dimensional arrays?
+        Type<T> array_type = col_system.parse_type(expr.getObjType());  // TODO: What about multidimensional arrays?
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
         if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, OriGen.create());
@@ -1623,7 +1623,7 @@ public class ExpressionTransformer<T> {
      *
      * @param incr <code>true</code> if an increment operator should be generated, <code>false</code> for a decrement
      *             operator
-     * @param pre <code>true</code> if the operator should be prefix, <code>false</code> for postfix
+     * @param pre <code>true</code> if the operator should be prefixed, <code>false</code> for postfix
      * @param original Variable expression in COL to be assigned to
      * @return Depending on the given flags, a pre- or postfix increment or decrement operator on the given variable
      *         expression

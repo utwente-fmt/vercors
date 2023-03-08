@@ -25,6 +25,7 @@ case object Parsing {
         case "java" => Some(Java)
         case "pvl" => Some(PVL)
         case "sil" | "vpr" => Some(Silver)
+        case "xml" => Some(SystemC)
         case _ => None
       }
 
@@ -33,6 +34,7 @@ case object Parsing {
     case object Java extends Language
     case object PVL extends Language
     case object Silver extends Language
+    case object SystemC extends Language
   }
 
   case class UnknownFileExtension(extension: String) extends UserError {
@@ -77,6 +79,7 @@ case class Parsing[G <: Generation]
         case Language.Java => ColJavaParser(originProvider, blameProvider)
         case Language.PVL => ColPVLParser(originProvider, blameProvider)
         case Language.Silver => ColSilverParser(originProvider, blameProvider)
+        case Language.SystemC => new ColSystemCParser(originProvider, blameProvider)
       }
 
       parser.parse[G](readable)

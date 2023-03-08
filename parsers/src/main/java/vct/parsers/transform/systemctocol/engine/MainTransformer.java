@@ -754,7 +754,7 @@ public class MainTransformer<T> {
         // Create appropriate references to the parameter and the method result
         Ref<T, Variable<T>> vals_ref = new DirectRef<>(vals, ClassTag$.MODULE$.apply(Variable.class));
         Local<T> vals_local = new Local<>(vals_ref, OriGen.create());
-        /*Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(this::get_find_minimum_advance, Option.empty(),
+        /*Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(() -> find_minimum_advance, Option.empty(),
                 ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> result = new Result<>(this_method, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
         AmbiguousResult<T> result = new AmbiguousResult<>(OriGen.create());
@@ -1240,15 +1240,5 @@ public class MainTransformer<T> {
         // Register Main class in COL system context
         col_system.add_global_declaration(main_class);
         col_system.set_main(main_class);
-    }
-
-    /**
-     * Returns the <code>find_minimum_advance</code> scheduler helper method. Used to create a LazyRef to this method
-     * before it is finished.
-     *
-     * @return The <code>find_minimum_advance</code> method
-     */
-    public InstanceMethod<T> get_find_minimum_advance() {
-        return find_minimum_advance;
     }
 }
