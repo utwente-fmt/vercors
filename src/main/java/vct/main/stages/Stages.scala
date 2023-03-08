@@ -57,4 +57,10 @@ case object Stages {
       .thenRun(Backend.ofOptions(options))
       .thenRun(ExpectedErrors.ofOptions(options))
   }
+
+  def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
+    Parsing.ofOptions(options, blameProvider)
+      .thenRun(ToVerification.ofOptions(blameProvider))
+      .thenRun(SaveStage.ofOptions(options))
+  }
 }

@@ -243,6 +243,16 @@ case object Options {
         ),
 
       note(""),
+      note("VeSUV Mode"),
+      opt[Unit]("vesuv")
+        .action((_, c) => c.copy(mode = Mode.VeSUV))
+        .text("Enable VeSUV mode: transform SystemC designs to PVL to be deductively verified")
+        .children(
+          opt[PathOrStd]("vesuv-output").required().valueName("<path>")   // TODO: Give option for default location?
+            .action((path, c) => c.copy(vesuvOutput = path))
+        ),
+
+      note(""),
       note("Batch Testing Mode"),
       opt[Unit]("test")
         .action((_, c) => c.copy(mode = Mode.BatchTest))
@@ -365,6 +375,9 @@ case class Options
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required
+
+  // VeSUV options
+  vesuvOutput: PathOrStd = null,
 
   // Batch test options
   testDir: Path = null, // required
