@@ -1472,8 +1472,9 @@ public class ExpressionTransformer<T> {
         Type<T> array_type = col_system.parse_type(expr.getObjType());  // TODO: What about multidimensional arrays?
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
-        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, OriGen.create());
-        else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0, OriGen.create());
+        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, new GeneratedBlame<>(), OriGen.create());
+        else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0,
+                new GeneratedBlame<>(), OriGen.create());
     }
 
     /**

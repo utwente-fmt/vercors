@@ -1,6 +1,5 @@
 package vct.parsers.transform.systemctocol.exceptions;
 
-import de.tub.pes.syscir.sc_model.expressions.Expression;
 import vct.result.VerificationError;
 
 /**
