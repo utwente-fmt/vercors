@@ -12,11 +12,8 @@ public class ExpressionParseException extends VerificationError.UserError {
 
     private final String text;
 
-    private final Expression expr;
-
-    public ExpressionParseException(String text, Expression expr) {
+    public ExpressionParseException(String text) {
         this.text = text;
-        this.expr = expr;
     }
 
     @Override
@@ -26,6 +23,6 @@ public class ExpressionParseException extends VerificationError.UserError {
 
     @Override
     public String code() {
-        return expr.toStringNoSem();
+        return "SystemC Parse Failure";
     }
 }

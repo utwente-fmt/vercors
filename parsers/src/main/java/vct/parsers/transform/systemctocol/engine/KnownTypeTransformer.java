@@ -81,7 +81,7 @@ public class KnownTypeTransformer<T> {
             case Constants.CLASS_FIFO_BOOL -> transform_fifo(OriGen.create(name), col_system.T_BOOL);
             case Constants.CLASS_SIGNAL_INT -> transform_signal(OriGen.create(name), col_system.T_INT);
             case Constants.CLASS_SIGNAL_BOOL -> transform_signal(OriGen.create(name), col_system.T_BOOL);
-            default -> throw new UnsupportedException("The known type " + sc_class.getName() + " is not supported.", sc_inst);
+            default -> throw new UnsupportedException("The known type " + sc_class.getName() + " is not supported.");
         };
 
         // Add channel class and events to COL system

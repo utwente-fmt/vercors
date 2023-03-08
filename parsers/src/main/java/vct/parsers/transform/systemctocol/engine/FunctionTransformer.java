@@ -252,7 +252,7 @@ public class FunctionTransformer<T> {
             // If the process is null (in a state class constructor), function call expressions cannot be parsed
             // (except the generated sc_module(name()), which is ignored)
             if (process == null && expr instanceof FunctionCallExpression f && !f.getFunction().getName().equals("sc_module")) {
-                throw new UnsupportedException("Function calls in state class constructors are not allowed!", function);
+                throw new UnsupportedException("Function calls in state class constructors are not allowed!");
             }
             results.add(expression_transformer.create_statement(expr, sc_inst));
         }

@@ -251,7 +251,7 @@ public class ExpressionTransformer<T> {
             return transform_while_loop_expression(e, sc_inst, obj, path_cond);
         }
         // TODO: SocketFunctionCallExpression, MultiSocketAccessExpression
-        throw new ExpressionParseException("The following statement is not supported:\n\n" + expr, expr);
+        throw new ExpressionParseException("The following statement is not supported:\n\n" + expr);
     }
 
     /**
@@ -516,7 +516,7 @@ public class ExpressionTransformer<T> {
         java.util.List<Expr<T>> arguments = new java.util.ArrayList<>();
         for (Expression param : expr.getParameters()) {
             Expr<T> parameter = create_expression(param, sc_inst, obj);
-            if (parameter == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!", param);
+            if (parameter == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!");
             arguments.add(parameter);
         }
 
@@ -575,7 +575,7 @@ public class ExpressionTransformer<T> {
     private Statement<T> transform_if_else_expression(IfElseExpression expr, SCClassInstance sc_inst, Expr<T> obj, Expr<T> path_cond) {
         // Create if condition (and its negation for the else branch)
         Expr<T> cond = create_expression(expr.getCondition(), sc_inst, obj);
-        if (cond == null) throw new ExpressionParseException("If expression condition could not be converted!", expr);
+        if (cond == null) throw new ExpressionParseException("If expression condition " + expr + " could not be converted!");
         Expr<T> n_cond = new Not<>(cond, OriGen.create());
 
         // Create if and else branches
@@ -636,13 +636,13 @@ public class ExpressionTransformer<T> {
                 if (expr.getInitialValues().size() == 1) {
                     init_val = create_expression(expr.getFirstInitialValue(), sc_inst, obj);
                 }
-                else throw new UnsupportedException("Initialized variable " + var_expr.getVar() + " is of unsupported type.", expr);
+                else throw new UnsupportedException("Initialized variable " + var_expr.getVar() + " is of unsupported type.");
 
                 result = new Assign<>(var, init_val, new GeneratedBlame<>(), OriGen.create());
             }
         }
         else if (expr.getVariable() instanceof SCClassInstanceExpression) {
-            throw new UnsupportedException("Local declaration of class instances is not supported!", expr);      // TODO: Support dynamic creation at least for structs?
+            throw new UnsupportedException("Local declaration of class instance " + expr + " is not supported!");      // TODO: Support dynamic creation at least for structs?
         }
 
         // Handle label
@@ -688,7 +688,7 @@ public class ExpressionTransformer<T> {
 
         // Collect components of the switch statement
         Expr<T> cond = create_expression(expr.getSwitchExpression(), sc_inst, obj);
-        if (cond == null) throw new ExpressionParseException("Could not parse switch expression " + expr.getSwitchExpression(), expr);
+        if (cond == null) throw new ExpressionParseException("Could not parse switch expression " + expr.getSwitchExpression());
         java.util.List<Expression> cases = expr.getCases();
 
         // Prepare data structures
@@ -707,7 +707,7 @@ public class ExpressionTransformer<T> {
             // For any other cases, create a pair of condition and body and add it to the list
             else {
                 Expr<T> case_cond = create_expression(case_expr.getCondition(), sc_inst, obj);
-                if (case_cond == null) throw new ExpressionParseException("Could not parse case expression " + e, e);
+                if (case_cond == null) throw new ExpressionParseException("Could not parse case expression " + e);
                 Eq<T> branch_cond = new Eq<>(cond, case_cond, OriGen.create());
                 conditions.put(case_expr, branch_cond);
             }
@@ -821,7 +821,7 @@ public class ExpressionTransformer<T> {
                 event_id = col_system.get_total_nr_events();
                 col_system.add_wait_event();
             }
-            default -> throw new UnsupportedException("Static sensitivity is not yet supported!", expr); // TODO: Support static sensitivity
+            default -> throw new UnsupportedException("Static sensitivity is not yet supported!"); // TODO: Support static sensitivity
         }
         IntegerValue<T> ev_id = new IntegerValue<>(BigInt.apply(event_id), OriGen.create());
 
@@ -931,7 +931,7 @@ public class ExpressionTransformer<T> {
                 method_index = Constants.FIFO_READ_METHOD;
                 wait_event_index = Constants.FIFO_WRITE_EVENT;
             }
-            default -> throw new UnsupportedException("FIFO method " + fun.getFunction().getName() + " is not supported.", fun);
+            default -> throw new UnsupportedException("FIFO method " + fun.getFunction().getName() + " is not supported.");
         }
         InstanceMethod<T> fifo_method = col_system.get_primitive_instance_method(channel, method_index);
         Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(fifo_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
@@ -940,7 +940,7 @@ public class ExpressionTransformer<T> {
         java.util.List<Expr<T>> args = new java.util.ArrayList<>();
         for (Expression param : fun.getParameters()) {
             Expr<T> arg = create_expression(param, sc_inst, obj);
-            if (arg == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!", param);
+            if (arg == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!");
             args.add(arg);
         }
 
@@ -1006,7 +1006,7 @@ public class ExpressionTransformer<T> {
         int method_index = switch (sc_fun.getName()) {
             case "write" -> Constants.SIGNAL_WRITE_METHOD;
             case "read" -> Constants.SIGNAL_READ_METHOD;
-            default -> throw new UnsupportedException("Signal method " + sc_fun.getName() + " is not supported!", fun);
+            default -> throw new UnsupportedException("Signal method " + sc_fun.getName() + " is not supported!");
         };
         InstanceMethod<T> signal_method = col_system.get_primitive_instance_method(channel, method_index);
         Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, ClassTag$.MODULE$.apply(InstanceMethod.class));
@@ -1015,7 +1015,7 @@ public class ExpressionTransformer<T> {
         java.util.List<Expr<T>> args = new java.util.ArrayList<>();
         for (Expression param : fun.getParameters()) {
             Expr<T> arg = create_expression(param, sc_inst, obj);
-            if (arg == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!", param);
+            if (arg == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!");
             args.add(arg);
         }
 
@@ -1256,7 +1256,7 @@ public class ExpressionTransformer<T> {
             return transform_unary_expression(e, sc_inst, obj);
         }
         // TODO: ArrayInitializerExpression, NewExpression, SCClassInstanceExpression
-        throw new ExpressionParseException("The following expression is not supported:\n\n" + expr, expr);
+        throw new ExpressionParseException("The following expression is not supported:\n\n" + expr);
     }
 
     /**
@@ -1319,7 +1319,7 @@ public class ExpressionTransformer<T> {
                 && SCPORTSCSOCKETTYPE.SC_FIFO_ALL.contains(sc_port_l.getSCPortSCSocket().getConType()))
             || (expr.getRight() instanceof AccessExpression acc_r && acc_r.getLeft() instanceof SCPortSCSocketExpression sc_port_r
                 && SCPORTSCSOCKETTYPE.SC_FIFO_ALL.contains(sc_port_r.getSCPortSCSocket().getConType()))) {
-            throw new UnsupportedException("FIFO calls in binary expressions are not allowed!", expr);
+            throw new UnsupportedException("FIFO call in binary expression " + expr + " is not allowed!");
         }
 
         // Get left side of binary expression
@@ -1348,7 +1348,7 @@ public class ExpressionTransformer<T> {
             right = create_expression(expr.getRight(), sc_inst, obj);
         }
 
-        if (left == null || right == null) throw new ExpressionParseException("Cannot convert binary expression operands in " + expr, expr);
+        if (left == null || right == null) throw new ExpressionParseException("Cannot convert binary expression operands in " + expr);
 
         // TODO: Are any binary operators missing?
         return switch (expr.getOp()) {
@@ -1370,7 +1370,7 @@ public class ExpressionTransformer<T> {
             case "^" -> new BitXor<>(left, right, OriGen.create());
             case ">>" -> new BitShr<>(left, right, OriGen.create());
             case "<<" -> new BitShl<>(left, right, OriGen.create());
-            default -> throw new UnsupportedException("Unsupported binary operator " + expr.getOp(), expr);
+            default -> throw new UnsupportedException("Unsupported binary operator " + expr.getOp());
         };
     }
 
@@ -1410,7 +1410,7 @@ public class ExpressionTransformer<T> {
         if (literal.equals("false")) return col_system.FALSE;
 
         // Unsupported literal type
-        throw new ExpressionParseException("Expression " + literal + " is of unsupported type!", expr);
+        throw new ExpressionParseException("Expression " + literal + " is of unsupported type!");
     }
 
     /**
@@ -1451,7 +1451,7 @@ public class ExpressionTransformer<T> {
         java.util.List<Expr<T>> arguments = new java.util.ArrayList<>();
         for (Expression param : expr.getParameters()) {
             Expr<T> parameter = create_expression(param, sc_inst, obj);
-            if (parameter == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!", param);
+            if (parameter == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!");
             arguments.add(parameter);
         }
 
@@ -1488,7 +1488,9 @@ public class ExpressionTransformer<T> {
         Expr<T> cond = create_expression(expr.getCondition(), sc_inst, obj);
         Expr<T> then_val = create_expression(expr.getThen(), sc_inst, obj);
         Expr<T> else_val = create_expression(expr.getElse(), sc_inst, obj);
-        if (cond == null || then_val == null || else_val == null) throw new ExpressionParseException("Conditional selection could not be transformed!", expr);
+        if (cond == null || then_val == null || else_val == null)  {
+            throw new ExpressionParseException("Conditional selection " + expr + " could not be transformed!");
+        }
 
         return new Select<>(cond, then_val, else_val, OriGen.create());
     }
@@ -1610,7 +1612,7 @@ public class ExpressionTransformer<T> {
             case "+" -> original;
             case "++" -> handle_incr_decr(true, expr.isPrepost(), original);
             case "--" -> handle_incr_decr(false, expr.isPrepost(), original);
-            default -> throw new UnsupportedException("Unsupported unary operator " + expr.getOperator(), expr);
+            default -> throw new UnsupportedException("Unsupported unary operator " + expr.getOperator());
         };
     }
 
@@ -1656,7 +1658,7 @@ public class ExpressionTransformer<T> {
 
         // Get method
         if (!fun.getFunction().getName().equals("read")) {
-            throw new UnsupportedException("Only read method calls are supported for signal channels in expressions.", fun);
+            throw new UnsupportedException("Only read method calls are supported for signal channels in expressions.");
         }
         InstanceMethod<T> signal_method = col_system.get_primitive_instance_method(channel, Constants.SIGNAL_READ_METHOD);
         Ref<T, InstanceMethod<T>> method_ref = new DirectRef<>(signal_method, ClassTag$.MODULE$.apply(InstanceMethod.class));

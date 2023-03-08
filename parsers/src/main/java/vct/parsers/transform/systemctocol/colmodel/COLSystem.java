@@ -169,7 +169,7 @@ public class COLSystem<T> {
      * @return Type object corresponding to the represented type in the COL AST
      */
     public Type<T> parse_type(String sc_type) {
-        if (sc_type == null || sc_type.isEmpty()) throw new UnsupportedException("Trying to parse empty type!", sc_type);
+        if (sc_type == null || sc_type.isEmpty()) throw new UnsupportedException("Trying to parse empty type!");
         if (sc_type.endsWith("[]")) return new TArray<>(parse_type(sc_type.substring(0, sc_type.length() - 2)), OriGen.create(sc_type));
         switch (sc_type) {
             case "int", "long", "long int", "short", "short int" -> { return T_INT; }       // TODO: what about sc_int<>, sc_uint<>, sc_bigint<> etc.?
@@ -181,7 +181,7 @@ public class COLSystem<T> {
         if (enums.contains(sc_type)) return T_INT;  // Translate enums to integers
 
         // Type is not a supported datatype
-        throw new UnsupportedException("Type " + sc_type + " is not supported!", sc_type);   // TODO: what about class types?
+        throw new UnsupportedException("Type " + sc_type + " is not supported!");   // TODO: what about class types?
     }
 
     /**
@@ -239,7 +239,7 @@ public class COLSystem<T> {
             conds.add(new ValidArray<>(field_deref, param_deref, OriGen.create()));
         }
         // Disallow all other array declarations for now        TODO: support arithmetics and maybe variables in array size declaration
-        else throw new UnsupportedException("Array size can only be a constant or a parameter!", sc_arr);
+        else throw new UnsupportedException("Array size can only be a constant or a parameter, not " + size_expr + "!");
 
         // Also add write permission to all fields of the array
         Any<T> any_index = new Any<>(new GeneratedBlame<>(), OriGen.create());

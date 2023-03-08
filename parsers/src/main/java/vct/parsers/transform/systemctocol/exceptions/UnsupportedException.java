@@ -9,11 +9,8 @@ public class UnsupportedException extends VerificationError.UserError {
 
     private final String text;
 
-    private final Object sc_obj;
-
-    public UnsupportedException(String text, Object sc_obj) {
+    public UnsupportedException(String text) {
         this.text = text;
-        this.sc_obj = sc_obj;
     }
 
     @Override
@@ -23,6 +20,6 @@ public class UnsupportedException extends VerificationError.UserError {
 
     @Override
     public String code() {
-        return sc_obj.toString();
+        return "Unsupported SystemC Construct";
     }
 }

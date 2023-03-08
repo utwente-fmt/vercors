@@ -97,7 +97,7 @@ public class VariableTransformer<T> {
     private Type<T> get_type(SCVariable sc_var) {
         if (sc_var instanceof SCArray sc_array) {
             if (sc_array.isArrayOfSCClassInstances()) {
-                throw new UnsupportedException("Arrays of class types are not supported!", sc_array);     // TODO: Find way to support these arrays
+                throw new UnsupportedException("Array " + sc_array + " of class type is not supported!");     // TODO: Find way to support these arrays
             }
             else {
                 return new TArray<>(col_system.parse_type(sc_array.getType()), OriGen.create());

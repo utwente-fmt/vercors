@@ -132,7 +132,9 @@ public class Transformer<T> {
 				member_functions.remove(constructor);
 				java.util.List<SCFunction> sc_processes = new java.util.ArrayList<>();
 				for (SCProcess proc : inst.getSCClass().getProcesses()) {
-					if (!proc.getType().equals(SCPROCESSTYPE.SCTHREAD)) throw new UnsupportedException("Process of unsupported type!", proc);
+					if (!proc.getType().equals(SCPROCESSTYPE.SCTHREAD)) {
+						throw new UnsupportedException("Process " + proc + " is of unsupported type!");
+					}
 					member_functions.remove(proc.getFunction());
 					sc_processes.add(proc.getFunction());
 				}

@@ -588,7 +588,7 @@ public class MainTransformer<T> {
                         if (expr == null) throw new NullPointerException();
                         parameters.add(expr);
                     } catch (NullPointerException ignored) {    // TODO: Ugh
-                        throw new ExpressionParseException("Constructor argument could not be parsed!", expression);
+                        throw new ExpressionParseException("Constructor argument " + expression + " could not be parsed!");
                     }
                 }
             }
