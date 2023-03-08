@@ -375,6 +375,7 @@ class FeatureRainbow[G] {
     case node: PointerLength[G] => Pointers
     case node: TPointer[G] => Pointers
 
+    case node: Extract[G] => ProofHelpers
     case node: FramedProof[G] => ProofHelpers
     case node: IndeterminateInteger[G] => ProofHelpers
     case node: Refute[G] => ProofHelpers
@@ -644,5 +645,7 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
+
+    case _ => return Nil
   })
 }

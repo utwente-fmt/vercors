@@ -33,22 +33,24 @@ class Program {
 		f.split(1\2, f.decr(), 1\2, f.decr());
 
 		invariant lockinv(HPerm(f.counter, write) ** HPerm(f.step, 1\2)) {
-			par T0
-      requires f.state(1\2, f.decr());
-      ensures f.state(1\2, empty);
-			{
-				atomic(lockinv) {
-					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
-				}
-			}
-			and T1
-      requires f.state(1\2, f.decr());
-      ensures f.state(1\2, empty);
-			{
-				atomic(lockinv) {
-					action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
-				}
-			}
+		    parallel {
+                par T0
+                requires f.state(1\2, f.decr());
+                ensures f.state(1\2, empty);
+                {
+                    atomic(lockinv) {
+                        action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
+                    }
+                }
+                par T1
+                requires f.state(1\2, f.decr());
+                ensures f.state(1\2, empty);
+                {
+                    atomic(lockinv) {
+                        action(f, 1\2, empty, f.decr()) { f.counter = f.counter - f.step; }
+                    }
+                }
+            }
 		}
 
 		f.merge(1\2, empty, 1\2, empty);

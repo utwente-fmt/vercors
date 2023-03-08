@@ -1,9 +1,10 @@
 package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{IterationContract, Program, RunMethod, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{Deserialize, IterationContract, Procedure, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -13,6 +14,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
+import vct.col.rewrite.bip.{BIP, ComputeBipGlue, EncodeBip, EncodeBipPermissions, InstantiateBipSynchronizations}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -24,9 +26,9 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
 object Transformation {
-  case class TransformationCheckError(errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
     override def text: String =
-      "A rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
+      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }
 
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
@@ -49,7 +51,7 @@ object Transformation {
       debugFilterRule = options.devSimplifyDebugFilterRule,
     )
 
-  def ofOptions(options: Options): Transformation =
+  def ofOptions(options: Options, bipResults: BIP.VerificationResults = BIP.VerificationResults()): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         SilverTransformation(
@@ -59,6 +61,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          bipResults = bipResults,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
     }
@@ -97,36 +100,38 @@ class Transformation
       case (_, _) =>
     }
 
-    var result: Verification[_ <: Generation] = input
+    TimeTravel.safelyRepeatable {
+      var result: Verification[_ <: Generation] = input
 
-    Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
-      onBeforePassKey.foreach {
-        case (key, action) => if(pass.key == key) action(result)
+      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+        onBeforePassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result = pass().dispatch(result)
+
+        result.check match {
+          case Nil => // ok
+          case errors => throw TransformationCheckError(pass, errors)
+        }
+
+        onAfterPassKey.foreach {
+          case (key, action) => if (pass.key == key) action(result)
+        }
+
+        result = PrettifyBlocks().dispatch(result)
       }
 
-      result = pass().dispatch(result)
-
-      result.check match {
-        case Nil => // ok
-        case errors => throw TransformationCheckError(errors)
+      for ((feature, examples) <- Feature.examples(result)) {
+        logger.debug(f"$feature:")
+        for (example <- examples.take(3)) {
+          logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
+          logger.debug(f"  ${example.getClass.getSimpleName}")
+        }
       }
 
-      onAfterPassKey.foreach {
-        case (key, action) => if(pass.key == key) action(result)
-      }
-
-      result = PrettifyBlocks().dispatch(result)
+      result
     }
-
-    for((feature, examples) <- Feature.examples(result)) {
-      logger.debug(f"$feature:")
-      for(example <- examples.take(3)) {
-        logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
-        logger.debug(f"  ${example.getClass.getSimpleName}")
-      }
-    }
-
-    result
   }
 }
 
@@ -150,9 +155,15 @@ case class SilverTransformation
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  bipResults: BIP.VerificationResults,
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    ComputeBipGlue,
+    InstantiateBipSynchronizations,
+    EncodeBipPermissions,
+    EncodeBip.withArg(bipResults),
+
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
 
@@ -162,6 +173,10 @@ case class SilverTransformation
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
+
+    EncodeString, // Encode spec string as seq<int>
+    EncodeChar,
+
     CollectLocalDeclarations, // all decls in Scope
     DesugarPermissionOperators, // no PointsTo, \pointer, etc.
     ReadToValue, // resolve wildcard into fractional permission
@@ -186,8 +201,11 @@ case class SilverTransformation
     EncodeSendRecv,
     ParBlockEncoder,
 
-    // Encode exceptional behaviour (no more continue/break/return/try/throw)
+    // Extract explicitly extracted code sections, which ban continue/break/return/goto outside them.
     SpecifyImplicitLabels,
+    EncodeExtract,
+
+    // Encode exceptional behaviour (no more continue/break/return/try/throw)
     SwitchToGoto,
     ContinueToBreak,
     EncodeBreakReturn,
@@ -219,9 +237,11 @@ case class SilverTransformation
     ResolveExpressionSideChecks,
 
     DesugarCollectionOperators,
+    EncodeNdIndex,
 
     // Translate internal types to domains
     FloatToRat,
+    EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),
     ImportMapCompat.withArg(adtImporter),
@@ -236,6 +256,7 @@ case class SilverTransformation
     ImportViperOrder.withArg(adtImporter),
 
     ExtractInlineQuantifierPatterns,
+    RewriteTriggerADTFunctions,
     MonomorphizeContractApplicables,
 
     // Silver compat (basically no new nodes)

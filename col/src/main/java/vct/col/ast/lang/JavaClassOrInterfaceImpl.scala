@@ -1,8 +1,11 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{ClassDeclaration, Declaration, JavaClassOrInterface, JavaModifier, JavaTClass, Type, Variable}
+import vct.col.ast.{ClassDeclaration, Declaration, JavaAnnotationMethod, JavaClassOrInterface, JavaMethod, JavaModifier, JavaName, JavaTClass, Type, Variable}
+import vct.col.origin.DiagnosticOrigin
 import vct.col.ref.Ref
 import vct.result.VerificationError.Unreachable
+
+import scala.reflect.ClassTag
 
 trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
   def name: String
@@ -25,4 +28,16 @@ trait JavaClassOrInterfaceImpl[G] { this: JavaClassOrInterface[G] =>
   }
 
   override def declarations: Seq[Declaration[G]] = typeParams ++ decls
+
+  def findMethodByName[Decl <: ClassDeclaration[G]](name: String)(implicit tag: ClassTag[Decl]): Seq[Decl] = {
+    def matches(decl: ClassDeclaration[G]): Boolean = decl match {
+      case decl: JavaMethod[G] if decl.name == name => true
+      case decl: JavaAnnotationMethod[G] if decl.name == name => true
+      case _ => false
+    }
+
+    decls.collect {
+      case decl: Decl if matches(decl) => decl
+    }
+  }
 }

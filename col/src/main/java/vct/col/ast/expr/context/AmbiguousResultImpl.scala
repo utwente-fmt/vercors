@@ -19,6 +19,8 @@ trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G
     case RefJavaMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstanceMethod(decl) => decl.returnType
+    case RefInstanceOperatorMethod(decl) => decl.returnType
+    case RefInstanceOperatorFunction(decl) => decl.returnType
   }
 
   override def check(context: CheckContext[G]): Seq[CheckError] =

@@ -28,6 +28,7 @@ object ColDefs {
     "ClassDeclaration",
     "ADTDeclaration",
     "ModelDeclaration",
+    "EnumConstant",
     "Variable",
     "LabelDecl",
     "SendDecl",
@@ -36,6 +37,7 @@ object ColDefs {
     "CLocalDeclaration",
     "CParam",
     "JavaLocalDeclaration",
+    "JavaParam",
   )
 
   def scopes(kind: String): Term.Name =
@@ -46,6 +48,7 @@ object ColDefs {
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
     "ModelDeclaration" -> Seq("Program"),
+    "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
       "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
@@ -82,6 +85,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
+    "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)

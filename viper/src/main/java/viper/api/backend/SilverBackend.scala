@@ -71,7 +71,13 @@ trait SilverBackend extends Backend with LazyLogging {
     val f = File.createTempFile("vercors-", ".sil")
     f.deleteOnExit()
     Using(new FileOutputStream(f)) { out =>
-      out.write(silverProgram.toString().getBytes())
+      out.write(
+        silverProgram
+          .toString()
+          .replace("requires decreasing", "decreasing")
+          .replace("invariant decreasing", "decreasing")
+          .getBytes()
+      )
     }
     SilverParserDummyFrontend().parse(f.toPath) match {
       case Left(errors) =>
@@ -100,7 +106,7 @@ trait SilverBackend extends Backend with LazyLogging {
     }
 
     val backendVerifies = // tracker.withEntities(transformedProgram) {
-      plugins.mapVerificationResult(verifier.verify(transformedProgram)) match {
+      plugins.mapVerificationResult(transformedProgram, verifier.verify(transformedProgram)) match {
         case Success => true
         case Failure(errors) =>
           logger.debug(errors.toString())
@@ -224,7 +230,7 @@ trait SilverBackend extends Backend with LazyLogging {
       case LoopTerminationError(node: Infoed, reason, _) =>
         val decreases = get[col.DecreasesClause[_]](node)
         info(node).invariant.get.blame.blame(blame.LoopTerminationMeasureFailed(decreases))
-      case TerminationFailed(_, _, _) =>
+      case TerminationFailed(node, reason, cached) =>
         throw NotSupported(s"Vercors does not support termination measures from Viper")
       case PackageFailed(node, reason, _) =>
         val packageNode = get[col.WandPackage[_]](node)
@@ -283,7 +289,7 @@ trait SilverBackend extends Backend with LazyLogging {
   }
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] = reason match {
-    case TerminationConditionFalse(_) =>
+    case TerminationConditionFalse(node) =>
       throw NotSupported("Vercors does not support termination measure conditions from Viper")
     case TupleConditionFalse(_) =>
       throw NotSupported("Vercors does not support termination measure conditions from Viper")

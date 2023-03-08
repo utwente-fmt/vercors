@@ -26,15 +26,19 @@ class Main {
         m01.sequence = fr.sequence;
         m02.sequence = fr.sequence;
         m12.sequence = fr.sequence;
-        par
-        {
-            m01.result = m01.createFragmentMap(m01.sequence, m01.offset,m01.fragmentLength);            
-        } and
-        {
-            m02.result = m02.createFragmentMap(m02.sequence, m02.offset,m02.fragmentLength);
-        } and 
-        {
-            m12.result = m12.createFragmentMap(m12.sequence, m12.offset,m12.fragmentLength);
+        parallel {
+            par
+            {
+                m01.result = m01.createFragmentMap(m01.sequence, m01.offset,m01.fragmentLength);
+            }
+            par
+            {
+                m02.result = m02.createFragmentMap(m02.sequence, m02.offset,m02.fragmentLength);
+            }
+            par
+            {
+                m12.result = m12.createFragmentMap(m12.sequence, m12.offset,m12.fragmentLength);
+            }
         }
         w1.totalCount = fr.sequence.length;
         w1.frequencies = m01.result;
