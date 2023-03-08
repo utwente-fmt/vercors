@@ -908,7 +908,7 @@ final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) ext
 final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
 final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
-final class LLVMFunctionContract[G](val value:String, val references:Set[(String, Ref[G, Declaration[G]])])(implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G]
+final class LLVMFunctionContract[G](val value:String, val references:Seq[(String, Ref[G, Declaration[G]])])(implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G]
 
 final class LLVMFunctionDefinition[G](val returnType: Type[G],
                             val args: Seq[Variable[G]],
