@@ -48,4 +48,6 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
 
   override def dispatch(node: Coercion[Pre]): Coercion[Post] = rewriteDefault(node)
   override def dispatch(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
+
+  override def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
 }
