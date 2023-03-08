@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
-import vct.col.ast.LLVMFunctionDefinition
+import vct.col.ast.LlvmFunctionDefinition
 
-trait LLVMFunctionDefinitionImpl[G] { this: LLVMFunctionDefinition[G] =>
+trait LLVMFunctionDefinitionImpl[G] { this: LlvmFunctionDefinition[G] =>
 
 }

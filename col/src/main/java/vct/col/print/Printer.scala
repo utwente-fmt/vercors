@@ -1145,7 +1145,7 @@ case class Printer(out: Appendable,
       phrase(decl.decl)
     case decl: CGlobalDeclaration[_] =>
       phrase(decl.decl)
-    case definition: LLVMFunctionDefinition[_] =>
+    case definition: LlvmFunctionDefinition[_] =>
       val header = phrase(
         spec(definition.contract),
         definition.returnType, space, name(definition), "(", commas(definition.args.map(NodePhrase)), ")"
@@ -1330,7 +1330,7 @@ case class Printer(out: Appendable,
     say(spaced(node.inits.map(NodePhrase)))
   }
 
-  def printLLVMFunctionContract(node: LLVMFunctionContract[_]): Unit = {
+  def printLLVMFunctionContract(node: LlvmFunctionContract[_]): Unit = {
     say(spec(phrase(node.value)))
   }
 
@@ -1361,7 +1361,7 @@ case class Printer(out: Appendable,
         case node: Verification[_] => printVerification(node)
         case node: VerificationContext[_] => printVerificationContext(node)
         case node: CDeclaration[_] => printCDeclaration(node)
-        case node: LLVMFunctionContract[_] => printLLVMFunctionContract(node)
+        case node: LlvmFunctionContract[_] => printLLVMFunctionContract(node)
         case x =>
           say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
       }

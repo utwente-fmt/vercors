@@ -233,7 +233,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: BipGlueAccepts[Pre] => node
     case node: BipGlueDataWire[Pre] => node
     case node: BipTransitionSignature[Pre] => node
-    case node: LLVMFunctionContract[Pre] => node
+    case node: LlvmFunctionContract[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -396,9 +396,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaBipGlueName[Pre]): JavaBipGlueName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Pre] = node
-  def postCoerce(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Post] = rewriteDefault(node)
-  override final def dispatch(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
+  def postCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
+  override final def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1506,7 +1506,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case glue: BipGlue[Pre] => glue
       case synchronization: BipPortSynchronization[Pre] => synchronization
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
-      case definition: LLVMFunctionDefinition[Pre] => definition
+      case definition: LlvmFunctionDefinition[Pre] => definition
     }
   }
 
@@ -1801,5 +1801,5 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
   def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
 
-  def coerce(node: LLVMFunctionContract[Pre]): LLVMFunctionContract[Pre] = node
+  def coerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
 }
