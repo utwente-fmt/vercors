@@ -18,6 +18,10 @@ case object TaskRegistry {
     mainThreadRootTask.end()
   }
 
+  def abort(): Unit = {
+    mainThreadRootTask.abort()
+  }
+
   def isMainThread: Boolean = Thread.currentThread().getId == mainThreadId
   def getRootTask: RootTask = mainThreadRootTask
 

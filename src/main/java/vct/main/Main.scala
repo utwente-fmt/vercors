@@ -75,6 +75,10 @@ case object Main extends LazyLogging {
 
     Progress.install(options.progress)
 
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = Progress.abort()
+    })
+
     try {
       options.mode match {
         case Mode.Verify =>

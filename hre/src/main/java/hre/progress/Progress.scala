@@ -1,5 +1,6 @@
 package hre.progress
 
+import hre.perf.Profile
 import hre.progress.task.{NameSequenceTask, SimpleNamedTask, UpdateableTask}
 
 import java.util.{Timer, TimerTask}
@@ -14,6 +15,12 @@ case object Progress {
 
   def finish(): Unit = {
     TaskRegistry.finish()
+    Profile.finish()
+  }
+
+  def abort(): Unit = {
+    TaskRegistry.abort()
+    Profile.finish()
   }
 
   private val blockLayoutUpdateTimer = new Timer()

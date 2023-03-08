@@ -24,6 +24,7 @@ case object Profile {
     ValueType(str("selfSys"), str("microseconds")),
     ValueType(str("childUser"), str("microseconds")),
     ValueType(str("childSys"), str("microseconds")),
+    ValueType(str("wall"), str("microseconds")),
   )
 
   private val samples = mutable.ArrayBuffer[Sample]()
@@ -51,7 +52,8 @@ case object Profile {
         ownUsage.userTime,
         ownUsage.systemTime,
         deltaChild.userTime,
-        deltaChild.systemTime
+        deltaChild.systemTime,
+        ownUsage.wallTime,
       ),
     )
   }

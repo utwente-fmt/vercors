@@ -53,6 +53,11 @@ abstract class Task {
     Progress.update()
   }
 
+  def abort(): Unit = {
+    subTasks.toIndexedSeq.foreach(_.abort())
+    end()
+  }
+
   private def prefix(tail: String, prefix: String, maxWidth: Int): String = {
     val sep = " › "
     val ellipsis = "…"
