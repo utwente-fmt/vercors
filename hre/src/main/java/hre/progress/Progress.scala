@@ -61,27 +61,39 @@ case object Progress {
     }
   }
 
-  def foreach[T](xs: IterableOnce[T], desc: T => String)(f: T => Unit): Unit = {
-    val superTask = TaskRegistry.currentTaskInThread
-    xs.iterator.foreach(x => {
-      SimpleNamedTask(superTask, desc(x)).frame {
-        f(x)
-      }
-    })
-  }
+  def foreach[T](xs: IterableOnce[T], desc: T => String)(f: T => Unit): Unit =
+    if(TaskRegistry.enabled) {
+      val superTask = TaskRegistry.currentTaskInThread
+      xs.iterator.foreach(x => {
+        SimpleNamedTask(superTask, desc(x)).frame {
+          f(x)
+        }
+      })
+    } else {
+      xs.iterator.foreach(f)
+    }
 
-  def map[T, S](xs: IterableOnce[T], desc: T => String)(f: T => S): IterableOnce[S] = {
-    val superTask = TaskRegistry.currentTaskInThread
-    xs.iterator.map(x => {
-      SimpleNamedTask(superTask, desc(x)).frame {
-        f(x)
-      }
-    })
-  }
+  def map[T, S](xs: IterableOnce[T], desc: T => String)(f: T => S): IterableOnce[S] =
+    if(TaskRegistry.enabled) {
+      val superTask = TaskRegistry.currentTaskInThread
+      xs.iterator.map(x => {
+        SimpleNamedTask(superTask, desc(x)).frame {
+          f(x)
+        }
+      })
+    } else {
+      xs.iterator.map(f)
+    }
 
   def stages[T](names: Seq[(String, Int)])(f: (() => Unit) => T): T =
-    NameSequenceTask(TaskRegistry.currentTaskInThread, names.map(_._1)).scope(f)
+    if(TaskRegistry.enabled)
+      NameSequenceTask(TaskRegistry.currentTaskInThread, names.map(_._1)).scope(f)
+    else
+      f(() => {})
 
   def dynamicMessages[T](count: Int)(f: (String => Unit) => T): T =
-    UpdateableTask(TaskRegistry.currentTaskInThread).scope(f)
+    if(TaskRegistry.enabled)
+      UpdateableTask(TaskRegistry.currentTaskInThread).scope(f)
+    else
+      f(_ => {})
 }
