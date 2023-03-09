@@ -1,6 +1,6 @@
 package hre.progress.task
 
-case class NameSequenceTask(superTask: Task, var names: Seq[String]) extends Task {
+case class NameSequenceTask(superTask: AbstractTask, var names: Seq[String]) extends Task {
   override def profilingBreadcrumb: String = names.head
   override def progressText: String = names.head
 

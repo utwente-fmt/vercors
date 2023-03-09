@@ -15,11 +15,15 @@ case object Progress {
   }
 
   def finish(): Unit = {
+    blockLayoutUpdateTask.foreach(_.cancel())
+    blockLayoutUpdateTimer.purge()
     TaskRegistry.finish()
     Profile.finish()
   }
 
   def abort(): Unit = {
+    blockLayoutUpdateTask.foreach(_.cancel())
+    blockLayoutUpdateTimer.purge()
     TaskRegistry.abort()
     Profile.finish()
   }

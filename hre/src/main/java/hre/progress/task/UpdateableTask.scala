@@ -1,6 +1,6 @@
 package hre.progress.task
 
-case class UpdateableTask(superTask: Task) extends Task {
+case class UpdateableTask(superTask: AbstractTask) extends Task {
   var currentName: Option[String] = None
 
   override def profilingBreadcrumb: String = currentName.get

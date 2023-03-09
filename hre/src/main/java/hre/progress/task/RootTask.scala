@@ -1,22 +1,16 @@
 package hre.progress.task
 import hre.progress.TaskRegistry
 
-import scala.util.chaining.scalaUtilChainingOps
-
-case class RootTask() extends Task {
-  override def superTask: Task = null
+case class RootTask() extends AbstractTask {
+  override def superTaskOrRoot: Option[Task] = None
   override def profilingBreadcrumb: String = "root"
   override def progressText: String = "VerCors"
-  override def profilingTrail: Seq[String] = Seq(profilingBreadcrumb)
-
-  override def start(): Unit = {
-    startUsage = Some(TaskRegistry.ownUsage())
-    TaskRegistry.reportUsage(startUsage.get, Seq("<untracked>"))
-    TaskRegistry.threadTaskStack.get() += this
-  }
 
   override def end(): Unit = {
     poll()
-    TaskRegistry.threadTaskStack.get().pipe(s => s.remove(s.length - 1))
+    val stack = TaskRegistry.threadTaskStack.get()
+    if(stack.lastOption.contains(this)) {
+      stack.remove(stack.length - 1)
+    }
   }
 }

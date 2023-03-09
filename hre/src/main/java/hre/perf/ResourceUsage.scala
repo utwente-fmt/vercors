@@ -19,17 +19,6 @@ object ResourceUsage {
   def getCallingThread: Option[ResourceUsage] = get(1)
   def getAggregateChildren: Option[ResourceUsage] = get(-1)
 
-  def main(args: Array[String]): Unit = {
-    println(System.getProperty("sun.arch.data.model"))
-    while(true) {
-      println(s"self: ${getProcess.get}")
-      println(s"calling thread: ${getCallingThread.get}")
-      println(s"children: ${getAggregateChildren.get}")
-      println()
-      Thread.sleep(1000)
-    }
-  }
-
   def zero: ResourceUsage = ResourceUsage(0, 0, 0, 0, 0, 0, 0)
 }
 

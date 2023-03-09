@@ -33,7 +33,7 @@ case object Layout {
   private def esc(command: Char, args: String = ""): String =
     "\u001b[" + args + command
 
-  private def upBy(n: Int): String = esc('A', n.toString)
+  private def upBy(n: Int): String = if(n==0) "" else esc('A', n.toString)
 
   private def clearLine: String = esc('K')
   private def clearToEnd: String = esc('J', "0")

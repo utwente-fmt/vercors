@@ -1,17 +1,24 @@
 package viper.api.backend.silicon
 
-import hre.progress.task.Task
-import viper.silicon.logger.records.data.{ConsumeRecord, DataRecord, ExecuteRecord, FunctionRecord, MethodRecord, PredicateRecord, ProduceRecord}
+import hre.progress.task.{AbstractTask, Task}
+import viper.silicon.logger.records.data.{CommentRecord, ConsumeRecord, DataRecord, ExecuteRecord, FunctionRecord, MethodRecord, PredicateRecord, ProduceRecord}
 
-case class DataRecordTask(superTask: Task, record: DataRecord) extends Task {
+case class DataRecordTask(superTask: AbstractTask, record: DataRecord) extends Task {
   override def progressText: String = record match {
-    case r: FunctionRecord => r.value.name
-    case r: PredicateRecord => r.value.name
-    case r: MethodRecord => r.value.name
-    case r: ExecuteRecord => r.value.toString()
-    case r: ConsumeRecord => r.value.toString()
-    case r: ProduceRecord => r.value.toString()
+    case r: FunctionRecord => s"${r.value.name}"
+    case r: PredicateRecord => s"${r.value.name}"
+    case r: MethodRecord => s"${r.value.name}"
+    case r: ExecuteRecord => s"${r.value.toString().replaceAll("[\n ]+", " ")}"
+    case r: ConsumeRecord => s"Exhale ${r.value.toString().replaceAll("[\n ]+", " ")}"
+    case r: ProduceRecord => s"Inhale ${r.value.toString().replaceAll("[\n ]+", " ")}"
+    case r: CommentRecord => s"/*${r.comment}*/"
   }
 
   override def profilingBreadcrumb: String = progressText
+
+  override def hashCode(): Int = record.id
+  override def equals(other: Any): Boolean = other match {
+    case DataRecordTask(_, other) => other.id == record.id
+    case _ => false
+  }
 }
