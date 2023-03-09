@@ -4,7 +4,6 @@ import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
-ThisBuild / javacOptions := Seq("nonsense")
 ThisBuild / fork := true
 
 ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
