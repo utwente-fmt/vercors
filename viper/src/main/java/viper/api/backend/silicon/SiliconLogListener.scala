@@ -35,7 +35,9 @@ case class SiliconLogListener(
   traceBranchConditions: Boolean,
   branchConditionReportInterval: Option[Int],
 ) extends SymbExLogger[SiliconMemberLogListener] {
-  val superTask: AbstractTask = TaskRegistry.currentTaskInThread
+  val superTask: Option[AbstractTask] =
+    if(TaskRegistry.enabled) Some(TaskRegistry.currentTaskInThread)
+    else None
 
   override protected def newEntityLogger(member: Member, pcs: PathConditionStack): SiliconMemberLogListener = {
     val log = new SiliconMemberLogListener(this, member, pcs, superTask)
@@ -44,7 +46,7 @@ case class SiliconLogListener(
   }
 }
 
-class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack, superTask: AbstractTask) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
+class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack, superTask: Option[AbstractTask]) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
   var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
   var branchConditions: List[BranchCondition] = List()
@@ -76,7 +78,8 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
 
   def done(): Unit = {
     timer.cancel()
-    currentTaskStack = updateTaskStack(currentTaskStack, superTask, Nil, Nil)
+    if(superTask.nonEmpty)
+      currentTaskStack = updateTaskStack(currentTaskStack, superTask.get, Nil, Nil)
   }
 
   def where(node: Node): Option[String] = Util.getOrigin(node).map(_.shortPosition)
@@ -165,6 +168,9 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     }
 
   def taskProgress(): Unit = {
+    if(this.superTask.isEmpty) return
+    val superTask = this.superTask.get
+
     val BANNED_COMMENTS = Set("Retry")
 
     val records =
