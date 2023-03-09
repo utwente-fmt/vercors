@@ -61,11 +61,15 @@ case object Progress {
     }
   }
 
+  private def tryWeight(xs: IterableOnce[_]): Option[Double] =
+    if(xs.knownSize > 0) Some(1.0 / xs.knownSize)
+    else None
+
   def foreach[T](xs: IterableOnce[T], desc: T => String)(f: T => Unit): Unit =
     if(TaskRegistry.enabled) {
       val superTask = TaskRegistry.currentTaskInThread
       xs.iterator.foreach(x => {
-        SimpleNamedTask(superTask, desc(x)).frame {
+        SimpleNamedTask(superTask, desc(x), tryWeight(xs)).frame {
           f(x)
         }
       })
@@ -77,7 +81,7 @@ case object Progress {
     if(TaskRegistry.enabled) {
       val superTask = TaskRegistry.currentTaskInThread
       xs.iterator.map(x => {
-        SimpleNamedTask(superTask, desc(x)).frame {
+        SimpleNamedTask(superTask, desc(x), tryWeight(xs)).frame {
           f(x)
         }
       })
@@ -86,14 +90,16 @@ case object Progress {
     }
 
   def stages[T](names: Seq[(String, Int)])(f: (() => Unit) => T): T =
-    if(TaskRegistry.enabled)
-      NameSequenceTask(TaskRegistry.currentTaskInThread, names.map(_._1)).scope(f)
-    else
+    if(TaskRegistry.enabled) {
+      val sum = names.map(_._2).sum
+      val weights = names.map(_._2.toDouble / sum)
+      NameSequenceTask(TaskRegistry.currentTaskInThread, names.map(_._1), weights).scope(f)
+    } else
       f(() => {})
 
   def dynamicMessages[T](count: Int)(f: (String => Unit) => T): T =
     if(TaskRegistry.enabled)
-      UpdateableTask(TaskRegistry.currentTaskInThread).scope(f)
+      UpdateableTask(TaskRegistry.currentTaskInThread, Some(count)).scope(f)
     else
       f(_ => {})
 }

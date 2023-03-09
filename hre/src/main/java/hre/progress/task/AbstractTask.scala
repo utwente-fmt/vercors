@@ -11,6 +11,24 @@ abstract class AbstractTask {
   protected var startUsage: Option[ResourceUsage] = None
   private var usageReported: ResourceUsage = ResourceUsage.zero
 
+  def progressWeight: Option[Double] = None
+  private var progressDone: Double = 0.0
+
+  def progress: Double = {
+    val subtaksProgress = subTasks.map(t => t.progressWeight -> t.progress)
+    val knownWeightProgress = subtaksProgress.collect { case Some(weight) -> progress => weight * progress }.sum[Double]
+    val knownDone = progressDone + knownWeightProgress
+    val unknownWeightProgress = subtaksProgress.collect { case None -> progress => progress }.sortBy(-_)
+    val result = unknownWeightProgress.foldLeft(knownDone) {
+      case (progress, subtaskProgress) => progress + ((1.0 - progress) * 0.1 * subtaskProgress)
+    }
+
+    if(result > 1.0) {
+      println(s"Discarding ${result - 1.0} from $result at $profilingBreadcrumb")
+      1.0
+    } else result
+  }
+
   private var ownerThread = -1L
   def getOwnerThread: Long = ownerThread
 
@@ -20,7 +38,6 @@ abstract class AbstractTask {
   def profilingTrail: Seq[String] = profilingBreadcrumb +: superTaskOrRoot.toSeq.flatMap(_.profilingTrail)
 
   def progressText: String
-  def progress: Double = 0.5
 
   def poll(): ResourceUsage = this.synchronized {
     if(Thread.currentThread().getId != ownerThread)
@@ -61,6 +78,7 @@ abstract class AbstractTask {
         superTask.synchronized {
           superTask.subTasks -= this
           superTask.usageReported += usageReported
+          superTask.progressDone += progressWeight.getOrElse(0.1 * (1.0 - superTask.progressDone))
         }
     }
 

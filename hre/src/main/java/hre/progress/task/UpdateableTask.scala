@@ -1,7 +1,11 @@
 package hre.progress.task
 
-case class UpdateableTask(superTask: AbstractTask) extends Task {
-  var currentName: Option[String] = None
+case class UpdateableTask(superTask: AbstractTask, approxUpdates: Option[Int] = None) extends Task {
+  private var currentName: Option[String] = None
+  private var updatesDone = 0
+
+  override def progressWeight: Option[Double] =
+    approxUpdates.map(approxUpdates => if(updatesDone < approxUpdates) 1.0 / approxUpdates else 0.0)
 
   override def profilingBreadcrumb: String = currentName.get
   override def progressText: String = currentName.get
@@ -15,6 +19,7 @@ case class UpdateableTask(superTask: AbstractTask) extends Task {
 
   private def update(name: String): Unit = {
     if(currentName.isDefined) end()
+    updatesDone += 1
     currentName = Some(name)
     start()
   }
