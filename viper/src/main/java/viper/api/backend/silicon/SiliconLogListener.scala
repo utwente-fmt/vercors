@@ -79,10 +79,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
     currentTaskStack = updateTaskStack(currentTaskStack, superTask, Nil, Nil)
   }
 
-  def where(node: Node): Option[String] = node match {
-    case node: Infoed => node.info.getUniqueInfo[NodeInfo[vct.col.ast.Node[_]]].map(_.node.o.shortPosition)
-    case _ => None
-  }
+  def where(node: Node): Option[String] = Util.getOrigin(node).map(_.shortPosition)
 
   def printRecords(records: mutable.Map[Int, DataRecord], excludedBy: Map[Int, Int]): Unit = {
     for(record <- records.values.toSeq.sortBy(_.id)) {
