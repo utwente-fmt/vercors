@@ -458,8 +458,16 @@ case class Printer(out: Appendable,
       controls(`if` +: others)
     case Switch(expr, body) =>
       control(phrase("switch(", expr, ")"), body)
+    case Loop(Block(Nil), cond, Block(Nil), invariant, body) =>
+      phrase(
+        printLoopInvariant(invariant),
+        control(phrase("while (", cond, ")"), body)
+      )
     case Loop(init, cond, update, invariant, body) =>
-      control(phrase("for(", init, "; ", cond, "; ", update, ")"), body)
+      phrase(
+        printLoopInvariant(invariant),
+        control(phrase("for(", init, "; ", cond, "; ", update, ")"), body)
+      )
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -1126,6 +1134,16 @@ case class Printer(out: Appendable,
         case Some(body) => control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }
+    case constructor: PVLConstructor[_] =>
+      val header = phrase(
+        constructor.contract,
+        "constructor(", commas(constructor.args.map(NodePhrase)), ")",
+      )
+
+      constructor.body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
     case predicate: InstancePredicate[_] =>
       val header = phrase(
         if(predicate.threadLocal) phrase("thread_local") else phrase(),
@@ -1172,6 +1190,19 @@ case class Printer(out: Appendable,
       phrase(node.signals.map(NodePhrase):_*),
       phrase(node.yieldsArgs.map(v => phrase(newline, "yields", space, v, ";", newline)):_*),
     ))
+
+  def printLoopInvariant(node: LoopContract[_]): Phrase = phrase(
+    node match {
+      case LoopInvariant(invariant, None) =>
+        spec("loop_invariant = ",
+          expr(invariant)._1)
+      case LoopInvariant(invariant, Some(decreases)) =>
+        ???
+      case IterationContract(context_everywhere, invariant, decreases) =>
+        ???
+    }
+  )
+
 
   def printParBlock(parBlock: ParBlock[_], label: String): Unit = {
     val header = phrase(label, space, name(parBlock.decl), "(", commas(parBlock.iters.map(NodePhrase)), ")")
