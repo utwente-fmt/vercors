@@ -1,6 +1,7 @@
 package hre.progress
 
 import hre.perf.Profile
+import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
 case object Layout {
@@ -28,7 +29,7 @@ case object Layout {
     case other => other
   }) - 2
 
-  def maxProgressBarWidth: Int = maxWidth - 8
+  def maxHeight: Int = 32
 
   private def esc(command: Char, args: String = ""): String =
     "\u001b[" + args + command
@@ -53,26 +54,33 @@ case object Layout {
 
   def progressEstimate: Double = TaskRegistry.getRootTask.progress
 
+  def progressBadge: String =
+    f"[${progressEstimate * 100}%.1f%%]"
+
   def progressBar: String = {
-    val progress = (progressEstimate * maxProgressBarWidth * PROGRESS_BLOCKS.length).toInt
+    val prefix = progressBadge + " ["
+    val postfix = "]"
+    val maxProgressBarWidth = maxWidth - prefix.length - postfix.length
+    val bumpedProgress = progressEstimate * 0.99 + 0.01
+    val progress = (bumpedProgress * maxProgressBarWidth * PROGRESS_BLOCKS.length).toInt
     val fullBlocks = progress / PROGRESS_BLOCKS.length
     val halfBlockIdx = progress % PROGRESS_BLOCKS.length
 
-    if (halfBlockIdx == 0) PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + " ".repeat(maxProgressBarWidth - fullBlocks)
-    else PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + PROGRESS_BLOCKS(halfBlockIdx) + " ".repeat(maxProgressBarWidth - fullBlocks - 1)
+    prefix + (
+      if (halfBlockIdx == 0) PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + " ".repeat(maxProgressBarWidth - fullBlocks)
+      else PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + PROGRESS_BLOCKS(halfBlockIdx) + " ".repeat(maxProgressBarWidth - fullBlocks - 1)
+    ) + postfix
   }
-
-  def framesText: String = ???
 
   def progressMessage: String = if (/*frames.nonEmpty*/true) {
     if (wantProgress) {
       if (wantPrettyProgress) {
-        val lines = TaskRegistry.getRootTask.progressLines(maxWidth)
-        printedLines = lines.size
-        lines.mkString("", f"%n", f"%n")
+        val lines = TaskRegistry.getRootTask.render(maxWidth, maxHeight-1)
+        printedLines = lines.size + 1
+        (lines :+ progressBar).mkString("", f"%n", f"%n")
       } else {
-        val lines = TaskRegistry.getRootTask.progressLines(maxWidth - 10)
-        f"[${progressEstimate * 100}%.1f%%] ${lines.last}"
+        val lines = TaskRegistry.getRootTask.render(maxWidth, 1)
+        s"$progressBadge ${lines.last}"
       }
     } else ""
   } else {

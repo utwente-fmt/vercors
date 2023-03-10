@@ -1,7 +1,7 @@
 package hre.progress.task
 
 import hre.perf.ResourceUsage
-import hre.progress.{Progress, TaskRegistry}
+import hre.progress.{Progress, ProgressRender, TaskRegistry}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -14,7 +14,7 @@ abstract class AbstractTask {
   def progressWeight: Option[Double] = None
   protected var progressDone: Double = 0.0
 
-  def progress: Double = {
+  def progress: Double = synchronized {
     val subtaksProgress = subTasks.map(t => t.progressWeight -> t.progress)
     val knownWeightProgress = subtaksProgress.collect { case Some(weight) -> progress => weight * progress }.sum[Double]
     val knownDone = progressDone + knownWeightProgress
@@ -37,7 +37,8 @@ abstract class AbstractTask {
   def profilingBreadcrumb: String
   def profilingTrail: Seq[String] = profilingBreadcrumb +: superTaskOrRoot.toSeq.flatMap(_.profilingTrail)
 
-  def progressText: String
+  def renderHere: ProgressRender
+  def renderHereShort: ProgressRender = renderHere
 
   def poll(): ResourceUsage = this.synchronized {
     if(Thread.currentThread().getId != ownerThread)
@@ -95,37 +96,47 @@ abstract class AbstractTask {
     end()
   }
 
-  private def prefix(tail: String, prefix: String, maxWidth: Int): String = {
-    val sep = " › "
-    val ellipsis = "…"
+  private def renderProgressWith(render: AbstractTask => ProgressRender): ProgressRender = {
+    val here = render(this)
+    val sub = subTasks.toIndexedSeq
 
-    if(prefix.length + sep.length + tail.length <= maxWidth)
-      prefix + sep + tail
-    else if(4 + ellipsis.length + sep.length + tail.length <= maxWidth) {
-      val room = maxWidth - (ellipsis.length + sep.length + tail.length)
-      val leftChars = room / 2
-      prefix.substring(0, leftChars) +
-        ellipsis +
-        prefix.substring(prefix.length - room + leftChars) +
-        sep +
-        tail
-    } else if(ellipsis.length + sep.length + tail.length <= maxWidth) {
-      ellipsis + sep + tail
-    } else tail
+    sub match {
+      case Nil => here
+      case Seq(sub) => sub.renderProgressWith(render).prefix(here, f"[${sub.progress * 100}%.1f%%] ")
+      case subs =>
+        val hereFixed = here.postfix(ProgressRender(s"${subs.size} Subtasks"), "")
+        val subsFixed = subs.zipWithIndex.map {
+          case (sub, idx) =>
+            sub.renderProgressWith(render)
+              .prefix(f"[${sub.progress * 100}%.1f%%] ")
+              .prefix(ProgressRender(s"Subtask ${idx+1}/${subs.size}"), "")
+        }.reduce[ProgressRender] {
+          case (l, r) => ProgressRender(l.lines ++ Seq(ProgressRender.HR) ++ r.lines, -1)
+        }
+
+        ProgressRender(
+          subsFixed.lines ++ Seq(ProgressRender.HR) ++ hereFixed.lines,
+          hereFixed.primaryLineIndex + subsFixed.lines.size + 1
+        )
+    }
   }
 
-  def progressLines(maxWidth: Int): Seq[String] = {
-    val subLines = subTasks.toIndexedSeq.map(_.progressLines(maxWidth))
-    val myText = progressText.split('\n').map(_.take(maxWidth))
+  def render(maxWidth: Int, maxHeight: Int): Seq[String] = {
+    val bigProgress = renderProgressWith(_.renderHere)
+    val progress =
+      if(bigProgress.lines.size > maxHeight) renderProgressWith(_.renderHereShort)
+      else bigProgress
 
-    subLines match {
-      case Nil => myText
-      case Seq(lines) =>
-        if(myText.length == 1) lines.init :+ prefix(lines.last, myText.head, maxWidth)
-        else lines ++ Seq("-".repeat(maxWidth)) ++ myText
-      case multipleSubtasks =>
-        multipleSubtasks.flatten ++ Seq("-".repeat(maxWidth)) ++ myText
-    }
+    progress.lines
+      .takeRight(maxHeight)
+      .map { line =>
+        if(line.length <= maxWidth) line
+        else {
+          val avail = maxWidth - ProgressRender.ELLIPSIS.length
+          val split = avail * 2 / 3
+          line.take(split) + ProgressRender.ELLIPSIS + line.takeRight(avail - split)
+        }
+      }
   }
 
   def frame[T](f: => T): T =

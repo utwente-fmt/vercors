@@ -1,4 +1,5 @@
 package hre.progress.task
+import hre.progress.ProgressRender
 
 case class UpdateableTask(superTask: AbstractTask, approxUpdates: Option[Int] = None) extends Task {
   private var currentName: Option[String] = None
@@ -8,7 +9,7 @@ case class UpdateableTask(superTask: AbstractTask, approxUpdates: Option[Int] = 
     approxUpdates.map(approxUpdates => if(updatesDone < approxUpdates) 1.0 / approxUpdates else 0.0)
 
   override def profilingBreadcrumb: String = currentName.get
-  override def progressText: String = currentName.get
+  override def renderHere: ProgressRender = ProgressRender(currentName.get)
 
   def scope[T](f: (String => Unit) => T): T =
     try {

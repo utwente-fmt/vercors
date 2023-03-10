@@ -1,18 +1,22 @@
 package viper.api.backend.silicon
 
+import hre.progress.ProgressRender
 import hre.progress.task.{AbstractTask, Task}
 import viper.silicon.logger.records.data.{CommentRecord, ConsumeRecord, DataRecord, ExecuteRecord, FunctionRecord, MethodRecord, PredicateRecord, ProduceRecord}
 
 case class DataRecordTask(superTask: AbstractTask, record: DataRecord) extends Task {
-  override def progressText: String = record match {
-    case r: FunctionRecord => Util.getOrigin(r.value).map(_.messageInContext("Verifying")).getOrElse(r.value.name)
-    case r: PredicateRecord => Util.getOrigin(r.value).map(_.messageInContext("Verifying")).getOrElse(r.value.name)
-    case r: MethodRecord => Util.getOrigin(r.value).map(_.messageInContext("Verifying")).getOrElse(r.value.name)
-    case r: ExecuteRecord => Util.getOrigin(r.value).map(_.messageInContext("Executing")).getOrElse(r.value.toString())
-    case r: ConsumeRecord => Util.getOrigin(r.value).map(_.messageInContext("Exhaling")).getOrElse(r.value.toString())
-    case r: ProduceRecord => Util.getOrigin(r.value).map(_.messageInContext("Inhaling")).getOrElse(r.value.toString())
-    case r: CommentRecord => s"/*${r.comment}*/"
+  def renderMaybeShort(short: Boolean): ProgressRender = record match {
+    case r: FunctionRecord => Util.renderOrigin(r.value, "Verifying", short = true)
+    case r: PredicateRecord => Util.renderOrigin(r.value, "Verifying", short = true)
+    case r: MethodRecord => Util.renderOrigin(r.value, "Verifying", short = true)
+    case r: ExecuteRecord => Util.renderOrigin(r.value, "Executing", short)
+    case r: ConsumeRecord => Util.renderOrigin(r.value, "Exhaling", short)
+    case r: ProduceRecord => Util.renderOrigin(r.value, "Inhaling", short)
+    case r: CommentRecord => ProgressRender(s"/*${r.comment}*/")
   }
+
+  override def renderHere: ProgressRender = renderMaybeShort(short = false)
+  override def renderHereShort: ProgressRender = renderMaybeShort(short = true)
 
   override def profilingBreadcrumb: String = record match {
     case r: FunctionRecord => s"${r.value.name}"

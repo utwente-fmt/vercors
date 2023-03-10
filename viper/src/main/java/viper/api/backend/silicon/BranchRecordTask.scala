@@ -1,5 +1,6 @@
 package viper.api.backend.silicon
 
+import hre.progress.ProgressRender
 import hre.progress.task.{AbstractTask, Task}
 import viper.api.backend.silicon.SiliconLogListener.{BranchCondition, BranchConditionExp, BranchConditionNone, BranchConditionTerm}
 
@@ -10,5 +11,5 @@ case class BranchRecordTask(superTask: AbstractTask, cond: BranchCondition) exte
     case BranchConditionNone(at, count) => s"alternative $at/$count"
   }
 
-  override def progressText: String = profilingBreadcrumb
+  override def renderHere: ProgressRender = ProgressRender(profilingBreadcrumb)
 }
