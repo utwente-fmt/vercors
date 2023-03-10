@@ -19,6 +19,7 @@ case class NameSequenceTask(superTask: AbstractTask, var names: Seq[String], var
     end()
     names = names.tail
     progressWeights = if(progressWeights.isEmpty) Nil else progressWeights.tail
+    progressDone = 0.0
     start()
   }
 }

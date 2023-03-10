@@ -12,7 +12,7 @@ abstract class AbstractTask {
   private var usageReported: ResourceUsage = ResourceUsage.zero
 
   def progressWeight: Option[Double] = None
-  private var progressDone: Double = 0.0
+  protected var progressDone: Double = 0.0
 
   def progress: Double = {
     val subtaksProgress = subTasks.map(t => t.progressWeight -> t.progress)

@@ -18,7 +18,10 @@ case class UpdateableTask(superTask: AbstractTask, approxUpdates: Option[Int] = 
     }
 
   private def update(name: String): Unit = {
-    if(currentName.isDefined) end()
+    if(currentName.isDefined) {
+      end()
+      progressDone = 0.0
+    }
     updatesDone += 1
     currentName = Some(name)
     start()
