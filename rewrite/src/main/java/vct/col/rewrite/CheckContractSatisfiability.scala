@@ -61,6 +61,13 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         expectedErrors.top += err
         // PB: this usage is dubious: pred can probably contain type variables?
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
+//        val compositeTypes = substitutions.keys.filter(_.t.getClass.getDeclaredFields.exists(_.getName == "element"))
+//        val typeArgs = substitutions.keys.filter(_.t.isInstanceOf[TVar]) ++ compositeTypes.filter(_.t.element.ref.decl.t.t)
+        val substitutionsNoGenerics = substitutions.keys.map(_.t).collect {
+          case ts @ TSeq(TVar(ref)) =>
+            new Variable(TSeq(ref.decl.t))
+          case other => new Variable(other)
+        }
         variables.scope {
           globalDeclarations.declare(procedure(
             blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
@@ -70,7 +77,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
                 dispatch(generalizedContract)
               }
             )(generalizedContract.o),
-            args = variables.dispatch(substitutions.keys),
+            args = variables.dispatch(substitutionsNoGenerics),
             body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
           ))
         }
