@@ -1,0 +1,1246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<INTERNAL>
+  <external_declaration idref="2">
+    <declaration idref="4">
+      <declaration_specifiers idref="8">
+        <class_specifier extSCModule="true" idref="10" keyword="class" name="sc_fifox">
+          <base_clause column="7" file="sc_fifo.tmp" idref="12" line="2">
+            <base_specifier column="16" file="sc_fifo.tmp" idref="14"
+              length="0" line="2" name="sc_prim_channel" sc_dt="true">
+              <base_class_access_specifier column="16"
+                file="sc_fifo.tmp" idref="16" line="2" name="private"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="33" file="sc_fifo.tmp" idref="18" line="3">
+            <access_specifier column="33" file="sc_fifo.tmp" idref="20"
+              line="3" name="private"/>
+          </member_declaration>
+          <member_declaration column="10" file="sc_fifo.tmp" idref="22" line="4">
+            <member_declarator_list column="10" file="sc_fifo.tmp"
+              idref="24" line="4">
+              <declaration_specifiers column="10" file="sc_fifo.tmp"
+                idref="26" line="4">
+                <type_modifiers column="10" file="sc_fifo.tmp"
+                  idref="28" line="4">
+                  <storage_class_specifier column="10"
+                    file="sc_fifo.tmp" idref="30" line="4" name="static"/>
+                </type_modifiers>
+                <type_modifiers column="5" file="sc_fifo.tmp" idref="32" line="4">
+                  <type_qualifier column="5" file="sc_fifo.tmp"
+                    idref="34" line="4" name="const"/>
+                </type_modifiers>
+                <builtin_type_specifier column="12" file="sc_fifo.tmp"
+                  idref="36" length="0" line="4" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="18" file="sc_fifo.tmp"
+                idref="38" line="4">
+                <declarator column="18" file="sc_fifo.tmp" idref="40" line="4">
+                  <qualified_id column="18" file="sc_fifo.tmp"
+                    idref="42" line="4" name="BUF_SIZE"/>
+                </declarator>
+                <initializer column="31" file="sc_fifo.tmp" idref="44" line="4">
+                  <primary_expression column="31" file="sc_fifo.tmp"
+                    idref="48" line="4">
+                    <constant column="31" file="sc_fifo.tmp" idref="50"
+                      line="4" value="16"/>
+                  </primary_expression>
+                </initializer>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="35" file="sc_fifo.tmp" idref="52" line="5">
+            <member_declarator_list column="35" file="sc_fifo.tmp"
+              idref="54" line="5">
+              <declaration_specifiers column="35" file="sc_fifo.tmp"
+                idref="56" line="5">
+                <builtin_type_specifier column="35" file="sc_fifo.tmp"
+                  idref="58" length="0" line="5" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="60" line="5">
+                <declarator column="5" file="sc_fifo.tmp" idref="62" line="5">
+                  <qualified_id column="5" file="sc_fifo.tmp" idref="64"
+                    line="5" name="size"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="13" file="sc_fifo.tmp" idref="66" line="6">
+            <member_declarator_list column="13" file="sc_fifo.tmp"
+              idref="68" line="6">
+              <declaration_specifiers column="13" file="sc_fifo.tmp"
+                idref="70" line="6">
+                <builtin_type_specifier column="13" file="sc_fifo.tmp"
+                  idref="72" length="0" line="6" name="GTYPE" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="74" line="6">
+                <declarator column="5" file="sc_fifo.tmp" idref="76" line="6">
+                  <qualified_id column="5" file="sc_fifo.tmp" idref="78"
+                    line="6" name="buf"/>
+                  <declarator_suffixes arrayCounter="1" column="10"
+                    file="sc_fifo.tmp" idref="80" line="6">
+                    <constant_expression column="13" file="sc_fifo.tmp"
+                      idref="82" line="6">
+                      <primary_expression column="13" file="sc_fifo.tmp"
+                        idref="86" line="6">
+                        <id_expression column="14" file="sc_fifo.tmp"
+                          idref="88" line="6" name="BUF_SIZE"/>
+                      </primary_expression>
+                    </constant_expression>
+                  </declarator_suffixes>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="23" file="sc_fifo.tmp" idref="90" line="7">
+            <member_declarator_list column="23" file="sc_fifo.tmp"
+              idref="92" line="7">
+              <declaration_specifiers column="23" file="sc_fifo.tmp"
+                idref="94" line="7">
+                <builtin_type_specifier column="23" file="sc_fifo.tmp"
+                  idref="96" length="0" line="7" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="98" line="7">
+                <declarator column="5" file="sc_fifo.tmp" idref="100" line="7">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="102" line="7" name="free"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="13" file="sc_fifo.tmp" idref="104" line="8">
+            <member_declarator_list column="13" file="sc_fifo.tmp"
+              idref="106" line="8">
+              <declaration_specifiers column="13" file="sc_fifo.tmp"
+                idref="108" line="8">
+                <builtin_type_specifier column="13" file="sc_fifo.tmp"
+                  idref="110" length="0" line="8" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="112" line="8">
+                <declarator column="5" file="sc_fifo.tmp" idref="114" line="8">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="116" line="8" name="ri"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="11" file="sc_fifo.tmp" idref="118" line="9">
+            <member_declarator_list column="11" file="sc_fifo.tmp"
+              idref="120" line="9">
+              <declaration_specifiers column="11" file="sc_fifo.tmp"
+                idref="122" line="9">
+                <builtin_type_specifier column="11" file="sc_fifo.tmp"
+                  idref="124" length="0" line="9" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="126" line="9">
+                <declarator column="5" file="sc_fifo.tmp" idref="128" line="9">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="130" line="9" name="wi"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="11" file="sc_fifo.tmp" idref="132" line="11">
+            <member_declarator_list column="11" file="sc_fifo.tmp"
+              idref="134" line="11">
+              <declaration_specifiers column="11" file="sc_fifo.tmp"
+                idref="136" line="11">
+                <builtin_type_specifier column="11" file="sc_fifo.tmp"
+                  idref="138" length="0" line="11" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="140" line="11">
+                <declarator column="5" file="sc_fifo.tmp" idref="142" line="11">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="144" line="11" name="num_readable"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <comment column="23" file="sc_fifo.tmp" idref="145" line="11" name="// #samples readable"/>
+          <member_declaration column="21" file="sc_fifo.tmp" idref="147" line="12">
+            <member_declarator_list column="21" file="sc_fifo.tmp"
+              idref="149" line="12">
+              <declaration_specifiers column="21" file="sc_fifo.tmp"
+                idref="151" line="12">
+                <builtin_type_specifier column="21" file="sc_fifo.tmp"
+                  idref="153" length="0" line="12" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="155" line="12">
+                <declarator column="5" file="sc_fifo.tmp" idref="157" line="12">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="159" line="12" name="num_read"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <comment column="19" file="sc_fifo.tmp" idref="160" line="12" name="// #samples read during this delta cycle"/>
+          <member_declaration column="17" file="sc_fifo.tmp" idref="162" line="13">
+            <member_declarator_list column="17" file="sc_fifo.tmp"
+              idref="164" line="13">
+              <declaration_specifiers column="17" file="sc_fifo.tmp"
+                idref="166" line="13">
+                <builtin_type_specifier column="17" file="sc_fifo.tmp"
+                  idref="168" length="0" line="13" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="170" line="13">
+                <declarator column="5" file="sc_fifo.tmp" idref="172" line="13">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="174" line="13" name="num_written"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="20" file="sc_fifo.tmp" idref="176" line="15">
+            <member_declarator_list column="20" file="sc_fifo.tmp"
+              idref="178" line="15">
+              <declaration_specifiers column="20" file="sc_fifo.tmp"
+                idref="180" line="15">
+                <builtin_type_specifier column="20" file="sc_fifo.tmp"
+                  idref="182" length="0" line="15" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="184" line="15">
+                <declarator column="5" file="sc_fifo.tmp" idref="186" line="15">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="188" line="15" name="data_read_event"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="29" file="sc_fifo.tmp" idref="190" line="16">
+            <member_declarator_list column="29" file="sc_fifo.tmp"
+              idref="192" line="16">
+              <declaration_specifiers column="29" file="sc_fifo.tmp"
+                idref="194" line="16">
+                <builtin_type_specifier column="29" file="sc_fifo.tmp"
+                  idref="196" length="0" line="16" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.tmp"
+                idref="198" line="16">
+                <declarator column="5" file="sc_fifo.tmp" idref="200" line="16">
+                  <qualified_id column="5" file="sc_fifo.tmp"
+                    idref="202" line="16" name="data_written_event"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="32" file="sc_fifo.tmp" idref="204" line="19">
+            <access_specifier column="32" file="sc_fifo.tmp" idref="206"
+              line="19" name="public"/>
+          </member_declaration>
+          <member_declaration column="9" file="sc_fifo.tmp" idref="208" line="21">
+            <ctor_definition column="9" file="sc_fifo.tmp" idref="210" line="21">
+              <qualified_id column="9" file="sc_fifo.tmp" idref="212"
+                line="21" name="sc_fifox"/>
+              <block column="14" file="sc_fifo.tmp" idref="214" line="21">
+                <block_statement column="16" file="sc_fifo.tmp"
+                  idref="216" line="22">
+                  <assignment column="12" file="sc_fifo.tmp" idref="226" line="22">
+                    <primary_expression column="16" file="sc_fifo.tmp"
+                      idref="220" line="22">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="222" line="22" name="size"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="224" line="22"/>
+                    <primary_expression column="12" file="sc_fifo.tmp"
+                      idref="230" line="22">
+                      <id_expression column="14" file="sc_fifo.tmp"
+                        idref="232" line="22" name="BUF_SIZE"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_fifo.tmp"
+                  idref="234" line="23">
+                  <assignment column="12" file="sc_fifo.tmp" idref="244" line="23">
+                    <primary_expression column="22" file="sc_fifo.tmp"
+                      idref="238" line="23">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="240" line="23" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="242" line="23"/>
+                    <primary_expression column="12" file="sc_fifo.tmp"
+                      idref="248" line="23">
+                      <id_expression column="14" file="sc_fifo.tmp"
+                        idref="250" line="23" name="BUF_SIZE"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_fifo.tmp"
+                  idref="252" line="24">
+                  <assignment column="10" file="sc_fifo.tmp" idref="262" line="24">
+                    <primary_expression column="22" file="sc_fifo.tmp"
+                      idref="256" line="24">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="258" line="24" name="ri"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="260" line="24"/>
+                    <primary_expression column="10" file="sc_fifo.tmp"
+                      idref="266" line="24">
+                      <constant column="10" file="sc_fifo.tmp"
+                        idref="268" line="24" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="13" file="sc_fifo.tmp"
+                  idref="270" line="25">
+                  <assignment column="10" file="sc_fifo.tmp" idref="280" line="25">
+                    <primary_expression column="13" file="sc_fifo.tmp"
+                      idref="274" line="25">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="276" line="25" name="wi"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="278" line="25"/>
+                    <primary_expression column="10" file="sc_fifo.tmp"
+                      idref="284" line="25">
+                      <constant column="10" file="sc_fifo.tmp"
+                        idref="286" line="25" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="13" file="sc_fifo.tmp"
+                  idref="288" line="27">
+                  <assignment column="20" file="sc_fifo.tmp" idref="298" line="27">
+                    <primary_expression column="13" file="sc_fifo.tmp"
+                      idref="292" line="27">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="294" line="27" name="num_readable"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="296" line="27"/>
+                    <primary_expression column="20" file="sc_fifo.tmp"
+                      idref="302" line="27">
+                      <constant column="20" file="sc_fifo.tmp"
+                        idref="304" line="27" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="23" file="sc_fifo.tmp"
+                  idref="306" line="28">
+                  <assignment column="16" file="sc_fifo.tmp" idref="316" line="28">
+                    <primary_expression column="23" file="sc_fifo.tmp"
+                      idref="310" line="28">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="312" line="28" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="314" line="28"/>
+                    <primary_expression column="16" file="sc_fifo.tmp"
+                      idref="320" line="28">
+                      <constant column="16" file="sc_fifo.tmp"
+                        idref="322" line="28" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="19" file="sc_fifo.tmp"
+                  idref="324" line="29">
+                  <assignment column="19" file="sc_fifo.tmp" idref="334" line="29">
+                    <primary_expression column="19" file="sc_fifo.tmp"
+                      idref="328" line="29">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="330" line="29" name="num_written"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="332" line="29"/>
+                    <primary_expression column="19" file="sc_fifo.tmp"
+                      idref="338" line="29">
+                      <constant column="19" file="sc_fifo.tmp"
+                        idref="340" line="29" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </ctor_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.tmp" idref="342" line="32">
+            <function_definition column="5" file="sc_fifo.tmp"
+              idref="344" line="32">
+              <declaration_specifiers column="5" file="sc_fifo.tmp"
+                idref="346" line="32">
+                <builtin_type_specifier column="5" file="sc_fifo.tmp"
+                  idref="348" length="0" line="32" name="GTYPE" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.tmp"
+                idref="350" line="32">
+                <qualified_id column="5" file="sc_fifo.tmp" idref="352"
+                  line="32" name="read"/>
+              </function_declarator>
+              <block column="15" file="sc_fifo.tmp" idref="354" line="32">
+                <block_statement column="17" file="sc_fifo.tmp"
+                  idref="356" line="33">
+                  <declaration column="17" file="sc_fifo.tmp"
+                    idref="358" line="33">
+                    <init_declarator_list column="17" file="sc_fifo.tmp"
+                      idref="360" line="33">
+                      <declaration_specifiers column="17"
+                        file="sc_fifo.tmp" idref="362" line="33">
+                        <builtin_type_specifier column="17"
+                          file="sc_fifo.tmp" idref="364" length="0"
+                          line="33" name="GTYPE" sc_dt="false"/>
+                      </declaration_specifiers>
+                      <init_declarator column="7" file="sc_fifo.tmp"
+                        idref="366" line="33">
+                        <declarator column="7" file="sc_fifo.tmp"
+                          idref="368" line="33">
+                          <qualified_id column="7" file="sc_fifo.tmp"
+                            idref="370" line="33" name="val"/>
+                        </declarator>
+                      </init_declarator>
+                    </init_declarator_list>
+                  </declaration>
+                </block_statement>
+                <block_statement column="15" file="sc_fifo.tmp"
+                  idref="372" line="34">
+                  <while_statement column="15" file="sc_fifo.tmp"
+                    idref="374" line="34">
+                    <eq_node column="38" file="sc_fifo.tmp" idref="390" line="34">
+                      <subtract_node column="27" file="sc_fifo.tmp"
+                        idref="382" line="34">
+                        <primary_expression column="12"
+                          file="sc_fifo.tmp" idref="378" line="34">
+                          <id_expression column="14" file="sc_fifo.tmp"
+                            idref="380" line="34" name="num_readable"/>
+                        </primary_expression>
+                        <primary_expression column="27"
+                          file="sc_fifo.tmp" idref="386" line="34">
+                          <id_expression column="29" file="sc_fifo.tmp"
+                            idref="388" line="34" name="num_read"/>
+                        </primary_expression>
+                      </subtract_node>
+                      <primary_expression column="38" file="sc_fifo.tmp"
+                        idref="394" line="34">
+                        <constant column="38" file="sc_fifo.tmp"
+                          idref="396" line="34" value="0"/>
+                      </primary_expression>
+                    </eq_node>
+                    <block column="43" file="sc_fifo.tmp" idref="398" line="34">
+                      <block_statement column="45" file="sc_fifo.tmp"
+                        idref="400" line="35">
+                        <systemCRoutine column="45" file="sc_fifo.tmp"
+                          idref="404" line="35" name="wait">
+                          <arguments column="9" file="sc_fifo.tmp"
+                            idref="406" line="35">
+                            <arguments_list column="13"
+                              file="sc_fifo.tmp" idref="408" line="35">
+                              <primary_expression column="13"
+                                file="sc_fifo.tmp" idref="412" line="35">
+                                <id_expression column="15"
+                                  file="sc_fifo.tmp" idref="414"
+                                  line="35" name="data_written_event"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.tmp"
+                  idref="416" line="37">
+                  <assignment column="16" file="sc_fifo.tmp" idref="426" line="37">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="420" line="37">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="422" line="37" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="424" line="37"/>
+                    <add_node column="27" file="sc_fifo.tmp" idref="434" line="37">
+                      <primary_expression column="16" file="sc_fifo.tmp"
+                        idref="430" line="37">
+                        <id_expression column="18" file="sc_fifo.tmp"
+                          idref="432" line="37" name="num_read"/>
+                      </primary_expression>
+                      <primary_expression column="27" file="sc_fifo.tmp"
+                        idref="438" line="37">
+                        <constant column="27" file="sc_fifo.tmp"
+                          idref="440" line="37" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="30" file="sc_fifo.tmp"
+                  idref="442" line="39">
+                  <assignment column="11" file="sc_fifo.tmp" idref="452" line="39">
+                    <primary_expression column="30" file="sc_fifo.tmp"
+                      idref="446" line="39">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="448" line="39" name="val"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="450" line="39"/>
+                    <primary_expression column="17" file="sc_fifo.tmp"
+                      idref="468" line="39">
+                      <arrayaccess_expression column="16"
+                        file="sc_fifo.tmp" idref="460" line="39">
+                        <primary_expression column="11"
+                          file="sc_fifo.tmp" idref="456" line="39">
+                          <id_expression column="13" file="sc_fifo.tmp"
+                            idref="458" line="39" name="buf"/>
+                        </primary_expression>
+                        <primary_expression column="16"
+                          file="sc_fifo.tmp" idref="464" line="39">
+                          <id_expression column="17" file="sc_fifo.tmp"
+                            idref="466" line="39" name="ri"/>
+                        </primary_expression>
+                      </arrayaccess_expression>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="20" file="sc_fifo.tmp"
+                  idref="470" line="40">
+                  <assignment column="10" file="sc_fifo.tmp" idref="480" line="40">
+                    <primary_expression column="20" file="sc_fifo.tmp"
+                      idref="474" line="40">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="476" line="40" name="ri"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="478" line="40"/>
+                    <mod_node column="23" file="sc_fifo.tmp" idref="500" line="40">
+                      <primary_expression column="10" file="sc_fifo.tmp"
+                        idref="484" line="40">
+                        <add_node column="17" file="sc_fifo.tmp"
+                          idref="492" line="40">
+                          <primary_expression column="12"
+                            file="sc_fifo.tmp" idref="488" line="40">
+                            <id_expression column="14"
+                              file="sc_fifo.tmp" idref="490" line="40" name="ri"/>
+                          </primary_expression>
+                          <primary_expression column="17"
+                            file="sc_fifo.tmp" idref="496" line="40">
+                            <constant column="17" file="sc_fifo.tmp"
+                              idref="498" line="40" value="1"/>
+                          </primary_expression>
+                        </add_node>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.tmp"
+                        idref="504" line="40">
+                        <id_expression column="25" file="sc_fifo.tmp"
+                          idref="506" line="40" name="size"/>
+                      </primary_expression>
+                    </mod_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="29" file="sc_fifo.tmp"
+                  idref="508" line="41">
+                  <assignment column="12" file="sc_fifo.tmp" idref="518" line="41">
+                    <primary_expression column="29" file="sc_fifo.tmp"
+                      idref="512" line="41">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="514" line="41" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="516" line="41"/>
+                    <add_node column="19" file="sc_fifo.tmp" idref="526" line="41">
+                      <primary_expression column="12" file="sc_fifo.tmp"
+                        idref="522" line="41">
+                        <id_expression column="14" file="sc_fifo.tmp"
+                          idref="524" line="41" name="free"/>
+                      </primary_expression>
+                      <primary_expression column="19" file="sc_fifo.tmp"
+                        idref="530" line="41">
+                        <constant column="19" file="sc_fifo.tmp"
+                          idref="532" line="41" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_fifo.tmp"
+                  idref="534" line="42">
+                  <postfix_expression column="22" file="sc_fifo.tmp"
+                    idref="536" line="42">
+                    <primary_expression column="22" file="sc_fifo.tmp"
+                      idref="538" line="42">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="540" line="42" name="request_update"/>
+                    </primary_expression>
+                    <arguments column="7" file="sc_fifo.tmp" idref="542" line="42"/>
+                  </postfix_expression>
+                </block_statement>
+                <block_statement column="23" file="sc_fifo.tmp"
+                  idref="544" line="43">
+                  <return_statement column="23" file="sc_fifo.tmp"
+                    idref="546" line="43">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="550" line="43">
+                      <id_expression column="14" file="sc_fifo.tmp"
+                        idref="552" line="43" name="val"/>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.tmp" idref="554" line="46">
+            <function_definition column="5" file="sc_fifo.tmp"
+              idref="556" line="46">
+              <declaration_specifiers column="5" file="sc_fifo.tmp"
+                idref="558" line="46">
+                <builtin_type_specifier column="5" file="sc_fifo.tmp"
+                  idref="560" length="0" line="46" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.tmp"
+                idref="562" line="46">
+                <qualified_id column="5" file="sc_fifo.tmp" idref="564"
+                  line="46" name="nb_read"/>
+                <parameter_list column="17" file="sc_fifo.tmp"
+                  idref="566" line="46">
+                  <parameter_declaration column="17" file="sc_fifo.tmp"
+                    idref="568" line="46">
+                    <declaration_specifiers column="17"
+                      file="sc_fifo.tmp" idref="570" line="46">
+                      <builtin_type_specifier column="17"
+                        file="sc_fifo.tmp" idref="572" length="0"
+                        line="46" name="GTYPE" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="18" file="sc_fifo.tmp"
+                      idref="574" line="46">
+                      <ptr_operator column="18" file="sc_fifo.tmp"
+                        idref="576" line="46" name="&amp;"/>
+                      <declarator column="23" file="sc_fifo.tmp"
+                        idref="578" line="46">
+                        <qualified_id column="23" file="sc_fifo.tmp"
+                          idref="580" line="46" name="val"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="27" file="sc_fifo.tmp" idref="582" line="46">
+                <block_statement column="29" file="sc_fifo.tmp"
+                  idref="584" line="47">
+                  <if_statement column="29" file="sc_fifo.tmp"
+                    idref="586" line="47">
+                    <eq_node column="35" file="sc_fifo.tmp" idref="602" line="47">
+                      <subtract_node column="24" file="sc_fifo.tmp"
+                        idref="594" line="47">
+                        <primary_expression column="9"
+                          file="sc_fifo.tmp" idref="590" line="47">
+                          <id_expression column="11" file="sc_fifo.tmp"
+                            idref="592" line="47" name="num_readable"/>
+                        </primary_expression>
+                        <primary_expression column="24"
+                          file="sc_fifo.tmp" idref="598" line="47">
+                          <id_expression column="26" file="sc_fifo.tmp"
+                            idref="600" line="47" name="num_read"/>
+                        </primary_expression>
+                      </subtract_node>
+                      <primary_expression column="35" file="sc_fifo.tmp"
+                        idref="606" line="47">
+                        <constant column="35" file="sc_fifo.tmp"
+                          idref="608" line="47" value="0"/>
+                      </primary_expression>
+                    </eq_node>
+                    <block column="40" file="sc_fifo.tmp" idref="610" line="47">
+                      <block_statement column="42" file="sc_fifo.tmp"
+                        idref="612" line="48">
+                        <return_statement column="42" file="sc_fifo.tmp"
+                          idref="614" line="48">
+                          <primary_expression column="9"
+                            file="sc_fifo.tmp" idref="618" line="48">
+                            <constant column="9" file="sc_fifo.tmp"
+                              idref="620" line="48" value="false"/>
+                          </primary_expression>
+                        </return_statement>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.tmp"
+                  idref="622" line="50">
+                  <assignment column="16" file="sc_fifo.tmp" idref="632" line="50">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="626" line="50">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="628" line="50" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="630" line="50"/>
+                    <add_node column="27" file="sc_fifo.tmp" idref="640" line="50">
+                      <primary_expression column="16" file="sc_fifo.tmp"
+                        idref="636" line="50">
+                        <id_expression column="18" file="sc_fifo.tmp"
+                          idref="638" line="50" name="num_read"/>
+                      </primary_expression>
+                      <primary_expression column="27" file="sc_fifo.tmp"
+                        idref="644" line="50">
+                        <constant column="27" file="sc_fifo.tmp"
+                          idref="646" line="50" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="30" file="sc_fifo.tmp"
+                  idref="648" line="52">
+                  <assignment column="11" file="sc_fifo.tmp" idref="658" line="52">
+                    <primary_expression column="30" file="sc_fifo.tmp"
+                      idref="652" line="52">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="654" line="52" name="val"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="656" line="52"/>
+                    <primary_expression column="17" file="sc_fifo.tmp"
+                      idref="674" line="52">
+                      <arrayaccess_expression column="16"
+                        file="sc_fifo.tmp" idref="666" line="52">
+                        <primary_expression column="11"
+                          file="sc_fifo.tmp" idref="662" line="52">
+                          <id_expression column="13" file="sc_fifo.tmp"
+                            idref="664" line="52" name="buf"/>
+                        </primary_expression>
+                        <primary_expression column="16"
+                          file="sc_fifo.tmp" idref="670" line="52">
+                          <id_expression column="17" file="sc_fifo.tmp"
+                            idref="672" line="52" name="ri"/>
+                        </primary_expression>
+                      </arrayaccess_expression>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="20" file="sc_fifo.tmp"
+                  idref="676" line="53">
+                  <assignment column="10" file="sc_fifo.tmp" idref="686" line="53">
+                    <primary_expression column="20" file="sc_fifo.tmp"
+                      idref="680" line="53">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="682" line="53" name="ri"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="684" line="53"/>
+                    <mod_node column="23" file="sc_fifo.tmp" idref="706" line="53">
+                      <primary_expression column="10" file="sc_fifo.tmp"
+                        idref="690" line="53">
+                        <add_node column="17" file="sc_fifo.tmp"
+                          idref="698" line="53">
+                          <primary_expression column="12"
+                            file="sc_fifo.tmp" idref="694" line="53">
+                            <id_expression column="14"
+                              file="sc_fifo.tmp" idref="696" line="53" name="ri"/>
+                          </primary_expression>
+                          <primary_expression column="17"
+                            file="sc_fifo.tmp" idref="702" line="53">
+                            <constant column="17" file="sc_fifo.tmp"
+                              idref="704" line="53" value="1"/>
+                          </primary_expression>
+                        </add_node>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.tmp"
+                        idref="710" line="53">
+                        <id_expression column="25" file="sc_fifo.tmp"
+                          idref="712" line="53" name="size"/>
+                      </primary_expression>
+                    </mod_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="29" file="sc_fifo.tmp"
+                  idref="714" line="54">
+                  <assignment column="12" file="sc_fifo.tmp" idref="724" line="54">
+                    <primary_expression column="29" file="sc_fifo.tmp"
+                      idref="718" line="54">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="720" line="54" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="722" line="54"/>
+                    <add_node column="19" file="sc_fifo.tmp" idref="732" line="54">
+                      <primary_expression column="12" file="sc_fifo.tmp"
+                        idref="728" line="54">
+                        <id_expression column="14" file="sc_fifo.tmp"
+                          idref="730" line="54" name="free"/>
+                      </primary_expression>
+                      <primary_expression column="19" file="sc_fifo.tmp"
+                        idref="736" line="54">
+                        <constant column="19" file="sc_fifo.tmp"
+                          idref="738" line="54" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_fifo.tmp"
+                  idref="740" line="55">
+                  <postfix_expression column="22" file="sc_fifo.tmp"
+                    idref="742" line="55">
+                    <primary_expression column="22" file="sc_fifo.tmp"
+                      idref="744" line="55">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="746" line="55" name="request_update"/>
+                    </primary_expression>
+                    <arguments column="7" file="sc_fifo.tmp" idref="748" line="55"/>
+                  </postfix_expression>
+                </block_statement>
+                <block_statement column="23" file="sc_fifo.tmp"
+                  idref="750" line="56">
+                  <return_statement column="23" file="sc_fifo.tmp"
+                    idref="752" line="56">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="756" line="56">
+                      <constant column="7" file="sc_fifo.tmp"
+                        idref="758" line="56" value="true"/>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.tmp" idref="760" line="59">
+            <function_definition column="5" file="sc_fifo.tmp"
+              idref="762" line="59">
+              <declaration_specifiers column="5" file="sc_fifo.tmp"
+                idref="764" line="59">
+                <builtin_type_specifier column="5" file="sc_fifo.tmp"
+                  idref="766" length="0" line="59" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.tmp"
+                idref="768" line="59">
+                <qualified_id column="5" file="sc_fifo.tmp" idref="770"
+                  line="59" name="write"/>
+                <parameter_list column="15" file="sc_fifo.tmp"
+                  idref="772" line="59">
+                  <parameter_declaration column="15" file="sc_fifo.tmp"
+                    idref="774" line="59">
+                    <declaration_specifiers column="15"
+                      file="sc_fifo.tmp" idref="776" line="59">
+                      <builtin_type_specifier column="15"
+                        file="sc_fifo.tmp" idref="778" length="0"
+                        line="59" name="GTYPE" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="16" file="sc_fifo.tmp"
+                      idref="780" line="59">
+                      <qualified_id column="16" file="sc_fifo.tmp"
+                        idref="782" line="59" name="val"/>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="24" file="sc_fifo.tmp" idref="784" line="59">
+                <block_statement column="26" file="sc_fifo.tmp"
+                  idref="786" line="60">
+                  <while_statement column="26" file="sc_fifo.tmp"
+                    idref="788" line="60">
+                    <eq_node column="48" file="sc_fifo.tmp" idref="812" line="60">
+                      <subtract_node column="34" file="sc_fifo.tmp"
+                        idref="804" line="60">
+                        <subtract_node column="19" file="sc_fifo.tmp"
+                          idref="796" line="60">
+                          <primary_expression column="12"
+                            file="sc_fifo.tmp" idref="792" line="60">
+                            <id_expression column="14"
+                              file="sc_fifo.tmp" idref="794" line="60" name="size"/>
+                          </primary_expression>
+                          <primary_expression column="19"
+                            file="sc_fifo.tmp" idref="800" line="60">
+                            <id_expression column="21"
+                              file="sc_fifo.tmp" idref="802" line="60" name="num_readable"/>
+                          </primary_expression>
+                        </subtract_node>
+                        <primary_expression column="34"
+                          file="sc_fifo.tmp" idref="808" line="60">
+                          <id_expression column="36" file="sc_fifo.tmp"
+                            idref="810" line="60" name="num_written"/>
+                        </primary_expression>
+                      </subtract_node>
+                      <primary_expression column="48" file="sc_fifo.tmp"
+                        idref="816" line="60">
+                        <constant column="48" file="sc_fifo.tmp"
+                          idref="818" line="60" value="0"/>
+                      </primary_expression>
+                    </eq_node>
+                    <block column="53" file="sc_fifo.tmp" idref="820" line="60">
+                      <block_statement column="55" file="sc_fifo.tmp"
+                        idref="822" line="61">
+                        <systemCRoutine column="55" file="sc_fifo.tmp"
+                          idref="826" line="61" name="wait">
+                          <arguments column="9" file="sc_fifo.tmp"
+                            idref="828" line="61">
+                            <arguments_list column="13"
+                              file="sc_fifo.tmp" idref="830" line="61">
+                              <primary_expression column="13"
+                                file="sc_fifo.tmp" idref="834" line="61">
+                                <id_expression column="15"
+                                  file="sc_fifo.tmp" idref="836"
+                                  line="61" name="data_read_event"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.tmp"
+                  idref="838" line="63">
+                  <assignment column="19" file="sc_fifo.tmp" idref="848" line="63">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="842" line="63">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="844" line="63" name="num_written"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="846" line="63"/>
+                    <add_node column="33" file="sc_fifo.tmp" idref="856" line="63">
+                      <primary_expression column="19" file="sc_fifo.tmp"
+                        idref="852" line="63">
+                        <id_expression column="21" file="sc_fifo.tmp"
+                          idref="854" line="63" name="num_written"/>
+                      </primary_expression>
+                      <primary_expression column="33" file="sc_fifo.tmp"
+                        idref="860" line="63">
+                        <constant column="33" file="sc_fifo.tmp"
+                          idref="862" line="63" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="36" file="sc_fifo.tmp"
+                  idref="864" line="65">
+                  <assignment column="15" file="sc_fifo.tmp" idref="884" line="65">
+                    <primary_expression column="11" file="sc_fifo.tmp"
+                      idref="880" line="65">
+                      <arrayaccess_expression column="10"
+                        file="sc_fifo.tmp" idref="872" line="65">
+                        <primary_expression column="36"
+                          file="sc_fifo.tmp" idref="868" line="65">
+                          <id_expression column="7" file="sc_fifo.tmp"
+                            idref="870" line="65" name="buf"/>
+                        </primary_expression>
+                        <primary_expression column="10"
+                          file="sc_fifo.tmp" idref="876" line="65">
+                          <id_expression column="11" file="sc_fifo.tmp"
+                            idref="878" line="65" name="wi"/>
+                        </primary_expression>
+                      </arrayaccess_expression>
+                    </primary_expression>
+                    <assignment_operator column="13" file="sc_fifo.tmp"
+                      idref="882" line="65"/>
+                    <primary_expression column="15" file="sc_fifo.tmp"
+                      idref="888" line="65">
+                      <id_expression column="17" file="sc_fifo.tmp"
+                        idref="890" line="65" name="val"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="20" file="sc_fifo.tmp"
+                  idref="892" line="66">
+                  <assignment column="10" file="sc_fifo.tmp" idref="902" line="66">
+                    <primary_expression column="20" file="sc_fifo.tmp"
+                      idref="896" line="66">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="898" line="66" name="wi"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="900" line="66"/>
+                    <mod_node column="23" file="sc_fifo.tmp" idref="922" line="66">
+                      <primary_expression column="10" file="sc_fifo.tmp"
+                        idref="906" line="66">
+                        <add_node column="17" file="sc_fifo.tmp"
+                          idref="914" line="66">
+                          <primary_expression column="12"
+                            file="sc_fifo.tmp" idref="910" line="66">
+                            <id_expression column="14"
+                              file="sc_fifo.tmp" idref="912" line="66" name="wi"/>
+                          </primary_expression>
+                          <primary_expression column="17"
+                            file="sc_fifo.tmp" idref="918" line="66">
+                            <constant column="17" file="sc_fifo.tmp"
+                              idref="920" line="66" value="1"/>
+                          </primary_expression>
+                        </add_node>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.tmp"
+                        idref="926" line="66">
+                        <id_expression column="25" file="sc_fifo.tmp"
+                          idref="928" line="66" name="size"/>
+                      </primary_expression>
+                    </mod_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="29" file="sc_fifo.tmp"
+                  idref="930" line="67">
+                  <assignment column="12" file="sc_fifo.tmp" idref="940" line="67">
+                    <primary_expression column="29" file="sc_fifo.tmp"
+                      idref="934" line="67">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="936" line="67" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="938" line="67"/>
+                    <subtract_node column="19" file="sc_fifo.tmp"
+                      idref="948" line="67">
+                      <primary_expression column="12" file="sc_fifo.tmp"
+                        idref="944" line="67">
+                        <id_expression column="14" file="sc_fifo.tmp"
+                          idref="946" line="67" name="free"/>
+                      </primary_expression>
+                      <primary_expression column="19" file="sc_fifo.tmp"
+                        idref="952" line="67">
+                        <constant column="19" file="sc_fifo.tmp"
+                          idref="954" line="67" value="1"/>
+                      </primary_expression>
+                    </subtract_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="21" file="sc_fifo.tmp"
+                  idref="956" line="69">
+                  <postfix_expression column="21" file="sc_fifo.tmp"
+                    idref="958" line="69">
+                    <primary_expression column="21" file="sc_fifo.tmp"
+                      idref="960" line="69">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="962" line="69" name="request_update"/>
+                    </primary_expression>
+                    <arguments column="7" file="sc_fifo.tmp" idref="964" line="69"/>
+                  </postfix_expression>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.tmp" idref="966" line="74">
+            <function_definition column="5" file="sc_fifo.tmp"
+              idref="968" line="74">
+              <declaration_specifiers column="5" file="sc_fifo.tmp"
+                idref="970" line="74">
+                <builtin_type_specifier column="5" file="sc_fifo.tmp"
+                  idref="972" length="0" line="74" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.tmp"
+                idref="974" line="74">
+                <qualified_id column="5" file="sc_fifo.tmp" idref="976"
+                  line="74" name="update"/>
+              </function_declarator>
+              <block column="17" file="sc_fifo.tmp" idref="978" line="75">
+                <block_statement column="5" file="sc_fifo.tmp"
+                  idref="980" line="76">
+                  <if_statement column="5" file="sc_fifo.tmp"
+                    idref="982" line="76">
+                    <gt_node column="20" file="sc_fifo.tmp" idref="990" line="76">
+                      <primary_expression column="9" file="sc_fifo.tmp"
+                        idref="986" line="76">
+                        <id_expression column="11" file="sc_fifo.tmp"
+                          idref="988" line="76" name="num_read"/>
+                      </primary_expression>
+                      <primary_expression column="20" file="sc_fifo.tmp"
+                        idref="994" line="76">
+                        <constant column="20" file="sc_fifo.tmp"
+                          idref="996" line="76" value="0"/>
+                      </primary_expression>
+                    </gt_node>
+                    <block column="24" file="sc_fifo.tmp" idref="998" line="76">
+                      <block_statement column="26" file="sc_fifo.tmp"
+                        idref="1000" line="77">
+                        <sc_notify column="26" file="sc_fifo.tmp"
+                          idref="1002" line="77" name="data_read_event">
+                          <arguments_list column="31" file="sc_fifo.tmp"
+                            idref="1004" line="77">
+                            <primary_expression column="31"
+                              file="sc_fifo.tmp" idref="1008" line="77">
+                              <constant column="31" file="sc_fifo.tmp"
+                                idref="1010" line="77" value="SC_ZERO_TIME"/>
+                            </primary_expression>
+                          </arguments_list>
+                        </sc_notify>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.tmp"
+                  idref="1012" line="80">
+                  <if_statement column="7" file="sc_fifo.tmp"
+                    idref="1014" line="80">
+                    <gt_node column="23" file="sc_fifo.tmp" idref="1022" line="80">
+                      <primary_expression column="9" file="sc_fifo.tmp"
+                        idref="1018" line="80">
+                        <id_expression column="11" file="sc_fifo.tmp"
+                          idref="1020" line="80" name="num_written"/>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.tmp"
+                        idref="1026" line="80">
+                        <constant column="23" file="sc_fifo.tmp"
+                          idref="1028" line="80" value="0"/>
+                      </primary_expression>
+                    </gt_node>
+                    <block column="27" file="sc_fifo.tmp" idref="1030" line="80">
+                      <block_statement column="29" file="sc_fifo.tmp"
+                        idref="1032" line="81">
+                        <sc_notify column="29" file="sc_fifo.tmp"
+                          idref="1034" line="81" name="data_written_event">
+                          <arguments_list column="34" file="sc_fifo.tmp"
+                            idref="1036" line="81">
+                            <primary_expression column="34"
+                              file="sc_fifo.tmp" idref="1040" line="81">
+                              <constant column="34" file="sc_fifo.tmp"
+                                idref="1042" line="81" value="SC_ZERO_TIME"/>
+                            </primary_expression>
+                          </arguments_list>
+                        </sc_notify>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.tmp"
+                  idref="1044" line="84">
+                  <assignment column="20" file="sc_fifo.tmp"
+                    idref="1054" line="84">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="1048" line="84">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="1050" line="84" name="num_readable"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="1052" line="84"/>
+                    <subtract_node column="27" file="sc_fifo.tmp"
+                      idref="1062" line="84">
+                      <primary_expression column="20" file="sc_fifo.tmp"
+                        idref="1058" line="84">
+                        <id_expression column="22" file="sc_fifo.tmp"
+                          idref="1060" line="84" name="size"/>
+                      </primary_expression>
+                      <primary_expression column="27" file="sc_fifo.tmp"
+                        idref="1066" line="84">
+                        <id_expression column="29" file="sc_fifo.tmp"
+                          idref="1068" line="84" name="free"/>
+                      </primary_expression>
+                    </subtract_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="33" file="sc_fifo.tmp"
+                  idref="1070" line="85">
+                  <assignment column="16" file="sc_fifo.tmp"
+                    idref="1080" line="85">
+                    <primary_expression column="33" file="sc_fifo.tmp"
+                      idref="1074" line="85">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="1076" line="85" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="1078" line="85"/>
+                    <primary_expression column="16" file="sc_fifo.tmp"
+                      idref="1084" line="85">
+                      <constant column="16" file="sc_fifo.tmp"
+                        idref="1086" line="85" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="19" file="sc_fifo.tmp"
+                  idref="1088" line="86">
+                  <assignment column="19" file="sc_fifo.tmp"
+                    idref="1098" line="86">
+                    <primary_expression column="19" file="sc_fifo.tmp"
+                      idref="1092" line="86">
+                      <id_expression column="7" file="sc_fifo.tmp"
+                        idref="1094" line="86" name="num_written"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.tmp"
+                      idref="1096" line="86"/>
+                    <primary_expression column="19" file="sc_fifo.tmp"
+                      idref="1102" line="86">
+                      <constant column="19" file="sc_fifo.tmp"
+                        idref="1104" line="86" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.tmp" idref="1106" line="90">
+            <function_definition column="5" file="sc_fifo.tmp"
+              idref="1108" line="90">
+              <declaration_specifiers column="5" file="sc_fifo.tmp"
+                idref="1110" line="90">
+                <builtin_type_specifier column="5" file="sc_fifo.tmp"
+                  idref="1112" length="0" line="90" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.tmp"
+                idref="1114" line="90">
+                <qualified_id column="5" file="sc_fifo.tmp" idref="1116"
+                  line="90" name="num_available"/>
+              </function_declarator>
+              <block column="23" file="sc_fifo.tmp" idref="1118" line="90">
+                <block_statement column="25" file="sc_fifo.tmp"
+                  idref="1120" line="91">
+                  <return_statement column="25" file="sc_fifo.tmp"
+                    idref="1122" line="91">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="1126" line="91">
+                      <subtract_node column="29" file="sc_fifo.tmp"
+                        idref="1134" line="91">
+                        <primary_expression column="14"
+                          file="sc_fifo.tmp" idref="1130" line="91">
+                          <id_expression column="16" file="sc_fifo.tmp"
+                            idref="1132" line="91" name="num_readable"/>
+                        </primary_expression>
+                        <primary_expression column="29"
+                          file="sc_fifo.tmp" idref="1138" line="91">
+                          <id_expression column="31" file="sc_fifo.tmp"
+                            idref="1140" line="91" name="num_read"/>
+                        </primary_expression>
+                      </subtract_node>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.tmp" idref="1142" line="94">
+            <function_definition column="5" file="sc_fifo.tmp"
+              idref="1144" line="94">
+              <declaration_specifiers column="5" file="sc_fifo.tmp"
+                idref="1146" line="94">
+                <builtin_type_specifier column="5" file="sc_fifo.tmp"
+                  idref="1148" length="0" line="94" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.tmp"
+                idref="1150" line="94">
+                <qualified_id column="5" file="sc_fifo.tmp" idref="1152"
+                  line="94" name="num_free"/>
+              </function_declarator>
+              <block column="18" file="sc_fifo.tmp" idref="1154" line="94">
+                <block_statement column="20" file="sc_fifo.tmp"
+                  idref="1156" line="95">
+                  <return_statement column="20" file="sc_fifo.tmp"
+                    idref="1158" line="95">
+                    <primary_expression column="7" file="sc_fifo.tmp"
+                      idref="1162" line="95">
+                      <subtract_node column="36" file="sc_fifo.tmp"
+                        idref="1178" line="95">
+                        <subtract_node column="21" file="sc_fifo.tmp"
+                          idref="1170" line="95">
+                          <primary_expression column="14"
+                            file="sc_fifo.tmp" idref="1166" line="95">
+                            <id_expression column="16"
+                              file="sc_fifo.tmp" idref="1168" line="95" name="size"/>
+                          </primary_expression>
+                          <primary_expression column="21"
+                            file="sc_fifo.tmp" idref="1174" line="95">
+                            <id_expression column="23"
+                              file="sc_fifo.tmp" idref="1176" line="95" name="num_readable"/>
+                          </primary_expression>
+                        </subtract_node>
+                        <primary_expression column="36"
+                          file="sc_fifo.tmp" idref="1182" line="95">
+                          <id_expression column="38" file="sc_fifo.tmp"
+                            idref="1184" line="95" name="num_written"/>
+                        </primary_expression>
+                      </subtract_node>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+</INTERNAL>

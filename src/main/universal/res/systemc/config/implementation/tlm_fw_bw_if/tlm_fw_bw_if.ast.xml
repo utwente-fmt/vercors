@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<INTERNAL>
+  <external_declaration idref="2">
+    <declaration idref="4">
+      <declaration_specifiers idref="8">
+        <class_specifier extSCModule="false" idref="10" keyword="struct" name="data">
+          <member_declaration column="1" file="tlm_fw_bw_if.cpp"
+            idref="12" line="4">
+            <member_declarator_list column="1" file="tlm_fw_bw_if.cpp"
+              idref="14" line="4">
+              <declaration_specifiers column="1" file="tlm_fw_bw_if.cpp"
+                idref="16" line="4">
+                <builtin_type_specifier column="1"
+                  file="tlm_fw_bw_if.cpp" idref="18" length="0" line="4"
+                  name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="2" file="tlm_fw_bw_if.cpp"
+                idref="20" line="4">
+                <declarator column="2" file="tlm_fw_bw_if.cpp"
+                  idref="22" line="4">
+                  <qualified_id column="2" file="tlm_fw_bw_if.cpp"
+                    idref="24" line="4" name="val"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+  <external_declaration column="2" file="tlm_fw_bw_if.cpp" idref="26" line="6">
+    <declaration column="2" file="tlm_fw_bw_if.cpp" idref="28" line="6">
+      <declaration_specifiers column="2" file="tlm_fw_bw_if.cpp"
+        idref="32" line="6">
+        <class_specifier column="2" extSCModule="false"
+          file="tlm_fw_bw_if.cpp" idref="34" keyword="class" line="6" name="tlm_fw_bw_if">
+          <base_clause column="7" file="tlm_fw_bw_if.cpp" idref="36" line="6">
+            <base_specifier column="20" file="tlm_fw_bw_if.cpp"
+              idref="38" length="0" line="6" name="sc_interface" sc_dt="true">
+              <base_class_access_specifier column="20"
+                file="tlm_fw_bw_if.cpp" idref="40" line="6" name="public"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="1" file="tlm_fw_bw_if.cpp"
+            idref="42" line="8">
+            <access_specifier column="1" file="tlm_fw_bw_if.cpp"
+              idref="44" line="8" name="private"/>
+          </member_declaration>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="45"
+            line="16" name="//  int test() {return 0;}"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="46"
+            line="15" name="//  public:"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="47"
+            line="14" name="// };"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="48"
+            line="13" name="//   int val;"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="49"
+            line="12" name="// &#x9;containing the submitted value"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="50"
+            line="11" name="// {"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="51"
+            line="10" name="// struct data"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="52"
+            line="9" name="//  int dummy;"/>
+          <member_declaration column="8" file="tlm_fw_bw_if.cpp"
+            idref="54" line="17">
+            <function_definition column="8" file="tlm_fw_bw_if.cpp"
+              idref="56" line="17">
+              <declaration_specifiers column="8" file="tlm_fw_bw_if.cpp"
+                idref="58" line="17">
+                <type_modifiers column="8" file="tlm_fw_bw_if.cpp"
+                  idref="60" line="17"/>
+                <builtin_type_specifier column="3"
+                  file="tlm_fw_bw_if.cpp" idref="62" length="0"
+                  line="17" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="11" file="tlm_fw_bw_if.cpp"
+                idref="64" line="17">
+                <qualified_id column="11" file="tlm_fw_bw_if.cpp"
+                  idref="66" line="17" name="invalidate_direct_mem_ptr"/>
+                <parameter_list column="41" file="tlm_fw_bw_if.cpp"
+                  idref="68" line="17">
+                  <parameter_declaration column="41"
+                    file="tlm_fw_bw_if.cpp" idref="70" line="17">
+                    <declaration_specifiers column="41"
+                      file="tlm_fw_bw_if.cpp" idref="72" line="17">
+                      <scope_override column="41"
+                        file="tlm_fw_bw_if.cpp" idref="74" line="17" name="sc_dt"/>
+                      <builtin_type_specifier column="47"
+                        file="tlm_fw_bw_if.cpp" idref="76" length="0"
+                        line="17" name="uint64" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="49" file="tlm_fw_bw_if.cpp"
+                      idref="78" line="17">
+                      <qualified_id column="49" file="tlm_fw_bw_if.cpp"
+                        idref="80" line="17" name="start_range"/>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="67"
+                    file="tlm_fw_bw_if.cpp" idref="82" line="17">
+                    <declaration_specifiers column="67"
+                      file="tlm_fw_bw_if.cpp" idref="84" line="17">
+                      <scope_override column="67"
+                        file="tlm_fw_bw_if.cpp" idref="86" line="17" name="sc_dt"/>
+                      <builtin_type_specifier column="74"
+                        file="tlm_fw_bw_if.cpp" idref="88" length="0"
+                        line="17" name="uint64" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="76" file="tlm_fw_bw_if.cpp"
+                      idref="90" line="17">
+                      <qualified_id column="76" file="tlm_fw_bw_if.cpp"
+                        idref="92" line="17" name="end_range"/>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="92" file="tlm_fw_bw_if.cpp" idref="94" line="17"/>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="95" file="tlm_fw_bw_if.cpp"
+            idref="96" line="18">
+            <function_definition column="95" file="tlm_fw_bw_if.cpp"
+              idref="98" line="18">
+              <declaration_specifiers column="95"
+                file="tlm_fw_bw_if.cpp" idref="100" line="18">
+                <type_modifiers column="95" file="tlm_fw_bw_if.cpp"
+                  idref="102" line="18"/>
+                <builtin_type_specifier column="3"
+                  file="tlm_fw_bw_if.cpp" idref="104" length="0"
+                  line="18" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="11" file="tlm_fw_bw_if.cpp"
+                idref="106" line="18">
+                <qualified_id column="11" file="tlm_fw_bw_if.cpp"
+                  idref="108" line="18" name="nb_transport_bw"/>
+                <parameter_list column="30" file="tlm_fw_bw_if.cpp"
+                  idref="110" line="18">
+                  <parameter_declaration column="30"
+                    file="tlm_fw_bw_if.cpp" idref="112" line="18">
+                    <declaration_specifiers column="30"
+                      file="tlm_fw_bw_if.cpp" idref="114" line="18">
+                      <qualified_type column="30"
+                        file="tlm_fw_bw_if.cpp" idref="116" line="18">
+                        <qualified_id column="30"
+                          file="tlm_fw_bw_if.cpp" idref="118" line="18" name="data"/>
+                      </qualified_type>
+                    </declaration_specifiers>
+                    <declarator column="31" file="tlm_fw_bw_if.cpp"
+                      idref="120" line="18">
+                      <ptr_operator column="31" file="tlm_fw_bw_if.cpp"
+                        idref="122" line="18" name="&amp;"/>
+                      <declarator column="35" file="tlm_fw_bw_if.cpp"
+                        idref="124" line="18">
+                        <qualified_id column="35"
+                          file="tlm_fw_bw_if.cpp" idref="126" line="18" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="41"
+                    file="tlm_fw_bw_if.cpp" idref="128" line="18">
+                    <declaration_specifiers column="41"
+                      file="tlm_fw_bw_if.cpp" idref="130" line="18">
+                      <builtin_type_specifier column="41"
+                        file="tlm_fw_bw_if.cpp" idref="132" length="0"
+                        line="18" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="43" file="tlm_fw_bw_if.cpp"
+                      idref="134" line="18">
+                      <ptr_operator column="43" file="tlm_fw_bw_if.cpp"
+                        idref="136" line="18" name="&amp;"/>
+                      <declarator column="46" file="tlm_fw_bw_if.cpp"
+                        idref="138" line="18">
+                        <qualified_id column="46"
+                          file="tlm_fw_bw_if.cpp" idref="140" line="18" name="phase"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="53"
+                    file="tlm_fw_bw_if.cpp" idref="142" line="18">
+                    <declaration_specifiers column="53"
+                      file="tlm_fw_bw_if.cpp" idref="144" line="18">
+                      <builtin_type_specifier column="53"
+                        file="tlm_fw_bw_if.cpp" idref="146" length="0"
+                        line="18" name="sc_time" sc_dt="true"/>
+                    </declaration_specifiers>
+                    <declarator column="55" file="tlm_fw_bw_if.cpp"
+                      idref="148" line="18">
+                      <ptr_operator column="55" file="tlm_fw_bw_if.cpp"
+                        idref="150" line="18" name="&amp;"/>
+                      <declarator column="62" file="tlm_fw_bw_if.cpp"
+                        idref="152" line="18">
+                        <qualified_id column="62"
+                          file="tlm_fw_bw_if.cpp" idref="154" line="18" name="t"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="65" file="tlm_fw_bw_if.cpp" idref="156" line="18"/>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="68" file="tlm_fw_bw_if.cpp"
+            idref="158" line="19">
+            <function_definition column="68" file="tlm_fw_bw_if.cpp"
+              idref="160" line="19">
+              <declaration_specifiers column="68"
+                file="tlm_fw_bw_if.cpp" idref="162" line="19">
+                <type_modifiers column="68" file="tlm_fw_bw_if.cpp"
+                  idref="164" line="19"/>
+                <builtin_type_specifier column="3"
+                  file="tlm_fw_bw_if.cpp" idref="166" length="0"
+                  line="19" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="11" file="tlm_fw_bw_if.cpp"
+                idref="168" line="19">
+                <qualified_id column="11" file="tlm_fw_bw_if.cpp"
+                  idref="170" line="19" name="nb_transport_fw"/>
+                <parameter_list column="30" file="tlm_fw_bw_if.cpp"
+                  idref="172" line="19">
+                  <parameter_declaration column="30"
+                    file="tlm_fw_bw_if.cpp" idref="174" line="19">
+                    <declaration_specifiers column="30"
+                      file="tlm_fw_bw_if.cpp" idref="176" line="19">
+                      <qualified_type column="30"
+                        file="tlm_fw_bw_if.cpp" idref="178" line="19">
+                        <qualified_id column="30"
+                          file="tlm_fw_bw_if.cpp" idref="180" line="19" name="data"/>
+                      </qualified_type>
+                    </declaration_specifiers>
+                    <declarator column="31" file="tlm_fw_bw_if.cpp"
+                      idref="182" line="19">
+                      <ptr_operator column="31" file="tlm_fw_bw_if.cpp"
+                        idref="184" line="19" name="&amp;"/>
+                      <declarator column="35" file="tlm_fw_bw_if.cpp"
+                        idref="186" line="19">
+                        <qualified_id column="35"
+                          file="tlm_fw_bw_if.cpp" idref="188" line="19" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="41"
+                    file="tlm_fw_bw_if.cpp" idref="190" line="19">
+                    <declaration_specifiers column="41"
+                      file="tlm_fw_bw_if.cpp" idref="192" line="19">
+                      <builtin_type_specifier column="41"
+                        file="tlm_fw_bw_if.cpp" idref="194" length="0"
+                        line="19" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="43" file="tlm_fw_bw_if.cpp"
+                      idref="196" line="19">
+                      <ptr_operator column="43" file="tlm_fw_bw_if.cpp"
+                        idref="198" line="19" name="&amp;"/>
+                      <declarator column="46" file="tlm_fw_bw_if.cpp"
+                        idref="200" line="19">
+                        <qualified_id column="46"
+                          file="tlm_fw_bw_if.cpp" idref="202" line="19" name="phase"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="53"
+                    file="tlm_fw_bw_if.cpp" idref="204" line="19">
+                    <declaration_specifiers column="53"
+                      file="tlm_fw_bw_if.cpp" idref="206" line="19">
+                      <builtin_type_specifier column="53"
+                        file="tlm_fw_bw_if.cpp" idref="208" length="0"
+                        line="19" name="sc_time" sc_dt="true"/>
+                    </declaration_specifiers>
+                    <declarator column="55" file="tlm_fw_bw_if.cpp"
+                      idref="210" line="19">
+                      <ptr_operator column="55" file="tlm_fw_bw_if.cpp"
+                        idref="212" line="19" name="&amp;"/>
+                      <declarator column="62" file="tlm_fw_bw_if.cpp"
+                        idref="214" line="19">
+                        <qualified_id column="62"
+                          file="tlm_fw_bw_if.cpp" idref="216" line="19" name="t"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="65" file="tlm_fw_bw_if.cpp" idref="218" line="19"/>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="68" file="tlm_fw_bw_if.cpp"
+            idref="220" line="20">
+            <function_definition column="68" file="tlm_fw_bw_if.cpp"
+              idref="222" line="20">
+              <declaration_specifiers column="68"
+                file="tlm_fw_bw_if.cpp" idref="224" line="20">
+                <type_modifiers column="68" file="tlm_fw_bw_if.cpp"
+                  idref="226" line="20"/>
+                <builtin_type_specifier column="3"
+                  file="tlm_fw_bw_if.cpp" idref="228" length="0"
+                  line="20" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="11" file="tlm_fw_bw_if.cpp"
+                idref="230" line="20">
+                <qualified_id column="11" file="tlm_fw_bw_if.cpp"
+                  idref="232" line="20" name="b_transport"/>
+                <parameter_list column="27" file="tlm_fw_bw_if.cpp"
+                  idref="234" line="20">
+                  <parameter_declaration column="27"
+                    file="tlm_fw_bw_if.cpp" idref="236" line="20">
+                    <declaration_specifiers column="27"
+                      file="tlm_fw_bw_if.cpp" idref="238" line="20">
+                      <qualified_type column="27"
+                        file="tlm_fw_bw_if.cpp" idref="240" line="20">
+                        <qualified_id column="27"
+                          file="tlm_fw_bw_if.cpp" idref="242" line="20" name="data"/>
+                      </qualified_type>
+                    </declaration_specifiers>
+                    <declarator column="28" file="tlm_fw_bw_if.cpp"
+                      idref="244" line="20">
+                      <ptr_operator column="28" file="tlm_fw_bw_if.cpp"
+                        idref="246" line="20" name="&amp;"/>
+                      <declarator column="32" file="tlm_fw_bw_if.cpp"
+                        idref="248" line="20">
+                        <qualified_id column="32"
+                          file="tlm_fw_bw_if.cpp" idref="250" line="20" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="38"
+                    file="tlm_fw_bw_if.cpp" idref="252" line="20">
+                    <declaration_specifiers column="38"
+                      file="tlm_fw_bw_if.cpp" idref="254" line="20">
+                      <builtin_type_specifier column="38"
+                        file="tlm_fw_bw_if.cpp" idref="256" length="0"
+                        line="20" name="sc_time" sc_dt="true"/>
+                    </declaration_specifiers>
+                    <declarator column="40" file="tlm_fw_bw_if.cpp"
+                      idref="258" line="20">
+                      <ptr_operator column="40" file="tlm_fw_bw_if.cpp"
+                        idref="260" line="20" name="&amp;"/>
+                      <declarator column="47" file="tlm_fw_bw_if.cpp"
+                        idref="262" line="20">
+                        <qualified_id column="47"
+                          file="tlm_fw_bw_if.cpp" idref="264" line="20" name="t"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="50" file="tlm_fw_bw_if.cpp" idref="266" line="20"/>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="53" file="tlm_fw_bw_if.cpp"
+            idref="268" line="21">
+            <function_definition column="53" file="tlm_fw_bw_if.cpp"
+              idref="270" line="21">
+              <declaration_specifiers column="53"
+                file="tlm_fw_bw_if.cpp" idref="272" line="21">
+                <type_modifiers column="53" file="tlm_fw_bw_if.cpp"
+                  idref="274" line="21"/>
+                <builtin_type_specifier column="3"
+                  file="tlm_fw_bw_if.cpp" idref="276" length="0"
+                  line="21" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="11" file="tlm_fw_bw_if.cpp"
+                idref="278" line="21">
+                <qualified_id column="11" file="tlm_fw_bw_if.cpp"
+                  idref="280" line="21" name="get_direct_mem_ptr"/>
+                <parameter_list column="34" file="tlm_fw_bw_if.cpp"
+                  idref="282" line="21">
+                  <parameter_declaration column="34"
+                    file="tlm_fw_bw_if.cpp" idref="284" line="21">
+                    <declaration_specifiers column="34"
+                      file="tlm_fw_bw_if.cpp" idref="286" line="21">
+                      <qualified_type column="34"
+                        file="tlm_fw_bw_if.cpp" idref="288" line="21">
+                        <qualified_id column="34"
+                          file="tlm_fw_bw_if.cpp" idref="290" line="21" name="data"/>
+                      </qualified_type>
+                    </declaration_specifiers>
+                    <declarator column="35" file="tlm_fw_bw_if.cpp"
+                      idref="292" line="21">
+                      <ptr_operator column="35" file="tlm_fw_bw_if.cpp"
+                        idref="294" line="21" name="&amp;"/>
+                      <declarator column="39" file="tlm_fw_bw_if.cpp"
+                        idref="296" line="21">
+                        <qualified_id column="39"
+                          file="tlm_fw_bw_if.cpp" idref="298" line="21" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="45"
+                    file="tlm_fw_bw_if.cpp" idref="300" line="21">
+                    <declaration_specifiers column="45"
+                      file="tlm_fw_bw_if.cpp" idref="302" line="21">
+                      <scope_override column="45"
+                        file="tlm_fw_bw_if.cpp" idref="304" line="21" name="tlm"/>
+                      <builtin_type_specifier column="50"
+                        file="tlm_fw_bw_if.cpp" idref="306" length="0"
+                        line="21" name="tlm_dmi" sc_dt="true"/>
+                    </declaration_specifiers>
+                    <declarator column="52" file="tlm_fw_bw_if.cpp"
+                      idref="308" line="21">
+                      <ptr_operator column="52" file="tlm_fw_bw_if.cpp"
+                        idref="310" line="21" name="&amp;"/>
+                      <declarator column="59" file="tlm_fw_bw_if.cpp"
+                        idref="312" line="21">
+                        <qualified_id column="59"
+                          file="tlm_fw_bw_if.cpp" idref="314" line="21" name="dmi_data"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="69" file="tlm_fw_bw_if.cpp" idref="316" line="21">
+                <block_statement column="71" file="tlm_fw_bw_if.cpp"
+                  idref="318" line="21">
+                  <return_statement column="71" file="tlm_fw_bw_if.cpp"
+                    idref="320" line="21">
+                    <primary_expression column="73"
+                      file="tlm_fw_bw_if.cpp" idref="324" line="21">
+                      <constant column="73" file="tlm_fw_bw_if.cpp"
+                        idref="326" line="21" value="false"/>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="87" file="tlm_fw_bw_if.cpp"
+            idref="328" line="22">
+            <function_definition column="87" file="tlm_fw_bw_if.cpp"
+              idref="330" line="22">
+              <declaration_specifiers column="87"
+                file="tlm_fw_bw_if.cpp" idref="332" line="22">
+                <type_modifiers column="87" file="tlm_fw_bw_if.cpp"
+                  idref="334" line="22"/>
+                <builtin_type_specifier column="3"
+                  file="tlm_fw_bw_if.cpp" idref="336" length="0"
+                  line="22" name="unsigned int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="20" file="tlm_fw_bw_if.cpp"
+                idref="338" line="22">
+                <qualified_id column="20" file="tlm_fw_bw_if.cpp"
+                  idref="340" line="22" name="transport_dbg"/>
+                <parameter_list column="37" file="tlm_fw_bw_if.cpp"
+                  idref="342" line="22">
+                  <parameter_declaration column="37"
+                    file="tlm_fw_bw_if.cpp" idref="344" line="22">
+                    <declaration_specifiers column="37"
+                      file="tlm_fw_bw_if.cpp" idref="346" line="22">
+                      <qualified_type column="37"
+                        file="tlm_fw_bw_if.cpp" idref="348" line="22">
+                        <qualified_id column="37"
+                          file="tlm_fw_bw_if.cpp" idref="350" line="22" name="data"/>
+                      </qualified_type>
+                    </declaration_specifiers>
+                    <declarator column="38" file="tlm_fw_bw_if.cpp"
+                      idref="352" line="22">
+                      <ptr_operator column="38" file="tlm_fw_bw_if.cpp"
+                        idref="354" line="22" name="&amp;"/>
+                      <declarator column="42" file="tlm_fw_bw_if.cpp"
+                        idref="356" line="22">
+                        <qualified_id column="42"
+                          file="tlm_fw_bw_if.cpp" idref="358" line="22" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="48" file="tlm_fw_bw_if.cpp" idref="360" line="22">
+                <block_statement column="50" file="tlm_fw_bw_if.cpp"
+                  idref="362" line="22">
+                  <return_statement column="50" file="tlm_fw_bw_if.cpp"
+                    idref="364" line="22">
+                    <primary_expression column="52"
+                      file="tlm_fw_bw_if.cpp" idref="368" line="22">
+                      <constant column="52" file="tlm_fw_bw_if.cpp"
+                        idref="370" line="22" value="0"/>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+</INTERNAL>

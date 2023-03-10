@@ -962,8 +962,7 @@ public class MainTransformer<T> {
                 new WritePerm<>(OriGen.create()), OriGen.create());
 
         // Put it all together and fold it with stars
-        java.util.List<Expr<T>> conditions = java.util.List.of(held_this, permission_inv);
-        return col_system.fold_star(conditions);
+        return col_system.fold_star(java.util.List.of(held_this, permission_inv));
     }
 
     /**
