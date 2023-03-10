@@ -60,7 +60,6 @@ case object Stages {
 
   def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
-      .thenRun(ToVerification.ofOptions(blameProvider))
-      .thenRun(SaveStage.ofOptions(options))
+      .thenRun(Output.ofOptions(options, blameProvider))
   }
 }
