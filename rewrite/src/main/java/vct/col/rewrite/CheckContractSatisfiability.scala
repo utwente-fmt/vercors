@@ -50,31 +50,29 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     case SplitAccountedPredicate(left, right) => splitAccountedPredicate(left) ++ splitAccountedPredicate(right)
   }
 
-//  def isGeneric(vari: Variable[_]): Boolean = {
-//      implicit val origin: Origin = vari.o
-//      vari.t match {
-//      case TSeq(innerType) =>
-//        isGeneric(new Variable(innerType))
-//      case TVar(ref) =>
-//        ref.decl.t.isInstanceOf[TAny] // Check if TAny with the upper bound type
-//      // Add more cases here for other types with generic parameters, if needed
-//      case _ =>
-//        false
-//    }
-//  }
-//
-//  def replaceGeneric(vari: Variable[_]): Variable[_] = {
-//    implicit val origin: Origin = vari.o
-//    vari.t match {
-//      case TSeq(innerType) =>
-//        TSeq(replaceGeneric(innerType))
-//      case TVar(ref) =>
-//        new Variable(ref.decl.t) // Replace TAny with the upper bound type
-//      // Add more cases here for other types with generic parameters, if needed
-//      case other =>
-//        new Variable(other)
-//    }
-//  }
+  def isGeneric(vari: Type[_]): Boolean = {
+      vari match {
+      case TSeq(innerType) =>
+        isGeneric(innerType)
+      case t @ TVar(_) =>
+        t.isInstanceOf[TVar[_]] // Check if the type is generic
+      // Add more cases here for other types with generic parameters, if needed
+      case _ =>
+        false
+    }
+  }
+
+  def replaceGeneric(vari: Type[Pre]): Type[Pre] = {
+    vari match {
+      case TSeq(innerType) =>
+        TSeq(replaceGeneric(innerType))
+      case TVar(ref) =>
+        ref.decl.t // Replace TAny with the upper bound type
+      // Add more cases here for other types with generic parameters, if needed
+      case other =>
+        other
+    }
+  }
 
 
   def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[String]): Unit = {
@@ -88,11 +86,11 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         expectedErrors.top += err
         // PB: this usage is dubious: pred can probably contain type variables?
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
-//        val substitutionsNoGenerics = substitutions.map {
-//          case (vari, exp) if isGeneric(vari) =>
-//            (vari, typ.upperBound)
-//          case other => other
-//        }
+        val substitutionsNoGenerics = substitutions.map {
+          case (vari, exp) if isGeneric(vari.t) =>
+            (new Variable[Pre](replaceGeneric(vari.t)), exp)
+          case other => other
+        }
 //        val substitutionsNoGenerics = substitutions.keys.collect {
 //          case n if n.t.isInstanceOf[TSeq[_]] =>
 //            TSeq(TVar(ref)) =>
@@ -108,7 +106,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
                 dispatch(generalizedContract)
               }
             )(generalizedContract.o),
-            args = variables.dispatch(substitutions.keys),
+            args = variables.dispatch(substitutionsNoGenerics.keys),
             body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
           ))
         }
