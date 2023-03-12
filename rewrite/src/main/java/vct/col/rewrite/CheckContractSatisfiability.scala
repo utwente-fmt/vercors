@@ -50,6 +50,33 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     case SplitAccountedPredicate(left, right) => splitAccountedPredicate(left) ++ splitAccountedPredicate(right)
   }
 
+//  def isGeneric(vari: Variable[_]): Boolean = {
+//      implicit val origin: Origin = vari.o
+//      vari.t match {
+//      case TSeq(innerType) =>
+//        isGeneric(new Variable(innerType))
+//      case TVar(ref) =>
+//        ref.decl.t.isInstanceOf[TAny] // Check if TAny with the upper bound type
+//      // Add more cases here for other types with generic parameters, if needed
+//      case _ =>
+//        false
+//    }
+//  }
+//
+//  def replaceGeneric(vari: Variable[_]): Variable[_] = {
+//    implicit val origin: Origin = vari.o
+//    vari.t match {
+//      case TSeq(innerType) =>
+//        TSeq(replaceGeneric(innerType))
+//      case TVar(ref) =>
+//        new Variable(ref.decl.t) // Replace TAny with the upper bound type
+//      // Add more cases here for other types with generic parameters, if needed
+//      case other =>
+//        new Variable(other)
+//    }
+//  }
+
+
   def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[String]): Unit = {
     implicit val origin: Origin = CheckSatOrigin(contract.o, n)
     foldStar(splitAccountedPredicate(contract.requires)) match {
@@ -61,13 +88,17 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         expectedErrors.top += err
         // PB: this usage is dubious: pred can probably contain type variables?
         val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
-//        val compositeTypes = substitutions.keys.filter(_.t.getClass.getDeclaredFields.exists(_.getName == "element"))
-//        val typeArgs = substitutions.keys.filter(_.t.isInstanceOf[TVar]) ++ compositeTypes.filter(_.t.element.ref.decl.t.t)
-        val substitutionsNoGenerics = substitutions.keys.map(_.t).collect {
-          case ts @ TSeq(TVar(ref)) =>
-            new Variable(TSeq(ref.decl.t))
-          case other => new Variable(other)
-        }
+//        val substitutionsNoGenerics = substitutions.map {
+//          case (vari, exp) if isGeneric(vari) =>
+//            (vari, typ.upperBound)
+//          case other => other
+//        }
+//        val substitutionsNoGenerics = substitutions.keys.collect {
+//          case n if n.t.isInstanceOf[TSeq[_]] =>
+//            TSeq(TVar(ref)) =>
+//            TSeq(ref.decl.t)
+//          case other => other
+//        }
         variables.scope {
           globalDeclarations.declare(procedure(
             blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
@@ -77,7 +108,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
                 dispatch(generalizedContract)
               }
             )(generalizedContract.o),
-            args = variables.dispatch(substitutionsNoGenerics),
+            args = variables.dispatch(substitutions.keys),
             body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
           ))
         }
