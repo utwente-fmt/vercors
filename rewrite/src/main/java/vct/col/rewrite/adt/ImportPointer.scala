@@ -5,6 +5,7 @@ import ImportADT.typeText
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
+import vct.col.util.AstBuildHelpers.ExprBuildHelpers
 
 import scala.collection.mutable
 
@@ -126,6 +127,8 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter) extends
           ref = pointerOffset.ref,
           args = Seq(OptGet(dispatch(pointer))(PointerNullOptNone(off.blame, pointer)))
         )
+      case pointerLen@PointerLength(pointer) =>
+        postCoerce(PointerBlockLength(pointer)(pointerLen.blame) - PointerBlockOffset(pointer)(pointerLen.blame))
       case other => rewriteDefault(other)
     }
   }
