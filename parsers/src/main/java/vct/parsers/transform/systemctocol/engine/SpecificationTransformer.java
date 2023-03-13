@@ -155,7 +155,12 @@ public class SpecificationTransformer<T> {
         Eq<T> this_this = new Eq<>(this_deref, col_system.THIS, OriGen.create());
 
         // Put everything together and return the condition
-        return col_system.fold_star(java.util.List.of(m_perm, m_not_null, m_committed, m_held, global_inv, this_this, path_condition));
+        if (path_condition.equals(col_system.TRUE)) {
+            return col_system.fold_star(java.util.List.of(m_perm, m_not_null, m_committed, m_held, global_inv, this_this));
+        }
+        else {
+            return col_system.fold_star(java.util.List.of(m_perm, m_not_null, m_committed, m_held, global_inv, this_this, path_condition));
+        }
     }
 
     /**

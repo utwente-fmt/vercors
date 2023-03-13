@@ -254,7 +254,10 @@ public class FunctionTransformer<T> {
             if (process == null && expr instanceof FunctionCallExpression f && !f.getFunction().getName().equals("sc_module")) {
                 throw new UnsupportedException("Function calls in state class constructors are not allowed!");
             }
-            results.add(expression_transformer.create_statement(expr, sc_inst));
+            Statement<T> result = expression_transformer.create_statement(expr, sc_inst);
+            if (result != null) {
+                results.add(result);
+            }
         }
 
         // Function is pure iff all expressions encountered are allowed in a pure function

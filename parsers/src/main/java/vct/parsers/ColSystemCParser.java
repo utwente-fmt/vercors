@@ -6,8 +6,6 @@ import de.tub.pes.syscir.engine.TransformerFactory;
 import de.tub.pes.syscir.sc_model.SCSystem;
 import hre.io.Readable;
 import org.antlr.v4.runtime.CharStream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import vct.parsers.transform.BlameProvider;
@@ -26,8 +24,6 @@ public class ColSystemCParser extends Parser {
 
     public ColSystemCParser(OriginProvider originProvider, BlameProvider blameProvider, Path systemCConfig) {
         super(originProvider, blameProvider);
-        Logger logger = LogManager.getLogger();
-        logger.info(systemCConfig.toString());
         this.systemCConfig = systemCConfig.toString();
     }
 

@@ -28,8 +28,14 @@ public class ClassTransformer<T> {
      */
     private final COLSystem<T> col_system;
 
+    /**
+     * A list of new instance methods that were generated during the translation process.
+     */
+    private final java.util.List<InstanceMethod<T>> generated_instance_methods;
+
     public ClassTransformer(COLSystem<T> col_system) {
         this.col_system = col_system;
+        this.generated_instance_methods = new java.util.ArrayList<>();
     }
 
     /**
@@ -64,6 +70,9 @@ public class ClassTransformer<T> {
 
         // Transform other methods (it is assumed that the process is the only one using its methods)   TODO: Is that assumption true?
         declarations.addAll(create_methods(process.get_methods(), process.get_generating_instance(), m, process));
+
+        // Add all newly generated methods to the declarations as well
+        declarations.addAll(generated_instance_methods);
 
         return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
                 OriGen.create(create_name(process.get_generating_instance(), process.get_generating_function())));
@@ -107,10 +116,13 @@ public class ClassTransformer<T> {
                 SCClassInstance own_inst = state_class.get_generating_instance();
                 SCClassInstance proc_inst = process.get_generating_instance();
                 if (!own_inst.getSCClass().equals(proc_inst.getSCClass()) || (own_inst.equals(proc_inst))) {
-                    declarations.addAll(create_method(method, own_inst, m, state_class, process));
+                    declarations.add(create_method(method, own_inst, m, state_class, process));
                 }
             }
         }
+
+        // Add newly generated methods to declaration list
+        declarations.addAll(generated_instance_methods);
 
         return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE,
                 OriGen.create(create_name(state_class.get_generating_instance())));
@@ -172,8 +184,15 @@ public class ClassTransformer<T> {
      * @return Constructor for the COL class
      */
     private PVLConstructor<T> create_constructor(COLClass col_class, InstanceField<T> m, java.util.Map<SCVariable, InstanceField<T>> fields) {
+        // Generate constructor
         FunctionTransformer<T> function_transformer = new FunctionTransformer<>(col_class.get_generating_instance(), m, col_system, col_class);
-        return function_transformer.transform_constructor(col_class, fields);
+        PVLConstructor<T> pvl_constructor =  function_transformer.transform_constructor(col_class, fields);
+
+        // Handle possible newly generated methods
+        generated_instance_methods.addAll(function_transformer.get_additional_methods());
+
+        // Return the constructor
+        return pvl_constructor;
     }
 
     /**
@@ -184,8 +203,15 @@ public class ClassTransformer<T> {
      * @return Run method for the COL class
      */
     private RunMethod<T> create_run_method(ProcessClass process, InstanceField<T> m) {
+        // Translate run method
         FunctionTransformer<T> function_transformer = new FunctionTransformer<>(process.get_generating_instance(), m, col_system, process);
-        return function_transformer.transform_run_method(process);
+        RunMethod<T> run_method = function_transformer.transform_run_method(process);
+
+        // Handle possible newly generated methods
+        generated_instance_methods.addAll(function_transformer.get_additional_methods());
+
+        // Return the run method
+        return run_method;
     }
 
     /**
@@ -203,7 +229,7 @@ public class ClassTransformer<T> {
         java.util.List<InstanceMethod<T>> results = new java.util.ArrayList<>();
 
         for (SCFunction method : methods) {
-            results.addAll(create_method(method, sc_inst, m, process, process));
+            results.add(create_method(method, sc_inst, m, process, process));
         }
 
         return results;
@@ -217,19 +243,17 @@ public class ClassTransformer<T> {
      * @param m Main reference field to the transformed class
      * @param col_class Intermediate representation class that contains this method
      * @param process Process class using this method
-     * @return A list containing the converted COL method as well as any auxiliary methods that might have been
-     *         generated along the way
+     * @return The converted COL method
      */
-    private java.util.List<InstanceMethod<T>> create_method(SCFunction method, SCClassInstance sc_inst, InstanceField<T> m,
+    private InstanceMethod<T> create_method(SCFunction method, SCClassInstance sc_inst, InstanceField<T> m,
                                                             COLClass col_class, ProcessClass process) {
-        java.util.List<InstanceMethod<T>> result = new java.util.ArrayList<>();
         FunctionTransformer<T> function_transformer = new FunctionTransformer<>(sc_inst, m, col_system, col_class);
 
         // Add the transformed method itself
-        result.add(function_transformer.transform_method(method, process));
+        InstanceMethod<T> result = function_transformer.transform_method(method, process);
 
         // Add all other generated methods
-        result.addAll(function_transformer.get_additional_methods());
+        generated_instance_methods.addAll(function_transformer.get_additional_methods());
 
         // Register the method in the COL system context by its SystemC equivalent and generating instance
         col_system.add_method_containing_class(method, sc_inst, col_class);

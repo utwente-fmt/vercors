@@ -70,7 +70,7 @@ public class KnownTypeTransformer<T> {
     public void transform() {
         // Create name for the channel class
         SCClass sc_class = sc_inst.getSCClass();
-        String name = generate_name();
+        String name = generate_class_name();
 
         // Find index of this channel
         prim_channel_index = col_system.get_nr_primitive_channels();
@@ -91,7 +91,8 @@ public class KnownTypeTransformer<T> {
 
         // Add channel field to COL system
         Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
-        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS, OriGen.create()));
+        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS,
+                OriGen.create(name.toLowerCase())));
     }
 
     /**
@@ -99,7 +100,7 @@ public class KnownTypeTransformer<T> {
      *
      * @return A unique name for the class
      */
-    private String generate_name() {
+    private String generate_class_name() {
         String name = sc_inst.getSCClass().getName();
         if (sc_inst.getSCClass().getInstances().size() > 1) {
             name = name + "_" + sc_inst.getName();
@@ -207,7 +208,7 @@ public class KnownTypeTransformer<T> {
         java.util.List<Expr<T>> comps = java.util.List.of(perm_fifo, fifo_not_null, perm_m, m_is_this, perm_buf, perm_read,
                 read_n_neg, read_in_bound, perm_written, buf_in_bound);
         return new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(comps)), false, true,
-                OriGen.create(generate_name().toLowerCase() + "_permission_invariant"));
+                OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
     }
 
     /**
@@ -585,7 +586,7 @@ public class KnownTypeTransformer<T> {
         // Put it all together and return
         return new InstancePredicate<>(col_system.NO_VARS,
                 Option.apply(col_system.fold_star(java.util.List.of(perm_signal, signal_not_null, perm_m, m_is_this, perm_val, perm__val))),
-                false, true, OriGen.create(generate_name().toLowerCase() + "_permission_invariant"));
+                false, true, OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
     }
 
     /**
