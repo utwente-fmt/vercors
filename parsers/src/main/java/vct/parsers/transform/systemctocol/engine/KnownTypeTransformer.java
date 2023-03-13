@@ -142,8 +142,8 @@ public class KnownTypeTransformer<T> {
         col_system.add_primitive_instance_method(sc_inst, Constants.PRIMITIVE_UPDATE_METHOD_INDEX, fifo_update);
 
         // Create the class
-        List<ClassDeclaration<T>> seq = List.from(CollectionConverters.asScala(java.util.List.of(m, buf, constructor, fifo_read, fifo_write, fifo_update)));
-        return new Class<>(seq, col_system.NO_CLS_REFS, col_system.TRUE, o);
+        java.util.List<ClassDeclaration<T>> declarations = java.util.List.of(m, buf, nr_read, written, constructor, fifo_read, fifo_write, fifo_update);
+        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE, o);
     }
 
     /**
@@ -543,7 +543,7 @@ public class KnownTypeTransformer<T> {
         col_system.add_primitive_instance_method(sc_inst, Constants.PRIMITIVE_UPDATE_METHOD_INDEX, signal_update);
 
         // Create the class
-        java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, constructor, signal_read, signal_write, signal_update);
+        java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, _val, constructor, signal_read, signal_write, signal_update);
         return new Class<>(List.from(CollectionConverters.asScala(class_content)), col_system.NO_CLS_REFS, col_system.TRUE, o);
     }
 

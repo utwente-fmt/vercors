@@ -461,13 +461,13 @@ case class Printer(out: Appendable,
       else
         NodePhrase(body)
     case Branch(branches) =>
-      val `if` = (phrase("if(", branches.head._1, ")"), branches.head._2)
+      val `if` = (phrase("if (", branches.head._1, ")"), branches.head._2)
       val others = branches.tail.map {
-        case (cond, impl) => (phrase("else if(", cond, ")"), impl)
+        case (cond, impl) => (phrase("else if (", cond, ")"), impl)
       }
       controls(`if` +: others)
     case Switch(expr, body) =>
-      control(phrase("switch(", expr, ")"), body)
+      control(phrase("switch (", expr, ")"), body)
     case Loop(Block(Nil), cond, Block(Nil), invariant, body) =>
       control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case Loop(init, cond, update, invariant, body) =>

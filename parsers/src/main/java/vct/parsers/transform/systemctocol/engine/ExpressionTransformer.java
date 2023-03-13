@@ -192,11 +192,11 @@ public class ExpressionTransformer<T> {
         }
         if (expr instanceof DeleteArrayExpression) {
             pure = false;
-            return null;    // TODO: Do we need to handle delete expressions?
+            return null;
         }
         if (expr instanceof DeleteExpression) {
             pure = false;
-            return null;    // TODO: Do we need to handle delete expressions?
+            return null;
         }
         if (expr instanceof DoWhileLoopExpression e) {
             pure = false;
@@ -231,7 +231,7 @@ public class ExpressionTransformer<T> {
             return transform_return_expression(e, sc_inst, obj);
         }
         if (expr instanceof SCStopExpression) {
-            // Ignore sc_stop, since we don't support reasoning over simulation time    TODO: Should we?
+            // Ignore sc_stop, since we don't support reasoning over simulation time
             return null;
         }
         if (expr instanceof SCVariableDeclarationExpression e) {
@@ -250,7 +250,7 @@ public class ExpressionTransformer<T> {
             pure = false;
             return transform_while_loop_expression(e, sc_inst, obj, path_cond);
         }
-        // TODO: SocketFunctionCallExpression, MultiSocketAccessExpression
+        // TODO: Support SocketFunctionCallExpression, MultiSocketAccessExpression for TLM library?
         throw new ExpressionParseException("The following statement is not supported:\n\n" + expr);
     }
 
@@ -523,8 +523,8 @@ public class ExpressionTransformer<T> {
         Statement<T> result;
 
         // If the variable is an attribute of this class, but not of the corresponding COL class, access it through the containing instance
-        COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);        // Not null, since the state class is transformed first
-        if (obj == col_system.THIS && !containing_class.equals(col_class)) {
+        COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);
+        if (obj == col_system.THIS && containing_class != null && !containing_class.equals(col_class)) {
             // Create m reference
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
@@ -1292,15 +1292,13 @@ public class ExpressionTransformer<T> {
      * @return An expression encoding the semantics of the SystemC expression
      */
     private Expr<T> transform_array_access_expression(ArrayAccessExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
-        SCVariable array = expr.getVar();
-        Ref<T, InstanceField<T>> var_ref = new LazyRef<>(() -> col_system.get_instance_field(sc_inst, array), Option.empty(),
-                ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> var_deref = new Deref<>(col_system.THIS, var_ref, new GeneratedBlame<>(), OriGen.create());
+        // Get array variable
+        Expr<T> array_var = transform_sc_variable_expression(expr, sc_inst, obj);
 
-        // Get index    TODO: What about multidimensional arrays?
+        // Get index
         Expr<T> index = create_expression(expr.getAccess().get(0), sc_inst, obj);
 
-        return new ArraySubscript<>(var_deref, index, new GeneratedBlame<>(), OriGen.create());
+        return new ArraySubscript<>(array_var, index, new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
@@ -1350,7 +1348,6 @@ public class ExpressionTransformer<T> {
 
         if (left == null || right == null) throw new ExpressionParseException("Cannot convert binary expression operands in " + expr);
 
-        // TODO: Are any binary operators missing?
         return switch (expr.getOp()) {
             case "+" -> new Plus<>(left, right, OriGen.create());
             case "-" -> new Minus<>(left, right, OriGen.create());
@@ -1455,9 +1452,26 @@ public class ExpressionTransformer<T> {
             arguments.add(parameter);
         }
 
-        // Finish the method invocation
-        return new MethodInvocation<>(obj, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        // If the variable is an attribute of this class, but not of the corresponding COL class, access it through the containing instance
+        COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);
+        if (obj == col_system.THIS && containing_class != null && !containing_class.equals(col_class)) {
+            // Create m reference
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+
+            // Create reference to the instance of the class containing the variable
+            Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
+                    Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
+            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
+
+            return new MethodInvocation<>(containing_deref, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        }
+        // Else invoke the method on the given object (might be this)
+        else {
+            return new MethodInvocation<>(obj, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        }
     }
 
     /**
@@ -1469,7 +1483,7 @@ public class ExpressionTransformer<T> {
      * @return An expression encoding the semantics of the SystemC expression
      */
     private Expr<T> transform_new_array_expression(NewArrayExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
-        Type<T> array_type = col_system.parse_type(expr.getObjType());  // TODO: What about multidimensional arrays?
+        Type<T> array_type = col_system.parse_type(expr.getObjType());
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
         if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, new GeneratedBlame<>(), OriGen.create());
@@ -1605,7 +1619,6 @@ public class ExpressionTransformer<T> {
         Expr<T> original = create_expression(expr.getExpression(), sc_inst, obj);
         if (original == null) return null;
 
-        // TODO: Are any unary operators missing?
         return switch (expr.getOperator()) {
             case "!" -> new Not<>(original, OriGen.create());
             case "-" -> new UMinus<>(original, OriGen.create());
