@@ -29,7 +29,7 @@ class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/vector-add.pvl"
   vercors should verify using silicon example "concepts/parallel/zero-kernel.pvl"
   // https://github.com/utwente-fmt/vercors/discussions/836
-  // vercors should verify using silicon example "concepts/parallel/zero-loop.c"
+  vercors should verify using silicon example "concepts/parallel/zero-loop.c"
   vercors should verify using silicon example "concepts/parallel/zero-many.pvl"
   vercors should verify using silicon example "concepts/parallel/zero-sub-array.c"
   vercors should verify using silicon example "concepts/parallel/zero_array_ic.pvl"

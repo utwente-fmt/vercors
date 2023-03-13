@@ -27,6 +27,10 @@ case class ColHelperSubnodes(info: ColDescription) extends ColHelperMaker {
         Some(node => q"Seq($node)")
       case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("BigDecimal") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Apply(Type.Name("Ref"), _) | Type.Name("ExpectedError") =>
         None
+      case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+        val f1 = subnodePatternByType(t1).getOrElse((elem: Term) => q"Nil")
+        val f2 = subnodePatternByType(t2).getOrElse((elem: Term) => q"Nil")
+        Some(arg => q"$arg.left.map(elem => ${f1(q"elem")}).map(elem => ${f2(q"elem")})")
       case other =>
         ColHelperUtil.fail(
           s"Tried to derive the subnodes for unknown type: $other",

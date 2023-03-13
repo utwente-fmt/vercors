@@ -245,6 +245,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                   addSingleBound(v, left, comp.flip)
                 case _ => dependentConditions.addOne(bound)
               }
+            } else {
+              dependentConditions.addOne(bound)
             }
           case None => bound match {
             // If we do not have a simple comparison, we support one special case: i \in {a..b}
@@ -469,7 +471,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     def result(): Option[Expr[Post]] = {
       // If we changed something we always return a result, even if we could not rewrite further
       val res = if(newBinder) {
-        val select = independentConditions ++ dependentConditions
+        val select = independentConditions
         if (bindings.isEmpty) {
           if (select.isEmpty) Some(body) else Some(Implies(AstBuildHelpers.foldAnd(select.toSeq), body))
         } else {
@@ -487,6 +489,10 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
                 select.addOne(lowerBound <= i )
               )
           }
+          // PB: In general reordering conditions is not safe, because a condintion may frame the well-formedness of a
+          // subsequent expression. Heuristic: more often than not, independent conditions frame the bounds, which then
+          // frame any other dependent conditions.
+          select ++= dependentConditions
           val new_body = if (select.nonEmpty) Implies(AstBuildHelpers.foldAnd(select.toSeq), body)
           else body
 

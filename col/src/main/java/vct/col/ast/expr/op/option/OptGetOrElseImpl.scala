@@ -5,5 +5,5 @@ import vct.col.typerules.Types
 
 trait OptGetOrElseImpl[G] { this: OptGetOrElse[G] =>
   def optionType: TOption[G] = opt.t.asOption.get
-  override def t: Type[G] = Types.leastCommonSuperType(optionType.element, alt.t)
+  override lazy val t: Type[G] = Types.leastCommonSuperType(optionType.element, alt.t)
 }

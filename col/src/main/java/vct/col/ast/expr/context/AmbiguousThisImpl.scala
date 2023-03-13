@@ -5,7 +5,7 @@ import vct.col.err.ContextSensitiveNodeNotResolved
 import vct.col.resolve.ctx._
 
 trait AmbiguousThisImpl[G] { this: AmbiguousThis[G] =>
-  override def t: Type[G] =
+  override lazy val t: Type[G] =
     ref.getOrElse(
       throw ContextSensitiveNodeNotResolved(this,
         "'this' encountered, but the surrounding class is not resolved.")

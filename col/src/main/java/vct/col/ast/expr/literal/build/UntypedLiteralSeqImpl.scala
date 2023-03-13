@@ -4,6 +4,6 @@ import vct.col.ast.{TSeq, Type, UntypedLiteralSeq}
 import vct.col.typerules.Types
 
 trait UntypedLiteralSeqImpl[G] { this: UntypedLiteralSeq[G] =>
-  def elementType: Type[G] = Types.leastCommonSuperType(values.map(_.t))
+  lazy val elementType: Type[G] = Types.leastCommonSuperType(values.map(_.t))
   override def t: Type[G] = TSeq(elementType)
 }

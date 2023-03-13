@@ -247,7 +247,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
         init = col.Block(Nil)(origin(s)),
         cond = transform(cond),
         update = col.Block(Nil)(origin(s)),
-        contract = col.LoopInvariant(foldStar(invs.map(transform))(origin(s)))(blame(s))(origin(s)),
+        contract = col.LoopInvariant(foldStar(invs.map(transform))(origin(s)), None)(blame(s))(origin(s)),
         body = transform(body),
       )(origin(s))
     case silver.Label(name, invs) =>

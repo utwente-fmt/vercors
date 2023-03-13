@@ -11,7 +11,7 @@ trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
   def isPointerOp: Boolean = CoercionUtils.getAnyPointerCoercion(collection.t).isDefined
   def isMapOp: Boolean = CoercionUtils.getAnyMapCoercion(collection.t).isDefined
 
-  override def t: Type[G] =
+  override lazy val t: Type[G] =
     if (isSeqOp) collection.t.asSeq.get.element
     else if (isArrayOp) collection.t.asArray.get.element
     else if (isCArrayOp) collection.t.asCArray.get.innerType

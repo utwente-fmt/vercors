@@ -14,20 +14,35 @@ import viper.silver.ast.{Exp, Infoed, Member, Node, Not, Positioned}
 
 import java.util.{Timer, TimerTask}
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.language.postfixOps
 
-case object SiliconLogListener extends SymbExLogger[SiliconLogListener] {
+case object SiliconLogListener {
   val NO_PROGRESS_TIMEOUT: Duration = 10 seconds
-
-  override protected def newEntityLogger(member: Member, pcs: PathConditionStack): SiliconLogListener =
-    new SiliconLogListener(member, pcs)
+  val logs: ArrayBuffer[SiliconMemberLogListener] = ArrayBuffer()
 }
 
-class SiliconLogListener(member: Member, pcs: PathConditionStack) extends MemberSymbExLogger(SiliconLogListener, member, pcs) with LazyLogging {
+case class SiliconLogListener(reportOnNoProgress: Boolean,
+                              traceBranchConditions: Boolean,
+                              branchConditionReportInterval: Option[Int]) extends SymbExLogger[SiliconMemberLogListener] {
+  override protected def newEntityLogger(member: Member, pcs: PathConditionStack): SiliconMemberLogListener = {
+    val log = new SiliconMemberLogListener(this, member, pcs)
+    SiliconLogListener.logs += log
+    log
+  }
+}
+
+class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: PathConditionStack) extends MemberSymbExLogger(log, member, pcs) with LazyLogging {
+  sealed trait BranchCondition
+  case class BranchConditionExp(e: Exp) extends BranchCondition
+  case class BranchConditionTerm(t: Term) extends BranchCondition
+  case class BranchConditionNone(idx: Int, count: Int) extends BranchCondition
+
   var openScopeFrames: List[mutable.Map[Int, DataRecord]] = List(mutable.Map())
   var branchScopeCloseRecords: List[mutable.Set[Int]] = List(mutable.Set())
-  var branchConditions: List[Option[Either[Term, Exp]]] = List()
+  var branchConditions: List[BranchCondition] = List()
+  var branchUpdates: Int = 0
 
   var timer = new Timer()
   var currentTimerTask: Option[TimerTask] = None
@@ -35,6 +50,8 @@ class SiliconLogListener(member: Member, pcs: PathConditionStack) extends Member
   var doneTrace: Array[StackTraceElement] = _
 
   def progress(): Unit = {
+    if(!log.reportOnNoProgress) return
+
     currentTimerTask.foreach(_.cancel())
     timer.purge()
 
@@ -71,13 +88,13 @@ class SiliconLogListener(member: Member, pcs: PathConditionStack) extends Member
       }
 
       if(at.nonEmpty) {
-        logger.warn(s"    At ${at.get}:")
+        logger.info(s"    At ${at.get}:")
       }
 
       if(excludedBy.contains(record.id)) {
-        logger.warn(s"      [finished in branch ${excludedBy(record.id)}]: $record")
+        logger.info(s"      [finished in branch ${excludedBy(record.id)}]: $record")
       } else {
-        logger.warn(s"      $record")
+        logger.info(s"      $record")
       }
     }
   }
@@ -89,20 +106,53 @@ class SiliconLogListener(member: Member, pcs: PathConditionStack) extends Member
       case (excluded, idx) => excluded.map(_ -> idx)
     }.toMap
 
-    logger.warn(s"Current state of silicon worker:")
+    logger.warn("Silicon has been working on the same proof goal for over 10 seconds.")
+    logger.info("Current state of silicon worker:")
     printRecords(openScopeFrames.last, excludedBy)
 
     for(((records, idx), condition) <- openScopeFrames.init.zipWithIndex.zip(branchConditions).reverse) {
       condition match {
-        case Some(Right(cond)) =>
-          logger.warn(s"  [$idx] $cond")
-        case Some(Left(cond)) =>
-          logger.warn(s"  [$idx] $cond")
-        case None =>
-          logger.warn(s"  [$idx] <indeterminate branch>")
+        case BranchConditionExp(cond) =>
+          logger.info(s"  [$idx] $cond")
+        case BranchConditionTerm(cond) =>
+          logger.info(s"  [$idx] $cond")
+        case BranchConditionNone(at, count) =>
+          logger.info(s"  [$idx] <indeterminate branch ${at+1} of $count>")
       }
 
       printRecords(records, excludedBy)
+    }
+  }
+
+  def updateBranch(indicator: String): Unit = {
+    if(log.traceBranchConditions) {
+      val textCond = branchConditions.head match {
+        case BranchConditionExp(e) => e.toString()
+        case BranchConditionTerm(e) => e.toString
+        case BranchConditionNone(at, count) => s"alternative $at/$count"
+      }
+      val indent = "  ".repeat(branchConditions.size)
+      logger.info(s"${member.name}: ${indent}${indicator} ${textCond}")
+    }
+
+    branchUpdates += 1
+    val modulus = log.branchConditionReportInterval
+    if(modulus.nonEmpty && branchUpdates % modulus.get == 0) {
+      logger.warn(s"Silicon has explored ${branchUpdates} branch traces for entity ${member.name}.")
+      logger.info("Current branch information:")
+      // PB: heuristic: the oldest branch is earliest in the text input, so present that first.
+      branchConditions.reverse.foreach {
+        case BranchConditionExp(e) => where(e) match {
+          case None =>
+            logger.info(s" - $e")
+          case Some(pos) =>
+            logger.info(s" - At $pos: $e")
+        }
+        case BranchConditionTerm(t) =>
+          logger.info(s" - $t")
+        case BranchConditionNone(at, count) =>
+          logger.info(s" - alternative ${at+1} of $count")
+      }
     }
   }
 
@@ -134,36 +184,44 @@ class SiliconLogListener(member: Member, pcs: PathConditionStack) extends Member
 
     if(r.getBranchInfos.size == 2) {
       if(r.conditionExp.nonEmpty) {
-        branchConditions +:= Some(Right(r.conditionExp.get))
+        branchConditions +:= BranchConditionExp(r.conditionExp.get)
       } else if(r.condition.nonEmpty) {
-        branchConditions +:= Some(Left(r.condition.get))
+        branchConditions +:= BranchConditionTerm(r.condition.get)
       } else {
-        branchConditions +:= None
+        branchConditions +:= BranchConditionNone(0, r.getBranches.size)
       }
     } else {
-      branchConditions +:= None
+      branchConditions +:= BranchConditionNone(0, r.getBranches.size)
     }
+
+    updateBranch("->")
   }
 
-  def invert(termOrExp: Either[Term, Exp]): Either[Term, Exp] = termOrExp match {
-    case Right(exp) => Right(exp match {
-      case Not(e) => e
-      case other => Not(other)()
-    })
-    case Left(term) => Left(term match {
-      case terms.Not(e) => e
-      case other => terms.Not(other)
-    })
+  def invert(term: Term): Term = term match {
+    case terms.Not(e) => e
+    case other => terms.Not(other)
   }
+
+  def invert(e: Exp): Exp = e match {
+    case Not(e) => e
+    case other => Not(other)(pos = e.pos, info = e.info)
+  }
+
+  def advanceBranch(): Unit =
+    branchConditions = (branchConditions.head match {
+      case BranchConditionExp(e) => BranchConditionExp(invert(e))
+      case BranchConditionTerm(t) => BranchConditionTerm(invert(t))
+      case BranchConditionNone(at, count) => BranchConditionNone(at + 1, count)
+    }) +: branchConditions.tail
 
   override def doSwitchToNextBranch(uidBranchPoint: Int): Unit = {
     progress()
     openScopeFrames.head.clear()
     branchScopeCloseRecords.head.clear()
 
-    if(branchConditions.last.nonEmpty) {
-      branchConditions = branchConditions.init :+ Some(invert(branchConditions.last.get))
-    }
+    advanceBranch()
+
+    updateBranch("->")
   }
 
   override def markBranchReachable(uidBranchPoint: Int): Unit = {
@@ -172,6 +230,8 @@ class SiliconLogListener(member: Member, pcs: PathConditionStack) extends Member
 
   override def doEndBranchPoint(uidBranchPoint: Int): Unit = {
     progress()
+    advanceBranch()
+    updateBranch("<-")
     openScopeFrames = openScopeFrames.tail
 
     for(closeRecord <- branchScopeCloseRecords.head) {

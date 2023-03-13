@@ -2,6 +2,8 @@ package vct.col.rewrite.adt
 
 import vct.col.ast._
 import ImportADT.typeText
+import vct.col.ast.RewriteHelpers._
+import hre.util.ScopedStack
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
@@ -75,12 +77,36 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter) extends I
     case other => rewriteDefault(other)
   }
 
+  def rewriteTopLevelArraySubscriptsInTrigger(e: Expr[Pre]): Expr[Post] = e match {
+    case sub @ ArraySubscript(arr, index) =>
+      implicit val o: Origin = e.o
+      FunctionInvocation[Post](
+        ref = arrayLoc.ref,
+        args = Seq(
+          OptGet(dispatch(arr))(ArrayNullOptNone(sub.blame, arr))(arr.o),
+          dispatch(index)),
+          typeArgs = Nil, Nil, Nil)(NoContext(ArrayBoundsPreconditionFailed(sub.blame, sub)))
+    case other => rewriteDefault(other)
+  }
+
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
+      case f @ Forall(_, triggers, _) =>
+        f.rewrite(triggers =
+          triggers.map(_.map(rewriteTopLevelArraySubscriptsInTrigger))
+        )
+      case s @ Starall(_, triggers, _) =>
+        s.rewrite(triggers =
+          triggers.map(_.map(rewriteTopLevelArraySubscriptsInTrigger))
+        )
+      case e @ Exists(_, triggers, _) =>
+        e.rewrite(triggers =
+          triggers.map(_.map(rewriteTopLevelArraySubscriptsInTrigger))
+        )
       case sub@ArraySubscript(arr, index) =>
         SilverDeref(
-          obj = FunctionInvocation[Post](
+          FunctionInvocation[Post](
             ref = arrayLoc.ref,
             args = Seq(
               OptGet(dispatch(arr))(ArrayNullOptNone(sub.blame, arr))(arr.o),

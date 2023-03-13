@@ -3,10 +3,11 @@ package vct.col.rewrite
 import hre.util.FuncTools
 import vct.col.ast.{Expr, _}
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{AbstractApplicable, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, ArraySize, ArraySizeError, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, ContextEverywhereFailedInPre, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, InvocationFailure, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame, TrueSatisfiable}
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.typerules.CoercionUtils
+import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -41,6 +42,14 @@ case object EncodeArrayValues extends RewriterBuilder {
       case Seq(FailRight, FailRight, FailRight, FailRight) =>
         values.blame.blame(ArrayValuesPerm(values))
       case other => throw Unreachable(s"Invalid postcondition path sequence: $other")
+    }
+  }
+
+  case class ArrayCreationFailed(arr: NewArray[_]) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit = error match {
+      case PreconditionFailed(_, _, _) => arr.blame.blame(ArraySize(arr))
+      case ContextEverywhereFailedInPre(_, _) => arr.blame.blame(ArraySize(arr)) // Unnecessary?
+      case other => throw Unreachable(s"Invalid invocation failure: $other")
     }
   }
 }
@@ -147,11 +156,13 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val undefinedValue: Expr[Post] =
         dispatch(Java.zeroValue(FuncTools.repeat[Type[Pre]](TArray(_), undefinedDims, elementType)))
 
+      val requires = foldAnd(dimArgs.map(argument => GreaterEq(argument.get, const[Post](0))))
       procedure(
         blame = AbstractApplicable,
         contractBlame = TrueSatisfiable,
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
+        requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures &* forall(definedDims, (access, _) => access === undefinedValue))
       )(ArrayCreationOrigin("make_array"))
     }))
@@ -164,9 +175,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         val arrayType = CoercionUtils.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
         FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil, Nil, Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
-      case NewArray(element, dims, moreDims) =>
+      case newArr @ NewArray(element, dims, moreDims) =>
+
         val method = arrayCreationMethods.getOrElseUpdate((element, dims.size, moreDims), makeCreationMethodFor(element, dims.size, moreDims))
-        ProcedureInvocation[Post](method.ref, dims.map(dispatch), Nil, Nil, Nil, Nil)(PanicBlame("Array creation requires nothing."))
+        ProcedureInvocation[Post](method.ref, dims.map(dispatch), Nil, Nil, Nil, Nil)(ArrayCreationFailed(newArr))
       case other => rewriteDefault(other)
     }
   }

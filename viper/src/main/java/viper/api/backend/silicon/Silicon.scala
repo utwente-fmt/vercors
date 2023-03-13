@@ -44,6 +44,9 @@ case class Silicon(
   numberOfParallelVerifiers: Option[Int] = None,
   proverLogFile: Option[Path] = None,
   printQuantifierStatistics: Boolean = false,
+  reportOnNoProgress: Boolean = true,
+  traceBranchConditions: Boolean = false,
+  branchConditionReportInterval: Option[Int] = Some(1000),
   timeoutValue: Int = 30,
   options: Seq[String] = Nil,
 ) extends SilverBackend {
@@ -104,7 +107,7 @@ case class Silicon(
     siliconConfig :+= "-"
 
     silicon.parseCommandLine(siliconConfig)
-    silicon.symbExLog = SiliconLogListener
+    silicon.symbExLog = SiliconLogListener(reportOnNoProgress, traceBranchConditions, branchConditionReportInterval)
 
     silicon.start()
 

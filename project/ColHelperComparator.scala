@@ -20,6 +20,16 @@ case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
     case Type.Apply(Type.Name("Option"), List(inner)) =>
       q"($left.isEmpty && $right.isEmpty) || ($left.nonEmpty && $right.nonEmpty && ${valueEqual(inner, q"$left.get", q"$right.get")})"
 
+    case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+      // TODO (RR): Do I keep this? JavaBIP doesn't need it. Also there are no simplification rules below
+      q"""
+        ($left.isLeft, $right.isLeft) match {
+          case (true, true) => ${valueEqual(t1, q"$left.left.get", q"$right.left.get")}
+          case (false, false) => ${valueEqual(t2, q"$left.get", q"$right.get")}
+          case _ => false
+        }
+       """
+
     case Type.Tuple(args) =>
       args.zipWithIndex.map {
         case (inner, idx) =>
@@ -42,6 +52,15 @@ case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
     case Type.Apply(Type.Name("Option"), List(inner)) =>
       q"if($left.nonEmpty) ${refEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
 
+    case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+      q"""
+        ($left.isLeft, $right.isLeft) match {
+          case (true, true) => ${refEqual(t1, q"$left.left.get", q"$right.left.get")}
+          case (false, false) => ${refEqual(t2, q"$left.get", q"$right.get")}
+          case _ => false
+        }
+       """
+
     case Type.Tuple(args) =>
       args.zipWithIndex.map {
         case (inner, idx) =>
@@ -63,6 +82,15 @@ case class ColHelperComparator(info: ColDescription) extends ColHelperMaker {
 
     case Type.Apply(Type.Name("Option"), List(inner)) =>
       q"if($left.nonEmpty) ${nodeEqual(inner, q"$left.get", q"$right.get")} else LazyList.empty"
+
+    case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
+      q"""
+        ($left.isLeft, $right.isLeft) match {
+          case (true, true) => ${nodeEqual(t1, q"$left.left.get", q"$right.left.get")}
+          case (false, false) => ${nodeEqual(t2, q"$left.get", q"$right.get")}
+          case _ => false
+        }
+       """
 
     case Type.Tuple(args) =>
       args.zipWithIndex.map {

@@ -56,12 +56,17 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     }
 
     def consumeLoopContract(blameNode: ParserRuleContext)(implicit o: Origin): LoopContract[G1] = {
-      if(loop_invariant.nonEmpty) LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)))(blame(blameNode))
-      else if(requires.nonEmpty || ensures.nonEmpty || context_everywhere.nonEmpty) IterationContract(
-        AstBuildHelpers.foldStar(consume(requires)),
-        AstBuildHelpers.foldStar(consume(ensures)),
-        AstBuildHelpers.foldAnd(consume(context_everywhere)))(blame(blameNode))
-      else LoopInvariant(tt[G1])(blame(blameNode))
+      val likelyMeantInvariant = loop_invariant.nonEmpty
+      val likelyMeantIteration = requires.nonEmpty || ensures.nonEmpty || context_everywhere.nonEmpty
+
+      if(likelyMeantInvariant || (!likelyMeantIteration && decreases.nonEmpty))
+        LoopInvariant(AstBuildHelpers.foldStar(consume(loop_invariant)), consumeOpt(decreases))(blame(blameNode))
+      else if(likelyMeantIteration)
+        IterationContract(
+          AstBuildHelpers.foldStar(consume(requires)),
+          AstBuildHelpers.foldStar(consume(ensures)),
+          AstBuildHelpers.foldAnd(consume(context_everywhere)))(blame(blameNode))
+      else LoopInvariant(tt[G1], None)(blame(blameNode))
     }
 
     def nodes: Seq[ParserRuleContext] = Seq(
@@ -76,6 +81,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     val inline: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val threadLocal: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
     val static: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
+    val bipAnnotation: mutable.ArrayBuffer[ParserRuleContext] = mutable.ArrayBuffer()
 
     def consume(buffer: mutable.ArrayBuffer[ParserRuleContext]): Boolean = {
       val result = buffer.nonEmpty
@@ -83,7 +89,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
       result
     }
 
-    def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static).flatten
+    def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
   }
 
   implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
