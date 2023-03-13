@@ -19,7 +19,7 @@ jobs:
       - name: Install Java
         uses: actions/setup-java@v1
         with:
-          java-version: 11
+          java-version: 17
       - name: Cache SBT and Viper
         uses: actions/cache@v3
         with:
@@ -65,7 +65,7 @@ jobs:
       - name: Install Java
         uses: actions/setup-java@v1
         with:
-          java-version: 11
+          java-version: 17
       - name: Cache SBT and Viper
         uses: actions/cache@v3
         with:
@@ -99,7 +99,7 @@ jobs:
     - name: Install Java
       uses: actions/setup-java@v1
       with:
-        java-version: 11
+        java-version: 17
     - name: Cache SBT and Viper
       uses: actions/cache@v3
       with:
@@ -135,7 +135,7 @@ jobs:
       - name: Install Java
         uses: actions/setup-java@v1
         with:
-          java-version: 11
+          java-version: 17
       - name: Cache SBT and Viper
         uses: actions/cache@v3
         with:

@@ -46,6 +46,7 @@ INC: '++';
 DEC: '--';
 CONS: '::';
 
+ENUM: 'enum';
 CLASS: 'class';
 KERNEL: 'kernel';
 BARRIER: 'barrier';
@@ -95,13 +96,45 @@ ID: 'id';
 BOOL: 'boolean';
 VOID: 'void';
 INT: 'int';
-STRING: 'string';
+CHAR: 'char';
 FLOAT32: 'float32';
 FLOAT64: 'float64';
 
 NUMBER : ('0'..'9')+;
 DECIMAL_NUMBER : ('0'..'9')+ '.' ('0'..'9')+;
 DECIMAL_NUMBER_F : ('0'..'9')+ '.' ('0'..'9')+ 'f';
+
+CHARACTER_LITERAL : '\'' CHARACTER '\'';
+
+fragment
+CHARACTER
+    : '\\' '\''
+    | ~['\\]
+    ;
+
+STRING_LITERAL : '"' STRING_CHARACTER* '"';
+
+fragment
+STRING_CHARACTER
+    : ~["\\]
+    | ESCAPE
+    ;
+
+fragment
+ESCAPE
+    :   '\\' [tnr"'\\]
+    | UNICODE_ESCAPE
+    ;
+
+fragment
+UNICODE_ESCAPE
+    :   '\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+    ;
+
+fragment
+HEX_DIGIT
+    :   [0-9a-fA-F]
+    ;
 
 mode DEFAULT_MODE;
 Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;

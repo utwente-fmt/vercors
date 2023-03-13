@@ -1,0 +1,23 @@
+{
+  "vct.examples.technical.javabip.TransitionPostconditionFailed": {
+    "constructor": {
+      "componentInvariant": "proven",
+      "stateInvariant": "proven"
+    },
+    "transitions": [
+      {
+        "signature": {
+          "name": "go",
+          "source": "initialState",
+          "target": "doneState"
+        },
+        "results": {
+          "precondition": "proven",
+          "componentInvariant": "proven",
+          "stateInvariant": "proven",
+          "postcondition": "not proven"
+        }
+      }
+    ]
+  }
+}

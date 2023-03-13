@@ -9,6 +9,7 @@ import org.scalatest.time._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
 import vct.col.origin.VerificationFailure
+import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
 import vct.options.types
@@ -47,6 +48,29 @@ abstract class VercorsSpec extends AnyFlatSpec {
   case class IncompleteVerdict(fromCode: String => Verdict)
   case object ErrorVerdict
 
+  def registerGenericTest(desc: String, backend: Backend, inputs: Seq[Readable])(resultProcessor: (Seq[String], Option[VerificationReport]) => Unit)(implicit pos: source.Position): Unit = {
+    val fullDesc: String = s"$desc (with $backend)"
+    // PB: note that object typically do not have a deterministic hashCode, but Strings do.
+    val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
+    val matrixTag = Tag(s"MATRIX[$matrixId]")
+
+    registerTest(fullDesc, Seq(Tag("MATRIX"), matrixTag): _*) {
+      LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
+      LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
+
+      val res = backend match {
+        case types.Backend.Silicon => Verify.verifyWithSilicon(inputs)
+        case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+      }
+      val res2 = res match {
+        case Left(err: UserError) => (Seq(err.code), None)
+        case Left(_: SystemError) => (Seq("systemError"), None)
+        case Right((failures: Seq[VerificationFailure], report)) => (failures.map(_.code), Some(report))
+      }
+      resultProcessor(res2._1, res2._2)
+    }
+  }
+
   private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable])(implicit pos: source.Position): Unit = {
     val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with $backend".replaceAll("should", "shld")
     // PB: note that object typically do not have a deterministic hashCode, but Strings do.
@@ -66,7 +90,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     }
   }
 
-  private def matchVerdict(verdict: Verdict, value: Either[VerificationError, Seq[VerificationFailure]]): Unit = {
+  private def matchVerdict(verdict: Verdict, value: Either[VerificationError, (Seq[VerificationFailure], VerificationReport)]): Unit = {
     value match {
       case Left(err: TemporarilyUnsupported) =>
         println(err)
@@ -85,8 +109,8 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: SystemError) =>
           println(err)
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
-        case Right(Nil) => // success
-        case Right(fails) =>
+        case Right((Nil, _)) => // success
+        case Right((fails, _)) =>
           fails.foreach(f => println(f.toString))
           fail("Expected the test to pass, but it returned verification failures instead.")
       }
@@ -97,9 +121,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: SystemError) =>
           println(err)
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
-        case Right(Nil) =>
+        case Right((Nil, _)) =>
           fail("Expected the test to fail, but it passed instead.")
-        case Right(_) => // success
+        case Right((_, _)) => // success
       }
       case Fail(code) => value match {
         case Left(err: UserError) =>
@@ -108,9 +132,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: SystemError) =>
           println(err)
           fail(s"Expected the test to pass, but it crashed with the above error instead.")
-        case Right(Nil) =>
+        case Right((Nil, _)) =>
           fail("Expected the test to fail, but it passed instead.")
-        case Right(fails) => fails.filterNot(_.code == code) match {
+        case Right((fails, _)) => fails.filterNot(_.code == code) match {
           case Nil => // success
           case fails =>
             fails.foreach(f => println(f.toString))
@@ -132,24 +156,24 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class VercorsWord {
-    def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict)
+    def should(verdict: Verdict): VerdictPhrase = new VerdictPhrase(verdict, None)
     def should(verdict: IncompleteVerdict): CodeVerdictPhrase = new CodeVerdictPhrase(verdict)
     def should(verdict: ErrorVerdict.type): ErrorVerdictPhrase = new ErrorVerdictPhrase()
   }
 
   class CodeVerdictPhrase(val verdict: IncompleteVerdict) {
-    def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code))
+    def withCode(code: String): VerdictPhrase = new VerdictPhrase(verdict.fromCode(code), None)
   }
 
   class ErrorVerdictPhrase() {
-    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), silicon)
+    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), None, silicon)
   }
 
-  class VerdictPhrase(val verdict: Verdict) {
-    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, backend)
+  class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
+    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend)
   }
 
-  class BackendPhrase(val verdict: Verdict, val backends: Seq[Backend]) {
+  class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend]) {
     def example(path: String)(implicit pos: source.Position): Unit = examples(path)
 
     def examples(examples: String*)(implicit pos: source.Position): Unit = {

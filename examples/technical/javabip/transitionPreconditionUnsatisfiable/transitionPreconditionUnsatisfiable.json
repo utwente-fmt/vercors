@@ -1,0 +1,23 @@
+{
+  "vct.examples.technical.javabip.transitionPreconditionUnsatisfiable.MyComponent": {
+    "constructor": {
+      "componentInvariant": "proven",
+      "stateInvariant": "proven"
+    },
+    "transitions": [
+      {
+        "signature": {
+          "name": "MyPort",
+          "source": "initialState",
+          "target": "initialState"
+        },
+        "results": {
+          "precondition": "not proven",
+          "componentInvariant": "not proven",
+          "stateInvariant": "not proven",
+          "postcondition": "not proven"
+        }
+      }
+    ]
+  }
+}

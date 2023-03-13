@@ -9,5 +9,7 @@ case object ReadLanguage extends ReadEnum[Language] {
     "i" -> Language.InterpretedC,
     "pvl" -> Language.PVL,
     "silver" -> Language.Silver,
+    "systemc" -> Language.SystemC,
+    "llvm" -> Language.LLVM,
   )
 }

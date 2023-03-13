@@ -4,6 +4,10 @@ import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / javacOptions :=Seq("-source", "17",
+                               "-target", "17",
+                               "-Xlint:deprecation", "-Xlint:unchecked",
+                               "-deprecation")
 ThisBuild / fork := true
 
 ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
@@ -93,7 +97,7 @@ lazy val vercors: Project = (project in file("."))
     fork := true,
     name := "Vercors",
     organization := "nl.utwente",
-    version := "2.0.0-beta.1",
+    version := "2.0.0",
     maintainer := "VerCors Team <vercors@lists.utwente.nl>",
     packageSummary := "A tool for static verification of parallel programs",
     packageDescription :=
@@ -113,15 +117,19 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
 
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "2.0.0",
+
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
     libraryDependencies += "org.jacoco" % "org.jacoco.cli" % "0.8.7" classifier "nodeps",
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
     ThisBuild / scalacOptions ++= Seq(
+      "-target:jvm-1.17",
       "-deprecation",
       "-feature",
       "-unchecked",
+//      "-Ystatistics",
 //      "-Xno-patmat-analysis",
 //      "-Ystatistics:typer",
 //      "-Xprint:typer",
@@ -131,24 +139,6 @@ lazy val vercors: Project = (project in file("."))
 //      "-P:scalac-profiling:show-profiles",
 //      "-P:scalac-profiling:sourceroot:/home/pieter/vercors/",
 //      "-Ypatmat-debug",
-    ),
-
-    Compile / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Runtime / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Test / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
     ),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,

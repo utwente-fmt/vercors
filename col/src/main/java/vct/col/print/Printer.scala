@@ -413,6 +413,7 @@ case class Printer(out: Appendable,
     say(program.declarations)
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
+    case Commit(obj) => phrase("\\commit(", obj, ")")
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
@@ -594,6 +595,10 @@ case class Printer(out: Appendable,
       (phrase(assoc(100, obj), ".", field), 100)
     case JavaLiteralArray(exprs) =>
       (phrase("{", commas(exprs.map(NodePhrase)), "}"), 120)
+    case JavaStringValue(data, _) =>
+      (phrase(s""""${data}""""), 100)
+    case StringValue(data) =>
+      (phrase(s""""${data}""""), 100)
     case JavaInvocation(obj, typeParams, method, arguments, _, _) =>
       (obj match {
         case Some(obj) =>
@@ -820,8 +825,14 @@ case class Printer(out: Appendable,
       (phrase(bind(50, left), space, "!=", space, bind(50, right)), 50)
     case Greater(left, right) =>
       (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
+    case AmbiguousLess(left, right) =>
+      (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
+    case AmbiguousGreater(left, right) =>
+      (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
     case Less(left, right) =>
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
+    case AmbiguousGreaterEq(left, right) =>
+      (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case GreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case LessEq(left, right) =>
@@ -934,7 +945,7 @@ case class Printer(out: Appendable,
     )
     case TFloat(exponent, mantissa) => phrase(s"float[$exponent, $mantissa]")
     case TChar() => phrase("char")
-    case TString() => phrase("String")
+    case TString() => phrase("string")
     case TRef() => phrase("Ref")
     case TArray(element) => phrase(element, "[]")
     case TPointer(element) => phrase(element, "*")
@@ -1014,7 +1025,7 @@ case class Printer(out: Appendable,
     case rule: SimplificationRule[_] =>
       statement("axiom", space, name(rule), space, "{", newline, indent(rule.axiom), "}")
     case dataType: AxiomaticDataType[_] =>
-      ???
+      statement(s"axiomatic datatype ${dataType.o.preferredName} { ... omitted ... }")
     case function: Function[_] =>
       phrase(
         doubleline,
@@ -1134,6 +1145,12 @@ case class Printer(out: Appendable,
       phrase(decl.decl)
     case decl: CGlobalDeclaration[_] =>
       phrase(decl.decl)
+    case definition: LlvmFunctionDefinition[_] =>
+      val header = phrase(
+        spec(definition.contract),
+        definition.returnType, space, name(definition), "(", commas(definition.args.map(NodePhrase)), ")"
+      )
+      control(header, definition.body)
     case decl: LabelDecl[_] =>
       ???
     case decl: ParBlockDecl[_] =>
@@ -1279,13 +1296,13 @@ case class Printer(out: Appendable,
     say(node.names.mkString("."))
 
   def printLocation(loc: Location[_]): Unit = loc match {
-    case FieldLocation(obj, field) => say(obj)
-//    case ModelLocation(obj, field) =>
-//    case SilverFieldLocation(obj, field) =>
-    case ArrayLocation(array, subscript) => say(phrase(assoc(100, array), "[", subscript, "]"))
+    case FieldLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
+    case ModelLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
+    case SilverFieldLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
+    case ArrayLocation(array, subscript) => say(phrase(assoc(100, array), "[", subscript, "]"), 100)
     case PointerLocation(pointer) => say(pointer)
-//    case PredicateLocation(predicate, args) =>
-//    case InstancePredicateLocation(predicate, obj, args) =>
+    case PredicateLocation(predicate, args) => say(name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
+    case InstancePredicateLocation(predicate, obj, args) => say(expr(obj)._1, ".", name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
     case AmbiguousLocation(expr) => say(expr)
     case x =>
       say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
@@ -1311,6 +1328,10 @@ case class Printer(out: Appendable,
     }
     say(spaced(node.specs.map(NodePhrase)), space)
     say(spaced(node.inits.map(NodePhrase)))
+  }
+
+  def printLLVMFunctionContract(node: LlvmFunctionContract[_]): Unit = {
+    say(spec(phrase(node.value)))
   }
 
   def print(node: Node[_]): Unit =
@@ -1340,6 +1361,7 @@ case class Printer(out: Appendable,
         case node: Verification[_] => printVerification(node)
         case node: VerificationContext[_] => printVerificationContext(node)
         case node: CDeclaration[_] => printCDeclaration(node)
+        case node: LlvmFunctionContract[_] => printLLVMFunctionContract(node)
         case x =>
           say(s"Unknown node type in Printer.scala: ${x.getClass.getCanonicalName}")
       }

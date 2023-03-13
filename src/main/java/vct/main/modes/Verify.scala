@@ -5,41 +5,47 @@ import vct.options.Options
 import hre.io.Readable
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
+import vct.col.rewrite.bip.BIP
+import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
 import vct.main.stages.Stages
+import vct.options.types.PathOrStd
 import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
 import viper.api.backend.silicon.SiliconLogListener
 import viper.silicon.logger.SymbExLogger
 
 case object Verify extends LazyLogging {
-  def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
+  def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
     val collector = BlameCollector()
-    val stages = Stages.silicon(ConstantBlameProvider(collector))
+    val bipResults = BIP.VerificationResults()
+    val stages = Stages.silicon(ConstantBlameProvider(collector), bipResults)
     logger.debug(stages.toString)
     stages.run(inputs) match {
       case Left(error) => Left(error)
-      case Right(()) => Right(collector.errs.toSeq)
+      case Right(()) => Right((collector.errs.toSeq, bipResults.toStandalone()))
     }
   }
 
-  def verifyWithCarbon(inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
+  def verifyWithCarbon(inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
     val collector = BlameCollector()
-    val stages = Stages.carbon(ConstantBlameProvider(collector))
+    val bipResults = BIP.VerificationResults()
+    val stages = Stages.carbon(ConstantBlameProvider(collector), bipResults)
     logger.debug(stages.toString)
     stages.run(inputs) match {
       case Left(error) => Left(error)
-      case Right(()) => Right(collector.errs.toSeq)
+      case Right(()) => Right((collector.errs.toSeq, bipResults.toStandalone()))
     }
   }
 
-  def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, Seq[VerificationFailure]] = {
+  def verifyWithOptions(options: Options, inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], BIP.Standalone.VerificationReport)] = {
     val collector = BlameCollector()
-    val stages = Stages.ofOptions(options, ConstantBlameProvider(collector))
+    val bipResults = BIP.VerificationResults()
+    val stages = Stages.ofOptions(options, ConstantBlameProvider(collector), bipResults)
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
       case Left(error) => Left(error)
-      case Right(()) => Right(collector.errs.toSeq)
+      case Right(()) => Right((collector.errs.toSeq, bipResults.toStandalone()))
     }
   }
 
@@ -69,13 +75,24 @@ case object Verify extends LazyLogging {
       case Left(err) =>
         logger.error(err.text)
         EXIT_CODE_ERROR
-      case Right(Nil) =>
+      case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")
+        friendlyHandleBipReport(report, options.bipReportFile)
         EXIT_CODE_SUCCESS
-      case Right(fails) =>
+      case Right((fails, report)) =>
         if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
-        else logger.error(TableEntry.render(fails.map(_.asTableEntry)))
+        else {
+          logger.info("Printing verification results as a compressed table. Run with `--more` for verbose verification results.")
+          logger.error(TableEntry.render(fails.map(_.asTableEntry)))
+        }
+        friendlyHandleBipReport(report, options.bipReportFile)
         EXIT_CODE_VERIFICATION_FAILURE
     }
+  }
+
+  def friendlyHandleBipReport(report: VerificationReport, path: Option[PathOrStd]): Unit = (report, path) match {
+    case (report, Some(path)) if report.nonEmpty() => path.write(w => w.write(report.toJson()))
+    case (report, None) if report.nonEmpty() => logger.warn("JavaBIP verification report was produced, but no output path was specified. Use `--bip-report-file` to specify an output. See `--help` for more info.")
+    case (report, None) if report.isEmpty() =>
   }
 }
