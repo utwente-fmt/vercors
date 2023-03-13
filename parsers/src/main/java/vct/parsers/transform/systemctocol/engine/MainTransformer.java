@@ -1014,7 +1014,8 @@ public class MainTransformer<T> {
 
         // Add scheduler loop to method body
         Statement<T> loop_body = create_scheduler_loop_body();
-        LoopInvariant<T> inv = new LoopInvariant<>(col_system.TRUE, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Committed<T> committed = new Committed<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create());
+        LoopInvariant<T> inv = new LoopInvariant<>(committed, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         body.add(new Loop<>(col_system.get_empty_block(), col_system.TRUE, col_system.get_empty_block(), inv, loop_body, OriGen.create()));
 
         // Add joins to method body

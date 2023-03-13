@@ -584,8 +584,15 @@ public class ExpressionTransformer<T> {
 
         // Create branches
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = new java.util.ArrayList<>();
-        if (then_body != null) branches.add(new Tuple2<>(cond, then_body));
-        if (else_body != null) branches.add(new Tuple2<>(n_cond, else_body));
+        Expr<T> else_cond = n_cond;
+        if (then_body != null) {
+            branches.add(new Tuple2<>(cond, then_body));
+            // Branches implicitly negate previous conditions. If the "if" part exists, the "else" part does not need an explicit condition
+            else_cond = col_system.TRUE;
+        }
+        if (else_body != null) {
+            branches.add(new Tuple2<>(else_cond, else_body));
+        }
 
         // Assemble the branch statement
         if (branches.isEmpty()) return null;

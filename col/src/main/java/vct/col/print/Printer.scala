@@ -1244,6 +1244,8 @@ case class Printer(out: Appendable,
     case clazz: Class[_] =>
       phrase(
         doubleline,
+        spec("lock_invariant", space, clazz.intrinsicLockInvariant, ";"),
+        newline,
         "class", space, name(clazz), space, "{",
         indent(phrase(clazz.declarations.map(NodePhrase):_*)),
         "}",
