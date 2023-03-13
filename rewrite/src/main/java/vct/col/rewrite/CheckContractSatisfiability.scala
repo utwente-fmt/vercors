@@ -50,31 +50,6 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
     case SplitAccountedPredicate(left, right) => splitAccountedPredicate(left) ++ splitAccountedPredicate(right)
   }
 
-  def isGeneric(vari: Type[_]): Boolean = {
-      vari match {
-      case TSeq(innerType) =>
-        isGeneric(innerType)
-      case t @ TVar(_) =>
-        t.isInstanceOf[TVar[_]] // Check if the type is generic
-      // Add more cases here for other types with generic parameters, if needed
-      case _ =>
-        false
-    }
-  }
-
-  def replaceGeneric(vari: Type[Pre]): Type[Pre] = {
-    vari match {
-      case TSeq(innerType) =>
-        TSeq(replaceGeneric(innerType))
-      case TVar(ref) =>
-        ref.decl.t // Replace TAny with the upper bound type
-      // Add more cases here for other types with generic parameters, if needed
-      case other =>
-        other
-    }
-  }
-
-
   def checkSatisfiability(contract: ApplicableContract[Pre], n: Option[String]): Unit = {
     implicit val origin: Origin = CheckSatOrigin(contract.o, n)
     foldStar(splitAccountedPredicate(contract.requires)) match {
@@ -84,29 +59,20 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         val err = ExpectedError("assertFailed:false", origin, AssertPassedNontrivialUnsatisfiable(contract))
         val onlyAssertBlame = FilterExpectedErrorBlame(PanicBlame("A boolean assert can only report assertFailed:false"), err)
         expectedErrors.top += err
-        // PB: this usage is dubious: pred can probably contain type variables?
-        val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
-        val substitutionsNoGenerics = substitutions.map {
-          case (vari, exp) if isGeneric(vari.t) =>
-            (new Variable[Pre](replaceGeneric(vari.t)), exp)
-          case other => other
-        }
-//        val substitutionsNoGenerics = substitutions.keys.collect {
-//          case n if n.t.isInstanceOf[TSeq[_]] =>
-//            TSeq(TVar(ref)) =>
-//            TSeq(ref.decl.t)
-//          case other => other
-//        }
+        val extractObj = Extract[Pre]()
+        val result = extractObj.extract(pred)
+        val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
         variables.scope {
           globalDeclarations.declare(procedure(
             blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
             contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
             requires = UnitAccountedPredicate(
               wellFormednessBlame.having(NotWellFormedIgnoreCheckSat(err)) {
-                dispatch(generalizedContract)
+                dispatch(result)
               }
-            )(generalizedContract.o),
-            args = variables.dispatch(substitutionsNoGenerics.keys),
+            )(result.o),
+            typeArgs = variables.dispatch(ts.keys),
+            args = variables.dispatch(in.keys),
             body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
           ))
         }
