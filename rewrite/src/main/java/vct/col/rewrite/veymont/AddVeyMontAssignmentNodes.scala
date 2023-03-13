@@ -36,9 +36,9 @@ object AddVeyMontAssignmentNodes extends RewriterBuilder {
    * @tparam Pre type of expression
    * @return list of threads that are dereferenced in the expression
    */
-  def getThreadDeref[Pre](deref: Deref[Pre], err: Expr[Pre] => UserError) : VeyMontThread[Pre] = deref.obj match {
+  def getThreadDeref[Pre](deref: Deref[Pre], err: UserError) : VeyMontThread[Pre] = deref.obj match {
     case DerefVeyMontThread(threadref) => threadref.decl
-    case other => throw err(other)
+    case _ => throw err
   }
 
 }
@@ -98,6 +98,6 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
   }
 
   def getAssignmentSender(deref : Deref[Pre]): VeyMontThread[Pre] =
-    getThreadDeref(deref,d => throw AddVeyMontAssignmentError (d, "Object identifiers in the value of this assignment can only refer to a thread!") )
+    getThreadDeref(deref,AddVeyMontAssignmentError (deref, "Object identifiers in the value of this assignment can only refer to a thread!") )
 
 }

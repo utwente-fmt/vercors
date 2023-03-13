@@ -89,7 +89,7 @@ case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
       if (d.size != 1)
         throw AddVeyMontConditionError(e, "Conditions of if/while need to reference each thread exactly once!")
       else {
-        val thread = getThreadDeref(d.head, n => AddVeyMontConditionError(n, "Conditions of if/while can only reference threads, so nothing else!"))
+        val thread = getThreadDeref(d.head, AddVeyMontConditionError(e, "Conditions of if/while can only reference threads, so nothing else!"))
         m + (succ(thread) -> dispatch(el))
       }
     }
