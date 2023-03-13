@@ -413,7 +413,7 @@ case class Printer(out: Appendable,
     say(program.declarations)
 
   def printStatement(stat: Statement[_]): Unit = say(stat match {
-    case Commit(obj) => phrase("\\commit(", obj, ")")
+    case Commit(obj) => statement(phrase("commit(", obj, ")"))
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
     case ref @ CGoto(label) =>
@@ -459,15 +459,9 @@ case class Printer(out: Appendable,
     case Switch(expr, body) =>
       control(phrase("switch(", expr, ")"), body)
     case Loop(Block(Nil), cond, Block(Nil), invariant, body) =>
-      phrase(
-        printLoopInvariant(invariant),
-        control(phrase("while (", cond, ")"), body)
-      )
+        control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case Loop(init, cond, update, invariant, body) =>
-      phrase(
-        printLoopInvariant(invariant),
-        control(phrase("for(", init, "; ", cond, "; ", update, ")"), body)
-      )
+        control(phrase(printLoopInvariant(invariant), newline, "for (", init, "; ", cond, "; ", update, ")"), body)
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -620,11 +614,13 @@ case class Printer(out: Appendable,
       (phrase("new", space, baseType, "[]".repeat(dims), initializer), 100)
     case JavaNewDefaultArray(baseType, specifiedDims, moreDims) =>
       (phrase("new", space, baseType, phrase(specifiedDims.map(phrase("[", _, "]")):_*), "[]".repeat(moreDims)), 100)
+    case PVLNew(t, args, _, _) => (phrase("new", space, t, "(", commas(args.map(NodePhrase)), ")"), 100)
     case SilverDeref(obj, field) =>
       (phrase(assoc(100, obj), ".", name(field.decl)), 100)
     case SilverCurFieldPerm(obj, field) => ???
     case SilverCurPredPerm(ref, args) => ???
     case SilverIntToRat(inner) => expr(inner)
+    case Any() => (phrase("*"), 100)
     case Sum(bindings, condition, main) =>
       (phrase("(", "\\sum", commas(bindings.map(NodePhrase)), "; ", condition, ";", main, ")"), 120)
     case Product(bindings, condition, main) =>
@@ -661,6 +657,8 @@ case class Printer(out: Appendable,
       ???
     case Held(obj) =>
       (phrase("held", "(", obj, ")"), 100)
+    case Committed(obj) =>
+      (phrase("committed", "(", obj, ")"), 100)
     case IdleToken(thread) =>
       (phrase("idle", "(", thread, ")"), 100)
     case JoinToken(thread) =>
@@ -676,9 +674,9 @@ case class Printer(out: Appendable,
     case ScaleByParBlock(block, res) =>
       (phrase("[", block.decl, "]", assoc(90, res)), 90)
     case Perm(loc, perm) =>
-      (phrase("Perm(", loc, ",", space, perm, ")"), 100)
+      (phrase("Perm(", resolve_location(loc), ",", space, perm, ")"), 100)
     case PointsTo(loc, perm, value) =>
-      (phrase("PointsTo(", loc, ",", space, perm, ",", space, value, ")"), 100)
+      (phrase("PointsTo(", resolve_location(loc), ",", space, perm, ",", space, value, ")"), 100)
     case PermPointer(p, len, perm) =>
       (phrase("\\pointer(", p, ",", space, len, ",", space, perm, ")"), 100)
     case PermPointerIndex(p, idx, perm) =>
@@ -932,6 +930,18 @@ case class Printer(out: Appendable,
       (phrase("(", name(v.decl), "!", commas(vars.map(ref => name(ref.decl))), ")"), 100)
   }
 
+  def resolve_location(loc: Location[_]): Phrase =
+    loc match {
+      case FieldLocation(obj, field) => phrase(expr(obj)._1, ".", name(field.decl))
+      case ModelLocation(obj, field) => phrase(expr(obj)._1, ".", name(field.decl))
+      case SilverFieldLocation(obj, field) => phrase(expr(obj)._1, ".", name(field.decl))
+      case ArrayLocation(array, subscript) => phrase(assoc(100, array), "[", expr(subscript)._1, "]")
+      case PointerLocation(pointer) => phrase(pointer)
+      case PredicateLocation(predicate, args) => phrase(name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
+      case InstancePredicateLocation(predicate, obj, args) => phrase(expr(obj)._1, ".", name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
+      case AmbiguousLocation(exp) => phrase(expr(exp)._1)
+    }
+
   def printType(t: Type[_]): Unit = say(t match {
     case CPrimitiveType(specifiers) =>
       spaced(specifiers.map(NodePhrase))
@@ -1144,15 +1154,25 @@ case class Printer(out: Appendable,
         case Some(body) => control(header, body)
         case None => phrase(doubleline, header, ";", doubleline)
       }
+    case run_method: RunMethod[_] =>
+      val header = phrase(
+        run_method.contract,
+        "run"
+      )
+
+      run_method.body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
     case predicate: InstancePredicate[_] =>
       val header = phrase(
         if(predicate.threadLocal) phrase("thread_local") else phrase(),
         if(predicate.inline) phrase("inline", space) else phrase(),
-        "resource", space, predicate.returnType, space, name(predicate), "(", commas(predicate.args.map(NodePhrase)), ")",
+        "resource", space, name(predicate), "(", commas(predicate.args.map(NodePhrase)), ")",
       )
 
       predicate.body match {
-        case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(body, ";"), doubleline)
+        case Some(body) => phrase(doubleline, header, space, "=", space, newline, indent(expr(body)._1, ";"), doubleline)
         case None => phrase(doubleline, header, ";", doubleline)
       }
     case field: InstanceField[_] =>
@@ -1191,17 +1211,18 @@ case class Printer(out: Appendable,
       phrase(node.yieldsArgs.map(v => phrase(newline, "yields", space, v, ";", newline)):_*),
     ))
 
-  def printLoopInvariant(node: LoopContract[_]): Phrase = phrase(
+  def printLoopInvariant(node: LoopContract[_]): Phrase =
     node match {
       case LoopInvariant(invariant, None) =>
-        spec("loop_invariant = ",
-          expr(invariant)._1)
+        phrase(
+          newline,
+          spec("loop_invariant = ", expr(invariant)._1)
+        )
       case LoopInvariant(invariant, Some(decreases)) =>
         ???
       case IterationContract(context_everywhere, invariant, decreases) =>
         ???
     }
-  )
 
 
   def printParBlock(parBlock: ParBlock[_], label: String): Unit = {
@@ -1324,7 +1345,7 @@ case class Printer(out: Appendable,
     case FieldLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
     case ModelLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
     case SilverFieldLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
-    case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", subscript, "]"), 100)
+    case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", expr(subscript)._1, "]"), 100)
     case PointerLocation(pointer) => say(pointer)
     case PredicateLocation(predicate, args) => say(name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
     case InstancePredicateLocation(predicate, obj, args) => say(expr(obj)._1, ".", name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
