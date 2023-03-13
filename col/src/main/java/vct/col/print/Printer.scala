@@ -213,6 +213,7 @@ case class Printer(out: Appendable,
                    permissive: Boolean = true,
                    newlineText: String = "\n",
                    indentText: String = "    ",
+                   unsafeNaming: Boolean = false
 ) {
   implicit def printer: Printer = this
 
@@ -403,8 +404,10 @@ case class Printer(out: Appendable,
     else s"$baseName$idx"
   }
 
-  def name(decl: Declaration[_]): String =
-    name(Referrable.from(decl).head)(decl.o.preferredName)
+  def name(decl: Declaration[_]): String = {
+    if (unsafeNaming) decl.o.preferredName
+    else name(Referrable.from(decl).head)(decl.o.preferredName)
+  }
 
   def name(decl: Referrable[_])(preferredName: String = decl.name): String =
     names.find(_.contains(decl))
@@ -1053,9 +1056,11 @@ case class Printer(out: Appendable,
     case Slice(xs, from, to) =>
       (phrase(assoc(100, xs), "[", from, "..", to, "]"), 100)
     case SeqUpdate(xs, i, x) =>
-      (phrase(assoc(100, xs), ".update(", i, ", ", x, ")"), 100)
+      if (syntax == PVL) (phrase(assoc(100, xs), ".update(", i, ", ", x, ")"), 100)
+      else (phrase(assoc(100, xs), "[", i, space, "->", space, x, "]"), 100)
     case Concat(xs, ys) =>
-      (phrase(assoc(87, xs), space, "+", space, assoc(87, ys)), 87)
+      if (syntax == PVL) (phrase(assoc(87, xs), space, "+", space, assoc(87, ys)), 87)
+      else (phrase(assoc(87, xs), space, "++", space, assoc(87, ys)), 87)
     case RemoveAt(xs, i) =>
       (phrase("removeAt(", xs, ",", space, i, ")"), 100)
     case AmbiguousMember(x, xs) =>

@@ -28,13 +28,13 @@ case class Output(writeable : Writeable, blameProvider: BlameProvider) extends S
   override def run(in: ParseResult[_ <: Generation]): Unit = {
     // If possible (if a directory is given as output), print all classes to separate files
     if (Files.isDirectory(Paths.get(writeable.fileName))) {
-      in.decls.foreach(decl => Path(getFilePath(decl)).write(w => Printer(w, syntax = PVL).print(decl)))
+      in.decls.foreach(decl => Path(getFilePath(decl)).write(w => Printer(w, syntax = PVL, unsafeNaming = true).print(decl)))
     }
     // Otherwise create one big program from the parse result and write it to the provided file directly
     else {
       writeable.write(w => {
           implicit val o: Origin = FileSpanningOrigin
-          val printer = Printer(w, syntax = PVL)
+          val printer = Printer(w, syntax = PVL, unsafeNaming = true)
           printer.print(Program(in.decls)(blameProvider()))
         }
       )
