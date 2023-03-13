@@ -479,8 +479,8 @@ public class KnownTypeTransformer<T> {
         // Preparations for CASE 2
         Slice<T> buf_slice = new Slice<>(buf_deref, read_deref, buf_size, OriGen.create());
         Concat<T> buf_written = new Concat<>(buf_slice, written_deref, OriGen.create());
-        Slice<T> prev_evs = new Slice<>(ev_deref, col_system.ZERO, min_ev, OriGen.create());
-        Slice<T> next_evs = new Slice<>(ev_deref, next_ev, ev_size, OriGen.create());
+        Take<T> prev_evs = new Take<>(ev_deref, min_ev, OriGen.create());
+        Drop<T> next_evs = new Drop<>(ev_deref, next_ev, OriGen.create());
         Greater<T> has_been_read = new Greater<>(old_read, col_system.ZERO, OriGen.create());
         SeqSubscript<T> read_ev_status = new SeqSubscript<>(ev_deref, r_ev, new GeneratedBlame<>(), OriGen.create());
         Old<T> old_r_status = new Old<>(read_ev_status, Option.empty(), new GeneratedBlame<>(), OriGen.create());

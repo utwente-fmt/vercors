@@ -378,6 +378,11 @@ case class Printer(out: Appendable,
   var usedNames: ScopedStack[mutable.Set[(String, Int)]] = ScopedStack()
   usedNames.push(mutable.Set())
 
+  def nameScope[T](f: => T): T =
+    names.having(mutable.Map()) {
+      usedNames.having(mutable.Set())(f)
+    }
+
   def unfmt(name: String): (String, Int) = {
     if(name.last.isDigit) {
       val overeenkomst = "^(.*)(0|[1-9][0-9]*)$".r.findFirstMatchIn(name).get
@@ -406,13 +411,18 @@ case class Printer(out: Appendable,
       .getOrElse(names.top)
       .getOrElseUpdate(decl, nextName(preferredName))
 
-  def printBlock(block: Block[_], newline: Boolean): Phrase =
-    phrase(if(newline) doubleline else space, "{", indent(block.statements.map(NodePhrase) : _*), "}", if(newline) doubleline else space)
+  def printBlock(block: Block[_], newline: Boolean): Phrase = {
+    if (block.statements.isEmpty) space
+    else phrase(if(newline) doubleline else space, "{", indent(block.statements.map(NodePhrase) : _*), "}", if(newline) doubleline else space)
+  }
 
   def printProgram(program: Program[_]): Unit =
     say(program.declarations)
 
-  def printStatement(stat: Statement[_]): Unit = say(stat match {
+  def printStatement(stat: Statement[_]): Unit =
+    say(resolveStatement(stat))
+
+  def resolveStatement(stat: Statement[_]): Phrase = stat match {
     case Commit(obj) => statement(phrase("commit(", obj, ")"))
     case CDeclarationStatement(decl) =>
       statement(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
@@ -459,9 +469,9 @@ case class Printer(out: Appendable,
     case Switch(expr, body) =>
       control(phrase("switch(", expr, ")"), body)
     case Loop(Block(Nil), cond, Block(Nil), invariant, body) =>
-        control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
+      control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case Loop(init, cond, update, invariant, body) =>
-        control(phrase(printLoopInvariant(invariant), newline, "for (", init, "; ", cond, "; ", update, ")"), body)
+      control(phrase(printLoopInvariant(invariant), newline, "for (", statement_no_semicolon(init), "; ", cond, "; ", statement_no_semicolon(update), ")"), body)
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -565,7 +575,163 @@ case class Printer(out: Appendable,
       statement(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
     case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
       statement(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
-  })
+  }
+
+  // TODO: Delete and find more elegant solution
+  def statement_no_semicolon(stat: Statement[_]): Phrase = stat match {
+    case Commit(obj) => phrase("commit(", obj, ")")
+    case CDeclarationStatement(decl) =>
+      phrase(syntax(C -> phrase(intersperse(" ", decl.decl.specs.map(NodePhrase)), space, commas(decl.decl.inits.map(NodePhrase)))))
+    case ref@CGoto(label) =>
+      phrase(syntax(C -> phrase("goto", space, Text(ref.ref.map(name).getOrElse(label)))))
+    case GpgpuBarrier(requires, ensures, specifier) =>
+      phrase(spec(clauses(requires, "requires"), clauses(ensures, "ensures")), syntax(
+        Cuda -> phrase("__syncthreads();"),
+        OpenCL -> phrase("barrier(", intersperse(" | ", specifier.map(NodePhrase)), ");"),
+      ))
+    case GpgpuAtomic(impl, before, after) =>
+      syntax(C -> phrase("__vercors_atomic__", space, forceInline(impl), space,
+        spec("with", space, before, space, "then", space, before)))
+    case JavaLocalDeclarationStatement(decl) =>
+      phrase(decl.t, space, javaDecls(decl.decls))
+    case SilverNewRef(v, fields) =>
+      syntax(Silver -> phrase(name(v.decl), space, ":=", space, "new(", commas(fields.map(_.decl).map(name).map(Text))))
+    case SilverFieldAssign(obj, field, value) =>
+      syntax(Silver -> phrase(obj, ".", name(field.decl), space, ":=", space, value))
+    case SilverLocalAssign(v, value) =>
+      syntax(Silver -> phrase(name(v.decl), space, ":=", space, value))
+    case Eval(expr) =>
+      phrase(expr)
+    case LocalDecl(local) =>
+      phrase(local.t, space, name(local))
+    case Return(result) =>
+      phrase("return", space, result)
+    case Assign(target, value) =>
+      phrase(target, space, "=", space, value)
+    case block: Block[_] =>
+      printBlock(block, newline = true)
+    case Scope(locals, body) =>
+      implicit val o: Origin = DiagnosticOrigin
+      if (locals.nonEmpty)
+        printBlock(Block(locals.map(LocalDecl(_)(o)) :+ body), newline = true)
+      else
+        NodePhrase(body)
+    case Branch(branches) =>
+      val `if` = (phrase("if(", branches.head._1, ")"), branches.head._2)
+      val others = branches.tail.map {
+        case (cond, impl) => (phrase("else if(", cond, ")"), impl)
+      }
+      controls(`if` +: others)
+    case Switch(expr, body) =>
+      control(phrase("switch(", expr, ")"), body)
+    case Loop(Block(Nil), cond, Block(Nil), invariant, body) =>
+      control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
+    case Loop(init, cond, update, invariant, body) =>
+      control(phrase(printLoopInvariant(invariant), newline, "for (", statement_no_semicolon(init), "; ", cond, "; ", statement_no_semicolon(update), ")"), body)
+    case TryCatchFinally(body, after, catches) =>
+      controls(
+        Seq((phrase("try"), body)) ++
+          catches.map(clause => (phrase("catch(", clause.decl, ")"), clause.body)) ++
+          Seq((phrase("finally"), after))
+      )
+    case Synchronized(obj, body) =>
+      control(phrase("synchronized(", obj, ")"), body)
+    case ParInvariant(decl, inv, content) =>
+      control(phrase("invariant", space, name(decl), "(", inv, ")"), content)
+    case ParAtomic(inv, content) =>
+      control(phrase("atomic(", commas(inv.map(_.decl).map(name).map(Text)), ")"), content)
+    case ParBarrier(block, invs, requires, ensures, content) =>
+      val tags = invs match {
+        case Nil => phrase()
+        case invs => phrase(";", commas(invs.map(_.decl).map(name).map(Text)))
+      }
+      val contract = spec(clauses(requires, "requires"), clauses(ensures, "ensures"))
+
+      syntax(
+        PVL -> phrase("barrier(", name(block.decl), tags, ")", contract, newline, content),
+      )
+    //    case ParRegion(requires, ensures, blocks) =>
+    //      phrase(
+    //        doubleline,
+    //        spec(clauses(requires, "requires"), clauses(ensures, "ensures")),
+    //        newline, "par", space, blocks.head, newline,
+    //        phrase(blocks.tail.map(block => phrase("and", space, block)):_*),
+    //        doubleline
+    //      )
+    case Throw(e) =>
+      phrase("throw", space, e)
+    case DefaultCase() =>
+      phrase(
+        Do(() => state = state.dedent()),
+        phrase("default:"),
+        Do(() => state = state.indent()),
+      )
+    case Case(pattern) =>
+      phrase(
+        Do(() => state = state.dedent()),
+        phrase("case", space, pattern, ":"),
+        Do(() => state = state.indent()),
+      )
+    case Label(decl, impl) =>
+      phrase(syntax(
+        Java -> control(phrase(name(decl), ":"), impl),
+        C -> control(phrase(name(decl), ":"), impl),
+        Silver -> phrase("label", space, name(decl)),
+        PVL -> phrase("label", space, name(decl)),
+      ))
+    case Goto(lbl) =>
+      phrase("goto", space, name(lbl.decl))
+    case Exhale(res) =>
+      spec(phrase("exhale", space, res))
+    case Assert(assn) =>
+      spec(phrase("assert", space, assn))
+    case Refute(assn) =>
+      spec(phrase("refute", space, assn))
+    case Inhale(res) =>
+      spec(phrase("inhale", space, res))
+    case Assume(assn) =>
+      spec(phrase("assume", space, assn))
+    case SpecIgnoreStart() =>
+      spec(newline, "spec_ignore {", newline)
+    case SpecIgnoreEnd() =>
+      spec(newline, "spec_ignore }", newline)
+    case Wait(obj) =>
+      syntax(PVL -> phrase("wait", space, obj))
+    case Notify(obj) =>
+      syntax(PVL -> phrase("notify", space, obj))
+    case Fork(runnable) =>
+      syntax(PVL -> phrase("fork", space, runnable))
+    case Join(runnable) =>
+      syntax(PVL -> phrase("join", space, runnable))
+    case Lock(obj) =>
+      syntax(PVL -> phrase("lock", space, obj))
+    case Unlock(obj) =>
+      syntax(PVL -> phrase("unlock", space, obj))
+    case Fold(pred) =>
+      spec(phrase("fold", space, pred))
+    case Unfold(pred) =>
+      spec(phrase("unfold", space, pred))
+    case WandPackage(expr, state) =>
+      spec(control(phrase("package", expr), state))
+    case WandApply(wand) =>
+      spec(phrase("apply", space, wand))
+    case Havoc(loc) =>
+      ???
+    case Break(label) =>
+      label match {
+        case Some(label) => phrase("break", space, name(label.decl))
+        case None => phrase("break")
+      }
+    case Continue(label) =>
+      label match {
+        case Some(label) => phrase("continue", space, name(label.decl))
+        case None => phrase("continue")
+      }
+    case InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
+      phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
+    case InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
+      phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
+  }
 
   def printExpr(e: Expr[_]): Unit =
     say(expr(e)._1)
@@ -887,9 +1053,9 @@ case class Printer(out: Appendable,
     case Slice(xs, from, to) =>
       (phrase(assoc(100, xs), "[", from, "..", to, "]"), 100)
     case SeqUpdate(xs, i, x) =>
-      (phrase(assoc(100, xs), "[", i, space, "->", space, x, "]"), 100)
+      (phrase(assoc(100, xs), ".update(", i, ", ", x, ")"), 100)
     case Concat(xs, ys) =>
-      (phrase(assoc(87, xs), space, "++", space, assoc(87, ys)), 87)
+      (phrase(assoc(87, xs), space, "+", space, assoc(87, ys)), 87)
     case RemoveAt(xs, i) =>
       (phrase("removeAt(", xs, ",", space, i, ")"), 100)
     case AmbiguousMember(x, xs) =>
@@ -1216,7 +1382,7 @@ case class Printer(out: Appendable,
       case LoopInvariant(invariant, None) =>
         phrase(
           newline,
-          spec("loop_invariant = ", expr(invariant)._1)
+          spec("loop_invariant ", expr(invariant)._1, ";")
         )
       case LoopInvariant(invariant, Some(decreases)) =>
         ???
