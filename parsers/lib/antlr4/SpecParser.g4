@@ -184,6 +184,7 @@ valPrimaryPermission
  | '\\pointer_block_length' '(' langExpr ')' # valPointerBlockLength
  | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
  | '\\pointer_length' '(' langExpr ')' # valPointerLength
+ | '\\polarity_dependent' '(' langExpr ',' langExpr ')' # valPolarityDependent
  ;
 
 valForall: '\\forall' | '\u2200';
@@ -211,6 +212,7 @@ valBinderCont: ';' langExpr;
 valPrimaryBinder
  : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
+ | '(' '\\forperm' valArgList '\\in' langExpr ';' langExpr ')' #valForPerm
  ;
 
 valPrimaryVector

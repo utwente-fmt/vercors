@@ -61,7 +61,7 @@ object ColDefs {
       // "InstanceFunction", "InstanceMethod",
       // "JavaConstructor", "JavaMethod",
       // "PVLConstructor",
-      "Forall", "Starall", "Exists", "Sum", "Product", "Let", "ScopedExpr" // Binders in expressions
+      "Forall", "Starall", "Exists", "Sum", "Product", "Let", "ScopedExpr", "ForPerm", // Binders in expressions
     ),
     "LabelDecl" -> Seq(
       "Function", "Procedure",

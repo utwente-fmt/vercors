@@ -130,6 +130,7 @@ CURRENT_THREAD: '\\current_thread';
 FORALL_STAR: '\\forall*';
 FORALL: '\\forall';
 EXISTS: '\\exists';
+FORPERM: '\\forperm';
 FORALL_UNICODE: '\u2200';
 FORALL_STAR_UNICODE: '\u2200*';
 EXISTS_UNICODE: '\u2203';
@@ -159,6 +160,7 @@ GTID: '\\gtid';
 VAL_INDEX: '\\nd_index';
 VAL_LENGTH: '\\nd_length';
 VAL_PARTIAL_INDEX: '\\nd_partial_index';
+POLARITY_DEPENDENT: '\\polarity_dependent';
 
 NONE: 'none';
 OPTION_NONE: 'None';
