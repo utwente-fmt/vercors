@@ -45,14 +45,14 @@ case class Extract[G]() {
     FreeVariables.freeVariables(node).collect {
       case free @ ReadFreeVar(v) =>
         read += v
-        v -> Local(map.getOrElseUpdate(free, new Variable(v.t)(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
+        v -> Local(map.getOrElseUpdate(free, new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
       case WriteFreeVar(v) =>
         write += v
-        v -> Local(map.getOrElseUpdate(ReadFreeVar(v), new Variable(v.t)(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
+        v -> Local(map.getOrElseUpdate(ReadFreeVar(v), new Variable(extract(v.t))(v.ref.decl.o)).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisObject(t) =>
-        t -> Local(map.getOrElseUpdate(free, new Variable(TClass(t.cls))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
+        t -> Local(map.getOrElseUpdate(free, new Variable(extract(TClass(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
       case free @ FreeThisModel(t) =>
-        t -> Local(map.getOrElseUpdate(free, new Variable(TModel(t.cls))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
+        t -> Local(map.getOrElseUpdate(free, new Variable(extract(TModel(t.cls)))(ExtractOrigin("this"))).ref[Variable[G]])(ExtractOrigin(""))
     }.to(ListMap)
 
   private def updateTypes(node: Node[G]): ListMap[TVar[G], Type[G]] =
@@ -63,6 +63,9 @@ case class Extract[G]() {
 
   def extract(expr: Expr[G]): Expr[G] =
     Substitute(updateExprs(expr), updateTypes(expr)).dispatch(expr)
+
+  def extract(typ: Type[G]): Type[G] =
+    Substitute(updateExprs(typ), updateTypes(typ)).dispatch(typ)
 
   /**
    * Note: statements must not have jumps into them, or jumps out of the statement.
@@ -95,7 +98,7 @@ case class Extract[G]() {
     // Locals that are written and read: get an initial value as a parameter, all usages are an out parameter
     val inForOut = map.collect {
       case (ReadFreeVar(v), extracted) if read.contains(v) && write.contains(v) =>
-        (new Variable[G](v.t)(v.ref.decl.o), extracted) -> v
+        (new Variable[G](extract(v.t))(v.ref.decl.o), extracted) -> v
     }.to(ListMap)
 
     // Locals that are written and read: the out parameter is assigned the initial value immediately

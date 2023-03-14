@@ -59,18 +59,20 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
         val err = ExpectedError("assertFailed:false", origin, AssertPassedNontrivialUnsatisfiable(contract))
         val onlyAssertBlame = FilterExpectedErrorBlame(PanicBlame("A boolean assert can only report assertFailed:false"), err)
         expectedErrors.top += err
-        // PB: this usage is dubious: pred can probably contain type variables?
-        val (Seq(generalizedContract), substitutions) = Extract.extract(pred)
+        val extractObj = Extract[Pre]()
+        val result = extractObj.extract(pred)
+        val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
         variables.scope {
           globalDeclarations.declare(procedure(
             blame = PanicBlame("The postcondition of a method checking satisfiability is empty"),
             contractBlame = UnsafeDontCare.Satisfiability("the precondition of a check-sat method is only there to check it."),
             requires = UnitAccountedPredicate(
               wellFormednessBlame.having(NotWellFormedIgnoreCheckSat(err)) {
-                dispatch(generalizedContract)
+                dispatch(result)
               }
-            )(generalizedContract.o),
-            args = variables.dispatch(substitutions.keys),
+            )(result.o),
+            typeArgs = variables.dispatch(ts.keys),
+            args = variables.dispatch(in.keys),
             body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame)))
           ))
         }
