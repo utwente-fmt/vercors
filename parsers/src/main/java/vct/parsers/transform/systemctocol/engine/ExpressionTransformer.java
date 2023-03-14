@@ -390,7 +390,8 @@ public class ExpressionTransformer<T> {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         LoopContract<T> contract = specification_transformer.create_loop_invariant(path_cond);
 
-        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new Star<>(path_cond, cond, OriGen.create()));
+        Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new_path_cond);
         if (body == null) return null;
         Loop<T> loop = new Loop<>(col_system.get_empty_block(), cond, col_system.get_empty_block(), contract, body, OriGen.create());
 
@@ -479,7 +480,8 @@ public class ExpressionTransformer<T> {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         LoopContract<T> contract = specification_transformer.create_loop_invariant(path_cond);
 
-        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new Star<>(path_cond, cond, OriGen.create()));
+        Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new_path_cond);
         if (body == null) return null;
         Statement<T> result = new Loop<>(init, cond, update, contract, body, OriGen.create());
 
@@ -579,8 +581,10 @@ public class ExpressionTransformer<T> {
         Expr<T> n_cond = new Not<>(cond, OriGen.create());
 
         // Create if and else branches
-        Block<T> then_body = expression_list_to_block(expr.getThenBlock(), sc_inst, obj, new Star<>(path_cond, cond, OriGen.create()));
-        Block<T> else_body = expression_list_to_block(expr.getElseBlock(), sc_inst, obj, new Star<>(path_cond, n_cond, OriGen.create()));
+        Expr<T> if_new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> then_body = expression_list_to_block(expr.getThenBlock(), sc_inst, obj, if_new_path_cond);
+        Expr<T> else_new_path_cond = (path_cond.equals(col_system.TRUE)) ? n_cond : new Star<>(path_cond, n_cond, OriGen.create());
+        Block<T> else_body = expression_list_to_block(expr.getElseBlock(), sc_inst, obj, else_new_path_cond);
 
         // Create branches
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = new java.util.ArrayList<>();
@@ -737,7 +741,8 @@ public class ExpressionTransformer<T> {
                 //       break statement at the end and only the end of each case. This could be a wrong assumption if
                 //       there is a break statement elsewhere in the case.
                 if (!(expression instanceof BreakExpression)) {
-                    Statement<T> statement = create_statement(expression, sc_inst, obj, new Star<>(path_cond, local_cond, OriGen.create()));
+                    Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? local_cond : new Star<>(path_cond, local_cond, OriGen.create());
+                    Statement<T> statement = create_statement(expression, sc_inst, obj, new_path_cond);
                     if (statement != null) {
                         block_body.add(statement);
                         local_cond = col_system.TRUE;
@@ -777,7 +782,8 @@ public class ExpressionTransformer<T> {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         LoopContract<T> contract = specification_transformer.create_loop_invariant(path_cond);
 
-        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new Star<>(path_cond, cond, OriGen.create()));
+        Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new_path_cond);
         Statement<T> result = new Loop<>(col_system.get_empty_block(), cond, col_system.get_empty_block(), contract, body, OriGen.create());
 
         // Handle label
