@@ -264,11 +264,20 @@ case object Java extends LazyLogging {
       case moreNames => Seq(moreNames)
     }
 
-    FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx))
+
+
+    FuncTools.firstOption(potentialFQNames, findJavaTypeInStack[G](_, ctx))
+      .orElse(FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findRuntimeJavaType[G](_, ctx)).map(RefJavaClass[G]))
   }
 
+
+  def findJavaTypeInStack[G](name: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
+      ctx.stack.flatten.collectFirst{
+        case ref: JavaTypeNameTarget[G] if Seq(ref.name) == name => ref
+      }
+  }
 
   def findJavaName[G](name: String, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {

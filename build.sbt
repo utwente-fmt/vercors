@@ -4,6 +4,10 @@ import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / javacOptions :=Seq("-source", "17",
+                               "-target", "17",
+                               "-Xlint:deprecation", "-Xlint:unchecked",
+                               "-deprecation")
 ThisBuild / fork := true
 
 ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
@@ -121,6 +125,7 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
     ThisBuild / scalacOptions ++= Seq(
+      "-target:jvm-1.17",
       "-deprecation",
       "-feature",
       "-unchecked",
@@ -134,24 +139,6 @@ lazy val vercors: Project = (project in file("."))
 //      "-P:scalac-profiling:show-profiles",
 //      "-P:scalac-profiling:sourceroot:/home/pieter/vercors/",
 //      "-Ypatmat-debug",
-    ),
-
-    Compile / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Runtime / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Test / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
     ),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,

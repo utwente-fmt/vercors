@@ -74,8 +74,8 @@ trait SilverBackend extends Backend with LazyLogging {
       out.write(
         silverProgram
           .toString()
-          .replace("requires decreasing", "decreasing")
-          .replace("invariant decreasing", "decreasing")
+          .replace("requires decreases", "decreases")
+          .replace("invariant decreases", "decreases")
           .getBytes()
       )
     }
