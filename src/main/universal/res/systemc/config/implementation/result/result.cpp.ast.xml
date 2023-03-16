@@ -1,0 +1,2172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<INTERNAL>
+  <external_declaration idref="2">
+    <declaration idref="4">
+      <declaration_specifiers idref="8">
+        <class_specifier extSCModule="true" idref="10" keyword="class" name="sc_mutexx">
+          <base_clause column="7" file="sc_mutex.cpp" idref="12" line="3">
+            <base_specifier column="17" file="sc_mutex.cpp" idref="14"
+              length="0" line="3" name="sc_prim_channel" sc_dt="true">
+              <base_class_access_specifier column="17"
+                file="sc_mutex.cpp" idref="16" line="3" name="public"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="1" file="sc_mutex.cpp" idref="18" line="5">
+            <access_specifier column="1" file="sc_mutex.cpp" idref="20"
+              line="5" name="public"/>
+          </member_declaration>
+          <member_declaration column="7" file="sc_mutex.cpp" idref="22" line="7">
+            <member_declarator_list column="7" file="sc_mutex.cpp"
+              idref="24" line="7">
+              <declaration_specifiers column="7" file="sc_mutex.cpp"
+                idref="26" line="7">
+                <builtin_type_specifier column="7" file="sc_mutex.cpp"
+                  idref="28" length="0" line="7" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_mutex.cpp"
+                idref="30" line="7">
+                <declarator column="5" file="sc_mutex.cpp" idref="32" line="7">
+                  <qualified_id column="5" file="sc_mutex.cpp"
+                    idref="34" line="7" name="_free"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="19" file="sc_mutex.cpp" idref="36" line="9">
+            <member_declarator_list column="19" file="sc_mutex.cpp"
+              idref="38" line="9">
+              <declaration_specifiers column="19" file="sc_mutex.cpp"
+                idref="40" line="9">
+                <builtin_type_specifier column="19" file="sc_mutex.cpp"
+                  idref="42" length="0" line="9" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_mutex.cpp"
+                idref="44" line="9">
+                <declarator column="5" file="sc_mutex.cpp" idref="46" line="9">
+                  <qualified_id column="5" file="sc_mutex.cpp"
+                    idref="48" line="9" name="_locked"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <comment column="5" file="sc_mutex.cpp" idref="49" line="11" name="// blocks until mutex could be locked"/>
+          <member_declaration column="17" file="sc_mutex.cpp" idref="51" line="12">
+            <function_definition column="17" file="sc_mutex.cpp"
+              idref="53" line="12">
+              <declaration_specifiers column="17" file="sc_mutex.cpp"
+                idref="55" line="12">
+                <builtin_type_specifier column="17" file="sc_mutex.cpp"
+                  idref="57" length="0" line="12" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_mutex.cpp"
+                idref="59" line="12">
+                <qualified_id column="5" file="sc_mutex.cpp" idref="61"
+                  line="12" name="lock"/>
+              </function_declarator>
+              <block column="15" file="sc_mutex.cpp" idref="63" line="13">
+                <block_statement column="5" file="sc_mutex.cpp"
+                  idref="65" line="14">
+                  <while_statement column="5" file="sc_mutex.cpp"
+                    idref="67" line="14">
+                    <primary_expression column="12" file="sc_mutex.cpp"
+                      idref="71" line="14">
+                      <id_expression column="14" file="sc_mutex.cpp"
+                        idref="73" line="14" name="_locked"/>
+                    </primary_expression>
+                    <block column="22" file="sc_mutex.cpp" idref="75" line="14">
+                      <block_statement column="24" file="sc_mutex.cpp"
+                        idref="77" line="15">
+                        <systemCRoutine column="24" file="sc_mutex.cpp"
+                          idref="81" line="15" name="wait">
+                          <arguments column="2" file="sc_mutex.cpp"
+                            idref="83" line="15">
+                            <arguments_list column="6"
+                              file="sc_mutex.cpp" idref="85" line="15">
+                              <primary_expression column="6"
+                                file="sc_mutex.cpp" idref="89" line="15">
+                                <id_expression column="8"
+                                  file="sc_mutex.cpp" idref="91"
+                                  line="15" name="_free"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_mutex.cpp"
+                  idref="93" line="18">
+                  <assignment column="15" file="sc_mutex.cpp"
+                    idref="103" line="18">
+                    <primary_expression column="7" file="sc_mutex.cpp"
+                      idref="97" line="18">
+                      <id_expression column="7" file="sc_mutex.cpp"
+                        idref="99" line="18" name="_locked"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_mutex.cpp"
+                      idref="101" line="18"/>
+                    <primary_expression column="15" file="sc_mutex.cpp"
+                      idref="107" line="18">
+                      <constant column="15" file="sc_mutex.cpp"
+                        idref="109" line="18" value="true"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <comment column="5" file="sc_mutex.cpp" idref="110" line="21" name="// returns false if mutex could not be locked"/>
+          <member_declaration column="5" file="sc_mutex.cpp" idref="112" line="22">
+            <function_definition column="5" file="sc_mutex.cpp"
+              idref="114" line="22">
+              <declaration_specifiers column="5" file="sc_mutex.cpp"
+                idref="116" line="22">
+                <builtin_type_specifier column="5" file="sc_mutex.cpp"
+                  idref="118" length="0" line="22" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_mutex.cpp"
+                idref="120" line="22">
+                <qualified_id column="5" file="sc_mutex.cpp" idref="122"
+                  line="22" name="trylock"/>
+              </function_declarator>
+              <block column="18" file="sc_mutex.cpp" idref="124" line="23">
+                <block_statement column="5" file="sc_mutex.cpp"
+                  idref="126" line="24">
+                  <if_statement column="5" file="sc_mutex.cpp"
+                    idref="128" line="24">
+                    <primary_expression column="9" file="sc_mutex.cpp"
+                      idref="132" line="24">
+                      <id_expression column="11" file="sc_mutex.cpp"
+                        idref="134" line="24" name="_locked"/>
+                    </primary_expression>
+                    <block column="19" file="sc_mutex.cpp" idref="136" line="25">
+                      <block_statement column="19" file="sc_mutex.cpp"
+                        idref="138" line="25">
+                        <return_statement column="19"
+                          file="sc_mutex.cpp" idref="140" line="25">
+                          <primary_expression column="3"
+                            file="sc_mutex.cpp" idref="144" line="25">
+                            <constant column="3" file="sc_mutex.cpp"
+                              idref="146" line="25" value="false"/>
+                          </primary_expression>
+                        </return_statement>
+                      </block_statement>
+                    </block>
+                    <block column="7" file="sc_mutex.cpp" idref="148" line="27">
+                      <block_statement column="7" file="sc_mutex.cpp"
+                        idref="150" line="27">
+                        <return_statement column="7" file="sc_mutex.cpp"
+                          idref="152" line="27">
+                          <primary_expression column="2"
+                            file="sc_mutex.cpp" idref="156" line="27">
+                            <constant column="2" file="sc_mutex.cpp"
+                              idref="158" line="27" value="true"/>
+                          </primary_expression>
+                        </return_statement>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <comment column="5" file="sc_mutex.cpp" idref="159" line="30" name="// unlocks mutex"/>
+          <member_declaration column="5" file="sc_mutex.cpp" idref="161" line="31">
+            <function_definition column="5" file="sc_mutex.cpp"
+              idref="163" line="31">
+              <declaration_specifiers column="5" file="sc_mutex.cpp"
+                idref="165" line="31">
+                <builtin_type_specifier column="5" file="sc_mutex.cpp"
+                  idref="167" length="0" line="31" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="6" file="sc_mutex.cpp"
+                idref="169" line="31">
+                <qualified_id column="6" file="sc_mutex.cpp" idref="171"
+                  line="31" name="unlock"/>
+              </function_declarator>
+              <block column="18" file="sc_mutex.cpp" idref="173" line="32">
+                <block_statement column="5" file="sc_mutex.cpp"
+                  idref="175" line="33">
+                  <assignment column="15" file="sc_mutex.cpp"
+                    idref="185" line="33">
+                    <primary_expression column="5" file="sc_mutex.cpp"
+                      idref="179" line="33">
+                      <id_expression column="7" file="sc_mutex.cpp"
+                        idref="181" line="33" name="_locked"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_mutex.cpp"
+                      idref="183" line="33"/>
+                    <primary_expression column="15" file="sc_mutex.cpp"
+                      idref="189" line="33">
+                      <constant column="15" file="sc_mutex.cpp"
+                        idref="191" line="33" value="false"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_mutex.cpp"
+                  idref="193" line="34">
+                  <sc_notify column="22" file="sc_mutex.cpp" idref="195"
+                    line="34" name="_free"/>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <comment column="4" file="sc_mutex.cpp" idref="196" line="37" name="// constructor"/>
+          <member_declaration column="5" file="sc_mutex.cpp" idref="198" line="38">
+            <ctor_definition column="5" file="sc_mutex.cpp" idref="200" line="38">
+              <qualified_id column="5" file="sc_mutex.cpp" idref="202"
+                line="38" name="sc_mutexx"/>
+              <block column="15" file="sc_mutex.cpp" idref="204" line="38"/>
+            </ctor_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+  <external_declaration column="2" file="sc_fifo.cpp" idref="206" line="1">
+    <declaration column="2" file="sc_fifo.cpp" idref="208" line="1">
+      <declaration_specifiers column="2" file="sc_fifo.cpp" idref="212" line="1">
+        <class_specifier column="2" extSCModule="true"
+          file="sc_fifo.cpp" idref="214" keyword="class" line="1" name="sc_fifox">
+          <base_clause column="7" file="sc_fifo.cpp" idref="216" line="1">
+            <base_specifier column="16" file="sc_fifo.cpp" idref="218"
+              length="0" line="1" name="sc_prim_channel" sc_dt="true">
+              <base_class_access_specifier column="16"
+                file="sc_fifo.cpp" idref="220" line="1" name="private"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="33" file="sc_fifo.cpp" idref="222" line="2">
+            <access_specifier column="33" file="sc_fifo.cpp" idref="224"
+              line="2" name="private"/>
+          </member_declaration>
+          <member_declaration column="10" file="sc_fifo.cpp" idref="226" line="3">
+            <member_declarator_list column="10" file="sc_fifo.cpp"
+              idref="228" line="3">
+              <declaration_specifiers column="10" file="sc_fifo.cpp"
+                idref="230" line="3">
+                <builtin_type_specifier column="10" file="sc_fifo.cpp"
+                  idref="232" length="0" line="3" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="234" line="3">
+                <declarator column="5" file="sc_fifo.cpp" idref="236" line="3">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="238" line="3" name="size"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="13" file="sc_fifo.cpp" idref="240" line="4">
+            <member_declarator_list column="13" file="sc_fifo.cpp"
+              idref="242" line="4">
+              <declaration_specifiers column="13" file="sc_fifo.cpp"
+                idref="244" line="4">
+                <builtin_type_specifier column="13" file="sc_fifo.cpp"
+                  idref="246" length="0" line="4" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="248" line="4">
+                <declarator column="5" file="sc_fifo.cpp" idref="250" line="4">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="252" line="4" name="buf"/>
+                  <declarator_suffixes arrayCounter="1" column="9"
+                    file="sc_fifo.cpp" idref="254" line="4">
+                    <constant_expression column="12" file="sc_fifo.cpp"
+                      idref="256" line="4">
+                      <primary_expression column="12" file="sc_fifo.cpp"
+                        idref="260" line="4">
+                        <constant column="12" file="sc_fifo.cpp"
+                          idref="262" line="4" value="16"/>
+                      </primary_expression>
+                    </constant_expression>
+                  </declarator_suffixes>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="16" file="sc_fifo.cpp" idref="264" line="5">
+            <member_declarator_list column="16" file="sc_fifo.cpp"
+              idref="266" line="5">
+              <declaration_specifiers column="16" file="sc_fifo.cpp"
+                idref="268" line="5">
+                <builtin_type_specifier column="16" file="sc_fifo.cpp"
+                  idref="270" length="0" line="5" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="272" line="5">
+                <declarator column="5" file="sc_fifo.cpp" idref="274" line="5">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="276" line="5" name="free"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="13" file="sc_fifo.cpp" idref="278" line="6">
+            <member_declarator_list column="13" file="sc_fifo.cpp"
+              idref="280" line="6">
+              <declaration_specifiers column="13" file="sc_fifo.cpp"
+                idref="282" line="6">
+                <builtin_type_specifier column="13" file="sc_fifo.cpp"
+                  idref="284" length="0" line="6" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="286" line="6">
+                <declarator column="5" file="sc_fifo.cpp" idref="288" line="6">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="290" line="6" name="ri"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="11" file="sc_fifo.cpp" idref="292" line="7">
+            <member_declarator_list column="11" file="sc_fifo.cpp"
+              idref="294" line="7">
+              <declaration_specifiers column="11" file="sc_fifo.cpp"
+                idref="296" line="7">
+                <builtin_type_specifier column="11" file="sc_fifo.cpp"
+                  idref="298" length="0" line="7" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="300" line="7">
+                <declarator column="5" file="sc_fifo.cpp" idref="302" line="7">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="304" line="7" name="wi"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="11" file="sc_fifo.cpp" idref="306" line="9">
+            <member_declarator_list column="11" file="sc_fifo.cpp"
+              idref="308" line="9">
+              <declaration_specifiers column="11" file="sc_fifo.cpp"
+                idref="310" line="9">
+                <builtin_type_specifier column="11" file="sc_fifo.cpp"
+                  idref="312" length="0" line="9" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="314" line="9">
+                <declarator column="5" file="sc_fifo.cpp" idref="316" line="9">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="318" line="9" name="num_readable"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <comment column="23" file="sc_fifo.cpp" idref="319" line="9" name="// #samples readable"/>
+          <member_declaration column="21" file="sc_fifo.cpp" idref="321" line="10">
+            <member_declarator_list column="21" file="sc_fifo.cpp"
+              idref="323" line="10">
+              <declaration_specifiers column="21" file="sc_fifo.cpp"
+                idref="325" line="10">
+                <builtin_type_specifier column="21" file="sc_fifo.cpp"
+                  idref="327" length="0" line="10" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="329" line="10">
+                <declarator column="5" file="sc_fifo.cpp" idref="331" line="10">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="333" line="10" name="num_read"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <comment column="19" file="sc_fifo.cpp" idref="334" line="10" name="// #samples read during this delta cycle"/>
+          <member_declaration column="17" file="sc_fifo.cpp" idref="336" line="11">
+            <member_declarator_list column="17" file="sc_fifo.cpp"
+              idref="338" line="11">
+              <declaration_specifiers column="17" file="sc_fifo.cpp"
+                idref="340" line="11">
+                <builtin_type_specifier column="17" file="sc_fifo.cpp"
+                  idref="342" length="0" line="11" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="344" line="11">
+                <declarator column="5" file="sc_fifo.cpp" idref="346" line="11">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="348" line="11" name="num_written"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="20" file="sc_fifo.cpp" idref="350" line="13">
+            <member_declarator_list column="20" file="sc_fifo.cpp"
+              idref="352" line="13">
+              <declaration_specifiers column="20" file="sc_fifo.cpp"
+                idref="354" line="13">
+                <builtin_type_specifier column="20" file="sc_fifo.cpp"
+                  idref="356" length="0" line="13" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="358" line="13">
+                <declarator column="5" file="sc_fifo.cpp" idref="360" line="13">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="362" line="13" name="data_read_event"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="29" file="sc_fifo.cpp" idref="364" line="14">
+            <member_declarator_list column="29" file="sc_fifo.cpp"
+              idref="366" line="14">
+              <declaration_specifiers column="29" file="sc_fifo.cpp"
+                idref="368" line="14">
+                <builtin_type_specifier column="29" file="sc_fifo.cpp"
+                  idref="370" length="0" line="14" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_fifo.cpp"
+                idref="372" line="14">
+                <declarator column="5" file="sc_fifo.cpp" idref="374" line="14">
+                  <qualified_id column="5" file="sc_fifo.cpp"
+                    idref="376" line="14" name="data_written_event"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="32" file="sc_fifo.cpp" idref="378" line="17">
+            <access_specifier column="32" file="sc_fifo.cpp" idref="380"
+              line="17" name="public"/>
+          </member_declaration>
+          <member_declaration column="9" file="sc_fifo.cpp" idref="382" line="19">
+            <ctor_definition column="9" file="sc_fifo.cpp" idref="384" line="19">
+              <qualified_id column="9" file="sc_fifo.cpp" idref="386"
+                line="19" name="sc_fifox"/>
+              <block column="14" file="sc_fifo.cpp" idref="388" line="19">
+                <block_statement column="16" file="sc_fifo.cpp"
+                  idref="390" line="20">
+                  <assignment column="12" file="sc_fifo.cpp" idref="400" line="20">
+                    <primary_expression column="16" file="sc_fifo.cpp"
+                      idref="394" line="20">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="396" line="20" name="size"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="398" line="20"/>
+                    <primary_expression column="12" file="sc_fifo.cpp"
+                      idref="404" line="20">
+                      <constant column="12" file="sc_fifo.cpp"
+                        idref="406" line="20" value="16"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="16" file="sc_fifo.cpp"
+                  idref="408" line="21">
+                  <assignment column="12" file="sc_fifo.cpp" idref="418" line="21">
+                    <primary_expression column="16" file="sc_fifo.cpp"
+                      idref="412" line="21">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="414" line="21" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="416" line="21"/>
+                    <primary_expression column="12" file="sc_fifo.cpp"
+                      idref="422" line="21">
+                      <constant column="12" file="sc_fifo.cpp"
+                        idref="424" line="21" value="16"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="16" file="sc_fifo.cpp"
+                  idref="426" line="22">
+                  <assignment column="10" file="sc_fifo.cpp" idref="436" line="22">
+                    <primary_expression column="16" file="sc_fifo.cpp"
+                      idref="430" line="22">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="432" line="22" name="ri"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="434" line="22"/>
+                    <primary_expression column="10" file="sc_fifo.cpp"
+                      idref="440" line="22">
+                      <constant column="10" file="sc_fifo.cpp"
+                        idref="442" line="22" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="13" file="sc_fifo.cpp"
+                  idref="444" line="23">
+                  <assignment column="10" file="sc_fifo.cpp" idref="454" line="23">
+                    <primary_expression column="13" file="sc_fifo.cpp"
+                      idref="448" line="23">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="450" line="23" name="wi"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="452" line="23"/>
+                    <primary_expression column="10" file="sc_fifo.cpp"
+                      idref="458" line="23">
+                      <constant column="10" file="sc_fifo.cpp"
+                        idref="460" line="23" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="13" file="sc_fifo.cpp"
+                  idref="462" line="25">
+                  <assignment column="20" file="sc_fifo.cpp" idref="472" line="25">
+                    <primary_expression column="13" file="sc_fifo.cpp"
+                      idref="466" line="25">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="468" line="25" name="num_readable"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="470" line="25"/>
+                    <primary_expression column="20" file="sc_fifo.cpp"
+                      idref="476" line="25">
+                      <constant column="20" file="sc_fifo.cpp"
+                        idref="478" line="25" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="23" file="sc_fifo.cpp"
+                  idref="480" line="26">
+                  <assignment column="16" file="sc_fifo.cpp" idref="490" line="26">
+                    <primary_expression column="23" file="sc_fifo.cpp"
+                      idref="484" line="26">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="486" line="26" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="488" line="26"/>
+                    <primary_expression column="16" file="sc_fifo.cpp"
+                      idref="494" line="26">
+                      <constant column="16" file="sc_fifo.cpp"
+                        idref="496" line="26" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="19" file="sc_fifo.cpp"
+                  idref="498" line="27">
+                  <assignment column="19" file="sc_fifo.cpp" idref="508" line="27">
+                    <primary_expression column="19" file="sc_fifo.cpp"
+                      idref="502" line="27">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="504" line="27" name="num_written"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="506" line="27"/>
+                    <primary_expression column="19" file="sc_fifo.cpp"
+                      idref="512" line="27">
+                      <constant column="19" file="sc_fifo.cpp"
+                        idref="514" line="27" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </ctor_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.cpp" idref="516" line="30">
+            <function_definition column="5" file="sc_fifo.cpp"
+              idref="518" line="30">
+              <declaration_specifiers column="5" file="sc_fifo.cpp"
+                idref="520" line="30">
+                <builtin_type_specifier column="5" file="sc_fifo.cpp"
+                  idref="522" length="0" line="30" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.cpp"
+                idref="524" line="30">
+                <qualified_id column="5" file="sc_fifo.cpp" idref="526"
+                  line="30" name="read"/>
+              </function_declarator>
+              <block column="14" file="sc_fifo.cpp" idref="528" line="30">
+                <block_statement column="16" file="sc_fifo.cpp"
+                  idref="530" line="31">
+                  <declaration column="16" file="sc_fifo.cpp"
+                    idref="532" line="31">
+                    <init_declarator_list column="16" file="sc_fifo.cpp"
+                      idref="534" line="31">
+                      <declaration_specifiers column="16"
+                        file="sc_fifo.cpp" idref="536" line="31">
+                        <builtin_type_specifier column="16"
+                          file="sc_fifo.cpp" idref="538" length="0"
+                          line="31" name="int" sc_dt="false"/>
+                      </declaration_specifiers>
+                      <init_declarator column="7" file="sc_fifo.cpp"
+                        idref="540" line="31">
+                        <declarator column="7" file="sc_fifo.cpp"
+                          idref="542" line="31">
+                          <qualified_id column="7" file="sc_fifo.cpp"
+                            idref="544" line="31" name="val"/>
+                        </declarator>
+                      </init_declarator>
+                    </init_declarator_list>
+                  </declaration>
+                </block_statement>
+                <block_statement column="14" file="sc_fifo.cpp"
+                  idref="546" line="32">
+                  <while_statement column="14" file="sc_fifo.cpp"
+                    idref="548" line="32">
+                    <eq_node column="38" file="sc_fifo.cpp" idref="564" line="32">
+                      <subtract_node column="27" file="sc_fifo.cpp"
+                        idref="556" line="32">
+                        <primary_expression column="12"
+                          file="sc_fifo.cpp" idref="552" line="32">
+                          <id_expression column="14" file="sc_fifo.cpp"
+                            idref="554" line="32" name="num_readable"/>
+                        </primary_expression>
+                        <primary_expression column="27"
+                          file="sc_fifo.cpp" idref="560" line="32">
+                          <id_expression column="29" file="sc_fifo.cpp"
+                            idref="562" line="32" name="num_read"/>
+                        </primary_expression>
+                      </subtract_node>
+                      <primary_expression column="38" file="sc_fifo.cpp"
+                        idref="568" line="32">
+                        <constant column="38" file="sc_fifo.cpp"
+                          idref="570" line="32" value="0"/>
+                      </primary_expression>
+                    </eq_node>
+                    <block column="43" file="sc_fifo.cpp" idref="572" line="32">
+                      <block_statement column="45" file="sc_fifo.cpp"
+                        idref="574" line="33">
+                        <systemCRoutine column="45" file="sc_fifo.cpp"
+                          idref="578" line="33" name="wait">
+                          <arguments column="9" file="sc_fifo.cpp"
+                            idref="580" line="33">
+                            <arguments_list column="13"
+                              file="sc_fifo.cpp" idref="582" line="33">
+                              <primary_expression column="13"
+                                file="sc_fifo.cpp" idref="586" line="33">
+                                <id_expression column="15"
+                                  file="sc_fifo.cpp" idref="588"
+                                  line="33" name="data_written_event"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.cpp"
+                  idref="590" line="35">
+                  <assignment column="16" file="sc_fifo.cpp" idref="600" line="35">
+                    <primary_expression column="7" file="sc_fifo.cpp"
+                      idref="594" line="35">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="596" line="35" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="598" line="35"/>
+                    <add_node column="27" file="sc_fifo.cpp" idref="608" line="35">
+                      <primary_expression column="16" file="sc_fifo.cpp"
+                        idref="604" line="35">
+                        <id_expression column="18" file="sc_fifo.cpp"
+                          idref="606" line="35" name="num_read"/>
+                      </primary_expression>
+                      <primary_expression column="27" file="sc_fifo.cpp"
+                        idref="612" line="35">
+                        <constant column="27" file="sc_fifo.cpp"
+                          idref="614" line="35" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="30" file="sc_fifo.cpp"
+                  idref="616" line="37">
+                  <assignment column="11" file="sc_fifo.cpp" idref="626" line="37">
+                    <primary_expression column="30" file="sc_fifo.cpp"
+                      idref="620" line="37">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="622" line="37" name="val"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="624" line="37"/>
+                    <primary_expression column="17" file="sc_fifo.cpp"
+                      idref="642" line="37">
+                      <arrayaccess_expression column="16"
+                        file="sc_fifo.cpp" idref="634" line="37">
+                        <primary_expression column="11"
+                          file="sc_fifo.cpp" idref="630" line="37">
+                          <id_expression column="13" file="sc_fifo.cpp"
+                            idref="632" line="37" name="buf"/>
+                        </primary_expression>
+                        <primary_expression column="16"
+                          file="sc_fifo.cpp" idref="638" line="37">
+                          <id_expression column="17" file="sc_fifo.cpp"
+                            idref="640" line="37" name="ri"/>
+                        </primary_expression>
+                      </arrayaccess_expression>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="20" file="sc_fifo.cpp"
+                  idref="644" line="38">
+                  <assignment column="10" file="sc_fifo.cpp" idref="654" line="38">
+                    <primary_expression column="20" file="sc_fifo.cpp"
+                      idref="648" line="38">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="650" line="38" name="ri"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="652" line="38"/>
+                    <mod_node column="23" file="sc_fifo.cpp" idref="674" line="38">
+                      <primary_expression column="10" file="sc_fifo.cpp"
+                        idref="658" line="38">
+                        <add_node column="17" file="sc_fifo.cpp"
+                          idref="666" line="38">
+                          <primary_expression column="12"
+                            file="sc_fifo.cpp" idref="662" line="38">
+                            <id_expression column="14"
+                              file="sc_fifo.cpp" idref="664" line="38" name="ri"/>
+                          </primary_expression>
+                          <primary_expression column="17"
+                            file="sc_fifo.cpp" idref="670" line="38">
+                            <constant column="17" file="sc_fifo.cpp"
+                              idref="672" line="38" value="1"/>
+                          </primary_expression>
+                        </add_node>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.cpp"
+                        idref="678" line="38">
+                        <id_expression column="25" file="sc_fifo.cpp"
+                          idref="680" line="38" name="size"/>
+                      </primary_expression>
+                    </mod_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="29" file="sc_fifo.cpp"
+                  idref="682" line="39">
+                  <assignment column="12" file="sc_fifo.cpp" idref="692" line="39">
+                    <primary_expression column="29" file="sc_fifo.cpp"
+                      idref="686" line="39">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="688" line="39" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="690" line="39"/>
+                    <add_node column="19" file="sc_fifo.cpp" idref="700" line="39">
+                      <primary_expression column="12" file="sc_fifo.cpp"
+                        idref="696" line="39">
+                        <id_expression column="14" file="sc_fifo.cpp"
+                          idref="698" line="39" name="free"/>
+                      </primary_expression>
+                      <primary_expression column="19" file="sc_fifo.cpp"
+                        idref="704" line="39">
+                        <constant column="19" file="sc_fifo.cpp"
+                          idref="706" line="39" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_fifo.cpp"
+                  idref="708" line="40">
+                  <postfix_expression column="22" file="sc_fifo.cpp"
+                    idref="710" line="40">
+                    <primary_expression column="22" file="sc_fifo.cpp"
+                      idref="712" line="40">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="714" line="40" name="request_update"/>
+                    </primary_expression>
+                    <arguments column="7" file="sc_fifo.cpp" idref="716" line="40"/>
+                  </postfix_expression>
+                </block_statement>
+                <block_statement column="23" file="sc_fifo.cpp"
+                  idref="718" line="41">
+                  <return_statement column="23" file="sc_fifo.cpp"
+                    idref="720" line="41">
+                    <primary_expression column="7" file="sc_fifo.cpp"
+                      idref="724" line="41">
+                      <id_expression column="14" file="sc_fifo.cpp"
+                        idref="726" line="41" name="val"/>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.cpp" idref="728" line="44">
+            <function_definition column="5" file="sc_fifo.cpp"
+              idref="730" line="44">
+              <declaration_specifiers column="5" file="sc_fifo.cpp"
+                idref="732" line="44">
+                <builtin_type_specifier column="5" file="sc_fifo.cpp"
+                  idref="734" length="0" line="44" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.cpp"
+                idref="736" line="44">
+                <qualified_id column="5" file="sc_fifo.cpp" idref="738"
+                  line="44" name="write"/>
+                <parameter_list column="15" file="sc_fifo.cpp"
+                  idref="740" line="44">
+                  <parameter_declaration column="15" file="sc_fifo.cpp"
+                    idref="742" line="44">
+                    <declaration_specifiers column="15"
+                      file="sc_fifo.cpp" idref="744" line="44">
+                      <builtin_type_specifier column="15"
+                        file="sc_fifo.cpp" idref="746" length="0"
+                        line="44" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="16" file="sc_fifo.cpp"
+                      idref="748" line="44">
+                      <qualified_id column="16" file="sc_fifo.cpp"
+                        idref="750" line="44" name="val"/>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="23" file="sc_fifo.cpp" idref="752" line="44">
+                <block_statement column="25" file="sc_fifo.cpp"
+                  idref="754" line="45">
+                  <while_statement column="25" file="sc_fifo.cpp"
+                    idref="756" line="45">
+                    <eq_node column="48" file="sc_fifo.cpp" idref="780" line="45">
+                      <subtract_node column="34" file="sc_fifo.cpp"
+                        idref="772" line="45">
+                        <subtract_node column="19" file="sc_fifo.cpp"
+                          idref="764" line="45">
+                          <primary_expression column="12"
+                            file="sc_fifo.cpp" idref="760" line="45">
+                            <id_expression column="14"
+                              file="sc_fifo.cpp" idref="762" line="45" name="size"/>
+                          </primary_expression>
+                          <primary_expression column="19"
+                            file="sc_fifo.cpp" idref="768" line="45">
+                            <id_expression column="21"
+                              file="sc_fifo.cpp" idref="770" line="45" name="num_readable"/>
+                          </primary_expression>
+                        </subtract_node>
+                        <primary_expression column="34"
+                          file="sc_fifo.cpp" idref="776" line="45">
+                          <id_expression column="36" file="sc_fifo.cpp"
+                            idref="778" line="45" name="num_written"/>
+                        </primary_expression>
+                      </subtract_node>
+                      <primary_expression column="48" file="sc_fifo.cpp"
+                        idref="784" line="45">
+                        <constant column="48" file="sc_fifo.cpp"
+                          idref="786" line="45" value="0"/>
+                      </primary_expression>
+                    </eq_node>
+                    <block column="53" file="sc_fifo.cpp" idref="788" line="45">
+                      <block_statement column="55" file="sc_fifo.cpp"
+                        idref="790" line="46">
+                        <systemCRoutine column="55" file="sc_fifo.cpp"
+                          idref="794" line="46" name="wait">
+                          <arguments column="9" file="sc_fifo.cpp"
+                            idref="796" line="46">
+                            <arguments_list column="13"
+                              file="sc_fifo.cpp" idref="798" line="46">
+                              <primary_expression column="13"
+                                file="sc_fifo.cpp" idref="802" line="46">
+                                <id_expression column="15"
+                                  file="sc_fifo.cpp" idref="804"
+                                  line="46" name="data_read_event"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.cpp"
+                  idref="806" line="48">
+                  <assignment column="19" file="sc_fifo.cpp" idref="816" line="48">
+                    <primary_expression column="7" file="sc_fifo.cpp"
+                      idref="810" line="48">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="812" line="48" name="num_written"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="814" line="48"/>
+                    <add_node column="33" file="sc_fifo.cpp" idref="824" line="48">
+                      <primary_expression column="19" file="sc_fifo.cpp"
+                        idref="820" line="48">
+                        <id_expression column="21" file="sc_fifo.cpp"
+                          idref="822" line="48" name="num_written"/>
+                      </primary_expression>
+                      <primary_expression column="33" file="sc_fifo.cpp"
+                        idref="828" line="48">
+                        <constant column="33" file="sc_fifo.cpp"
+                          idref="830" line="48" value="1"/>
+                      </primary_expression>
+                    </add_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="36" file="sc_fifo.cpp"
+                  idref="832" line="50">
+                  <assignment column="15" file="sc_fifo.cpp" idref="852" line="50">
+                    <primary_expression column="11" file="sc_fifo.cpp"
+                      idref="848" line="50">
+                      <arrayaccess_expression column="10"
+                        file="sc_fifo.cpp" idref="840" line="50">
+                        <primary_expression column="36"
+                          file="sc_fifo.cpp" idref="836" line="50">
+                          <id_expression column="7" file="sc_fifo.cpp"
+                            idref="838" line="50" name="buf"/>
+                        </primary_expression>
+                        <primary_expression column="10"
+                          file="sc_fifo.cpp" idref="844" line="50">
+                          <id_expression column="11" file="sc_fifo.cpp"
+                            idref="846" line="50" name="wi"/>
+                        </primary_expression>
+                      </arrayaccess_expression>
+                    </primary_expression>
+                    <assignment_operator column="13" file="sc_fifo.cpp"
+                      idref="850" line="50"/>
+                    <primary_expression column="15" file="sc_fifo.cpp"
+                      idref="856" line="50">
+                      <id_expression column="17" file="sc_fifo.cpp"
+                        idref="858" line="50" name="val"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="20" file="sc_fifo.cpp"
+                  idref="860" line="51">
+                  <assignment column="10" file="sc_fifo.cpp" idref="870" line="51">
+                    <primary_expression column="20" file="sc_fifo.cpp"
+                      idref="864" line="51">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="866" line="51" name="wi"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="868" line="51"/>
+                    <mod_node column="23" file="sc_fifo.cpp" idref="890" line="51">
+                      <primary_expression column="10" file="sc_fifo.cpp"
+                        idref="874" line="51">
+                        <add_node column="17" file="sc_fifo.cpp"
+                          idref="882" line="51">
+                          <primary_expression column="12"
+                            file="sc_fifo.cpp" idref="878" line="51">
+                            <id_expression column="14"
+                              file="sc_fifo.cpp" idref="880" line="51" name="wi"/>
+                          </primary_expression>
+                          <primary_expression column="17"
+                            file="sc_fifo.cpp" idref="886" line="51">
+                            <constant column="17" file="sc_fifo.cpp"
+                              idref="888" line="51" value="1"/>
+                          </primary_expression>
+                        </add_node>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.cpp"
+                        idref="894" line="51">
+                        <id_expression column="25" file="sc_fifo.cpp"
+                          idref="896" line="51" name="size"/>
+                      </primary_expression>
+                    </mod_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="29" file="sc_fifo.cpp"
+                  idref="898" line="52">
+                  <assignment column="12" file="sc_fifo.cpp" idref="908" line="52">
+                    <primary_expression column="29" file="sc_fifo.cpp"
+                      idref="902" line="52">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="904" line="52" name="free"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="906" line="52"/>
+                    <subtract_node column="19" file="sc_fifo.cpp"
+                      idref="916" line="52">
+                      <primary_expression column="12" file="sc_fifo.cpp"
+                        idref="912" line="52">
+                        <id_expression column="14" file="sc_fifo.cpp"
+                          idref="914" line="52" name="free"/>
+                      </primary_expression>
+                      <primary_expression column="19" file="sc_fifo.cpp"
+                        idref="920" line="52">
+                        <constant column="19" file="sc_fifo.cpp"
+                          idref="922" line="52" value="1"/>
+                      </primary_expression>
+                    </subtract_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="21" file="sc_fifo.cpp"
+                  idref="924" line="54">
+                  <postfix_expression column="21" file="sc_fifo.cpp"
+                    idref="926" line="54">
+                    <primary_expression column="21" file="sc_fifo.cpp"
+                      idref="928" line="54">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="930" line="54" name="request_update"/>
+                    </primary_expression>
+                    <arguments column="7" file="sc_fifo.cpp" idref="932" line="54"/>
+                  </postfix_expression>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.cpp" idref="934" line="59">
+            <function_definition column="5" file="sc_fifo.cpp"
+              idref="936" line="59">
+              <declaration_specifiers column="5" file="sc_fifo.cpp"
+                idref="938" line="59">
+                <builtin_type_specifier column="5" file="sc_fifo.cpp"
+                  idref="940" length="0" line="59" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.cpp"
+                idref="942" line="59">
+                <qualified_id column="5" file="sc_fifo.cpp" idref="944"
+                  line="59" name="update"/>
+              </function_declarator>
+              <block column="17" file="sc_fifo.cpp" idref="946" line="60">
+                <block_statement column="5" file="sc_fifo.cpp"
+                  idref="948" line="61">
+                  <if_statement column="5" file="sc_fifo.cpp"
+                    idref="950" line="61">
+                    <gt_node column="20" file="sc_fifo.cpp" idref="958" line="61">
+                      <primary_expression column="9" file="sc_fifo.cpp"
+                        idref="954" line="61">
+                        <id_expression column="11" file="sc_fifo.cpp"
+                          idref="956" line="61" name="num_read"/>
+                      </primary_expression>
+                      <primary_expression column="20" file="sc_fifo.cpp"
+                        idref="962" line="61">
+                        <constant column="20" file="sc_fifo.cpp"
+                          idref="964" line="61" value="0"/>
+                      </primary_expression>
+                    </gt_node>
+                    <block column="24" file="sc_fifo.cpp" idref="966" line="61">
+                      <block_statement column="26" file="sc_fifo.cpp"
+                        idref="968" line="62">
+                        <sc_notify column="26" file="sc_fifo.cpp"
+                          idref="970" line="62" name="data_read_event">
+                          <arguments_list column="31" file="sc_fifo.cpp"
+                            idref="972" line="62">
+                            <primary_expression column="31"
+                              file="sc_fifo.cpp" idref="976" line="62">
+                              <constant column="31" file="sc_fifo.cpp"
+                                idref="978" line="62" value="SC_ZERO_TIME"/>
+                            </primary_expression>
+                          </arguments_list>
+                        </sc_notify>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.cpp"
+                  idref="980" line="65">
+                  <if_statement column="7" file="sc_fifo.cpp"
+                    idref="982" line="65">
+                    <gt_node column="23" file="sc_fifo.cpp" idref="990" line="65">
+                      <primary_expression column="9" file="sc_fifo.cpp"
+                        idref="986" line="65">
+                        <id_expression column="11" file="sc_fifo.cpp"
+                          idref="988" line="65" name="num_written"/>
+                      </primary_expression>
+                      <primary_expression column="23" file="sc_fifo.cpp"
+                        idref="994" line="65">
+                        <constant column="23" file="sc_fifo.cpp"
+                          idref="996" line="65" value="0"/>
+                      </primary_expression>
+                    </gt_node>
+                    <block column="27" file="sc_fifo.cpp" idref="998" line="65">
+                      <block_statement column="29" file="sc_fifo.cpp"
+                        idref="1000" line="66">
+                        <sc_notify column="29" file="sc_fifo.cpp"
+                          idref="1002" line="66" name="data_written_event">
+                          <arguments_list column="34" file="sc_fifo.cpp"
+                            idref="1004" line="66">
+                            <primary_expression column="34"
+                              file="sc_fifo.cpp" idref="1008" line="66">
+                              <constant column="34" file="sc_fifo.cpp"
+                                idref="1010" line="66" value="SC_ZERO_TIME"/>
+                            </primary_expression>
+                          </arguments_list>
+                        </sc_notify>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_fifo.cpp"
+                  idref="1012" line="69">
+                  <assignment column="20" file="sc_fifo.cpp"
+                    idref="1022" line="69">
+                    <primary_expression column="7" file="sc_fifo.cpp"
+                      idref="1016" line="69">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="1018" line="69" name="num_readable"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="1020" line="69"/>
+                    <subtract_node column="27" file="sc_fifo.cpp"
+                      idref="1030" line="69">
+                      <primary_expression column="20" file="sc_fifo.cpp"
+                        idref="1026" line="69">
+                        <id_expression column="22" file="sc_fifo.cpp"
+                          idref="1028" line="69" name="size"/>
+                      </primary_expression>
+                      <primary_expression column="27" file="sc_fifo.cpp"
+                        idref="1034" line="69">
+                        <id_expression column="29" file="sc_fifo.cpp"
+                          idref="1036" line="69" name="free"/>
+                      </primary_expression>
+                    </subtract_node>
+                  </assignment>
+                </block_statement>
+                <block_statement column="33" file="sc_fifo.cpp"
+                  idref="1038" line="70">
+                  <assignment column="16" file="sc_fifo.cpp"
+                    idref="1048" line="70">
+                    <primary_expression column="33" file="sc_fifo.cpp"
+                      idref="1042" line="70">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="1044" line="70" name="num_read"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="1046" line="70"/>
+                    <primary_expression column="16" file="sc_fifo.cpp"
+                      idref="1052" line="70">
+                      <constant column="16" file="sc_fifo.cpp"
+                        idref="1054" line="70" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="19" file="sc_fifo.cpp"
+                  idref="1056" line="71">
+                  <assignment column="19" file="sc_fifo.cpp"
+                    idref="1066" line="71">
+                    <primary_expression column="19" file="sc_fifo.cpp"
+                      idref="1060" line="71">
+                      <id_expression column="7" file="sc_fifo.cpp"
+                        idref="1062" line="71" name="num_written"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_fifo.cpp"
+                      idref="1064" line="71"/>
+                    <primary_expression column="19" file="sc_fifo.cpp"
+                      idref="1070" line="71">
+                      <constant column="19" file="sc_fifo.cpp"
+                        idref="1072" line="71" value="0"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.cpp" idref="1074" line="75">
+            <function_definition column="5" file="sc_fifo.cpp"
+              idref="1076" line="75">
+              <declaration_specifiers column="5" file="sc_fifo.cpp"
+                idref="1078" line="75">
+                <builtin_type_specifier column="5" file="sc_fifo.cpp"
+                  idref="1080" length="0" line="75" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.cpp"
+                idref="1082" line="75">
+                <qualified_id column="5" file="sc_fifo.cpp" idref="1084"
+                  line="75" name="num_available"/>
+              </function_declarator>
+              <block column="23" file="sc_fifo.cpp" idref="1086" line="75">
+                <block_statement column="25" file="sc_fifo.cpp"
+                  idref="1088" line="76">
+                  <return_statement column="25" file="sc_fifo.cpp"
+                    idref="1090" line="76">
+                    <primary_expression column="7" file="sc_fifo.cpp"
+                      idref="1094" line="76">
+                      <subtract_node column="29" file="sc_fifo.cpp"
+                        idref="1102" line="76">
+                        <primary_expression column="14"
+                          file="sc_fifo.cpp" idref="1098" line="76">
+                          <id_expression column="16" file="sc_fifo.cpp"
+                            idref="1100" line="76" name="num_readable"/>
+                        </primary_expression>
+                        <primary_expression column="29"
+                          file="sc_fifo.cpp" idref="1106" line="76">
+                          <id_expression column="31" file="sc_fifo.cpp"
+                            idref="1108" line="76" name="num_read"/>
+                        </primary_expression>
+                      </subtract_node>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_fifo.cpp" idref="1110" line="79">
+            <function_definition column="5" file="sc_fifo.cpp"
+              idref="1112" line="79">
+              <declaration_specifiers column="5" file="sc_fifo.cpp"
+                idref="1114" line="79">
+                <builtin_type_specifier column="5" file="sc_fifo.cpp"
+                  idref="1116" length="0" line="79" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_fifo.cpp"
+                idref="1118" line="79">
+                <qualified_id column="5" file="sc_fifo.cpp" idref="1120"
+                  line="79" name="num_free"/>
+              </function_declarator>
+              <block column="18" file="sc_fifo.cpp" idref="1122" line="79">
+                <block_statement column="20" file="sc_fifo.cpp"
+                  idref="1124" line="80">
+                  <return_statement column="20" file="sc_fifo.cpp"
+                    idref="1126" line="80">
+                    <primary_expression column="7" file="sc_fifo.cpp"
+                      idref="1130" line="80">
+                      <subtract_node column="36" file="sc_fifo.cpp"
+                        idref="1146" line="80">
+                        <subtract_node column="21" file="sc_fifo.cpp"
+                          idref="1138" line="80">
+                          <primary_expression column="14"
+                            file="sc_fifo.cpp" idref="1134" line="80">
+                            <id_expression column="16"
+                              file="sc_fifo.cpp" idref="1136" line="80" name="size"/>
+                          </primary_expression>
+                          <primary_expression column="21"
+                            file="sc_fifo.cpp" idref="1142" line="80">
+                            <id_expression column="23"
+                              file="sc_fifo.cpp" idref="1144" line="80" name="num_readable"/>
+                          </primary_expression>
+                        </subtract_node>
+                        <primary_expression column="36"
+                          file="sc_fifo.cpp" idref="1150" line="80">
+                          <id_expression column="38" file="sc_fifo.cpp"
+                            idref="1152" line="80" name="num_written"/>
+                        </primary_expression>
+                      </subtract_node>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+  <comment column="1" file="sc_fifo.cpp" idref="1153" line="84" name="/*&#xa;&#xa;class myfifo_if : &#xa;    virtual public sc_interface &#xa;{&#xa;  public:&#xa;    virtual void write(int) = 0;&#xa;    virtual void read(int &amp;) = 0;&#xa;};&#xa;&#xa;class myfifo : &#xa;    public sc_prim_channel, public myfifo_if &#xa;{&#xa;  private:&#xa;    int buffer[BUFFERSIZE];&#xa;    int n_free, n_read, n_written, r_pos, w_pos;&#xa;  public: &#xa;    sc_event w_event, r_event;&#xa;  myfifo(const char* name) : &#xa;      sc_prim_channel(name), n_free(0), &#xa;  r_pos(0), w_pos(0), n_read(0), n_written(0) {}  &#xa;&#xa;  void write(int c) &#xa;  {&#xa;    while (n_free == 0)&#xa;      wait(r_event);&#xa;    buffer[w_pos] = c;&#xa;    w_pos = (w_pos + 1)%BUFFERSIZE;&#xa;    n_written++;&#xa;    n_free--;&#xa;    request_update();&#xa;  }&#xa;&#xa;  void read(int &amp;c) &#xa;  {&#xa;    while (n_free == BUFFERSIZE)&#xa;    {&#xa;      cout &lt;&lt; sc_time_stamp() &lt;&lt; &quot;: read is waiting for w_event&quot; &lt;&lt; endl;&#xa;      wait(w_event);&#xa;    }&#xa;    n_read++;&#xa;    c = buffer[r_pos];&#xa;    r_pos = (r_pos + 1)%BUFFERSIZE;&#xa;    n_free++;&#xa;    request_update();&#xa;  }&#xa;&#xa;  void update()&#xa;  {&#xa;    if( n_read > 0 ) {&#xa;      r_event.notify(SC_ZERO_TIME);&#xa;    }&#xa;&#xa;    if( n_written > 0 ) {&#xa;      w_event.notify(SC_ZERO_TIME);&#xa;    }&#xa;&#xa;    n_read = 0;&#xa;    n_written = 0;&#xa;  }&#xa;&#xa;};&#xa;&#xa;*/"/>
+  <external_declaration column="2" file="sc_signal.cpp" idref="1155" line="3">
+    <declaration column="2" file="sc_signal.cpp" idref="1157" line="3">
+      <declaration_specifiers column="2" file="sc_signal.cpp"
+        idref="1161" line="3">
+        <class_specifier column="2" extSCModule="true"
+          file="sc_signal.cpp" idref="1163" keyword="class" line="3" name="sc_signalx">
+          <base_clause column="7" file="sc_signal.cpp" idref="1165" line="3">
+            <base_specifier column="18" file="sc_signal.cpp"
+              idref="1167" length="0" line="3" name="sc_prim_channel" sc_dt="true">
+              <base_class_access_specifier column="18"
+                file="sc_signal.cpp" idref="1169" line="3" name="public"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="1" file="sc_signal.cpp"
+            idref="1171" line="5">
+            <access_specifier column="1" file="sc_signal.cpp"
+              idref="1173" line="5" name="public"/>
+          </member_declaration>
+          <member_declaration column="9" file="sc_signal.cpp"
+            idref="1175" line="6">
+            <member_declarator_list column="9" file="sc_signal.cpp"
+              idref="1177" line="6">
+              <declaration_specifiers column="9" file="sc_signal.cpp"
+                idref="1179" line="6">
+                <builtin_type_specifier column="9" file="sc_signal.cpp"
+                  idref="1181" length="0" line="6" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_signal.cpp"
+                idref="1183" line="6">
+                <declarator column="5" file="sc_signal.cpp" idref="1185" line="6">
+                  <qualified_id column="5" file="sc_signal.cpp"
+                    idref="1187" line="6" name="change"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="20" file="sc_signal.cpp"
+            idref="1189" line="8">
+            <member_declarator_list column="20" file="sc_signal.cpp"
+              idref="1191" line="8">
+              <declaration_specifiers column="20" file="sc_signal.cpp"
+                idref="1193" line="8">
+                <builtin_type_specifier column="20" file="sc_signal.cpp"
+                  idref="1195" length="0" line="8" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_signal.cpp"
+                idref="1197" line="8">
+                <declarator column="5" file="sc_signal.cpp" idref="1199" line="8">
+                  <qualified_id column="5" file="sc_signal.cpp"
+                    idref="1201" line="8" name="val"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="12" file="sc_signal.cpp"
+            idref="1203" line="9">
+            <member_declarator_list column="12" file="sc_signal.cpp"
+              idref="1205" line="9">
+              <declaration_specifiers column="12" file="sc_signal.cpp"
+                idref="1207" line="9">
+                <builtin_type_specifier column="12" file="sc_signal.cpp"
+                  idref="1209" length="0" line="9" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_signal.cpp"
+                idref="1211" line="9">
+                <declarator column="5" file="sc_signal.cpp" idref="1213" line="9">
+                  <qualified_id column="5" file="sc_signal.cpp"
+                    idref="1215" line="9" name="_val"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="13" file="sc_signal.cpp"
+            idref="1217" line="11">
+            <member_declarator_list column="13" file="sc_signal.cpp"
+              idref="1219" line="11">
+              <declaration_specifiers column="13" file="sc_signal.cpp"
+                idref="1221" line="11">
+                <builtin_type_specifier column="13" file="sc_signal.cpp"
+                  idref="1223" length="0" line="11" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_signal.cpp"
+                idref="1225" line="11">
+                <declarator column="5" file="sc_signal.cpp" idref="1227" line="11">
+                  <qualified_id column="5" file="sc_signal.cpp"
+                    idref="1229" line="11" name="delta"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="14" file="sc_signal.cpp"
+            idref="1231" line="14">
+            <function_definition column="14" file="sc_signal.cpp"
+              idref="1233" line="14">
+              <declaration_specifiers column="14" file="sc_signal.cpp"
+                idref="1235" line="14">
+                <builtin_type_specifier column="14" file="sc_signal.cpp"
+                  idref="1237" length="0" line="14" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_signal.cpp"
+                idref="1239" line="14">
+                <qualified_id column="5" file="sc_signal.cpp"
+                  idref="1241" line="14" name="read"/>
+              </function_declarator>
+              <block column="14" file="sc_signal.cpp" idref="1243" line="14">
+                <block_statement column="16" file="sc_signal.cpp"
+                  idref="1245" line="15">
+                  <return_statement column="16" file="sc_signal.cpp"
+                    idref="1247" line="15">
+                    <primary_expression column="7" file="sc_signal.cpp"
+                      idref="1251" line="15">
+                      <id_expression column="14" file="sc_signal.cpp"
+                        idref="1253" line="15" name="val"/>
+                    </primary_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_signal.cpp"
+            idref="1255" line="18">
+            <function_definition column="5" file="sc_signal.cpp"
+              idref="1257" line="18">
+              <declaration_specifiers column="5" file="sc_signal.cpp"
+                idref="1259" line="18">
+                <builtin_type_specifier column="5" file="sc_signal.cpp"
+                  idref="1261" length="0" line="18" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_signal.cpp"
+                idref="1263" line="18">
+                <qualified_id column="5" file="sc_signal.cpp"
+                  idref="1265" line="18" name="write"/>
+                <parameter_list column="15" file="sc_signal.cpp"
+                  idref="1267" line="18">
+                  <parameter_declaration column="15"
+                    file="sc_signal.cpp" idref="1269" line="18">
+                    <declaration_specifiers column="15"
+                      file="sc_signal.cpp" idref="1271" line="18">
+                      <builtin_type_specifier column="15"
+                        file="sc_signal.cpp" idref="1273" length="0"
+                        line="18" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="16" file="sc_signal.cpp"
+                      idref="1275" line="18">
+                      <qualified_id column="16" file="sc_signal.cpp"
+                        idref="1277" line="18" name="newval"/>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="26" file="sc_signal.cpp" idref="1279" line="18">
+                <block_statement column="28" file="sc_signal.cpp"
+                  idref="1281" line="19">
+                  <assignment column="12" file="sc_signal.cpp"
+                    idref="1291" line="19">
+                    <primary_expression column="28" file="sc_signal.cpp"
+                      idref="1285" line="19">
+                      <id_expression column="7" file="sc_signal.cpp"
+                        idref="1287" line="19" name="_val"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_signal.cpp"
+                      idref="1289" line="19"/>
+                    <primary_expression column="12" file="sc_signal.cpp"
+                      idref="1295" line="19">
+                      <id_expression column="14" file="sc_signal.cpp"
+                        idref="1297" line="19" name="newval"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="20" file="sc_signal.cpp"
+                  idref="1299" line="20">
+                  <if_statement column="20" file="sc_signal.cpp"
+                    idref="1301" line="20">
+                    <unary_expression column="10" file="sc_signal.cpp"
+                      idref="1303" line="20">
+                      <unary_operator column="10" file="sc_signal.cpp"
+                        idref="1305" line="20" operator="not"/>
+                      <primary_expression column="11"
+                        file="sc_signal.cpp" idref="1309" line="20">
+                        <eq_node column="18" file="sc_signal.cpp"
+                          idref="1317" line="20">
+                          <primary_expression column="12"
+                            file="sc_signal.cpp" idref="1313" line="20">
+                            <id_expression column="13"
+                              file="sc_signal.cpp" idref="1315"
+                              line="20" name="_val"/>
+                          </primary_expression>
+                          <primary_expression column="18"
+                            file="sc_signal.cpp" idref="1321" line="20">
+                            <id_expression column="21"
+                              file="sc_signal.cpp" idref="1323"
+                              line="20" name="val"/>
+                          </primary_expression>
+                        </eq_node>
+                      </primary_expression>
+                    </unary_expression>
+                    <block column="25" file="sc_signal.cpp" idref="1325" line="21">
+                      <block_statement column="25" file="sc_signal.cpp"
+                        idref="1327" line="21">
+                        <postfix_expression column="25"
+                          file="sc_signal.cpp" idref="1329" line="21">
+                          <primary_expression column="25"
+                            file="sc_signal.cpp" idref="1331" line="21">
+                            <id_expression column="2"
+                              file="sc_signal.cpp" idref="1333"
+                              line="21" name="request_update"/>
+                          </primary_expression>
+                          <arguments column="2" file="sc_signal.cpp"
+                            idref="1335" line="21"/>
+                        </postfix_expression>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_signal.cpp"
+            idref="1337" line="24">
+            <function_definition column="5" file="sc_signal.cpp"
+              idref="1339" line="24">
+              <declaration_specifiers column="5" file="sc_signal.cpp"
+                idref="1341" line="24">
+                <builtin_type_specifier column="5" file="sc_signal.cpp"
+                  idref="1343" length="0" line="24" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_signal.cpp"
+                idref="1345" line="24">
+                <qualified_id column="5" file="sc_signal.cpp"
+                  idref="1347" line="24" name="update"/>
+              </function_declarator>
+              <block column="17" file="sc_signal.cpp" idref="1349" line="24">
+                <block_statement column="19" file="sc_signal.cpp"
+                  idref="1351" line="25">
+                  <if_statement column="19" file="sc_signal.cpp"
+                    idref="1353" line="25">
+                    <unary_expression column="10" file="sc_signal.cpp"
+                      idref="1355" line="25">
+                      <unary_operator column="10" file="sc_signal.cpp"
+                        idref="1357" line="25" operator="not"/>
+                      <primary_expression column="11"
+                        file="sc_signal.cpp" idref="1361" line="25">
+                        <eq_node column="18" file="sc_signal.cpp"
+                          idref="1369" line="25">
+                          <primary_expression column="12"
+                            file="sc_signal.cpp" idref="1365" line="25">
+                            <id_expression column="13"
+                              file="sc_signal.cpp" idref="1367"
+                              line="25" name="_val"/>
+                          </primary_expression>
+                          <primary_expression column="18"
+                            file="sc_signal.cpp" idref="1373" line="25">
+                            <id_expression column="21"
+                              file="sc_signal.cpp" idref="1375"
+                              line="25" name="val"/>
+                          </primary_expression>
+                        </eq_node>
+                      </primary_expression>
+                    </unary_expression>
+                    <block column="25" file="sc_signal.cpp" idref="1377" line="26">
+                      <block_statement column="2" file="sc_signal.cpp"
+                        idref="1379" line="27">
+                        <assignment column="8" file="sc_signal.cpp"
+                          idref="1389" line="27">
+                          <primary_expression column="2"
+                            file="sc_signal.cpp" idref="1383" line="27">
+                            <id_expression column="4"
+                              file="sc_signal.cpp" idref="1385"
+                              line="27" name="val"/>
+                          </primary_expression>
+                          <assignment_operator column="4"
+                            file="sc_signal.cpp" idref="1387" line="27"/>
+                          <primary_expression column="8"
+                            file="sc_signal.cpp" idref="1393" line="27">
+                            <id_expression column="10"
+                              file="sc_signal.cpp" idref="1395"
+                              line="27" name="_val"/>
+                          </primary_expression>
+                        </assignment>
+                      </block_statement>
+                      <block_statement column="14" file="sc_signal.cpp"
+                        idref="1397" line="28">
+                        <sc_notify column="14" file="sc_signal.cpp"
+                          idref="1399" line="28" name="change">
+                          <arguments_list column="17"
+                            file="sc_signal.cpp" idref="1401" line="28">
+                            <primary_expression column="17"
+                              file="sc_signal.cpp" idref="1405" line="28">
+                              <constant column="17" file="sc_signal.cpp"
+                                idref="1407" line="28" value="SC_ZERO_TIME"/>
+                            </primary_expression>
+                          </arguments_list>
+                        </sc_notify>
+                      </block_statement>
+                      <block_statement column="31" file="sc_signal.cpp"
+                        idref="1409" line="29">
+                        <assignment column="10" file="sc_signal.cpp"
+                          idref="1419" line="29">
+                          <primary_expression column="31"
+                            file="sc_signal.cpp" idref="1413" line="29">
+                            <id_expression column="4"
+                              file="sc_signal.cpp" idref="1415"
+                              line="29" name="delta"/>
+                          </primary_expression>
+                          <assignment_operator column="4"
+                            file="sc_signal.cpp" idref="1417" line="29"/>
+                          <postfix_expression column="10"
+                            file="sc_signal.cpp" idref="1421" line="29">
+                            <primary_expression column="10"
+                              file="sc_signal.cpp" idref="1423" line="29">
+                              <id_expression column="12"
+                                file="sc_signal.cpp" idref="1425"
+                                line="29" name="delta_count"/>
+                            </primary_expression>
+                            <arguments column="12" file="sc_signal.cpp"
+                              idref="1427" line="29"/>
+                          </postfix_expression>
+                        </assignment>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_signal.cpp"
+            idref="1429" line="33">
+            <function_definition column="5" file="sc_signal.cpp"
+              idref="1431" line="33">
+              <declaration_specifiers column="5" file="sc_signal.cpp"
+                idref="1433" line="33">
+                <builtin_type_specifier column="5" file="sc_signal.cpp"
+                  idref="1435" length="0" line="33" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_signal.cpp"
+                idref="1437" line="33">
+                <qualified_id column="5" file="sc_signal.cpp"
+                  idref="1439" line="33" name="event"/>
+              </function_declarator>
+              <block column="16" file="sc_signal.cpp" idref="1441" line="33">
+                <block_statement column="18" file="sc_signal.cpp"
+                  idref="1443" line="34">
+                  <return_statement column="18" file="sc_signal.cpp"
+                    idref="1445" line="34">
+                    <postfix_expression column="7" file="sc_signal.cpp"
+                      idref="1447" line="34">
+                      <primary_expression column="7"
+                        file="sc_signal.cpp" idref="1449" line="34">
+                        <id_expression column="14" file="sc_signal.cpp"
+                          idref="1451" line="34" name="simcontext"/>
+                      </primary_expression>
+                      <arguments column="14" file="sc_signal.cpp"
+                        idref="1453" line="34"/>
+                      <dereferencing_operator column="25"
+                        file="sc_signal.cpp" idref="1455" line="34" name="*"/>
+                      <id_expression column="28" file="sc_signal.cpp"
+                        idref="1457" line="34" name="event_occurred"/>
+                      <arguments column="28" file="sc_signal.cpp"
+                        idref="1459" line="34">
+                        <arguments_list column="42" file="sc_signal.cpp"
+                          idref="1461" line="34">
+                          <primary_expression column="42"
+                            file="sc_signal.cpp" idref="1465" line="34">
+                            <id_expression column="43"
+                              file="sc_signal.cpp" idref="1467"
+                              line="34" name="delta"/>
+                          </primary_expression>
+                        </arguments_list>
+                      </arguments>
+                    </postfix_expression>
+                  </return_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_signal.cpp"
+            idref="1469" line="37">
+            <ctor_definition column="5" file="sc_signal.cpp"
+              idref="1471" line="37">
+              <qualified_id column="5" file="sc_signal.cpp" idref="1473"
+                line="37" name="sc_signalx"/>
+              <block column="16" file="sc_signal.cpp" idref="1475" line="37">
+                <block_statement column="18" file="sc_signal.cpp"
+                  idref="1477" line="38">
+                  <assignment column="13" file="sc_signal.cpp"
+                    idref="1487" line="38">
+                    <primary_expression column="18" file="sc_signal.cpp"
+                      idref="1481" line="38">
+                      <id_expression column="7" file="sc_signal.cpp"
+                        idref="1483" line="38" name="delta"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_signal.cpp"
+                      idref="1485" line="38"/>
+                    <unary_expression column="13" file="sc_signal.cpp"
+                      idref="1489" line="38">
+                      <unary_operator column="13" file="sc_signal.cpp"
+                        idref="1491" line="38" operator="minnus"/>
+                      <primary_expression column="15"
+                        file="sc_signal.cpp" idref="1495" line="38">
+                        <constant column="15" file="sc_signal.cpp"
+                          idref="1497" line="38" value="1"/>
+                      </primary_expression>
+                    </unary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </ctor_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+  <external_declaration column="2" file="tlm_fw_bw_if.cpp" idref="1499" line="1">
+    <declaration column="2" file="tlm_fw_bw_if.cpp" idref="1501" line="1">
+      <declaration_specifiers column="2" file="tlm_fw_bw_if.cpp"
+        idref="1505" line="1">
+        <class_specifier column="2" extSCModule="false"
+          file="tlm_fw_bw_if.cpp" idref="1507" keyword="class" line="1" name="tlm_fw_bw_if">
+          <base_clause column="7" file="tlm_fw_bw_if.cpp" idref="1509" line="1">
+            <base_specifier column="20" file="tlm_fw_bw_if.cpp"
+              idref="1511" length="0" line="1" name="sc_prim_channel" sc_dt="true">
+              <base_class_access_specifier column="20"
+                file="tlm_fw_bw_if.cpp" idref="1513" line="1" name="public"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="1" file="tlm_fw_bw_if.cpp"
+            idref="1515" line="3">
+            <access_specifier column="1" file="tlm_fw_bw_if.cpp"
+              idref="1517" line="3" name="private"/>
+          </member_declaration>
+          <member_declaration column="8" file="tlm_fw_bw_if.cpp"
+            idref="1519" line="4">
+            <member_declarator_list column="8" file="tlm_fw_bw_if.cpp"
+              idref="1521" line="4">
+              <declaration_specifiers column="8" file="tlm_fw_bw_if.cpp"
+                idref="1523" line="4">
+                <builtin_type_specifier column="8"
+                  file="tlm_fw_bw_if.cpp" idref="1525" length="0"
+                  line="4" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="3" file="tlm_fw_bw_if.cpp"
+                idref="1527" line="4">
+                <declarator column="3" file="tlm_fw_bw_if.cpp"
+                  idref="1529" line="4">
+                  <qualified_id column="3" file="tlm_fw_bw_if.cpp"
+                    idref="1531" line="4" name="dummy"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="12" file="tlm_fw_bw_if.cpp"
+            idref="1533" line="5">
+            <declaration column="12" file="tlm_fw_bw_if.cpp"
+              idref="1535" line="5">
+              <declaration_specifiers column="12"
+                file="tlm_fw_bw_if.cpp" idref="1539" line="5">
+                <class_specifier column="12" extSCModule="false"
+                  file="tlm_fw_bw_if.cpp" idref="1541" keyword="struct"
+                  line="5" name="data">
+                  <comment column="4" file="tlm_fw_bw_if.cpp"
+                    idref="1542" line="7" name="//containing the submitted value"/>
+                  <member_declaration column="3" file="tlm_fw_bw_if.cpp"
+                    idref="1544" line="8">
+                    <member_declarator_list column="3"
+                      file="tlm_fw_bw_if.cpp" idref="1546" line="8">
+                      <declaration_specifiers column="3"
+                        file="tlm_fw_bw_if.cpp" idref="1548" line="8">
+                        <builtin_type_specifier column="3"
+                          file="tlm_fw_bw_if.cpp" idref="1550"
+                          length="0" line="8" name="int" sc_dt="false"/>
+                      </declaration_specifiers>
+                      <member_declarator column="5"
+                        file="tlm_fw_bw_if.cpp" idref="1552" line="8">
+                        <declarator column="5" file="tlm_fw_bw_if.cpp"
+                          idref="1554" line="8">
+                          <qualified_id column="5"
+                            file="tlm_fw_bw_if.cpp" idref="1556"
+                            line="8" name="val"/>
+                        </declarator>
+                      </member_declarator>
+                    </member_declarator_list>
+                  </member_declaration>
+                </class_specifier>
+              </declaration_specifiers>
+            </declaration>
+          </member_declaration>
+          <member_declaration column="4" file="tlm_fw_bw_if.cpp"
+            idref="1558" line="10">
+            <access_specifier column="4" file="tlm_fw_bw_if.cpp"
+              idref="1560" line="10" name="public"/>
+          </member_declaration>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="1561"
+            line="12" name="// virtual void invalidate_direct_mem_ptr(sc_dt::uint64 start_range, sc_dt::uint64 end_range) {}"/>
+          <comment column="3" file="tlm_fw_bw_if.cpp" idref="1562"
+            line="11" name="//  int test() {return 0;}"/>
+          <member_declaration column="9" file="tlm_fw_bw_if.cpp"
+            idref="1564" line="13">
+            <function_definition column="9" file="tlm_fw_bw_if.cpp"
+              idref="1566" line="13">
+              <declaration_specifiers column="9" file="tlm_fw_bw_if.cpp"
+                idref="1568" line="13">
+                <builtin_type_specifier column="9"
+                  file="tlm_fw_bw_if.cpp" idref="1570" length="0"
+                  line="13" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="3" file="tlm_fw_bw_if.cpp"
+                idref="1572" line="13">
+                <qualified_id column="3" file="tlm_fw_bw_if.cpp"
+                  idref="1574" line="13" name="nb_transport_bw"/>
+                <parameter_list column="22" file="tlm_fw_bw_if.cpp"
+                  idref="1576" line="13">
+                  <parameter_declaration column="22"
+                    file="tlm_fw_bw_if.cpp" idref="1578" line="13">
+                    <declaration_specifiers column="22"
+                      file="tlm_fw_bw_if.cpp" idref="1580" line="13">
+                      <builtin_type_specifier column="22"
+                        file="tlm_fw_bw_if.cpp" idref="1582" length="0"
+                        line="13" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="23" file="tlm_fw_bw_if.cpp"
+                      idref="1584" line="13">
+                      <ptr_operator column="23" file="tlm_fw_bw_if.cpp"
+                        idref="1586" line="13" name="&amp;"/>
+                      <declarator column="26" file="tlm_fw_bw_if.cpp"
+                        idref="1588" line="13">
+                        <qualified_id column="26"
+                          file="tlm_fw_bw_if.cpp" idref="1590" line="13" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="32"
+                    file="tlm_fw_bw_if.cpp" idref="1592" line="13">
+                    <declaration_specifiers column="32"
+                      file="tlm_fw_bw_if.cpp" idref="1594" line="13">
+                      <builtin_type_specifier column="32"
+                        file="tlm_fw_bw_if.cpp" idref="1596" length="0"
+                        line="13" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="34" file="tlm_fw_bw_if.cpp"
+                      idref="1598" line="13">
+                      <ptr_operator column="34" file="tlm_fw_bw_if.cpp"
+                        idref="1600" line="13" name="&amp;"/>
+                      <declarator column="37" file="tlm_fw_bw_if.cpp"
+                        idref="1602" line="13">
+                        <qualified_id column="37"
+                          file="tlm_fw_bw_if.cpp" idref="1604" line="13" name="phase"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="44"
+                    file="tlm_fw_bw_if.cpp" idref="1606" line="13">
+                    <declaration_specifiers column="44"
+                      file="tlm_fw_bw_if.cpp" idref="1608" line="13">
+                      <builtin_type_specifier column="44"
+                        file="tlm_fw_bw_if.cpp" idref="1610" length="0"
+                        line="13" name="sc_time" sc_dt="true"/>
+                    </declaration_specifiers>
+                    <declarator column="46" file="tlm_fw_bw_if.cpp"
+                      idref="1612" line="13">
+                      <ptr_operator column="46" file="tlm_fw_bw_if.cpp"
+                        idref="1614" line="13" name="&amp;"/>
+                      <declarator column="53" file="tlm_fw_bw_if.cpp"
+                        idref="1616" line="13">
+                        <qualified_id column="53"
+                          file="tlm_fw_bw_if.cpp" idref="1618" line="13" name="t"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="56" file="tlm_fw_bw_if.cpp" idref="1620" line="13"/>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="59" file="tlm_fw_bw_if.cpp"
+            idref="1622" line="14">
+            <function_definition column="59" file="tlm_fw_bw_if.cpp"
+              idref="1624" line="14">
+              <declaration_specifiers column="59"
+                file="tlm_fw_bw_if.cpp" idref="1626" line="14">
+                <builtin_type_specifier column="59"
+                  file="tlm_fw_bw_if.cpp" idref="1628" length="0"
+                  line="14" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="3" file="tlm_fw_bw_if.cpp"
+                idref="1630" line="14">
+                <qualified_id column="3" file="tlm_fw_bw_if.cpp"
+                  idref="1632" line="14" name="nb_transport_fw"/>
+                <parameter_list column="22" file="tlm_fw_bw_if.cpp"
+                  idref="1634" line="14">
+                  <parameter_declaration column="22"
+                    file="tlm_fw_bw_if.cpp" idref="1636" line="14">
+                    <declaration_specifiers column="22"
+                      file="tlm_fw_bw_if.cpp" idref="1638" line="14">
+                      <builtin_type_specifier column="22"
+                        file="tlm_fw_bw_if.cpp" idref="1640" length="0"
+                        line="14" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="23" file="tlm_fw_bw_if.cpp"
+                      idref="1642" line="14">
+                      <ptr_operator column="23" file="tlm_fw_bw_if.cpp"
+                        idref="1644" line="14" name="&amp;"/>
+                      <declarator column="26" file="tlm_fw_bw_if.cpp"
+                        idref="1646" line="14">
+                        <qualified_id column="26"
+                          file="tlm_fw_bw_if.cpp" idref="1648" line="14" name="tran"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="32"
+                    file="tlm_fw_bw_if.cpp" idref="1650" line="14">
+                    <declaration_specifiers column="32"
+                      file="tlm_fw_bw_if.cpp" idref="1652" line="14">
+                      <builtin_type_specifier column="32"
+                        file="tlm_fw_bw_if.cpp" idref="1654" length="0"
+                        line="14" name="int" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <declarator column="34" file="tlm_fw_bw_if.cpp"
+                      idref="1656" line="14">
+                      <ptr_operator column="34" file="tlm_fw_bw_if.cpp"
+                        idref="1658" line="14" name="&amp;"/>
+                      <declarator column="37" file="tlm_fw_bw_if.cpp"
+                        idref="1660" line="14">
+                        <qualified_id column="37"
+                          file="tlm_fw_bw_if.cpp" idref="1662" line="14" name="phase"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                  <parameter_declaration column="44"
+                    file="tlm_fw_bw_if.cpp" idref="1664" line="14">
+                    <declaration_specifiers column="44"
+                      file="tlm_fw_bw_if.cpp" idref="1666" line="14">
+                      <builtin_type_specifier column="44"
+                        file="tlm_fw_bw_if.cpp" idref="1668" length="0"
+                        line="14" name="sc_time" sc_dt="true"/>
+                    </declaration_specifiers>
+                    <declarator column="46" file="tlm_fw_bw_if.cpp"
+                      idref="1670" line="14">
+                      <ptr_operator column="46" file="tlm_fw_bw_if.cpp"
+                        idref="1672" line="14" name="&amp;"/>
+                      <declarator column="53" file="tlm_fw_bw_if.cpp"
+                        idref="1674" line="14">
+                        <qualified_id column="53"
+                          file="tlm_fw_bw_if.cpp" idref="1676" line="14" name="t"/>
+                      </declarator>
+                    </declarator>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="56" file="tlm_fw_bw_if.cpp" idref="1678" line="14"/>
+            </function_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+  <external_declaration column="2" file="sc_clock.cpp" idref="1680" line="3">
+    <declaration column="2" file="sc_clock.cpp" idref="1682" line="3">
+      <declaration_specifiers column="2" file="sc_clock.cpp"
+        idref="1686" line="3">
+        <class_specifier column="2" extSCModule="true"
+          file="sc_clock.cpp" idref="1688" keyword="class" line="3" name="sc_clockx">
+          <base_clause column="7" file="sc_clock.cpp" idref="1690" line="3">
+            <base_specifier column="17" file="sc_clock.cpp" idref="1692"
+              length="0" line="3" name="sc_module" sc_dt="true">
+              <base_class_access_specifier column="17"
+                file="sc_clock.cpp" idref="1694" line="3" name="private"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="1" file="sc_clock.cpp"
+            idref="1696" line="5">
+            <access_specifier column="1" file="sc_clock.cpp"
+              idref="1698" line="5" name="public"/>
+          </member_declaration>
+          <member_declaration column="9" file="sc_clock.cpp"
+            idref="1700" line="6">
+            <member_declarator_list column="9" file="sc_clock.cpp"
+              idref="1702" line="6">
+              <declaration_specifiers column="9" file="sc_clock.cpp"
+                idref="1704" line="6">
+                <builtin_type_specifier column="9" file="sc_clock.cpp"
+                  idref="1706" length="0" line="6" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_clock.cpp"
+                idref="1708" line="6">
+                <declarator column="5" file="sc_clock.cpp" idref="1710" line="6">
+                  <qualified_id column="5" file="sc_clock.cpp"
+                    idref="1712" line="6" name="edge"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="18" file="sc_clock.cpp"
+            idref="1714" line="8">
+            <access_specifier column="18" file="sc_clock.cpp"
+              idref="1716" line="8" name="private"/>
+          </member_declaration>
+          <member_declaration column="10" file="sc_clock.cpp"
+            idref="1718" line="9">
+            <member_declarator_list column="10" file="sc_clock.cpp"
+              idref="1720" line="9">
+              <declaration_specifiers column="10" file="sc_clock.cpp"
+                idref="1722" line="9">
+                <builtin_type_specifier column="10" file="sc_clock.cpp"
+                  idref="1724" length="0" line="9" name="int" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_clock.cpp"
+                idref="1726" line="9">
+                <declarator column="5" file="sc_clock.cpp" idref="1728" line="9">
+                  <qualified_id column="5" file="sc_clock.cpp"
+                    idref="1730" line="9" name="period"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="15" file="sc_clock.cpp"
+            idref="1732" line="11"/>
+          <member_declaration column="30" file="sc_clock.cpp"
+            idref="1734" line="13">
+            <function_definition column="30" file="sc_clock.cpp"
+              idref="1736" line="13">
+              <declaration_specifiers column="30" file="sc_clock.cpp"
+                idref="1738" line="13">
+                <builtin_type_specifier column="30" file="sc_clock.cpp"
+                  idref="1740" length="0" line="13" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_clock.cpp"
+                idref="1742" line="13">
+                <qualified_id column="5" file="sc_clock.cpp"
+                  idref="1744" line="13" name="run"/>
+                <parameter_list column="13" file="sc_clock.cpp"
+                  idref="1746" line="13">
+                  <parameter_declaration column="13" file="sc_clock.cpp"
+                    idref="1748" line="13">
+                    <declaration_specifiers column="13"
+                      file="sc_clock.cpp" idref="1750" line="13">
+                      <builtin_type_specifier column="13"
+                        file="sc_clock.cpp" idref="1752" length="0"
+                        line="13" name="void" sc_dt="false"/>
+                    </declaration_specifiers>
+                    <abstract_declarator column="14" file="sc_clock.cpp"
+                      idref="1754" line="13"/>
+                  </parameter_declaration>
+                </parameter_list>
+              </function_declarator>
+              <block column="18" file="sc_clock.cpp" idref="1756" line="13">
+                <block_statement column="20" file="sc_clock.cpp"
+                  idref="1758" line="14">
+                  <declaration column="20" file="sc_clock.cpp"
+                    idref="1760" line="14">
+                    <init_declarator_list column="20"
+                      file="sc_clock.cpp" idref="1762" line="14">
+                      <declaration_specifiers column="20"
+                        file="sc_clock.cpp" idref="1764" line="14">
+                        <builtin_type_specifier column="20"
+                          file="sc_clock.cpp" idref="1766" length="0"
+                          line="14" name="int" sc_dt="false"/>
+                      </declaration_specifiers>
+                      <init_declarator column="7" file="sc_clock.cpp"
+                        idref="1768" line="14">
+                        <declarator column="7" file="sc_clock.cpp"
+                          idref="1770" line="14">
+                          <qualified_id column="7" file="sc_clock.cpp"
+                            idref="1772" line="14" name="tmp"/>
+                        </declarator>
+                        <initializer column="15" file="sc_clock.cpp"
+                          idref="1774" line="14">
+                          <div_node column="23" file="sc_clock.cpp"
+                            idref="1782" line="14">
+                            <primary_expression column="15"
+                              file="sc_clock.cpp" idref="1778" line="14">
+                              <id_expression column="17"
+                                file="sc_clock.cpp" idref="1780"
+                                line="14" name="period"/>
+                            </primary_expression>
+                            <primary_expression column="23"
+                              file="sc_clock.cpp" idref="1786" line="14">
+                              <constant column="23" file="sc_clock.cpp"
+                                idref="1788" line="14" value="2"/>
+                            </primary_expression>
+                          </div_node>
+                        </initializer>
+                      </init_declarator>
+                    </init_declarator_list>
+                  </declaration>
+                </block_statement>
+                <block_statement column="25" file="sc_clock.cpp"
+                  idref="1790" line="15">
+                  <sc_notify column="25" file="sc_clock.cpp"
+                    idref="1792" line="15" name="edge">
+                    <arguments_list column="18" file="sc_clock.cpp"
+                      idref="1794" line="15">
+                      <primary_expression column="18"
+                        file="sc_clock.cpp" idref="1798" line="15">
+                        <constant column="18" file="sc_clock.cpp"
+                          idref="1800" line="15" value="SC_ZERO_TIME"/>
+                      </primary_expression>
+                    </arguments_list>
+                  </sc_notify>
+                </block_statement>
+                <block_statement column="32" file="sc_clock.cpp"
+                  idref="1802" line="16">
+                  <while_statement column="32" file="sc_clock.cpp"
+                    idref="1804" line="16">
+                    <primary_expression column="14" file="sc_clock.cpp"
+                      idref="1808" line="16">
+                      <constant column="14" file="sc_clock.cpp"
+                        idref="1810" line="16" value="true"/>
+                    </primary_expression>
+                    <block column="19" file="sc_clock.cpp" idref="1812" line="16">
+                      <block_statement column="21" file="sc_clock.cpp"
+                        idref="1814" line="17">
+                        <systemCRoutine column="21" file="sc_clock.cpp"
+                          idref="1818" line="17" name="wait">
+                          <arguments column="13" file="sc_clock.cpp"
+                            idref="1820" line="17">
+                            <arguments_list column="17"
+                              file="sc_clock.cpp" idref="1822" line="17">
+                              <primary_expression column="17"
+                                file="sc_clock.cpp" idref="1826" line="17">
+                                <id_expression column="18"
+                                  file="sc_clock.cpp" idref="1828"
+                                  line="17" name="tmp"/>
+                              </primary_expression>
+                              <primary_expression column="21"
+                                file="sc_clock.cpp" idref="1832" line="17">
+                                <constant column="21"
+                                  file="sc_clock.cpp" idref="1834"
+                                  line="17" value="SC_NS"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                      <block_statement column="29" file="sc_clock.cpp"
+                        idref="1836" line="18">
+                        <sc_notify column="29" file="sc_clock.cpp"
+                          idref="1838" line="18" name="edge">
+                          <arguments_list column="17"
+                            file="sc_clock.cpp" idref="1840" line="18">
+                            <primary_expression column="17"
+                              file="sc_clock.cpp" idref="1844" line="18">
+                              <constant column="17" file="sc_clock.cpp"
+                                idref="1846" line="18" value="SC_ZERO_TIME"/>
+                            </primary_expression>
+                          </arguments_list>
+                        </sc_notify>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <member_declaration column="5" file="sc_clock.cpp"
+            idref="1848" line="22">
+            <access_specifier column="5" file="sc_clock.cpp"
+              idref="1850" line="22" name="public"/>
+          </member_declaration>
+          <member_declaration column="9" file="sc_clock.cpp"
+            idref="1852" line="23">
+            <ctor_definition column="9" file="sc_clock.cpp" idref="1854" line="23">
+              <qualified_id column="9" file="sc_clock.cpp" idref="1856"
+                line="23" name="sc_clockx"/>
+              <parameter_list column="14" file="sc_clock.cpp"
+                idref="1858" line="23">
+                <parameter_declaration column="14" file="sc_clock.cpp"
+                  idref="1860" line="23">
+                  <declaration_specifiers column="14"
+                    file="sc_clock.cpp" idref="1862" line="23">
+                    <builtin_type_specifier column="14"
+                      file="sc_clock.cpp" idref="1864" length="0"
+                      line="23" name="sc_module_name" sc_dt="true"/>
+                  </declaration_specifiers>
+                  <declarator column="15" file="sc_clock.cpp"
+                    idref="1866" line="23">
+                    <qualified_id column="15" file="sc_clock.cpp"
+                      idref="1868" line="23" name="name"/>
+                  </declarator>
+                </parameter_declaration>
+                <parameter_declaration column="34" file="sc_clock.cpp"
+                  idref="1870" line="23">
+                  <declaration_specifiers column="34"
+                    file="sc_clock.cpp" idref="1872" line="23">
+                    <builtin_type_specifier column="34"
+                      file="sc_clock.cpp" idref="1874" length="0"
+                      line="23" name="int" sc_dt="false"/>
+                  </declaration_specifiers>
+                  <declarator column="36" file="sc_clock.cpp"
+                    idref="1876" line="23">
+                    <qualified_id column="36" file="sc_clock.cpp"
+                      idref="1878" line="23" name="periodparam"/>
+                  </declarator>
+                </parameter_declaration>
+              </parameter_list>
+              <ctor_initializer column="51" file="sc_clock.cpp"
+                idref="1880" line="23">
+                <superclass_init column="52" file="sc_clock.cpp"
+                  idref="1882" line="23">
+                  <declaration_specifiers column="52"
+                    file="sc_clock.cpp" idref="1884" line="23">
+                    <builtin_type_specifier column="52"
+                      file="sc_clock.cpp" idref="1886" length="0"
+                      line="23" name="sc_module" sc_dt="true"/>
+                  </declaration_specifiers>
+                  <arguments_list column="63" file="sc_clock.cpp"
+                    idref="1888" line="23">
+                    <primary_expression column="63" file="sc_clock.cpp"
+                      idref="1892" line="23">
+                      <id_expression column="64" file="sc_clock.cpp"
+                        idref="1894" line="23" name="name"/>
+                    </primary_expression>
+                  </arguments_list>
+                </superclass_init>
+              </ctor_initializer>
+              <block column="68" file="sc_clock.cpp" idref="1896" line="24">
+                <sc_thread_block column="5" file="sc_clock.cpp"
+                  idref="1898" line="25">
+                  <sc_thread column="5" file="sc_clock.cpp" idref="1900"
+                    line="25" name="run"/>
+                </sc_thread_block>
+                <block_statement column="23" file="sc_clock.cpp"
+                  idref="1902" line="26">
+                  <assignment column="16" file="sc_clock.cpp"
+                    idref="1912" line="26">
+                    <primary_expression column="23" file="sc_clock.cpp"
+                      idref="1906" line="26">
+                      <id_expression column="9" file="sc_clock.cpp"
+                        idref="1908" line="26" name="period"/>
+                    </primary_expression>
+                    <assignment_operator column="9" file="sc_clock.cpp"
+                      idref="1910" line="26"/>
+                    <primary_expression column="16" file="sc_clock.cpp"
+                      idref="1916" line="26">
+                      <id_expression column="18" file="sc_clock.cpp"
+                        idref="1918" line="26" name="periodparam"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </ctor_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+</INTERNAL>

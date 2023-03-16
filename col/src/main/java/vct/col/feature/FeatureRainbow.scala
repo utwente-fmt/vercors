@@ -375,6 +375,7 @@ class FeatureRainbow[G] {
     case node: PointerLength[G] => Pointers
     case node: TPointer[G] => Pointers
 
+    case node: Extract[G] => ProofHelpers
     case node: FramedProof[G] => ProofHelpers
     case node: IndeterminateInteger[G] => ProofHelpers
     case node: Refute[G] => ProofHelpers

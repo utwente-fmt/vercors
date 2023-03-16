@@ -28,6 +28,7 @@ object ColDefs {
     "ClassDeclaration",
     "ADTDeclaration",
     "ModelDeclaration",
+    "EnumConstant",
     "Variable",
     "LabelDecl",
     "SendDecl",
@@ -37,6 +38,7 @@ object ColDefs {
     "CParam",
     "JavaLocalDeclaration",
     "VeyMontThread",
+    "JavaParam",
   )
 
   def scopes(kind: String): Term.Name =
@@ -47,6 +49,7 @@ object ColDefs {
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
     "ModelDeclaration" -> Seq("Program"),
+    "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
       "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
@@ -59,7 +62,7 @@ object ColDefs {
       // "InstanceFunction", "InstanceMethod",
       // "JavaConstructor", "JavaMethod",
       // "PVLConstructor",
-      "Forall", "Starall", "Exists", "Sum", "Product", "Let", "ScopedExpr" // Binders in expressions
+      "Forall", "Starall", "Exists", "Sum", "Product", "Let", "ScopedExpr", "ForPerm", // Binders in expressions
     ),
     "LabelDecl" -> Seq(
       "Function", "Procedure",
@@ -83,7 +86,11 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
+<<<<<<< HEAD
     "VeyMontThread" -> Seq("VeyMontSeqProg")
+=======
+    "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
+>>>>>>> dev
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)

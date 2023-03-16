@@ -1,4 +1,0 @@
-context a != null && a.length > 0;
-context Perm(a[*], write);
-void clear_head(int[] a)
-{ a[0] = 0; }

@@ -2,12 +2,15 @@ package vct.main.stages
 
 import hre.stages.Stage
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, Verification, VerificationContext}
+import org.antlr.v4.runtime.CharStreams
+import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
 import vct.col.resolve.lang.{C, Java}
-import vct.col.resolve.{ResolveReferences, ResolveTypes}
+import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
+import vct.col.rewrite.bip.IsolateBipGlue
 import vct.importer.JavaLibraryLoader
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
@@ -16,10 +19,13 @@ import vct.options.Options
 import vct.options.types.ClassPathEntry
 import vct.parsers.ParseResult
 import vct.parsers.transform.BlameProvider
+import vct.parsers.{ColJavaParser, FileNotFound, ParseResult}
+import vct.parsers.transform.{BlameProvider, ReadableOriginProvider, RedirectOriginProvider}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 import viper.silver.frontend.DefaultStates.Initial
 
+import java.io.{FileNotFoundException, Reader}
 import java.nio.file.Path
 
 case object Resolution {
@@ -37,6 +43,35 @@ case object Resolution {
         case ClassPathEntry.SourcePath(root) => ResolveTypes.JavaClassPathEntry.Path(root)
       },
     )
+}
+
+case class StringReadable(data: String, fileName: String = "<unknown>") extends hre.io.Readable {
+  override def isRereadable: Boolean = true
+  override protected def getReader: Reader = new java.io.StringReader(data)
+}
+
+case class SpecExprParseError(msg: String) extends UserError {
+  override def code: String = "specExprParseError"
+
+  override def text: String = msg
+}
+
+case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecExprParser {
+  override def parse[G](input: String, o: Origin): Expr[G] = {
+    val sr = StringReadable(input)
+    val cjp = ColJavaParser(RedirectOriginProvider(o, input), blameProvider)
+    val x = try {
+        sr.read { reader =>
+          cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName), false)
+        }
+      } catch {
+        case _: FileNotFoundException => throw FileNotFound(sr.fileName)
+      }
+    if (x._2.nonEmpty) {
+      throw SpecExprParseError("...")
+    }
+    x._1
+  }
 }
 
 case class Resolution[G <: Generation]
@@ -63,10 +98,11 @@ case class Resolution[G <: Generation]
     implicit val o: Origin = FileSpanningOrigin
 
     val parsedProgram = Program(in.decls)(blameProvider())
-    val extraDecls = ResolveTypes.resolve(parsedProgram, Some(JavaLibraryLoader(blameProvider)), classPath)
-    val joinedProgram = Program(parsedProgram.declarations ++ extraDecls)(blameProvider())
+    val isolatedBipProgram = IsolateBipGlue.isolate(parsedProgram)
+    val extraDecls = ResolveTypes.resolve(isolatedBipProgram, Some(JavaLibraryLoader(blameProvider)), classPath)
+    val joinedProgram = Program(isolatedBipProgram.declarations ++ extraDecls)(blameProvider())
     val typedProgram = LangTypesToCol().dispatch(joinedProgram)
-    ResolveReferences.resolve(typedProgram) match {
+    ResolveReferences.resolve(typedProgram, MyLocalJavaParser(blameProvider)) match {
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }

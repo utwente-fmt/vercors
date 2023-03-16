@@ -16,4 +16,5 @@ case object Resources {
   def getCIncludePath: Path = getResource("/c")
   def getJrePath: Path = getResource("/jdk")
   def getCcPath: Path = Paths.get("clang")
+  def getSystemCConfig: Path = getResource("/systemc/config")
 }

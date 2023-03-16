@@ -1,29 +1,36 @@
 package vct.main.stages
 
 import hre.progress.Progress
+<<<<<<< HEAD
 import vct.col.ast.{Program, Verification}
+=======
+import vct.col.ast.{BipTransition, Program}
+>>>>>>> dev
 import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError
 import hre.io.Readable
 import hre.stages.Stages
+import vct.col.rewrite.bip.BIP
 import viper.api.backend.carbon.Carbon
 import viper.api.backend.silicon.Silicon
 
+import scala.collection.mutable
+
 case object Stages {
-  def silicon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def silicon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
-      .thenRun(SilverTransformation())
+      .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Silicon()))
       .thenRun(ExpectedErrors())
   }
 
-  def carbon(blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def carbon(blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing(blameProvider)
       .thenRun(Resolution(blameProvider))
-      .thenRun(SilverTransformation())
+      .thenRun(SilverTransformation(bipResults = bipResults))
       .thenRun(SilverBackend(Carbon()))
       .thenRun(ExpectedErrors())
   }
@@ -47,18 +54,24 @@ case object Stages {
    * @param blameProvider
    * @return
    */
-  def ofOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def ofOptions(options: Options, blameProvider: BlameProvider, bipResults: BIP.VerificationResults): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
-      .thenRun(Transformation.ofOptions(options))
+      .thenRun(Transformation.ofOptions(options, bipResults))
       .thenRun(Backend.ofOptions(options))
       .thenRun(ExpectedErrors.ofOptions(options))
   }
 
+<<<<<<< HEAD
   def veymontOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(Transformation.veymontOfOptions(options))
       .thenRun(SaveStage.ofOptions(options))
+=======
+  def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
+    Parsing.ofOptions(options, blameProvider)
+      .thenRun(Output.ofOptions(options, blameProvider))
+>>>>>>> dev
   }
 }

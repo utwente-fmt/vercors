@@ -8,6 +8,7 @@ class Ref {
   
   context Perm(x,1)**Perm(y,1)**Perm(z,1\2)**x+y==z;
   void main(int c){
+  parallel{
     par
       context Perm(x,1);
       requires x == \old(x);
@@ -15,12 +16,13 @@ class Ref {
     {
       x=x+c;
     }
-    and
+    par
       context Perm(y,1);
       requires y == \old(y);
       ensures y == \old(y)-c;
     {
       y=y-c;
     }
+  }
   }
 }

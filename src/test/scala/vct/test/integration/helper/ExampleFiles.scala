@@ -13,6 +13,7 @@ case object ExampleFiles {
   val IGNORE_EXTS: Seq[String] = Seq(
     ".h",
     ".bib",
+    ".xml",
   )
 
   val IGNORE_FILES: Set[String] = Set(

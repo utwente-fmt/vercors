@@ -14,19 +14,20 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
       }}
   """)
 
-  def makeFamilyDispatchLut(family: String): List[Stat] =
+  def makeFamilyDispatchLut(family: String, decl: Boolean): List[Stat] =
     if(info.defs.exists(_.baseName == family)) Nil
     else List(
       q"""
         val ${Pat.Var(Term.Name(family + "Lut"))}: Map[java.lang.Class[_], (Serialize, ${t"${Type.Name(family)}[_]"}) => ${serType(family)}] = Map(..${
           info.defs.filter(d => info.supports(family)(d.baseName)).map { defn =>
+            val vArg = q"""ser.${Term.Name(proto.Name(family).ucamel)}.V.${Term.Name(proto.Name(defn.baseName).ucamel)}(
+              s.${Term.Name("serialize" + defn.baseName)}(n.asInstanceOf[${defn.typ}[_]])
+            )"""
+            val idArgs = if(decl) Seq(q"s.decls(n)") else Nil
+            val args = (idArgs :+ vArg).toList
             q"""
               classOf[${defn.typ}[_]] -> ((s: Serialize, n: ${Type.Name(family)}[_]) =>
-                ser.${Term.Name(proto.Name(family).ucamel)}(
-                  ser.${Term.Name(proto.Name(family).ucamel)}.V.${Term.Name(proto.Name(defn.baseName).ucamel)}(
-                    s.${Term.Name("serialize" + defn.baseName)}(n.asInstanceOf[${defn.typ}[_]])
-                  )
-                )
+                ser.${Term.Name(proto.Name(family).ucamel)}(..$args)
               )
             """
           }.toList
@@ -39,7 +40,7 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
       case proto.TName("ExpectedErrors") => q"ser.ExpectedErrors()"
 
       case proto.TBool => term
-      case proto.TRef => q"ser.Ref(decls($term.decl))"
+      case proto.TRef() => q"ser.Ref(decls($term.decl))"
       case proto.TInt => term
       case proto.TBigInt => q"ser.BigInt(com.google.protobuf.ByteString.copyFrom($term.toByteArray))"
       case proto.TBigDecimal => q"ser.BigDecimal($term.scale, ser.BigInt(com.google.protobuf.ByteString.copyFrom($term.underlying().unscaledValue().toByteArray())))"
@@ -64,7 +65,11 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
 
   def makeNodeSerialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("serialize" + defn.baseName)}(node: ${defn.typ}[_]): ${serType(defn.baseName)} =
-      ser.${Term.Name(proto.Name(defn.baseName).ucamel)}(..${defn.params.map(serializeParam(defn))})
+      ser.${Term.Name(proto.Name(defn.baseName).ucamel)}(..${
+        val nodeParams = defn.params.map(serializeParam(defn))
+        val idParams = if(DECLARATION_KINDS.contains(defn.baseName)) List(q"decls(node)") else Nil
+        idParams ++ nodeParams
+      })
   """)
 
   def makeSerialize(): List[Stat] = q"""
@@ -76,8 +81,13 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
         Serialize(decls).serializeProgram(program)
       }
 
-      ..${DECLARATION_KINDS.flatMap(makeFamilyDispatchLut).toList}
-      ..${info.families.flatMap(makeFamilyDispatchLut).toList}
+      def serialize(verification: Verification[_]): ser.Verification = {
+        val decls = verification.collect { case decl: Declaration[_] => decl }.zipWithIndex.toMap
+        Serialize(decls).serializeVerification(verification)
+      }
+
+      ..${DECLARATION_KINDS.flatMap(makeFamilyDispatchLut(_, decl = true)).toList}
+      ..${info.families.flatMap(makeFamilyDispatchLut(_, decl = false)).toList}
     }
 
     case class Serialize(decls: Map[Declaration[_], Int]) {

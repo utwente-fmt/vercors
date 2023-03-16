@@ -225,6 +225,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: JavaVariableDeclaration[Pre] => node
     case node: Coercion[Pre] => node
     case node: Location[Pre] => node
+    case node: Operator[Pre] => node
+    case node: BipPortType[Pre] => node
+    case node: JavaBipGlueName[Pre] => node
+    case node: JavaBipGlueElement[Pre] => node
+    case node: BipGlueRequires[Pre] => node
+    case node: BipGlueAccepts[Pre] => node
+    case node: BipGlueDataWire[Pre] => node
+    case node: BipTransitionSignature[Pre] => node
+    case node: LlvmFunctionContract[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -355,6 +364,42 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: Operator[Pre]): Operator[Pre] = node
+  def postCoerce(node: Operator[Pre]): Operator[Post] = rewriteDefault(node)
+  override final def dispatch(node: Operator[Pre]): Operator[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipPortType[Pre]): BipPortType[Pre] = node
+  def postCoerce(node: BipPortType[Pre]): BipPortType[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipPortType[Pre]): BipPortType[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
+  def postCoerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipTransitionSignature[Pre]): BipTransitionSignature[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
+  def postCoerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueDataWire[Pre]): BipGlueDataWire[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
+  def postCoerce(node: BipGlueRequires[Pre]): BipGlueRequires[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueRequires[Pre]): BipGlueRequires[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
+  def postCoerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Post] = rewriteDefault(node)
+  override final def dispatch(node: BipGlueAccepts[Pre]): BipGlueAccepts[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
+  def postCoerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
+  def postCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = rewriteDefault(node)
+  override final def dispatch(node: JavaBipGlueName[Pre]): JavaBipGlueName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
+  def postCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
+  override final def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -389,6 +434,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
   def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
@@ -489,7 +535,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
                   alt5: => T = throw IncoercibleDummy,
                   alt6: => T = throw IncoercibleDummy,
                   alt7: => T = throw IncoercibleDummy,
-                  alt8: => T = throw IncoercibleDummy) : T = {
+                  alt8: => T = throw IncoercibleDummy,
+                  alt9: => T = throw IncoercibleDummy,
+                  alt10: => T = throw IncoercibleDummy,
+                  alt11: => T = throw IncoercibleDummy) : T = {
     Left(Nil)
       .onCoercionError(alt1)
       .onCoercionError(alt2)
@@ -499,12 +548,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       .onCoercionError(alt6)
       .onCoercionError(alt7)
       .onCoercionError(alt8)
+      .onCoercionError(alt9)
+      .onCoercionError(alt10)
+      .onCoercionError(alt11)
     match {
       case Left(errs) =>
         for(err <- errs) {
           logger.debug(err.text)
         }
-        throw IncoercibleText(expr, message)
+        throw IncoercibleExplanation(expr, message)
       case Right(value) => value
     }
   }
@@ -667,11 +719,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           AmbiguousOr(process(left), process(right)),
         )
       case plus @ AmbiguousPlus(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, or bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected both operands to be numeric, a process, a sequence, set, bag, or string; or a pointer and integer, but got ${left.t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
           AmbiguousPlus(float(left), float(right))(plus.blame),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
+          AmbiguousPlus(string(left), string(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
@@ -687,7 +740,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             val (coercedRight, TBag(elementRight)) = bag(right)
             val sharedType = Types.leastCommonSuperType(elementLeft, elementRight)
             AmbiguousPlus(coerce(coercedLeft, TBag(sharedType)), coerce(coercedRight, TBag(sharedType)))(plus.blame)
-          },
+          }, {
+            val validOperators = plus.getValidOperatorsOf(OperatorLeftPlus())
+            validOperators match {
+              case Some(Seq(op)) => AmbiguousPlus(cls(left), coerce(right, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(left, "This expression does not have a matching custom plus operator")
+            }
+          }, {
+            // TODO: Definition of operators should be type checked for arity
+            val validOperators = plus.getValidOperatorsOf(OperatorRightPlus())
+            validOperators match {
+              case Some(Seq(op)) => AmbiguousPlus(cls(right), coerce(left, op.args.head.t))(plus.blame)
+              case _ => throw IncoercibleText(right, "This expression does not have a matching custom right plus operator")
+            }
+          }
         )
       case AmbiguousResult() => e
       case sub @ AmbiguousSubscript(collection, index) =>
@@ -723,6 +789,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (right, TBag(rightT)) = bag(ys)
         val sharedElement = Types.leastCommonSuperType(leftT, rightT)
         BagMinus(coerce(left, TBag(sharedElement)), coerce(right, TBag(sharedElement)))
+      case bgi @ BipGuardInvocation(obj, ref) =>
+        BipGuardInvocation(cls(obj), ref)
       case BitAnd(left, right) =>
         BitAnd(int(left), int(right))
       case BitNot(arg) =>
@@ -742,6 +810,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CastFloat(e, t) =>
         CastFloat(float(e), t)
       case CCast(e, t) => CCast(e, t)
+      case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CLocal(name) => e
@@ -762,6 +831,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case StringConcat(left, right) =>
+        StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
       case CStructDeref(struct, field) =>
@@ -790,6 +861,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Empty(obj) =>
         Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
+      case use @ EnumUse(enum, const) => use
       case Eq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Eq(coerce(left, sharedType), coerce(right, sharedType))
@@ -808,6 +880,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
+      case ForPerm(bindings, loc, body) =>
+        ForPerm(bindings, loc, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
@@ -862,6 +936,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewClass(args, typeArgs, name, givenMap, yields) => e
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
+      case str @ JavaStringValue(_, _) => str
+      case str @ StringValue(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread))
       case length @ Length(arr) =>
@@ -983,11 +1059,17 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           Mult(int(left), int(right)),
           Mult(rat(left), rat(right)),
         )
+      case NdIndex(indices, dimensions) =>
+        NdIndex(indices.map(int), dimensions.map(int))
+      case NdLength(dimensions) =>
+        NdLength(dimensions.map(int))
+      case NdPartialIndex(indices, linearIndex, dimensions) =>
+        NdPartialIndex(indices.map(int), int(linearIndex), dimensions.map(int))
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
-      case NewArray(element, dims, moreDims) =>
-        NewArray(element, dims.map(int), moreDims)
+      case na @ NewArray(element, dims, moreDims) =>
+        NewArray(element, dims.map(int), moreDims)(na.blame)
       case NewObject(cls) =>
         NewObject(cls)
       case NoPerm() =>
@@ -1044,6 +1126,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
+      case PolarityDependent(onInhale, onExhale) =>
+        PolarityDependent(res(onInhale), res(onExhale))
       case ass @ PostAssignExpression(target, value) =>
         PostAssignExpression(target, coerce(value, target.t))(ass.blame)
       case ass @ PreAssignExpression(target, value) =>
@@ -1238,6 +1322,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case WritePerm() =>
         WritePerm()
       case VeyMontCondition(c) => VeyMontCondition(c)
+      case localIncoming: BipLocalIncomingData[Pre] => localIncoming
+      case glue: JavaBipGlue[Pre] => glue
     }
   }
 
@@ -1263,6 +1349,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
+      case Extract(body) => Extract(body)
       case f @ Fold(assn) => Fold(res(assn))(f.blame)
       case f @ Fork(obj) => Fork(cls(obj))(f.blame)
       case proof @ FramedProof(pre, body, post) => FramedProof(res(pre), body, res(post))(proof.blame)
@@ -1324,6 +1411,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         dataType
       case clazz: Class[Pre] =>
         new Class[Pre](clazz.declarations, clazz.supports, res(clazz.intrinsicLockInvariant))
+      case enum: Enum[Pre] =>
+        enum
+      case enumConstant: EnumConstant[Pre] =>
+        enumConstant
       case model: Model[Pre] =>
         model
       case function: Function[Pre] =>
@@ -1356,6 +1447,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         field
       case method: RunMethod[Pre] =>
         method
+      case method: InstanceOperatorMethod[Pre] =>
+        method
+      case function: InstanceOperatorFunction[Pre] =>
+        new InstanceOperatorFunction[Pre](function.returnType, function.operator, function.args, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.o)
       case initialization: JavaSharedInitialization[Pre] =>
         initialization
       case fields: JavaFields[Pre] =>
@@ -1368,6 +1463,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         constructor
       case method: JavaMethod[Pre] =>
         method
+      case param: JavaParam[Pre] =>
+        param
       case method: JavaAnnotationMethod[Pre] =>
         method
       case constructor: PVLConstructor[Pre] =>
@@ -1404,6 +1501,26 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
       case seqProg: VeyMontSeqProg[Pre] => seqProg
       case thread: VeyMontThread[Pre] => thread
+      case bc: BipComponent[Pre] =>
+        new BipComponent(bc.fqn, bc.constructors, res(bc.invariant), bc.initial)
+      case bsp: BipStatePredicate[Pre] =>
+        new BipStatePredicate(bool(bsp.expr))
+      case trans: BipTransition[Pre] =>
+        new BipTransition(trans.signature, trans.port, trans.source, trans.target, trans.data, trans.guard,
+          bool(trans.requires),
+          bool(trans.ensures),
+          trans.body
+        )(trans.blame)
+      case data: BipIncomingData[Pre] => data
+      case data: BipOutgoingData[Pre] => data
+      case data: BipData[Pre] => data
+      case guard: BipGuard[Pre] => guard
+      case port: BipPort[Pre] => port
+      case glue: JavaBipGlueContainer[Pre] => glue
+      case glue: BipGlue[Pre] => glue
+      case synchronization: BipPortSynchronization[Pre] => synchronization
+      case synchronization: BipTransitionSynchronization[Pre] => synchronization
+      case definition: LlvmFunctionDefinition[Pre] => definition
     }
   }
 
@@ -1603,8 +1720,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     node match {
       case CPointerDeclarator(pointers, inner) =>
         CPointerDeclarator(pointers, inner)
-      case CArrayDeclarator(qualifiers, size, inner) =>
-        CArrayDeclarator(qualifiers, size.map(int), inner)
+      case C @ CArrayDeclarator(qualifiers, size, inner) =>
+        CArrayDeclarator(qualifiers, size.map(int), inner)(C.blame)
       case CTypedFunctionDeclarator(params, varargs, inner) =>
         CTypedFunctionDeclarator(params, varargs, inner)
       case CAnonymousFunctionDeclarator(params, inner) =>
@@ -1661,7 +1778,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case js @ JavaSynchronized() => JavaSynchronized()(js.blame)
       case JavaTransient() => JavaTransient()
       case JavaVolatile() => JavaVolatile()
-      case JavaAnnotation(name, args) => JavaAnnotation(name, args)
+      case annotation @ JavaAnnotation(name, args) => JavaAnnotation(name, args)(annotation.blame)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
     }
@@ -1672,4 +1789,31 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     val JavaVariableDeclaration(name, dim, init) = node
     JavaVariableDeclaration(name, dim, init)
   }
+
+  def coerce(node: Operator[Pre]): Operator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case OperatorLeftPlus() => OperatorLeftPlus()
+      case OperatorRightPlus() => OperatorRightPlus()
+    }
+  }
+
+  def coerce(node: BipPortType[Pre]): BipPortType[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case BipEnforceable() =>  BipEnforceable()
+      case BipSpontaneous() => BipSpontaneous()
+      case BipInternal() => BipInternal()
+    }
+  }
+
+  def coerce(node: BipTransitionSignature[Pre]): BipTransitionSignature[Pre] = node
+  def coerce(node: BipGlueDataWire[Pre]): BipGlueDataWire[Pre] = node
+  def coerce(node: BipGlueRequires[Pre]): BipGlueRequires[Pre] = node
+  def coerce(node: BipGlueAccepts[Pre]): BipGlueAccepts[Pre] = node
+
+  def coerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
+  def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
+
+  def coerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
 }

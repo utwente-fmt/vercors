@@ -6,18 +6,30 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | method | declVeyMontSeqProg;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg;
 
-declClass : contract 'class' identifier '{' classDecl* '}' ;
+enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
+
+declClass
+ : contract 'class' identifier '{' classDecl* '}'
+ ;
+
 declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
-classDecl : valClassDeclaration | constructor | method | field | runMethod;
+
 seqProgDecl
  : 'thread' identifier '=' type '(' exprList? ')' ';' # seqProgThread
  | runMethod # seqProgRunMethod
  | method # seqProgMethod
  ;
 
-field : type identifierList ';' ;
+applicableReference
+ : identifier '.' identifier # pvlAdtFunctionRef
+ | identifier                # pvlFunctionRef
+ ;
+
+classDecl : valClassDeclaration | constructor | method | field | runMethod;
+finalFlag: 'final';
+field : finalFlag? type identifierList ';' ;
 
 method : contract valModifier* type identifier '(' args? ')' methodBody ;
 methodBody : ';' | block ;
@@ -141,6 +153,8 @@ unit
  | NUMBER
  | DECIMAL_NUMBER
  | DECIMAL_NUMBER_F
+ | STRING_LITERAL
+ | CHARACTER_LITERAL
  | '(' expr ')'
  | identifier call?
  | valGenericAdtInvocation
@@ -193,18 +207,9 @@ forStatementList
 parRegion
  : 'parallel' '{' parRegion* '}' # pvlParallel
  | 'sequential' '{' parRegion* '}' # pvlSequential
- | 'block' identifier? parBlockIter? contract statement # pvlParBlock
- | 'par' parOldUnitList # pvlOldPar
+ | 'par' identifier? parBlockIter? contract statement # pvlParBlock
  ;
 
-parOldUnit
- : identifier? parBlockIter? contract statement # pvlOldParUnit
- ;
-
-parOldUnitList
- : parOldUnit
- | parOldUnit 'and' parOldUnitList
- ;
 
 
 declList
@@ -230,7 +235,7 @@ invariant: 'loop_invariant' expr ';';
 
 nonArrayType
  : valType
- | ('string' | 'int' | 'boolean' | 'void' | 'float32' | 'float64')
+ | ('int' | 'boolean' | 'void' | 'float32' | 'float64' | 'char')
  | classType
  ;
 

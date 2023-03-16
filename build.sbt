@@ -4,6 +4,10 @@ import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / javacOptions :=Seq("-source", "17",
+                               "-target", "17",
+                               "-Xlint:deprecation", "-Xlint:unchecked",
+                               "-deprecation")
 ThisBuild / fork := true
 
 ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
@@ -14,9 +18,9 @@ enablePlugins(DebianPlugin)
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
-val silver_url = uri("git:https://github.com/viperproject/silver.git#8b6c8e363e2f569a8fde394d6aa4ee7b2835c24c")
-val carbon_url = uri("git:https://github.com/viperproject/carbon.git#7ea5d3f4b04efd37092f8c1ff0e34bf66a0ec246")
-val silicon_url = uri("git:https://github.com/viperproject/silicon.git#3f6aaa9c29faa0c6684682af97730fae5bdbe8cb")
+val silver_url = uri("git:https://github.com/viperproject/silver.git#11bde93e486e983141c01ac7df270e9f06e8ab06")
+val carbon_url = uri("git:https://github.com/viperproject/carbon.git#44f9225dcde2374c3b8051b6d56ac88c7c4ffdd5")
+val silicon_url = uri("git:https://github.com/viperproject/silicon.git#f844927fe6f54c3dbc5adbccfa011034c8036640")
 
 /*
 buildDepdendencies.classpath contains the mapping from project to a list of its dependencies. The viper projects silver,
@@ -110,8 +114,10 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
     libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.1",
-    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
+    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.5",
+
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "2.0.0",
 
     // The "classifier" parts are needed to specify the versions of jacoco that include dependencies and proper manifest
     // files, such that vercors can directly use the jars that are downloaded by sbt as standalone agent/executable jar.
@@ -119,9 +125,11 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
     ThisBuild / scalacOptions ++= Seq(
+      "-target:jvm-1.17",
       "-deprecation",
       "-feature",
       "-unchecked",
+//      "-Ystatistics",
 //      "-Xno-patmat-analysis",
 //      "-Ystatistics:typer",
 //      "-Xprint:typer",
@@ -131,24 +139,6 @@ lazy val vercors: Project = (project in file("."))
 //      "-P:scalac-profiling:show-profiles",
 //      "-P:scalac-profiling:sourceroot:/home/pieter/vercors/",
 //      "-Ypatmat-debug",
-    ),
-
-    Compile / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Runtime / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Test / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
     ),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,
