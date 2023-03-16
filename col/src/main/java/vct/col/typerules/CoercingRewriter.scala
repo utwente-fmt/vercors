@@ -877,6 +877,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
+      case ForPerm(bindings, loc, body) =>
+        ForPerm(bindings, loc, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
@@ -1121,6 +1123,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
+      case PolarityDependent(onInhale, onExhale) =>
+        PolarityDependent(res(onInhale), res(onExhale))
       case ass @ PostAssignExpression(target, value) =>
         PostAssignExpression(target, coerce(value, target.t))(ass.blame)
       case ass @ PreAssignExpression(target, value) =>
