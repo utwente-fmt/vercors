@@ -86,11 +86,8 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
-<<<<<<< HEAD
-    "VeyMontThread" -> Seq("VeyMontSeqProg")
-=======
+    "VeyMontThread" -> Seq("VeyMontSeqProg"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
->>>>>>> dev
   )
 
   assert(DECLARATION_NAMESPACE.keys.toSet == DECLARATION_KINDS.toSet)
