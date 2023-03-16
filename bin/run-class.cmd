@@ -22,5 +22,10 @@ rem read .classpath file into CLASSPATH variable. This is not possible directly,
 rem     over the file content (which is just a single line, so just one loop iteration)
 for /F "delims=" %%c in (%CPFILE%) do set CLASSPATH=%%c
 
-rem execute java with classpath from above and given arguments
-java %MORE_JAVA_OPTS% -Xss128M -cp "%CLASSPATH%" %*
+rem if CLASSPATH is empty string (i.e. .classpath file is empty), print error message
+if "%CLASSPATH%" == "" (
+    echo The bin/.classpath file is empty. Try deleting it and re-running VerCors. Otherwise contact VerCors support.
+) else (
+    rem execute java with classpath from above and given arguments
+    java %MORE_JAVA_OPTS% -Xss128M -cp "%CLASSPATH%" %*
+)

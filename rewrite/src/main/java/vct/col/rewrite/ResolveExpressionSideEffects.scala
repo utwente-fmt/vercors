@@ -38,6 +38,12 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
       effector.o.messageInContext("This expression may have side effects, but it is in a position where that is not allowed.")
   }
 
+  case class DisallowedProofExpression(proofExpression: Expr[_]) extends UserError {
+    override def code: String = "proofExpression"
+    override def text: String =
+      proofExpression.o.messageInContext("Cannot evaluate this kind of expression here when combined with expressions that have a side effect.")
+  }
+
   case object BreakOrigin extends Origin {
     override def preferredName: String = "condition_false"
     override def shortPosition: String = "generated"
@@ -149,18 +155,33 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
     val previouslyExtracted = currentlyExtracted.keySet
 
-    val (vars, result) = collectVarsIfOuterScope {
-      executionContext.having(Some(statements.append)) {
-        ReInliner().dispatch(dispatch(e))
+    try {
+      val (vars, result) = collectVarsIfOuterScope {
+        executionContext.having(Some(statements.append)) {
+          ReInliner().dispatch(dispatch(e))
+        }
       }
+
+      // All extracted expressions are re-inlined, or are flushed as side effects.
+      // Exception: if expression evaluation recurses, then either the expressions extracted in the outer evaluation
+      // are flushed by us, or they remain exactly in the extracted expressions.
+      assert(currentlyExtracted.isEmpty || currentlyExtracted.keySet == previouslyExtracted)
+
+      (vars, statements.toSeq, result)
+    } catch {
+      // The expression contains constructs (e.g. \forall) of which the combination with side effects would be confusing ...
+      case err: DisallowedProofExpression =>
+        try {
+          // ... so try to evaluate it as a pure expression ...
+          executionContext.having(None) {
+            (Nil, Nil, dispatch(e))
+          }
+        } catch {
+          // ... when that doesn't work, the problem is the construct (e.g. \forall)
+          case _: DisallowedSideEffect =>
+            throw err
+        }
     }
-
-    // All extracted expressions are re-inlined, or are flushed as side effects.
-    // Exception: if expression evaluation recurses, then either the expressions extracted in the outer evaluation
-    // are flushed by us, or they remain exactly in the extracted expressions.
-    assert(currentlyExtracted.isEmpty || currentlyExtracted.keySet == previouslyExtracted)
-
-    (vars, statements.toSeq, result)
   }
 
   def evaluateAll(es: Seq[Expr[Pre]]): (Seq[Variable[Post]], Seq[Statement[Post]], Seq[Expr[Post]]) = {
@@ -366,6 +387,16 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
 
     case Result(_) if currentResultVar.nonEmpty => currentResultVar.top
 
+    // ## Nodes of which the combination with side effects is ill-defined: ##
+    // PB: we could probably support let in impure contexts, is it useful?
+    // PB: technically only binders are problematic, others are just confusing
+    // e.g. allowing unfolding would enable:
+    //     \unfolding p() in (1 with inhale p())
+    // to verify.
+    case Star(_, _) | Exists(_, _, _) | Forall(_, _, _) | Starall(_, _, _) | Let(_, _, _) | Sum(_, _, _) |
+         Product(_, _, _) | ForPerm(_, _, _) | PolarityDependent(_, _) | Unfolding(_, _) =>
+      throw DisallowedProofExpression(e)
+
     // ## Nodes that induce an implicit evaluation condition: ##
     case Select(cond, whenTrue, whenFalse) =>
       val cond1 = dispatchImpure(cond)
@@ -380,7 +411,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       val left1 = dispatchImpure(left)
       val right1 = currentConditions.having(left1) { dispatchImpure(right) }
       stored(ReInliner().dispatch(And(left1, right1)(e.o)), e.t)
-    // Star ????
     case Or(left, right) =>
       val left1 = dispatchImpure(left)
       val right1 = currentConditions.having(Not(left1)(e.o)) { dispatchImpure(right) }
