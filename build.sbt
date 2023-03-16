@@ -114,8 +114,8 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
     libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.1",
-    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
+    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.5",
 
     libraryDependencies += "com.lihaoyi" %% "upickle" % "2.0.0",
 

@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<INTERNAL>
+  <external_declaration idref="2">
+    <declaration idref="4">
+      <declaration_specifiers idref="8">
+        <class_specifier extSCModule="true" idref="10" keyword="class" name="sc_mutex">
+          <base_clause column="7" file="sc_mutex.cpp" idref="12" line="3">
+            <base_specifier column="17" file="sc_mutex.cpp" idref="14"
+              length="0" line="3" name="sc_prim_channel" sc_dt="true">
+              <base_class_access_specifier column="17"
+                file="sc_mutex.cpp" idref="16" line="3" name="public"/>
+            </base_specifier>
+          </base_clause>
+          <member_declaration column="1" file="sc_mutex.cpp" idref="18" line="5">
+            <access_specifier column="1" file="sc_mutex.cpp" idref="20"
+              line="5" name="public"/>
+          </member_declaration>
+          <member_declaration column="7" file="sc_mutex.cpp" idref="22" line="7">
+            <member_declarator_list column="7" file="sc_mutex.cpp"
+              idref="24" line="7">
+              <declaration_specifiers column="7" file="sc_mutex.cpp"
+                idref="26" line="7">
+                <builtin_type_specifier column="7" file="sc_mutex.cpp"
+                  idref="28" length="0" line="7" name="sc_event" sc_dt="true"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_mutex.cpp"
+                idref="30" line="7">
+                <declarator column="5" file="sc_mutex.cpp" idref="32" line="7">
+                  <qualified_id column="5" file="sc_mutex.cpp"
+                    idref="34" line="7" name="_free"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <member_declaration column="19" file="sc_mutex.cpp" idref="36" line="9">
+            <member_declarator_list column="19" file="sc_mutex.cpp"
+              idref="38" line="9">
+              <declaration_specifiers column="19" file="sc_mutex.cpp"
+                idref="40" line="9">
+                <builtin_type_specifier column="19" file="sc_mutex.cpp"
+                  idref="42" length="0" line="9" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <member_declarator column="5" file="sc_mutex.cpp"
+                idref="44" line="9">
+                <declarator column="5" file="sc_mutex.cpp" idref="46" line="9">
+                  <qualified_id column="5" file="sc_mutex.cpp"
+                    idref="48" line="9" name="_locked"/>
+                </declarator>
+              </member_declarator>
+            </member_declarator_list>
+          </member_declaration>
+          <comment column="5" file="sc_mutex.cpp" idref="49" line="11" name="// blocks until mutex could be locked"/>
+          <member_declaration column="17" file="sc_mutex.cpp" idref="51" line="12">
+            <function_definition column="17" file="sc_mutex.cpp"
+              idref="53" line="12">
+              <declaration_specifiers column="17" file="sc_mutex.cpp"
+                idref="55" line="12">
+                <builtin_type_specifier column="17" file="sc_mutex.cpp"
+                  idref="57" length="0" line="12" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_mutex.cpp"
+                idref="59" line="12">
+                <qualified_id column="5" file="sc_mutex.cpp" idref="61"
+                  line="12" name="lock"/>
+              </function_declarator>
+              <block column="15" file="sc_mutex.cpp" idref="63" line="13">
+                <block_statement column="5" file="sc_mutex.cpp"
+                  idref="65" line="14">
+                  <while_statement column="5" file="sc_mutex.cpp"
+                    idref="67" line="14">
+                    <primary_expression column="12" file="sc_mutex.cpp"
+                      idref="71" line="14">
+                      <id_expression column="14" file="sc_mutex.cpp"
+                        idref="73" line="14" name="_locked"/>
+                    </primary_expression>
+                    <block column="22" file="sc_mutex.cpp" idref="75" line="14">
+                      <block_statement column="24" file="sc_mutex.cpp"
+                        idref="77" line="15">
+                        <systemCRoutine column="24" file="sc_mutex.cpp"
+                          idref="81" line="15" name="wait">
+                          <arguments column="2" file="sc_mutex.cpp"
+                            idref="83" line="15">
+                            <arguments_list column="6"
+                              file="sc_mutex.cpp" idref="85" line="15">
+                              <primary_expression column="6"
+                                file="sc_mutex.cpp" idref="89" line="15">
+                                <id_expression column="8"
+                                  file="sc_mutex.cpp" idref="91"
+                                  line="15" name="_free"/>
+                              </primary_expression>
+                            </arguments_list>
+                          </arguments>
+                        </systemCRoutine>
+                      </block_statement>
+                    </block>
+                  </while_statement>
+                </block_statement>
+                <block_statement column="7" file="sc_mutex.cpp"
+                  idref="93" line="18">
+                  <assignment column="15" file="sc_mutex.cpp"
+                    idref="103" line="18">
+                    <primary_expression column="7" file="sc_mutex.cpp"
+                      idref="97" line="18">
+                      <id_expression column="7" file="sc_mutex.cpp"
+                        idref="99" line="18" name="_locked"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_mutex.cpp"
+                      idref="101" line="18"/>
+                    <primary_expression column="15" file="sc_mutex.cpp"
+                      idref="107" line="18">
+                      <constant column="15" file="sc_mutex.cpp"
+                        idref="109" line="18" value="true"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <comment column="5" file="sc_mutex.cpp" idref="110" line="21" name="// returns false if mutex could not be locked"/>
+          <member_declaration column="5" file="sc_mutex.cpp" idref="112" line="22">
+            <function_definition column="5" file="sc_mutex.cpp"
+              idref="114" line="22">
+              <declaration_specifiers column="5" file="sc_mutex.cpp"
+                idref="116" line="22">
+                <builtin_type_specifier column="5" file="sc_mutex.cpp"
+                  idref="118" length="0" line="22" name="bool" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="5" file="sc_mutex.cpp"
+                idref="120" line="22">
+                <qualified_id column="5" file="sc_mutex.cpp" idref="122"
+                  line="22" name="trylock"/>
+              </function_declarator>
+              <block column="18" file="sc_mutex.cpp" idref="124" line="23">
+                <block_statement column="5" file="sc_mutex.cpp"
+                  idref="126" line="24">
+                  <if_statement column="5" file="sc_mutex.cpp"
+                    idref="128" line="24">
+                    <primary_expression column="9" file="sc_mutex.cpp"
+                      idref="132" line="24">
+                      <id_expression column="11" file="sc_mutex.cpp"
+                        idref="134" line="24" name="_locked"/>
+                    </primary_expression>
+                    <block column="19" file="sc_mutex.cpp" idref="136" line="25">
+                      <block_statement column="19" file="sc_mutex.cpp"
+                        idref="138" line="25">
+                        <return_statement column="19"
+                          file="sc_mutex.cpp" idref="140" line="25">
+                          <primary_expression column="3"
+                            file="sc_mutex.cpp" idref="144" line="25">
+                            <constant column="3" file="sc_mutex.cpp"
+                              idref="146" line="25" value="false"/>
+                          </primary_expression>
+                        </return_statement>
+                      </block_statement>
+                    </block>
+                    <block column="7" file="sc_mutex.cpp" idref="148" line="27">
+                      <block_statement column="7" file="sc_mutex.cpp"
+                        idref="150" line="27">
+                        <return_statement column="7" file="sc_mutex.cpp"
+                          idref="152" line="27">
+                          <primary_expression column="2"
+                            file="sc_mutex.cpp" idref="156" line="27">
+                            <constant column="2" file="sc_mutex.cpp"
+                              idref="158" line="27" value="true"/>
+                          </primary_expression>
+                        </return_statement>
+                      </block_statement>
+                    </block>
+                  </if_statement>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <comment column="5" file="sc_mutex.cpp" idref="159" line="30" name="// unlocks mutex"/>
+          <member_declaration column="5" file="sc_mutex.cpp" idref="161" line="31">
+            <function_definition column="5" file="sc_mutex.cpp"
+              idref="163" line="31">
+              <declaration_specifiers column="5" file="sc_mutex.cpp"
+                idref="165" line="31">
+                <builtin_type_specifier column="5" file="sc_mutex.cpp"
+                  idref="167" length="0" line="31" name="void" sc_dt="false"/>
+              </declaration_specifiers>
+              <function_declarator column="6" file="sc_mutex.cpp"
+                idref="169" line="31">
+                <qualified_id column="6" file="sc_mutex.cpp" idref="171"
+                  line="31" name="unlock"/>
+              </function_declarator>
+              <block column="18" file="sc_mutex.cpp" idref="173" line="32">
+                <block_statement column="5" file="sc_mutex.cpp"
+                  idref="175" line="33">
+                  <assignment column="15" file="sc_mutex.cpp"
+                    idref="185" line="33">
+                    <primary_expression column="5" file="sc_mutex.cpp"
+                      idref="179" line="33">
+                      <id_expression column="7" file="sc_mutex.cpp"
+                        idref="181" line="33" name="_locked"/>
+                    </primary_expression>
+                    <assignment_operator column="7" file="sc_mutex.cpp"
+                      idref="183" line="33"/>
+                    <primary_expression column="15" file="sc_mutex.cpp"
+                      idref="189" line="33">
+                      <constant column="15" file="sc_mutex.cpp"
+                        idref="191" line="33" value="false"/>
+                    </primary_expression>
+                  </assignment>
+                </block_statement>
+                <block_statement column="22" file="sc_mutex.cpp"
+                  idref="193" line="34">
+                  <sc_notify column="22" file="sc_mutex.cpp" idref="195"
+                    line="34" name="_free"/>
+                </block_statement>
+              </block>
+            </function_definition>
+          </member_declaration>
+          <comment column="4" file="sc_mutex.cpp" idref="196" line="37" name="// constructor"/>
+          <member_declaration column="5" file="sc_mutex.cpp" idref="198" line="38">
+            <ctor_definition column="5" file="sc_mutex.cpp" idref="200" line="38">
+              <qualified_id column="5" file="sc_mutex.cpp" idref="202"
+                line="38" name="sc_mutex"/>
+              <block column="15" file="sc_mutex.cpp" idref="204" line="38"/>
+            </ctor_definition>
+          </member_declaration>
+        </class_specifier>
+      </declaration_specifiers>
+    </declaration>
+  </external_declaration>
+</INTERNAL>

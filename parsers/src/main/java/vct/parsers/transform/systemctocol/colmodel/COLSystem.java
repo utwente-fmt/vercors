@@ -133,9 +133,21 @@ public class COLSystem<T> {
      * @return A single expression with all given expressions connected by stars
      */
     public Expr<T> fold_star(java.util.List<Expr<T>> expressions) {
+        return _fold_star(new java.util.ArrayList<>(expressions));
+    }
+
+    /**
+     * Private helper function that calculates the result of <code>fold_star</code>. This function requires that the
+     * given list is mutable and will modify it, so it should not be used with external function calls.
+     *
+     * @param expressions Mutable array list of expressions to be connected in the desired order
+     * @return A single expression with all given expressions connected by stars
+     */
+    private Expr<T> _fold_star(java.util.ArrayList<Expr<T>> expressions) {
         if (expressions == null || expressions.size() == 0) return TRUE;
+        if (expressions.size() == 1) return expressions.get(0);
         Expr<T> first = expressions.remove(0);
-        return new Star<>(first, fold_star(expressions), OriGen.create());
+        return new Star<>(first, _fold_star(expressions), OriGen.create());
     }
 
     /**
@@ -145,9 +157,21 @@ public class COLSystem<T> {
      * @return A conjunction of all given expressions
      */
     public Expr<T> fold_and(java.util.List<Expr<T>> expressions) {
+        return _fold_and(new java.util.ArrayList<>(expressions));
+    }
+
+    /**
+     * Private helper function that calculates the result of <code>fold_and</code>. This function requires that the
+     * given list is mutable and will modify it, so it should not be used with external function calls.
+     *
+     * @param expressions Mutable array list of expressions to be connected
+     * @return A conjunction of all given expressions
+     */
+    private Expr<T> _fold_and(java.util.ArrayList<Expr<T>> expressions) {
         if (expressions == null || expressions.size() == 0) return TRUE;
+        if (expressions.size() == 1) return expressions.get(0);
         Expr<T> first = expressions.remove(0);
-        return new And<>(first, fold_and(expressions), OriGen.create());
+        return new And<>(first, _fold_and(expressions), OriGen.create());
     }
 
     /**
@@ -157,9 +181,21 @@ public class COLSystem<T> {
      * @return A disjunction of all given expressions
      */
     public Expr<T> fold_or(java.util.List<Expr<T>> expressions) {
+        return _fold_or(new java.util.ArrayList<>(expressions));
+    }
+
+    /**
+     * Private helper function that calculates the result of <code>fold_or</code>. This function requires that the given
+     * list is mutable and will modify it, so it should not be used with external function calls.
+     *
+     * @param expressions Mutable array list of expressions to be connected
+     * @return A disjunction of all given expressions
+     */
+    private Expr<T> _fold_or(java.util.ArrayList<Expr<T>> expressions) {
         if (expressions == null || expressions.size() == 0) return FALSE;
+        if (expressions.size() == 1) return expressions.get(0);
         Expr<T> first = expressions.remove(0);
-        return new Or<>(first, fold_or(expressions), OriGen.create());
+        return new Or<>(first, _fold_or(expressions), OriGen.create());
     }
 
     /**

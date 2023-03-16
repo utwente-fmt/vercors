@@ -300,9 +300,11 @@ public class Transformer<T> {
 	 */
 	private void handle_shared_events() {
 		for (SCClassInstance sc_inst : sc_system.getInstances()) {
-			for (SCEvent sc_event : sc_inst.getSCClass().getEvents()) {
-				int next_id = col_system.get_total_nr_events();
-				col_system.add_shared_event(sc_inst, sc_event, next_id);
+			if (!(sc_inst instanceof SCKnownType)) {
+				for (SCEvent sc_event : sc_inst.getSCClass().getEvents()) {
+					int next_id = col_system.get_total_nr_events();
+					col_system.add_shared_event(sc_inst, sc_event, next_id);
+				}
 			}
 		}
 	}
