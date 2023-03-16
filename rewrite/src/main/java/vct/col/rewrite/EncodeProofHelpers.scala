@@ -44,13 +44,6 @@ case object EncodeProofHelpers extends RewriterBuilder {
         proof.blame.blame(FramedProofPostFailed(failure, proof))
     }
   }
-
-  sealed trait LocationKind[G]
-  case class FieldKind[G](ref: Ref[G, InstanceField[G]]) extends LocationKind[G]
-  case class ModelFieldKind[G](ref: Ref[G, ModelField[G]]) extends LocationKind[G]
-  case class SilverFieldKind[G](ref: Ref[G, SilverField[G]]) extends LocationKind[G]
-  case class ArrayKind[G](t: Type[G]) extends LocationKind[G]
-  case class PointerKind[G](t: Type[G]) extends LocationKind[G]
 }
 
 case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
@@ -61,51 +54,10 @@ case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = stat.o
 
       val beforeLabel = new LabelDecl[Post]()(Before)
-      val locationKinds = pre.collect {
-        case FieldLocation(_, field) => FieldKind(field)
-        case ModelLocation(_, field) => ModelFieldKind(field)
-        case SilverFieldLocation(obj, field) => SilverFieldKind(field)
-        case ArrayLocation(array, _) => ArrayKind(array.t.asArray.get.element)
-        case PointerLocation(pointer) => PointerKind(pointer.t.asPointer.get.element)
-      }.distinct
-
-      val locationsSame = {
-        implicit val o: Origin = Before
-        locationKinds.map {
-          case FieldKind(ref) =>
-            val obj = new Variable[Post](TAnyClass())(BeforeVar("obj"))
-            val before = Old(Deref[Post](obj.get, succ(ref.decl))(FramedByForPerm), Some(beforeLabel.ref))(PanicBlame("loop reached after loop label"))
-            val after = Deref[Post](obj.get, succ(ref.decl))(FramedByForPerm)
-            ForPerm(Seq(obj), FieldLocation[Post](obj.get, succ(ref.decl)), before === after)
-          case ModelFieldKind(ref) =>
-            val obj = new Variable[Post](TAnyClass())(BeforeVar("obj"))
-            val before = Old(ModelDeref[Post](obj.get, succ(ref.decl))(FramedByForPerm), Some(beforeLabel.ref))(PanicBlame("loop reached after loop label"))
-            val after = ModelDeref[Post](obj.get, succ(ref.decl))(FramedByForPerm)
-            ForPerm(Seq(obj), FieldLocation[Post](obj.get, succ(ref.decl)), before === after)
-          case SilverFieldKind(ref) =>
-            val obj = new Variable[Post](TRef())(BeforeVar("obj"))
-            val before = Old(SilverDeref[Post](obj.get, succ(ref.decl))(FramedByForPerm), Some(beforeLabel.ref))(PanicBlame("loop reached after loop label"))
-            val after = SilverDeref[Post](obj.get, succ(ref.decl))(FramedByForPerm)
-            ForPerm(Seq(obj), FieldLocation[Post](obj.get, succ(ref.decl)), before === after)
-          case ArrayKind(t) =>
-            val arr = new Variable[Post](TArray(dispatch(t)))(BeforeVar("arr"))
-            val i = new Variable[Post](TInt())(BeforeVar("i"))
-            val inRange = const[Post](0) <= i.get && arr.get !== Null() && i.get < Length(arr.get)(PanicBlame("framed not null"))
-            val before = Old(ArraySubscript[Post](arr.get, i.get)(FramedByForPerm), Some(beforeLabel.ref))(PanicBlame("loop reached after loop label"))
-            val after = ArraySubscript[Post](arr.get, i.get)(FramedByForPerm)
-            ForPerm(Seq(arr, i), ArrayLocation[Post](arr.get, i.get)(PanicBlame("schematic")), inRange ==> (before === after))
-          case PointerKind(t) =>
-            val ptr = new Variable[Post](TPointer(dispatch(t)))(BeforeVar("ptr"))
-            val inRange = ptr.get !== Null()
-            val before = Old(DerefPointer(ptr.get)(FramedByForPerm), Some(beforeLabel.ref))(PanicBlame("loop reached after loop label"))
-            val after = DerefPointer(ptr.get)(FramedByForPerm)
-            ForPerm(Seq(ptr), PointerLocation(ptr.get)(PanicBlame("schematic")), inRange ==> (before === after))
-        }
-      }
-
-      // PB: assume all mentioned permission locations in pre have the same value as before the loop, since it is only
-      // executed once.
-      val allLocationsSame = foldAnd(locationsSame.map(PolarityDependent[Post](_, tt)))
+      val locValue = new Variable[Post](TAny())(BeforeVar("x"))
+      val allLocationsSame =
+        ForPermWithValue(locValue, locValue.get === Old(locValue.get, Some(beforeLabel.ref))(PanicBlame("loop body reached after label before it")))
+      val allLocationsSameOnInhale = PolarityDependent(allLocationsSame, tt)
 
       val once = new Variable[Post](TBool())(Once)
       val loop = Loop(
@@ -114,7 +66,7 @@ case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
         update = assignLocal(once.get, ff),
 
         contract = LoopInvariant(
-          (once.get ==> (dispatch(pre) &* allLocationsSame)) &*
+          (once.get ==> (dispatch(pre) &* allLocationsSameOnInhale)) &*
             (!once.get ==> dispatch(post)),
           Some(DecreasesClauseNoRecursion[Post]()),
         )(FramedProofLoopInvariantFailed(proof)),
