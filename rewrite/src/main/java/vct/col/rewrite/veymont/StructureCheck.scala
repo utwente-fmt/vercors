@@ -76,7 +76,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
           if (argthreads.forall(_ == thread.decl))
             rewriteDefault(st)
           else throw VeyMontStructCheckError(st, "A method call on a thread object may only refer to same thread in its arguments!")
-        case _ => rewriteDefault(st)
+        case _ => throw VeyMontStructCheckError(st, "This kind of method call is not allowed in seq_program")
       }
     }
   }
