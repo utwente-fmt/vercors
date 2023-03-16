@@ -18,7 +18,7 @@ import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
-import vct.options.types.{Backend, PathOrStd}
+import vct.options.types.{Backend, FloatMode, PathOrStd}
 import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
@@ -61,6 +61,7 @@ object Transformation {
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
+          floatInterpretation = options.floatMode,
         )
     }
 }
@@ -155,6 +156,7 @@ case class SilverTransformation
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
+  floatInterpretation : FloatMode = FloatMode.Default,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
@@ -232,7 +234,11 @@ case class SilverTransformation
     EncodeNdIndex,
 
     // Translate internal types to domains
-    FloatToRat,
+//    floatInterpretation match {
+//        case FloatMode.Default =>
+//        case FloatMode.Rational => FloatToRat
+//        case FloatMode.Z3 =>
+//    },
     EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),

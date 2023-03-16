@@ -6,8 +6,10 @@ case object FloatMode extends ReadEnum[FloatMode] {
   override val options: Map[String, FloatMode] = Map(
     "rational" -> Rational,
     "z3" -> Z3,
+    "default" -> Default
   )
 
   case object Rational extends FloatMode
   case object Z3 extends FloatMode
+  case object Default extends FloatMode
 }

@@ -9,6 +9,14 @@ trait NumericBinExprImpl[G] { this: NumericBinExpr[G] =>
     CoercionUtils.getCoercion(left.t, TInt()).isDefined &&
       CoercionUtils.getCoercion(right.t, TInt()).isDefined
 
+  def isFloat32Op: Boolean =
+    CoercionUtils.getCoercion(left.t, TFloats.ieee754_32bit()).isDefined &&
+      CoercionUtils.getCoercion(right.t, TFloats.ieee754_32bit()).isDefined
+
+  def isFloat64Op: Boolean =
+    CoercionUtils.getCoercion(left.t, TFloats.ieee754_64bit()).isDefined &&
+      CoercionUtils.getCoercion(right.t, TFloats.ieee754_64bit()).isDefined
+
   override def t: Type[G] =
     if(isIntOp) TInt()
     else if(TFloats.isFloatOp(left.t, right.t))

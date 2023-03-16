@@ -1,13 +1,15 @@
 package viper.api.transform
 
 import hre.util.ScopedStack
+import vct.col.ast.IntegerValue
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
-import vct.col.util.AstBuildHelpers.unfoldStar
+import vct.col.util.AstBuildHelpers.{const, unfoldStar}
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
 import viper.api.transform.ColToSilver.NotSupported
 import viper.silver.ast.TypeVar
+import viper.silver.ast.utility.{FloatFactory, RoundingMode}
 import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesTuple, DecreasesWildcard}
 import viper.silver.{ast => silver}
 
@@ -42,6 +44,10 @@ case class ColToSilver(program: col.Program[_]) {
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
+
+  val ff = FloatFactory(24, 8, RoundingMode.RNE)
+  val dom = ff.constructDomain(Seq(ff.from_real("from_real"), ff.add("fadd")))
+  domains.addOne(dom)
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -225,6 +231,10 @@ case class ColToSilver(program: col.Program[_]) {
   def typ(t: col.Type[_]): silver.Type = t match {
     case col.TBool() => silver.Bool
     case col.TInt() => silver.Int
+    case t if t == col.`type`.TFloats.ieee754_32bit =>
+      val ff = FloatFactory(24, 8, RoundingMode.RNE)
+      ff.typ
+    case t if t == col.`type`.TFloats.ieee754_64bit => FloatFactory(55, 11, RoundingMode.RNE).typ
     case col.TRational() => silver.Perm
     case col.TRef() => silver.Ref
     case col.TSeq(element) => silver.SeqType(typ(element))
@@ -256,6 +266,18 @@ case class ColToSilver(program: col.Program[_]) {
   def exp(e: col.Expr[_]): silver.Exp = e match {
     case col.BooleanValue(value) => silver.BoolLit(value)(pos=pos(e), info=expInfo(e))
     case col.IntegerValue(value) => silver.IntLit(value)(pos=pos(e), info=expInfo(e))
+    case col.FloatValue(value, typ) =>
+      var numerator = value
+      var denominator = BigInt(1)
+      while (!numerator.isWhole) {
+        numerator = numerator * 10
+        denominator = denominator * 10
+      }
+      val v = silver.FractionalPerm(silver.IntLit(numerator.toBigIntExact.get)(pos=pos(e), info=expInfo(e)),silver.IntLit(denominator)(pos=pos(e), info=expInfo(e)))(pos=pos(e), info=expInfo(e))
+      typ match {
+        case vct.col.ast.TFloat(8, 24) => silver.BackendFuncApp(FloatFactory(24, 8, RoundingMode.RNE).add("from_real"), Seq(v))(pos=pos(e), info=expInfo(e))
+        case vct.col.ast.TFloat(11, 55) => silver.BackendFuncApp(FloatFactory(55, 11, RoundingMode.RNE).add("from_real"), Seq(v))(pos=pos(e), info=expInfo(e))
+      }
     case col.SilverNull() => silver.NullLit()(pos=pos(e), info=expInfo(e))
     case col.Result(Ref(app)) => silver.Result(typ(app.returnType))(pos=pos(e), info=expInfo(e))
 
@@ -341,6 +363,9 @@ case class ColToSilver(program: col.Program[_]) {
     case op @ col.Minus(left, right) if op.isIntOp => silver.Sub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mult(left, right) if op.isIntOp => silver.Mul(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Mod(left, right) if op.isIntOp => silver.Mod(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+
+    case op @ col.Plus(left, right) if op.isFloat32Op => silver.BackendFuncApp(FloatFactory(24, 8, RoundingMode.RNE).add("fadd"), Seq(exp(left), exp(right)))(pos=pos(e), info=expInfo(e))
+    case op @ col.Plus(left, right) if op.isFloat64Op => silver.BackendFuncApp(FloatFactory(55, 11, RoundingMode.RNE).add("fadd"), Seq(exp(left), exp(right)))(pos=pos(e), info=expInfo(e))
 
     case op @ col.Plus(left, right) if !op.isIntOp => silver.PermAdd(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case op @ col.Minus(left, right) if !op.isIntOp => silver.PermSub(exp(left), exp(right))(pos=pos(e), info=expInfo(e))

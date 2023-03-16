@@ -336,7 +336,7 @@ case class Options
   cPreprocessorPath: Path = Resources.getCcPath,
 
   siliconPrintQuantifierStats: Option[Int] = None,
-  floatMode: FloatMode = FloatMode.Rational,
+  floatMode: FloatMode = FloatMode.Default,
 
   // Verify options - hidden
   devAbruptExc: Boolean = false,
