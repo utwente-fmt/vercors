@@ -86,7 +86,7 @@ class ParBlockSpec extends VercorsSpec {
     }
   """
 
-  vercors should verify using silicon in "example with an array-reading parallel block, showing that par forgets about its heap chunk" pvl """
+  vercors should verify using silicon in "example with an array-reading parallel block, showing that par no longer havocs its heap values" pvl """
     requires ar != null;
     requires Perm(ar[*], 1\2);
     requires (\forall int i = 0 .. ar.length; ar[i] == 0);
@@ -94,9 +94,7 @@ class ParBlockSpec extends VercorsSpec {
       par(int i = 0 .. ar.length)
       requires Perm(ar[i], 1\2);
       {
-        /*[/expect assertFailed:false]*/
         assert ar[i] == 0;
-        /*[/end]*/
       }
     }
   """

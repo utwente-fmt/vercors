@@ -799,6 +799,7 @@ object AbstractApplicable extends PanicBlame("the postcondition of an abstract a
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
 object TrueSatisfiable extends PanicBlame("`requires true` is always satisfiable.")
 object FramedPtrOffset extends PanicBlame("pointer arithmetic in (0 <= \\pointer_block_offset(p)+i < \\pointer_block_length(p)) ? p+i : _ should always be ok.")
+object FramedByForPerm extends PanicBlame("Heap value access should be ok inside a forperm that frames it.")
 
 object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
