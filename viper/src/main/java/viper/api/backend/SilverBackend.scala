@@ -59,8 +59,14 @@ trait SilverBackend extends Backend with LazyLogging {
   override def submit(colProgram: col.Program[_], output: Option[Path]): Boolean = {
     val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
+    val silverProgramString =
+      silverProgram
+        .toString()
+        .replace("requires decreases", "decreases")
+        .replace("invariant decreases", "decreases")
+
     output.map(_.toFile).map(RWFile).foreach(_.write { writer =>
-      writer.write(silverProgram.toString())
+      writer.write(silverProgramString)
     })
 
     silverProgram.checkTransitively match {
@@ -71,13 +77,7 @@ trait SilverBackend extends Backend with LazyLogging {
     val f = File.createTempFile("vercors-", ".sil")
     f.deleteOnExit()
     Using(new FileOutputStream(f)) { out =>
-      out.write(
-        silverProgram
-          .toString()
-          .replace("requires decreasing", "decreasing")
-          .replace("invariant decreasing", "decreasing")
-          .getBytes()
-      )
+      out.write(silverProgramString.getBytes())
     }
     SilverParserDummyFrontend().parse(f.toPath) match {
       case Left(errors) =>

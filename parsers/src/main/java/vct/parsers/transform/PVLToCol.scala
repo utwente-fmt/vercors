@@ -236,7 +236,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit expr: NewExprContext): Expr[G] = expr match {
     case NewExpr0(_, name, Call0(typeArgs, args, given, yields)) =>
       PVLNew(convert(name), convert(args), convertGiven(given), convertYields(yields))(blame(expr))
-    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)
+    case NewExpr1(_, t, dims) => NewArray(convert(t), convert(dims), moreDims = 0)(blame(expr))
     case NewExpr2(inner) => convert(inner)
   }
 
@@ -1004,6 +1004,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
     case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
+    case ValPolarityDependent(_, _, onInhale, _, onExhale, _) => PolarityDependent(convert(onInhale), convert(onExhale))
   }
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
@@ -1040,6 +1041,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
+    case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
+      ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {

@@ -1,0 +1,43 @@
+
+
+
+class sc_mutexx : public sc_prim_channel
+{
+public:
+
+    sc_event _free;
+
+    bool _locked;
+
+    // blocks until mutex could be locked
+    void lock()
+    {
+      while( _locked ) {
+ wait( _free );
+      }
+
+      _locked = true;
+    }
+
+    // returns false if mutex could not be locked
+    bool trylock()
+    {
+      if( _locked )
+  return false;
+      else
+ return true;
+    }
+
+    // unlocks mutex
+     void unlock()
+    {
+      _locked = false;
+      _free.notify();
+    }
+
+   // constructor
+    sc_mutexx(){
+      //      _locked = false;
+    }
+
+};

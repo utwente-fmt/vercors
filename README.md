@@ -11,13 +11,13 @@ A list of verified examples and case studies is maintained online and can be fou
 You can install VerCors by either using a release (recommended for beginners), or by building VerCors from its source code.
 
 ## Using a Release
-VerCors requires a **java** runtime environment (version 11 or later), as well as **clang** if you want support for C.
+VerCors requires a **java** runtime environment (version 17 or later), as well as **clang** if you want support for C.
 
 ### Debian Linux
 Currently we support debian-based systems; let us know if you need something else! Install the dependencies:
 
 ```shell script
-sudo apt install clang openjdk-11-jre
+sudo apt install clang openjdk-17-jre
 ```
 
 Obtain the latest `deb` release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest), and install it by running:
@@ -70,7 +70,7 @@ The final verdict is Pass
 ## Building from source code
 When building VerCors, you additionally need these dependencies:
 
-- A Java _Development_ Kit, version 11 or greater, either OpenJDK or Oracle.
+- A Java _Development_ Kit, version 17 or greater, either OpenJDK or Oracle.
 - Git (on Windows you need Git Bash, see <https://git-scm.com/downloads>)
 - Scala SBT, version 1.3.0 or greater (see <http://www.scala-sbt.org> for instructions)
 

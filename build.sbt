@@ -4,6 +4,10 @@ import sbt.internal._
 
 ThisBuild / turbo := true // en wat is daar het praktisch nut van?
 ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / javacOptions :=Seq("-source", "17",
+                               "-target", "17",
+                               "-Xlint:deprecation", "-Xlint:unchecked",
+                               "-deprecation")
 ThisBuild / fork := true
 
 ThisBuild / pushRemoteCacheTo := Some(MavenCache("local-cache", file("tmp/vercors-build-cache")))
@@ -110,8 +114,8 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
     libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.1",
-    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.2.3",
+    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+    libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.4.5",
 
     libraryDependencies += "com.lihaoyi" %% "upickle" % "2.0.0",
 
@@ -121,6 +125,7 @@ lazy val vercors: Project = (project in file("."))
     libraryDependencies += "org.jacoco" % "org.jacoco.agent" % "0.8.7" classifier "runtime",
 
     ThisBuild / scalacOptions ++= Seq(
+      "-target:jvm-1.17",
       "-deprecation",
       "-feature",
       "-unchecked",
@@ -134,24 +139,6 @@ lazy val vercors: Project = (project in file("."))
 //      "-P:scalac-profiling:show-profiles",
 //      "-P:scalac-profiling:sourceroot:/home/pieter/vercors/",
 //      "-Ypatmat-debug",
-    ),
-
-    Compile / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Runtime / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
-    ),
-
-    Test / javacOptions ++= Seq(
-      "-Xlint:deprecation",
-      "-Xlint:unchecked",
-      "-deprecation"
     ),
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion,

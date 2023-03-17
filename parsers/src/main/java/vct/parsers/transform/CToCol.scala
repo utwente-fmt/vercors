@@ -162,7 +162,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit decl: DirectDeclaratorContext): CDeclarator[G] = decl match {
     case DirectDeclarator0(name) => CName(convert(name))
     case DirectDeclarator1(inner, _, quals, dim, _) =>
-      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner))
+      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner))(blame(decl))
     case DirectDeclarator2(_, _, _, _, _, _) => ??(decl)
     case DirectDeclarator3(_, _, _, _, _, _) => ??(decl)
     case DirectDeclarator4(_, _, _, _, _) => ??(decl)
@@ -1033,6 +1033,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
     case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
+    case ValPolarityDependent(_, _, onInhale, _, onExhale, _) => PolarityDependent(convert(onInhale), convert(onExhale))
   }
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
@@ -1069,6 +1070,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
+    case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
+      ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {

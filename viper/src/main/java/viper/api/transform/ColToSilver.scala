@@ -1,6 +1,7 @@
 package viper.api.transform
 
 import hre.util.ScopedStack
+import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, InstancePredicateLocation, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation}
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
@@ -292,11 +293,20 @@ case class ColToSilver(program: col.Program[_]) {
       }
     case col.Let(binding, value, main) =>
       scoped { silver.Let(variable(binding), exp(value), exp(main))(pos=pos(e), info=expInfo(e)) }
+    case col.ForPerm(bindings, loc, body) =>
+      scoped {
+        silver.ForPerm(bindings.map(variable), loc match {
+          case SilverFieldLocation(obj, field) => silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(loc), info=expInfo(obj))
+          case PredicateLocation(predicate, args) => silver.PredicateAccess(args.map(exp), ref(predicate))(pos=pos(loc), info=expInfo(e))
+          case other => ??(other)
+        }, exp(body))(pos=pos(e), info=expInfo(e))
+      }
     case col.Not(arg) => silver.Not(exp(arg))(pos=pos(e), info=expInfo(e))
     case col.And(left, right) => silver.And(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case col.Star(left, right) => silver.And(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case col.Implies(left, right) => silver.Implies(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
     case col.Or(left, right) => silver.Or(exp(left), exp(right))(pos=pos(e), info=expInfo(e))
+    case col.PolarityDependent(onInhale, onExhale) => silver.InhaleExhaleExp(exp(onInhale), exp(onExhale))(pos=pos(e), info=expInfo(e))
 
     case res @ col.Perm(col.SilverFieldLocation(obj, Ref(field)), perm) =>
       val permValue = exp(perm)

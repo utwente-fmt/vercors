@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.rewrite.EncodeProofHelpers.{FramedProofLoopInvariantFailed, Indet, Once}
+import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 
 case object EncodeProofHelpers extends RewriterBuilder {
@@ -23,6 +23,19 @@ case object EncodeProofHelpers extends RewriterBuilder {
     override def shortPosition: String = "generated"
   }
 
+  case object Before extends Origin {
+    override def preferredName: String = "beforeFrame"
+    override def context: String = "[At node generated to indicate the point before a proof frame]"
+    override def inlineContext: String = "Node generated to indicate the point before a proof frame"
+    override def shortPosition: String = "generated"
+  }
+
+  case class BeforeVar(preferredName: String) extends Origin {
+    override def context: String = "[At variable generated for forperm]"
+    override def inlineContext: String = "Variable generated for forperm"
+    override def shortPosition: String = "generated"
+  }
+
   case class FramedProofLoopInvariantFailed(proof: FramedProof[_]) extends Blame[LoopInvariantFailure] {
     override def blame(error: LoopInvariantFailure): Unit = error match {
       case LoopInvariantNotEstablished(failure, _) =>
@@ -34,22 +47,33 @@ case object EncodeProofHelpers extends RewriterBuilder {
 }
 
 case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
+  import vct.col.rewrite.EncodeProofHelpers._
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case proof @ FramedProof(pre, body, post) =>
       implicit val o: Origin = stat.o
+
+      val beforeLabel = new LabelDecl[Post]()(Before)
+      val locValue = new Variable[Post](TAny())(BeforeVar("x"))
+      val allLocationsSame =
+        ForPermWithValue(locValue, locValue.get === Old(locValue.get, Some(beforeLabel.ref))(PanicBlame("loop body reached after label before it")))
+      val allLocationsSameOnInhale = PolarityDependent(allLocationsSame, tt)
+
       val once = new Variable[Post](TBool())(Once)
-      Scope(Seq(once), Loop(
+      val loop = Loop(
         init = assignLocal(once.get, tt),
         cond = once.get,
         update = assignLocal(once.get, ff),
 
         contract = LoopInvariant(
-          (once.get ==> dispatch(pre)) &*
+          (once.get ==> (dispatch(pre) &* allLocationsSameOnInhale)) &*
             (!once.get ==> dispatch(post)),
           Some(DecreasesClauseNoRecursion[Post]()),
         )(FramedProofLoopInvariantFailed(proof)),
         body = dispatch(body),
-      ))
+      )
+
+      Scope(Seq(once), Block(Seq(Label(beforeLabel, Block(Nil)), loop)))
 
     case IndetBranch(branches) =>
       // PB: note that if branches == Nil, this is the same as `inhale false`. This is intended.

@@ -233,6 +233,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: BipGlueAccepts[Pre] => node
     case node: BipGlueDataWire[Pre] => node
     case node: BipTransitionSignature[Pre] => node
+    case node: LlvmFunctionContract[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -394,6 +395,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
   def postCoerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaBipGlueName[Pre]): JavaBipGlueName[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
+  def postCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
+  override final def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -872,6 +877,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
+      case ForPerm(bindings, loc, body) =>
+        ForPerm(bindings, loc, bool(body))
+      case ForPermWithValue(binding, body) =>
+        ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
@@ -1058,8 +1067,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
-      case NewArray(element, dims, moreDims) =>
-        NewArray(element, dims.map(int), moreDims)
+      case na @ NewArray(element, dims, moreDims) =>
+        NewArray(element, dims.map(int), moreDims)(na.blame)
       case NewObject(cls) =>
         NewObject(cls)
       case NoPerm() =>
@@ -1116,6 +1125,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
+      case PolarityDependent(onInhale, onExhale) =>
+        PolarityDependent(res(onInhale), res(onExhale))
       case ass @ PostAssignExpression(target, value) =>
         PostAssignExpression(target, coerce(value, target.t))(ass.blame)
       case ass @ PreAssignExpression(target, value) =>
@@ -1501,6 +1512,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case glue: BipGlue[Pre] => glue
       case synchronization: BipPortSynchronization[Pre] => synchronization
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
+      case definition: LlvmFunctionDefinition[Pre] => definition
     }
   }
 
@@ -1700,8 +1712,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     node match {
       case CPointerDeclarator(pointers, inner) =>
         CPointerDeclarator(pointers, inner)
-      case CArrayDeclarator(qualifiers, size, inner) =>
-        CArrayDeclarator(qualifiers, size.map(int), inner)
+      case C @ CArrayDeclarator(qualifiers, size, inner) =>
+        CArrayDeclarator(qualifiers, size.map(int), inner)(C.blame)
       case CTypedFunctionDeclarator(params, varargs, inner) =>
         CTypedFunctionDeclarator(params, varargs, inner)
       case CAnonymousFunctionDeclarator(params, inner) =>
@@ -1794,4 +1806,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: JavaBipGlueElement[Pre]): JavaBipGlueElement[Pre] = node
   def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
+
+  def coerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
 }

@@ -469,6 +469,7 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def descInContext: String = "Map may not contain this key."
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
+sealed trait ArraySizeError extends VerificationFailure
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait ArrayLocationError extends ArraySubscriptError
 sealed trait AnyStarError extends VerificationFailure
@@ -476,6 +477,11 @@ case class ArrayNull(node: Expr[_]) extends ArrayLocationError with BuiltinError
   override def code: String = "arrayNull"
   override def descInContext: String = "Array may be null."
   override def inlineDescWithSource(source: String): String = s"Array `$source` may be null."
+}
+case class ArraySize(node: Expr[_]) extends ArraySizeError with NodeVerificationFailure {
+  override def code: String = "arraySize"
+  override def descInContext: String = "Array size may be negative."
+  override def inlineDescWithSource(source: String): String = s"Size of `$source` may be negative."
 }
 case class ArrayBounds(node: Node[_]) extends ArrayLocationError with NodeVerificationFailure {
   override def code: String = "arrayBounds"
@@ -793,6 +799,7 @@ object AbstractApplicable extends PanicBlame("the postcondition of an abstract a
 object TriggerPatternBlame extends PanicBlame("patterns in a trigger are not evaluated, but schematic, so any blame in a trigger is never applied.")
 object TrueSatisfiable extends PanicBlame("`requires true` is always satisfiable.")
 object FramedPtrOffset extends PanicBlame("pointer arithmetic in (0 <= \\pointer_block_offset(p)+i < \\pointer_block_length(p)) ? p+i : _ should always be ok.")
+object FramedByForPerm extends PanicBlame("Heap value access should be ok inside a forperm that frames it.")
 
 object AssignLocalOk extends PanicBlame("Assigning to a local can never fail.")
 object DerefAssignTarget extends PanicBlame("Assigning to a field should trigger an error on the assignment, and not on the dereference.")
