@@ -153,7 +153,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   def evaluateOne(e: Expr[Pre]): (Seq[Variable[Post]], Seq[Statement[Post]], Expr[Post]) = {
     val statements = ArrayBuffer[Statement[Post]]()
 
-    val previouslyExtracted = currentlyExtracted.keySet
+    val previouslyExtracted = currentlyExtracted.keySet.toSet
 
     try {
       val (vars, result) = collectVarsIfOuterScope {
@@ -165,12 +165,14 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       // All extracted expressions are re-inlined, or are flushed as side effects.
       // Exception: if expression evaluation recurses, then either the expressions extracted in the outer evaluation
       // are flushed by us, or they remain exactly in the extracted expressions.
-      assert(currentlyExtracted.isEmpty || currentlyExtracted.keySet == previouslyExtracted)
+      assert(currentlyExtracted.isEmpty || currentlyExtracted.keySet.toSet == previouslyExtracted)
 
       (vars, statements.toSeq, result)
     } catch {
       // The expression contains constructs (e.g. \forall) of which the combination with side effects would be confusing ...
       case err: DisallowedProofExpression =>
+        // To continue without crashing, restore the situation as before
+        currentlyExtracted --= (currentlyExtracted.keySet.toSet -- previouslyExtracted)
         try {
           // ... so try to evaluate it as a pure expression ...
           executionContext.having(None) {
