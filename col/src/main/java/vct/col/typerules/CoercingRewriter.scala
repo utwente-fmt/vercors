@@ -879,6 +879,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Forall(bindings, triggers, bool(body))
       case ForPerm(bindings, loc, body) =>
         ForPerm(bindings, loc, bool(body))
+      case ForPermWithValue(binding, body) =>
+        ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>

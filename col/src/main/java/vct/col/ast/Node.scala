@@ -433,6 +433,7 @@ final case class Exists[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]
 final case class Sum[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with SumImpl[G]
 final case class Product[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with ProductImpl[G]
 final case class ForPerm[G](bindings: Seq[Variable[G]], loc: Location[G], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForPermImpl[G]
+final case class ForPermWithValue[G](binding: Variable[G], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForPermWithValueImpl[G]
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with LetImpl[G]
 final case class InlinePattern[G](inner: Expr[G], parent: Int = 0, group: Int = 0)(implicit val o: Origin) extends Expr[G] with InlinePatternImpl[G]
 

@@ -255,6 +255,9 @@ case class SilverTransformation
     ImportAny.withArg(adtImporter),
     ImportViperOrder.withArg(adtImporter),
 
+    // All locations with a value should now be SilverField
+    EncodeForPermWithValue,
+
     ExtractInlineQuantifierPatterns,
     RewriteTriggerADTFunctions,
     MonomorphizeContractApplicables,
