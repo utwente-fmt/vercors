@@ -29,26 +29,28 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       })
     """)
 
-  def deserializeTerm(term: Term, typ: proto.Typ): Term =
+  def lastTypeArg(t: Type): Type = t.asInstanceOf[Type.Apply].args.last
+
+  def deserializeTerm(term: Term, typ: proto.Typ, scalaTyp: Type): Term =
     proto.primitivize(typ) match {
       case proto.TName("ExpectedErrors") => q"Nil"
 
       case proto.TBool => term
-      case r @ proto.TRef() => q"ref[${r.scalaArg}]($term.index)"
+      case r @ proto.TRef() => q"ref[${lastTypeArg(scalaTyp)}]($term.index)"
       case proto.TInt => term
       case proto.TBigInt => q"BigInt(new java.math.BigInteger($term.data.toByteArray()))"
-      case proto.TBigDecimal => q"BigDecimal(${deserializeTerm(q"$term.unscaledValue", proto.TBigInt)}, $term.scale)"
+      case proto.TBigDecimal => q"BigDecimal(${deserializeTerm(q"$term.unscaledValue", proto.TBigInt, null)}, $term.scale)"
       case proto.TString => term
-      case proto.TOption(t) => q"$term.map(e => ${deserializeTerm(q"e", t)})"
-      case proto.TSeq(t) => q"$term.map(e => ${deserializeTerm(q"e", t)})"
-      case proto.TSet(t) => q"$term.map(e => ${deserializeTerm(q"e", t)}).toSet"
+      case proto.TOption(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
+      case proto.TSeq(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
+      case proto.TSet(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))}).toSet"
       case typ @ proto.TName(name) if proto.boxedTypeFamily.contains(typ) => q"deserialize($term)"
-      case typ @ proto.TName(name) if proto.boxedTypeForward.contains(typ) => deserializeTerm(q"$term.v", proto.boxedTypeForward(typ))
+      case typ @ proto.TName(name) if proto.boxedTypeForward.contains(typ) => deserializeTerm(q"$term.v", proto.boxedTypeForward(typ), scalaTyp)
       case typ @ proto.TName(name) if proto.boxedTypeTuple.contains(typ) =>
         q"""(..${
           val ts = proto.boxedTypeTuple(typ).ts
           ts.zipWithIndex.map {
-            case (typ, i) => deserializeTerm(Term.Select(term, Term.Name(s"v${i+1}")), typ)
+            case (typ, i) => deserializeTerm(Term.Select(term, Term.Name(s"v${i+1}")), typ, scalaTyp.asInstanceOf[Type.Tuple].args(i))
           }.toList
         })"""
       case _ => ColHelperUtil.fail(s"Unknown type $typ")
@@ -58,13 +60,13 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
   // contextEverywhere (Node.scala) -> context_everywhere (proto) -> contextEverywhere (scalapb)
   // context_everywhere (Node.scala; poor style) -> context_everywhere (proto) -> contextEverywhere (scalapb)
   def deserializeParam(defn: ClassDef)(param: Term.Param): Term =
-    deserializeTerm(q"node.${Term.Name(proto.Name(param.name.value).camel)}", proto.getType(param.decltpe.get))
+    deserializeTerm(q"node.${Term.Name(proto.Name(param.name.value).camel)}", proto.getType(param.decltpe.get), param.decltpe.get)
 
   def makeNodeDeserialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
       ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin", q"Deserialize.Origin")}
   """)
-
+Fr
   def makeDeserialize(): List[Stat] = q"""
     import vct.col.{serialize => ser}
     import vct.col.ref.LazyRef

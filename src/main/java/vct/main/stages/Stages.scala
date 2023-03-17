@@ -1,11 +1,7 @@
 package vct.main.stages
 
 import hre.progress.Progress
-<<<<<<< HEAD
-import vct.col.ast.{Program, Verification}
-=======
-import vct.col.ast.{BipTransition, Program}
->>>>>>> dev
+import vct.col.ast.{Program, Verification, BipTransition}
 import vct.col.rewrite.Generation
 import vct.options.Options
 import vct.parsers.transform.BlameProvider
@@ -62,16 +58,15 @@ case object Stages {
       .thenRun(ExpectedErrors.ofOptions(options))
   }
 
-<<<<<<< HEAD
   def veymontOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
       .thenRun(Transformation.veymontOfOptions(options))
       .thenRun(SaveStage.ofOptions(options))
-=======
+  }
+
   def vesuvOfOptions(options: Options, blameProvider: BlameProvider) : Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Output.ofOptions(options, blameProvider))
->>>>>>> dev
   }
 }
