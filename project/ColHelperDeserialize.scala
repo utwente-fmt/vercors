@@ -66,7 +66,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
       ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin", q"Deserialize.Origin")}
   """)
-Fr
+
   def makeDeserialize(): List[Stat] = q"""
     import vct.col.{serialize => ser}
     import vct.col.ref.LazyRef
