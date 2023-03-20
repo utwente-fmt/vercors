@@ -13,7 +13,7 @@ class ProgressAwareLogbackLayout extends LayoutBase[ILoggingEvent] {
   }
 
   override def doLayout(event: ILoggingEvent): String =
-    Progress.undoProgressMessage +
+    Layout.undoProgressMessage +
       (if(event.getFormattedMessage.contains('\n')) {
         event.getFormattedMessage.strip +
           CoreConstants.LINE_SEPARATOR
@@ -23,5 +23,5 @@ class ProgressAwareLogbackLayout extends LayoutBase[ILoggingEvent] {
           CoreConstants.LINE_SEPARATOR
       }) +
       tpc.convert(event) +
-      Progress.progressMessage
+      Layout.progressMessage
 }
