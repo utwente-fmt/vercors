@@ -104,20 +104,9 @@ abstract class AbstractTask {
       case Nil => here
       case Seq(sub) => sub.renderProgressWith(render).prefix(here, f"[${sub.progress * 100}%.1f%%] ")
       case subs =>
-        val hereFixed = here.postfix(ProgressRender(s"${subs.size} Subtasks"), "")
-        val subsFixed = subs.zipWithIndex.map {
-          case (sub, idx) =>
-            sub.renderProgressWith(render)
-              .prefix(f"[${sub.progress * 100}%.1f%%] ")
-              .prefix(ProgressRender(s"Subtask ${idx+1}/${subs.size}"), "")
-        }.reduce[ProgressRender] {
-          case (l, r) => ProgressRender(l.lines ++ Seq(ProgressRender.HR) ++ r.lines, -1)
-        }
-
-        ProgressRender(
-          subsFixed.lines ++ Seq(ProgressRender.HR) ++ hereFixed.lines,
-          hereFixed.primaryLineIndex + subsFixed.lines.size + 1
-        )
+        here.subRenders(subs.map { sub =>
+          f"[${sub.progress * 100}%.1f%%] " -> sub.renderProgressWith(render)
+        })
     }
   }
 
@@ -138,6 +127,8 @@ abstract class AbstractTask {
         }
       }
   }
+
+  def nonEmpty: Boolean = subTasks.nonEmpty
 
   def frame[T](f: => T): T =
     try {

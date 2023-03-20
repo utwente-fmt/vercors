@@ -33,6 +33,9 @@ case object Progress {
   private var blockLayoutUpdate = false
   private var newLayoutAfterTimeout = false
 
+  private val noProgressTimer = new Timer()
+  private var noProgressTask: Option[TimerTask] = None
+
   private def delayNextUpdate(): Unit = {
     blockLayoutUpdate = true
     blockLayoutUpdateTask.foreach(_.cancel())

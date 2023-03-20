@@ -1,7 +1,5 @@
 package hre.progress
 
-import hre.perf.Profile
-import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.{AnsiConsole, AnsiType}
 
 case object Layout {
@@ -72,12 +70,12 @@ case object Layout {
     ) + postfix
   }
 
-  def progressMessage: String = if (/*frames.nonEmpty*/true) {
+  def progressMessage: String = if (TaskRegistry.getRootTask.nonEmpty) {
     if (wantProgress) {
       if (wantPrettyProgress) {
         val lines = TaskRegistry.getRootTask.render(maxWidth, maxHeight-1)
         printedLines = lines.size + 1
-        (lines :+ progressBar).mkString("", f"%n", f"%n")
+        (progressBar +: lines).mkString("", f"%n", f"%n")
       } else {
         val lines = TaskRegistry.getRootTask.render(maxWidth, 1)
         s"$progressBadge ${lines.last}"
