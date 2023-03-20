@@ -96,25 +96,32 @@ abstract class AbstractTask {
     end()
   }
 
-  private def renderProgressWith(render: AbstractTask => ProgressRender): ProgressRender = {
-    val here = render(this)
+  private def renderProgressWith(depthForDetail: Int): ProgressRender = {
+    val here = if(depthForDetail <= 0) renderHere else renderHereShort
     val sub = subTasks.toIndexedSeq
 
     sub match {
-      case Nil => here
-      case Seq(sub) => sub.renderProgressWith(render).prefix(here, f"[${sub.progress * 100}%.1f%%] ")
+      case Nil =>
+        here
+      case Seq(sub) =>
+        val subRender = sub.renderProgressWith(depthForDetail - 1)
+        if(subRender.lines.size == 1)
+          here.postfix(ProgressRender.JOIN + subRender.lines.head)
+        else if(here.lines.size == 1 && subRender.primaryLineIndex == 0)
+          subRender.prefix(here.lines.head + ProgressRender.JOIN)
+        else
+          here.subRenders(Seq(f"[${sub.progress * 100}%.1f%%] " -> subRender))
       case subs =>
         here.subRenders(subs.map { sub =>
-          f"[${sub.progress * 100}%.1f%%] " -> sub.renderProgressWith(render)
+          f"[${sub.progress * 100}%.1f%%] " -> sub.renderProgressWith(depthForDetail - 1)
         })
     }
   }
 
   def render(maxWidth: Int, maxHeight: Int): Seq[String] = {
-    val bigProgress = renderProgressWith(_.renderHere)
-    val progress =
-      if(bigProgress.lines.size > maxHeight) renderProgressWith(_.renderHereShort)
-      else bigProgress
+    val progress = (0 until 10).to(LazyList).map(renderProgressWith).collectFirst {
+      case render if render.lines.size <= maxHeight => render
+    }.getOrElse(renderProgressWith(1000))
 
     progress.lines
       .takeRight(maxHeight)

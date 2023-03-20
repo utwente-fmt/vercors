@@ -7,6 +7,7 @@ import java.util.{Timer, TimerTask}
 
 case object Progress {
   val UPDATE_INTERVAL_MS: Int = 100
+  val UPDATE_INTERAL_LONG_MS: Int = 1000
 
   def install(forceProgress: Boolean, profile: Boolean): Unit = {
     TaskRegistry.install()
@@ -36,31 +37,32 @@ case object Progress {
   private val noProgressTimer = new Timer()
   private var noProgressTask: Option[TimerTask] = None
 
-  private def delayNextUpdate(): Unit = {
+  private def delayNextUpdate(longDelay: Boolean): Unit = {
     blockLayoutUpdate = true
     blockLayoutUpdateTask.foreach(_.cancel())
     blockLayoutUpdateTimer.purge()
     blockLayoutUpdateTask = Some(new TimerTask {
       override def run(): Unit = Progress.synchronized {
         if (newLayoutAfterTimeout) {
-          Layout.update()
+          val printedLinesDidChange = Layout.update()
           newLayoutAfterTimeout = false
-          delayNextUpdate()
+          delayNextUpdate(longDelay = printedLinesDidChange)
         } else {
           blockLayoutUpdate = false
         }
       }
     })
-    blockLayoutUpdateTimer.schedule(blockLayoutUpdateTask.get, UPDATE_INTERVAL_MS)
+    val updateInterval = if(longDelay) UPDATE_INTERAL_LONG_MS else UPDATE_INTERVAL_MS
+    blockLayoutUpdateTimer.schedule(blockLayoutUpdateTask.get, updateInterval)
   }
 
   def update(): Unit = Progress.synchronized {
     if(blockLayoutUpdate) {
       newLayoutAfterTimeout = true
     } else {
-      Layout.update()
+      val printedLinesDidChange = Layout.update()
       newLayoutAfterTimeout = false
-      delayNextUpdate()
+      delayNextUpdate(longDelay = printedLinesDidChange)
     }
   }
 

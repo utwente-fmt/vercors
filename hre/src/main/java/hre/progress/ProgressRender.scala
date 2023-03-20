@@ -23,16 +23,6 @@ case class ProgressRender(lines: Seq[String], primaryLineIndex: Int) {
   def postfix(postfix: String): ProgressRender =
     copy(lines = lines.take(primaryLineIndex) ++ Seq(lines(primaryLineIndex) + postfix) ++ lines.drop(primaryLineIndex+1))
 
-  def prefix(pre: ProgressRender, badgeOnFailure: String): ProgressRender =
-    if (pre.lines.size == 1) {
-      prefix(pre.lines.head + ProgressRender.JOIN)
-    } else {
-      pre.subRenders(Seq(badgeOnFailure -> this))
-    }
-
-  def postfix(post: ProgressRender, postBadgeOnFailure: String): ProgressRender =
-    post.prefix(this, postBadgeOnFailure)
-
   def subRenders(renders: Seq[(String, ProgressRender)]): ProgressRender = {
     val prefixedInit = renders.init.map {
       case (badge, unbadgedRender) =>

@@ -85,8 +85,14 @@ case object Layout {
     ""
   }
 
-  def update(): Unit = {
+  /**
+   * Print an updated progress message to stdout
+   * @return whether the number of printed progres lines changed
+   */
+  def update(): Boolean = {
+    val lastPrintedLines = printedLines
     System.out.print(undoProgressMessage)
     System.out.print(progressMessage)
+    printedLines != lastPrintedLines
   }
 }

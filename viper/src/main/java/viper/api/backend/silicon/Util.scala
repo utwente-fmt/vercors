@@ -17,7 +17,7 @@ case object Util {
 
     o match {
       case None => ProgressRender(message)
-      case Some(o) if short => ProgressRender(s"$message ${o.shortPosition}")
+      case Some(o) if short => ProgressRender(s"$message `${o.inlineContext}`")
       case Some(o) if !short =>
         val lines = o.messageInContext(message).split("\n")
         ProgressRender(lines, lines.size - 2)
