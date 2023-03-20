@@ -7,7 +7,7 @@ import java.util.{Timer, TimerTask}
 
 case object Progress {
   val UPDATE_INTERVAL_MS: Int = 100
-  val UPDATE_INTERAL_LONG_MS: Int = 1000
+  val UPDATE_INTERAL_LONG_MS: Int = 700
 
   def install(forceProgress: Boolean, profile: Boolean): Unit = {
     TaskRegistry.install()

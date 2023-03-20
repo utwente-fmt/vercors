@@ -96,7 +96,7 @@ abstract class AbstractTask {
     end()
   }
 
-  private def renderProgressWith(depthForDetail: Int): ProgressRender = {
+  private def renderProgressWith(depthForDetail: Int): ProgressRender = synchronized {
     val here = if(depthForDetail <= 0) renderHere else renderHereShort
     val sub = subTasks.toIndexedSeq
 
@@ -135,7 +135,7 @@ abstract class AbstractTask {
       }
   }
 
-  def nonEmpty: Boolean = subTasks.nonEmpty
+  def nonEmpty: Boolean = synchronized { subTasks.nonEmpty }
 
   def frame[T](f: => T): T =
     try {
