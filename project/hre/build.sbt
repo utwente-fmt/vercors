@@ -2,6 +2,7 @@ lazy val hre = (project in file(".")).settings(
   Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "hre",
   Compile / scalaSource := (Compile / sourceDirectory).value,
   Compile / resourceDirectory := baseDirectory.value / ".." / ".." / "res" / "hre",
+  Compile / unmanagedBase := baseDirectory.value / ".." / ".." / "lib" / "hre",
 
   name := "hre",
   version := "0.1-SNAPSHOT",
@@ -22,6 +23,6 @@ lazy val hre = (project in file(".")).settings(
   ),
 
   Compile / PB.protoSources ++= Seq(
-    (Compile / sourceManaged).value / "protobuf"
+    (Compile / unmanagedBase).value / "protobuf",
   ),
 )
