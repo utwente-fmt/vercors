@@ -18,8 +18,8 @@ enablePlugins(DebianPlugin)
 
 Compile / sourceDirectory := baseDirectory.value / "src" / "main"
 Compile / scalaSource := (Compile / sourceDirectory).value
-Compile / resourceDirectory := baseDirectory.value / ".." / "res" / "main"
-Test / sourceDirectory := baseDirectory.value / ".." / "test" / "main"
+Compile / resourceDirectory := baseDirectory.value / "res" / "main"
+Test / sourceDirectory := baseDirectory.value / "test" / "main"
 Test / scalaSource := (Test / sourceDirectory).value
 
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
