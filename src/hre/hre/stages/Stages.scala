@@ -23,14 +23,14 @@ trait ContextStage[-Input, Ctx, +Output] extends Stage[(Input, Ctx), (Output, Ct
 trait Stages[-Input, +Output] {
   def run(in: Input): Either[VerificationError, Output] =
     try {
-      Progress.stages(flatNames) {
-        Right(runUnsafely(in))
+      Progress.stages(flatNames) { progressNext =>
+        Right(runUnsafely(in, progressNext))
       }
     } catch {
       case err: VerificationError => Left(err)
     }
 
-  def runUnsafely(in: Input): Output
+  def runUnsafely(in: Input, progressNext: () => Unit): Output
 
   def flatNames: Seq[(String, Int)]
 
@@ -39,15 +39,15 @@ trait Stages[-Input, +Output] {
 }
 
 case class UnitStages[-Input, +Output](stage: Stage[Input, Output]) extends Stages[Input, Output] {
-  override def runUnsafely(in: Input): Output = stage.run(in)
+  override def runUnsafely(in: Input, progressNext: () => Unit): Output = stage.run(in)
   override def flatNames: Seq[(String, Int)] = Seq((stage.friendlyName, stage.progressWeight))
 }
 
 case class StagesPair[-Input, Mid, +Output](left: Stages[Input, Mid], right: Stages[Mid, Output]) extends Stages[Input, Output] {
-  override def runUnsafely(in: Input): Output = {
-    val mid = left.runUnsafely(in)
-    Progress.next()
-    right.runUnsafely(mid)
+  override def runUnsafely(in: Input, progressNext: () => Unit): Output = {
+    val mid = left.runUnsafely(in, progressNext)
+    progressNext()
+    right.runUnsafely(mid, progressNext)
   }
 
   override def flatNames: Seq[(String, Int)] = left.flatNames ++ right.flatNames

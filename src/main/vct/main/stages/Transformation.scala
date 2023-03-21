@@ -14,6 +14,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.origin.{ExpectedError, FileSpanningOrigin}
 import vct.col.print.Printer
+import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
 import vct.col.rewrite.bip.{BIP, ComputeBipGlue, EncodeBip, EncodeBipPermissions, InstantiateBipSynchronizations}
 import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
 import vct.importer.{PathAdtImporter, Util}
@@ -63,6 +64,15 @@ object Transformation {
           checkSat = options.devCheckSat,
           bipResults = bipResults,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
+        )
+    }
+
+  def veymontOfOptions(options: Options): Transformation =
+    options.backend match {
+      case Backend.Silicon | Backend.Carbon =>
+        VeyMontTransformation(
+          onBeforePassKey = writeOutFunctions(options.outputBeforePass),
+          onAfterPassKey = writeOutFunctions(options.outputAfterPass)
         )
     }
 }
@@ -277,3 +287,12 @@ case class SilverTransformation
 
     Explode.withArg(splitVerificationByProcedure),
   ))
+
+case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+  extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    AddVeyMontAssignmentNodes,
+    AddVeyMontConditionNodes,
+    StructureCheck
+  ))
+

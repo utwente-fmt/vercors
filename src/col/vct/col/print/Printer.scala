@@ -454,6 +454,10 @@ case class Printer(out: Appendable,
       statement("return", space, result)
     case Assign(target, value) =>
       statement(target, space, "=", space, value)
+    case va: VeyMontAssignExpression[_] =>
+      statement(va.assign.asInstanceOf[Assign[_]].target, space, "=", space, va.assign.asInstanceOf[Assign[_]].value)
+    case vc: VeyMontCommExpression[_] =>
+      statement(vc.assign.asInstanceOf[Assign[_]].target, space, "=", space, vc.assign.asInstanceOf[Assign[_]].value)
     case block: Block[_] =>
       printBlock(block, newline = true)
     case Scope(locals, body) =>
@@ -465,7 +469,11 @@ case class Printer(out: Appendable,
     case Branch(branches) =>
       val `if` = (phrase("if (", branches.head._1, ")"), branches.head._2)
       val others = branches.tail.map {
-        case (cond, impl) => (phrase("else if (", cond, ")"), impl)
+        case (cond, impl) =>
+          if(cond match{ case BooleanValue(value) => value}) { //if cond == true
+            (phrase("else"),impl)
+          } else
+            (phrase("else if(", cond, ")"), impl) //never reached since the two branches in else { if(cond) statement } are mapped separately
       }
       controls(`if` +: others)
     case Switch(expr, body) =>
@@ -473,7 +481,9 @@ case class Printer(out: Appendable,
     case Loop(Block(Nil), cond, Block(Nil), invariant, body) =>
       control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case Loop(init, cond, update, invariant, body) =>
-      control(phrase(printLoopInvariant(invariant), newline, "for (", statement_no_semicolon(init), "; ", cond, "; ", statement_no_semicolon(update), ")"), body)
+      if(isSkip(init) && isSkip(update))
+        control(phrase(printLoopInvariant(invariant), newline, "while(", cond, ")"), body)
+      else control(phrase(printLoopInvariant(invariant), newline, "for(", init, "; ", cond, "; ", statement_no_semicolon(update), ")"), body)
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -735,6 +745,11 @@ case class Printer(out: Appendable,
       phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")")
   }
 
+  private def isSkip(st: Statement[_]): Boolean = st match {
+    case Block(stmts) => stmts.isEmpty
+    case _ => false
+  }
+
   def printExpr(e: Expr[_]): Unit =
     say(expr(e)._1)
 
@@ -833,6 +848,8 @@ case class Printer(out: Appendable,
       (phrase("running", "(", thread, ")"), 100)
     case Starall(bindings, triggers, body) =>
       (phrase("(", "\\forall*", space, commas(bindings.map(NodePhrase)), "; true; ", body, ")"), 120)
+    case VeyMontCondition(c) =>
+      (phrase(intersperse(" && ", c.map{case (t,e) => e})),40)
     case Star(left, right) =>
       (phrase(assoc(40, left), space, "**", space, assoc(40, right)), 40)
     case Wand(left, right) =>
@@ -927,6 +944,7 @@ case class Printer(out: Appendable,
       (phrase(name(ref.decl)), 110)
     case Deref(obj, ref) =>
       (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
+    case DerefVeyMontThread(ref) => (phrase(name(ref.decl)), 110)
     case ModelDeref(obj, ref) =>
       (phrase(assoc(100, obj), ".", name(ref.decl)), 100)
     case DerefPointer(pointer) =>
@@ -946,7 +964,10 @@ case class Printer(out: Appendable,
     case FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
       (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-      (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+      obj match {
+        case o:ThisSeqProg[_] => (phrase(name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+        case _ => (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
+      }
     case InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
       (phrase(assoc(100, obj), ".", name(ref.decl), "(", commas(args.map(NodePhrase)), ")"), 100)
     case UMinus(arg) =>
@@ -1005,11 +1026,15 @@ case class Printer(out: Appendable,
       (phrase(bind(60, left), space, ">", space, bind(60, right)), 60)
     case Less(left, right) =>
       (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
+    case AmbiguousLess(left, right) =>
+      (phrase(bind(60, left), space, "<", space, bind(60, right)), 60)
     case AmbiguousGreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case GreaterEq(left, right) =>
       (phrase(bind(60, left), space, ">=", space, bind(60, right)), 60)
     case LessEq(left, right) =>
+      (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
+    case AmbiguousLessEq(left, right) =>
       (phrase(bind(60, left), space, "<=", space, bind(60, right)), 60)
     case SubSet(left, right) =>
       ???
@@ -1377,6 +1402,21 @@ case class Printer(out: Appendable,
       ???
     case field: ModelField[_] =>
       ???
+    case seqprog: VeyMontSeqProg[_] => phrase(
+      doubleline,
+      seqprog.contract, newline,
+      "seq_program", space, name(seqprog),"(",commas(seqprog.progArgs.map(NodePhrase)) ,")", space, "{",
+      indent(phrase(seqprog.members.map(NodePhrase): _*)),
+      "}",
+      doubleline)
+    case thread: VeyMontThread[_] => phrase(newline,"thread",space,name(thread),space,"=",space,thread.threadType,"(",commas(thread.args.map(NodePhrase)),")",newline)
+    case runMethod : RunMethod[_] => {
+      val header = phrase(runMethod.contract,"run")
+      runMethod.body match {
+        case Some(body) => control(header, body)
+        case None => phrase(doubleline, header, ";", doubleline)
+      }
+    }
   })
 
   def printApplicableContract(node: ApplicableContract[_]): Unit =
