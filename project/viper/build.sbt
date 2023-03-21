@@ -1,6 +1,7 @@
-Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "viper"
+Compile / sourceDirectory := baseDirectory.value.getParentFile.getParentFile / "src" / "viper"
 Compile / scalaSource := (Compile / sourceDirectory).value
-Test / sourceDirectory := baseDirectory.value / ".." / ".." / "test" / "viper"
+Compile / resourceDirectory := baseDirectory.value.getParentFile.getParentFile / "res" / "viper"
+Test / sourceDirectory := baseDirectory.value.getParentFile.getParentFile / "test" / "viper"
 Test / scalaSource := (Test / sourceDirectory).value
 
 name := "viper"

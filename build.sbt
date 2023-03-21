@@ -16,12 +16,6 @@ enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
 
-Compile / sourceDirectory := baseDirectory.value / "src" / "main"
-Compile / scalaSource := (Compile / sourceDirectory).value
-Compile / resourceDirectory := baseDirectory.value / "res" / "main"
-Test / sourceDirectory := baseDirectory.value / "test" / "main"
-Test / scalaSource := (Test / sourceDirectory).value
-
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
 val silver_url = uri("git:https://github.com/viperproject/silver.git#11bde93e486e983141c01ac7df270e9f06e8ab06")
@@ -113,6 +107,12 @@ lazy val vercors: Project = (project in file("."))
         |(OpenMP). VerCors is able to prove data-race freedom, memory safety, and functional correctness of
         |(concurrent) programs written in Java, C, OpenCL, OpenMP, and its own Prototypal Verification Language
         |PVL. """.stripMargin.replaceAll("\n", ""),
+
+    Compile / sourceDirectory := baseDirectory.value / "src" / "main",
+    Compile / scalaSource := (Compile / sourceDirectory).value,
+    Compile / resourceDirectory := baseDirectory.value / "res" / "main",
+    Test / sourceDirectory := baseDirectory.value / "test" / "main",
+    Test / scalaSource := (Test / sourceDirectory).value,
 
     libraryDependencies += "com.google.code.gson" % "gson" % "2.8.0",
     libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.7",

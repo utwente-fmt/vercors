@@ -1,8 +1,8 @@
-Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "col"
+Compile / sourceDirectory := baseDirectory.value.getParentFile.getParentFile / "src" / "col"
 Compile / scalaSource := (Compile / sourceDirectory).value
-Test / sourceDirectory := baseDirectory.value / ".." / ".." / "test" / "col"
+Compile / resourceDirectory := baseDirectory.value.getParentFile.getParentFile / "res" / "col"
+Test / sourceDirectory := baseDirectory.value.getParentFile.getParentFile / "test" / "col"
 Test / scalaSource := (Test / sourceDirectory).value
-
 
 name := "col"
 libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1"

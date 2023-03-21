@@ -1,5 +1,8 @@
-Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "rewrite"
+Compile / sourceDirectory := baseDirectory.value.getParentFile.getParentFile / "src" / "rewrite"
 Compile / scalaSource := (Compile / sourceDirectory).value
+Compile / resourceDirectory := baseDirectory.value.getParentFile.getParentFile / "res" / "rewrite"
+Test / sourceDirectory := baseDirectory.value.getParentFile.getParentFile / "test" / "rewrite"
+Test / scalaSource := (Test / sourceDirectory).value
 
 name := "rewrite"
 organization := "vercors"
