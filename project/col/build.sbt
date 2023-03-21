@@ -1,6 +1,6 @@
-Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "col"
+Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "col"
 Compile / scalaSource := (Compile / sourceDirectory).value
-Test / sourceDirectory := baseDirectory.value / ".." / "test" / "col"
+Test / sourceDirectory := baseDirectory.value / ".." / ".." / "test" / "col"
 Test / scalaSource := (Test / sourceDirectory).value
 
 

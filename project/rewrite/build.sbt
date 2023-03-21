@@ -1,4 +1,4 @@
-Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "rewrite"
+Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "rewrite"
 Compile / scalaSource := (Compile / sourceDirectory).value
 
 name := "rewrite"

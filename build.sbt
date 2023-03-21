@@ -54,11 +54,11 @@ Global / buildDependencies := {
 lazy val silver_ref = ProjectRef(silver_url, "silver")
 lazy val carbon_ref = ProjectRef(carbon_url, "carbon")
 lazy val silicon_ref = ProjectRef(silicon_url, "silicon")
-lazy val hre = project in file("hre")
-lazy val col = (project in file("col")).dependsOn(hre)
-lazy val rewrite = (project in file("rewrite")).dependsOn(hre, col)
-lazy val parsers = (project in file("parsers")).dependsOn(hre, col)
-lazy val viper = (project in file("viper")).dependsOn(hre, col, parsers, silver_ref, carbon_ref, silicon_ref)
+lazy val hre = project in file("project/hre")
+lazy val col = (project in file("project/col")).dependsOn(hre)
+lazy val rewrite = (project in file("project/rewrite")).dependsOn(hre, col)
+lazy val parsers = (project in file("project/parsers")).dependsOn(hre, col)
+lazy val viper = (project in file("project/viper")).dependsOn(hre, col, parsers, silver_ref, carbon_ref, silicon_ref)
 
 // We fix the scalaVersion of all viper components to be silver's scalaVersion, because
 // it seems that in some cases the scalaVersion of the other components is lost.

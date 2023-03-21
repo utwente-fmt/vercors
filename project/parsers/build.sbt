@@ -1,6 +1,6 @@
-Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "parsers"
+Compile / sourceDirectory := baseDirectory.value / ".." / ".." / "src" / "parsers"
 Compile / scalaSource := (Compile / sourceDirectory).value
-Compile / unmanagedBase := baseDirectory.value / ".." / "lib" / "parsers"
+Compile / unmanagedBase := baseDirectory.value / ".." / ".." / "lib" / "parsers"
 
 lazy val antlrTask = taskKey[Seq[File]]("Generate visitors and listeners from ANTLR grammars")
 
