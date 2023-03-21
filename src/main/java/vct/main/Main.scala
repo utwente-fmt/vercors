@@ -2,6 +2,7 @@ package vct.main
 
 import ch.qos.logback.classic.{Level, Logger}
 import com.typesafe.scalalogging.LazyLogging
+import hre.perf.Profile
 import hre.progress.Progress
 import org.slf4j.LoggerFactory
 import scopt.OParser
@@ -74,24 +75,32 @@ case object Main extends LazyLogging {
       })
     }
 
-    Progress.install(options.progress)
+    Progress.install(options.progress, options.profile)
 
-    options.mode match {
-      case Mode.Verify =>
-        logger.info("Starting verification")
-        Verify.runOptions(options)
-      case Mode.HelpVerifyPasses =>
-        logger.info("Available passes:")
-        Transformation.ofOptions(options).passes.foreach { pass =>
-          logger.info(s" - ${pass.key}")
-          logger.info(s"    ${pass.desc}")
-        }
-        EXIT_CODE_SUCCESS
-      case Mode.VeyMont => VeyMont.runOptions(options)
-      case Mode.VeSUV =>
-        logger.info("Starting transformation")
-        Transform.runOptions(options)
-      case Mode.BatchTest => ???
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = Progress.abort()
+    })
+
+    try {
+      options.mode match {
+        case Mode.Verify =>
+          logger.info("Starting verification")
+          Verify.runOptions(options)
+        case Mode.HelpVerifyPasses =>
+          logger.info("Available passes:")
+          Transformation.ofOptions(options).passes.foreach { pass =>
+            logger.info(s" - ${pass.key}")
+            logger.info(s"    ${pass.desc}")
+          }
+          EXIT_CODE_SUCCESS
+        case Mode.VeyMont => VeyMont.runOptions(options)
+        case Mode.VeSUV =>
+          logger.info("Starting transformation")
+          Transform.runOptions(options)
+        case Mode.BatchTest => ???
+      }
+    } finally {
+      Progress.finish()
     }
   }
 }

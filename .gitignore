@@ -55,3 +55,6 @@ cabal.project.local~
 # Python files
 *.pyc
 __pycache__
+
+# Misc
+*.pprof
