@@ -56,6 +56,8 @@ sealed trait Referrable[G] {
     case RefModelField(decl) => Referrable.originName(decl)
     case RefModelProcess(decl) => Referrable.originName(decl)
     case RefModelAction(decl) => Referrable.originName(decl)
+    case RefSeqProg(decl) => Referrable.originName(decl)
+    case RefVeyMontThread(decl) => Referrable.originName(decl)
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
@@ -119,6 +121,8 @@ case object Referrable {
     case decl: CLocalDeclaration[G] => return decl.decl.inits.indices.map(RefCLocalDeclaration(decl, _))
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
+    case decl: VeyMontSeqProg[G] => RefSeqProg(decl)
+    case decl: VeyMontThread[G] => RefVeyMontThread(decl)
     case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
   })
 
@@ -217,6 +221,9 @@ case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] w
 case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
+
+case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
+case class RefVeyMontThread[G](decl: VeyMontThread[G]) extends Referrable[G] with PVLNameTarget[G]
 
 case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
 case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]
