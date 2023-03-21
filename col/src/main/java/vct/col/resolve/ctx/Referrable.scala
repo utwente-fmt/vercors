@@ -120,6 +120,7 @@ case object Referrable {
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
     case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
+    case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition()
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -217,6 +218,8 @@ case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] w
 case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
+
+case class RefLlvmFunctionDefinition[G]() extends Referrable[G]
 
 case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
 case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]
