@@ -1,4 +1,8 @@
 lazy val hre = (project in file(".")).settings(
+  Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "hre",
+  Compile / scalaSource := (Compile / sourceDirectory).value,
+  Compile / resourceDirectory := baseDirectory.value / ".." / "res" / "hre",
+
   name := "hre",
   version := "0.1-SNAPSHOT",
 

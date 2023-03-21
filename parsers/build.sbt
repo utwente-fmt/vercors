@@ -1,3 +1,7 @@
+Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "parsers"
+Compile / scalaSource := (Compile / sourceDirectory).value
+Compile / unmanagedBase := baseDirectory.value / ".." / "lib" / "parsers"
+
 lazy val antlrTask = taskKey[Seq[File]]("Generate visitors and listeners from ANTLR grammars")
 
 libraryDependencies += "antlr" % "antlr" % "4.8-extractors-2" from
@@ -6,7 +10,7 @@ libraryDependencies += "org.apache.logging.log4j" % "log4j-to-slf4j" % "2.20.0"
 
 antlrTask := {
     val cp = (Compile / externalDependencyClasspath).value.files
-    val src = (Compile / sourceDirectory).value / "antlr4"
+    val src = (Compile / unmanagedBase).value / "antlr4"
     val lib = (Compile / unmanagedBase).value / "antlr4"
     val target = (Compile / sourceManaged).value / "java" / "vct" / "antlr4" / "generated"
     val log = streams.value.log

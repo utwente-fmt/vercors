@@ -1,3 +1,9 @@
+Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "col"
+Compile / scalaSource := (Compile / sourceDirectory).value
+Test / sourceDirectory := baseDirectory.value / ".." / "test" / "col"
+Test / scalaSource := (Test / sourceDirectory).value
+
+
 name := "col"
 libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.7" % "test"
@@ -10,7 +16,7 @@ Compile / packageDoc / publishArtifact := false
 lazy val generateHelpersTask = taskKey[Seq[File]]("Generate helpers for the COL AST")
 
 generateHelpersTask := {
-  val src = (Compile / sourceDirectory).value / "java" / "vct" / "col" / "ast"
+  val src = (Compile / sourceDirectory).value / "vct" / "col" / "ast"
   val gen = (Compile / sourceManaged).value
   val files = Seq(
     src / "Node.scala",

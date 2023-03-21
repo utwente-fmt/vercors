@@ -1,3 +1,6 @@
+Compile / sourceDirectory := baseDirectory.value / ".." / "src" / "rewrite"
+Compile / scalaSource := (Compile / sourceDirectory).value
+
 name := "rewrite"
 organization := "vercors"
 

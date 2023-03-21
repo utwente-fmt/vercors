@@ -16,6 +16,12 @@ enablePlugins(BuildInfoPlugin)
 enablePlugins(JavaAppPackaging)
 enablePlugins(DebianPlugin)
 
+Compile / sourceDirectory := baseDirectory.value / "src" / "main"
+Compile / scalaSource := (Compile / sourceDirectory).value
+Compile / resourceDirectory := baseDirectory.value / ".." / "res" / "main"
+Test / sourceDirectory := baseDirectory.value / ".." / "test" / "main"
+Test / scalaSource := (Test / sourceDirectory).value
+
 /* To update viper, replace the hash with the commit hash that you want to point to. It's a good idea to ask people to
  re-import the project into their IDE, as the location of the viper projects below will change. */
 val silver_url = uri("git:https://github.com/viperproject/silver.git#11bde93e486e983141c01ac7df270e9f06e8ab06")
@@ -163,12 +169,12 @@ lazy val vercors: Project = (project in file("."))
 
     /* We want the resources of vercors to be bare files in all cases, so we manually add a resource directory to
     the classpath. That way the resources are not packed into the jar. */
-    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
-    Compile / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
-    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
-    Runtime / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
-    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "res"),
-    Test / unmanagedClasspath += Attributed.blank(sourceDirectory.value / "main" / "universal" / "deps"),
+    Compile / unmanagedClasspath += Attributed.blank(baseDirectory.value / "res" / "universal" / "res"),
+    Compile / unmanagedClasspath += Attributed.blank(baseDirectory.value / "res" / "universal" / "deps"),
+    Runtime / unmanagedClasspath += Attributed.blank(baseDirectory.value / "res" / "universal" / "res"),
+    Runtime / unmanagedClasspath += Attributed.blank(baseDirectory.value / "res" / "universal" / "deps"),
+    Test / unmanagedClasspath += Attributed.blank(baseDirectory.value / "res" / "universal" / "res"),
+    Test / unmanagedClasspath += Attributed.blank(baseDirectory.value / "res" / "universal" / "deps"),
 
     // Disable documentation generation
     Compile / packageDoc / publishArtifact := false,
@@ -179,11 +185,11 @@ lazy val vercors: Project = (project in file("."))
     Universal / mappings ++= Seq(file("README.md") -> "README.md")
       ++ directory("examples")
       // Copy the resources not in the jar and add them to the classpath.
-      ++ directory(sourceDirectory.value / "main" / "universal" / "res"),
+      ++ directory(baseDirectory.value / "res" / "universal" / "res"),
 
-    Universal / packageBin / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
-    Universal / packageZipTarball / mappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
-    Debian /  linuxPackageMappings ++= directory(sourceDirectory.value / "main" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/${normalizedName.value}/res/$path") },
+    Universal / packageBin / mappings ++= directory(baseDirectory.value / "res" / "universal" / "deps" / "win") map { case (f, path) => f -> s"res/$path" },
+    Universal / packageZipTarball / mappings ++= directory(baseDirectory.value / "res" / "universal" / "deps" / "darwin") map { case (f, path) => f -> s"res/$path" },
+    Debian / linuxPackageMappings ++= directory(baseDirectory.value / "res" / "universal" / "deps" / "unix") map { case (f, path) => packageMapping(f -> s"usr/share/${normalizedName.value}/res/$path") },
 
     // Sets the classpath as described on the below page
     // https://sbt-native-packager.readthedocs.io/en/latest/recipes/longclasspath.html
