@@ -1,72 +1,17 @@
-import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
 import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
+import $file.project.common
+import $file.project.git
 
 import os._
 import requests._
 
 import mill._
-import scalalib.{ScalaModule => BaseScalaModule, _}
-import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
+import scalalib._
 import contrib.buildinfo.BuildInfo
 import modules.Jvm
 
-object Dir {
-	val root = Path("/home/pieter/vercors")
-	val src = root / "src"
-	val res = root / "res"
-	val lib = root / "lib"
-	val docs = root / "docs"
-	val project = root / "project"
-}
-
-object Deps {
-	val log = Agg(
-		ivy"com.typesafe.scala-logging::scala-logging:3.9.4",
-		ivy"ch.qos.logback:logback-classic:1.2.3",
-	)
-
-	val common = log ++ Agg(
-		ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4",
-	)
-}
-
-trait ScalaModule extends BaseScalaModule {
- 	def scalaVersion = "2.13.5" 
- 	def forkArgs = Seq("-Xmx2G", "-Xss20m")
-}
-
-trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
-	def scalaPBVersion = "0.11.11"
-}
-
-trait VercorsModule extends ScalaModule {
-	def key: String
-	def deps: T[Agg[Dep]]
-	def sourcesDir = T { Dir.src / key }
-	def sources = T.sources { sourcesDir() }
-	def resources = T.sources { Dir.res / key }
-	def docResources = T.sources { Dir.docs / key }
-	def unmanagedClasspath = T {
-		if(os.exists(Dir.lib / key))
-			Agg.from(list(Dir.lib / key).filter(_.ext == "jar").map(PathRef(_)))
-		else Agg.empty
-	}
-	def ivyDeps = Deps.common ++ deps()
-}
-
-trait GitModule extends Module {
-	def url: T[String]
-	def commitish: T[String]
-
-	def repo = T {
-		os.proc("git", "init", "-b", "dontcare").call(cwd=T.dest)
-		os.proc("git", "remote", "add", "origin", url()).call(cwd=T.dest)
-		os.proc("git", "fetch", "--depth", "1", "origin", commitish()).call(cwd=T.dest)
-		os.proc("git", "config", "advice.detachedHead", "false").call(cwd=T.dest)
-		os.proc("git", "checkout", "FETCH_HEAD").call(cwd=T.dest)
-		PathRef(T.dest)
-	}
-}
+import common.{Dir, Deps, ScalaModule, ScalaPBModule, VercorsModule}
+import git.GitModule
 
 object hre extends VercorsModule {
 	def key = "hre"
