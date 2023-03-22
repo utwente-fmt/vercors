@@ -15,6 +15,7 @@ object Dir {
 	val src = root / "src"
 	val res = root / "res"
 	val lib = root / "lib"
+	val docs = root / "docs"
 	val project = root / "project"
 }
 
@@ -34,17 +35,22 @@ trait ScalaModule extends BaseScalaModule {
  	def forkArgs = Seq("-Xmx2G", "-Xss20m")
 }
 
-trait ScalaPBModule extends BaseScalaPBModule with ScalaModule { 
-	def scalaPBVersion = "0.11.11" 
+trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
+	def scalaPBVersion = "0.11.11"
 }
 
 trait VercorsModule extends ScalaModule {
 	def key: String
 	def deps: T[Agg[Dep]]
-	def sources = T.sources { Dir.src / key }
+	def sourcesDir = T { Dir.src / key }
+	def sources = T.sources { sourcesDir() }
 	def resources = T.sources { Dir.res / key }
-	def unmanagedClasspath = Agg(PathRef(Dir.lib / key))
-	def lib = T { Dir.lib / key }
+	def docResources = T.sources { Dir.docs / key }
+	def unmanagedClasspath = T {
+		if(os.exists(Dir.lib / key))
+			Agg.from(list(Dir.lib / key).filter(_.ext == "jar").map(PathRef(_)))
+		else Agg.empty
+	}
 	def ivyDeps = Deps.common ++ deps()
 }
 
@@ -53,9 +59,10 @@ trait GitModule extends Module {
 	def commitish: T[String]
 
 	def repo = T {
-		os.proc("git", "init").call(cwd=T.dest)
+		os.proc("git", "init", "-b", "dontcare").call(cwd=T.dest)
 		os.proc("git", "remote", "add", "origin", url()).call(cwd=T.dest)
 		os.proc("git", "fetch", "--depth", "1", "origin", commitish()).call(cwd=T.dest)
+		os.proc("git", "config", "advice.detachedHead", "false").call(cwd=T.dest)
 		os.proc("git", "checkout", "FETCH_HEAD").call(cwd=T.dest)
 		PathRef(T.dest)
 	}
@@ -71,7 +78,7 @@ object hre extends VercorsModule {
 	def moduleDeps = Seq(pprofProto)
 
 	object pprofProto extends ScalaPBModule {
-		def scalaPBSources = T.sources { Dir.lib / key / "protobuf" }
+		def scalaPBSources = hre.sources
 		def scalaPBFlatPackage = true
 	}
 }
@@ -82,15 +89,14 @@ object col extends VercorsModule {
 	def sources = T.sources { super.sources() ++ meta.helpers() }
 	def moduleDeps = Seq(hre, proto)
 
-	object meta extends BaseScalaModule {
-		def scalaVersion = "2.12.12"
-		def sources = T.sources { Dir.project / "metabuild" }
-		def ivyDeps = Agg(
+	object meta extends VercorsModule {
+		def key = "colhelper"
+		def deps = Agg(
 			ivy"org.scalameta::scalameta:4.4.9",
 			ivy"com.google.protobuf:protobuf-java:3.19.6",
 		)
 
-		def nodeDefinitions = T.sources { Dir.src / "col" / "vct" / "col" / "ast" / "Node.scala" }
+		def nodeDefinitions = T.sources { col.sourcesDir() / "vct" / "col" / "ast" / "Node.scala" }
 
 		def helperSources = T {
 			Jvm.runSubprocess(
@@ -122,7 +128,6 @@ object parsers extends VercorsModule {
 	def deps = Agg(
 		ivy"org.antlr:antlr4-runtime:4.8"
 	)
-	def unmanagedClasspath = Agg(PathRef(lib() / "SysCIR.jar"))
 	def moduleDeps = Seq(hre, col)
 
 
@@ -133,19 +138,10 @@ object parsers extends VercorsModule {
 			os.write(T.dest / "antlr.jar", requests.get.stream(url()))
 			PathRef(T.dest / "antlr.jar")
 		}
-
-		def generate(target: T[PathRef], isParser: Boolean, deps: T[Seq[PathRef]]) = T.task {
-			deps()
-			Jvm.runSubprocess(
-				mainClass = "org.antlr.v4.Tool",
-				classPath = Agg(classPath().path),
-				mainArgs = Nil
-			)
-		}
 	}
 
 	trait GenModule extends Module {
-		def base = T { parsers.lib() / "antlr4" }
+		def base = T { parsers.sourcesDir() / "antlr4" }
 
 		def lexer: String
 		def lexerRef: T[PathRef] = T { PathRef(base() / lexer) }

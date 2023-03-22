@@ -3,7 +3,7 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.{Type => PType}
 import com.google.protobuf.DescriptorProtos._
 
 import java.io.File
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.meta.{Type => SType}
 
@@ -189,7 +189,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     })
 
   def families(): Seq[DescriptorProto] =
-    info.families.filter(family => !info.defs.exists(_.baseName == family)).map(family => {
+    info.families.toSeq.filter(family => !info.defs.exists(_.baseName == family)).map(family => {
       boxedTypeFamily(TName(family)) = family
       message(family)
         .addOneofDecl(oneOf("v"))
@@ -217,10 +217,10 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   }
 
   def declarations(): Seq[DescriptorProto] =
-    info.defs.filter(defn => info.supports("Declaration")(defn.baseName)).map(node)
+    info.defs.toSeq.filter(defn => info.supports("Declaration")(defn.baseName)).map(node)
 
   def nodes(): Seq[DescriptorProto] =
-    info.defs.filter(defn => info.supports("NodeFamily")(defn.baseName)).map(node)
+    info.defs.toSeq.filter(defn => info.supports("NodeFamily")(defn.baseName)).map(node)
 
   def renderType(field: FieldDescriptorProto): String = field.getType match {
     case PType.TYPE_INT64 => "int64"

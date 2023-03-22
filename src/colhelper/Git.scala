@@ -1,6 +1,6 @@
 import java.io.File
 import java.nio.file.{Files, Paths}
-
+import scala.language.postfixOps
 import scala.sys.process._
 
 object Git {
