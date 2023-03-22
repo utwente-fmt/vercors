@@ -1,5 +1,6 @@
 package vct.col.ast
 
+
 import vct.col.ast.`type`._
 import vct.col.ast.`type`.typeclass._
 import vct.col.ast.declaration._

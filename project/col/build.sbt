@@ -26,7 +26,7 @@ generateHelpersTask := {
     if(changedSet.nonEmpty) {
       ColHelper().generate(files, gen, (f: File, c: String) => IO.write(f, c)).toSet
     } else {
-      Set()
+      Set() 
     }
   })
 

@@ -4,6 +4,7 @@
 .classpath
 .settings/
 target/
+out/
 project/target/
 dist/
 doc/

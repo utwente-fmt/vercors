@@ -1,10 +1,25 @@
-import java.io.File
+import java.io.{File, FileOutputStream}
 import java.nio.file.{Files, Path}
 import scala.meta._
 import scala.meta.internal.prettyprinters.TreeSyntax
 import scala.meta.prettyprinters.Show
 
+object ColHelper {
+  def main(args: Array[String]): Unit =
+    ColHelper().generate(
+      args(0).split(":").map(new File(_)),
+      new File(args(1)),
+      (f, data) => {
+        new File(f.getParent).mkdirs()
+        val out = new FileOutputStream(f)
+        out.write(data.getBytes)
+        out.close()
+      }
+    )
+}
+
 case class ColHelper() {
+  
   import ColDefs._
   val info = new ColDescription()
 
