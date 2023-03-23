@@ -6,12 +6,20 @@ parser grammar LangPVLParser;
 
 program  : programDecl* EOF EOF ;
 
-programDecl : valGlobalDeclaration | declClass | enumDecl | method;
+programDecl : valGlobalDeclaration | declClass | enumDecl | method | declVeyMontSeqProg;
 
 enumDecl : 'enum' identifier '{' identifierList? ','? '}' ;
 
 declClass
  : contract 'class' identifier '{' classDecl* '}'
+ ;
+
+declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
+
+seqProgDecl
+ : 'thread' identifier '=' type '(' exprList? ')' ';' # seqProgThread
+ | runMethod # seqProgRunMethod
+ | method # seqProgMethod
  ;
 
 applicableReference

@@ -2,6 +2,7 @@ package vct.parsers;
 
 import de.tub.pes.syscir.engine.Engine;
 import de.tub.pes.syscir.engine.Environment;
+import de.tub.pes.syscir.engine.TransformerFactory;
 import de.tub.pes.syscir.sc_model.SCSystem;
 import hre.io.Readable;
 import org.antlr.v4.runtime.CharStream;
@@ -15,10 +16,15 @@ import vct.parsers.transform.systemctocol.exceptions.IllegalOperationException;
 import vct.result.VerificationError;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.nio.file.Path;
 
 public class ColSystemCParser extends Parser {
-    public ColSystemCParser(OriginProvider originProvider, BlameProvider blameProvider) {
+
+    private final String systemCConfig;
+
+    public ColSystemCParser(OriginProvider originProvider, BlameProvider blameProvider, Path systemCConfig) {
         super(originProvider, blameProvider);
+        this.systemCConfig = systemCConfig.toString();
     }
 
     @Override
@@ -27,6 +33,11 @@ public class ColSystemCParser extends Parser {
     }
 
     public <G> ParseResult<G> parse(Readable readable) {
+        // Configure SystemC Intermediate Representation
+        TransformerFactory.CONFIG_FOLDER = systemCConfig;
+        TransformerFactory.IMPLEMENTATION_FOLDER = TransformerFactory.CONFIG_FOLDER + "/implementation/";
+        TransformerFactory.PROPERTIES_FOLDER = TransformerFactory.CONFIG_FOLDER + "/properties/";
+
         // Read XML document from input
         Document document = readable.read(reader -> {
                 try {

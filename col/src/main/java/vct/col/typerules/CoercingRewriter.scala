@@ -841,10 +841,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         CurPerm(loc)
       case CurrentThreadId() =>
         CurrentThreadId()
+      //case deref @ DerefVeyMontThread(ref) =>
+        //DerefVeyMontThread( TVeyMontThread[Pre](ref))
       case deref @ Deref(obj, ref) =>
         Deref(cls(obj), ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
+      case deref @ DerefVeyMontThread(ref) => deref
       case div @ Div(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
@@ -877,6 +880,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
+      case ForPerm(bindings, loc, body) =>
+        ForPerm(bindings, loc, bool(body))
+      case ForPermWithValue(binding, body) =>
+        ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
         FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
@@ -1018,7 +1025,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        MethodInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
@@ -1121,6 +1128,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
+      case PolarityDependent(onInhale, onExhale) =>
+        PolarityDependent(res(onInhale), res(onExhale))
       case ass @ PostAssignExpression(target, value) =>
         PostAssignExpression(target, coerce(value, target.t))(ass.blame)
       case ass @ PreAssignExpression(target, value) =>
@@ -1259,6 +1268,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Then(value, post)
       case ThisModel(ref) =>
         ThisModel(ref)
+      case ThisSeqProg(ref) =>
+        ThisSeqProg(ref)
       case ThisObject(ref) =>
         ThisObject(ref)
       case TupGet(tup, index) =>
@@ -1312,6 +1323,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+      case VeyMontCondition(c) => VeyMontCondition(c)
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
     }
@@ -1385,6 +1397,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ Wait(obj) => Wait(cls(obj))(w.blame)
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
+      case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
+      case VeyMontCommExpression(r,s,a) => VeyMontCommExpression(r,s,a)
     }
   }
 
@@ -1487,6 +1501,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
+      case seqProg: VeyMontSeqProg[Pre] => seqProg
+      case thread: VeyMontThread[Pre] => thread
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, bc.constructors, res(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>

@@ -70,7 +70,7 @@ public class KnownTypeTransformer<T> {
     public void transform() {
         // Create name for the channel class
         SCClass sc_class = sc_inst.getSCClass();
-        String name = generate_name();
+        String name = generate_class_name();
 
         // Find index of this channel
         prim_channel_index = col_system.get_nr_primitive_channels();
@@ -91,7 +91,8 @@ public class KnownTypeTransformer<T> {
 
         // Add channel field to COL system
         Ref<T, Class<T>> ref_to_cls = new DirectRef<>(cls, ClassTag$.MODULE$.apply(Class.class));
-        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS, OriGen.create()));
+        col_system.add_primitive_channel(sc_inst, new InstanceField<>(new TClass<>(ref_to_cls, OriGen.create()), col_system.NO_FLAGS,
+                OriGen.create(name.toLowerCase())));
     }
 
     /**
@@ -99,7 +100,7 @@ public class KnownTypeTransformer<T> {
      *
      * @return A unique name for the class
      */
-    private String generate_name() {
+    private String generate_class_name() {
         String name = sc_inst.getSCClass().getName();
         if (sc_inst.getSCClass().getInstances().size() > 1) {
             name = name + "_" + sc_inst.getName();
@@ -141,8 +142,8 @@ public class KnownTypeTransformer<T> {
         col_system.add_primitive_instance_method(sc_inst, Constants.PRIMITIVE_UPDATE_METHOD_INDEX, fifo_update);
 
         // Create the class
-        List<ClassDeclaration<T>> seq = List.from(CollectionConverters.asScala(java.util.List.of(m, buf, constructor, fifo_read, fifo_write, fifo_update)));
-        return new Class<>(seq, col_system.NO_CLS_REFS, col_system.TRUE, o);
+        java.util.List<ClassDeclaration<T>> declarations = java.util.List.of(m, buf, nr_read, written, constructor, fifo_read, fifo_write, fifo_update);
+        return new Class<>(List.from(CollectionConverters.asScala(declarations)), col_system.NO_CLS_REFS, col_system.TRUE, o);
     }
 
     /**
@@ -207,7 +208,7 @@ public class KnownTypeTransformer<T> {
         java.util.List<Expr<T>> comps = java.util.List.of(perm_fifo, fifo_not_null, perm_m, m_is_this, perm_buf, perm_read,
                 read_n_neg, read_in_bound, perm_written, buf_in_bound);
         return new InstancePredicate<>(col_system.NO_VARS, Option.apply(col_system.fold_star(comps)), false, true,
-                OriGen.create(generate_name().toLowerCase() + "_permission_invariant"));
+                OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
     }
 
     /**
@@ -310,10 +311,9 @@ public class KnownTypeTransformer<T> {
         Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Return value
-        /*Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
+        Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
-        Result<T> ret = new Result<>(ref, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
-        AmbiguousResult<T> ret = new AmbiguousResult<>(OriGen.create());
+        Result<T> ret = new Result<>(ref, OriGen.create());
         SeqSubscript<T> access = new SeqSubscript<>(buf_deref, read_deref, new GeneratedBlame<>(), OriGen.create());
         Eq<T> result = new Eq<>(ret, new Old<>(access, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
@@ -479,8 +479,8 @@ public class KnownTypeTransformer<T> {
         // Preparations for CASE 2
         Slice<T> buf_slice = new Slice<>(buf_deref, read_deref, buf_size, OriGen.create());
         Concat<T> buf_written = new Concat<>(buf_slice, written_deref, OriGen.create());
-        Slice<T> prev_evs = new Slice<>(ev_deref, col_system.ZERO, min_ev, OriGen.create());
-        Slice<T> next_evs = new Slice<>(ev_deref, next_ev, ev_size, OriGen.create());
+        Take<T> prev_evs = new Take<>(ev_deref, min_ev, OriGen.create());
+        Drop<T> next_evs = new Drop<>(ev_deref, next_ev, OriGen.create());
         Greater<T> has_been_read = new Greater<>(old_read, col_system.ZERO, OriGen.create());
         SeqSubscript<T> read_ev_status = new SeqSubscript<>(ev_deref, r_ev, new GeneratedBlame<>(), OriGen.create());
         Old<T> old_r_status = new Old<>(read_ev_status, Option.empty(), new GeneratedBlame<>(), OriGen.create());
@@ -543,7 +543,7 @@ public class KnownTypeTransformer<T> {
         col_system.add_primitive_instance_method(sc_inst, Constants.PRIMITIVE_UPDATE_METHOD_INDEX, signal_update);
 
         // Create the class
-        java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, constructor, signal_read, signal_write, signal_update);
+        java.util.List<ClassDeclaration<T>> class_content = java.util.List.of(m, val, _val, constructor, signal_read, signal_write, signal_update);
         return new Class<>(List.from(CollectionConverters.asScala(class_content)), col_system.NO_CLS_REFS, col_system.TRUE, o);
     }
 
@@ -586,7 +586,7 @@ public class KnownTypeTransformer<T> {
         // Put it all together and return
         return new InstancePredicate<>(col_system.NO_VARS,
                 Option.apply(col_system.fold_star(java.util.List.of(perm_signal, signal_not_null, perm_m, m_is_this, perm_val, perm__val))),
-                false, true, OriGen.create(generate_name().toLowerCase() + "_permission_invariant"));
+                false, true, OriGen.create(generate_class_name().toLowerCase() + "_permission_invariant"));
     }
 
     /**
@@ -655,10 +655,9 @@ public class KnownTypeTransformer<T> {
         Eq<T> _val_is_old = new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Method return value
-        /*Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
+        Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
-        Result<T> ret = new Result<>(ref, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
-        AmbiguousResult<T> ret = new AmbiguousResult<>(OriGen.create());
+        Result<T> ret = new Result<>(ref, OriGen.create());
         Eq<T> result = new Eq<>(ret, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
 
         // Postcondition

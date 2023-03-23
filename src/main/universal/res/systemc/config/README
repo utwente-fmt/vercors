@@ -1,0 +1,27 @@
+Note for the generation of new KnownTypes:
+
+- in SystemC known types like sc_signal, sc_fifo and sc_mutex are
+  taken as keywords by KaSCPar and put into the AST, i.e. there
+  content is not translated
+
+- thus, the implementation classes have to be renamed before and after
+  parsing with KaSCPar (e.g., rename sc_fifo to sc_fifox before
+  parsing, run KaSCPar and then rename sc_fifox back to sc_fifo in the
+  resulting AST file)
+  
+- GTYPE: is the type that will be replaced when parsing the ast file in SysCIR.
+         To create the ast, GTYPE from sc_xxx needs to be convertet first to i.e.
+         char to run sc2ast. Then it needs to be converted back
+         
+- GLENGTH: is the length of the generic data type such as sc_uint<GLENTH>
+           TO create the ast file it has to be converted back and forth like
+           the GTYPE (i.e. 13 as a unique number in sc_xxx file and ast).
+  
+- the script create_implemenentation creates the ast implemementation files for
+  sc_signal & sc_fifo. 
+  There exist 2 different files:
+  - sc_xxx.ast.xml: for simple data types such as int, bool, ...
+  - sc_xxx_generic.ast.xml: for generic data types such as sc_uint<16>
+  -> different ast files are needed because sc2ast creates asts with different
+     tree structure
+  

@@ -14,6 +14,7 @@ import viper.silicon.Silicon
 
 import java.io.{FileInputStream, FileOutputStream}
 import java.nio.file.{Files, Path}
+import scala.collection.parallel.CollectionConverters.seqIsParallelizable
 import scala.runtime.ScalaRunTime
 
 case object Backend {
@@ -103,7 +104,7 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   }
 
   override def run(in: Verification[_ <: Generation]): Seq[ExpectedError] = {
-    Progress.parForeach[(VerificationContext[_ <: Generation], Int)](in.tasks.zipWithIndex, t => s"Task ${t._2 + 1}") { case (task, idx) =>
+    Progress.foreach[(VerificationContext[_ <: Generation], Int)](in.tasks.zipWithIndex.par, t => s"Task ${t._2 + 1}") { case (task, idx) =>
       cachedDefinitelyVerifiesOrElseUpdate(task.program, verify(task.program, idx))
     }
 

@@ -58,10 +58,11 @@ import vct.col.ast.statement.composite._
 import vct.col.ast.statement.exceptional._
 import vct.col.ast.statement.nonexecutable._
 import vct.col.ast.statement.terminal._
+import vct.col.ast.statement.veymont.VeyMontCommImpl
 import vct.col.ast.util.Declarator
 import vct.col.debug._
 import vct.col.origin._
-import vct.col.ref.Ref
+import vct.col.ref.{DirectRef, Ref}
 import vct.col.resolve._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.JavaAnnotationData
@@ -127,6 +128,8 @@ final case class TZFraction[G]()(implicit val o: Origin = DiagnosticOrigin) exte
 sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TModelImpl[G]
 final case class TClass[G](cls: Ref[G, Class[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TClassImpl[G]
+final case class TSeqProg[G](cls: Ref[G, VeyMontSeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TSeqProgImpl[G]
+final case class TVeyMontThread[G](cls: Ref[G, VeyMontThread[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TVeyMontThreadImpl[G]
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
 final case class TEnum[G](enum: Ref[G, Enum[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
@@ -212,6 +215,8 @@ sealed trait GlobalDeclaration[G] extends Declaration[G] with GlobalDeclarationI
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
 final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
+final class VeyMontSeqProg[G](val contract: ApplicableContract[G], val progArgs : Seq[Variable[G]], val threads: Seq[VeyMontThread[G]], val runMethod: ClassDeclaration[G], val methods: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with VeyMontSeqProgImpl[G]
+final class VeyMontThread[G](val threadType: Type[G], val args: Seq[Expr[G]])(implicit val o: Origin) extends Declaration[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
 final class Function[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
                val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false)
@@ -405,6 +410,7 @@ final case class AmbiguousThis[G]()(implicit val o: Origin) extends Expr[G] with
 
 final case class ThisObject[G](cls: Ref[G, Class[G]])(implicit val o: Origin) extends Expr[G] with ThisObjectImpl[G]
 final case class ThisModel[G](cls: Ref[G, Model[G]])(implicit val o: Origin) extends Expr[G] with ThisModelImpl[G]
+final case class ThisSeqProg[G](cls: Ref[G, VeyMontSeqProg[G]])(implicit val o: Origin) extends Expr[G] with ThisSeqProgImpl[G]
 
 final case class AmbiguousResult[G]()(implicit val o: Origin) extends Expr[G] with AmbiguousResultImpl[G] {
   var ref: Option[ResultTarget[G]] = None
@@ -432,6 +438,8 @@ final case class Starall[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G
 final case class Exists[G](bindings: Seq[Variable[G]], triggers: Seq[Seq[Expr[G]]], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ExistsImpl[G]
 final case class Sum[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with SumImpl[G]
 final case class Product[G](bindings: Seq[Variable[G]], condition: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with ProductImpl[G]
+final case class ForPerm[G](bindings: Seq[Variable[G]], loc: Location[G], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForPermImpl[G]
+final case class ForPermWithValue[G](binding: Variable[G], body: Expr[G])(implicit val o: Origin) extends Binder[G] with ForPermWithValueImpl[G]
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(implicit val o: Origin) extends Binder[G] with LetImpl[G]
 final case class InlinePattern[G](inner: Expr[G], parent: Int = 0, group: Int = 0)(implicit val o: Origin) extends Expr[G] with InlinePatternImpl[G]
 
@@ -443,6 +451,7 @@ sealed trait HeapDeref[G] extends Expr[G] with HeapDerefImpl[G]
 final case class Deref[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr[G] with HeapDeref[G] with DerefImpl[G]
 final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(val blame: Blame[ModelInsufficientPermission])(implicit val o: Origin) extends Expr[G] with ModelDerefImpl[G]
 final case class DerefPointer[G](pointer: Expr[G])(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends Expr[G] with DerefPointerImpl[G]
+final case class DerefVeyMontThread[G](ref: Ref[G,VeyMontThread[G]])(implicit val o: Origin) extends Expr[G] with DerefVeyMontThreadImpl[G]
 final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(val blame: Blame[PointerAddError])(implicit val o: Origin) extends Expr[G] with PointerAddImpl[G]
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with AddrOfImpl[G]
 final case class FunctionOf[G](binding: Ref[G, Variable[G]], vars: Seq[Ref[G, Variable[G]]])(implicit val o: Origin) extends Expr[G] with FunctionOfImpl[G]
@@ -520,6 +529,8 @@ final case class Star[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) 
 final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with WandImpl[G]
 final case class Scale[G](scale: Expr[G], res: Expr[G])(val blame: Blame[ScaleNegative])(implicit val o: Origin) extends Expr[G] with ScaleImpl[G]
 final case class ScaleByParBlock[G](block: Ref[G, ParBlockDecl[G]], res: Expr[G])(implicit val o: Origin) extends Expr[G] with ScaleByParBlockImpl[G]
+final case class VeyMontCondition[G](condition: Seq[(Ref[G,VeyMontThread[G]],Expr[G])])(implicit val o: Origin) extends Expr[G] with VeyMontConditionImpl[G]
+final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(implicit val o: Origin) extends Expr[G] with PolarityDependentImpl[G]
 
 final case class Unfolding[G](res: Expr[G], body: Expr[G])(val blame: Blame[UnfoldFailed])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
 
@@ -644,6 +655,8 @@ final case class SuperType[G](left: Expr[G], right: Expr[G])(implicit val o: Ori
 final case class IndeterminateInteger[G](min: Expr[G], max: Expr[G])(implicit val o: Origin) extends Expr[G] with IndeterminateIntegerImpl[G]
 
 sealed trait AssignExpression[G] extends Expr[G] with AssignExpressionImpl[G]
+final case class VeyMontCommExpression[G](receiver: Ref[G,VeyMontThread[G]], sender : Ref[G,VeyMontThread[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontCommImpl[G]
+final case class VeyMontAssignExpression[G](thread : Ref[G,VeyMontThread[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G]
 final case class PreAssignExpression[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends AssignExpression[G] with PreAssignExpressionImpl[G]
 final case class PostAssignExpression[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends AssignExpression[G] with PostAssignExpressionImpl[G]
 

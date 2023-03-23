@@ -754,10 +754,9 @@ public class MainTransformer<T> {
         // Create appropriate references to the parameter and the method result
         Ref<T, Variable<T>> vals_ref = new DirectRef<>(vals, ClassTag$.MODULE$.apply(Variable.class));
         Local<T> vals_local = new Local<>(vals_ref, OriGen.create());
-        /*Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(() -> find_minimum_advance, Option.empty(),
+        Ref<T, ContractApplicable<T>> this_method = new LazyRef<>(() -> find_minimum_advance, Option.empty(),
                 ClassTag$.MODULE$.apply(ContractApplicable.class));
-        Result<T> result = new Result<>(this_method, OriGen.create());     TODO: Switch back from AmbiguousResult to Result if possible */
-        AmbiguousResult<T> result = new AmbiguousResult<>(OriGen.create());
+        Result<T> result = new Result<>(this_method, OriGen.create());
 
         // Create precondition
         Size<T> vals_size = new Size<>(vals_local, OriGen.create());
@@ -963,8 +962,7 @@ public class MainTransformer<T> {
                 new WritePerm<>(OriGen.create()), OriGen.create());
 
         // Put it all together and fold it with stars
-        java.util.List<Expr<T>> conditions = java.util.List.of(held_this, permission_inv);
-        return col_system.fold_star(conditions);
+        return col_system.fold_star(java.util.List.of(held_this, permission_inv));
     }
 
     /**
@@ -1016,7 +1014,8 @@ public class MainTransformer<T> {
 
         // Add scheduler loop to method body
         Statement<T> loop_body = create_scheduler_loop_body();
-        LoopInvariant<T> inv = new LoopInvariant<>(col_system.TRUE, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Committed<T> committed = new Committed<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create());
+        LoopInvariant<T> inv = new LoopInvariant<>(committed, Option.empty(), new GeneratedBlame<>(), OriGen.create());
         body.add(new Loop<>(col_system.get_empty_block(), col_system.TRUE, col_system.get_empty_block(), inv, loop_body, OriGen.create()));
 
         // Add joins to method body

@@ -81,7 +81,7 @@ case class Parsing[G <: Generation]
         case Language.Java => ColJavaParser(originProvider, blameProvider)
         case Language.PVL => ColPVLParser(originProvider, blameProvider)
         case Language.Silver => ColSilverParser(originProvider, blameProvider)
-        case Language.SystemC => new ColSystemCParser(originProvider, blameProvider)
+        case Language.SystemC => new ColSystemCParser(originProvider, blameProvider, Resources.getSystemCConfig)
         case Language.LLVM => ColLLVMParser(originProvider, blameProvider)
       }
 

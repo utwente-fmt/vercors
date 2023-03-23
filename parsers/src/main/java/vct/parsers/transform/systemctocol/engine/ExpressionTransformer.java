@@ -192,11 +192,11 @@ public class ExpressionTransformer<T> {
         }
         if (expr instanceof DeleteArrayExpression) {
             pure = false;
-            return null;    // TODO: Do we need to handle delete expressions?
+            return null;
         }
         if (expr instanceof DeleteExpression) {
             pure = false;
-            return null;    // TODO: Do we need to handle delete expressions?
+            return null;
         }
         if (expr instanceof DoWhileLoopExpression e) {
             pure = false;
@@ -231,7 +231,7 @@ public class ExpressionTransformer<T> {
             return transform_return_expression(e, sc_inst, obj);
         }
         if (expr instanceof SCStopExpression) {
-            // Ignore sc_stop, since we don't support reasoning over simulation time    TODO: Should we?
+            // Ignore sc_stop, since we don't support reasoning over simulation time
             return null;
         }
         if (expr instanceof SCVariableDeclarationExpression e) {
@@ -250,7 +250,7 @@ public class ExpressionTransformer<T> {
             pure = false;
             return transform_while_loop_expression(e, sc_inst, obj, path_cond);
         }
-        // TODO: SocketFunctionCallExpression, MultiSocketAccessExpression
+        // TODO: Support SocketFunctionCallExpression, MultiSocketAccessExpression for TLM library?
         throw new ExpressionParseException("The following statement is not supported:\n\n" + expr);
     }
 
@@ -390,7 +390,8 @@ public class ExpressionTransformer<T> {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         LoopContract<T> contract = specification_transformer.create_loop_invariant(path_cond);
 
-        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new And<>(path_cond, cond, OriGen.create()));
+        Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new_path_cond);
         if (body == null) return null;
         Loop<T> loop = new Loop<>(col_system.get_empty_block(), cond, col_system.get_empty_block(), contract, body, OriGen.create());
 
@@ -479,7 +480,8 @@ public class ExpressionTransformer<T> {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         LoopContract<T> contract = specification_transformer.create_loop_invariant(path_cond);
 
-        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new And<>(path_cond, cond, OriGen.create()));
+        Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new_path_cond);
         if (body == null) return null;
         Statement<T> result = new Loop<>(init, cond, update, contract, body, OriGen.create());
 
@@ -523,8 +525,8 @@ public class ExpressionTransformer<T> {
         Statement<T> result;
 
         // If the variable is an attribute of this class, but not of the corresponding COL class, access it through the containing instance
-        COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);        // Not null, since the state class is transformed first
-        if (obj == col_system.THIS && !containing_class.equals(col_class)) {
+        COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);
+        if (obj == col_system.THIS && containing_class != null && !containing_class.equals(col_class)) {
             // Create m reference
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
             Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
@@ -579,13 +581,22 @@ public class ExpressionTransformer<T> {
         Expr<T> n_cond = new Not<>(cond, OriGen.create());
 
         // Create if and else branches
-        Block<T> then_body = expression_list_to_block(expr.getThenBlock(), sc_inst, obj, new And<>(path_cond, cond, OriGen.create()));
-        Block<T> else_body = expression_list_to_block(expr.getElseBlock(), sc_inst, obj, new And<>(path_cond, n_cond, OriGen.create()));
+        Expr<T> if_new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> then_body = expression_list_to_block(expr.getThenBlock(), sc_inst, obj, if_new_path_cond);
+        Expr<T> else_new_path_cond = (path_cond.equals(col_system.TRUE)) ? n_cond : new Star<>(path_cond, n_cond, OriGen.create());
+        Block<T> else_body = expression_list_to_block(expr.getElseBlock(), sc_inst, obj, else_new_path_cond);
 
         // Create branches
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = new java.util.ArrayList<>();
-        if (then_body != null) branches.add(new Tuple2<>(cond, then_body));
-        if (else_body != null) branches.add(new Tuple2<>(n_cond, else_body));
+        Expr<T> else_cond = n_cond;
+        if (then_body != null) {
+            branches.add(new Tuple2<>(cond, then_body));
+            // Branches implicitly negate previous conditions. If the "if" part exists, the "else" part does not need an explicit condition
+            else_cond = col_system.TRUE;
+        }
+        if (else_body != null) {
+            branches.add(new Tuple2<>(else_cond, else_body));
+        }
 
         // Assemble the branch statement
         if (branches.isEmpty()) return null;
@@ -730,7 +741,8 @@ public class ExpressionTransformer<T> {
                 //       break statement at the end and only the end of each case. This could be a wrong assumption if
                 //       there is a break statement elsewhere in the case.
                 if (!(expression instanceof BreakExpression)) {
-                    Statement<T> statement = create_statement(expression, sc_inst, obj, new And<>(path_cond, local_cond, OriGen.create()));
+                    Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? local_cond : new Star<>(path_cond, local_cond, OriGen.create());
+                    Statement<T> statement = create_statement(expression, sc_inst, obj, new_path_cond);
                     if (statement != null) {
                         block_body.add(statement);
                         local_cond = col_system.TRUE;
@@ -770,7 +782,8 @@ public class ExpressionTransformer<T> {
         SpecificationTransformer<T> specification_transformer = new SpecificationTransformer<>(col_class, col_system, m);
         LoopContract<T> contract = specification_transformer.create_loop_invariant(path_cond);
 
-        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new And<>(path_cond, cond, OriGen.create()));
+        Expr<T> new_path_cond = (path_cond.equals(col_system.TRUE)) ? cond : new Star<>(path_cond, cond, OriGen.create());
+        Block<T> body = expression_list_to_block(expr.getLoopBody(), sc_inst, obj, new_path_cond);
         Statement<T> result = new Loop<>(col_system.get_empty_block(), cond, col_system.get_empty_block(), contract, body, OriGen.create());
 
         // Handle label
@@ -1292,15 +1305,13 @@ public class ExpressionTransformer<T> {
      * @return An expression encoding the semantics of the SystemC expression
      */
     private Expr<T> transform_array_access_expression(ArrayAccessExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
-        SCVariable array = expr.getVar();
-        Ref<T, InstanceField<T>> var_ref = new LazyRef<>(() -> col_system.get_instance_field(sc_inst, array), Option.empty(),
-                ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> var_deref = new Deref<>(col_system.THIS, var_ref, new GeneratedBlame<>(), OriGen.create());
+        // Get array variable
+        Expr<T> array_var = transform_sc_variable_expression(expr, sc_inst, obj);
 
-        // Get index    TODO: What about multidimensional arrays?
+        // Get index
         Expr<T> index = create_expression(expr.getAccess().get(0), sc_inst, obj);
 
-        return new ArraySubscript<>(var_deref, index, new GeneratedBlame<>(), OriGen.create());
+        return new ArraySubscript<>(array_var, index, new GeneratedBlame<>(), OriGen.create());
     }
 
     /**
@@ -1350,7 +1361,6 @@ public class ExpressionTransformer<T> {
 
         if (left == null || right == null) throw new ExpressionParseException("Cannot convert binary expression operands in " + expr);
 
-        // TODO: Are any binary operators missing?
         return switch (expr.getOp()) {
             case "+" -> new Plus<>(left, right, OriGen.create());
             case "-" -> new Minus<>(left, right, OriGen.create());
@@ -1455,9 +1465,26 @@ public class ExpressionTransformer<T> {
             arguments.add(parameter);
         }
 
-        // Finish the method invocation
-        return new MethodInvocation<>(obj, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        // If the variable is an attribute of this class, but not of the corresponding COL class, access it through the containing instance
+        COLClass containing_class = col_system.get_method_containing_class(sc_fun, sc_inst);
+        if (obj == col_system.THIS && containing_class != null && !containing_class.equals(col_class)) {
+            // Create m reference
+            Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+
+            // Create reference to the instance of the class containing the variable
+            Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
+                    Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
+            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
+
+            return new MethodInvocation<>(containing_deref, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        }
+        // Else invoke the method on the given object (might be this)
+        else {
+            return new MethodInvocation<>(obj, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+        }
     }
 
     /**
@@ -1469,7 +1496,7 @@ public class ExpressionTransformer<T> {
      * @return An expression encoding the semantics of the SystemC expression
      */
     private Expr<T> transform_new_array_expression(NewArrayExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
-        Type<T> array_type = col_system.parse_type(expr.getObjType());  // TODO: What about multidimensional arrays?
+        Type<T> array_type = col_system.parse_type(expr.getObjType());
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
         if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, new GeneratedBlame<>(), OriGen.create());
@@ -1605,7 +1632,6 @@ public class ExpressionTransformer<T> {
         Expr<T> original = create_expression(expr.getExpression(), sc_inst, obj);
         if (original == null) return null;
 
-        // TODO: Are any unary operators missing?
         return switch (expr.getOperator()) {
             case "!" -> new Not<>(original, OriGen.create());
             case "-" -> new UMinus<>(original, OriGen.create());

@@ -28,6 +28,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ProgramDecl1(cls) => Seq(convert(cls))
     case ProgramDecl2(enum) => Seq(convert(enum))
     case ProgramDecl3(method) => Seq(convertProcedure(method))
+    case ProgramDecl4(seqProg) => Seq(convertVeyMontProg(seqProg))
   }
 
   def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
@@ -38,6 +39,35 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
   def convertConstants(implicit identifierList: IdentifierListContext): Seq[EnumConstant[G]] = identifierList match {
     case IdentifierList0(id) => Seq(new vct.col.ast.EnumConstant[G]()(SourceNameOrigin(convert(id), origin(identifierList))))
     case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(SourceNameOrigin(convert(id), origin(identifierList))) +: convertConstants(tail)
+  }
+
+  def convert(implicit decl: SeqProgDeclContext): Declaration[G] = decl match {
+    case SeqProgMethod(methods) => convert(methods)
+    case SeqProgRunMethod(runMethod) => convert(runMethod).head
+    case SeqProgThread(_, threadId, _, threadType, _, args, _, _) => new VeyMontThread(convert(threadType), args.map(convert(_)).getOrElse(Nil))(SourceNameOrigin(convert(threadId), origin(decl)))
+  }
+
+  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): VeyMontSeqProg[G] = cls match {
+    case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
+      val seqargs = args.map(convert(_)).getOrElse(Nil)
+      val declseq: Seq[Declaration[G]] = decls.map(convert(_))
+      val runMethod = declseq.collectFirst {
+        case x: RunMethod[G] => x
+      }.getOrElse(throw new RuntimeException("A seq_prog needs to have a run method, but none was found!"))
+      val methods = declseq.collect {
+        case m: InstanceMethod[G] => m
+      }
+      val threads = declseq.collect {
+        case v: VeyMontThread[G] => v
+      }
+      withContract(contract, contract => {
+        new VeyMontSeqProg(
+          contract.consumeApplicableContract(blame(cls)),
+          seqargs,
+          threads,
+          runMethod,
+          methods)(SourceNameOrigin(convert(name), origin(cls)))
+      })
   }
 
   def convertProcedure(implicit method: MethodContext): Procedure[G] = method match {
@@ -1004,6 +1034,7 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
     case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
+    case ValPolarityDependent(_, _, onInhale, _, onExhale, _) => PolarityDependent(convert(onInhale), convert(onExhale))
   }
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
@@ -1040,6 +1071,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
+    case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
+      ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
