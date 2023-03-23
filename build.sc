@@ -1,17 +1,18 @@
 import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
 import $file.project.common
-import $file.project.git
+import $file.project.fetchJars
+import $file.project.colMeta
+import $file.project.antlr
+import $file.project.viper
 
 import os._
-import requests._
 
 import mill._
 import scalalib._
 import contrib.buildinfo.BuildInfo
-import modules.Jvm
 
-import common.{Dir, Deps, ScalaModule, ScalaPBModule, VercorsModule}
-import git.GitModule
+import common.{Dir, ScalaModule, ScalaPBModule, VercorsModule}
+import viper.viper
 
 object hre extends VercorsModule {
 	def key = "hre"
@@ -31,124 +32,24 @@ object hre extends VercorsModule {
 object col extends VercorsModule {
 	def key = "col"
 	def deps = T { Agg.empty }
-	def sources = T.sources { super.sources() ++ meta.helpers() }
-	def moduleDeps = Seq(hre, proto)
-
-	object meta extends VercorsModule {
-		def key = "colhelper"
-		def deps = Agg(
-			ivy"org.scalameta::scalameta:4.4.9",
-			ivy"com.google.protobuf:protobuf-java:3.19.6",
-		)
-
-		def nodeDefinitions = T.sources { col.sourcesDir() / "vct" / "col" / "ast" / "Node.scala" }
-
-		def helperSources = T {
-			Jvm.runSubprocess(
-				mainClass = "ColHelper",
-				classPath = runClasspath().map(_.path),
-				mainArgs = Seq(
-					nodeDefinitions().map(_.path.toString).mkString(":"), 
-					T.dest.toString
-				),
-			)
-
-			PathRef(T.dest)
-		}
-
-		def helpers = T.sources { helperSources().path / "java" }
-		def protobuf = T.sources { helperSources().path / "protobuf" }
-	}
-
-	object proto extends ScalaPBModule {
-		def scalaPBSources = meta.protobuf
-		def scalaPBFlatPackage = true
-	}
+	def generatedSources = T { colMeta.meta.helpers() }
+	def moduleDeps = Seq(hre, colMeta.proto)
 }
 
 
 object parsers extends VercorsModule {
 	def key = "parsers"
-	def sources = T.sources { super.sources() ++ Seq(c.generate(), java.generate(), pvl.generate()) }
+	def generatedSources = T.sources {
+		Seq(
+			antlr.c.generate(),
+			antlr.java.generate(),
+			antlr.pvl.generate()
+		)
+	}
 	def deps = Agg(
 		ivy"org.antlr:antlr4-runtime:4.8"
 	)
 	def moduleDeps = Seq(hre, col)
-
-
-	object antlr extends Module {
-		def url = T { "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-2/antlr4.jar" }
-
-		def classPath = T {
-			os.write(T.dest / "antlr.jar", requests.get.stream(url()))
-			PathRef(T.dest / "antlr.jar")
-		}
-	}
-
-	trait GenModule extends Module {
-		def base = T { parsers.sourcesDir() / "antlr4" }
-
-		def lexer: String
-		def lexerRef: T[PathRef] = T { PathRef(base() / lexer) }
-
-		def parser: String
-		def parserRef: T[PathRef] = T { PathRef(base() / parser) }
-
-		def deps: Seq[String]
-		def depsRef: T[Seq[PathRef]] = T { deps.map(dep => base() / dep).map(PathRef(_)) }
-
-		def generate = T {
-			def runAntlr(target: os.Path, args: Seq[String] = Nil): Unit = {
-				val mainArgs = Seq(
-					"-encoding", "utf-8",
-					"-package", "vct.antlr4.generated",
-					"-lib", base().toString,
-					"-o", T.dest.toString,
-					target.toString
-				) ++ args
-
-				Jvm.runSubprocess(
-					mainClass = "org.antlr.v4.Tool",
-					classPath = Agg(antlr.classPath().path),
-					mainArgs = mainArgs
-				)
-			}
-
-			depsRef()
-			runAntlr(lexerRef().path)
-			runAntlr(parserRef().path, args = Seq("-listener", "-visitor", "-scala-extractor-objects"))
-			PathRef(T.dest)
-		}
-	}
-
-	object c extends GenModule {
-		def lexer = "LangCLexer.g4"
-		def parser = "CParser.g4"
-		def deps = Seq(
-			"SpecParser.g4", "SpecLexer.g4",
-			"LangCParser.g4", "LangCLexer.g4",
-			"LangOMPParser.g4", "LangOMPLexer.g4",
-			"LangGPGPUParser.g4", "LangGPGPULexer.g4",
-		)
-	}
-
-	object java extends GenModule {
-		def lexer = "LangJavaLexer.g4"
-		def parser = "JavaParser.g4"
-		def deps = Seq(
-			"SpecParser.g4", "SpecLexer.g4",
-			"LangJavaParser.g4", "LangJavaLexer.g4",
-		)
-	}
-
-	object pvl extends GenModule {
-		def lexer = "LangPVLLexer.g4"
-		def parser = "PVLParser.g4"
-		def deps = Seq(
-			"SpecParser.g4", "SpecLexer.g4",
-			"LangPVLParser.g4", "LangPVLLexer.g4",
-		)
-	}	
 }
 
 object rewrite extends VercorsModule {
@@ -158,91 +59,6 @@ object rewrite extends VercorsModule {
 		ivy"com.lihaoyi::upickle:2.0.0",
 	)
 	def moduleDeps = Seq(hre, col)
-}
-
-object viper extends ScalaModule {
-	object silver extends ScalaModule {
-		object gitSource extends GitModule {
-			def url = T { "https://github.com/viperproject/silver.git" }
-			def commitish = T { "11bde93e486e983141c01ac7df270e9f06e8ab06" }
-		}
-
-		def scalaVersion = "2.13.10"
-		def sources = T.sources { gitSource.repo().path / "src" / "main" / "scala" }
-		def ivyDeps = Deps.log ++ Agg(
-			ivy"org.scala-lang:scala-reflect:2.13.10",
-			ivy"org.scalatest::scalatest:3.1.2",
-			ivy"org.scala-lang.modules::scala-parser-combinators:1.1.2",
-			ivy"com.lihaoyi::fastparse:2.2.2",
-			ivy"org.rogach::scallop:4.0.4",
-			ivy"commons-io:commons-io:2.8.0",
-			ivy"com.google.guava:guava:29.0-jre",
-			ivy"org.jgrapht:jgrapht-core:1.5.0",
-			ivy"org.slf4j:slf4j-api:1.7.30",
-		)
-	}
-
-	object silicon extends ScalaModule {
-		object gitSource extends GitModule {
-			def url = T { "https://github.com/viperproject/silicon.git" }
-			def commitish = T { "f844927fe6f54c3dbc5adbccfa011034c8036640" }
-		}
-
-		object buildInfo extends BuildInfo with ScalaModule {
-			def buildInfoPackageName = Some("viper.silicon")
-			def buildInfoMembers = T {
-				Map(
-					"projectName" -> "silicon",
-					"projectVersion" -> "1.1-SNAPSHOT",
-					"scalaVersion" -> scalaVersion(),
-					"sbtVersion" -> "-",
-					"gitRevision" -> gitSource.commitish(),
-					"gitBranch" -> "(detached)",
-				)
-			}
-		}
-
-		object common extends ScalaModule {
-			def scalaVersion = "2.13.10"
-			def sources = T.sources { gitSource.repo().path / "common" / "src" / "main" / "scala" }
-			def moduleDeps = Seq(silver)
-		}
-
-		object z3Jar extends Module {
-			def url = T { "https://www.sosy-lab.org/ivy/org.sosy_lab/javasmt-solver-z3/com.microsoft.z3-4.8.7.jar" }
-			def classPath = T {
-				os.write(T.dest / "z3.jar", requests.get.stream(url()))
-				PathRef(T.dest / "z3.jar")
-			}
-		}
-
-		def scalaVersion = "2.13.10"
-		def sources = T.sources { gitSource.repo().path / "src" / "main" / "scala" }
-		def ivyDeps = Deps.log ++ Agg(
-		    ivy"org.apache.commons:commons-pool2:2.9.0",
-		    ivy"io.spray::spray-json:1.3.6",
-		)
-		override def resources = T.sources {
-			gitSource.repo().path / "src" / "main" / "resources"
-		}
-		override def unmanagedClasspath = Agg(z3Jar.classPath())
-		def moduleDeps = Seq(silver, common, buildInfo)
-	}
-
-	object carbon extends ScalaModule {
-		object gitSource extends GitModule {
-			def url = T { "https://github.com/viperproject/carbon.git" }
-			def commitish = T { "44f9225dcde2374c3b8051b6d56ac88c7c4ffdd5" }
-		}
-
-		def scalaVersion = "2.13.10"
-		def sources = T.sources { gitSource.repo().path / "src" / "main" / "scala" }
-		def ivyDeps = Deps.log
-		def moduleDeps = Seq(silver)
-		def resources = T.sources { gitSource.repo().path / "src" / "main" / "resources" }
-	}
-
-	def moduleDeps = Seq(silver, silicon, carbon)
 }
 
 object viperApi extends VercorsModule {
@@ -286,9 +102,9 @@ object vercors extends VercorsModule {
 				"currentCommit" -> "unknown commit",
 				"currentShortCommit" -> "unknown commit",
 				"gitHasChanges" -> "",
-				"silverCommit" -> viper.silver.gitSource.commitish(),
-				"siliconCommit" -> viper.silicon.gitSource.commitish(),
-				"carbonCommit" -> viper.carbon.gitSource.commitish(),
+				"silverCommit" -> viper.silver.repo.commitish(),
+				"siliconCommit" -> viper.silicon.repo.commitish(),
+				"carbonCommit" -> viper.carbon.repo.commitish(),
 			)
 		}
 	}
