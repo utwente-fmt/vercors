@@ -37,6 +37,7 @@ object ColDefs {
     "CLocalDeclaration",
     "CParam",
     "JavaLocalDeclaration",
+    "VeyMontThread",
     "JavaParam",
   )
 
@@ -85,6 +86,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
+    "VeyMontThread" -> Seq("VeyMontSeqProg"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 

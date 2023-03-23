@@ -1,224 +1,110 @@
 package hre.progress
 
-import hre.platform.Platform
-import org.fusesource.jansi.{AnsiConsole, AnsiType}
+import hre.perf.Profile
+import hre.progress.task.{NameSequenceTask, SimpleNamedTask, UpdateableTask}
 
-import scala.collection.parallel.CollectionConverters.IterableIsParallelizable
+import java.util.{Timer, TimerTask}
 
 case object Progress {
-  var forceProgress: Boolean = false
+  val UPDATE_INTERVAL_MS: Int = 100
+  val UPDATE_INTERAL_LONG_MS: Int = 700
 
-  val PROGRESS_BLOCKS = " ▏▎▍▌▋▊▉█"
-
-  def install(progress: Boolean): Unit = {
-    forceProgress = progress
-    AnsiConsole.systemInstall()
+  def install(forceProgress: Boolean, profile: Boolean): Unit = {
+    TaskRegistry.install()
+    Layout.install(forceProgress)
+    Profile.install(profile)
   }
 
-  private def wantProgress: Boolean = AnsiConsole.out().getType match {
-    case AnsiType.Native | AnsiType.VirtualTerminal | AnsiType.Emulation => true
-    case AnsiType.Unsupported | AnsiType.Redirected => forceProgress
+  def finish(): Unit = {
+    blockLayoutUpdateTask.foreach(_.cancel())
+    blockLayoutUpdateTimer.purge()
+    TaskRegistry.finish()
+    Profile.finish()
   }
 
-  private def wantPrettyProgress: Boolean = AnsiConsole.out().getType match {
-    case AnsiType.Native | AnsiType.VirtualTerminal | AnsiType.Emulation => true
-    case AnsiType.Unsupported | AnsiType.Redirected => false
+  def abort(): Unit = {
+    blockLayoutUpdateTask.foreach(_.cancel())
+    blockLayoutUpdateTimer.purge()
+    TaskRegistry.abort()
+    Profile.finish()
   }
 
-  def maxWidth: Int = (AnsiConsole.out().getTerminalWidth match {
-    case 0 => 80
-    case other => other
-  }) - 2
+  private val blockLayoutUpdateTimer = new Timer()
+  private var blockLayoutUpdateTask: Option[TimerTask] = None
+  private var blockLayoutUpdate = false
+  private var newLayoutAfterTimeout = false
 
-  def maxProgressBarWidth: Int = maxWidth - 8
+  private val noProgressTimer = new Timer()
+  private var noProgressTask: Option[TimerTask] = None
 
-  private def esc(command: Char, args: String = ""): String =
-    "\u001b[" + args + command
-
-  private def up: String = esc('A', "1")
-  private def clearLine: String = esc('K')
-
-  private var firstLogLine = true
-
-  def undoProgressMessage: String =
-    if(firstLogLine) ""
-    else if(wantProgress) {
-      if(wantPrettyProgress)
-        up + clearLine + up + clearLine
-      else {
-        "\r" + " ".repeat(maxWidth) + "\r"
+  private def delayNextUpdate(longDelay: Boolean): Unit = {
+    blockLayoutUpdate = true
+    blockLayoutUpdateTask.foreach(_.cancel())
+    blockLayoutUpdateTimer.purge()
+    blockLayoutUpdateTask = Some(new TimerTask {
+      override def run(): Unit = Progress.synchronized {
+        if (newLayoutAfterTimeout) {
+          val printedLinesDidChange = Layout.update()
+          newLayoutAfterTimeout = false
+          delayNextUpdate(longDelay = printedLinesDidChange)
+        } else {
+          blockLayoutUpdate = false
+        }
       }
-    } else ""
-
-  def progressEstimate: Double = if(frames.nonEmpty) {
-    val (headStart, _) = frames.foldLeft((0.0, 1.0)) {
-      case ((headStart, currentWidth), frame) =>
-        val totalWeight = frame.totalWeight
-        val weightDone = frame.weightDone
-        val currentWeight = frame.currentWeight
-
-        (headStart + currentWidth * weightDone / totalWeight, currentWidth * currentWeight / totalWeight)
-    }
-
-    headStart
-  } else 1.0
-
-  def progressBar: String = {
-    val progress = (progressEstimate * maxProgressBarWidth * PROGRESS_BLOCKS.length).toInt
-    val fullBlocks = progress / PROGRESS_BLOCKS.length
-    val halfBlockIdx = progress % PROGRESS_BLOCKS.length
-
-    if(halfBlockIdx == 0) PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + " ".repeat(maxProgressBarWidth - fullBlocks)
-    else PROGRESS_BLOCKS.last.toString.repeat(fullBlocks) + PROGRESS_BLOCKS(halfBlockIdx) + " ".repeat(maxProgressBarWidth - fullBlocks - 1)
+    })
+    val updateInterval = if(longDelay) UPDATE_INTERAL_LONG_MS else UPDATE_INTERVAL_MS
+    blockLayoutUpdateTimer.schedule(blockLayoutUpdateTask.get, updateInterval)
   }
 
-  def framesText: String =
-    frames.map(frame => {
-      val idx = frame.position + 1
-      val count = frame.count
-      val desc = frame.currentMessage
-
-      s"($idx/$count) $desc"
-    }).mkString(" › ")
-
-  def progressMessage: String = if(frames.nonEmpty) {
-    firstLogLine = false
-
-    if(wantProgress) {
-      if(wantPrettyProgress) {
-        framesText.take(maxWidth) + "\n" + f"[$progressBar] ${progressEstimate*100}%.1f%%" + "\n"
-      } else {
-        f"[${progressEstimate*100}%.1f%%] $framesText".take(maxWidth)
-      }
-    } else ""
-  } else {
-    firstLogLine = true
-    ""
-  }
-
-  def update(): Unit = {
-    System.out.print(undoProgressMessage)
-    System.out.print(progressMessage)
-  }
-
-  case class Phase(description: String, weight: Int)
-  abstract class Frame {
-    def position: Int
-    def currentWeight: Int
-    def currentMessage: String
-    def count: Int
-    def totalWeight: Int
-    def weightDone: Int
-  }
-
-  case class ConcreteFrame(phases: Seq[Phase]) extends Frame {
-    var position: Int = 0
-    override def currentWeight: Int = if(0 <= position && position < phases.length) phases(position).weight else 0
-    override def currentMessage: String = if(0 <= position && position < phases.length) phases(position).description else "?"
-    override def count: Int = phases.size
-    override def totalWeight: Int = phases.map(_.weight).sum
-    override def weightDone: Int = phases.take(position).map(_.weight).sum
-  }
-
-  case class SetMessageFrame(count: Int, var currentMessage: String) extends Frame {
-    var position: Int = 0
-    override def currentWeight: Int = 1
-    override def totalWeight: Int = count
-    override def weightDone: Int = position
-  }
-
-  case class UnorderedConcreteFrame(phases: Seq[Phase]) extends Frame {
-    var todo: Set[Phase] = phases.toSet
-    override def position: Int = phases.size - todo.size
-    override def currentWeight: Int = 1
-    override def currentMessage: String = phases.filter(todo.contains).map(_.description).mkString(", ")
-    override def count: Int = phases.size
-    override def totalWeight: Int = phases.size
-    override def weightDone: Int = position
-  }
-
-  private var frames: Seq[Frame] = Nil
-
-  private def withFrame[T](frame: Frame)(f: => T): T = {
-    frames :+= frame
-    update()
-    try {
-      f
-    } finally {
-      frames = frames.init
-      if(frames.isEmpty) update()
+  def update(): Unit = Progress.synchronized {
+    if(blockLayoutUpdate) {
+      newLayoutAfterTimeout = true
+    } else {
+      val printedLinesDidChange = Layout.update()
+      newLayoutAfterTimeout = false
+      delayNextUpdate(longDelay = printedLinesDidChange)
     }
   }
 
-  def stages[T](stages: Seq[(String, Int)])(f: => T): T =
-    withFrame(ConcreteFrame(stages.map { case (desc, weight) => Phase(desc, weight) }))(f)
+  private def tryWeight(xs: IterableOnce[_]): Option[Double] =
+    if(xs.knownSize > 0) Some(1.0 / xs.knownSize)
+    else None
 
-  def dynamicMessages[T](count: Int, initialMessage: String)(f: => T): T =
-    withFrame(SetMessageFrame(count, initialMessage))(f)
-
-  def seqStages[T, S](xs: Iterable[T], desc: T => String)(f: => S): S =
-    withFrame(ConcreteFrame(xs.map(x => Phase(desc(x), 1)).toSeq))(f)
-
-  def parStages[T, S](xs: Iterable[T], desc: T => String)(f: Seq[Phase] => S): S = {
-    val phases = xs.map(x => Phase(desc(x), 1)).toSeq
-    withFrame(UnorderedConcreteFrame(phases))(f(phases))
-  }
-
-  def foreach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit =
-    seqStages(xs, desc) {
-      xs.foreach(x => {
-        f(x)
-        next()
+  def foreach[T](xs: IterableOnce[T], desc: T => String)(f: T => Unit): Unit =
+    if(TaskRegistry.enabled) {
+      val superTask = TaskRegistry.currentTaskInThread
+      xs.iterator.foreach(x => {
+        SimpleNamedTask(superTask, desc(x), tryWeight(xs)).frame {
+          f(x)
+        }
       })
+    } else {
+      xs.iterator.foreach(f)
     }
 
-  def parForeach[T](xs: Iterable[T], desc: T => String)(f: T => Unit): Unit =
-    parStages(xs, desc) { phases =>
-      xs.zip(phases).par.foreach { case (x, phase) =>
-        f(x)
-        nextDone(phase)
-      }
-    }
-
-  def map[T, S](xs: Iterable[T], desc: T => String)(f: T => S): Iterable[S] =
-    seqStages(xs, desc) {
-      xs.map(x => {
-        val result = f(x)
-        next()
-        result
+  def map[T, S](xs: IterableOnce[T], desc: T => String)(f: T => S): IterableOnce[S] =
+    if(TaskRegistry.enabled) {
+      val superTask = TaskRegistry.currentTaskInThread
+      xs.iterator.map(x => {
+        SimpleNamedTask(superTask, desc(x), tryWeight(xs)).frame {
+          f(x)
+        }
       })
+    } else {
+      xs.iterator.map(f)
     }
 
-  def next(): Unit =
-    this.synchronized {
-      frames.last match {
-        case frame: ConcreteFrame =>
-          frame.position += 1
-        case _ => ???
-      }
+  def stages[T](names: Seq[(String, Int)])(f: (() => Unit) => T): T =
+    if(TaskRegistry.enabled) {
+      val sum = names.map(_._2).sum
+      val weights = names.map(_._2.toDouble / sum)
+      NameSequenceTask(TaskRegistry.currentTaskInThread, names.map(_._1), weights).scope(f)
+    } else
+      f(() => {})
 
-      update()
-    }
-
-  def nextMessage(message: String): Unit =
-    this.synchronized {
-      frames.last match {
-        case frame: SetMessageFrame =>
-          frame.position += 1
-          frame.currentMessage = message
-        case _ => ???
-      }
-
-      update()
-    }
-
-  def nextDone(phase: Phase): Unit =
-    this.synchronized {
-      frames.last match {
-        case frame: UnorderedConcreteFrame =>
-          frame.todo -= phase
-      }
-
-      update()
-    }
+  def dynamicMessages[T](count: Int)(f: (String => Unit) => T): T =
+    if(TaskRegistry.enabled)
+      UpdateableTask(TaskRegistry.currentTaskInThread, Some(count)).scope(f)
+    else
+      f(_ => {})
 }

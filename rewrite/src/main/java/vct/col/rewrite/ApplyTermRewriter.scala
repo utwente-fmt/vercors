@@ -73,6 +73,8 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
 
   val debugNameStack: ScopedStack[String] = ScopedStack()
 
+  val updateProgress: ScopedStack[String => Unit] = ScopedStack()
+
   def consumeForalls(node: Expr[Rule]): (Seq[Variable[Rule]], Expr[Rule]) = node match {
     case Forall(bindings, _, body) =>
       val (innerBindings, innerBody) = consumeForalls(body)
@@ -359,7 +361,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      Progress.nextMessage(s"`$e`")
+      updateProgress.top(s"`$e`")
       countApply = 0
       countSuccess = 0
       currentExpr = e
@@ -374,8 +376,10 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     val exprCount = program.map { case _: Expr[Pre] => () }.size
-    Progress.dynamicMessages(exprCount + 1, "...") {
-      rewriteDefault(program)
+    Progress.dynamicMessages(exprCount) { update =>
+      updateProgress.having(update) {
+        rewriteDefault(program)
+      }
     }
   }
 }
