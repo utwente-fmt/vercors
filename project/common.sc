@@ -6,7 +6,7 @@ import scalalib.{ScalaModule => BaseScalaModule, _}
 import os._
 
 object Dir {
-  val root = os.Path("/home/pieter/vercors")
+  val root = implicitly[define.Ctx].millSourcePath / os.up
   val src = root / "src"
   val res = root / "res"
   val lib = root / "lib"
