@@ -142,11 +142,6 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     None
   }
 
-//  def isGreaterThanZero(e: Expr[G]): Boolean = e match {
-//    case v: Local[G] => info.exists(_.variableGreaterThanZero.contains(v))
-//    case _ => isConstantInt(e).getOrElse(0: BigInt) > 0
-//  }
-
   def isNonZero(e: Expr[G]):Boolean = e match {
     case v: Local[G] => info.exists(_.variableNotZero.contains(v))
     case _ => isConstantInt(e).getOrElse(0) != 0
