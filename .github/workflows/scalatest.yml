@@ -79,7 +79,7 @@ jobs:
             !**/assembly.json
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
-        key: vercors-ci-macos
+          key: vercors-ci-macos
       - name: Install clang
         run: brew install llvm
       - name: Run scalatest
@@ -114,7 +114,7 @@ jobs:
           !**/assembly.json
           !**/upstreamAssembly.dest
           !**/upstreamAssembly.json
-      key: vercors-ci-ubuntu
+        key: vercors-ci-ubuntu
     - name: Compile
       run: ./mill allTests.compile
 
@@ -148,7 +148,7 @@ jobs:
             !**/assembly.json
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
-        key: vercors-ci-ubuntu
+          key: vercors-ci-ubuntu
 
       - name: Run scalatest for label ${{matrix.batch}}
         run: ./mill allTests.test -w vct ${{matrix.batch}}"
