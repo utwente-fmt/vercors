@@ -34,6 +34,8 @@ object col extends VercorsModule {
 	def deps = T { Agg.empty }
 	def generatedSources = T { colMeta.meta.helpers() }
 	def moduleDeps = Seq(hre, colMeta.proto)
+
+	object test extends Tests
 }
 
 
@@ -67,6 +69,8 @@ object viperApi extends VercorsModule {
 		ivy"org.scalatest::scalatest:3.2.7"
 	)
 	def moduleDeps = Seq(hre, col, parsers, viper)
+
+	object test extends Tests
 }
 
 object vercors extends VercorsModule {
@@ -76,7 +80,8 @@ object vercors extends VercorsModule {
 	)
 	def moduleDeps = Seq(hre, col, rewrite, parsers, viperApi, buildInfo)
 	def mainClass = Some("vct.main.Main")
-	def resources = T.sources {
+	def packedResources = T.sources()
+	def bareResources = T.sources {
 		Seq(
 			PathRef(Dir.res / "universal" / "res"),
 			PathRef(Dir.res / "universal" / "deps"),
@@ -89,6 +94,8 @@ object vercors extends VercorsModule {
 		os.write(T.dest / "classpath", cpArg)
 		T.dest / "classpath"
 	}
+
+	object test extends Tests
 
 	object buildInfo extends BuildInfo with ScalaModule {
 		def buildInfoPackageName = Some("vct.main")
@@ -108,4 +115,16 @@ object vercors extends VercorsModule {
 			)
 		}
 	}
+}
+
+object allTests extends ScalaModule {
+	def testMods: Seq[TestModule] = Seq(col.test, viperApi.test, vercors.test)
+	override def moduleDeps: Seq[JavaModule] = testMods
+
+	def test(args: String*) = T.command {
+		testMods.foreach(_.test(args: _*))
+	}
+
+	assembly
+	runClasspath
 }

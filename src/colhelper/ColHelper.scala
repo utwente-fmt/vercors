@@ -1,5 +1,6 @@
 import java.io.{File, FileOutputStream}
 import java.nio.file.{Files, Path}
+import scala.collection.parallel.CollectionConverters.seqIsParallelizable
 import scala.meta._
 import scala.meta.internal.prettyprinters.TreeSyntax
 import scala.meta.prettyprinters.Show
@@ -42,17 +43,17 @@ case class ColHelper() {
 
     // Generate the helper files
     Seq[ColHelperMaker](
+      ColHelperJavaRewriter(info),
       ColHelperAbstractRewriter(info),
+      ColHelperDeserialize(info, proto),
+      ColHelperSerialize(info, proto),
       ColHelperRewriteHelpers(info),
       ColHelperRewriteBuilders(info),
-      ColHelperJavaRewriter(info),
       ColHelperSubnodes(info),
       ColHelperComparator(info),
       ColHelperAllScopes(info),
       ColHelperSuccessorsProvider(info),
-      ColHelperSerialize(info, proto),
-      ColHelperDeserialize(info, proto),
-    ).flatMap { maker =>
+    ).par.flatMap { maker =>
       println(s"[info] [ColHelper] Generating helpers in ${maker.getClass.getSimpleName}")
       val helpers = maker.make()
       println(s"[info] [ColHelper] Writing out helpers from ${maker.getClass.getSimpleName}")
@@ -65,6 +66,6 @@ case class ColHelper() {
           writer(out, pkg.toString())
           out
       }
-    }
+    }.toIndexedSeq
   }
 }
