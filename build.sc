@@ -1,4 +1,5 @@
 import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
+import $file.project.release
 import $file.project.common
 import $file.project.fetchJars
 import $file.project.colMeta
@@ -11,6 +12,7 @@ import mill._
 import scalalib._
 import contrib.buildinfo.BuildInfo
 
+import release.ReleaseModule
 import common.{Dir, ScalaModule, ScalaPBModule, VercorsModule}
 import viper.viper
 
@@ -117,9 +119,12 @@ object vercors extends VercorsModule {
 	}
 }
 
-object allTests extends ScalaModule {
+object allTests extends ScalaModule with ReleaseModule {
+	def packedResources = T.sources()
 	def testMods: Seq[TestModule] = Seq(col.test, viperApi.test, vercors.test)
 	override def moduleDeps: Seq[JavaModule] = testMods
+
+	def mainClass = T { Some("org.scalatest.tools.Runner") }
 
 	def test(args: String*) = T.command {
 		testMods.foreach(_.test(args: _*))

@@ -1,11 +1,14 @@
 import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
+import $file.release
+
 import mill._
 import define.Sources
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import scalalib.{ScalaModule => BaseScalaModule, JavaModule => BaseJavaModule, _}
 import modules.Jvm
-
 import os._
+
+import release.ReleaseModule
 
 object Dir {
   val root = implicitly[define.Ctx].millSourcePath / os.up
@@ -39,11 +42,12 @@ trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
   def scalaPBVersion = "0.11.11"
 }
 
-trait VercorsJavaModule extends JavaModule { outer =>
+trait VercorsJavaModule extends JavaModule with ReleaseModule { outer =>
   def key: String
 	def deps: T[Agg[Dep]]
 	def sourcesDir = T { Dir.src / key }
 	def sources = T.sources { sourcesDir() }
+  def packedResources = T.sources { Dir.res / key }
 	def docResources = T.sources { Dir.docs / key }
 	def unmanagedClasspath = T {
 		if(os.exists(Dir.lib / key))
@@ -51,55 +55,6 @@ trait VercorsJavaModule extends JavaModule { outer =>
 		else Agg.empty
 	}
 	def ivyDeps = Deps.common ++ deps()
-
-  def bareResources: Sources = T.sources()
-  def packedResources: Sources = T.sources { Dir.res / key }
-  final def resources = T.sources { bareResources() ++ packedResources() }
-
-  private def nilSources = T.sources()
-
-  def transitiveBareResources = T {
-    T.traverse(
-      (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
-    ) {
-      case module: VercorsJavaModule => module.bareResources
-      case other => nilSources
-    }().flatten
-  }
-
-  def localPackedClasspath = T { packedResources() ++ Agg(compile().classes) }
-  def transitiveLocalPackedClasspath = T {
-    T.traverse(
-      (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
-    ) {
-      case module: VercorsJavaModule => module.localPackedClasspath
-      case other => other.localClasspath
-    }().flatten
-  }
-
-  def upstreamAssemblyClasspath = T {
-    transitiveLocalPackedClasspath() ++
-      unmanagedClasspath() ++
-      resolvedRunIvyDeps()
-  }
-
-  def upstreamAssembly = T {
-    Jvm.createAssembly(
-      upstreamAssemblyClasspath().map(_.path),
-      manifest(),
-      assemblyRules = assemblyRules
-    )
-  }
-
-  def assembly = T {
-    Jvm.createAssembly(
-      Agg.from(localPackedClasspath().map(_.path)),
-      manifest(),
-      prependShellScript(),
-      Some(upstreamAssembly().path),
-      assemblyRules
-    )
-  }
 }
 
 trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
