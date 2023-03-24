@@ -20,6 +20,21 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
+      - name: Cache dependencies and compilation
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
+            out
+            !**/deb.dest
+            !**/deb.json
+            !**/assembly.dest
+            !**/assembly.json
+            !**/upstreamAssembly.dest
+            !**/upstreamAssembly.json
+        key: vercors-ci-windows
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
@@ -33,7 +48,7 @@ jobs:
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Run scalatest
-        run: mill allTests.test vct.test.integration.examples.BasicExamplesSpec
+        run: mill.bat allTests.test vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -50,6 +65,21 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
+      - name: Cache dependencies and compilation
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
+            out
+            !**/deb.dest
+            !**/deb.json
+            !**/assembly.dest
+            !**/assembly.json
+            !**/upstreamAssembly.dest
+            !**/upstreamAssembly.json
+        key: vercors-ci-macos
       - name: Install clang
         run: brew install llvm
       - name: Run scalatest
@@ -70,13 +100,23 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: 17
-    - name: Compile
-      run: ./mill allTests.deb
-    - name: Upload allTests deb
-      uses: actions/upload-artifact@v3
+    - name: Cache dependencies and compilation
+      uses: actions/cache@v3
       with:
-        name: allTestsDeb
-        path: out/allTests/deb.dest/allTests-0.1-SNAPSHOT.deb
+        path: |
+          ~/.cache/coursier
+          ~/AppData/Local/Coursier/Cache
+          ~/Library/Caches/Coursier
+          out
+          !**/deb.dest
+          !**/deb.json
+          !**/assembly.dest
+          !**/assembly.json
+          !**/upstreamAssembly.dest
+          !**/upstreamAssembly.json
+      key: vercors-ci-ubuntu
+    - name: Compile
+      run: ./mill allTests.compile
 
   ScalaTest:
     needs: "Compile"
@@ -94,16 +134,24 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Download allTests deb
-        uses: actions/download-artifact@v3
+      - name: Cache dependencies and compilation
+        uses: actions/cache@v3
         with:
-          name: allTestsDeb
-          path: allTests.deb
-      - name: Install allTests deb
-        run: dpkg -i allTests.deb
+          path: |
+            ~/.cache/coursier
+            ~/AppData/Local/Coursier/Cache
+            ~/Library/Caches/Coursier
+            out
+            !**/deb.dest
+            !**/deb.json
+            !**/assembly.dest
+            !**/assembly.json
+            !**/upstreamAssembly.dest
+            !**/upstreamAssembly.json
+        key: vercors-ci-ubuntu
 
       - name: Run scalatest for label ${{matrix.batch}}
-        run: allTests -w vct ${{matrix.batch}}"
+        run: ./mill allTests.test -w vct ${{matrix.batch}}"
 
       - name: Upload test reports
         if: success() || failure()

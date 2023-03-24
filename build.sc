@@ -121,15 +121,13 @@ object vercors extends VercorsModule {
 
 object allTests extends ScalaModule with ReleaseModule {
 	def packedResources = T.sources()
-	def testMods: Seq[TestModule] = Seq(col.test, viperApi.test, vercors.test)
-	override def moduleDeps: Seq[JavaModule] = testMods
+	override def moduleDeps: Seq[JavaModule] = Seq(col.test, viperApi.test, vercors.test)
 
 	def mainClass = T { Some("org.scalatest.tools.Runner") }
 
 	def test(args: String*) = T.command {
-		testMods.foreach(_.test(args: _*))
+		col.test.test(args: _*)
+		viperApi.test.test(args: _*)
+		vercors.test.test(args: _*)
 	}
-
-	assembly
-	runClasspath
 }
