@@ -34,7 +34,7 @@ jobs:
             !**/assembly.json
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
-        key: vercors-ci-windows
+          key: vercors-ci-windows
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
