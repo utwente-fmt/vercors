@@ -48,6 +48,7 @@ jobs:
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Run scalatest
+        working-directory: ${{env.GITHUB_WORKSPACE}}
         run: mill.bat allTests.test vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
@@ -151,7 +152,7 @@ jobs:
           key: vercors-ci-ubuntu
 
       - name: Run scalatest for label ${{matrix.batch}}
-        run: ./mill allTests.test -w vct ${{matrix.batch}}"
+        run: ./mill allTests.test -w vct ${{matrix.batch}}
 
       - name: Upload test reports
         if: success() || failure()
