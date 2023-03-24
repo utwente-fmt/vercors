@@ -75,6 +75,7 @@ object viperApi extends VercorsModule {
 	object test extends Tests
 }
 
+
 object vercors extends VercorsModule {
 	def key = "main"
 	def deps = Agg(
@@ -128,6 +129,7 @@ object allTests extends ScalaModule with ReleaseModule {
 	def test(args: String*) = T.command {
 		col.test.test(args: _*)
 		viperApi.test.test(args: _*)
+
 		vercors.test.test(args: _*)
 	}
 }
