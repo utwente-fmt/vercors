@@ -110,9 +110,9 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |""".stripMargin)
     os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
 
-    val out = s"${executableName()}-${version()}-unix.tar.xz"
-    os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd=T.dest)
-    PathRef(T.dest / out)
+    val out = T.dest / s"${executableName()}-${version()}-unix.tar.xz"
+    os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd=dest)
+    PathRef(out)
   }
 
   def macosTar = T {
@@ -135,9 +135,9 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |""".stripMargin)
     os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
 
-    val out = s"${executableName()}-${version()}-macos.tar.xz"
-    os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = T.dest)
-    PathRef(T.dest / out)
+    val out = T.dest / s"${executableName()}-${version()}-macos.tar.xz"
+    os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
+    PathRef(out)
   }
 
   def winZip = T {
@@ -159,9 +159,9 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |java ${forkArgs().mkString(" ")} @${(os.rel / ".classpath").toString} ${finalMainClass()} "$$@"
          |""".stripMargin)
 
-    val out = s"${executableName()}-${version()}-win.zip"
-    os.proc("zip", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = T.dest)
-    PathRef(T.dest / out)
+    val out = T.dest / s"${executableName()}-${version()}-win.zip"
+    os.proc("zip", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
+    PathRef(out)
   }
 
   def deb = T {
@@ -196,8 +196,8 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |Version: ${version()}
          |Section: ${debianSection()}
          |Architecture: ${debianArchitecture()}
-         |Maintainer: ${maintainer()}${homepage().map(homepage => s"\nHomepage: ${homepage}").getOrElse("")}
-         |Description: ${summary}
+         |Maintainer: ${maintainer()}${homepage().map(homepage => s"\nHomepage: $homepage").getOrElse("")}
+         |Description: ${summary()}
          |${description().split('\n').mkString(" ", "\n ", "")}
          |""".stripMargin)
 

@@ -5,7 +5,7 @@ trait GitModule extends Module {
   def commitish: T[String]
 
   def repo = T {
-    os.proc("git", "init", "-b", "dontcare").call(cwd = T.dest)
+    os.proc("git", "init", "-q").call(cwd = T.dest)
     os.proc("git", "remote", "add", "origin", url()).call(cwd = T.dest)
     os.proc("git", "fetch", "--depth", "1", "origin", commitish()).call(cwd = T.dest)
     os.proc("git", "config", "advice.detachedHead", "false").call(cwd = T.dest)
