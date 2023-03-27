@@ -27,8 +27,8 @@ jobs:
             ~/.cache/coursier
             ~/.mill/ammonite
             out
-            !**/deb.dest
-            !**/deb.json
+            !**/unixTar.dest
+            !**/unixTar.json
             !**/macosTar.dest
             !**/macosTar.json
             !**/winZip.dest
@@ -39,7 +39,23 @@ jobs:
             !**/upstreamAssembly.json
           key: vercors-ci-ubuntu
       - name: Compile
-        run: ./mill --no-default-predef -j 0 vercors.deb + vercors.winZip + vercors.macosTar
+        run: ./mill --no-default-predef -j 0 allTests.unixTar + allTests.winZip + allTests.macosTar
+      - name: Upload (Linux)
+        uses: actions/upload-artifact@v3
+        with:
+          name: allTests-unix
+          path: 'out/allTests/unixTar.dest/*.tar.xz'
+      - name: Upload (MacOS)
+        uses: actions/upload-artifact@v3
+        with:
+          name: allTests-mac
+          path: 'out/allTests/macosTar.dest/*.tar.xz'
+      - name: Upload (Windows)
+        uses: actions/upload-artifact@v3
+        with:
+          name: allTests-win
+          path: 'out/allTests/winZip.dest/*.zip'
+
 
   ScalaTestWindowsBasic:
     needs: "Compile"
@@ -61,9 +77,15 @@ jobs:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+      - name: Download VerCors
+        uses: actions/download-artifact@v3
+        with:
+          name: allTests-win
+          path: '.'
+      - name: Unpack VerCors
+        run: tar -xf *.zip
       - name: Run scalatest
-        working-directory: ${{env.GITHUB_WORKSPACE}}
-        run: mill.bat allTests.test vct.test.integration.examples.BasicExamplesSpec
+        run: allTests.bat vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -81,6 +103,15 @@ jobs:
           java-version: 17
       - name: Install clang
         run: brew install llvm
+      - name: Download VerCors
+        uses: actions/download-artifact@v3
+        with:
+          name: allTests-macos
+          path: '.'
+      - name: Unpack VerCors
+        run: tar -xf *.tar.xz
+      - name: Run scalatest
+        run: ./allTests vct.test.integration.examples.BasicExamplesSpec
       - name: Run scalatest
         run: ./mill allTests.test vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
@@ -103,25 +134,15 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Cache dependencies and compilation
-        uses: actions/cache@v3
+      - name: Download VerCors
+        uses: actions/download-artifact@v3
         with:
-          path: |
-            ~/.cache/coursier
-            ~/.mill/ammonite/cache
-            ~/AppData/Local/Coursier/Cache
-            ~/Library/Caches/Coursier
-            out
-            !**/deb.dest
-            !**/deb.json
-            !**/assembly.dest
-            !**/assembly.json
-            !**/upstreamAssembly.dest
-            !**/upstreamAssembly.json
-          key: vercors-ci-ubuntu
-
-      - name: Run scalatest for label ${{matrix.batch}}
-        run: ./mill allTests.test -w vct ${{matrix.batch}}
+          name: allTests-unix
+          path: '.'
+      - name: Unpack VerCors
+        run: tar -xf *.tar.xz
+      - name: Run scalatest
+        run: ./allTests -w vct ${{matrix.batch}}
 
       - name: Upload test reports
         if: success() || failure()
