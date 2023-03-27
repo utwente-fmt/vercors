@@ -129,7 +129,6 @@ object allTests extends ScalaModule with ReleaseModule {
 	def test(args: String*) = T.command {
 		col.test.test(args: _*)
 		viperApi.test.test(args: _*)
-
 		vercors.test.test(args: _*)
 	}
 }
