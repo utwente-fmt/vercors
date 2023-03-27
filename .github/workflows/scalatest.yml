@@ -82,7 +82,7 @@ jobs:
           name: allTests-win
           path: '.'
       - name: Unpack VerCors
-        run: tar -xf *.zip
+        run: tar -xf alltests-0.1-SNAPSHOT-win.zip
       - name: Run scalatest
         run: allTests.bat vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
@@ -108,7 +108,7 @@ jobs:
           name: allTests-macos
           path: '.'
       - name: Unpack VerCors
-        run: tar -xf *.tar.xz
+        run: tar -xf alltests-SNAPSHOT-0.1-macos.tar.xz
       - name: Run scalatest
         run: ./allTests vct.test.integration.examples.BasicExamplesSpec
       - name: Run scalatest
@@ -138,10 +138,10 @@ jobs:
         with:
           name: allTests-unix
           path: '.'
+      - name: Unpack VerCors
+        run: tar -xf alltests-SNAPSHOT-0.1-unix.tar.xz
       - name: ls
         run: ls -lasFh
-      - name: Unpack VerCors
-        run: tar -xf *.tar.xz
       - name: Run scalatest
         run: ./allTests -w vct ${{matrix.batch}}
 
