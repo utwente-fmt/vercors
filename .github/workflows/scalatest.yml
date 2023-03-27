@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ScalaTestWindowsBasic:
-    runs-on: windows-latest
+  Compile:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout VerCors
         uses: actions/checkout@v2
@@ -26,8 +26,6 @@ jobs:
           path: |
             ~/.cache/coursier
             ~/.mill/ammonite/cache
-            ~/AppData/Local/Coursier/Cache
-            ~/Library/Caches/Coursier
             out
             !**/deb.dest
             !**/deb.json
@@ -35,7 +33,18 @@ jobs:
             !**/assembly.json
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
-          key: vercors-ci-windows
+          key: vercors-ci-ubuntu
+      - name: Compile
+        run: ./mill --no-default-predef -j 0 vercors.deb + vercors.winZip + vercors.macosTar
+
+  ScalaTestWindowsBasic:
+    needs: "Compile"
+    runs-on: windows-latest
+    steps:
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
@@ -59,30 +68,13 @@ jobs:
           path: '**/target/test-reports/TEST-*.xml'
 
   ScalaTestMacOsBasic:
+    needs: "Compile"
     runs-on: macos-latest
     steps:
-      - name: Checkout VerCors
-        uses: actions/checkout@v2
       - name: Install Java
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Cache dependencies and compilation
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/coursier
-            ~/.mill/ammonite/cache
-            ~/AppData/Local/Coursier/Cache
-            ~/Library/Caches/Coursier
-            out
-            !**/deb.dest
-            !**/deb.json
-            !**/assembly.dest
-            !**/assembly.json
-            !**/upstreamAssembly.dest
-            !**/upstreamAssembly.json
-          key: vercors-ci-macos
       - name: Install clang
         run: brew install llvm
       - name: Run scalatest
@@ -94,37 +86,8 @@ jobs:
           name: test-report-macos-latest
           path: '**/target/test-reports/TEST-*.xml'
 
-  Compile:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout VerCors
-      uses: actions/checkout@v2
-    - name: Install Java
-      uses: actions/setup-java@v1
-      with:
-        java-version: 17
-    - name: Cache dependencies and compilation
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/coursier
-          ~/.mill/ammonite/cache
-          ~/AppData/Local/Coursier/Cache
-          ~/Library/Caches/Coursier
-          out
-          !**/deb.dest
-          !**/deb.json
-          !**/assembly.dest
-          !**/assembly.json
-          !**/upstreamAssembly.dest
-          !**/upstreamAssembly.json
-        key: vercors-ci-ubuntu
-    - name: Compile
-      run: ./mill allTests.compile
-
   ScalaTest:
     needs: "Compile"
-
     strategy:
       fail-fast: false
       matrix:
@@ -132,8 +95,6 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout VerCors
-        uses: actions/checkout@v2
       - name: Install Java
         uses: actions/setup-java@v1
         with:
