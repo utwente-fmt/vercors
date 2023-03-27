@@ -234,6 +234,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: BipGlueDataWire[Pre] => node
     case node: BipTransitionSignature[Pre] => node
     case node: LlvmFunctionContract[Pre] => node
+    case node: LlvmLoopContract[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -399,6 +400,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
   def postCoerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
   override final def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Pre] = node
+  def postCoerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Post] = rewriteDefault(node)
+  override final def dispatch(node: LlvmLoopContract[Pre]): LlvmLoopContract[Rewritten[Pre]] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1371,6 +1376,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case LocalDecl(local) => LocalDecl(local)
       case l @ Lock(obj) => Lock(cls(obj))(l.blame)
       case Loop(init, cond, update, contract, body) => Loop(init, bool(cond), update, contract, body)
+      case LlvmLoop(cond, contract, body) => LlvmLoop(bool(cond), contract, body)
       case ModelDo(model, perm, after, action, impl) => ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
       case at @ ParAtomic(inv, content) => ParAtomic(inv, content)(at.blame)
@@ -1818,4 +1824,5 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: JavaBipGlueName[Pre]): JavaBipGlueName[Pre] = node
 
   def coerce(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Pre] = node
+  def coerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Pre] = node
 }

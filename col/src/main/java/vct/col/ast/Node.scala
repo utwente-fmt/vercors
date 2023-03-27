@@ -931,6 +931,15 @@ final class LlvmFunctionDefinition[G](val returnType: Type[G],
                                      (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with LLVMFunctionDefinitionImpl[G]
 
+final case class LlvmLoop[G](cond:Expr[G], contract:LlvmLoopContract[G], body:Statement[G])
+                       (implicit val o: Origin) extends CompositeStatement[G] with LLVMLoopImpl[G]
+sealed trait LlvmLoopContract[G] extends NodeFamily[G] with LLVMLoopContractImpl[G]
+
+
+final case class LlvmLoopInvariant[G](value:String, references:Seq[(String, Ref[G, Declaration[G]])])
+                                     (val blame: Blame[LoopInvariantFailure])
+                                     (implicit val o: Origin) extends LlvmLoopContract[G] with LLVMLoopInvariantImpl[G]
+
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {
   var ref: Option[PVLTypeNameTarget[G]] = None
