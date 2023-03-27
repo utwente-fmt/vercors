@@ -121,7 +121,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
     equalityChecker = ExpressionEqualityCheck()
     val decreases = loopInvariant.decreases.map(element => dispatch(element))
 
-    LoopInvariant(invariant, decreases)(loopInvariant.o)
+    LoopInvariant(invariant, decreases)(loopInvariant.blame)(loopInvariant.o)
   }
 
   override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = {
