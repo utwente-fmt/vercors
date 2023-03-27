@@ -40,7 +40,7 @@ abstract class AbstractTask {
   def renderHere: ProgressRender
   def renderHereShort: ProgressRender = renderHere
 
-  def poll(): ResourceUsage = this.synchronized {
+  def poll(): ResourceUsage = synchronized {
     if(Thread.currentThread().getId != ownerThread)
       return TaskRegistry.ownUsage()
 

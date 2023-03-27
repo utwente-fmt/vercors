@@ -44,18 +44,17 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: allTests-unix
-          path: 'out/allTests/unixTar.dest/*.tar.xz'
+          path: 'out/allTests/unixTar.dest/alltests-0.1-SNAPSHOT-unix.tar.xz'
       - name: Upload (MacOS)
         uses: actions/upload-artifact@v3
         with:
           name: allTests-mac
-          path: 'out/allTests/macosTar.dest/*.tar.xz'
+          path: 'out/allTests/macosTar.dest/alltests-0.1-SNAPSHOT-macos.tar.xz'
       - name: Upload (Windows)
         uses: actions/upload-artifact@v3
         with:
           name: allTests-win
-          path: 'out/allTests/winZip.dest/*.zip'
-
+          path: 'out/allTests/winZip.dest/alltests-0.1-SNAPSHOT-win.zip'
 
   ScalaTestWindowsBasic:
     needs: "Compile"
@@ -139,6 +138,8 @@ jobs:
         with:
           name: allTests-unix
           path: '.'
+      - name: ls
+        run: ls -lasFh
       - name: Unpack VerCors
         run: tar -xf *.tar.xz
       - name: Run scalatest
