@@ -111,7 +111,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
 
     val out = s"${executableName()}-${version()}-unix.tar.xz"
-    os.proc("tar", "-cJf", out, os.list(dest)).call(cwd=T.dest)
+    os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd=T.dest)
     PathRef(T.dest / out)
   }
 
@@ -136,7 +136,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
 
     val out = s"${executableName()}-${version()}-macos.tar.xz"
-    os.proc("tar", "-cJf", out, os.list(dest)).call(cwd = T.dest)
+    os.proc("tar", "-cJf", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = T.dest)
     PathRef(T.dest / out)
   }
 
@@ -160,7 +160,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |""".stripMargin)
 
     val out = s"${executableName()}-${version()}-win.zip"
-    os.proc("zip", out, os.list(dest)).call(cwd = T.dest)
+    os.proc("zip", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = T.dest)
     PathRef(T.dest / out)
   }
 
