@@ -25,10 +25,14 @@ jobs:
         with:
           path: |
             ~/.cache/coursier
-            ~/.mill/ammonite/cache
+            ~/.mill/ammonite
             out
             !**/deb.dest
             !**/deb.json
+            !**/macosTar.dest
+            !**/macosTar.json
+            !**/winZip.dest
+            !**/winZip.json
             !**/assembly.dest
             !**/assembly.json
             !**/upstreamAssembly.dest
