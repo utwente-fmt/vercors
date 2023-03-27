@@ -139,7 +139,7 @@ jobs:
           name: allTests-unix
           path: '.'
       - name: Unpack VerCors
-        run: tar -xf alltests-SNAPSHOT-0.1-unix.tar.xz
+        run: tar -xf alltests-0.1-SNAPSHOT-unix.tar.xz
       - name: ls
         run: ls -lasFh
       - name: Run scalatest
