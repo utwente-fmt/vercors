@@ -25,7 +25,6 @@ object viper extends ScalaModule {
 			ivy"commons-io:commons-io:2.8.0",
 			ivy"com.google.guava:guava:29.0-jre",
 			ivy"org.jgrapht:jgrapht-core:1.5.0",
-			ivy"org.slf4j:slf4j-api:1.7.30",
 		)
 	}
 
