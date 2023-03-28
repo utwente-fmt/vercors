@@ -8,7 +8,8 @@ import $file.git
 import mill._
 import git.GitModule
 
-object silverGit extends GitModule {
+object silverGit extends
+  GitModule {
   def url = T { "https://github.com/viperproject/silver.git" }
   def commitish = T { "11bde93e486e983141c01ac7df270e9f06e8ab06" }
 }

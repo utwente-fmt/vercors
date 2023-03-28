@@ -10,6 +10,6 @@ trait GitModule extends Module {
     os.proc("git", "fetch", "--depth", "1", "origin", commitish()).call(cwd = T.dest)
     os.proc("git", "config", "advice.detachedHead", "false").call(cwd = T.dest)
     os.proc("git", "checkout", "FETCH_HEAD").call(cwd = T.dest)
-    PathRef(T.dest)
+    T.dest
   }
 }

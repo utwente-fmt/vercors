@@ -3,8 +3,11 @@ import scalalib._
 import define.Sources
 import modules.Jvm
 
+import os.Path
+
 trait SeparatePackedResourcesModule extends JavaModule {
-  def bareResources: Sources = T.sources()
+  def bareResourcePaths: T[Seq[Path]] = T { Seq.empty[Path] }
+  def bareResources: Sources = T.sources { bareResourcePaths().map(PathRef(_)) }
 
   def packedResources: Sources
 
@@ -12,19 +15,19 @@ trait SeparatePackedResourcesModule extends JavaModule {
     bareResources() ++ packedResources()
   }
 
-  private def nilSources = T.sources()
+  private def nilTask: T[Seq[Path]] = T { Seq.empty[Path] }
 
-  def transitiveBareResources = T {
+  def transitiveBareResourcePaths = T {
     T.traverse(
       (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
     ) {
-      case module: SeparatePackedResourcesModule => module.bareResources
-      case other => nilSources
+      case module: SeparatePackedResourcesModule => module.bareResourcePaths
+      case other => nilTask
     }().flatten
   }
 
   def bareClasspath = T {
-    bareResources() ++ transitiveBareResources()
+    bareResourcePaths() ++ transitiveBareResourcePaths()
   }
 
   def localPackedClasspath = T {
@@ -63,6 +66,20 @@ trait SeparatePackedResourcesModule extends JavaModule {
       assemblyRules
     )
   }
+
+  def compileClasspath: T[Agg[PathRef]] = T {
+    transitiveLocalPackedClasspath() ++
+      packedResources() ++
+      unmanagedClasspath() ++
+      resolvedIvyDeps()
+  }
+
+  def runClasspathString = T {
+    val paths = localPackedClasspath().map(_.path) ++
+      upstreamAssemblyClasspath().map(_.path) ++
+      bareResourcePaths()
+    paths.map(_.toString).mkString(java.io.File.separator)
+  }
 }
 
 trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
@@ -80,7 +97,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
 
   def winExecutableName: T[String] = T { executableName() + ".bat" }
 
-  private def copy(from: os.Path, to: os.Path): os.Path = {
+  private def copy(from: Path, to: Path): Path = {
     os.copy(from, to, followLinks = true, replaceExisting = false, createFolders = true, mergeFolders = true)
     to
   }
@@ -98,9 +115,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     val dest = T.dest / "dest"
 
     val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-    val res =
-      (bareResources() ++ transitiveBareResources())
-        .map(res => copy(res.path, dest / res.path.last))
+    val res = bareClasspath().map(res => copy(res, dest / res.last))
 
     os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
     os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
@@ -123,9 +138,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     val dest = T.dest / "dest"
 
     val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-    val res =
-      (bareResources() ++ transitiveBareResources())
-        .map(res => copy(res.path, dest / res.path.last))
+    val res = bareClasspath().map(res => copy(res, dest / res.last))
 
     os.walk(dest / "deps" / "unix", preOrder = false).foreach(os.remove)
     os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
@@ -148,9 +161,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     val dest = T.dest / "dest"
 
     val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-    val res =
-      (bareResources() ++ transitiveBareResources())
-        .map(res => copy(res.path, dest / res.path.last))
+    val res = bareClasspath().map(res => copy(res, dest / res.last))
 
     os.walk(dest / "deps" / "unix", preOrder = false).foreach(os.remove)
     os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)
@@ -173,12 +184,10 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     val root = T.dest / outName
     os.makeDir(root)
     val dest = root / "usr" / "share" / debianPackageName()
-    val fromDebRoot = (p: os.Path) => os.root / p.relativeTo(root)
+    val fromDebRoot = (p: Path) => os.root / p.relativeTo(root)
 
     val jar = copy(assembly().path, dest / s"${executableName()}.jar")
-    val res =
-      (bareResources() ++ transitiveBareResources())
-        .map(res => copy(res.path, dest / res.path.last))
+    val res = bareClasspath().map(res => copy(res, dest / res.last))
 
     os.walk(dest / "deps" / "win", preOrder = false).foreach(os.remove)
     os.walk(dest / "deps" / "darwin", preOrder = false).foreach(os.remove)

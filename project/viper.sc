@@ -15,7 +15,7 @@ object viper extends ScalaModule {
 	object silver extends ScalaModule {
 		def scalaVersion = "2.13.10"
     def repo = silverGit
-		def sources = T.sources { repo.repo().path / "src" / "main" / "scala" }
+		def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
 		def ivyDeps = Deps.log ++ Agg(
 			ivy"org.scala-lang:scala-reflect:2.13.10",
 			ivy"org.scalatest::scalatest:3.1.2",
@@ -45,19 +45,19 @@ object viper extends ScalaModule {
 
 		object common extends ScalaModule {
 			def scalaVersion = "2.13.10"
-			def sources = T.sources { silicon.repo.repo().path / "common" / "src" / "main" / "scala" }
+			def sources = T.sources { silicon.repo.repo() / "common" / "src" / "main" / "scala" }
 			def moduleDeps = Seq(silver)
 		}
 
 		def scalaVersion = "2.13.10"
     def repo = siliconGit
-		def sources = T.sources { repo.repo().path / "src" / "main" / "scala" }
+		def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
 		def ivyDeps = Deps.log ++ Agg(
 		    ivy"org.apache.commons:commons-pool2:2.9.0",
 		    ivy"io.spray::spray-json:1.3.6",
 		)
 		override def resources = T.sources {
-			repo.repo().path / "src" / "main" / "resources"
+			repo.repo() / "src" / "main" / "resources"
 		}
 		override def unmanagedClasspath = Agg(z3Jar.classPath())
 		def moduleDeps = Seq(silver, common, buildInfo)
@@ -66,10 +66,10 @@ object viper extends ScalaModule {
 	object carbon extends ScalaModule {
 		def scalaVersion = "2.13.10"
     def repo = carbonGit
-		def sources = T.sources { repo.repo().path / "src" / "main" / "scala" }
+		def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
 		def ivyDeps = Deps.log
 		def moduleDeps = Seq(silver)
-		def resources = T.sources { repo.repo().path / "src" / "main" / "resources" }
+		def resources = T.sources { repo.repo() / "src" / "main" / "resources" }
 	}
 
 	def moduleDeps = Seq(silver, silicon, carbon)

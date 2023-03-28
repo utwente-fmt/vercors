@@ -62,6 +62,13 @@ trait VercorsJavaModule extends JavaModule with ReleaseModule { outer =>
 		else Agg.empty
 	}
 	def ivyDeps = Deps.common ++ deps()
+
+  def classPathArgumentFile = T {
+    val cpString = runClasspath().map(_.path.toString).mkString(java.io.File.pathSeparator)
+    val cpArg = "-cp " + cpString
+    os.write(T.dest / "classpath", cpArg)
+    T.dest / "classpath"
+  }
 }
 
 trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
@@ -71,5 +78,11 @@ trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
     def sources = T.sources { sourcesDir() }
     def deps = T { Agg.empty }
     def ivyDeps = Deps.common ++ Agg(ivy"org.scalatest::scalatest:3.2.7") ++ outer.deps() ++ deps()
+  }
+
+  def classPathArgumentFile = T {
+    val cpArg = "-cp " + runClasspathString()
+    os.write(T.dest / "classpath", cpArg)
+    T.dest / "classpath"
   }
 }

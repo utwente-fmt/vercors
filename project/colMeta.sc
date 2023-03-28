@@ -25,11 +25,11 @@ object meta extends VercorsModule {
       ),
     )
 
-    PathRef(T.dest)
+    T.dest
   }
 
-  def helpers = T.sources { helperSources().path / "java" }
-  def protobuf = T.sources { helperSources().path / "protobuf" }
+  def helpers = T.sources { helperSources() / "java" }
+  def protobuf = T.sources { helperSources() / "protobuf" }
 }
 
 object proto extends ScalaPBModule {
