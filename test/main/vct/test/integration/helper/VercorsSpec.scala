@@ -1,6 +1,6 @@
 package vct.test.integration.helper
 
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.{Level, Logger, LoggerContext}
 import hre.io.Readable
 import org.scalactic.source
 import org.scalatest.Tag
@@ -78,8 +78,9 @@ abstract class VercorsSpec extends AnyFlatSpec {
     val matrixTag = Tag(s"MATRIX[$matrixId]")
 
     registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
-      LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
-      LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
+      val loggerContext = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
+      loggerContext.exists("viper").setLevel(Level.OFF)
+      loggerContext.exists("vct").setLevel(Level.INFO)
 
       failAfter(Span(300, Seconds)) {
         matchVerdict(verdict, backend match {
