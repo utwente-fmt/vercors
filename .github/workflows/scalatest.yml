@@ -83,6 +83,8 @@ jobs:
           path: '.'
       - name: Unpack VerCors
         run: tar -xvf alltests-0.1-SNAPSHOT-win.zip
+      - name: ls
+        run: ls -lasFhR
       - name: Run scalatest
         run: allTests.bat vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
@@ -105,14 +107,12 @@ jobs:
       - name: Download VerCors
         uses: actions/download-artifact@v3
         with:
-          name: allTests-macos
+          name: allTests-mac
           path: '.'
       - name: Unpack VerCors
         run: tar -xvf alltests-SNAPSHOT-0.1-macos.tar.xz
       - name: Run scalatest
-        run: ./allTests vct.test.integration.examples.BasicExamplesSpec
-      - name: Run scalatest
-        run: ./mill allTests.test vct.test.integration.examples.BasicExamplesSpec
+        run: ./alltests vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -143,7 +143,7 @@ jobs:
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: ./allTests -w vct ${{matrix.batch}}
+        run: ./alltests -w vct ${{matrix.batch}}
 
       - name: Upload test reports
         if: success() || failure()
