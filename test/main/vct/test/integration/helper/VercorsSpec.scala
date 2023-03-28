@@ -79,11 +79,6 @@ abstract class VercorsSpec extends AnyFlatSpec {
     val matrixTag = Tag(s"MATRIX[$matrixId]")
 
     registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
-      val logger = LoggerFactory.getLogger("viper")
-      println(logger)
-      logger match {
-        case s: SubstituteLogger => println(s.delegate())
-      }
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
