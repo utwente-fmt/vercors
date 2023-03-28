@@ -27,39 +27,25 @@ jobs:
             ~/.cache/coursier
             ~/.mill/ammonite
             out
-            !**/unixTar.dest
-            !**/unixTar.json
-            !**/macosTar.dest
-            !**/macosTar.json
-            !**/winZip.dest
-            !**/winZip.json
             !**/assembly.dest
             !**/assembly.json
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
           key: vercors-ci-ubuntu
       - name: Compile
-        run: ./mill --no-default-predef -j 0 allTests.unixTar + allTests.winZip + allTests.macosTar
-      - name: Upload (Linux)
+        run: ./mill --no-default-predef -j 0 allTests.assembly
+      - name: Upload
         uses: actions/upload-artifact@v3
         with:
-          name: allTests-unix
-          path: out/allTests/unixTar.dest/alltests-0.1-SNAPSHOT-unix.tar.xz
-      - name: Upload (MacOS)
-        uses: actions/upload-artifact@v3
-        with:
-          name: allTests-mac
-          path: out/allTests/macosTar.dest/alltests-0.1-SNAPSHOT-macos.tar.xz
-      - name: Upload (Windows)
-        uses: actions/upload-artifact@v3
-        with:
-          name: allTests-win
-          path: out/allTests/winZip.dest/alltests-0.1-SNAPSHOT-win.zip
+          name: allTests
+          path: out/allTests/assembly.dest/out.jar
 
   ScalaTestWindowsBasic:
     needs: "Compile"
     runs-on: windows-latest
     steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
       - name: Install Java
         uses: actions/setup-java@v1
         with:
@@ -79,14 +65,12 @@ jobs:
       - name: Download VerCors
         uses: actions/download-artifact@v3
         with:
-          name: allTests-win
+          name: allTests
           path: '.'
-      - name: Unpack VerCors
-        run: tar -xvf alltests-0.1-SNAPSHOT-win.zip
       - name: ls
-        run: ls -lasFhR
+        run: ls
       - name: Run scalatest
-        run: allTests.bat vct.test.integration.examples.BasicExamplesSpec
+        run: java -Xss20m -cp out.jar;res/universal/deps;res/universal/res org.scalatest.tools.Runner vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -98,6 +82,8 @@ jobs:
     needs: "Compile"
     runs-on: macos-latest
     steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
       - name: Install Java
         uses: actions/setup-java@v1
         with:
@@ -107,12 +93,12 @@ jobs:
       - name: Download VerCors
         uses: actions/download-artifact@v3
         with:
-          name: allTests-mac
+          name: allTests
           path: '.'
-      - name: Unpack VerCors
-        run: tar -xvf alltests-SNAPSHOT-0.1-macos.tar.xz
+      - name: ls
+        run: ls
       - name: Run scalatest
-        run: ./alltests vct.test.integration.examples.BasicExamplesSpec
+        run: java -Xss20m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -129,6 +115,8 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
       - name: Install Java
         uses: actions/setup-java@v1
         with:
@@ -143,8 +131,7 @@ jobs:
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: ./alltests -w vct ${{matrix.batch}}
-
+        run: java -Xss20m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3

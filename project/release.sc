@@ -23,6 +23,17 @@ trait SeparatePackedResourcesModule extends JavaModule {
     }().flatten
   }
 
+  def bareClasspath = T {
+    bareResources() ++ transitiveBareResources()
+  }
+
+  def classPathArgumentFileWithAssembly(assemblyPath: os.Path) = T.command {
+    val cpString = (bareClasspath().map(_.path) :+ assemblyPath).map(_.toString).mkString(java.io.File.pathSeparator)
+    val cpArg = "-cp " + cpString
+    os.write(T.dest / "classpath", cpArg)
+    T.dest / "classpath"
+  }
+
   def localPackedClasspath = T {
     packedResources() ++ Agg(compile().classes)
   }

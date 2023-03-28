@@ -75,7 +75,6 @@ object viperApi extends VercorsModule {
 	object test extends Tests
 }
 
-
 object vercors extends VercorsModule {
 	def key = "main"
 	def deps = Agg(
@@ -89,13 +88,6 @@ object vercors extends VercorsModule {
 			PathRef(Dir.res / "universal" / "res"),
 			PathRef(Dir.res / "universal" / "deps"),
 		)
-	}
-
-	def classPathArgumentFile = T {
-		val cpString = runClasspath().map(_.path.toString).mkString(java.io.File.pathSeparator)
-		val cpArg = "-cp " + cpString
-		os.write(T.dest / "classpath", cpArg)
-		T.dest / "classpath"
 	}
 
 	object test extends Tests

@@ -32,6 +32,13 @@ object Deps {
 
 trait JavaModule extends BaseJavaModule {
   def forkArgs = Seq("-Xmx2G", "-Xss20m")
+
+  def classPathArgumentFile = T {
+    val cpString = runClasspath().map(_.path.toString).mkString(java.io.File.pathSeparator)
+    val cpArg = "-cp " + cpString
+    os.write(T.dest / "classpath", cpArg)
+    T.dest / "classpath"
+  }
 }
 
 trait ScalaModule extends BaseScalaModule with JavaModule {
