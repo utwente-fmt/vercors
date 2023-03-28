@@ -80,8 +80,8 @@ abstract class VercorsSpec extends AnyFlatSpec {
     registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
       LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
       val loggerContext = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
-      loggerContext.exists("viper").setLevel(Level.OFF)
-      loggerContext.exists("vct").setLevel(Level.INFO)
+      loggerContext.getLogger("viper").setLevel(Level.OFF)
+      loggerContext.getLogger("vct").setLevel(Level.INFO)
 
       failAfter(Span(300, Seconds)) {
         matchVerdict(verdict, backend match {
