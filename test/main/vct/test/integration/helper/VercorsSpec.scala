@@ -8,6 +8,7 @@ import org.scalatest.concurrent.TimeLimits.failAfter
 import org.scalatest.time._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
+import org.slf4j.helpers.SubstituteLogger
 import vct.col.origin.VerificationFailure
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
@@ -78,6 +79,11 @@ abstract class VercorsSpec extends AnyFlatSpec {
     val matrixTag = Tag(s"MATRIX[$matrixId]")
 
     registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
+      val logger = LoggerFactory.getLogger("viper")
+      println(logger)
+      logger match {
+        case s: SubstituteLogger => println(s.delegate())
+      }
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
