@@ -21,8 +21,8 @@ object Dir {
 
 object Deps {
   val log = Agg(
-    ivy"com.typesafe.scala-logging::scala-logging:3.9.4",
-    ivy"ch.qos.logback:logback-classic:1.2.3",
+    ivy"com.typesafe.scala-logging::scala-logging:3.9.5",
+    ivy"ch.qos.logback:logback-classic:1.4.5",
   )
 
   val common = log ++ Agg(
