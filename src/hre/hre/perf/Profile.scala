@@ -27,7 +27,7 @@ case class Profile() {
 
   private val epochStartNanos = System.currentTimeMillis() * 1_000_000L
 
-  private var lastChildUsage = ResourceUsage.getAggregateChildren.get
+  private var lastChildUsage = ResourceUsage.getAggregateChildren
 
   private val valueTypes = Seq(
     ValueType(str("agg"), str("microseconds")),
@@ -44,7 +44,7 @@ case class Profile() {
 
   def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = synchronized {
     val deltaChild = if (doUpdateChildUsage) {
-      val childUsage = ResourceUsage.getAggregateChildren.get
+      val childUsage = ResourceUsage.getAggregateChildren
       val deltaChild = childUsage - lastChildUsage
       lastChildUsage = childUsage
       deltaChild

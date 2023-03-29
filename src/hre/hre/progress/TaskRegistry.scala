@@ -52,8 +52,8 @@ case object TaskRegistry {
 
   def ownUsage(): ResourceUsage =
     if(enabled) {
-      if(isMainThread) ResourceUsage.getProcess.get
-      else ResourceUsage.getCallingThread.getOrElse(ResourceUsage.zero)
+      if(isMainThread) ResourceUsage.getProcess
+      else ResourceUsage.getCallingThread
     }
     else ResourceUsage.zero
 
