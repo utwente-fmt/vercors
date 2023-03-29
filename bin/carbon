@@ -1,0 +1,14 @@
+#!/bin/sh
+ROOT=$(dirname $(dirname $(realpath $0)))
+(cd $ROOT; ./mill vercors.runScript)
+
+
+if [[ "$OSTYPE" == "darwin" ]]; then
+  Z3="$ROOT/res/universal/deps/darwin/z3/bin/z3"
+  BOOGIE_EXE="$ROOT/res/universal/deps/darwin/boogie/Boogie"
+else
+  Z3="$ROOT/res/universal/deps/unix/z3/bin/z3"
+  BOOGIE_EXE="$ROOT/res/universal/deps/unix/boogie/Boogie"
+fi
+
+BOOGIE_EXE=$BOOGIE_EXE $ROOT/out/vercors/runScript.dest/carbon --z3Exe $Z3 "$@"

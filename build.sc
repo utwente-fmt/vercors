@@ -82,11 +82,17 @@ object vercors extends VercorsModule {
 	)
 	def moduleDeps = Seq(hre, col, rewrite, parsers, viperApi, buildInfo)
 	def mainClass = Some("vct.main.Main")
+	def runScriptClasses = T { Map (
+		"vercors" -> "vct.main.Main",
+		"carbon" -> "viper.carbon.Carbon",
+		"silicon" -> "viper.silicon.SiliconRunner",
+		"bashOptions" -> "vct.options.BashCompletion",
+	) }
 	def packedResources = T.sources()
-	def bareResources = T.sources {
+	def bareResourcePaths = T {
 		Seq(
-			PathRef(Dir.res / "universal" / "res"),
-			PathRef(Dir.res / "universal" / "deps"),
+			Dir.res / "universal" / "res",
+			Dir.res / "universal" / "deps",
 		)
 	}
 

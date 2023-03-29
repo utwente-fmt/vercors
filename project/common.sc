@@ -33,11 +33,47 @@ object Deps {
 trait JavaModule extends BaseJavaModule {
   def forkArgs = Seq("-Xmx2G", "-Xss20m")
 
-  def classPathArgumentFile = T {
-    val cpString = runClasspath().map(_.path.toString).mkString(java.io.File.pathSeparator)
+  def classPathFileElements = T { runClasspath().map(_.path.toString) }
+
+  def unixClassPathArgumentFile = T {
+    val cpString = classPathFileElements().mkString(":")
     val cpArg = "-cp " + cpString
     os.write(T.dest / "classpath", cpArg)
     T.dest / "classpath"
+  }
+
+  def windowsClassPathArgumentFile = T {
+    val cpString = classPathFileElements().mkString(";")
+    val cpArg = "-cp " + cpString
+    os.write(T.dest / "classpath", cpArg)
+    T.dest / "classpath"
+  }
+
+  def runScriptClasses = T {
+    Map(
+      "run" -> finalMainClass(),
+    )
+  }
+
+  def runScript = T {
+    for((name, mainClass) <- runScriptClasses()) {
+      // thanks https://gist.github.com/lhns/ee821a5cd1b2031856b21a0e78e1ecc9
+      val header = "@ 2>/dev/null # 2>nul & echo off & goto BOF"
+      val unix = Seq(
+        ":",
+        s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass \"$$@\"",
+        "exit",
+      )
+      val batch = Seq(
+        ":BOF",
+        s"java ${forkArgs().mkString(" ")} @${windowsClassPathArgumentFile()} $mainClass %*",
+        "exit /B %errorlevel%",
+      )
+      val script = header + "\r\n" + unix.mkString("\n") + "\n\r\n" + batch.mkString("\r\n") + "\r\n"
+      os.write(T.dest / name, script)
+      os.perms.set(T.dest / name, os.PermSet.fromString("rwxrwxr-x"))
+    }
+    T.dest
   }
 }
 
@@ -63,12 +99,7 @@ trait VercorsJavaModule extends JavaModule with ReleaseModule { outer =>
 	}
 	def ivyDeps = Deps.common ++ deps()
 
-  def classPathArgumentFile = T {
-    val cpString = runClasspath().map(_.path.toString).mkString(java.io.File.pathSeparator)
-    val cpArg = "-cp " + cpString
-    os.write(T.dest / "classpath", cpArg)
-    T.dest / "classpath"
-  }
+  def classPathFileElements = T { runClasspathElements() }
 }
 
 trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
@@ -78,11 +109,5 @@ trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
     def sources = T.sources { sourcesDir() }
     def deps = T { Agg.empty }
     def ivyDeps = Deps.common ++ Agg(ivy"org.scalatest::scalatest:3.2.7") ++ outer.deps() ++ deps()
-  }
-
-  def classPathArgumentFile = T {
-    val cpArg = "-cp " + runClasspathString()
-    os.write(T.dest / "classpath", cpArg)
-    T.dest / "classpath"
   }
 }

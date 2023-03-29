@@ -74,11 +74,12 @@ trait SeparatePackedResourcesModule extends JavaModule {
       resolvedIvyDeps()
   }
 
-  def runClasspathString = T {
+  def runClasspathElements = T {
     val paths = localPackedClasspath().map(_.path) ++
       upstreamAssemblyClasspath().map(_.path) ++
-      bareResourcePaths()
-    paths.map(_.toString).mkString(java.io.File.separator)
+      bareResourcePaths() ++
+      transitiveBareResourcePaths()
+    paths.map(_.toString)
   }
 }
 
@@ -171,7 +172,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     os.write(dest / winExecutableName(),
       s"""@echo off
          |cd /D "%~dp0"
-         |java ${forkArgs().mkString(" ")} @${(os.rel / ".classpath").toString} ${finalMainClass()} "$$@"
+         |java ${forkArgs().mkString(" ")} @${(os.rel / ".classpath").toString} ${finalMainClass()} %*
          |""".stripMargin)
 
     val out = T.dest / s"${executableName()}-${version()}-win.zip"
