@@ -1,4 +1,4 @@
 #!/bin/sh
 ROOT=$(dirname $(dirname $(realpath $0)))
 (cd $ROOT; ./mill vercors.runScript)
-$ROOT/out/vercors/runScript.dest/vercors "$@"
+$ROOT/out/vercors/runScript.dest/bashComplete "$@"
