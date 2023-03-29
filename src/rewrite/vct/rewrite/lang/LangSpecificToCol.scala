@@ -37,6 +37,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val c: LangCToCol[Pre] = LangCToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
+  val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
 
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
@@ -66,6 +67,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)
     case decl: CGlobalDeclaration[Pre] => c.rewriteGlobalDecl(decl)
     case decl: CLocalDeclaration[Pre] => ???
+    case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {

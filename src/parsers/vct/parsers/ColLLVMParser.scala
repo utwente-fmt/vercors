@@ -19,11 +19,11 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
   }
 
   override def parse[G](stream: CharStream): ParseResult[G] = {
-    throw Unreachable("LLVM IR files should be parsed from an not ANTLR CharStream, use VCLLVM instead!")
+    throw Unreachable("LLVM IR files shouldn't be parsed from an ANTLR CharStream, use VCLLVM instead!")
   }
 
   override def parse[G](readable: Readable): ParseResult[G] = {
-    val command = Seq("VCLLVM", "--sample-col") //TODO convert --sample-col to actual file at some point
+    val command = Seq("VCLLVM", readable.fileName)
     val process = new ProcessBuilder(command:_*).start()
     process.waitFor()
     if (process.exitValue() != 0) {
