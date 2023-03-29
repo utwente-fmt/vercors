@@ -1,12 +1,11 @@
-#!/bin/bash
-set -e
-
-BIN=$(dirname $0)
+#!/bin/sh
+ROOT=$(dirname $(dirname $(realpath $0)))
+(cd $ROOT; ./mill vercors.runScript)
 
 if [[ "$OSTYPE" == "darwin" ]]; then
-  Z3="$BIN/../src/main/universal/deps/darwin/z3/bin/z3"
+  Z3="$ROOT/res/universal/deps/darwin/z3/bin/z3"
 else
-  Z3="$BIN/../src/main/universal/deps/unix/z3/bin/z3"
+  Z3="$ROOT/res/universal/deps/unix/z3/bin/z3"
 fi
 
-$BIN/run-class viper.silicon.SiliconRunner --z3Exe $Z3 "$@"
+$ROOT/out/vercors/runScript.dest/silicon --z3Exe $Z3 "$@"

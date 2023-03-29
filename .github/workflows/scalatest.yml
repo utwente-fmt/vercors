@@ -11,7 +11,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  Compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout VerCors
+        uses: actions/checkout@v2
+      - name: Install Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+      - name: Cache dependencies and compilation
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/coursier
+            ~/.mill/ammonite
+            out
+            !**/assembly.dest
+            !**/assembly.json
+            !**/upstreamAssembly.dest
+            !**/upstreamAssembly.json
+          key: vercors-ci-ubuntu
+      - name: Compile
+        run: ./mill --no-default-predef -j 0 allTests.assembly
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: allTests
+          path: out/allTests/assembly.dest/out.jar
+
   ScalaTestWindowsBasic:
+    needs: "Compile"
     runs-on: windows-latest
     steps:
       - name: Checkout VerCors
@@ -20,22 +50,6 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Cache SBT and Viper
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/coursier
-            ~/AppData/Local/Coursier/Cache
-            ~/Library/Caches/Coursier
-            ~/.ivy2/cache
-            ~/.sbt
-          key: sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
-          restore-keys: |
-            sbt-viper-windows-latest-${{ hashFiles('project/build.properties') }}
-      - name: Set SBT options
-        run: echo -J-Xmx2G -J-Xss20m > .sbtopts
-      - name: Compile
-        run: sbt -v compile
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
@@ -48,16 +62,24 @@ jobs:
           version: "10.0"
           directory: ${{ runner.temp }}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+      - name: Download VerCors
+        uses: actions/download-artifact@v3
+        with:
+          name: allTests
+          path: '.'
+      - name: ls
+        run: ls
       - name: Run scalatest
-        run: sbt "testOnly vct.test.integration.examples.BasicExamplesSpec"
+        run: java -Xss20m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
         with:
           name: test-report-windows-latest
-          path: '**/target/test-reports/TEST-*.xml'
+          path: 'report/**/TEST-*.xml'
 
   ScalaTestMacOsBasic:
+    needs: "Compile"
     runs-on: macos-latest
     steps:
       - name: Checkout VerCors
@@ -66,63 +88,26 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Cache SBT and Viper
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/coursier
-            ~/AppData/Local/Coursier/Cache
-            ~/Library/Caches/Coursier
-            ~/.ivy2/cache
-            ~/.sbt
-          key: sbt-viper-macos-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
-          restore-keys: |
-            sbt-viper-macos-latest-${{ hashFiles('project/build.properties') }}
-      - name: Compile
-        run: sbt -J-Xmx2G -J-Xss20m compile
       - name: Install clang
         run: brew install llvm
+      - name: Download VerCors
+        uses: actions/download-artifact@v3
+        with:
+          name: allTests
+          path: '.'
+      - name: ls
+        run: ls
       - name: Run scalatest
-        run: sbt "testOnly vct.test.integration.examples.BasicExamplesSpec"
+        run: java -Xss20m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
         with:
           name: test-report-macos-latest
-          path: '**/target/test-reports/TEST-*.xml'
-
-  Compile:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout VerCors
-      uses: actions/checkout@v2
-    - name: Install Java
-      uses: actions/setup-java@v1
-      with:
-        java-version: 17
-    - name: Cache SBT and Viper
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/coursier
-          ~/AppData/Local/Coursier/Cache
-          ~/Library/Caches/Coursier
-          ~/.ivy2/cache
-          ~/.sbt
-        key: sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
-        restore-keys: |
-          sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}
-    - name: Compile
-      run: sbt -J-Xmx2G -J-Xss20m pushRemoteCache
-    - name: Upload precompiled repository
-      uses: actions/upload-artifact@v3
-      with:
-        name: precompiled-repository
-        path: tmp/vercors-build-cache
+          path: 'report/**/TEST-*.xml'
 
   ScalaTest:
     needs: "Compile"
-
     strategy:
       fail-fast: false
       matrix:
@@ -136,33 +121,21 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 17
-      - name: Cache SBT and Viper
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/coursier
-            ~/AppData/Local/Coursier/Cache
-            ~/Library/Caches/Coursier
-            ~/.ivy2/cache
-            ~/.sbt
-          key: sbt-viper-ubuntu-latest-${{ hashFiles('project/build.properties') }}-${{ hashFiles('build.sbt') }}
-      - name: Download precompiled repository
+      - name: Download VerCors
         uses: actions/download-artifact@v3
         with:
-          name: precompiled-repository
-          path: tmp/vercors-build-cache
-      - name: Pull cached compilation into sbt
-        run: sbt -J-Xmx2G -J-Xss20m pullRemoteCache compile
-
-      - name: Run scalatest for label ${{matrix.batch}}
-        run: sbt "testOnly vct.* -- ${{matrix.batch}}"
-
+          name: allTests
+          path: '.'
+      - name: ls
+        run: ls -lasFhR
+      - name: Run scalatest
+        run: java -Xss20m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
         with:
           name: test-report-ubuntu-latest-${{ matrix.batch }}
-          path: '**/target/test-reports/TEST-*.xml'
+          path: 'report/**/TEST-*.xml'
 
   GenerateTestReport:
     runs-on: ubuntu-latest

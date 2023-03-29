@@ -1,7 +1,11 @@
 @echo off
 setlocal
 
-rem %~dp0 is expanded pathname of the current script under NT, i.e. the "bin" directory
 set BIN=%~dp0
+set ROOT=%BIN%..
 
-call "%BIN%\run-class.cmd" vct.main.Main %*
+pushd %ROOT%
+mill vercors.runScript
+popd
+
+"%ROOT%out\vercors\runScript.dest\vercors" %*
