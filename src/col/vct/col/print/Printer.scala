@@ -484,6 +484,8 @@ case class Printer(out: Appendable,
       if(isSkip(init) && isSkip(update))
         control(phrase(printLoopInvariant(invariant), newline, "while(", cond, ")"), body)
       else control(phrase(printLoopInvariant(invariant), newline, "for(", init, "; ", cond, "; ", statement_no_semicolon(update), ")"), body)
+    case LlvmLoop(cond, invariant, body) =>
+      control(phrase(printLLVMLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -640,6 +642,8 @@ case class Printer(out: Appendable,
       control(phrase(printLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case Loop(init, cond, update, invariant, body) =>
       control(phrase(printLoopInvariant(invariant), newline, "for (", statement_no_semicolon(init), "; ", cond, "; ", statement_no_semicolon(update), ")"), body)
+    case LlvmLoop(cond, invariant, body) =>
+      control(phrase(printLLVMLoopInvariant(invariant), newline, "while (", cond, ")"), body)
     case TryCatchFinally(body, after, catches) =>
       controls(
         Seq((phrase("try"), body)) ++
@@ -1596,6 +1600,13 @@ case class Printer(out: Appendable,
 
   def printLLVMFunctionContract(node: LlvmFunctionContract[_]): Unit = {
     say(spec(phrase(node.value)))
+  }
+
+  def printLLVMLoopInvariant(node: LlvmLoopContract[_]): Phrase = {
+    node match {
+      case LlvmLoopInvariant(string, _) =>
+        phrase(spec(string))
+    }
   }
 
   def print(node: Node[_]): Unit =

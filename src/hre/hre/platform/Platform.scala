@@ -14,7 +14,7 @@ case object Platform {
     override def code: String = "unknownPlatform"
   }
 
-  def getCurrent: Platform = {
+  val getCurrent: Platform = {
     val name = System.getProperty("os.name").toLowerCase
     if(name.contains("win")) Platform.Windows
     else if(name.contains("linux")) Platform.Unix

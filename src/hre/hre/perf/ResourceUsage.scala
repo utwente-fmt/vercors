@@ -1,6 +1,7 @@
 package hre.perf
 
 import hre.perf.ResourceUsage.Microseconds
+import hre.platform.Platform
 import hre.unix.{LibC, RUsage}
 
 object ResourceUsage {
@@ -8,16 +9,26 @@ object ResourceUsage {
 
   private val boot = System.nanoTime() / 1000L
 
-  private def get(who: Int): Option[ResourceUsage] = {
-    val usage = new RUsage()
-    if(LibC.INSTANCE.getrusage(who, usage) != 0) return None
+  def fallback(): ResourceUsage =
+    zero.copy(wallTime = System.nanoTime() / 1000L - boot)
 
-    Some(ResourceUsage(usage.ru_utime.toUsec, usage.ru_stime.toUsec, usage.ru_inblock, usage.ru_oublock, usage.ru_nvcsw, usage.ru_nivcsw, System.nanoTime() / 1000L - boot))
+  private def get(who: Int): ResourceUsage = {
+    Platform.getCurrent match {
+      case Platform.Unix | Platform.Mac =>
+        try {
+          val usage = new RUsage()
+          if (LibC.INSTANCE.getrusage(who, usage) != 0) return fallback()
+          ResourceUsage(usage.ru_utime.toUsec, usage.ru_stime.toUsec, usage.ru_inblock, usage.ru_oublock, usage.ru_nvcsw, usage.ru_nivcsw, System.nanoTime() / 1000L - boot)
+        } catch {
+          case _: UnsatisfiedLinkError => fallback()
+        }
+      case _ => fallback()
+    }
   }
 
-  def getProcess: Option[ResourceUsage] = get(0)
-  def getCallingThread: Option[ResourceUsage] = get(1)
-  def getAggregateChildren: Option[ResourceUsage] = get(-1)
+  def getProcess: ResourceUsage = get(0)
+  def getCallingThread: ResourceUsage = get(1)
+  def getAggregateChildren: ResourceUsage = get(-1)
 
   def zero: ResourceUsage = ResourceUsage(0, 0, 0, 0, 0, 0, 0)
 }
