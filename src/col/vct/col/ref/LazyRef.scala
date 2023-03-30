@@ -32,9 +32,8 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G], val eqMeas
 
   override def equals(obj: Any): Boolean = obj match {
     case other: LazyRef[G, Decl] if eqMeasure.nonEmpty && other.eqMeasure.nonEmpty =>
+      decl
       eqMeasure.get == other.eqMeasure.get
     case other => super.equals(other)
   }
-
-  override def hashCode(): Int = eqMeasure.map(_.hashCode()).getOrElse(super.hashCode())
 }

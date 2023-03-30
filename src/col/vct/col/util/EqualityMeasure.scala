@@ -17,5 +17,5 @@ case class EqualityMeasure[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: D
     case _ => false
   }
 
-  override def hashCode(): Int = decl.hashCode()
+  override def hashCode(): Int = 0
 }
