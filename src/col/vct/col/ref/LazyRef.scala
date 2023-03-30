@@ -35,6 +35,4 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G], val eqMeas
       eqMeasure.get == other.eqMeasure.get
     case other => super.equals(other)
   }
-
-  override def hashCode(): Int = eqMeasure.map(_.hashCode()).getOrElse(super.hashCode())
 }

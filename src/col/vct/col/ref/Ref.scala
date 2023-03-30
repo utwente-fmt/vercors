@@ -22,7 +22,13 @@ trait Ref[G, Decl <: Declaration[G]] {
     case other: Ref[G, _] => decl == other.decl
   }
 
-  override def hashCode(): Int = ScalaRunTime._hashCode((Ref.getClass, decl))
+  /**
+   * LazyRef tries very hard to not actually compute the declaration if it doesn't have to. To be able to compare
+   * resolved and unresolved declarations amongst each other, the hashCode cannot be meaningful. Typically Ref's do
+   * not end up in datastructures like Maps by themselves: it is probably usually either the Declaration directly, or
+   * a composite Expression, in which case the shape will likely be sufficiently different sufficiently often.
+   */
+  override final def hashCode(): Int = 0
 
   def asTransmutable[Decl2[_] <: Declaration[_]](implicit witness: Decl <:< Decl2[G]): Ref.TransmutableRef[G, Decl2] =
     new Ref.TransmutableRef(decl)

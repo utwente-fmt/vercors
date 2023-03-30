@@ -41,6 +41,12 @@ case object InlineApplicables extends RewriterBuilder {
       ))
   }
 
+  case class WrongPredicateLocation(use: Location[_]) extends UserError {
+    override def code: String = "wrongInlinePredicate"
+    override def text: String =
+      use.o.messageInContext("This location refers to an inline predicate, but it cannot be inlined in this position.")
+  }
+
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
     case object IdentitySuccessor extends SuccessorsProviderTrafo(allScopes.freeze) {
       override def preTransform[I <: Declaration[G], O <: Declaration[G]](pre: I): Option[O] =
@@ -159,6 +165,15 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case other => rewriteDefault(other)
   }
 
+  override def dispatch(loc: Location[Pre]): Location[Post] = loc match {
+    case loc @ PredicateLocation(Ref(pred), _) if pred.inline =>
+      throw WrongPredicateLocation(loc)
+    case loc @ InstancePredicateLocation(Ref(pred), _, _) if pred.inline =>
+      throw WrongPredicateLocation(loc)
+
+    case other => rewriteDefault(other)
+  }
+
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case apply: ApplyInlineable[Pre] if apply.ref.decl.inline =>
       implicit val o: Origin = apply.o
@@ -228,6 +243,12 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
           args.map(dispatch).map(e => Eval(e)(e.o)) ++
           Seq(Eval(dispatch(perm))(perm.o))
       )(e.o), dispatch(body))(e.o)
+
+    case Perm(loc @ PredicateLocation(pred, args), WritePerm()) if pred.decl.inline =>
+      dispatch(PredicateApply(pred, args, WritePerm()(loc.o))(loc.o))
+
+    case Perm(loc @ InstancePredicateLocation(pred, obj, args), WritePerm()) if pred.decl.inline =>
+      dispatch(InstancePredicateApply(obj, pred, args, WritePerm()(loc.o))(loc.o))
 
     case other => rewriteDefault(other)
   }
