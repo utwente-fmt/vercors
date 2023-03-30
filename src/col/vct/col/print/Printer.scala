@@ -1567,7 +1567,7 @@ case class Printer(out: Appendable,
     case FieldLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
     case ModelLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
     case SilverFieldLocation(obj, field) => say(expr(obj)._1, ".", name(field.decl))
-    case ArrayLocation(array, subscript) => (phrase(assoc(100, array), "[", expr(subscript)._1, "]"), 100)
+    case ArrayLocation(array, subscript) => say(phrase(assoc(100, array), "[", expr(subscript)._1, "]"))
     case PointerLocation(pointer) => say(pointer)
     case PredicateLocation(predicate, args) => say(name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
     case InstancePredicateLocation(predicate, obj, args) => say(expr(obj)._1, ".", name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
