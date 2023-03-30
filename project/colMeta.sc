@@ -20,9 +20,8 @@ object meta extends VercorsModule {
       mainClass = "ColHelper",
       classPath = runClasspath().map(_.path),
       mainArgs = Seq(
-        nodeDefinitions().map(_.path.toString).mkString(":"),
-        T.dest.toString
-      ),
+        T.dest.toString,
+      ) ++ nodeDefinitions().map(_.path.toString),
     )
 
     T.dest

@@ -8,8 +8,8 @@ import scala.meta.prettyprinters.Show
 object ColHelper {
   def main(args: Array[String]): Unit =
     ColHelper().generate(
-      args(0).split(":").map(new File(_)),
-      new File(args(1)),
+      args.tail.map(new File(_)),
+      new File(args.head),
       (f, data) => {
         new File(f.getParent).mkdirs()
         val out = new FileOutputStream(f)
