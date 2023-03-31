@@ -3,7 +3,7 @@ package vct.col.ast.node
 import vct.col.ast._
 import vct.col.check._
 import vct.col.origin._
-import vct.col.print.Printer
+import vct.col.print._
 
 import scala.runtime.ScalaRunTime
 
@@ -33,7 +33,7 @@ import scala.runtime.ScalaRunTime
  *
  * @tparam G The generation marker: not used as a concrete type.
  */
-trait NodeImpl[G] { this: Node[G] =>
+trait NodeImpl[G] extends Show { this: Node[G] =>
   def check(context: CheckContext[G]): Seq[CheckError]
   def o: Origin
 
@@ -96,20 +96,9 @@ trait NodeImpl[G] { this: Node[G] =>
                                (implicit witness: this.type <:< TNode[G])
                                : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
 
-  override def toString: String = {
-    try {
-      val sb = new java.lang.StringBuilder
-      val printer = Printer(sb)
-      printer.print(this)
-      sb.toString
-    } catch {
-      // If the printer has a bug, try to print a useful representation
-      case t: Throwable => (this match {
-        // Case classes are automatically a product type, which produces the nice Type(arg1, arg2) representation.
-        case p: scala.Product => ScalaRunTime._toString(p)
-        // Otherwise, fall back to printing the subnodes
-        case _ => s"${this.getClass.getSimpleName}(${subnodes.map(_.toString).mkString(", ")})"
-      }) + s" (err: ${t.getClass.getCanonicalName})"
-    }
-  }
+  final def show(implicit ctx: Ctx): Doc = NodeDoc(this, layout)
+  def layout(implicit ctx: Ctx): Doc = Group(Text(s"??${this.getClass.getSimpleName}??") <> "(" <> Doc.args(subnodes) <> ")")
+
+  override def toString: String =
+    toStringWithContext(Ctx().namesIn(this))
 }
