@@ -25,6 +25,7 @@ import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
+import vct.rewrite.veymont.ParalleliseVeyMontThreads
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
@@ -293,6 +294,7 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     AddVeyMontAssignmentNodes,
     AddVeyMontConditionNodes,
-    StructureCheck
+    StructureCheck,
+    ParalleliseVeyMontThreads
   ))
 
