@@ -1,6 +1,6 @@
 package vct.col.print
 
-import vct.col.ast.Node
+import vct.col.ast.{Declaration, Node}
 import vct.col.resolve.ctx.Referrable
 
 object Ctx {
@@ -17,4 +17,7 @@ case class Ctx(
 ) {
   def namesIn(node: Node[_]): Ctx =
     copy(names = Ctx.computeNames(node))
+
+  def name(decl: Declaration[_]): String =
+    names.getOrElse(Referrable.from(decl).head, s"?unnamed:${decl.o.preferredName}?")
 }

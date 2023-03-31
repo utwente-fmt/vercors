@@ -97,7 +97,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
                                : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
 
   final def show(implicit ctx: Ctx): Doc = NodeDoc(this, layout)
-  def layout(implicit ctx: Ctx): Doc = Group(Text(s"??${this.getClass.getSimpleName}??") <> "(" <> Doc.args(subnodes) <> ")")
+  protected[this] def layout(implicit ctx: Ctx): Doc = Group(Text(s"??${this.getClass.getSimpleName}??") <> "(" <> Doc.args(subnodes) <> ")")
 
   override def toString: String =
     toStringWithContext(Ctx().namesIn(this))
