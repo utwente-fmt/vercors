@@ -28,7 +28,7 @@ seq_program SeqProgram(int x, int y) {
      s1.temp = 5;
   }
   
-  void bar(int a) {}
+  //void bar(int a) {}
 
   run {
     if(s1.v == 5 && s2.v == 6) {

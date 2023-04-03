@@ -30,6 +30,14 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
       case dcl: VeyMontSeqProg[Pre] => inSeqProg.having(()) {
         rewriteDefault(dcl)
       }
+      case m: InstanceMethod[Pre] =>
+        if (inSeqProg.nonEmpty && m.args.nonEmpty)
+          throw VeyMontStructCheckError(m, "Methods in seq_program cannot have any arguments!")
+        else rewriteDefault(decl)
+      case r: RunMethod[Pre] =>
+        if(r.body.isEmpty)
+          throw VeyMontStructCheckError(r, "Method run in seq_program needs to have a body!")
+        else rewriteDefault(decl)
       case _ => rewriteDefault(decl)
     }
 
