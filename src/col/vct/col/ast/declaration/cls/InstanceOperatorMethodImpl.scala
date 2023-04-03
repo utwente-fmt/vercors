@@ -3,12 +3,20 @@ package vct.col.ast.declaration.cls
 import vct.col.ast.{InstanceOperatorMethod, Type, Variable}
 import vct.col.print._
 
+import scala.collection.immutable.ListMap
+
 trait InstanceOperatorMethodImpl[G] { this: InstanceOperatorMethod[G] =>
   def typeArgs: Seq[Variable[G]] = Nil
   def outArgs: Seq[Variable[G]] = Nil
 
+  def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = ListMap(
+    pure -> "pure",
+    inline -> "inline",
+  ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
+
   override def layout(implicit ctx: Ctx): Doc = Group(
-    returnType.show <+> operator <> "(" <> Doc.args(args) <> ")" <>
+    contract.show <+/>
+    Doc.rspread(layoutModifiers) <> returnType.show <+> operator <> "(" <> Doc.args(args) <> ")" <>
       body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";"))
   )
 }

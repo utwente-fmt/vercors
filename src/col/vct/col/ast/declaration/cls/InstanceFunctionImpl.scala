@@ -3,11 +3,13 @@ package vct.col.ast.declaration.cls
 import vct.col.ast.InstanceFunction
 import vct.col.print._
 
+import scala.collection.immutable.ListMap
+
 trait InstanceFunctionImpl[G] { this: InstanceFunction[G] =>
-  def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = Seq(
-    if(inline) "inline" else "",
-    if(threadLocal) "thread_local" else "",
-  ).filter(_.nonEmpty).map(Text)
+  def layoutModifiers(implicit ctx: Ctx): Seq[Doc] = ListMap(
+    inline -> "inline",
+    threadLocal -> "thread_local",
+  ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
 
   override def layout(implicit ctx: Ctx): Doc =
     contract.show <+/> Group(

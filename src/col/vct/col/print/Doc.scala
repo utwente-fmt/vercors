@@ -5,6 +5,12 @@ import vct.col.ast.Node
 import java.lang
 import scala.annotation.tailrec
 
+object Show {
+  def lazily(f: Ctx => Doc): Show = new Show {
+    override def show(implicit ctx: Ctx): Doc = f(ctx)
+  }
+}
+
 trait Show {
   def show(implicit ctx: Ctx): Doc
 
@@ -34,8 +40,48 @@ case object Doc {
   def args(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
     if(docs.nonEmpty) Nest(NonWsLine <> fold(docs)(_ <> "," <+/> _)) <> NonWsLine
     else Empty
+
+  def inlineSpec(doc: Show)(implicit ctx: Ctx): Doc =
+    if(ctx.syntax == Ctx.PVL) doc.show
+    else if(ctx.inSpec) doc.show
+    else Text("/*@") <+> doc.show(ctx.copy(inSpec = true)) <+> "@*/"
+
+  def spec(doc: Show)(implicit ctx: Ctx): Doc =
+    if (ctx.syntax == Ctx.PVL) doc.show
+    else if (ctx.inSpec) doc.show
+    else Text("/*@") <+/> doc.show(ctx.copy(inSpec = true)) <+/> "@*/"
 }
 
+/**
+  * This is an implementation of A prettier printer by Philip Wadler, accessible here:
+  * https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf
+  *
+  * We've made a couple modifications to suit our purposes:
+  *
+  * (1) There is a newline that is not flattened into a space, but into no text, to support our layout for invocations
+  *     that are split over lines:
+  *     e.g.:
+  *
+  *     someMethod(
+  *         1,
+  *         2,
+  *         3
+  *     )
+  *
+  *     would otherwise be flattened into someMethod( 1, 2, 3 ), so the initial and last newline are non-whitespace
+  *     newlines:
+  *
+  *     someMethod(`</>`
+  *       1,`<+/>`
+  *       2,`<+/>`
+  *       3,`</>`
+  *     )
+  * (2) Group is an explicit data structure, as defined: Group(x) = flatten x <|> x. Note that contrary to the canonical
+  *     definition, <+/> does not introduce an alternative.
+  * (3) be includes additional state to track whether an element needs to be flattened.
+  * (4) NodeDoc associates a node in the AST with a Doc in the rendered tree, for additional post-processing of the
+  *     layout.
+  */
 sealed trait Doc extends Show {
   def show(implicit ctx: Ctx): Doc = this
 

@@ -7,6 +7,8 @@ import vct.col.print._
 trait ADTAxiomImpl[G] { this: ADTAxiom[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] = axiom.checkSubType(TBool())
 
-  override def layout(implicit ctx: Ctx): Doc =
-    Text("axiom") <+> axiom
+  override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
+    case Ctx.Silver => Group(Text("axiom") <+> "{" <>> axiom.show <+/> "}")
+    case _ => Text("axiom") <+> axiom
+  }
 }
