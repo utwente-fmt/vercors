@@ -925,11 +925,11 @@ final class LlvmFunctionContract[G](val value:String, val references:Seq[(String
 
 final class LlvmFunctionDefinition[G](val returnType: Type[G],
                                       val args: Seq[Variable[G]],
-                                      val body: Statement[G],
+                                      val functionBody: Statement[G],
                                       val contract: LlvmFunctionContract[G],
                                       val pure: Boolean = false)
                                      (val blame: Blame[CallableFailure])(implicit val o: Origin)
-  extends GlobalDeclaration[G] with LLVMFunctionDefinitionImpl[G]
+  extends GlobalDeclaration[G] with Applicable[G] with LLVMFunctionDefinitionImpl[G]
 
 final case class LlvmLoop[G](cond:Expr[G], contract:LlvmLoopContract[G], body:Statement[G])
                        (implicit val o: Origin) extends CompositeStatement[G] with LLVMLoopImpl[G]

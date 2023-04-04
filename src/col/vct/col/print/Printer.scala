@@ -1389,7 +1389,7 @@ case class Printer(out: Appendable,
         spec(definition.contract),
         definition.returnType, space, name(definition), "(", commas(definition.args.map(NodePhrase)), ")"
       )
-      control(header, definition.body)
+      control(header, definition.functionBody)
     case decl: LabelDecl[_] =>
       ???
     case decl: ParBlockDecl[_] =>
