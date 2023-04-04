@@ -26,19 +26,16 @@ trait ExprImpl[G] extends NodeFamilyImpl[G] { this: Expr[G] =>
 
   def precedence: Int = Precedence.UNKNOWN
 
-  def assoc(other: Expr[_])(implicit ctx: Ctx): Doc =
+  def bind(other: Expr[_], precedence: Int)(implicit ctx: Ctx): Doc =
     if(other.precedence >= precedence) other.show
     else Text("(") <> other.show <> ")"
 
-  def nassoc(other: Expr[_])(implicit ctx: Ctx): Doc =
-    if (other.precedence > precedence) other.show
-    else Text("(") <> other.show <> ")"
+  def assoc(other: Expr[_])(implicit ctx: Ctx): Doc = bind(other, precedence)
+  def nassoc(other: Expr[_])(implicit ctx: Ctx): Doc = bind(other, precedence-1)
 
-  def lassoc(left: Expr[_], op: Doc, right: Expr[_])(implicit ctx: Ctx): Doc =
+  def lassoc(left: Expr[_], op: String, right: Expr[_])(implicit ctx: Ctx): Doc =
     Group(assoc(left) <+> op <+/> nassoc(right))
 
-  def rassoc(left: Expr[_], op: Doc, right: Expr[_])(implicit ctx: Ctx): Doc =
+  def rassoc(left: Expr[_], op: String, right: Expr[_])(implicit ctx: Ctx): Doc =
     Group(nassoc(left) <+> op <+/> assoc(right))
-
-
 }

@@ -220,7 +220,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   def doBranches(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit o: Origin): Statement[Post] =
     branches match {
       case Nil => Branch(Nil)
-      case (cond, impl) :: tail =>
+      case (cond, impl) +: tail =>
         doBranches(tail) match {
           case Branch(branches) =>
             frame(cond, cond => Branch((cond, dispatch(impl)) +: branches))

@@ -1,6 +1,7 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast.{AmbiguousSubscript, Type}
+import vct.col.print.{Ctx, Doc, Precedence, Group}
 import vct.col.typerules.CoercionUtils
 import vct.result.VerificationError.Unreachable
 
@@ -18,4 +19,8 @@ trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
     else if (isPointerOp) collection.t.asPointer.get.element
     else if (isMapOp) collection.t.asMap.get.value
     else throw Unreachable(s"Trying to subscript ($this) a non subscriptable variable with type ${collection.t}")
+
+  override def precedence: Int = Precedence.POSTFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(assoc(collection) <> "[" <>> index.show </> "]")
 }

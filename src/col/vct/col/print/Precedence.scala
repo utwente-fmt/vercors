@@ -9,7 +9,7 @@ object Precedence {
   val MULTIPLICATIVE = 90
   val ADDITIVE = 80
   val SHIFT = 75
-  val PVL_CONTAINS = 75
+  val PVL_CONTAINS = 70
   val RELATIONAL = 70
   val EQUALITY = 60
   val BIT_AND = 53
