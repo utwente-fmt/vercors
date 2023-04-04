@@ -1,11 +1,11 @@
 package vct.importer
 
 import hre.io.Readable
-import vct.col.ast.Program
+import vct.col.ast.{JavaClass, JavaNamespace, Program}
 import vct.col.origin.{Blame, VerificationFailure}
 import vct.col.rewrite.Disambiguate
 import vct.main.stages.Resolution
-import vct.parsers.ColPVLParser
+import vct.parsers.{ColJavaParser, ColPVLParser}
 import vct.parsers.transform.{ConstantBlameProvider, ReadableOriginProvider}
 import vct.result.VerificationError.UserError
 
@@ -27,4 +27,19 @@ case object Util {
     val unambiguousProgram: Program[_] = Disambiguate().dispatch(context.tasks.head.program)
     unambiguousProgram.asInstanceOf[Program[G]]
   }
+
+  case class JavaLoadError(error: String) extends UserError {
+    override def code: String = "JavaClassLoadError"
+
+    override def text: String = error
+  }
+
+  def loadJavaClass[G](readable: Readable): JavaClass[G] =
+    ColJavaParser(ReadableOriginProvider(readable), ConstantBlameProvider(LibraryFileBlame)).parse(readable).decls match {
+      case Seq(javaNamespace: JavaNamespace[G]) => javaNamespace.declarations match {
+        case Seq(javaClass: JavaClass[G]) => javaClass
+        case seq => throw JavaLoadError("Expected to load exactly one Java class but found " + seq.size)
+      }
+      case seq => throw JavaLoadError("Expected to load exactly one Java name space but found " + seq.size)
+    }
 }

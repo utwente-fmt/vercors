@@ -6,6 +6,7 @@ import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
 import vct.options.types.{Backend, ClassPathEntry, Mode, PathOrStd, ReadLanguage, Verbosity}
 import vct.resources.Resources
+import vct.resources.Resources.getVeymontChannel
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -379,6 +380,7 @@ case class Options
 
   // VeyMont options
   veymontOutput: PathOrStd = null, // required
+  veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
 
   // VeSUV options
   vesuvOutput: PathOrStd = null,

@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{Deserialize, IterationContract, Procedure, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{Deserialize, IterationContract, JavaClass, Procedure, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -25,7 +25,7 @@ import vct.options.Options
 import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.veymont.ParalleliseVeyMontThreads
+import vct.rewrite.veymont.{ChannelClassGenerator, ParalleliseVeyMontThreads}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
@@ -73,7 +73,8 @@ object Transformation {
       case Backend.Silicon | Backend.Carbon =>
         VeyMontTransformation(
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
-          onAfterPassKey = writeOutFunctions(options.outputAfterPass)
+          onAfterPassKey = writeOutFunctions(options.outputAfterPass),
+          channelClass = Util.loadJavaClass(options.veymontChannel),
         )
     }
 }
@@ -290,11 +291,13 @@ case class SilverTransformation
   ))
 
 case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                 val channelClass: JavaClass[_])
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     AddVeyMontAssignmentNodes,
     AddVeyMontConditionNodes,
     StructureCheck,
-    ParalleliseVeyMontThreads
+    ParalleliseVeyMontThreads,
+    ChannelClassGenerator.withArg(channelClass)
   ))
 
