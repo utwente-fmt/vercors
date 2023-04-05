@@ -8,5 +8,5 @@ trait CommittedImpl[G] { this: Committed[G] =>
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("committed(") <>> obj </> ")")
+    Group(Text("committed(") <> Doc.arg(obj) <> ")")
 }

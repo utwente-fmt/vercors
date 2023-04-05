@@ -8,5 +8,5 @@ trait ArraySubscriptImpl[G] { this: ArraySubscript[G] =>
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(arr) <> "[" <>> index </> "]")
+    Group(assoc(arr) <> "[" <> Doc.arg(index) <> "]")
 }

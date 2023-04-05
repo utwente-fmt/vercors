@@ -8,5 +8,5 @@ trait IdleTokenImpl[G] { this: IdleToken[G] =>
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("idle(") <>> thread </> ")")
+    Group(Text("idle(") <> Doc.arg(thread) <> ")")
 }

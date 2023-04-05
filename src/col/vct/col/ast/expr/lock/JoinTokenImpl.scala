@@ -8,5 +8,5 @@ trait JoinTokenImpl[G] { this: JoinToken[G] =>
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("running(") <>> thread </> ")")
+    Group(Text("running(") <> Doc.arg(thread) <> ")")
 }

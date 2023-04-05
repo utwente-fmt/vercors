@@ -8,5 +8,5 @@ trait NdIndexImpl[G] { this: NdIndex[G] =>
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("\\nd_index(") <> Doc.args(indices.zip(dimensions).map { case (idx, dim) => idx.show <> "," <>> dim }) <> ")")
+    Group(Text("\\nd_index(") <> Doc.args(indices.zip(dimensions).map { case (idx, dim) => idx.show <> "," <+> dim }) <> ")")
 }

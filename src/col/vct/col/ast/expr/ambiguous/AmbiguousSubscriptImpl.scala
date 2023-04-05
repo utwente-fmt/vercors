@@ -22,5 +22,5 @@ trait AmbiguousSubscriptImpl[G] { this: AmbiguousSubscript[G] =>
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(collection) <> "[" <>> index.show </> "]")
+    Group(assoc(collection) <> "[" <> Doc.arg(index) <> "]")
 }

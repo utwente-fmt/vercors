@@ -8,5 +8,5 @@ trait HeldImpl[G] { this: Held[G] =>
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("held(") <>> obj </> ")")
+    Group(Text("held(") <> Doc.arg(obj) <> ")")
 }

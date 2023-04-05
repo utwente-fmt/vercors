@@ -40,8 +40,11 @@ case object Doc {
   def stack(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
     fold(docs)(_ <+/> _)
 
+  def arg(doc: Show)(implicit ctx: Ctx): Doc =
+    Nest(NonWsLine <> doc) <> NonWsLine
+
   def args(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
-    if(docs.nonEmpty) Nest(NonWsLine <> fold(docs)(_ <> "," <+/> _)) <> NonWsLine
+    if(docs.nonEmpty) arg(fold(docs)(_ <> "," <+/> _))
     else Empty
 
   def inlineSpec(doc: Show)(implicit ctx: Ctx): Doc =

@@ -9,7 +9,7 @@ trait BooleanValueImpl[G] { this: BooleanValue[G] =>
   sealed trait LayoutElement[+T] { def textualData: Char }
   case class SharedLayoutElement(textualData: Char) extends LayoutElement[Nothing]
   case class DedicatedLayoutElement[T](resource: T, textualData: Char) extends LayoutElement[T]
-  val orderedLayoutFixture: Seq[LayoutElement[Boolean]] = Seq(DedicatedLayoutElement(true, 't'),
+  def orderedLayoutFixture: Seq[LayoutElement[Boolean]] = Seq(DedicatedLayoutElement(true, 't'),
     DedicatedLayoutElement(false, 'f'), DedicatedLayoutElement(false, 'a'), DedicatedLayoutElement(true, 'r'),
     DedicatedLayoutElement(true, 'u'), DedicatedLayoutElement(false, 'l'), DedicatedLayoutElement(false, 's'),
     SharedLayoutElement('e'))

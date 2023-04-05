@@ -8,5 +8,5 @@ trait PointerSubscriptImpl[G] { this: PointerSubscript[G] =>
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(pointer) <> "[" <>> index </> "]")
+    Group(assoc(pointer) <> "[" <> Doc.arg(index) <> "]")
 }
