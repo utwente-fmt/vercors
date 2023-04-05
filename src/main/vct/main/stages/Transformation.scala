@@ -239,6 +239,7 @@ case class SilverTransformation
     ResolveExpressionSideEffects,
     EncodeTryThrowSignals,
 
+    ResolveScale,
     // No more classes
     ClassToRef,
 
@@ -274,7 +275,6 @@ case class SilverTransformation
 
     // Silver compat (basically no new nodes)
     FinalizeArguments,
-    ResolveScale,
     ExplicitADTTypeArgs,
     ForLoopToWhileLoop,
     BranchToIfElse,
