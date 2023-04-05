@@ -32,7 +32,10 @@ case object Doc {
     fold(docs)(_ <+> _)
 
   def rspread(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
-    fold(docs.map(_.show <> " "))(_ <> _)
+    fold(docs.map(_.show <+> Empty))(_ <> _)
+
+  def lspread(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
+    fold(docs.map(Empty <+> _.show))(_ <> _)
 
   def stack(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
     fold(docs)(_ <+/> _)
@@ -77,7 +80,8 @@ case object Doc {
   *       3,`</>`
   *     )
   * (2) Group is an explicit data structure, as defined: Group(x) = flatten x <|> x. Note that contrary to the canonical
-  *     definition, <+/> does not introduce an alternative.
+  *     definition, <+/> does not introduce an alternative - it is typically grouped in a larger expression, to prefer
+  *     splitting larger trees over lines.
   * (3) be includes additional state to track whether an element needs to be flattened.
   * (4) NodeDoc associates a node in the AST with a Doc in the rendered tree, for additional post-processing of the
   *     layout.
