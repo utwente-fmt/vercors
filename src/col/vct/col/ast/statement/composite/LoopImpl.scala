@@ -61,7 +61,11 @@ trait LoopImpl[G] { this: Loop[G] =>
     Right(IterationContractData(v, low, high))
   }
 
-  def layoutSilver(implicit ctx: Ctx): Doc = ???
+  def layoutSilver(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      Group(Text("while") <+> "(" <> Doc.arg(cond) <> ")"),
+      contract,
+    )) <+> body.layoutAsBlock
 
   def layoutGeneric(implicit ctx: Ctx): Doc =
     if(init == Block[G](Nil) && update == Block[G](Nil)) layoutGenericWhile

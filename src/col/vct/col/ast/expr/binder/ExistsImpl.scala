@@ -15,7 +15,7 @@ trait ExistsImpl[G] { this: Exists[G] =>
     Group(Text("(\\exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <> layoutTriggers <>> body </> ")")
 
   def layoutSilver(implicit ctx: Ctx): Doc =
-    Group(Text("(exists ") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")
+    Group(Text("(exists") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {

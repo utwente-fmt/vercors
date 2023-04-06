@@ -15,7 +15,7 @@ trait StarallImpl[G] { this: Starall[G] =>
     Group(Text("(\\forall*") <+> Doc.fold(bindings)(_ <> "," <+> _) <> ";" <> layoutTriggers <>> body </> ")")
 
   def layoutSilver(implicit ctx: Ctx): Doc =
-    Group(Text("(forall ") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")
+    Group(Text("(forall") <+> Doc.fold(bindings)(_ <> "," <+> _) <+> "::" <> layoutTriggers <>> body </> ")")
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {

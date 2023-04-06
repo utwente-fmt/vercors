@@ -19,5 +19,5 @@ trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
   override lazy val t: Type[G] = if(isBagOp) TInt() else TBool()
 
   override def precedence: Int = Precedence.PVL_CONTAINS
-  override def layout(implicit ctx: Ctx): Doc = lassoc(x, "\\in", xs)
+  override def layout(implicit ctx: Ctx): Doc = lassoc(x, if(ctx.syntax == Ctx.Silver) "in" else "\\in", xs)
 }

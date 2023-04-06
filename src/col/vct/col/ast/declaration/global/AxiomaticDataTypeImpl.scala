@@ -8,9 +8,9 @@ trait AxiomaticDataTypeImpl[G] extends Declarator[G] { this: AxiomaticDataType[G
   override def declarations: Seq[Declaration[G]] = decls ++ typeArgs
 
   def layoutSilver(implicit ctx: Ctx): Doc =
-    Text("domain") <+> ctx.name(this) <>
+    Group(Text("domain") <+> ctx.name(this) <>
       (if(typeArgs.nonEmpty) Text("[") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> "]" else Empty) <+>
-      "{" <>>
+      "{") <>>
       { Doc.stack(declarations) } <+/>
     "}"
 

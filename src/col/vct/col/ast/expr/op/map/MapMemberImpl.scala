@@ -7,5 +7,5 @@ trait MapMemberImpl[G] { this: MapMember[G] =>
   override def t: Type[G] = TBool()
 
   override def precedence: Int = Precedence.RELATIONAL
-  override def layout(implicit ctx: Ctx): Doc = lassoc(x, "\\in", xs)
+  override def layout(implicit ctx: Ctx): Doc = lassoc(x, if(ctx.syntax == Ctx.Silver) "in" else "\\in", xs)
 }
