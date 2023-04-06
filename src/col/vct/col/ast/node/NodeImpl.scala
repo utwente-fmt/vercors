@@ -4,6 +4,7 @@ import vct.col.ast._
 import vct.col.check._
 import vct.col.origin._
 import vct.col.print._
+import vct.col.ref.Ref
 
 import scala.runtime.ScalaRunTime
 
@@ -96,8 +97,17 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
                                (implicit witness: this.type <:< TNode[G])
                                : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
 
+  private def debugLayout(x: scala.Any)(implicit ctx: Ctx): Doc = x match {
+    case r: Ref[_, _] => Text("Ref(") <> ctx.name(r) <> ")"
+    case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
+    case o: scala.Option[scala.Any] if o.isEmpty => Text("None")
+    case o: scala.Option[scala.Any] => Text("Some(") <> debugLayout(o.get) <> ")"
+    case i: scala.Iterable[scala.Any] => Group(Text(i.getClass.getSimpleName) <> "(" <> Doc.args(i.map(debugLayout).toSeq) <> ")")
+    case other => Text(other.toString)
+  }
+
   final def show(implicit ctx: Ctx): Doc = NodeDoc(this, layout)
-  protected[this] def layout(implicit ctx: Ctx): Doc = Group(Text(s"??${this.getClass.getSimpleName}??") <> "(" <> Doc.args(subnodes) <> ")")
+  protected[this] def layout(implicit ctx: Ctx): Doc = Text("??") <> debugLayout(this) <> "??"
 
   override def toString: String =
     toStringWithContext(Ctx().namesIn(this))
