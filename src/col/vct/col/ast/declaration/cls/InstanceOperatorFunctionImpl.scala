@@ -14,8 +14,11 @@ trait InstanceOperatorFunctionImpl[G] { this: InstanceOperatorFunction[G] =>
   ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
 
   override def layout(implicit ctx: Ctx): Doc =
-    contract.show <+/> Group(
-      Doc.rspread(layoutModifiers) <> "pure" <+> returnType <+> operator <> "(" <> Doc.args(args) <> ")" <>
-        body.map(Text(" =") <>> _).getOrElse(Text(";"))
-    )
+    Doc.stack(Seq(
+      contract,
+      Group(
+        Doc.rspread(layoutModifiers) <> "pure" <+> returnType <+> operator <> "(" <> Doc.args(args) <> ")" <>
+          body.map(Text(" =") <>> _).getOrElse(Text(";"))
+      ),
+    ))
 }

@@ -19,13 +19,15 @@ trait FunctionImpl[G] extends GlobalDeclarationImpl[G] with AbstractFunctionImpl
   ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    contract.show <+/>
+    Doc.stack(Seq(
+      contract,
       Group(
         Group(Doc.rspread(layoutModifiers) <> "pure" <+> returnType <+> ctx.name(this) <>
           (if(typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty) <>
           "(" <> Doc.args(args) <> ")") <>
         body.map(Text(" =") <+/> _.show).getOrElse(Text(";"))
-      )
+      ),
+    ))
 
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
     case Ctx.Silver => layoutSilver

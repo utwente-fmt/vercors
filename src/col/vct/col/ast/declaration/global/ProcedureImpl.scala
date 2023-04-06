@@ -24,12 +24,14 @@ trait ProcedureImpl[G] { this: Procedure[G] =>
   ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
 
   def layoutSpec(implicit ctx: Ctx): Doc =
-    contract.show <+/>
+    Doc.stack(Seq(
+      contract,
       Doc.rspread(layoutModifiers) <> returnType <+> ctx.name(this) <>
-      (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) else Empty) <>
-      "(" <> Doc.args(args) <> ")" <>
-      (if (outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty) <>
-      body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";"))
+        (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) else Empty) <>
+        "(" <> Doc.args(args) <> ")" <>
+        (if (outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty) <>
+        body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";")),
+    ))
 
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
     case Ctx.Silver => layoutSilver

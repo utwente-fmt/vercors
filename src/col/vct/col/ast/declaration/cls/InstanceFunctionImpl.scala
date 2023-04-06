@@ -12,10 +12,13 @@ trait InstanceFunctionImpl[G] { this: InstanceFunction[G] =>
   ).filter(_._1).values.map(Text).map(Doc.inlineSpec).toSeq
 
   override def layout(implicit ctx: Ctx): Doc =
-    contract.show <+/> Group(
-      Doc.rspread(layoutModifiers) <> Text("pure") <+> returnType <+> ctx.name(this) <>
-        (if(typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty) <>
-        "(" <> Doc.args(args) <> ")" <>
-        body.map(Text(" =") <>> _).getOrElse(Text(";"))
-    )
+    Doc.stack(Seq(
+      contract,
+      Group(
+        Doc.rspread(layoutModifiers) <> Text("pure") <+> returnType <+> ctx.name(this) <>
+          (if(typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty) <>
+          "(" <> Doc.args(args) <> ")" <>
+          body.map(Text(" =") <>> _).getOrElse(Text(";"))
+      ),
+    ))
 }

@@ -21,9 +21,11 @@ trait InstanceMethodImpl[G] extends ClassDeclarationImpl[G] with AbstractMethodI
   }
 
   override def layout(implicit ctx: Ctx): Doc =
-    contract.show <+/>
-    Group(Group(Doc.rspread(layoutModifiers) <> returnType <+> layoutNameAndArgs) <>
-      "(" <> Doc.args(args) <> ")") <>
-      (if(outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty) <>
-      body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";"))
+    Doc.stack(Seq(
+      contract,
+      Group(Group(Doc.rspread(layoutModifiers) <> returnType <+> layoutNameAndArgs) <>
+        "(" <> Doc.args(args) <> ")") <>
+        (if(outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty) <>
+        body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";")),
+    ))
 }
