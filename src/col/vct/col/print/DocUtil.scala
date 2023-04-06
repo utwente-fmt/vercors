@@ -9,7 +9,7 @@ object DocUtil {
     AstBuildHelpers.unfoldStar(e).map(_.show)
 
   def splitClauses(e: AccountedPredicate[_])(implicit ctx: Ctx): Seq[Doc] =
-    AstBuildHelpers.unfoldPredicate(e).map(_.show)
+    AstBuildHelpers.unfoldPredicate(e).flatMap(AstBuildHelpers.unfoldStar).map(_.show)
 
   def clauses(key: String, e: Expr[_])(implicit ctx: Ctx): Doc =
     Doc.stack(splitClauses(e).map(Text(key) <+> _ <> (if(ctx.syntax == Ctx.Silver) "" else ";")))

@@ -98,6 +98,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
                                : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
 
   private def debugLayout(x: scala.Any)(implicit ctx: Ctx): Doc = x match {
+    case n: Node[_] => n.show
     case r: Ref[_, _] => Text("Ref(") <> ctx.name(r) <> ")"
     case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
     case o: scala.Option[scala.Any] if o.isEmpty => Text("None")
@@ -107,7 +108,12 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   }
 
   final def show(implicit ctx: Ctx): Doc = NodeDoc(this, layout)
-  protected[this] def layout(implicit ctx: Ctx): Doc = Text("??") <> debugLayout(this) <> "??"
+  protected[this] def layout(implicit ctx: Ctx): Doc = this match {
+    case p: scala.Product =>
+      Group(Text(s"??${this.getClass.getSimpleName}??(") <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
+    case _ =>
+      Group(Text(s"??${this.getClass.getSimpleName}??(") <> Doc.args(subnodes) <> ")")
+  }
 
   override def toString: String =
     toStringWithContext(Ctx().namesIn(this))

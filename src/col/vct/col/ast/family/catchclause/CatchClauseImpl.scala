@@ -8,5 +8,5 @@ trait CatchClauseImpl[G] extends Declarator[G] { this: CatchClause[G] =>
   override def declarations: Seq[Declaration[G]] = Seq(decl)
 
   override def layout(implicit ctx: Ctx): Doc =
-    Text("catch(") <> decl <> ")" <+> body.layoutAsBlock
+    Text("catch") <+> "(" <> decl <> ")" <+> body.layoutAsBlock
 }

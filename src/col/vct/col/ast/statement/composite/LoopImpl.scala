@@ -2,6 +2,8 @@ package vct.col.ast.statement.composite
 
 import vct.col.ast._
 import vct.col.origin.Origin
+import vct.col.print
+import vct.col.print._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -57,5 +59,32 @@ trait LoopImpl[G] { this: Loop[G] =>
         "we could not ascertain that the iteration variable is incremented by one each iteration"))
 
     Right(IterationContractData(v, low, high))
+  }
+
+  def layoutSilver(implicit ctx: Ctx): Doc = ???
+
+  def layoutGeneric(implicit ctx: Ctx): Doc =
+    if(init == Block[G](Nil) && update == Block[G](Nil)) layoutGenericWhile
+    else layoutGenericFor
+
+  def layoutGenericWhile(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      contract,
+      Group(Text("while") <+> "(" <> Doc.arg(cond) <> ")") <+> body.layoutAsBlock
+    ))
+
+  def layoutGenericFor(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      contract,
+      Group(Text("for") <+> "(" <> Nest(
+        (if(init == Block[G](Nil)) Text(";") else init.show <> ";" <+/> print.Empty) <>
+          cond <> ";" <>
+          (if(update == Block[G](Nil)) print.Empty else print.Empty <+/> update.show)
+      ) <> ")")
+    ))
+
+  override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
+    case Ctx.Silver => layoutSilver
+    case _ => layoutGeneric
   }
 }
