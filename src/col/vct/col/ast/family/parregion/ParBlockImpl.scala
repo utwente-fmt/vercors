@@ -4,6 +4,7 @@ import vct.col.ast.util.Declarator
 import vct.col.ast.{Declaration, Expr, Local, ParBlock, Starall, Variable}
 import vct.col.check.CheckContext
 import vct.col.origin.{Blame, ReceiverNotInjective}
+import vct.col.print._
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 
@@ -22,4 +23,16 @@ trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] { this: ParBlo
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     context.copy(roScopes = context.scopes.size, roScopeReason = Some(this)).withScope(declarations.toSet)
 
+  override def layout(implicit ctx: Ctx): Doc = {
+    val header = Group(Text("par") <+> ctx.name(decl) <>
+      (if(iters.nonEmpty) Text("(") <> Doc.args(iters) <> ")" else Empty))
+
+    val contract = Doc.stack(Seq(
+      DocUtil.clauses("context_everywhere", context_everywhere),
+      DocUtil.clauses("requires", requires),
+      DocUtil.clauses("ensures", ensures),
+    ))
+
+    Doc.stack(Seq(header, contract)) <+> content.layoutAsBlock
+  }
 }

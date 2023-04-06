@@ -26,7 +26,7 @@ trait Show {
 
 case object Doc {
   def fold(docs: Iterable[Show])(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc =
-    docs.map(_.show).reduceLeftOption(f).getOrElse(Empty)
+    docs.map(_.show).filter(_.nonEmpty).reduceLeftOption(f).getOrElse(Empty)
 
   def spread(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
     fold(docs)(_ <+> _)
@@ -143,6 +143,17 @@ sealed trait Doc extends Show {
 
   def pretty(implicit ctx: Ctx): LazyList[Elem] =
     be(0, Seq((0, false, this)))
+
+  def nonEmpty: Boolean = this match {
+    case Empty => false
+    case NonWsLine => true
+    case Line => true
+    case Cons(left, right) => left.nonEmpty || right.nonEmpty
+    case Text(text) => text.nonEmpty
+    case Nest(doc) => doc.nonEmpty
+    case Group(doc) => doc.nonEmpty
+    case NodeDoc(_, doc) => doc.nonEmpty
+  }
 }
 
 case object Empty extends Doc

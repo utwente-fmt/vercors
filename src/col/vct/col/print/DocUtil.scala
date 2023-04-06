@@ -12,10 +12,10 @@ object DocUtil {
     AstBuildHelpers.unfoldPredicate(e).map(_.show)
 
   def clauses(key: String, e: Expr[_])(implicit ctx: Ctx): Doc =
-    Doc.stack(splitClauses(e).map(Text(key) <+> _ <> ";"))
+    Doc.stack(splitClauses(e).map(Text(key) <+> _ <> (if(ctx.syntax == Ctx.Silver) "" else ";")))
 
   def clauses(key: String, e: AccountedPredicate[_])(implicit ctx: Ctx): Doc =
-    Doc.stack(splitClauses(e).map(Text(key) <+> _ <> ";"))
+    Doc.stack(splitClauses(e).map(Text(key) <+> _ <> (if(ctx.syntax == Ctx.Silver) "" else ";")))
 
   def givenYieldsMapping(keyword: String, mapping: Seq[(Doc, Doc)])(implicit ctx: Ctx): Doc =
     if(mapping.isEmpty) Empty
