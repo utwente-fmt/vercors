@@ -50,7 +50,11 @@ case object Doc {
   def inlineSpec(doc: Show)(implicit ctx: Ctx): Doc =
     if(ctx.syntax == Ctx.PVL) doc.show
     else if(ctx.inSpec) doc.show
-    else Text("/*@") <+> doc.show(ctx.copy(inSpec = true)) <+> "@*/"
+    else {
+      val d = doc.show(ctx.copy(inSpec = true))
+      if(d.nonEmpty) Text("/*@") <+> d <+> "@*/"
+      else Empty
+    }
 
   def spec(doc: Show)(implicit ctx: Ctx): Doc =
     if (ctx.syntax == Ctx.PVL) doc.show
