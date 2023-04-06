@@ -250,6 +250,7 @@ case class SilverTransformation
     DesugarCollectionOperators,
     EncodeNdIndex,
 
+    ExtractInlineQuantifierPatterns,
     // Translate internal types to domains
     FloatToRat,
     EnumToDomain,
