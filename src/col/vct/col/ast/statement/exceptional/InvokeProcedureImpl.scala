@@ -10,7 +10,7 @@ trait InvokeProcedureImpl[G] { this: InvokeProcedure[G] =>
         (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty) <>
         "("
     ) <> Doc.args(args ++ outArgs) <> ")" <> DocUtil.givenYields(givenMap, yields)
-  )
+  ) <> ";"
 
   def layoutSilver(implicit ctx: Ctx): Doc =
     (if(outArgs.nonEmpty) Doc.fold(outArgs)(_ <> "," <+> _) <+> ":=" <+> Empty else Empty) <>

@@ -22,6 +22,6 @@ object DocUtil {
     else Nest(Line <> Group(Text(keyword) <+> "{" <> Doc.args(mapping.map(p => p._1 <+> "=" <+> p._2)) <> "}"))
 
   def givenYields[G](given: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(implicit ctx: Ctx): Doc =
-    givenYieldsMapping("given", given.map { case (ref, e) => Text(ctx.name(ref)) -> e.show }) <>
-      givenYieldsMapping("yields", yields.map { case (e, ref) => e.show -> Text(ctx.name(ref)) })
+    Doc.inlineSpec(Show.lazily(givenYieldsMapping("given", given.map { case (ref, e) => Text(ctx.name(ref)) -> e.show })(_))) <>
+      Doc.inlineSpec(Show.lazily(givenYieldsMapping("yields", yields.map { case (e, ref) => e.show -> Text(ctx.name(ref)) })(_)))
 }

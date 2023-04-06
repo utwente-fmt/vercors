@@ -10,6 +10,6 @@ trait InvokeMethodImpl[G] { this: InvokeMethod[G] =>
         obj.show <> "." <> ctx.name(ref) <>
           (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs) <> ">" else Empty) <>
           "("
-      ) <> Doc.args(args ++ outArgs) <> ")" <> DocUtil.givenYields(givenMap, yields)
+      ) <> Doc.args(args ++ outArgs) <> ")" <> DocUtil.givenYields(givenMap, yields) <> ";"
     )
 }
