@@ -46,4 +46,7 @@ trait TypeImpl[G] { this: Type[G] =>
   }
 
   def layoutSplitDeclarator(implicit ctx: Ctx): (Doc, Doc) = (show, vct.col.print.Empty)
+
+  protected def open(implicit ctx: Ctx): Doc = Text(if(ctx.syntax == Ctx.Silver) "[" else "<")
+  protected def close(implicit ctx: Ctx): Doc = Text(if(ctx.syntax == Ctx.Silver) "]" else ">")
 }
