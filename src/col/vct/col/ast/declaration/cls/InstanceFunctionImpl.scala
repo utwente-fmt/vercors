@@ -18,7 +18,7 @@ trait InstanceFunctionImpl[G] { this: InstanceFunction[G] =>
         Doc.rspread(layoutModifiers) <> Text("pure") <+> returnType <+> ctx.name(this) <>
           (if(typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty) <>
           "(" <> Doc.args(args) <> ")" <>
-          body.map(Text(" =") <>> _).getOrElse(Text(";"))
+          body.map(Text(" =") <>> _ <> ";").getOrElse(Text(";"))
       ),
     ))
 }

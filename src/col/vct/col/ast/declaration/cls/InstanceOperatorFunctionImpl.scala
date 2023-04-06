@@ -18,7 +18,7 @@ trait InstanceOperatorFunctionImpl[G] { this: InstanceOperatorFunction[G] =>
       contract,
       Group(
         Doc.rspread(layoutModifiers) <> "pure" <+> returnType <+> operator <> "(" <> Doc.args(args) <> ")" <>
-          body.map(Text(" =") <>> _).getOrElse(Text(";"))
+          body.map(Text(" =") <>> _ <> ";").getOrElse(Text(";"))
       ),
     ))
 }

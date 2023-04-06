@@ -25,7 +25,7 @@ trait FunctionImpl[G] extends GlobalDeclarationImpl[G] with AbstractFunctionImpl
         Group(Doc.rspread(layoutModifiers) <> "pure" <+> returnType <+> ctx.name(this) <>
           (if(typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty) <>
           "(" <> Doc.args(args) <> ")") <>
-        body.map(Text(" =") <+/> _.show).getOrElse(Text(";"))
+        body.map(Text(" =") <>> _ <> ";").getOrElse(Text(";"))
       ),
     ))
 
