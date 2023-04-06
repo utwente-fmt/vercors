@@ -2,7 +2,7 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.{Assign, Local}
 import vct.col.check.{CheckContext, CheckError}
-import vct.col.print.{Ctx, Doc, Show, Text, Empty}
+import vct.col.print._
 
 trait AssignImpl[G] extends NormallyCompletingStatementImpl[G] { this: Assign[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
@@ -12,5 +12,5 @@ trait AssignImpl[G] extends NormallyCompletingStatementImpl[G] { this: Assign[G]
     })
 
   override def layout(implicit ctx: Ctx): Doc =
-    target.show <+> (if(ctx.syntax == Ctx.Silver) ":=" else "=") <>> value <> (if(ctx.syntax == Ctx.Silver) Empty else Text(";"))
+    Group(target.show <+> (if(ctx.syntax == Ctx.Silver) ":=" else "=") <>> value <> (if(ctx.syntax == Ctx.Silver) Empty else Text(";")))
 }
