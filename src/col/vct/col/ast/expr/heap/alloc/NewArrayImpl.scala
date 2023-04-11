@@ -9,5 +9,5 @@ trait NewArrayImpl[G] { this: NewArray[G] =>
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Text("new") <+> element <> Doc.fold(dims.map(Text("[") <> _ <> "]"))(_ <> _) <> "[]".repeat(moreDims)
+    Text("new") <+> element <> "[]".repeat(moreDims)
 }

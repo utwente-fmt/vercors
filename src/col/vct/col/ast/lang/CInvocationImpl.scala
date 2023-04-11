@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CInvocation, CStructAccess, Type}
+import vct.col.print.{Ctx, Doc, DocUtil, Precedence, Group}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
 import vct.result.VerificationError.Unreachable
@@ -23,4 +24,9 @@ trait CInvocationImpl[G] { this: CInvocation[G] =>
       case other => throw Unreachable("BuiltinInstanceMethod resolution of CInvocation must invoke a CStructAccess.")
     }
   }
+
+  override def precedence: Int = Precedence.POSTFIX
+
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(assoc(applicable) <> "(" <> Doc.args(args) <> ")" <> DocUtil.givenYields(givenArgs, yields))
 }

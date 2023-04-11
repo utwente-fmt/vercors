@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{PVLDeref, TEnum, Enum, TNotAValue, Type}
+import vct.col.ast.{Enum, PVLDeref, TNotAValue, Type}
+import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.resolve.ctx._
 
 trait PVLDerefImpl[G] { this: PVLDeref[G] =>
@@ -12,4 +13,8 @@ trait PVLDerefImpl[G] { this: PVLDeref[G] =>
     }
     case ref: BuiltinField[G] => ref.f(obj).t
   }
+
+  override def precedence: Int = Precedence.POSTFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    assoc(obj) <> "." <> field
 }

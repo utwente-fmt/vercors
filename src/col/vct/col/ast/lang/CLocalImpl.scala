@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CLocal, CPrimitiveType, CTCudaVec, Type}
+import vct.col.print.{Ctx, Doc, Text}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
 import vct.col.typerules.Types
@@ -27,4 +28,6 @@ trait CLocalImpl[G] { this: CLocal[G] =>
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
     case _: RefCudaVec[G] => CTCudaVec()
   }
+
+  override def layout(implicit ctx: Ctx): Doc = Text(name)
 }

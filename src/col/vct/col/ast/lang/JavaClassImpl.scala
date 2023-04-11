@@ -1,7 +1,9 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{JavaClass, JavaFields, JavaMethod, Type}
+import vct.col.print._
 import vct.col.resolve.ctx._
+import vct.col.util.AstBuildHelpers.tt
 
 trait JavaClassImpl[G] { this: JavaClass[G] =>
   override def supports: Seq[Type[G]] = ext +: imp
@@ -24,5 +26,19 @@ trait JavaClassImpl[G] { this: JavaClass[G] =>
 
   def getMethods(name: String): Seq[RefJavaMethod[G]] = decls.collect {
     case m: JavaMethod[G] if m.name == name => RefJavaMethod(m)
+  }
+
+  def layoutLockInvariant(implicit ctx: Ctx): Doc =
+    Text("lock_invariant") <+> intrinsicLockInvariant <> ";"
+
+  override def layout(implicit ctx: Ctx): Doc = {
+    Doc.stack(Seq(
+      if(intrinsicLockInvariant == tt[G]) Empty else Doc.inlineSpec(Show.lazily(layoutLockInvariant(_))),
+      Group(Doc.spread(modifiers :+ Text("class")) <+> name <>
+        (if(typeParams.isEmpty) Empty else Text("<") <> Doc.args(typeParams) <> ">") <+>
+        "extends" <+> ext <>
+        (if(imp.isEmpty) Empty else Empty <+> "implements" <+> Doc.args(imp))) <+>
+        "{" <>> Doc.stack(decls) <+/> "}",
+    ))
   }
 }

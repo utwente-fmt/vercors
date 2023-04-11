@@ -31,7 +31,7 @@ case class Ctx(
     })
 
   def name(decl: Declaration[_]): String =
-    names.getOrElse(decl, s"?unnamed:${decl.o.preferredName}?")
+    names.getOrElse(decl, s"${decl.o.preferredName}_${decl.hashCode()}")
 
   def name(ref: Ref[_, _ <: Declaration[_]]): String =
     name(Try(ref.decl).getOrElse(return "?brokenref?"))
