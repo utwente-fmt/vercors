@@ -115,8 +115,6 @@ case class Resolution[G <: Generation]
       case some => throw InputResolutionError(some)
     }
 
-    logger.info(resolvedProgram.toString)
-
     Verification(Seq(VerificationContext(resolvedProgram)), in.expectedErrors)
   }
 }

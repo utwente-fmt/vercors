@@ -117,4 +117,9 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
 
   override def toString: String =
     toStringWithContext(Ctx().namesIn(this))
+
+  def toInlineString: String = {
+    implicit val ctx = Ctx().namesIn(this).copy(width = Int.MaxValue)
+    Group(show).toStringWithContext
+  }
 }

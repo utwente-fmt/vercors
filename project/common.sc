@@ -8,7 +8,6 @@ import scalalib.{ScalaModule => BaseScalaModule, JavaModule => BaseJavaModule, _
 import modules.Jvm
 import os._
 
-
 import release.ReleaseModule
 
 object Dir {
