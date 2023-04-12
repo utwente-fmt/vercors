@@ -16,6 +16,6 @@ trait JavaMethodImpl[G] extends Declarator[G] { this: JavaMethod[G] =>
         (if(typeParameters.isEmpty) Empty else Text("<") <> Doc.args(typeParameters) <> ">" <+> Empty) <>
         returnType <+> name <> "[]".repeat(dims)) <> "(" <> Doc.args(parameters) <> ")") <>
         (if(signals.isEmpty) Empty else Empty <>> Group(Text("throws") <+> Doc.args(signals)))
-      ) <> body.map(Empty <+> _.layoutAsBlock).getOrElse(";")
+      ) <> body.map(Empty <+> _.layoutAsBlock).getOrElse(Text(";"))
     ))
 }

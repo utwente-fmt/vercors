@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{Enum, PVLDeref, TNotAValue, Type}
+import vct.col.ast.{TEnum, Enum, PVLDeref, TNotAValue, Type}
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.resolve.ctx._
 

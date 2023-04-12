@@ -2,20 +2,17 @@ package vct.col.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.ast.lang.JavaAnnotationEx
-import vct.col.lang.LangBipToCol.{BipDataOrigin, BipDataWireOrigin, BipIncomingDataInconsistentType, BipPortOrigin, ImpureData, WrongTransitionReturnType}
+import vct.col.lang.LangBipToCol._
 import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
-import vct.col.print.Printer
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
+import vct.col.resolve.lang.{JavaAnnotationData => jad}
+import vct.col.rewrite.lang.LangSpecificToCol
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.col.resolve.lang.{JavaAnnotationData => jad}
-import vct.col.rewrite.lang.LangSpecificToCol
 import vct.result.VerificationError.UserError
 
-import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 case object LangBipToCol {

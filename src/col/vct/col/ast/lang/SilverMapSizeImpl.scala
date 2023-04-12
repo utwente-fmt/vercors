@@ -8,5 +8,5 @@ trait SilverMapSizeImpl[G] { this: SilverMapSize[G] =>
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-
+    Text("|") <> map.show <> "|"
 }

@@ -11,6 +11,9 @@ trait Stage[-Input, +Output] {
 
   def thenRun[NewOutput](stage: Stage[Output, NewOutput]): Stages[Input, NewOutput] =
     UnitStages(this).thenRun(stage)
+
+  def thenRun[NewOutput](stages: Stages[Output, NewOutput]): Stages[Input, NewOutput] =
+    UnitStages(this).thenRun(stages)
 }
 
 trait ContextStage[-Input, Ctx, +Output] extends Stage[(Input, Ctx), (Output, Ctx)] {
@@ -35,7 +38,10 @@ trait Stages[-Input, +Output] {
   def flatNames: Seq[(String, Int)]
 
   def thenRun[NewOutput](stage: Stage[Output, NewOutput]): Stages[Input, NewOutput] =
-    StagesPair(this, UnitStages(stage))
+    thenRun(UnitStages(stage))
+
+  def thenRun[NewOutput](stages: Stages[Output, NewOutput]): Stages[Input, NewOutput] =
+    StagesPair(this, stages)
 }
 
 case class UnitStages[-Input, +Output](stage: Stage[Input, Output]) extends Stages[Input, Output] {
