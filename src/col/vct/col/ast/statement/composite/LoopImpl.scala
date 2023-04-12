@@ -80,11 +80,11 @@ trait LoopImpl[G] { this: Loop[G] =>
   def layoutGenericFor(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
-      Group(Text("for") <+> "(" <> Nest(
+      Group(Text("for") <+> "(" <> Nest(Line <>
         (if(init == Block[G](Nil)) Text(";") else init.show <> ";" <+/> print.Empty) <>
           cond <> ";" <>
           (if(update == Block[G](Nil)) print.Empty else print.Empty <+/> update.show)
-      ) <> ")")
+      ) </> ")") <+> body.layoutAsBlock
     ))
 
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {

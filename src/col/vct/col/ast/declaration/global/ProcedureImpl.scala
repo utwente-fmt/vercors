@@ -26,10 +26,10 @@ trait ProcedureImpl[G] { this: Procedure[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
-      Doc.rspread(layoutModifiers) <> returnType <+> ctx.name(this) <>
-        (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) else Empty) <>
+      Group(Group(Doc.rspread(layoutModifiers) <> returnType <+> ctx.name(this) <>
+        (if (typeArgs.nonEmpty) Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">" else Empty)) <>
         "(" <> Doc.args(args) <> ")" <>
-        (if (outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty) <>
+        (if (outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty)) <>
         body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";")),
     ))
 
