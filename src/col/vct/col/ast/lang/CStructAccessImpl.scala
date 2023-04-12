@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CStructAccess, TInt, TNotAValue, Type}
+import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 
@@ -20,4 +21,8 @@ trait CStructAccessImpl[G] { this: CStructAccess[G] =>
     case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
     case ref: RefCudaVecDim[G] => TInt()
   }
+
+  override def precedence: Int = Precedence.POSTFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    assoc(struct) <> "->" <> field
 }

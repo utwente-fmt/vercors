@@ -2,6 +2,7 @@ package vct.col.ast.lang
 
 import vct.col.ast.lang.JavaAnnotationImpl.AnnotationElementMissing
 import vct.col.ast.{Expr, JavaAnnotation, Type}
+import vct.col.print.{Ctx, Doc, Text}
 import vct.col.resolve.lang.JavaAnnotationData
 import vct.result.VerificationError.UserError
 
@@ -29,4 +30,7 @@ trait JavaAnnotationImpl[G] { this: JavaAnnotation[G] =>
     case Some(expr) => expr
     case None => throw AnnotationElementMissing(this, elem)
   }
+
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("@") <> name <> "(" <> Doc.args(args.map { case (key, value) => Text(key) <> "=" <> value }) <> ")"
 }

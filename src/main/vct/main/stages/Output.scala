@@ -1,46 +1,48 @@
 package vct.main.stages
 
-import hre.io.Writeable
-import hre.stages.Stage
-import vct.col.ast.{Declaration, Program, Verification}
-import vct.col.origin.{FileSpanningOrigin, Origin}
-import vct.col.print.{PVL, Printer}
-import vct.col.rewrite.Generation
+import hre.stages.{Stage, Stages}
+import vct.col.ast.{Declaration, Node, Program}
+import vct.col.origin.DiagnosticOrigin
+import vct.col.print.{Ctx, Namer}
+import vct.col.rewrite.{Generation, InitialGeneration}
 import vct.options.Options
-import vct.options.types.PathOrStd.Path
 import vct.parsers.ParseResult
-import vct.parsers.transform.BlameProvider
 
-import java.nio.file.Files
-import java.nio.file.Paths
+import java.nio.file.{Files, Path}
 
 case object Output {
-  def ofOptions(options: Options, blameProvider: BlameProvider): Stage[ParseResult[_ <: Generation], Unit] = {
-    Output(options.vesuvOutput, blameProvider)
-  }
+  def vesuvOfOptions(options: Options): Stages[ParseResult[_ <: Generation], Unit] =
+    FunctionStage((pr: ParseResult[_ <: Generation]) => Program(pr.decls)(DiagnosticOrigin)(DiagnosticOrigin))
+      .thenRun(Output(options.vesuvOutput, Ctx.PVL))
+
+  def veymontOfOptions(options: Options): Stage[Node[_ <: Generation], Unit] =
+    Output(options.veymontOutput, Ctx.Java)
 }
 
-case class Output(writeable : Writeable, blameProvider: BlameProvider) extends Stage[ParseResult[_<: Generation], Unit] {
-  override def friendlyName: String = "Saving File..."
+case class Output(out: Path, syntax: Ctx.Syntax) extends Stage[Node[_ <: Generation], Unit] {
+  override def friendlyName: String = "Saving Output"
 
   override def progressWeight: Int = 1
 
-  override def run(in: ParseResult[_ <: Generation]): Unit = {
+  override def run(in1: Node[_ <: Generation]): Unit = {
+    type G = InitialGeneration
+    val in = in1.asInstanceOf[Node[G]]
+    val namer = Namer[G](syntax)
+    namer.name(in)
+    val names = namer.finish
+    val ctx = Ctx(syntax = syntax, names = names.asInstanceOf[Map[Declaration[_], String]])
+
     // If possible (if a directory is given as output), print all classes to separate files
-    if (Files.isDirectory(Paths.get(writeable.fileName))) {
-      in.decls.foreach(decl => Path(getFilePath(decl)).write(w => Printer(w, syntax = PVL, unsafeNaming = true).print(decl)))
+    if (in.isInstanceOf[Program[G]] && Files.isDirectory(out)) {
+      in.asInstanceOf[Program[G]].declarations.zipWithIndex.foreach { case (decl, i) =>
+        val name = names.getOrElse(decl, s"unknown$i")
+        val f = out.resolve(name + ".pvl")
+        hre.io.RWFile(f.toFile).write(w => decl.write(w)(ctx))
+      }
     }
     // Otherwise create one big program from the parse result and write it to the provided file directly
     else {
-      writeable.write(w => {
-          implicit val o: Origin = FileSpanningOrigin
-          val printer = Printer(w, syntax = PVL, unsafeNaming = true)
-          printer.print(Program(in.decls)(blameProvider()))
-        }
-      )
+      hre.io.RWFile(out.toFile).write(w => in.write(w)(ctx))
     }
   }
-
-  def getFilePath(decl: Declaration[_<: Generation]): java.nio.file.Path =
-    Paths.get(writeable.fileName, decl.o.preferredName + ".pvl")
 }

@@ -2,6 +2,7 @@ package vct.col.ast.lang
 
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 
@@ -19,4 +20,6 @@ trait JavaLocalImpl[G] { this: JavaLocal[G] =>
     case RefJavaBipGuard(_) => TBool()
     case RefModelField(field) => field.t
   }
+
+  override def layout(implicit ctx: Ctx): Doc = Text(name)
 }

@@ -5,6 +5,7 @@ import vct.col.check.{CheckContext, CheckError}
 import vct.col.ref.Ref
 import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
+import vct.col.print._
 
 trait TypeImpl[G] { this: Type[G] =>
   def superTypeOf(other: Type[G]): Boolean =
@@ -43,4 +44,9 @@ trait TypeImpl[G] { this: Type[G] =>
     }
     Particularize.dispatch(this)
   }
+
+  def layoutSplitDeclarator(implicit ctx: Ctx): (Doc, Doc) = (show, vct.col.print.Empty)
+
+  protected def open(implicit ctx: Ctx): Doc = Text(if(ctx.syntax == Ctx.Silver) "[" else "<")
+  protected def close(implicit ctx: Ctx): Doc = Text(if(ctx.syntax == Ctx.Silver) "]" else ">")
 }

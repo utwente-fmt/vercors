@@ -3,7 +3,8 @@ package vct.col.ast.node
 import vct.col.ast._
 import vct.col.check._
 import vct.col.origin._
-import vct.col.print.Printer
+import vct.col.print._
+import vct.col.ref.Ref
 
 import scala.runtime.ScalaRunTime
 
@@ -33,7 +34,7 @@ import scala.runtime.ScalaRunTime
  *
  * @tparam G The generation marker: not used as a concrete type.
  */
-trait NodeImpl[G] { this: Node[G] =>
+trait NodeImpl[G] extends Show { this: Node[G] =>
   def check(context: CheckContext[G]): Seq[CheckError]
   def o: Origin
 
@@ -96,20 +97,29 @@ trait NodeImpl[G] { this: Node[G] =>
                                (implicit witness: this.type <:< TNode[G])
                                : TNode[G2] = (this : TNode[G]).asInstanceOf[TNode[G2]]
 
-  override def toString: String = {
-    try {
-      val sb = new java.lang.StringBuilder
-      val printer = Printer(sb)
-      printer.print(this)
-      sb.toString
-    } catch {
-      // If the printer has a bug, try to print a useful representation
-      case t: Throwable => (this match {
-        // Case classes are automatically a product type, which produces the nice Type(arg1, arg2) representation.
-        case p: scala.Product => ScalaRunTime._toString(p)
-        // Otherwise, fall back to printing the subnodes
-        case _ => s"${this.getClass.getSimpleName}(${subnodes.map(_.toString).mkString(", ")})"
-      }) + s" (err: ${t.getClass.getCanonicalName})"
-    }
+  private def debugLayout(x: scala.Any)(implicit ctx: Ctx): Doc = x match {
+    case n: Node[_] => n.show
+    case r: Ref[_, _] => Text("Ref(") <> ctx.name(r) <> ")"
+    case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
+    case o: scala.Option[scala.Any] if o.isEmpty => Text("None")
+    case o: scala.Option[scala.Any] => Text("Some(") <> debugLayout(o.get) <> ")"
+    case i: scala.Iterable[scala.Any] => Group(Text(i.getClass.getSimpleName) <> "(" <> Doc.args(i.map(debugLayout).toSeq) <> ")")
+    case other => Text(other.toString)
+  }
+
+  final def show(implicit ctx: Ctx): Doc = NodeDoc(this, layout)
+  protected[this] def layout(implicit ctx: Ctx): Doc = this match {
+    case p: scala.Product =>
+      Group(Text(s"??${this.getClass.getSimpleName}??(") <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
+    case _ =>
+      Group(Text(s"??${this.getClass.getSimpleName}??(") <> Doc.args(subnodes) <> ")")
+  }
+
+  override def toString: String =
+    toStringWithContext(Ctx().namesIn(this))
+
+  def toInlineString: String = {
+    implicit val ctx = Ctx().namesIn(this).copy(width = Int.MaxValue)
+    Group(show).toStringWithContext
   }
 }

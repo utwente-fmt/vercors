@@ -2,6 +2,7 @@ package vct.col.ast.expr.ambiguous
 
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.{AmbiguousMinus, TFloat, TInt, TRational, Type}
+import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.typerules.{CoercionUtils, Types}
 
 trait AmbiguousMinusImpl[G] { this: AmbiguousMinus[G] =>
@@ -22,4 +23,7 @@ trait AmbiguousMinusImpl[G] { this: AmbiguousMinus[G] =>
     }
     else TRational()
   }
+
+  override def precedence: Int = Precedence.ADDITIVE
+  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "-", right)
 }

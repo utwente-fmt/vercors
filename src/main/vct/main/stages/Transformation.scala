@@ -4,25 +4,22 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{Deserialize, IterationContract, Procedure, Program, RunMethod, Serialize, SimplificationRule, Verification, VerificationContext}
+import vct.col.ast.{SimplificationRule, Verification}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
-import vct.col.rewrite._
-import vct.col.rewrite.exc._
+import vct.col.print.Ctx
 import vct.col.rewrite.adt._
+import vct.col.rewrite.bip._
+import vct.col.rewrite.exc._
 import vct.col.rewrite.lang.NoSupportSelfLoop
-import vct.col.origin.{ExpectedError, FileSpanningOrigin}
-import vct.col.print.Printer
 import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
-import vct.col.rewrite.bip.{BIP, ComputeBipGlue, EncodeBip, EncodeBipPermissions, InstantiateBipSynchronizations}
-import vct.col.rewrite.{Generation, InitialGeneration, RewriterBuilder}
+import vct.col.rewrite._
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
-import vct.options.types.{Backend, PathOrStd}
 import vct.options.Options
-import vct.parsers.transform.BlameProvider
+import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
@@ -35,7 +32,7 @@ object Transformation {
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
     m.toSeq.map {
       case (key, out) => (key, (program: Verification[_ <: Generation]) => out.write { writer =>
-        Printer(writer).print(program)
+        program.write(writer)(Ctx().namesIn(program))
       })
     }
 
