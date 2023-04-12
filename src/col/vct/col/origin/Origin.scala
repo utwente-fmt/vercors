@@ -14,7 +14,7 @@ import spray.json._
 
 case object Origin {
   val BOLD_HR = "======================================\n"
-  val HR = "--------------------------------------\n"
+  val HR      = "--------------------------------------\n"
 
   def messagesInContext(messages: Seq[(Origin, String)]): String =
     messages.zipWithIndex.map {
