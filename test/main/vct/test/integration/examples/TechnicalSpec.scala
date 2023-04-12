@@ -443,5 +443,17 @@ vercors should verify using silicon in "example using string primitive" pvl
     @*/
     void test();
   """
+
+  vercors should verify using silicon in "unfold scaled instance predicate" pvl
+    """
+    class C {
+      resource P (int x) = true;
+
+      requires [1\2]P(0);
+      void m (int x) {
+        unfold [1\3]P(0);
+      }
+    }
+    """
 }
 
