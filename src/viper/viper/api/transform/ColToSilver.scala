@@ -68,13 +68,13 @@ case class ColToSilver(program: col.Program[_]) {
     val sanitized = name.flatMap {
       case '$' => "$"
       case '_' => "_"
-      case '\'' => "'"
-      case '@' => "@"
       case c if c.isLetterOrDigit => c.toString
 
       // Add as desired
       case '+' => "plus"
       case '-' => "minus"
+      case '@' => "at"
+      case '\'' => "prime"
 
       case _ => "_"
     }

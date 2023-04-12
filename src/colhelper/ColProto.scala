@@ -264,6 +264,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   def render(message: DescriptorProto): String = {
     f"""message ${message.getName} {
        |${renderFields(message)}
+       |  optional string origin = ${message.getFieldCount + 1};
        |}""".stripMargin
   }
 
