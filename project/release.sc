@@ -176,7 +176,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |""".stripMargin)
 
     val out = T.dest / s"${executableName()}-${version()}-win.zip"
-    os.proc("zip", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
+    os.proc("zip", out, "-r", os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
     PathRef(out)
   }
 
