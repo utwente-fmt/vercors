@@ -52,8 +52,8 @@ object EncodeForkJoin extends RewriterBuilder {
     override def blame(error: InstanceInvocationFailure): Unit = error match {
       case InstanceNull(_) => fork.blame.blame(ForkNull(fork))
       case PreconditionFailed(Nil, _, _) => throw BlamePathError
-      case PreconditionFailed(FailLeft :: _, _, _) => fork.blame.blame(RunnableNotIdle(fork))
-      case PreconditionFailed(FailRight :: _, failure, _) => fork.blame.blame(RunnablePreconditionNotEstablished(fork, failure))
+      case PreconditionFailed(FailLeft +: _, _, _) => fork.blame.blame(RunnableNotIdle(fork))
+      case PreconditionFailed(FailRight +: _, failure, _) => fork.blame.blame(RunnablePreconditionNotEstablished(fork, failure))
       case ContextEverywhereFailedInPre(_, _) => PanicBlame("fork method does not have c_e").blame(error)
     }
   }

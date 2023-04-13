@@ -87,7 +87,7 @@ case class ImportSeq[Pre <: Generation](importer: ImportADTImporter) extends Imp
         args = Nil,
       )(e.o)
 
-    case LiteralSeq(t, x :: xs) =>
+    case LiteralSeq(t, x +: xs) =>
       xs.foldLeft(
         ADTFunctionInvocation[Post](
           typeArgs = typeArgs(t),

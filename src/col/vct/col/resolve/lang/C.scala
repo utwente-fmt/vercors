@@ -72,7 +72,7 @@ case object C {
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case Seq(CSpecificationType(typ)) => typ
-      case spec :: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
+      case spec +: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CTypeNotSupported(context)
     }
 
