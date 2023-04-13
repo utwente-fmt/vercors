@@ -23,7 +23,7 @@ case object InlineApplicables extends RewriterBuilder {
     override def text: String =
       applications match {
         case Seq(app) => app.o.messageInContext("This application cannot be inlined, since the applicable refers to itself.")
-        case first :: more =>
+        case first +: more =>
           Origin.messagesInContext(
             (first.o, "This application cannot be inlined, since it requires inlining ...") +:
               more.map(apply => (apply.o, "... this application, which requires inlining ...")) :+

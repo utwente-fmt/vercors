@@ -410,8 +410,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
     def extremes(xs: Seq[Expr[Pre]], maximizing: Boolean): Expr[Pre] = {
       xs match {
-        case expr :: Nil => expr
-        case left :: right :: tail =>
+        case expr +: Nil => expr
+        case left +: right +: tail =>
           Select(
             condition = if(maximizing) left > right else left < right,
             whenTrue = extremes(left :: tail, maximizing),

@@ -133,8 +133,8 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
 
     val decreases = (decreases1 ++ decreases2) match {
       case Nil => None
-      case x :: Nil => Some(x)
-      case _ :: x :: _ => ??(x)
+      case x +: Nil => Some(x)
+      case _ +: x +: _ => ??(x)
     }
 
     (pres, posts, decreases)
