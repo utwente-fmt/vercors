@@ -77,13 +77,27 @@ trait LoopImpl[G] { this: Loop[G] =>
       Group(Text("while") <+> "(" <> Doc.arg(cond) <> ")") <+> body.layoutAsBlock
     ))
 
+  def layoutControlElement(e: Show)(implicit ctx: Ctx): Option[Show] = Some(e match {
+    case Eval(e) => e.show
+    case a: Assign[G] => a.layoutAsExpr
+    case e: VeyMontAssignExpression[G] => return layoutControlElement(e.assign)
+    case e: VeyMontCommExpression[G] => return layoutControlElement(e.assign)
+    case LocalDecl(local) => local.show
+    case JavaLocalDeclarationStatement(local) => local.show
+
+    case _ => return None
+  })
+
+  def layoutControl(stat: Statement[G])(implicit ctx: Ctx): Doc =
+    Group(Doc.args(stat.blockElementsForLayout.map(layoutControlElement(_).getOrElse(return stat.show))))
+
   def layoutGenericFor(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
       contract,
-      Group(Text("for") <+> "(" <> Nest(Line <>
-        (if(init == Block[G](Nil)) Text(";") else init.show <> ";" <+/> print.Empty) <>
+      Group(Text("for") <+> "(" <> Nest(NonWsLine <>
+        (if(init == Block[G](Nil)) Text(";") else layoutControl(init) <> ";" <+/> print.Empty) <>
           cond <> ";" <>
-          (if(update == Block[G](Nil)) print.Empty else print.Empty <+/> update.show)
+          (if(update == Block[G](Nil)) print.Empty else print.Empty <+/> layoutControl(update))
       ) </> ")") <+> body.layoutAsBlock
     ))
 

@@ -11,6 +11,9 @@ trait AssignImpl[G] extends NormallyCompletingStatementImpl[G] { this: Assign[G]
       case _ => Nil
     })
 
+  def layoutAsExpr(implicit ctx: Ctx): Doc =
+    Group(target.show <+> (if(ctx.syntax == Ctx.Silver) ":=" else "=") <>> value)
+
   override def layout(implicit ctx: Ctx): Doc =
-    Group(target.show <+> (if(ctx.syntax == Ctx.Silver) ":=" else "=") <>> value <> (if(ctx.syntax == Ctx.Silver) Empty else Text(";")))
+    layoutAsExpr <> (if(ctx.syntax == Ctx.Silver) Empty else Text(";"))
 }
