@@ -150,7 +150,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         } else {
           tasks.reverse.foreach(_.end())
           task.end()
-          updateTaskStack(Nil, superTask, Nil, branch :: branches)
+          updateTaskStack(Nil, superTask, Nil, branch +: branches)
         }
 
       case (Nil, record +: records, _) =>
@@ -163,7 +163,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         } else {
           tasks.reverse.foreach(_.end())
           task.end()
-          updateTaskStack(Nil, superTask, record :: records, branches)
+          updateTaskStack(Nil, superTask, record +: records, branches)
         }
     }
 

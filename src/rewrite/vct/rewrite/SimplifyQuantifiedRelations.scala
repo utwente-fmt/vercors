@@ -41,8 +41,8 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
       case left +: right +: tail =>
         Select(
           condition = if(maximizing) left > right else left < right,
-          whenTrue = extremeValue(left :: tail, maximizing),
-          whenFalse = extremeValue(right :: tail, maximizing),
+          whenTrue = extremeValue(left +: tail, maximizing),
+          whenFalse = extremeValue(right +: tail, maximizing),
         )
     }
 

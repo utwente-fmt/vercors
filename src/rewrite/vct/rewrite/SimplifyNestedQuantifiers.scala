@@ -414,8 +414,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
         case left +: right +: tail =>
           Select(
             condition = if(maximizing) left > right else left < right,
-            whenTrue = extremes(left :: tail, maximizing),
-            whenFalse = extremes(right :: tail, maximizing),
+            whenTrue = extremes(left +: tail, maximizing),
+            whenFalse = extremes(right +: tail, maximizing),
           )
       }
     }
