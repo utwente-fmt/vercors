@@ -55,7 +55,7 @@ case class ImportSet[Pre <: Generation](importer: ImportADTImporter) extends Imp
         args = Nil,
       )(e.o)
 
-    case LiteralSet(element, x :: xs) =>
+    case LiteralSet(element, x +: xs) =>
       xs.foldLeft(
         ADTFunctionInvocation[Post](
           typeArgs = typeArgs(element),

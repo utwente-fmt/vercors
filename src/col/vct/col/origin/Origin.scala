@@ -195,11 +195,11 @@ object InputOrigin {
   def inlineContext(readable: Readable, unsafeStartLineIdx: Int, unsafeEndLineIdx: Int, unsafeCols: Option[(Int, Int)]): String =
     readable.readLines().slice(unsafeStartLineIdx, unsafeEndLineIdx+1) match {
       case Nil => "(empty source region)"
-      case line :: Nil => unsafeCols match {
+      case line +: Nil => unsafeCols match {
         case None => compressInlineText(line)
         case Some((start, end)) => compressInlineText(line.slice(start, end))
       }
-      case first :: moreLines =>
+      case first +: moreLines =>
         val (context, last) = (moreLines.init, moreLines.last)
         unsafeCols match {
           case None => compressInlineText((first +: context :+ last).mkString("\n"))

@@ -140,30 +140,30 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
         tasks.reverse.foreach(_.end())
         Nil
 
-      case (Nil, Nil, branch :: branches) =>
+      case (Nil, Nil, branch +: branches) =>
         val task = BranchRecordTask(superTask, branch)
         task.start()
         task +: updateTaskStack(Nil, task, Nil, branches)
-      case (task :: tasks, Nil, branch :: branches) =>
+      case (task +: tasks, Nil, branch +: branches) =>
         if(task == BranchRecordTask(superTask, branch)) {
           task +: updateTaskStack(tasks, task, Nil, branches)
         } else {
           tasks.reverse.foreach(_.end())
           task.end()
-          updateTaskStack(Nil, superTask, Nil, branch :: branches)
+          updateTaskStack(Nil, superTask, Nil, branch +: branches)
         }
 
-      case (Nil, record :: records, _) =>
+      case (Nil, record +: records, _) =>
         val task = DataRecordTask(superTask, record)
         task.start()
         task +: updateTaskStack(Nil, task, records, branches)
-      case (task :: tasks, record :: records, _) =>
+      case (task +: tasks, record +: records, _) =>
         if(task.superTask == superTask && task == DataRecordTask(superTask, record)) {
           task +: updateTaskStack(tasks, task, records, branches)
         } else {
           tasks.reverse.foreach(_.end())
           task.end()
-          updateTaskStack(Nil, superTask, record :: records, branches)
+          updateTaskStack(Nil, superTask, record +: records, branches)
         }
     }
 

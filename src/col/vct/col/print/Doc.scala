@@ -133,16 +133,16 @@ sealed trait Doc extends Show {
 
   private def be(spent: Int, docs: Seq[(Int, Boolean, Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
     case Nil => LazyList.empty
-    case (_, _, Empty) :: docs => be(spent, docs)
-    case (i, f, NodeDoc(_, x)) :: docs => be(spent, (i, f, x) +: docs)
-    case (i, f, Cons(x, y)) :: docs => be(spent, (i, f, x) +: (i, f, y) +: docs)
-    case (i, f, Nest(x)) :: docs => be(spent, (i+ctx.tabWidth, f, x) +: docs)
-    case (_, _, Text(t)) :: docs => EText(t) #:: be(spent + t.length, docs)
-    case (i, false, Line | NonWsLine) :: docs => ELine(i) #:: be(i, docs)
-    case (_, true, Line) :: docs => EText(" ") #:: be(spent + 1, docs)
-    case (_, true, NonWsLine) :: docs => be(spent, docs)
-    case (i, true, Group(x)) :: docs => be(spent, (i, true, x) +: docs)
-    case (i, false, Group(x)) :: docs => better(
+    case (_, _, Empty) +: docs => be(spent, docs)
+    case (i, f, NodeDoc(_, x)) +: docs => be(spent, (i, f, x) +: docs)
+    case (i, f, Cons(x, y)) +: docs => be(spent, (i, f, x) +: (i, f, y) +: docs)
+    case (i, f, Nest(x)) +: docs => be(spent, (i+ctx.tabWidth, f, x) +: docs)
+    case (_, _, Text(t)) +: docs => EText(t) #:: be(spent + t.length, docs)
+    case (i, false, Line | NonWsLine) +: docs => ELine(i) #:: be(i, docs)
+    case (_, true, Line) +: docs => EText(" ") #:: be(spent + 1, docs)
+    case (_, true, NonWsLine) +: docs => be(spent, docs)
+    case (i, true, Group(x)) +: docs => be(spent, (i, true, x) +: docs)
+    case (i, false, Group(x)) +: docs => better(
       spent,
       be(spent, (i, true, x) +: docs),
       be(spent, (i, false, x) +: docs),
