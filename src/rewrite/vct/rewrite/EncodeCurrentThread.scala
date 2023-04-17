@@ -48,6 +48,7 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
     case m: AbstractMethod[Pre] => !m.pure
 
     case _: ADTFunction[Pre] => false
+    case _: ProverFunction[Pre] => false
     case _: ModelProcess[Pre] => false
     case _: ModelAction[Pre] => false
   }

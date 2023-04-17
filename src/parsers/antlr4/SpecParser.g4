@@ -312,7 +312,7 @@ valKeywordNonExpr: (
  // Annotation keywords
  | VAL_PURE | VAL_THREAD_LOCAL | VAL_WITH | VAL_THEN | VAL_GIVEN | VAL_YIELDS | VAL_BIP_ANNOTATION
  // Declaration keywords
- | VAL_AXIOM | VAL_MODEL | VAL_ADT
+ | VAL_AXIOM | VAL_MODEL | VAL_ADT | VAL_PROVER_TYPE | VAL_PROVER_FUNCTION
  // Contract clause keywords
  | VAL_MODIFIES | VAL_ACCESSIBLE | VAL_REQUIRES | VAL_ENSURES | VAL_CONTEXT_EVERYWHERE | VAL_CONTEXT
  | VAL_LOOP_INVARIANT | VAL_KERNEL_INVARIANT | VAL_LOCK_INVARIANT | VAL_SIGNALS | VAL_DECREASES
@@ -350,6 +350,18 @@ valGlobalDeclaration
  | 'model' langId '{' valModelDeclaration* '}' # valModel
  | 'ghost' langGlobalDecl # valGhostDecl
  | 'adt' langId valTypeVars? '{' valAdtDeclaration* '}' # valAdtDecl
+ | 'prover_type' langId valProverInterpretations ';' # valProverType
+ | 'prover_function' langType langId '(' valArgList? ')' valProverInterpretations ';' # valProverFunction
+ ;
+
+valProverInterpretations
+ : valProverInterpretation
+ | valProverInterpretation valProverInterpretations
+ ;
+
+valProverInterpretation
+ : '\\smtlib' langId # valInterpSmtlib
+ | '\\boogie' langId # valInterpBoogie
  ;
 
 valClassDeclaration

@@ -58,6 +58,9 @@ sealed trait Referrable[G] {
     case RefModelAction(decl) => Referrable.originName(decl)
     case RefSeqProg(decl) => Referrable.originName(decl)
     case RefVeyMontThread(decl) => Referrable.originName(decl)
+    case RefProverType(decl) => Referrable.originName(decl)
+    case RefProverFunction(decl) => Referrable.originName(decl)
+
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
@@ -125,6 +128,8 @@ case object Referrable {
     case decl: VeyMontThread[G] => RefVeyMontThread(decl)
     case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
     case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition()
+    case decl: ProverType[G] => RefProverType(decl)
+    case decl: ProverFunction[G] => RefProverFunction(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -225,6 +230,8 @@ case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs a
 case class RefLlvmFunctionDefinition[G]() extends Referrable[G]
 case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
 case class RefVeyMontThread[G](decl: VeyMontThread[G]) extends Referrable[G] with PVLNameTarget[G]
+case class RefProverType[G](decl: ProverType[G]) extends Referrable[G] with SpecTypeNameTarget[G]
+case class RefProverFunction[G](decl: ProverFunction[G]) extends Referrable[G] with SpecInvocationTarget[G]
 
 case class BuiltinField[G](f: Expr[G] => Expr[G]) extends Referrable[G] with SpecDerefTarget[G]
 case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with SpecInvocationTarget[G]

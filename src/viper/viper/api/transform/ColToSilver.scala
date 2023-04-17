@@ -156,6 +156,28 @@ case class ColToSilver(program: col.Program[_]) {
   }
 
   def collect(decl: col.GlobalDeclaration[_]): Unit = decl match {
+    case t: col.ProverType[_] =>
+      domains += silver.Domain(
+        name = ref(t),
+        typVars = Nil,
+        functions = Nil,
+        axioms = Nil,
+        interpretations = Some(interpretations(t.interpretation)),
+      )(pos=pos(t), info=NodeInfo(t))
+    case function: col.ProverFunction[_] =>
+      val domainName = "$domain$" + ref(function)
+      domains += silver.Domain(
+        name = domainName,
+        typVars = Nil,
+        axioms = Nil,
+        functions = Seq(silver.DomainFunc(
+          name = ref(function),
+          formalArgs = function.args.map(variable),
+          typ = typ(function.returnType),
+          unique = false,
+          interpretation = function.interpretation.collectFirst { case col.SmtLib() -> int => int },
+        )(pos=pos(function), info=NodeInfo(function), domainName=domainName)),
+      )(pos=pos(function), info=NodeInfo(function))
     case field: col.SilverField[_] =>
       // nop
     case rule: col.SimplificationRule[_] =>
@@ -217,6 +239,12 @@ case class ColToSilver(program: col.Program[_]) {
     case col.DecreasesClauseTuple(exprs) => DecreasesTuple(exprs.map(exp), condition = None)(pos=pos(clause), info=NodeInfo(clause))
   }
 
+  def interpretations(interpretation: Seq[(col.ProverLanguage[_], String)]) =
+    interpretation.map {
+      case col.SmtLib() -> int => "SMTLIB" -> int
+      case col.Boogie() -> int => "Boogie" -> int
+    }.to(ListMap)
+
   def variable(v: col.Variable[_]): silver.LocalVarDecl =
     silver.LocalVarDecl(name(v), typ(v.t))(pos=pos(v), info=NodeInfo(v))
 
@@ -236,6 +264,8 @@ case class ColToSilver(program: col.Program[_]) {
     case col.TAxiomatic(Ref(adt), args) =>
       val typeArgs = adtTypeArgs(adt)
       silver.DomainType(ref(adt), ListMap(typeArgs.zip(args.map(typ)) : _*))(typeArgs)
+    case col.TProverType(Ref(t)) =>
+      silver.BackendType(ref(t), interpretations(t.interpretation))
     case other => ??(other)
   }
 
@@ -337,6 +367,8 @@ case class ColToSilver(program: col.Program[_]) {
         silver.DomainFuncApp(ref(func), args.map(exp), ListMap(adtTypeArgs(adt).zip(typeArgs.map(typ)) : _*))(pos(e), expInfo(e), typ(inv.t), ref(adt), silver.NoTrafos)
       case None => ??(inv)
     }
+    case inv @ col.ProverFunctionInvocation(Ref(func), args) =>
+      silver.BackendFuncApp(ref(func), args.map(exp))(pos(e), expInfo(e), typ(func.returnType), func.interpretation.collectFirst { case col.SmtLib() -> int => int }.get, silver.NoTrafos)
     case u @ col.Unfolding(p: col.PredicateApply[_], body) =>
       silver.Unfolding(
         currentUnfolding.having(u) { pred(p) },

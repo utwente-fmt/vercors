@@ -3,6 +3,7 @@ import $file.fetchJars
 
 import mill._
 import modules.Jvm
+import define._
 
 import common.Dir
 import fetchJars.{antlr => antlrJar}
@@ -11,13 +12,13 @@ trait GenModule extends Module {
   def base = T { Dir.src / "parsers" / "antlr4" }
 
   def lexer: String
-  def lexerRef: T[PathRef] = T { PathRef(base() / lexer) }
+  final def lexerRef: Sources = T.sources { base() / lexer }
 
   def parser: String
-  def parserRef: T[PathRef] = T { PathRef(base() / parser) }
+  final def parserRef: Sources = T.sources { base() / parser }
 
   def deps: Seq[String]
-  def depsRef: T[Seq[PathRef]] = T { deps.map(dep => base() / dep).map(PathRef(_)) }
+  final def depsRef: Sources = T.sources { deps.map(dep => base() / dep).map(PathRef(_)) }
 
   def generate = T {
     def runAntlr(target: os.Path, args: Seq[String] = Nil): Unit = {
@@ -37,8 +38,11 @@ trait GenModule extends Module {
     }
 
     depsRef()
-    runAntlr(lexerRef().path)
-    runAntlr(parserRef().path, args = Seq("-listener", "-visitor", "-scala-extractor-objects"))
+    lexerRef()
+    parserRef()
+
+    runAntlr(base() / lexer)
+    runAntlr(base() / parser, args = Seq("-listener", "-visitor", "-scala-extractor-objects"))
     PathRef(T.dest)
   }
 }

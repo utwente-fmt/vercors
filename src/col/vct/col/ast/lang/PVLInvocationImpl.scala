@@ -15,6 +15,7 @@ trait PVLInvocationImpl[G] { this: PVLInvocation[G] =>
     case RefADTFunction(decl) => decl.returnType
     case RefModelProcess(_) => TProcess()
     case RefModelAction(_) => TProcess()
+    case RefProverFunction(decl) => decl.returnType
     case PVLBuiltinInstanceMethod(f) => f(obj.get)(args).t
     case BuiltinInstanceMethod(f) => f(obj.get)(args).t
   }

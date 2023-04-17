@@ -138,6 +138,7 @@ final case class TVeyMontThread[G](cls: Ref[G, VeyMontThread[G]])(implicit val o
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
 final case class TEnum[G](enum: Ref[G, Enum[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
+final case class TProverType[G](ref: Ref[G, ProverType[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TProverTypeImpl[G]
 
 sealed trait ParRegion[G] extends NodeFamily[G] with ParRegionImpl[G]
 final case class ParParallel[G](regions: Seq[ParRegion[G]])(val blame: Blame[ParPreconditionFailed])(implicit val o: Origin) extends ParRegion[G] with ParParallelImpl[G]
@@ -239,6 +240,13 @@ final class Predicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
   extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with EnumImpl[G]
 final class EnumConstant[G]()(implicit val o: Origin) extends Declaration[G]
+
+final class ProverType[G](val interpretation: Seq[(ProverLanguage[G], String)])(implicit val o: Origin) extends GlobalDeclaration[G] with ProverTypeImpl[G]
+final class ProverFunction[G](val interpretation: Seq[(ProverLanguage[G], String)], val args: Seq[Variable[G]], val returnType: Type[G])(implicit val o: Origin) extends GlobalDeclaration[G] with Applicable[G] with ProverFunctionImpl[G]
+
+sealed trait ProverLanguage[G] extends NodeFamily[G]
+case class SmtLib[G]()(implicit val o: Origin) extends ProverLanguage[G]
+case class Boogie[G]()(implicit val o: Origin) extends ProverLanguage[G]
 
 sealed trait ClassDeclaration[G] extends Declaration[G] with ClassDeclarationImpl[G]
 final class InstanceFunction[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
@@ -464,6 +472,7 @@ final case class ApplyCoercion[G](e: Expr[G], coercion: Coercion[G])(implicit va
 
 sealed trait Apply[G] extends Expr[G] with ApplyImpl[G]
 final case class ADTFunctionInvocation[G](typeArgs: Option[(Ref[G, AxiomaticDataType[G]], Seq[Type[G]])], ref: Ref[G, ADTFunction[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Apply[G] with ADTFunctionInvocationImpl[G]
+final case class ProverFunctionInvocation[G](ref: Ref[G, ProverFunction[G]], args: Seq[Expr[G]])(implicit val o: Origin) extends Apply[G] with ProverFunctionInvocationImpl[G]
 
 sealed trait ApplyInlineable[G] extends Apply[G] with ApplyInlineableImpl[G]
 sealed trait InstanceApply[G] extends Node[G] with InstanceApplyImpl[G]

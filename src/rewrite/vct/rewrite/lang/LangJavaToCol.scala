@@ -512,6 +512,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ref = rw.succ(decl),
           args = Nil, outArgs = Nil, Nil, Nil, Nil
         )(inv.blame)
+      case RefProverFunction(decl) => ProverFunctionInvocation(rw.succ(decl), args.map(rw.dispatch))
       case BuiltinInstanceMethod(f) =>
         rw.dispatch(f(obj.get)(args))
     }

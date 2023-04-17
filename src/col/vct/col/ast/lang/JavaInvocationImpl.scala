@@ -17,6 +17,7 @@ trait JavaInvocationImpl[G] { this: JavaInvocation[G] =>
     case RefModelProcess(decl) => decl.returnType
     case RefModelAction(decl) => decl.returnType
     case RefJavaMethod(decl) => decl.returnType
+    case RefProverFunction(decl) => decl.returnType
     case BuiltinInstanceMethod(f) => f(obj.get)(arguments).t
   }
 
