@@ -180,8 +180,8 @@ statement
  | 'vec' '(' iter ')' block # pvlVec
  | 'invariant' identifier '(' expr ')' block # pvlInvariant
  | 'atomic' '(' identifierList ')' block # pvlAtomic
- | invariantList 'while' '(' expr ')' statement # pvlWhile
- | invariantList 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement # pvlFor
+ | contract 'while' '(' expr ')' statement # pvlWhile
+ | contract 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement # pvlFor
  | block # pvlBlock
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
@@ -229,9 +229,6 @@ waitFor: identifier waitForArgs?;
 waitForArgs: '(' idArgList ')';
 idArgList: idArg | idArg ',' idArgList;
 idArg: identifier | '*';
-
-invariantList: invariant*;
-invariant: 'loop_invariant' expr ';';
 
 nonArrayType
  : valType
