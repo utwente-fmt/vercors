@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{Expr, SilverUntypedNonemptyLiteralMap, TMap, Type}
+import vct.col.print.{Ctx, Doc, Precedence, Text, Group}
 import vct.col.typerules.Types
 
 trait SilverUntypedNonemptyLiteralMapImpl[G] { this: SilverUntypedNonemptyLiteralMap[G] =>
@@ -11,4 +12,10 @@ trait SilverUntypedNonemptyLiteralMapImpl[G] { this: SilverUntypedNonemptyLitera
   def valueType: Type[G] = Types.leastCommonSuperType(mapValues.map(_.t))
 
   override def t: TMap[G] = TMap(keyType, valueType)
+
+  override def precedence: Int = Precedence.POSTFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text("Map(") <> Doc.args(values.map {
+      case (k, v) => k.show <+> ":=" <+> v
+    }) <> ")")
 }

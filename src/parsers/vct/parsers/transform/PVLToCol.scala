@@ -167,16 +167,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case NewDims0(dims) => dims.map(convert(_))
   }
 
-  def convert(implicit exprs: InvariantListContext): Expr[G] = exprs match {
-    case InvariantList0(invs) => AstBuildHelpers.foldStar(invs.map(convert(_)))
-  }
-
   def convert(implicit dim: QuantifiedDimContext): Expr[G] = dim match {
     case QuantifiedDim0(_, inner, _) => convert(inner)
-  }
-
-  def convert(implicit inv: InvariantContext): Expr[G] = inv match {
-    case Invariant0(_, inv, _) => convert(inv)
   }
 
   def convert(implicit expr: ExprContext): Expr[G] = expr match {
@@ -339,16 +331,20 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       )(blame(stat))
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
-    case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs), None)(blame(stat)), convert(body)))
-    case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
-      Scope(Nil, Loop(
-        init.map(convert(_)).getOrElse(Block(Nil)),
-        cond.map(convert(_)).getOrElse(tt),
-        update.map(convert(_)).getOrElse(Block(Nil)),
-        LoopInvariant(convert(invs), None)(blame(stat)),
-        convert(body)
-      ))
+    case PvlWhile(contract, _, _, cond, _, body) =>
+      withContract(contract, contract =>
+        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), contract.consumeLoopContract(stat), convert(body)))
+      )
+    case PvlFor(contract, _, _, init, _, cond, _, update, _, body) =>
+      withContract(contract, contract =>
+        Scope(Nil, Loop(
+          init.map(convert(_)).getOrElse(Block(Nil)),
+          cond.map(convert(_)).getOrElse(tt),
+          update.map(convert(_)).getOrElse(Block(Nil)),
+          contract.consumeLoopContract(stat),
+          convert(body)
+        ))
+      )
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
@@ -852,6 +848,20 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
       Seq(new AxiomaticDataType(decls.map(convert(_)), typeArgs.map(convert(_)).getOrElse(Nil))(
         SourceNameOrigin(convert(name), origin(decl))))
+    case ValProverType(_, name, ints, _) =>
+      Seq(new ProverType(convert(ints))(SourceNameOrigin(convert(name), origin(decl))))
+    case ValProverFunction(_, t, name, _, args, _, ints, _) =>
+      Seq(new ProverFunction(convert(ints), args.map(convert(_)).getOrElse(Nil), convert(t))(SourceNameOrigin(convert(name), origin(decl))))
+  }
+
+  def convert(implicit int: ValProverInterpretationsContext): Seq[(ProverLanguage[G], String)] = int match {
+    case ValProverInterpretations0(int) => Seq(convert(int))
+    case ValProverInterpretations1(int, ints) => convert(int) +: convert(ints)
+  }
+
+  def convert(implicit int: ValProverInterpretationContext): (ProverLanguage[G], String) = int match {
+    case ValInterpSmtlib(_, int) => SmtLib()(origin(int)) -> convert(int)
+    case ValInterpBoogie(_, int) => Boogie()(origin(int)) -> convert(int)
   }
 
   def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration[G]] = decl match {

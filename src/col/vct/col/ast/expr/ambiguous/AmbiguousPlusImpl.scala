@@ -2,6 +2,7 @@ package vct.col.ast.expr.ambiguous
 
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
+import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ref.Ref
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError.Unreachable
@@ -58,4 +59,7 @@ trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
     else if(isStringOp) TString()
     else if(getCustomPlusOpType().isDefined) getCustomPlusOpType().get
     else TRational()
+
+  override def precedence: Int = Precedence.ADDITIVE
+  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "+", right)
 }

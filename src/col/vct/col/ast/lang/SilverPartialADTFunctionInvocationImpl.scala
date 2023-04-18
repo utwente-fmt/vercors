@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{ADTFunction, AxiomaticDataType, SilverPartialADTFunctionInvocation, TAny, Type}
+import vct.col.print.{Ctx, Doc, Precedence, Text, Group}
 import vct.col.ref.Ref
 
 trait SilverPartialADTFunctionInvocationImpl[G] { this: SilverPartialADTFunctionInvocation[G] =>
@@ -13,4 +14,8 @@ trait SilverPartialADTFunctionInvocationImpl[G] { this: SilverPartialADTFunction
   def typeArgs: Seq[Type[G]] = maybeTypeArgs.get
 
   override lazy val t: Type[G] = function.returnType.particularize(adt.typeArgs.zip(typeArgs).toMap)
+
+  override def precedence: Int = Precedence.POSTFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text(name) <> "(" <> Doc.args(args) <> ")")
 }

@@ -9,11 +9,9 @@ case class NameSequenceTask(superTask: AbstractTask, var names: Seq[String], var
 
   def scope[T](f: (() => Unit) => T): T = {
     start()
-    try {
-      f(next)
-    } finally {
-      end()
-    }
+    val res = f(next)
+    end()
+    res
   }
 
   private def next(): Unit = {

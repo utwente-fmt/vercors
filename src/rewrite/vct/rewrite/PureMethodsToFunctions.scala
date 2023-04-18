@@ -64,7 +64,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
         case None => Some(dispatch(e))
       }
       case Block(Nil) => alt
-      case Block(stat :: tail) =>
+      case Block(stat +: tail) =>
         toExpression(stat, toExpression(Block(tail), alt))
       case Branch(Nil) => alt
       case Branch((BooleanValue(true), impl) +: _) => toExpression(impl, alt)

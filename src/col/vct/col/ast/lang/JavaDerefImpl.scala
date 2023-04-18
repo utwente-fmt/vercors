@@ -2,6 +2,7 @@ package vct.col.ast.lang
 
 import hre.util.FuncTools
 import vct.col.ast._
+import vct.col.print._
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 
@@ -19,4 +20,8 @@ trait JavaDerefImpl[G] { this: JavaDeref[G] =>
     }
     case BuiltinField(f) => f(obj).t
   }
+
+  override def precedence: Int = Precedence.POSTFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    assoc(obj) <> "." <> field
 }

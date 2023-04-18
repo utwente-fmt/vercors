@@ -1,5 +1,6 @@
 package vct.main.stages
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.stages.Stage
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, Verification, VerificationContext}
 import org.antlr.v4.runtime.CharStreams
@@ -81,7 +82,7 @@ case class Resolution[G <: Generation]
     ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath),
     ResolveTypes.JavaClassPathEntry.SourcePackageRoot
   ),
-) extends Stage[ParseResult[G], Verification[_ <: Generation]] {
+) extends Stage[ParseResult[G], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Name Resolution"
   override def progressWeight: Int = 1
 

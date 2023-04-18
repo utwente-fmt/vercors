@@ -69,9 +69,9 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             val res = rewriteDefault(e)
             res match {
               case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `$e` contains no triggers")
+                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
               case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `$e` contains no triggers")
+                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
               case _ =>
             }
             res
@@ -410,12 +410,12 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
     def extremes(xs: Seq[Expr[Pre]], maximizing: Boolean): Expr[Pre] = {
       xs match {
-        case expr :: Nil => expr
-        case left :: right :: tail =>
+        case expr +: Nil => expr
+        case left +: right +: tail =>
           Select(
             condition = if(maximizing) left > right else left < right,
-            whenTrue = extremes(left :: tail, maximizing),
-            whenFalse = extremes(right :: tail, maximizing),
+            whenTrue = extremes(left +: tail, maximizing),
+            whenFalse = extremes(right +: tail, maximizing),
           )
       }
     }

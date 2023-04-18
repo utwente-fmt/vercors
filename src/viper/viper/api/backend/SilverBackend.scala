@@ -283,6 +283,7 @@ trait SilverBackend extends Backend with LazyLogging {
   def getFailure(reason: ErrorReason): blame.ContractFailure = reason match {
     case reasons.AssertionFalse(expr) => blame.ContractFalse(get[col.Expr[_]](expr))
     case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](access))
+    case reasons.MagicWandChunkNotFound(wand) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](wand))
     case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
   }
 

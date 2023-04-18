@@ -273,7 +273,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
 
     if(debugMatch && debugFilter) {
       if(debugMatchShort) {
-        logger.debug(subject.toString)
+        logger.debug(subject.toInlineString)
         logger.debug(s" ~> $result")
       } else {
         logger.debug(s"Expression:       $subject")
@@ -361,7 +361,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     if(simplificationDone.nonEmpty) rewriteDefault(e)
     else simplificationDone.having(()) {
-      updateProgress.top(s"`$e`")
+      updateProgress.top(e.toInlineString)
       countApply = 0
       countSuccess = 0
       currentExpr = e

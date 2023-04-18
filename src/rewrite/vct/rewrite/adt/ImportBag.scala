@@ -59,7 +59,7 @@ case class ImportBag[Pre <: Generation](importer: ImportADTImporter) extends Imp
         args = Nil,
       )(e.o)
 
-    case LiteralBag(element, x :: xs) =>
+    case LiteralBag(element, x +: xs) =>
       xs.foldLeft(
         ADTFunctionInvocation[Post](
           typeArgs = typeArgs(element),
