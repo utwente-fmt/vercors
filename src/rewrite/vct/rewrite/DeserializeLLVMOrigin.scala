@@ -4,7 +4,7 @@ import vct.col.ast.Deserialize
 import vct.col.origin.{LLVMOrigin, Origin}
 
 case object DeserializeLLVMOrigin extends RewriterBuilder {
-  override def key: String = "DeserializeLLVMOrigin"
+  override def key: String = "llvmOrigin"
 
   override def desc: String = "Rewrites all Deserialize.Origin to LLVMOrigin"
 }
