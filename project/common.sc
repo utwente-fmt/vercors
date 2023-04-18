@@ -27,6 +27,7 @@ object Deps {
 
   val common = log ++ Agg(
     ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4",
+    ivy"io.spray::spray-json:1.3.6"
   )
 }
 

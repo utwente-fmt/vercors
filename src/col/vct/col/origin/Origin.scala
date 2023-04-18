@@ -3,7 +3,10 @@ package vct.col.origin
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
+import spray.json.{JsString, JsValue, JsonParser}
+import vct.col.ast.Deserialize
 import vct.col.origin.RedirectOrigin.StringReadable
+
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -369,4 +372,42 @@ trait PreferredNameOrigin extends Origin {
 
   override def toString: String =
     s"$name at $inner"
+}
+
+case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
+  private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
+    case string => Some(JsonParser(string).asJsObject().fields)
+  }
+
+  override def preferredName: String = parsedOrigin match {
+    case Some(o) => o.get("preferredName") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.preferredName
+    }
+    case None => deserializeOrigin.preferredName
+  }
+
+  override def context: String = parsedOrigin match {
+    case Some(o) => o.get("context") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.context
+    }
+    case None => deserializeOrigin.context
+  }
+
+  override def inlineContext: String = parsedOrigin match {
+    case Some(o) => o.get("inlineContext") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.inlineContext
+    }
+    case None => deserializeOrigin.inlineContext
+  }
+
+  override def shortPosition: String = parsedOrigin match {
+    case Some(o) => o.get("shortPosition") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.shortPosition
+    }
+    case None => deserializeOrigin.shortPosition
+  }
 }
