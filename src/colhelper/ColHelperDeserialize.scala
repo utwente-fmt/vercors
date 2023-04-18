@@ -64,7 +64,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
 
   def makeNodeDeserialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
-      ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin", q"Deserialize.Origin")}
+      ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin(node.origin)", q"Deserialize.Origin(node.origin)")}
   """)
 
   def makeDeserialize(): List[Stat] = q"""
@@ -74,7 +74,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import scala.reflect.ClassTag
 
     object Deserialize {
-      case object Origin extends vct.col.origin.Origin {
+      case class Origin(stringOrigin:String="{}") extends vct.col.origin.Origin {
         override def preferredName: String = "unknown"
         override def context: String = "At: [deserialized node]"
         override def inlineContext: String = "[Deserialized node]"

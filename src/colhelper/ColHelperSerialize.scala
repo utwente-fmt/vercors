@@ -68,7 +68,8 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
       ser.${Term.Name(proto.Name(defn.baseName).ucamel)}(..${
         val nodeParams = defn.params.map(serializeParam(defn))
         val idParams = if(DECLARATION_KINDS.contains(defn.baseName)) List(q"decls(node)") else Nil
-        idParams ++ nodeParams
+        val originParam = List(q"new String()")
+        idParams ++ originParam ++ nodeParams
       })
   """)
 

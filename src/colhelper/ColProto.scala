@@ -207,7 +207,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       // Singleton declaration, e.g. Variable
       msg.addField(field("id").setType(PType.TYPE_INT64))
     }
-
+    msg.addField(field("origin").setType(PType.TYPE_STRING))
     msg
       .addAllField(defn.params.map(param =>
         field(param.name.value, Some(param.decltpe.get))
