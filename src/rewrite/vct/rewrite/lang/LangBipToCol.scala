@@ -252,13 +252,13 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteGlue(container: JavaBipGlueContainer[Pre]): Unit = {
     val glue = container.job.asInstanceOf[JavaBipGlue[Pre]]
-    val requires = glue.collect { case r: JavaBipGlueRequires[Pre] => r }
-    val accepts = glue.collect { case a: JavaBipGlueAccepts[Pre] => a }
+    val requires = glue.elems.collect { case r: JavaBipGlueRequires[Pre] => r }
+    val accepts = glue.elems.collect { case a: JavaBipGlueAccepts[Pre] => a }
 
-    val synchrons = glue.collect { case s: JavaBipGlueSynchron[Pre] => s }
+    val synchrons = glue.elems.collect { case s: JavaBipGlueSynchron[Pre] => s }
     val pairs = synchrons.map(rewriteSynchron)
 
-    val wires = glue.collect { case w: JavaBipGlueDataWire[Pre] => w }
+    val wires = glue.elems.collect { case w: JavaBipGlueDataWire[Pre] => w }
 
     glueSucc(container) = rw.globalDeclarations.declare(new BipGlue[Post](
         requires.map(rewriteRequires) ++ pairs.flatMap(_._1),
