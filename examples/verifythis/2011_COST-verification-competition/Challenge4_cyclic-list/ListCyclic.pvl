@@ -64,6 +64,7 @@ class Node {
   */
   given seq<Node> previous;
   requires current != null && !(current in previous) ==> current.state(previous);
+  ensures \result >= 0;
   pure int length(Node current)
     = (current == null || current in previous) 
       ? 0 
@@ -104,7 +105,7 @@ class Node {
     loop_invariant last != null ==> last.state(visited);
     loop_invariant visited == segmentToSeq(last);
     loop_invariant !(last in visited);
-    /// decreases length(last) given{previous=visited};
+    decreases length(last) given{previous=visited};
     while(last != null) {
       unfold last.state(visited);
 
