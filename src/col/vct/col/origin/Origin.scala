@@ -389,8 +389,7 @@ trait PreferredNameOrigin extends Origin {
 
 case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
   private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
-    case Some(string) => Some(JsonParser(string).asJsObject().fields)
-    case None => None
+    case string => Some(JsonParser(string).asJsObject().fields)
   }
 
   override def preferredName: String = parsedOrigin match {
