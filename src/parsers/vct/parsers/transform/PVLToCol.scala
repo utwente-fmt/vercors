@@ -167,16 +167,8 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case NewDims0(dims) => dims.map(convert(_))
   }
 
-  def convert(implicit exprs: InvariantListContext): Expr[G] = exprs match {
-    case InvariantList0(invs) => AstBuildHelpers.foldStar(invs.map(convert(_)))
-  }
-
   def convert(implicit dim: QuantifiedDimContext): Expr[G] = dim match {
     case QuantifiedDim0(_, inner, _) => convert(inner)
-  }
-
-  def convert(implicit inv: InvariantContext): Expr[G] = inv match {
-    case Invariant0(_, inv, _) => convert(inv)
   }
 
   def convert(implicit expr: ExprContext): Expr[G] = expr match {
@@ -339,16 +331,20 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
       )(blame(stat))
     case PvlAtomic(_, _, invs, _, body) =>
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
-    case PvlWhile(invs, _, _, cond, _, body) =>
-      Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), LoopInvariant(convert(invs), None)(blame(stat)), convert(body)))
-    case PvlFor(invs, _, _, init, _, cond, _, update, _, body) =>
-      Scope(Nil, Loop(
-        init.map(convert(_)).getOrElse(Block(Nil)),
-        cond.map(convert(_)).getOrElse(tt),
-        update.map(convert(_)).getOrElse(Block(Nil)),
-        LoopInvariant(convert(invs), None)(blame(stat)),
-        convert(body)
-      ))
+    case PvlWhile(contract, _, _, cond, _, body) =>
+      withContract(contract, contract =>
+        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), contract.consumeLoopContract(stat), convert(body)))
+      )
+    case PvlFor(contract, _, _, init, _, cond, _, update, _, body) =>
+      withContract(contract, contract =>
+        Scope(Nil, Loop(
+          init.map(convert(_)).getOrElse(Block(Nil)),
+          cond.map(convert(_)).getOrElse(tt),
+          update.map(convert(_)).getOrElse(Block(Nil)),
+          contract.consumeLoopContract(stat),
+          convert(body)
+        ))
+      )
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
