@@ -83,6 +83,10 @@ object AstBuildHelpers {
         new RewriteModelProcess(process).rewrite(args = args)
       case action: ModelAction[Pre] =>
         new RewriteModelAction(action).rewrite(args = args)
+      case llvm: LlvmFunctionDefinition[Pre] =>
+        new RewriteLlvmFunctionDefinition(llvm).rewrite(args = args)
+      case prover: ProverFunction[Pre] =>
+        new RewriteProverFunction(prover).rewrite(args = args)
     }
   }
 
@@ -168,6 +172,8 @@ object AstBuildHelpers {
     def rewrite(args: => Seq[Expr[Post]] = apply.args.map(rewriter.dispatch)): Apply[Post] = apply match {
       case inv: ADTFunctionInvocation[Pre] =>
         new RewriteADTFunctionInvocation(inv).rewrite(args = args)
+      case inv: ProverFunctionInvocation[Pre] =>
+        new RewriteProverFunctionInvocation(inv).rewrite(args = args)
       case apply: ApplyAnyPredicate[Pre] =>
         new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)
       case inv: Invocation[Pre] =>

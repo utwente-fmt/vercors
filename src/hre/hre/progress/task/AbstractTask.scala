@@ -137,13 +137,12 @@ abstract class AbstractTask {
 
   def nonEmpty: Boolean = synchronized { subTasks.nonEmpty }
 
-  def frame[T](f: => T): T =
-    try {
-      start()
-      f
-    } finally {
-      end()
-    }
+  def frame[T](f: => T): T = {
+    start()
+    val res = f
+    end()
+    res
+  }
 
   def frame1[I, O](f: I => O): I => O =
     (i) => try {

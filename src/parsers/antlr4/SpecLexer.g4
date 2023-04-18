@@ -63,6 +63,8 @@ VAL_YIELDS: 'yields';
 VAL_AXIOM: 'axiom';
 VAL_MODEL: 'model';
 VAL_ADT: 'adt';
+VAL_PROVER_TYPE: 'prover_type';
+VAL_PROVER_FUNCTION: 'prover_function';
 
 VAL_MODIFIES: 'modifies';
 VAL_ACCESSIBLE: 'accessible';
@@ -161,6 +163,8 @@ VAL_INDEX: '\\nd_index';
 VAL_LENGTH: '\\nd_length';
 VAL_PARTIAL_INDEX: '\\nd_partial_index';
 POLARITY_DEPENDENT: '\\polarity_dependent';
+SMT_LIB: '\\smtlib';
+BOOGIE: '\\boogie';
 
 NONE: 'none';
 OPTION_NONE: 'None';
