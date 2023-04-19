@@ -91,9 +91,11 @@ case class Silicon(
       "--ideModeAdvanced",
     )
 
-    proverLogFile match {
-      case Some(p) => siliconConfig ++= Seq("--z3LogFile", p.toString) // This should be changed to "proverLogFile" when updating to the new Viper version
-      case _ => siliconConfig ++= Seq("--disableTempDirectory") // Otherwise do not make a temp dir (these two options are mutually exclusive)
+    if(proverLogFile.isDefined) {
+      // PB: note: enableTempDirectory works unexpectedly: it only enables the logging of smtlib provers and does
+      //     not create the typical tmp directory. The temp directory is also not prepended to proverLogFile when it is
+      //     supplied.
+      siliconConfig ++= Seq("--enableTempDirectory", "--proverLogFile", proverLogFile.get.toString)
     }
 
     numberOfParallelVerifiers match {
