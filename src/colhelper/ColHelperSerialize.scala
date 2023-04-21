@@ -45,6 +45,7 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
       case proto.TBigInt => q"ser.BigInt(com.google.protobuf.ByteString.copyFrom($term.toByteArray))"
       case proto.TBigDecimal => q"ser.BigDecimal($term.scale, ser.BigInt(com.google.protobuf.ByteString.copyFrom($term.underlying().unscaledValue().toByteArray())))"
       case proto.TString => term
+      case proto.TBitString => q"ser.BitString(com.google.protobuf.ByteString.copyFrom($term.rawData), $term.skipAtLastByte)"
       case proto.TOption(t) => q"$term.map(e => ${serializeTerm(q"e", t)})"
       case proto.TSeq(t) => q"$term.map(e => ${serializeTerm(q"e", t)})"
       case proto.TSet(t) => q"$term.toSeq.map(e => ${serializeTerm(q"e", t)})"

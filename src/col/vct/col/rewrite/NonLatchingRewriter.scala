@@ -27,6 +27,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(location: Location[Pre]): Location[Post] = rewriteDefault(location)
 
   override def dispatch(language: ProverLanguage[Pre]): ProverLanguage[Post] = rewriteDefault(language)
+  override def dispatch(func: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(func)
 
   override def dispatch(node: CDeclarator[Pre]): CDeclarator[Post] = rewriteDefault(node)
   override def dispatch(cDeclSpec: CDeclarationSpecifier[Pre]): CDeclarationSpecifier[Post] = rewriteDefault(cDeclSpec)

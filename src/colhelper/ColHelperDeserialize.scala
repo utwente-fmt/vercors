@@ -41,6 +41,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       case proto.TBigInt => q"BigInt(new java.math.BigInteger($term.data.toByteArray()))"
       case proto.TBigDecimal => q"BigDecimal(${deserializeTerm(q"$term.unscaledValue", proto.TBigInt, null)}, $term.scale)"
       case proto.TString => term
+      case proto.TBitString => q"new BitString($term.data.toByteArray(), $term.skipAtLastByte)"
       case proto.TOption(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
       case proto.TSeq(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
       case proto.TSet(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))}).toSet"
