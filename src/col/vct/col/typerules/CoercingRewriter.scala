@@ -410,6 +410,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: ProverLanguage[Pre]): ProverLanguage[Post] = rewriteDefault(node)
   override final def dispatch(node: ProverLanguage[Pre]): ProverLanguage[Post] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
+  def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
+  override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -515,6 +518,26 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"either")
     }
+  def bitvec(e: Expr[Pre]): (Expr[Pre], TSmtlibBitVector[Pre]) =
+    CoercionUtils.getAnyBitvecCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"(_ BitVec ?)")
+    }
+  def bitvec2[T](e1: Expr[Pre], e2: Expr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    val (e1c, t) = bitvec(e1)
+    val e2c = coerce(e2, t)
+    f(e1c, e2c)
+  }
+  def fp(e: Expr[Pre]): (Expr[Pre], TSmtlibFloatingPoint[Pre]) =
+    CoercionUtils.getAnySmtlibFloatCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"")
+    }
+  def fp2[T](e1: Expr[Pre], e2: Expr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    val (e1c, t) = fp(e1)
+    val e2c = coerce(e2, t)
+    f(e1c, e2c)
+  }
 
   def firstOkHelper[T](thing: Either[Seq[CoercionError], T], onError: => T): Either[Seq[CoercionError], T] =
     thing match {
@@ -1243,6 +1266,101 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Size(sized(obj)._1)
       case Slice(xs, from, to) =>
         Slice(seq(xs)._1, int(from), int(to))
+      case SmtlibBitvecLiteral(data) => SmtlibBitvecLiteral(data)
+      case SmtlibBvAdd(left, right) => bitvec2(left, right, SmtlibBvAdd(_, _))
+      case SmtlibBvAnd(left, right) => bitvec2(left, right, SmtlibBvAnd(_, _))
+      case SmtlibBvMul(left, right) => bitvec2(left, right, SmtlibBvMul(_, _))
+      case SmtlibBvNeg(bv) => SmtlibBvNeg(bitvec(bv)._1)
+      case SmtlibBvNot(bv) => SmtlibBvNot(bitvec(bv)._1)
+      case SmtlibBvOr(left, right) => bitvec2(left, right, SmtlibBvOr(_, _))
+      case SmtlibBvShl(left, right) => bitvec2(left, right, SmtlibBvShl(_, _))
+      case SmtlibBvShr(left, right) => bitvec2(left, right, SmtlibBvShr(_, _))
+      case SmtlibBvUDiv(left, right) => bitvec2(left, right, SmtlibBvUDiv(_, _))
+      case SmtlibBvULt(left, right) => bitvec2(left, right, SmtlibBvULt(_, _))
+      case SmtlibBvURem(left, right) => bitvec2(left, right, SmtlibBvURem(_, _))
+      case SmtlibConcat(left, right) => bitvec2(left, right, SmtlibConcat(_, _))
+      case SmtlibExtract(inclusiveEndIndexFromRight, startIndexFromRight, bv) =>
+        SmtlibExtract(inclusiveEndIndexFromRight, startIndexFromRight, bitvec(bv)._1)
+      case SmtlibFp(sign, exponent, mantissa) =>
+        SmtlibFp(coerce(sign, TSmtlibBitVector(1)), bitvec(exponent)._1, bitvec(mantissa)._1)
+      case SmtlibFpAbs(arg) => SmtlibFpAbs(fp(arg)._1)
+      case SmtlibFpAdd(left, right) => fp2(left, right, SmtlibFpAdd(_, _))
+      case SmtlibFpCast(arg, exponentBits, mantissaAndSignBits) =>
+        SmtlibFpCast(fp(arg)._1, exponentBits, mantissaAndSignBits)
+      case SmtlibFpDiv(left, right) => fp2(left, right, SmtlibFpDiv(_, _))
+      case SmtlibFpEq(left, right) => fp2(left, right, SmtlibFpEq(_, _))
+      case SmtlibFpFma(left, right, addend) =>
+        val (leftc, t) = fp(left)
+        SmtlibFpFma(left, coerce(right, t), coerce(addend, t))
+      case SmtlibFpFromReal(arg) => SmtlibFpFromReal(rat(arg))
+      case SmtlibFpFromSInt(bv) => SmtlibFpFromSInt(bitvec(bv)._1)
+      case SmtlibFpFromUInt(bv) => SmtlibFpFromUInt(bv)
+      case SmtlibFpGeq(left, right) => fp2(left, right, SmtlibFpGeq(_, _))
+      case SmtlibFpGt(left, right) => fp2(left, right, SmtlibFpGt(_, _))
+      case SmtlibFpIsInfinite(arg) => SmtlibFpIsInfinite(arg)
+      case SmtlibFpIsNaN(arg) => SmtlibFpIsNaN(arg)
+      case SmtlibFpIsNegative(arg) => SmtlibFpIsNegative(arg)
+      case SmtlibFpIsNormal(arg) => SmtlibFpIsNormal(arg)
+      case SmtlibFpIsPositive(arg) => SmtlibFpIsPositive(arg)
+      case SmtlibFpIsSubnormal(arg) => SmtlibFpIsSubnormal(arg)
+      case SmtlibFpIsZero(arg) => SmtlibFpIsZero(arg)
+      case SmtlibFpLeq(left, right) => fp2(left, right, SmtlibFpLeq(_, _))
+      case SmtlibFpLt(left, right) => fp2(left, right, SmtlibFpLt(_, _))
+      case SmtlibFpMax(left, right) => fp2(left, right, SmtlibFpMax(_, _))
+      case SmtlibFpMin(left, right) => fp2(left, right, SmtlibFpMin(_, _))
+      case SmtlibFpMul(left, right) => fp2(left, right, SmtlibFpMul(_, _))
+      case SmtlibFpNeg(arg) => SmtlibFpNeg(arg)
+      case SmtlibFpRem(left, right) => fp2(left, right, SmtlibFpRem(_, _))
+      case SmtlibFpRoundToIntegral(arg) => SmtlibFpRoundToIntegral(arg)
+      case SmtlibFpSqrt(arg) => SmtlibFpSqrt(arg)
+      case SmtlibFpSub(left, right) => fp2(left, right, SmtlibFpSub(_, _))
+      case SmtlibFpToReal(arg) => SmtlibFpToReal(arg)
+      case SmtlibFpToSInt(arg) => SmtlibFpToSInt(arg)
+      case SmtlibFpToUInt(arg) => SmtlibFpToUInt(arg)
+      case SmtlibLiteralString(data) => SmtlibLiteralString(data)
+      case SmtlibReAll() => SmtlibReAll()
+      case SmtlibReAllChar() => SmtlibReAllChar()
+      case SmtlibReComp(arg) => SmtlibReComp(arg)
+      case SmtlibReConcat() => SmtlibReConcat()
+      case SmtlibReContains(re, str) => SmtlibReContains(re, str)
+      case SmtlibReDiff(left, right) => SmtlibReDiff(left, right)
+      case SmtlibReFromStr(arg) => SmtlibReFromStr(arg)
+      case SmtlibReInter() => SmtlibReInter()
+      case SmtlibReNone() => SmtlibReNone()
+      case SmtlibReOpt(arg) => SmtlibReOpt(arg)
+      case SmtlibRePlus(arg) => SmtlibRePlus(arg)
+      case SmtlibReRange(left, right) => SmtlibReRange(left, right)
+      case SmtlibReRepeat(count, arg) => SmtlibReRepeat(count, arg)
+      case SmtlibReRepeatRange(from, to, arg) => SmtlibReRepeatRange(from, to, arg)
+      case SmtlibReStar() => SmtlibReStar()
+      case SmtlibReUnion() => SmtlibReUnion()
+      case SmtlibRNA() => SmtlibRNA()
+      case SmtlibRNE() => SmtlibRNE()
+      case SmtlibRTN() => SmtlibRTN()
+      case SmtlibRTP() => SmtlibRTP()
+      case SmtlibRTZ() => SmtlibRTZ()
+      case SmtlibSelect(arr, i) => SmtlibSelect(arr, i)
+      case SmtlibStore(arr, i, x) => SmtlibStore(arr, i, x)
+      case SmtlibStrAt(str, i) => SmtlibStrAt(str, i)
+      case SmtlibStrConcat(left, right) => SmtlibStrConcat(left, right)
+      case SmtlibStrContains(left, right) => SmtlibStrContains(left, right)
+      case SmtlibStrFromCode(arg) => SmtlibStrFromCode(arg)
+      case SmtlibStrFromInt(arg) => SmtlibStrFromInt(arg)
+      case SmtlibStrIndexOf(haystack, needle, fromIndex) => SmtlibStrIndexOf(haystack, needle, fromIndex)
+      case SmtlibStrIsDigit(arg) => SmtlibStrIsDigit(arg)
+      case SmtlibStrLen(arg) => SmtlibStrLen(arg)
+      case SmtlibStrLeq(left, right) => SmtlibStrLeq(left, right)
+      case SmtlibStrLt(left, right) => SmtlibStrLt(left, right)
+      case SmtlibStrPrefixOf(left, right) => SmtlibStrPrefixOf(left, right)
+      case SmtlibStrReplace(haystack, needle, replacement) => SmtlibStrReplace(haystack, needle, replacement)
+      case SmtlibStrReplaceAll(haystack, needle, replacement) => SmtlibStrReplaceAll(haystack, needle, replacement)
+      case SmtlibStrReplaceRe(haystack, re, replacement) => SmtlibStrReplaceRe(haystack, re, replacement)
+      case SmtlibStrReplaceReAll(haystack, re, replacement) => SmtlibStrReplaceReAll(haystack, re, replacement)
+      case SmtlibStrSuffixOf(left, right) => SmtlibStrSuffixOf(left, right)
+      case SmtlibStrToCode(arg) => SmtlibStrToCode(arg)
+      case SmtlibStrToInt(arg) => SmtlibStrToInt(arg)
+      case SmtlibSubstr(str, i, n) => SmtlibSubstr(str, i, n)
+      case SmtlibToFp(bv) => SmtlibToFp(bv)
       case Star(left, right) =>
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
@@ -1336,6 +1454,32 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+      case Z3ArrayConst(domain, codomain, value) => Z3ArrayConst(domain, codomain, value)
+      case Z3ArrayMap(ref, args) => Z3ArrayMap(ref, args)
+      case Z3ArrayOfFunction(ref) => Z3ArrayOfFunction(ref)
+      case Z3BvNand(left, right) => Z3BvNand(left, right)
+      case Z3BvNor(left, right) => Z3BvNor(left, right)
+      case Z3BvSMod(left, right) => Z3BvSMod(left, right)
+      case Z3BvSRem(left, right) => Z3BvSRem(left, right)
+      case Z3BvSShr(left, right) => Z3BvSShr(left, right)
+      case Z3BvSub(left, right) => Z3BvSub(left, right)
+      case Z3BvXnor(left, right) => Z3BvXnor(left, right)
+      case Z3SeqAt(seq, offset) => Z3SeqAt(seq, offset)
+      case Z3SeqConcat(left, right) => Z3SeqConcat(left, right)
+      case Z3SeqContains(seq, subseq) => Z3SeqContains(seq, subseq)
+      case Z3SeqEmpty(elementType) => Z3SeqEmpty(elementType)
+      case Z3SeqExtract(seq, offset, len) => Z3SeqExtract(seq, offset, len)
+      case Z3SeqFoldl(f, base, seq) => Z3SeqFoldl(f, base, seq)
+      case Z3SeqFoldlI(f, offset, base, seq) => Z3SeqFoldlI(f, offset, base, seq)
+      case Z3SeqLen(arg) => Z3SeqLen(arg)
+      case Z3SeqMap(f, seq) => Z3SeqMap(f, seq)
+      case Z3SeqMapI(f, seq) => Z3SeqMapI(f, seq)
+      case Z3SeqNth(seq, offset) => Z3SeqNth(seq, offset)
+      case Z3SeqPrefixOf(pre, subseq) => Z3SeqPrefixOf(pre, subseq)
+      case Z3SeqReplace(haystack, needle, replacement) => Z3SeqReplace(haystack, needle, replacement)
+      case Z3SeqSuffixOf(post, seq) => Z3SeqSuffixOf(post, seq)
+      case Z3SeqUnit(arg) => Z3SeqUnit(arg)
+      case Z3TransitiveClosure(ref, args) => Z3TransitiveClosure(ref, args)
       case VeyMontCondition(c) => VeyMontCondition(c)
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
@@ -1837,4 +1981,5 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
+  def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 }

@@ -5,5 +5,6 @@ import vct.col.ast.Type
 import vct.col.print._
 
 trait SmtlibRNEImpl[G] { this: SmtlibRNE[G] =>
+  override def t: Type[G] = ???
   // def layout(implicit ctx: Ctx): Doc = ???
 }

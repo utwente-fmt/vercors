@@ -828,7 +828,7 @@ case class Z3ArrayConst[G](domain: Type[G], codomain: Type[G], value: Expr[G])(i
 case class Z3ArrayOfFunction[G](ref: SmtlibFunctionSymbol[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3ArrayOfFunctionImpl[G]
 case class Z3ArrayMap[G](ref: SmtlibFunctionSymbol[G], args: Seq[Expr[G]])(implicit val o: Origin) extends SmtlibExpr[G] with Z3ArrayMapImpl[G]
 
-case class Z3SeqEmpty[G](t: Type[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqEmptyImpl[G]
+case class Z3SeqEmpty[G](elementType: Type[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqEmptyImpl[G]
 case class Z3SeqUnit[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqUnitImpl[G]
 case class Z3SeqConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqConcatImpl[G]
 case class Z3SeqLen[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqLenImpl[G]
