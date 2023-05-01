@@ -29,7 +29,7 @@ sudo dpkg -i Vercors_x.y.z_all.deb
 VerCors should now be on the path:
 
 ```shell script
-$ vercors /usr/share/vercors/examples/manual/array.pvl
+$ vercors /usr/share/vercors/examples/concepts/arrays/array.pvl
 [INFO] Starting verification
 [INFO] Verification completed successfully.
 ```
@@ -46,7 +46,7 @@ This should install the latest release of OpenJDK. Clang should already be insta
 Obtain the latest `tgz` release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest) and unpack it. You can find the run script for VerCors in the `bin` subdirectory:
 
 ```shell script
-$ ./bin/vercors examples/manual/array.pvl
+$ ./bin/vercors examples/concepts/arrays/array.pvl
 [INFO] Starting verification
 [INFO] Verification completed successfully.
 ```
@@ -62,7 +62,7 @@ You can obtain a java runtime environment e.g. [here](https://jdk.java.net). Mak
 Next, download the latest zip release of VerCors [here](https://github.com/utwente-fmt/vercors/releases/latest) and unzip it. You can find the batch script for VerCors in the `bin` subdirectory:
 
 ```shell script
-> bin\vercors.bat examples\manual\array.pvl
+> bin\vercors.bat examples\concepts\arrays\array.pvl
 [INFO] Starting verification
 [INFO] Verification completed successfully.
 ```
