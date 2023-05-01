@@ -286,4 +286,10 @@ case object CoercionUtils {
     case t: TSmtlibFloatingPoint[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
+
+  def getAnySmtlibArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibArray[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibArrayCoercion)
+    case t: TSmtlibArray[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
 }
