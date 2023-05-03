@@ -5,6 +5,8 @@ import vct.col.check._
 import vct.col.origin._
 import vct.col.print._
 import vct.col.ref.Ref
+import vct.result.VerificationError
+import vct.col.util.CurrentCheckNodeContext
 
 import scala.runtime.ScalaRunTime
 
@@ -49,7 +51,9 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     if(childrenErrors.nonEmpty) {
       childrenErrors
     } else {
-      check(context)
+      VerificationError.context(CurrentCheckNodeContext(this)) {
+        check(context)
+      }
     }
   }
 
@@ -122,4 +126,6 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     implicit val ctx = Ctx().namesIn(this).copy(width = Int.MaxValue)
     Group(show).toStringWithContext
   }
+
+
 }
