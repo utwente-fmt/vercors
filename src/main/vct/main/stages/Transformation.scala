@@ -166,7 +166,6 @@ case class SilverTransformation
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    DeserializeLLVMOrigin,
     ComputeBipGlue,
     InstantiateBipSynchronizations,
     EncodeBipPermissions,

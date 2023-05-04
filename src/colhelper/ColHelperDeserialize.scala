@@ -64,7 +64,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
 
   def makeNodeDeserialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
-      ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin(node.origin)", q"Deserialize.Origin(node.origin)")}
+      ${defn.make(defn.params.map(deserializeParam(defn)), q"LLVMOrigin(Deserialize.Origin(node.origin))", q"LLVMOrigin(Deserialize.Origin(node.origin))")}
   """)
 
   def makeDeserialize(): List[Stat] = q"""
@@ -72,6 +72,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import vct.col.ref.LazyRef
     import scala.collection.mutable
     import scala.reflect.ClassTag
+    import vct.col.origin.LLVMOrigin
 
     object Deserialize {
       case class Origin(stringOrigin:String="{}") extends vct.col.origin.Origin {
