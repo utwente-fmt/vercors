@@ -8,18 +8,17 @@ import $file.git
 import mill._
 import git.GitModule
 
-object silverGit extends
-  GitModule {
+object silverGit extends GitModule {
   def url = T { "https://github.com/viperproject/silver.git" }
-  def commitish = T { "d6161459c32f58c47c162a467ea675fdfac8fd17" }
+  def commitish = T { "ae4a12399cd0b42bedabf01be2cda93700244bd6" }
 }
 
 object siliconGit extends GitModule {
   def url = T { "https://github.com/viperproject/silicon.git" }
-  def commitish = T { "fe9222fb269d41ab94e642c2ab89e8ceae1903b1" }
+  def commitish = T { "a60324dd46923b861bae7b4a40f807227d693fc3" }
 }
 
 object carbonGit extends GitModule {
   def url = T { "https://github.com/viperproject/carbon.git" }
-  def commitish = T { "e78947392eaf2bcc565a92d1bf7928b2baaf3a51" }
+  def commitish = T { "ba130077713a427213a331a3dc1d92898b4bdf9e" }
 }
