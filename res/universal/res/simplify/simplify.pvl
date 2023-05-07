@@ -42,7 +42,9 @@ axiom mod_self { (∀int i; i % i == (0 then 1 % i;)) }
 axiom mod_one { (∀int i; i % 1 == 0) }
 axiom zero_mod { (∀int i; 0 % i == (0 then 1 % i;)) }
 
+/*
 axiom mod_def { (∀int num, int denom; (num/denom)*denom + (num%denom) == (num then 1/denom;)) }
+*/
 
 axiom not_true { !true == false }
 axiom not_false { !false == true }
@@ -101,8 +103,10 @@ axiom collapse_nested_implies {
     (a ==> b ==> c) == ((a && b) ==> c))
 }
 
+/*
 axiom push_implies_and { (∀boolean a, boolean b, boolean c; (a ==> b && c) == ((a ==> b) && (a ==> c))) }
 axiom push_implies_star { (∀boolean a, resource b, resource c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
+*/
 
 axiom select_def { (∀boolean cond; (cond ? true : false) == cond) }
 axiom select_inv_def { (∀boolean cond; (cond ? false : true) == !cond) }

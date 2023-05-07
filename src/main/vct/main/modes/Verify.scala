@@ -80,7 +80,7 @@ case object Verify extends LazyLogging {
         friendlyHandleBipReport(report, options.bipReportFile)
         EXIT_CODE_SUCCESS
       case Right((fails, report)) =>
-        if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
+        if((options.more || fails.size <= 2) && !options.table) fails.foreach(fail => logger.error(fail.desc))
         else {
           logger.info("Printing verification results as a compressed table. Run with `--more` for verbose verification results.")
           logger.error(TableEntry.render(fails.map(_.asTableEntry)))

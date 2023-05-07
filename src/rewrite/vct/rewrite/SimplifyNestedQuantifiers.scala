@@ -75,8 +75,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
               case _ =>
             }
             res
-          case Some(newE)
-            => newE
+          case Some(newE) =>
+            newE match {
+              case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+              case Forall(vars, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
+                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+              case _ =>
+            }
+            newE
         }
       case other => rewriteDefault(other)
     }

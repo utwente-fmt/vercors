@@ -84,6 +84,9 @@ case object Options {
       opt[Unit]("more").abbr("m")
         .action((_, c) => c.copy(more = true))
         .text("Always print the maximum amount of information about errors."),
+      opt[Unit]("table")
+        .action((_, c) => c.copy(table = true))
+        .text("Always information about errors in table format."),
       opt[Language]("lang").valueName(ReadLanguage.valueName)
         .action((lang, c) => c.copy(language = Some(lang)))
         .text("Do not detect the language from the file extension, but force a specific language parser for all files"),
@@ -323,6 +326,7 @@ case class Options
   progress: Boolean = false,
   profile: Boolean = false,
   more: Boolean = false,
+  table: Boolean = false,
 
   // Verify Options
   language: Option[Language] = None,
