@@ -1,6 +1,8 @@
 package vct.col.print
 
 import vct.col.ast.Node
+import vct.col.origin.InputOrigin.LINE_NUMBER_WIDTH
+import vct.col.origin.Origin
 
 import java.lang
 import scala.annotation.tailrec
@@ -197,30 +199,39 @@ sealed trait Doc extends Show {
     })
 
   def highlight(node: Node[_])(implicit ctx: Ctx): String = {
-    val (prefix, rest) = lines.span(!_.contains(EStart(node)))
-    val (highlightInit, rest1) = rest.span(!_.contains(EEnd(node)))
+    val lineNumber = (line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d ", line)
+
+    val (prefix, rest)= lines.zipWithIndex.span(!_._1.contains(EStart(node)))
+    val (highlightInit, rest1) = rest.span(!_._1.contains(EEnd(node)))
     val highlight = highlightInit :+ rest1.head
     val suffix = rest1.tail
     val sb = new lang.StringBuilder()
-    prefix.takeRight(2).foreach { line =>
-      line.foreach(_.write(sb))
+    sb.append("\n")
+    sb.append(Origin.BOLD_HR)
+    prefix.takeRight(2).foreach { lineWithIndex =>
+      sb.append(lineNumber(lineWithIndex._2 + 1))
+      lineWithIndex._1.foreach(_.write(sb))
       sb.append("\n")
     }
-    val indicatorStart = lazyListLen(highlight.head.takeWhile(_ != EStart(node)))
-    val indicatorEnd = lazyListLen(highlight.head.takeWhile(_ != EEnd(node)))
-    sb.append(" ".repeat(indicatorStart-1)).append("[").append("-".repeat(indicatorEnd-indicatorStart))
-    highlight.foreach { line =>
+    val indicatorStart = lazyListLen(highlight.map(_._1).head.takeWhile(_ != EStart(node)))
+    val indicatorEnd = lazyListLen(highlight.map(_._1).head.takeWhile(_ != EEnd(node)))
+    sb.append(" ".repeat(indicatorStart + LINE_NUMBER_WIDTH)).append("[").append("-".repeat(indicatorEnd-indicatorStart))
+    highlight.foreach { lineWithIndex =>
       sb.append("\n")
-      line.foreach(_.write(sb))
+      sb.append(lineNumber(lineWithIndex._2 + 1))
+      lineWithIndex._1.foreach(_.write(sb))
     }
     val endIndicatorStart = if (highlight.size == 1) indicatorStart else 0
-    val endIndicatorEnd = lazyListLen(highlight.last.takeWhile(_ != EEnd(node)))
+    val endIndicatorEnd = lazyListLen(highlight.map(_._1).last.takeWhile(_ != EEnd(node)))
     sb.append("\n")
-    sb.append(" ".repeat(endIndicatorStart)).append("-".repeat(endIndicatorEnd - endIndicatorStart)).append("]")
-    suffix.take(2).foreach { line =>
+    sb.append(" ".repeat(endIndicatorStart + LINE_NUMBER_WIDTH + 1)).append("-".repeat(endIndicatorEnd - endIndicatorStart)).append("]")
+    suffix.take(2).foreach { lineWithIndex =>
       sb.append("\n")
-      line.foreach(_.write(sb))
+      sb.append(lineNumber(lineWithIndex._2 + 1))
+      lineWithIndex._1.foreach(_.write(sb))
     }
+    sb.append("\n")
+    sb.append(Origin.BOLD_HR)
     sb.toString
   }
 }
