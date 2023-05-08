@@ -13,7 +13,7 @@ object TimeTravel {
   }
 
   case class CauseWithBadEffect(effect: VerificationError) extends SystemError {
-    override def text: String = s"This trace causes an error later on: ${effect.getMessage}"
+    override def text: String = s"This trace causes an error later on: \n${effect.getMessage}"
   }
 
   private val causeIndex: ThreadLocal[Long] = ThreadLocal.withInitial(() => 0L)
@@ -33,7 +33,13 @@ object TimeTravel {
       case r @ RepeatUntilCause(idx, t) if idx >= start =>
         t.contexts ++= r.contexts
         causeIndex.set(start)
-        repeatingUntil.having((idx, t)) { f }
+        try {
+          repeatingUntil.having((idx, t)) { f }
+        } catch {
+          case c @ CauseWithBadEffect(effect) =>
+            effect.contexts ++= c.contexts
+            throw c
+        }
     }
   }
 

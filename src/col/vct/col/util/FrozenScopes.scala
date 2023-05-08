@@ -4,6 +4,7 @@ import hre.debug.TimeTravel
 import vct.col.ast.Declaration
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.SuccessorProvider
+import vct.result.VerificationError
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -21,7 +22,9 @@ class FrozenScopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declarati
   override def computeSucc(decl: PreDecl): Option[PostDecl] = scopes.collectFirst { case m if m.contains(decl) => m(decl) }
 
   override def succ[RefDecl <: Declaration[Post]](decl: PreDecl)(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
-    TimeTravel.cause { causeIdx =>
-      new LazyRef(computeSucc(decl).getOrElse(TimeTravel.badEffect(causeIdx, throw Scopes.NoSuccessor(decl))), Some(EqualityMeasure(this, decl)))
+    VerificationError.context(ConstructingSuccessorOfContext(decl)) {
+      TimeTravel.cause { causeIdx =>
+        new LazyRef(computeSucc(decl).getOrElse(TimeTravel.badEffect(causeIdx, throw Scopes.NoSuccessor(decl))), Some(EqualityMeasure(this, decl)))
+      }
     }
 }

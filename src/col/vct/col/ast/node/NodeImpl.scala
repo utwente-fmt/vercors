@@ -2,6 +2,7 @@ package vct.col.ast.node
 
 import vct.col.ast._
 import vct.col.check._
+import vct.col.origin.Origin.{BOLD_HR, HR}
 import vct.col.origin._
 import vct.col.print._
 import vct.col.ref.Ref
@@ -128,4 +129,8 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   }
 
 
+  def messageInContext(node: Node[_], message: String): String = {
+    implicit val ctx: Ctx = Ctx().namesIn(this)
+    BOLD_HR + this.show.highlight(node).strip() + "\n" + HR + message + "\n" + BOLD_HR
+  }
 }

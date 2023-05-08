@@ -3,6 +3,7 @@ package vct.col.print
 import vct.col.ast.Node
 import vct.col.origin.InputOrigin.LINE_NUMBER_WIDTH
 import vct.col.origin.Origin
+import vct.col.origin.Origin.{BOLD_HR, HR}
 
 import java.lang
 import scala.annotation.tailrec
@@ -66,6 +67,14 @@ case object Doc {
       if (d.nonEmpty) Text("/*@") <+/> d <+/> "@*/"
       else Empty
     }
+
+  def messagesInContext(messages: Seq[(Node[_], Node[_], String)]): String = {
+    messages.zipWithIndex.map {
+      case ((outerNode, highlight, message), idx) =>
+        implicit val ctx: Ctx = Ctx().namesIn(outerNode)
+        outerNode.show.highlight(highlight) + "\n" + HR + s"[${idx + 1}/${messages.size}] $message\n"
+    }.mkString(BOLD_HR, HR, BOLD_HR)
+  }
 }
 
 /**
@@ -198,6 +207,8 @@ sealed trait Doc extends Show {
       case other => other
     })
 
+
+
   def highlight(node: Node[_])(implicit ctx: Ctx): String = {
     val lineNumber = (line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d ", line)
 
@@ -206,8 +217,6 @@ sealed trait Doc extends Show {
     val highlight = highlightInit :+ rest1.head
     val suffix = rest1.tail
     val sb = new lang.StringBuilder()
-    sb.append("\n")
-    sb.append(Origin.BOLD_HR)
     prefix.takeRight(2).foreach { lineWithIndex =>
       sb.append(lineNumber(lineWithIndex._2 + 1))
       lineWithIndex._1.foreach(_.write(sb))
@@ -230,8 +239,6 @@ sealed trait Doc extends Show {
       sb.append(lineNumber(lineWithIndex._2 + 1))
       lineWithIndex._1.foreach(_.write(sb))
     }
-    sb.append("\n")
-    sb.append(Origin.BOLD_HR)
     sb.toString
   }
 }
