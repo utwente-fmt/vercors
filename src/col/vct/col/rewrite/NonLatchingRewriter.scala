@@ -2,11 +2,16 @@ package vct.col.rewrite
 
 import hre.debug.TimeTravel
 import vct.col.ast._
+import vct.col.util.CurrentProgramRewriteContext
+import vct.result.VerificationError
 
 class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(context: Verification[Pre]): Verification[Post] = rewriteDefault(context)
   override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(context)
-  override def dispatch(program: Program[Pre]): Program[Post] = rewriteDefault(program)
+  override def dispatch(program: Program[Pre]): Program[Post] =
+    VerificationError.context(CurrentProgramRewriteContext(program)) {
+      rewriteDefault(program)
+    }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
   override def dispatch(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)

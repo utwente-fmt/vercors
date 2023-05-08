@@ -140,7 +140,6 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
       cls.declarations.foreach(classOwner(_) = cls)
     }
-
     rewriteDefault(program)
   }
 
