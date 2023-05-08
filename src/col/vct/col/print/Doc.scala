@@ -212,11 +212,20 @@ sealed trait Doc extends Show {
   def highlight(node: Node[_])(implicit ctx: Ctx): String = {
     val lineNumber = (line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d ", line)
 
+    val sb = new lang.StringBuilder()
     val (prefix, rest)= lines.zipWithIndex.span(!_._1.contains(EStart(node)))
     val (highlightInit, rest1) = rest.span(!_._1.contains(EEnd(node)))
+    if (rest1.isEmpty) {
+      sb.append("⋱\n")
+      node.show(ctx.namesIn(node)).lines.foreach { line =>
+        sb.append("  ")
+        line.foreach(_.write(sb))
+      }
+      sb.append("\n⋰")
+      return sb.toString
+    }
     val highlight = highlightInit :+ rest1.head
     val suffix = rest1.tail
-    val sb = new lang.StringBuilder()
     prefix.takeRight(2).foreach { lineWithIndex =>
       sb.append(lineNumber(lineWithIndex._2 + 1))
       lineWithIndex._1.foreach(_.write(sb))
