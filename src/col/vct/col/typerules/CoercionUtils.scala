@@ -292,4 +292,10 @@ case object CoercionUtils {
     case t: TSmtlibArray[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
+
+  def getAnySmtlibSeqCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibSeq[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibSeqCoercion)
+    case t: TSmtlibSeq[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
 }

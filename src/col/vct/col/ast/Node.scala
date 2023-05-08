@@ -705,22 +705,22 @@ final case class ModelPerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origi
 final case class ActionPerm[G](loc: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with ActionPermImpl[G]
 
 sealed trait SmtlibType[G] extends Type[G]
-case class TSmtlibArray[G](index: Type[G], value: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
+case class TSmtlibArray[G](index: Seq[Type[G]], value: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 case class TSmtlibBitVector[G](size: Int)(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 case class TSmtlibRoundingMode[G]()(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 case class TSmtlibFloatingPoint[G](exponentBits: Int, mantissaAndSignBits: Int)(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 case class TSmtlibString[G]()(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 case class TSmtlibRegLan[G]()(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 // Non-standard Z3 extensions
-case class TSmtlibSeq[G]()(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
+case class TSmtlibSeq[G](element: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
 
 sealed trait SmtlibFunctionSymbol[G] extends NodeFamily[G] with SmtlibFunctionSymbolImpl[G]
 case class SmtlibADTFunctionSymbol[G](ref: Ref[G, ADTFunction[G]])(implicit val o: Origin) extends SmtlibFunctionSymbol[G]
 case class SmtlibProverFunctionSymbol[G](ref: Ref[G, ProverFunction[G]])(implicit val o: Origin) extends SmtlibFunctionSymbol[G]
 
 sealed trait SmtlibExpr[G] extends Expr[G]
-case class SmtlibSelect[G](arr: Expr[G], i: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibSelectImpl[G]
-case class SmtlibStore[G](arr: Expr[G], i: Expr[G], x: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibStoreImpl[G]
+case class SmtlibSelect[G](arr: Expr[G], is: Seq[Expr[G]])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibSelectImpl[G]
+case class SmtlibStore[G](arr: Expr[G], is: Seq[Expr[G]], x: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibStoreImpl[G]
 
 case class SmtlibBitvecLiteral[G](data: BitString)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibBitvecLiteralImpl[G]
 case class SmtlibConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibConcatImpl[G]
@@ -768,7 +768,7 @@ case class SmtlibFpIsInfinite[G](arg: Expr[G])(implicit val o: Origin) extends S
 case class SmtlibFpIsNaN[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpIsNaNImpl[G]
 case class SmtlibFpIsNegative[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpIsNegativeImpl[G]
 case class SmtlibFpIsPositive[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpIsPositiveImpl[G]
-case class SmtlibToFp[G](bv: Expr[G], exponentBits: int, mantissaAndSignBits: Int)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibToFpImpl[G]
+case class SmtlibToFp[G](bv: Expr[G], exponentBits: Int, mantissaAndSignBits: Int)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibToFpImpl[G]
 case class SmtlibFpCast[G](arg: Expr[G], exponentBits: Int, mantissaAndSignBits: Int)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpCastImpl[G]
 case class SmtlibFpFromReal[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpFromRealImpl[G]
 case class SmtlibFpFromSInt[G](bv: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpFromSIntImpl[G]
@@ -824,7 +824,7 @@ case class Z3BvNand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) ex
 case class Z3BvNor[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3BvNorImpl[G]
 case class Z3BvXnor[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3BvXnorImpl[G]
 
-case class Z3ArrayConst[G](domain: Type[G], codomain: Type[G], value: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3ArrayConstImpl[G]
+case class Z3ArrayConst[G](domain: Seq[Type[G]], codomain: Type[G], value: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3ArrayConstImpl[G]
 case class Z3ArrayOfFunction[G](ref: SmtlibFunctionSymbol[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3ArrayOfFunctionImpl[G]
 case class Z3ArrayMap[G](ref: SmtlibFunctionSymbol[G], args: Seq[Expr[G]])(implicit val o: Origin) extends SmtlibExpr[G] with Z3ArrayMapImpl[G]
 
@@ -840,7 +840,7 @@ case class Z3SeqPrefixOf[G](pre: Expr[G], subseq: Expr[G])(implicit val o: Origi
 case class Z3SeqSuffixOf[G](post: Expr[G], seq: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqSuffixOfImpl[G]
 case class Z3SeqReplace[G](haystack: Expr[G], needle: Expr[G], replacement: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqReplaceImpl[G]
 case class Z3SeqMap[G](f: Expr[G], seq: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqMapImpl[G]
-case class Z3SeqMapI[G](f: Expr[G], seq: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqMapIImpl[G]
+case class Z3SeqMapI[G](f: Expr[G], offset: Expr[G], seq: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqMapIImpl[G]
 case class Z3SeqFoldl[G](f: Expr[G], base: Expr[G], seq: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqFoldlImpl[G]
 case class Z3SeqFoldlI[G](f: Expr[G], offset: Expr[G], base: Expr[G], seq: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with Z3SeqFoldlIImpl[G]
 
