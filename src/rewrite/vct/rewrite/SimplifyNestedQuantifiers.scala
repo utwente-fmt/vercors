@@ -69,18 +69,18 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             val res = rewriteDefault(e)
             res match {
               case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+                logger.warn(f"The binder `${e.o.shortPosition}`:`${e.toInlineString}` contains no triggers")
               case Forall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+                logger.warn(f"The binder `${e.o.shortPosition}`:`${e.toInlineString}` contains no triggers")
               case _ =>
             }
             res
           case Some(newE) =>
             newE match {
               case Starall(_, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+                logger.warn(f"The binder `${e.o.shortPosition}`:`${e.toInlineString}` contains no triggers")
               case Forall(vars, Nil, body) if !body.exists { case InlinePattern(_, _, _) => true } =>
-                logger.warn(f"The binder `${e.toInlineString}` contains no triggers")
+                logger.warn(f"The binder `${e.o.shortPosition}`:`${e.toInlineString}` contains no triggers")
               case _ =>
             }
             newE

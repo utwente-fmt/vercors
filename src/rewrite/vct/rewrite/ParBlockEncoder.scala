@@ -263,7 +263,9 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     // TODO: Is this true??
 //    case _: Local[Post] => true
     case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)
-    case _ => false
+    case op: UnExpr[Post] => isConstant(op.arg)
+    case _ =>
+      false
   }
 
   def ranges(region: ParRegion[Pre], rangeValues: mutable.Map[Variable[Pre], (Expr[Post], Expr[Post])]): Statement[Post] = region match {
