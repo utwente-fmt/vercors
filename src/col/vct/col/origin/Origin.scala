@@ -387,12 +387,53 @@ case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
     case None => deserializeOrigin.preferredName
   }
 
-  override def context: String = parsedOrigin match {
+  def contextFragment: String = parsedOrigin match {
     case Some(o) => o.get("context") match {
       case Some(JsString(jsString)) => jsString
       case _ => deserializeOrigin.context
     }
     case None => deserializeOrigin.context
+  }
+
+  override def context: String = {
+    val atLine = f" At $shortPosition:\n"
+    if(contextFragment == inlineContext) {
+      atLine + Origin.HR + contextFragment
+    } else {
+      atLine + Origin.HR + markedInlineContext
+    }
+  }
+
+  def markedInlineContext:String  = {
+    val startIndex = contextFragment.indexOf(inlineContext)
+    val endIndex = startIndex + inlineContext.length
+
+    val startRowCol = indexToRowCol(contextFragment, startIndex)
+    val endRowCol = indexToRowCol(contextFragment, endIndex)
+
+    val lines = contextFragment.split('\n')
+    if(startRowCol._1 == endRowCol._1) { // origin only covers (part of) a single row
+      val highlight = " " * (startRowCol._2) + "[" + ("-" * (inlineContext.length - 2)).mkString + "]"
+      (lines.slice(0, startRowCol._1) ++
+        Seq(highlight) ++
+        Seq(lines(startRowCol._1)) ++
+        Seq(highlight) ++
+        lines.slice(startRowCol._1 + 1, lines.length)).mkString("\n")
+    } else { // origin spans multiple lines, just mark the lines
+      val highlight = "[" + ("-" * (lines.map(s => s.length).max - 2)).mkString + "]"
+      (lines.slice(0, startRowCol._1) ++
+        Seq(highlight) ++
+          lines.slice(startRowCol._1, endRowCol._1 + 1) ++
+        Seq(highlight) ++
+          lines.slice(endRowCol._1 + 1, lines.length)).mkString("\n")
+    }
+  }
+
+  // assumes no tabs
+  def indexToRowCol(fragment:String, index:Int): (Int, Int) = {
+    val row = fragment.substring(0, index).count(c => c == '\n')
+    val col = fragment.substring(0, index).split('\n').last.length
+    (row, col)
   }
 
   override def inlineContext: String = parsedOrigin match {
