@@ -103,7 +103,9 @@ case class SuccessionMap[K, V <: Declaration[_]]() {
 
   def update(k: K, v: V): Unit = {
     k match {
-      case decl: Declaration[_] => decl.debugRewriteState = Succeeded
+      case decl: Declaration[_] =>
+        decl.debugRewriteState = Succeeded
+        decl.debugSuccessors += v
       case _ =>
     }
 

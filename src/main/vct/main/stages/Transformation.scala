@@ -15,6 +15,7 @@ import vct.col.rewrite.exc._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
 import vct.col.rewrite._
+import vct.debug.TransformationDiffChain
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
@@ -24,6 +25,11 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
 object Transformation {
+  trait Log {
+    def accept(afterPass: String, verification: Verification[_]): Unit
+    def finish(): Unit
+  }
+
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
     override def text: String =
       s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
@@ -56,6 +62,7 @@ object Transformation {
           adtImporter = PathAdtImporter(options.adtPath),
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
+          log = options.devDebugTransformation.map(new TransformationDiffChain(_)),
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
@@ -69,7 +76,8 @@ object Transformation {
       case Backend.Silicon | Backend.Carbon =>
         VeyMontTransformation(
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
-          onAfterPassKey = writeOutFunctions(options.outputAfterPass)
+          onAfterPassKey = writeOutFunctions(options.outputAfterPass),
+          log = options.devDebugTransformation.map(new TransformationDiffChain(_)),
         )
     }
 }
@@ -89,55 +97,64 @@ class Transformation
 (
   val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
   val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
-  val passes: Seq[RewriterBuilder]
+  val passes: Seq[RewriterBuilder],
+  val log: Option[Transformation.Log] = None,
 ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Transformation"
   override def progressWeight: Int = 10
 
   override def run(input: Verification[_ <: Generation]): Verification[_ <: Generation] = {
-    val tempUnsupported = Set[feature.Feature](
-      feature.MatrixVector,
-      feature.NumericReductionOperator,
-      feature.Models,
-    )
+    log.foreach(_.accept("", input))
 
-    feature.Feature.examples(input).foreach {
-      case (feature, examples) if tempUnsupported.contains(feature) =>
-        throw TemporarilyUnsupported(feature.getClass.getSimpleName.stripSuffix("$"), examples.toSeq)
-      case (_, _) =>
-    }
+    try {
+      val tempUnsupported = Set[feature.Feature](
+        feature.MatrixVector,
+        feature.NumericReductionOperator,
+        feature.Models,
+      )
 
-    TimeTravel.safelyRepeatable {
-      var result: Verification[_ <: Generation] = input
-
-      Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
-        onBeforePassKey.foreach {
-          case (key, action) => if (pass.key == key) action(result)
-        }
-
-        result = pass().dispatch(result)
-
-        result.check match {
-          case Nil => // ok
-          case errors => throw TransformationCheckError(pass, errors)
-        }
-
-        onAfterPassKey.foreach {
-          case (key, action) => if (pass.key == key) action(result)
-        }
-
-        result = PrettifyBlocks().dispatch(result)
+      feature.Feature.examples(input).foreach {
+        case (feature, examples) if tempUnsupported.contains(feature) =>
+          throw TemporarilyUnsupported(feature.getClass.getSimpleName.stripSuffix("$"), examples.toSeq)
+        case (_, _) =>
       }
 
-      for ((feature, examples) <- Feature.examples(result)) {
-        logger.debug(f"$feature:")
-        for (example <- examples.take(3)) {
-          logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
-          logger.debug(f"  ${example.getClass.getSimpleName}")
-        }
-      }
+      TimeTravel.safelyRepeatable {
+        var result: Verification[_ <: Generation] = input
 
-      result
+        Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
+          onBeforePassKey.foreach {
+            case (key, action) => if (pass.key == key) action(result)
+          }
+
+          result = pass().dispatch(result)
+
+          log.foreach(_.accept(pass.key, result))
+
+          onAfterPassKey.foreach {
+            case (key, action) => if (pass.key == key) action(result)
+          }
+
+          result.check match {
+            case Nil => // ok
+            case errors => throw TransformationCheckError(pass, errors)
+          }
+
+          result = PrettifyBlocks().dispatch(result)
+        }
+
+        for ((feature, examples) <- Feature.examples(result)) {
+          logger.debug(f"$feature:")
+          for (example <- examples.take(3)) {
+            logger.debug(f"${example.toString.takeWhile(_ != '\n')}")
+            logger.debug(f"  ${example.getClass.getSimpleName}")
+          }
+        }
+
+        result
+      }
+    } finally {
+      log.foreach(_.finish())
     }
   }
 }
@@ -160,6 +177,7 @@ case class SilverTransformation
   adtImporter: ImportADTImporter = PathAdtImporter(Resources.getAdtPath),
   override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+  override val log: Option[Transformation.Log] = None,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
   bipResults: BIP.VerificationResults,
@@ -288,7 +306,8 @@ case class SilverTransformation
   ))
 
 case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                 override val log: Option[Transformation.Log] = None)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     AddVeyMontAssignmentNodes,
     AddVeyMontConditionNodes,

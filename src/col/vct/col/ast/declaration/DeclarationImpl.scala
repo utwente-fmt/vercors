@@ -7,12 +7,15 @@ import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.InitialGeneration
 import vct.col.typerules.{CoercingRewriter, NopCoercingRewriter}
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 trait DeclarationImpl[G] { this: Declaration[G] =>
   var debugRewriteState: DebugRewriteState = NotProcessed
 
   def drop(): Unit = debugRewriteState = Dropped
+
+  val debugSuccessors: mutable.Set[Declaration[_]] = mutable.Set()
 
   /**
     * Create a Ref to this declaration. This is often useful in a place where the type of the ref can be directly

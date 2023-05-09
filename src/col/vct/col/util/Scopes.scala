@@ -69,8 +69,12 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declaratio
 
   def succeedOnly[T <: PostDecl](pre: PreDecl, post: T)(implicit tag: ClassTag[T]): T =
     successors.topOption match {
-      case Some(map) if !map.contains(pre) => map(pre) = post; post
-      case Some(map) => throw DuplicateSuccessor(pre, map(pre), post)
+      case Some(map) if !map.contains(pre) =>
+        map(pre) = post
+        pre.debugSuccessors += post
+        post
+      case Some(map) =>
+        throw DuplicateSuccessor(pre, map(pre), post)
       case None => throw NoScope(tag)
     }
 

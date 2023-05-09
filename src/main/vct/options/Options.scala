@@ -134,6 +134,9 @@ case object Options {
         .action((p, c) => c.copy(bipReportFile = Some(p)))
         .text("Write JavaBIP verification report to file, or standard out if \"-\" is used"),
 
+      opt[PathOrStd]("dev-debug-transformation").valueName("<path>")
+        .action((p, c) => c.copy(devDebugTransformation = Some(p)))
+        .text("Output a rendering of the transformation diff chain as an .svg file"),
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -355,6 +358,7 @@ case class Options
   bipReportFile: Option[PathOrStd] = None,
 
   // Verify options - hidden
+  devDebugTransformation: Option[PathOrStd] = None,
   devAbruptExc: Boolean = false,
   devCheckSat: Boolean = true,
   devSimplifyDebugIn: Seq[String] = Nil,
