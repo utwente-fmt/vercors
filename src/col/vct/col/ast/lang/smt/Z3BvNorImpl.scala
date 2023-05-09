@@ -5,6 +5,6 @@ import vct.col.ast.Type
 import vct.col.print._
 
 trait Z3BvNorImpl[G] { this: Z3BvNor[G] =>
-  override def t: Type[G] = ???
+  override def t: Type[G] = left.t
   // def layout(implicit ctx: Ctx): Doc = ???
 }

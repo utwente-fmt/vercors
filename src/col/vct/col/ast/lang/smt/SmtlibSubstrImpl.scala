@@ -1,10 +1,9 @@
 package vct.col.ast.lang.smt
 
-import vct.col.ast.SmtlibSubstr
-import vct.col.ast.Type
+import vct.col.ast.{SmtlibSubstr, TSmtlibString, Type}
 import vct.col.print._
 
 trait SmtlibSubstrImpl[G] { this: SmtlibSubstr[G] =>
-  override def t: Type[G] = ???
+  override def t: Type[G] = TSmtlibString()
   // def layout(implicit ctx: Ctx): Doc = ???
 }

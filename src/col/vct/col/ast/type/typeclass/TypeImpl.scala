@@ -26,6 +26,10 @@ trait TypeImpl[G] { this: Type[G] =>
   def asModel: Option[TModel[G]] = CoercionUtils.getAnyModelCoercion(this).map(_._2)
   def asClass: Option[TClass[G]] = CoercionUtils.getAnyClassCoercion(this).map(_._2)
   def asEither: Option[TEither[G]] = CoercionUtils.getAnyEitherCoercion(this).map(_._2)
+  def asBitvec: Option[TSmtlibBitVector[G]] = CoercionUtils.getAnyBitvecCoercion(this).map(_._2)
+  def asSmtlibFloat: Option[TSmtlibFloatingPoint[G]] = CoercionUtils.getAnySmtlibFloatCoercion(this).map(_._2)
+  def asSmtlibArray: Option[TSmtlibArray[G]] = CoercionUtils.getAnySmtlibArrayCoercion(this).map(_._2)
+  def asSmtlibSeq: Option[TSmtlibSeq[G]] = CoercionUtils.getAnySmtlibSeqCoercion(this).map(_._2)
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {

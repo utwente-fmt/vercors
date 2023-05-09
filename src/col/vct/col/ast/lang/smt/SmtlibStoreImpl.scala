@@ -5,6 +5,6 @@ import vct.col.ast.Type
 import vct.col.print._
 
 trait SmtlibStoreImpl[G] { this: SmtlibStore[G] =>
-  override def t: Type[G] = ???
+  override def t: Type[G] = arr.t
   // def layout(implicit ctx: Ctx): Doc = ???
 }
