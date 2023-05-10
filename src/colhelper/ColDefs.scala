@@ -18,6 +18,7 @@ object ColDefs {
     q"import vct.col.ref.Ref",
     q"import vct.col.resolve.ctx.Referrable",
     q"import vct.col.origin.ExpectedError",
+    q"import hre.data.BitString",
   )
 
   /**
