@@ -3,8 +3,10 @@ package vct.col.util
 import hre.util.ScopedStack
 import vct.col.ast.{AbstractRewriter, Declaration}
 import vct.col.origin.Origin
+import vct.col.print.{Ctx, Doc}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, SuccessorProvider}
+import vct.col.serialize.Program
 import vct.col.util.Scopes._
 import vct.result.VerificationError.SystemError
 
@@ -33,7 +35,27 @@ object Scopes {
   }
 
   case class NoSuccessor(pre: Declaration[_]) extends SystemError {
-    override def text: String = pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
+    override def text: String = {
+      (
+        getContext[CurrentProgramCheckContext],
+        getContext[CurrentCheckNodeContext],
+        getContext[CurrentProgramRewriteContext],
+        getContext[ConstructingSuccessorOfContext],
+      ) match {
+        case (
+          Some(CurrentProgramCheckContext(useProgram)),
+          Some(CurrentCheckNodeContext(useNode)),
+          Some(CurrentProgramRewriteContext(predProgram)),
+          Some(ConstructingSuccessorOfContext(predDecl)),
+        ) =>
+          Doc.messagesInContext(Seq(
+            (predProgram, predDecl, "A reference to the successor of this declaration was made, ..."),
+            (useProgram, useNode, "... but it has no successor in this position.")
+          ))
+        case _ => pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
+      }
+
+    }
   }
 }
 
