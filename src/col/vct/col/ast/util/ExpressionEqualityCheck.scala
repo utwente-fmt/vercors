@@ -1,7 +1,11 @@
 package vct.col.ast.util
 
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.col.ast.{And, BinExpr, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Range, SeqMember, Star, UMinus, Wand}
+import vct.col.ast.{And, BinExpr, BitAnd, BitNot, BitOr, BitShl, BitShr, BitUShr, BitXor, Comparison, Constant, Div, Eq, Exp, Expr, FloorDiv, Greater, GreaterEq, Implies, IntegerValue, Less, LessEq, Local, Loop, Minus, Mod, Mult, Neq, Not, Or, Plus, Range, SeqMember, Star, UMinus, Variable, Wand}
+import vct.col.ast.{TBool, TInt}
+import vct.col.origin.Origin
+import vct.col.typerules.CoercionUtils
+import vct.col.util.AstBuildHelpers.ExprBuildHelpers
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -27,6 +31,13 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
   var replacerDepth = 0
   var replacerDepthInt = 0
   val max_depth = 100
+
+  def usefullConditions() : mutable.ArrayBuffer[Expr[G]] = {
+    info match {
+      case None => mutable.ArrayBuffer()
+      case Some(info) => info.usefullConditions
+    }
+  }
 
   def isConstantInt(e: Expr[G]): Option[BigInt] = {
     replacerDepthInt = 0
@@ -314,7 +325,8 @@ case class AnnotationVariableInfo[G](variableEqualities: Map[Local[G], List[Expr
                                      variableSynonyms: Map[Local[G], Int], variableNotZero: Set[Local[G]],
                                      lessThanEqVars: Map[Local[G], Set[Local[G]]],
                                      upperBound: Map[Local[G], BigInt],
-                                     lowerBound: Map[Local[G], BigInt])
+                                     lowerBound: Map[Local[G], BigInt],
+                                     usefullConditions: mutable.ArrayBuffer[Expr[G]])
 
 /** This class gathers information about variables, such as:
   * `requires x == 0` and stores that x is equal to the value 0.
@@ -338,6 +350,8 @@ class AnnotationVariableInfoGetter[G]() {
   val upperBound: mutable.Map[Local[G], BigInt] = mutable.Map()
   // lowerBound(v) = 5 Captures that variable v is greater than or equal to 5
   val lowerBound: mutable.Map[Local[G], BigInt] = mutable.Map()
+
+  val usefullConditions: mutable.ArrayBuffer[Expr[G]] = mutable.ArrayBuffer()
 
   def extractEqualities(e: Expr[G]): Unit = {
     e match{
@@ -411,6 +425,24 @@ class AnnotationVariableInfoGetter[G]() {
     if(upperBound.contains(k) && upperBound(k) <= 0) lessThanEqVars.getOrElseUpdate(n, mutable.Set()).addOne(m)
     if(lowerBound.contains(m) && lowerBound(m) >= 0) lessThanEqVars.getOrElseUpdate(k, mutable.Set()).addOne(n)
     if(upperBound.contains(m) && upperBound(m) <= 0) lessThanEqVars.getOrElseUpdate(n, mutable.Set()).addOne(k)
+  }
+
+  def isBool[G](e: Expr[G]) = {
+    CoercionUtils.getCoercion(e.t, TBool[G]()).isDefined
+  }
+
+  def isInt[G](e: Expr[G]) = {
+    CoercionUtils.getCoercion(e.t, TInt[G]()).isDefined
+  }
+  def isSimpleExpr(e: Expr[G]): Boolean = {
+    e match {
+      case e if(!isInt(e) && !isBool(e)) => false
+      case SeqMember(e1, Range(from, to)) => isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
+      case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
+      case _: Local[G] => true
+      case _: Constant[G, _] => true
+      case _ => false
+    }
   }
 
   def extractComparisons(e: Expr[G]): Unit = {
@@ -490,6 +522,7 @@ class AnnotationVariableInfoGetter[G]() {
     lessThanEqVars.clear()
     upperBound.clear()
     lowerBound.clear()
+    usefullConditions.clear()
 
     for(clause <- annotations){
       extractEqualities(clause)
@@ -497,18 +530,21 @@ class AnnotationVariableInfoGetter[G]() {
 
     val res = AnnotationVariableInfo[G](variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
       variableSynonyms.toMap, Set[Local[G]](), Map[Local[G], Set[Local[G]]](), Map[Local[G],BigInt](),
-      Map[Local[G],BigInt]())
+      Map[Local[G],BigInt](), usefullConditions)
     equalCheck = ExpressionEqualityCheck(Some(res))
 
     for(clause <- annotations){
-      extractComparisons(clause)
+      if(isSimpleExpr(clause)) {
+        extractComparisons(clause)
+        usefullConditions.addOne(clause)
+      }
     }
 
     distributeInfo()
 
     AnnotationVariableInfo(variableEqualities.view.mapValues(_.toList).toMap, variableValues.toMap,
       variableSynonyms.toMap, variableNotZero.toSet, lessThanEqVars.view.mapValues(_.toSet).toMap,
-      upperBound.toMap, lowerBound.toMap)
+      upperBound.toMap, lowerBound.toMap, usefullConditions)
   }
 
   def distributeInfo(): Unit = {
