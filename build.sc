@@ -1,4 +1,3 @@
-import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
 import $file.project.release
 import $file.project.common
 import $file.project.fetchJars
