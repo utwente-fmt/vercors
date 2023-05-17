@@ -43,6 +43,11 @@ trait JavaModule extends BaseJavaModule {
     T.dest / "classpath"
   }
 
+  def javacOptions = T {
+    Seq("--release",
+        "17")
+  }
+
   def windowsClassPathArgumentFile = T {
     val cpString = classPathFileElements().mkString(";")
     val cpArg = "-cp " + cpString
