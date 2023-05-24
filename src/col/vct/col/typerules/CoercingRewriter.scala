@@ -415,6 +415,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
   override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: BlameTrafo[Pre]): BlameTrafo[Pre] = node
+  def postCoerce(node: BlameTrafo[Pre]): BlameTrafo[Post] = rewriteDefault(node)
+  override final def dispatch(node: BlameTrafo[Pre]): BlameTrafo[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Blame1[Pre]): Blame1[Pre] = node
+  def postCoerce(node: Blame1[Pre]): Blame1[Post] = rewriteDefault(node)
+  override final def dispatch(node: Blame1[Pre]): Blame1[Post] = postCoerce(coerce(preCoerce(node)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -1985,4 +1993,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
+
+  def coerce(node: BlameTrafo[Pre]): BlameTrafo[Pre] = node
+  def coerce(node: Blame1[Pre]): Blame1[Pre] = node
 }

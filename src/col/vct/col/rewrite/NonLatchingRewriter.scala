@@ -13,6 +13,9 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
       rewriteDefault(program)
     }
 
+  override def dispatch(trafo: BlameTrafo[Pre]): BlameTrafo[Post] = rewriteDefault(trafo)
+  override def dispatch(blame: Blame1[Pre]): Blame1[Post] = rewriteDefault(blame)
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = rewriteDefault(stat)
   override def dispatch(e: Expr[Pre]): Expr[Post] = rewriteDefault(e)
   override def dispatch(t: Type[Pre]): Type[Post] = rewriteDefault(t)
