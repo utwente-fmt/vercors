@@ -47,7 +47,8 @@ object parsers extends VercorsModule {
 		Seq(
 			antlr.c.generate(),
 			antlr.java.generate(),
-			antlr.pvl.generate()
+			antlr.pvl.generate(),
+			antlr.llvm.generate()
 		)
 	}
 	def deps = Agg(
@@ -61,8 +62,9 @@ object rewrite extends VercorsModule {
 	def deps = Agg(
 		ivy"org.sosy-lab:java-smt:3.14.3",
 		ivy"com.lihaoyi::upickle:2.0.0",
+		ivy"org.antlr:antlr4-runtime:4.8"
 	)
-	def moduleDeps = Seq(hre, col)
+	def moduleDeps = Seq(hre, col, parsers)
 }
 
 object viperApi extends VercorsModule {

@@ -323,13 +323,11 @@ case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
 }
 
 case object RedirectOrigin {
-  case class StringReadable(data: String) extends Readable {
+  case class StringReadable(data: String, fileName:String="<unknown filename>") extends Readable {
     override def isRereadable: Boolean = true
 
     override protected def getReader: Reader =
       new StringReader(data)
-
-    override def fileName: String = "<unknown filename>"
   }
 }
 
@@ -378,6 +376,8 @@ case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
   private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
     case string => Some(JsonParser(string).asJsObject().fields)
   }
+
+  def fileName: String = deserializeOrigin.fileName
 
   override def preferredName: String = parsedOrigin match {
     case Some(o) => o.get("preferredName") match {

@@ -1,9 +1,13 @@
 package vct.col.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
+import org.antlr.v4.runtime.{CharStreams, CommonTokenStream}
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{BlameCollector, LLVMOrigin, Origin}
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.origin.RedirectOrigin.StringReadable
+import vct.parsers.ColLLVMParser
+import vct.parsers.transform.{ConstantBlameProvider, ReadableOriginProvider}
 
 case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
   type Post = Rewritten[Pre]
@@ -12,17 +16,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def rewriteFunctionDef(func: LlvmFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.contract.o
-    // TODO replace stub contract
-    val stubContract = new ApplicableContract[Post](
-      requires = new UnitAccountedPredicate[Post](BooleanValue(value = true)),
-      ensures = new UnitAccountedPredicate[Post](BooleanValue(value = true)),
-      contextEverywhere = BooleanValue(value = true),
-      signals = Seq.empty,
-      givenArgs = Seq.empty,
-      yieldsArgs = Seq.empty,
-      decreases = None)(func.contract.blame)(func.contract.o)
-
-
     rw.labelDecls.scope {
       rw.globalDeclarations.declare(
         new Procedure[Post](
@@ -33,9 +26,20 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           outArgs = Nil,
           typeArgs = Nil,
           body = Some(rw.dispatch(func.functionBody)),
-          contract = stubContract
+          contract = rewriteLLVMFunctionContract(func.contract)
         )(func.blame)(func.o)
       )
     }
+  }
+
+  def rewriteLLVMFunctionContract(llvmContract: LlvmFunctionContract[Pre]): ApplicableContract[Post] = {
+    val originProvider = ReadableOriginProvider(llvmContract.o match {
+      case o: LLVMOrigin => StringReadable(llvmContract.value, o.fileName)
+      case _ => StringReadable(llvmContract.value)
+    })
+    val charStream = CharStreams.fromString(llvmContract.value)
+    val contract = ColLLVMParser(originProvider, ConstantBlameProvider(BlameCollector()))
+      .parseFunctionContract[Pre](charStream, llvmContract.references)._1
+    rw.dispatch(contract)
   }
 }
