@@ -51,9 +51,6 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         val threadFieldMap = generateThreadFields(seqProg)
         val channelInfo = collectChannelsFromRun(seqProg) ++ collectChannelsFromMethods(seqProg)
         val channelClasses = generateChannelClasses(channelInfo)
-        for (cc <- channelClasses.values) {
-          globalDeclarations.declare(cc)
-        }
         val channelFields = getChannelFields(channelInfo, channelClasses)
         inSeqThreadMap.having(threadFieldMap) {
           val threadClasses = generateThreadClasses(seqProg, channelFields)
