@@ -297,7 +297,6 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
     AddVeyMontAssignmentNodes,
     AddVeyMontConditionNodes,
     StructureCheck,
-    ParalleliseVeyMontThreads,
-    ChannelClassGenerator.withArg(channelClass)
+    ParalleliseVeyMontThreads.withArg(channelClass),
   ))
 
