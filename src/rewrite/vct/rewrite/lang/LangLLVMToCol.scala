@@ -2,12 +2,16 @@ package vct.col.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{InvocationFailure, Origin}
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.util.SuccessionMap
 
 case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
+
+  private val functionMap: SuccessionMap[LlvmFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
 
 
   def rewriteFunctionDef(func: LlvmFunctionDefinition[Pre]): Unit = {
@@ -22,8 +26,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       yieldsArgs = Seq.empty,
       decreases = None)(func.contract.blame)(func.contract.o)
 
-
-    rw.labelDecls.scope {
+    val procedure = rw.labelDecls.scope {
       rw.globalDeclarations.declare(
         new Procedure[Post](
           returnType = rw.dispatch(func.returnType),
@@ -37,5 +40,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         )(func.blame)(func.o)
       )
     }
+    functionMap.update(func, procedure)
+  }
+
+  def rewriteFunctionInvocation(inv: LlvmFunctionInvocation[Pre]): ProcedureInvocation[Post] = {
+    implicit val o: Origin = inv.o
+    new ProcedureInvocation[Post](
+      ref = new LazyRef[Post, Procedure[Post]](functionMap(inv.ref.decl)),
+      args = inv.args.map(rw.dispatch),
+      givenMap = inv.givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+      yields = inv.yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+      outArgs = Seq.empty,
+      typeArgs = Seq.empty
+    )(inv.blame)
   }
 }
