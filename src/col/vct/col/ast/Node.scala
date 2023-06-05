@@ -934,7 +934,9 @@ final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTran
 
 final class LlvmFunctionContract[G](val value:String, val references:Seq[(String, Ref[G, Declaration[G]])])
                                    (val blame: Blame[NontrivialUnsatisfiable])
-                                   (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G]
+                                   (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
+  var data: Option[ApplicableContract[G]] = None
+}
 
 final class LlvmFunctionDefinition[G](val returnType: Type[G],
                                       val args: Seq[Variable[G]],

@@ -10,7 +10,7 @@ import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
-import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
+import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
@@ -25,6 +25,10 @@ case object Resolve {
   trait SpecExprParser {
     // If parsing fails, throw/terminate
     def parse[G](input: String, o: Origin): Expr[G]
+  }
+
+  trait SpecContractParser {
+    def parse[G](input: LlvmFunctionContract[G], o:Origin): ApplicableContract[G]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -170,8 +174,8 @@ case object ResolveTypes {
 }
 
 case object ResolveReferences extends LazyLogging {
-  def resolve[G](program: Program[G], jp: SpecExprParser): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G](jp))
+  def resolve[G](program: Program[G], jp: SpecExprParser, lsp: SpecContractParser): Seq[CheckError] = {
+    resolve(program, ReferenceResolutionContext[G](jp, lsp))
   }
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
@@ -291,6 +295,8 @@ case object ResolveReferences extends LazyLogging {
         .declare(C.paramsFromDeclarator(func.decl.inits.head.decl) ++ func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
         .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
           .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
+    case func: LlvmFunctionDefinition[G] => ctx
+      .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
@@ -559,6 +565,10 @@ case object ResolveReferences extends LazyLogging {
     case portName @ JavaBipGlueName(JavaTClass(Ref(cls: JavaClass[G]), Nil), name) =>
       portName.data = Some((cls, getLit(name)))
 
+    case contract: LlvmFunctionContract[G] =>
+      val applicableContract = ctx.llvmSpecParser.parse(contract, contract.o)
+      contract.data = Some(applicableContract)
+      resolve(applicableContract, ctx)
     case _ =>
   }
 }

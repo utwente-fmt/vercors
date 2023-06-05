@@ -115,6 +115,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       result.ref.get match {
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
+        case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))

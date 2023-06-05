@@ -64,7 +64,7 @@ object rewrite extends VercorsModule {
 		ivy"com.lihaoyi::upickle:2.0.0",
 		ivy"org.antlr:antlr4-runtime:4.8"
 	)
-	def moduleDeps = Seq(hre, col, parsers)
+	def moduleDeps = Seq(hre, col)
 }
 
 object viperApi extends VercorsModule {
