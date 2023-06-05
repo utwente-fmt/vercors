@@ -397,10 +397,12 @@ case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
 
   override def context: String = {
     val atLine = f" At $shortPosition:\n"
-    if(contextFragment == inlineContext) {
+    if (contextFragment == inlineContext) {
       atLine + Origin.HR + contextFragment
-    } else {
+    } else if (contextFragment.contains(inlineContext)) {
       atLine + Origin.HR + markedInlineContext
+    } else {
+      deserializeOrigin.context
     }
   }
 
