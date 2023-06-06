@@ -1,6 +1,9 @@
 package java.lang;
 
 class Integer {
+    static int MIN_VALUE;
+    static int MAX_VALUE;
+    
     //@ ensures intValue() == x;
     public Integer(int x) {
         //@ assume false;
