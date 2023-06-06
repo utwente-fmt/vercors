@@ -59,7 +59,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
             })
         }
       case thread: VeyMontThread[Pre] => {
-        if(threadBuildingBlocks.nonEmpty) {
+        if(threadBuildingBlocks.nonEmpty && inSeqProg.nonEmpty && inSeqProg.top == thread) {
           val threadField = new InstanceField[Post](dispatch(thread.threadType), Set.empty)(thread.o)
           val threadRes: ThreadBuildingBlocks[Pre] = threadBuildingBlocks.top
           val channelFieldsForThread = threadRes.channelFields.view.filterKeys {
@@ -73,7 +73,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
               (threadField +: channelFieldsForThread) ++ (threadRun +: threadMethods),
               Seq(),
               BooleanValue(true)(thread.o))(ThreadClassOrigin(thread))
-            //globalDeclarations.declare(threadClass)
+            globalDeclarations.declare(threadClass)
           }
         } else rewriteDefault(thread)
       }
