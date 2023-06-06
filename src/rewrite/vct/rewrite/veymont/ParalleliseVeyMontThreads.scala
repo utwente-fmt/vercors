@@ -1,11 +1,12 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.RewriteJavaClass
-import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Eval, InstanceField, InstanceMethod, JavaClass, JavaTClass, Loop, Node, Program, RunMethod, Scope, Statement, TClass, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.RewriteHelpers.{RewriteDeref, RewriteJavaClass}
+import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaTClass, Loop, Node, Program, RunMethod, Scope, Statement, TClass, ThisObject, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontSeqProg, VeyMontThread}
 import vct.col.origin.{Origin, PreferredNameOrigin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.ParalleliseVeyMontThreads.{ChannelClassOrigin, ParalliseVeyMontThreadsError, ThreadClassOrigin}
 
@@ -43,25 +44,24 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
 
 case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] {
 
-  val inSeqProg: ScopedStack[VeyMontThread[Pre]] = ScopedStack()
+  val inSeqProg: ScopedStack[Map[VeyMontThread[Pre],InstanceField[Post]]] = ScopedStack()
   val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
+  val seqProgSucc: SuccessionMap[VeyMontThread[Pre],Class[Post]] = SuccessionMap()
 
   override def dispatch(decl : Declaration[Pre]) : Unit = {
     decl match {
       case seqProg: VeyMontSeqProg[Pre] =>
+        val threadFieldMap = seqProg.threads.map(t => (t,new InstanceField[Post](dispatch(t.threadType), Set.empty)(t.o))).toMap
         val channelInfo = collectChannelsFromRun(seqProg) ++ collectChannelsFromMethods(seqProg)
         val channelClasses = generateChannelClasses(channelInfo)
         val channelFields = getChannelFields(channelInfo, channelClasses)
-        threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.runMethod, seqProg.methods,channelFields)) {
-          seqProg.threads.foreach(t =>
-            inSeqProg.having(t) {
-              dispatch(t)
-            })
+        threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.runMethod, seqProg.methods,threadFieldMap,channelFields)) {
+          seqProg.threads.foreach(dispatch)
         }
       case thread: VeyMontThread[Pre] => {
-        if(threadBuildingBlocks.nonEmpty && inSeqProg.nonEmpty && inSeqProg.top == thread) {
-          val threadField = new InstanceField[Post](dispatch(thread.threadType), Set.empty)(thread.o)
+        if(threadBuildingBlocks.nonEmpty) {
           val threadRes: ThreadBuildingBlocks[Pre] = threadBuildingBlocks.top
+          val threadField = threadRes.threadFieldMap(thread)
           val channelFieldsForThread = threadRes.channelFields.view.filterKeys {
             _.decl == thread
           }.values.toSeq
@@ -74,9 +74,12 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
               Seq(),
               BooleanValue(true)(thread.o))(ThreadClassOrigin(thread))
             globalDeclarations.declare(threadClass)
+            seqProgSucc.update(thread,threadClass)
           }
         } else rewriteDefault(thread)
       }
+      //case m: InstanceMethod[Pre] => getThreadMethod(m)
+      //case r: RunMethod[Pre] => getThreadRunMethod(r)
       case other => rewriteDefault(other)
     }
   }
@@ -90,9 +93,6 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     case m: RunMethod[Pre] => getThreadRunMethod(m)
     case _ => throw ParalliseVeyMontThreadsError(thread, "RunMethod expected in seq_program")
   }
-
-  private def generateThreadFields(seqProg: VeyMontSeqProg[Pre]) : Map[VeyMontThread[Pre],InstanceField[Post]] =
-    seqProg.threads.map { thread => (thread -> new InstanceField[Post](dispatch(thread.threadType), Set.empty)(thread.o)) }.toMap
 
   private def getChannelFields(channelInfo: Seq[ChannelInfo[Pre]], channelClasses: Map[Type[Pre],JavaClass[Post]]): Map[Ref[Pre, VeyMontThread[Pre]],InstanceField[Post]] = {
     channelInfo.flatMap { chanInfo =>
@@ -153,24 +153,41 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
       dispatch(run.contract))(run.blame)(run.o)
   }
 
-/*
-  override def dispatch(st : Statement[Pre]) : Statement[Post] = {
-    if (inSeqProg.nonEmpty) {
-      val thread = inSeqProg.top
-      val threadFieldMap = inSeqThreadMap.top
-      st match {
-        case VeyMontCommExpression(recv,sender,assign) => dispatch(assign)
-        case VeyMontAssignExpression(_, _) => rewriteDefault(st)
-        case Assign(_, _) => rewriteDefault(st)
-        case Branch(_) => rewriteDefault(st)
-        case Loop(_, _, _, _, _) => rewriteDefault(st)
-        case Scope(_, _) => rewriteDefault(st)
-        case Block(_) => rewriteDefault(st)
-        case Eval(expr) => dispatch(expr)
-        case Assert(_) => rewriteDefault(st)
-        case _ => throw VeyMontStructCheckError(st, "Statement not allowed in seq_program")
+  override def dispatch(node: Expr[Pre]): Expr[Post] = {
+    if(threadBuildingBlocks.nonEmpty) {
+      val threadFieldMap = threadBuildingBlocks.top.threadFieldMap
+      node match {
+        case d: Deref[Pre] => d.obj match {
+          case t: DerefVeyMontThread[Pre] =>
+            threadFieldMap.find{case (thread,_) => t.ref.decl == thread} match {
+              case Some((thread,threadField)) =>
+                d.rewrite(
+                  obj = Deref(ThisObject(seqProgSucc.ref[Post, Class[Post]](thread))(thread.o), threadField.ref[InstanceField[Post]])(null)(d.o)
+                )
+              case _ => rewriteDefault(node)
+            }
+        }
+        case _ => rewriteDefault(node)
       }
-    } else rewriteDefault(st)
+    } else rewriteDefault(node)
   }
-*/
+
+
+    override def dispatch(st : Statement[Pre]) : Statement[Post] = {
+      if (inSeqProg.nonEmpty) {
+        st match {
+          case VeyMontCommExpression(recv,sender,assign) => rewriteDefault(assign)
+          case VeyMontAssignExpression(_, _) => rewriteDefault(st)
+          case Assign(_, _) => rewriteDefault(st)
+          case Branch(_) => rewriteDefault(st)
+          case Loop(_, _, _, _, _) => rewriteDefault(st)
+          case Scope(_, _) => rewriteDefault(st)
+          case Block(_) => rewriteDefault(st)
+          case Eval(expr) => Eval(rewriteDefault(expr))(st.o)
+          case Assert(_) => rewriteDefault(st)
+          case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
+        }
+      } else rewriteDefault(st)
+    }
+
 }
