@@ -2,6 +2,7 @@ package vct.col.ast.expr.ambiguous
 
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
+import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.typerules.CoercionUtils
 
 trait AmbiguousMultImpl[G] { this: AmbiguousMult[G] =>
@@ -17,4 +18,7 @@ trait AmbiguousMultImpl[G] { this: AmbiguousMult[G] =>
       TFloats.coerceToMax[G](left.t, right.t)
     }
     else TRational()
+
+  override def precedence: Int = Precedence.MULTIPLICATIVE
+  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "*", right)
 }

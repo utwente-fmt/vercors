@@ -17,7 +17,7 @@ IMPL_PACKAGE = "vct.col.ast"
 AST_PACKAGE = "vct.col.ast"
 
 VERCORS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-COL_DIR = os.path.join(VERCORS_DIR, "col/src/main/java")
+COL_DIR = os.path.join(VERCORS_DIR, "src/col")
 IMPL_DIR = os.path.join(COL_DIR, package_to_path(IMPL_PACKAGE))
 
 from make import MAKE, OVERWRITE
@@ -32,7 +32,10 @@ for package, nodes in MAKE.items():
             f.write(f"package {IMPL_PACKAGE}.{package}\n")
             f.write("\n")
             f.write(f"import {AST_PACKAGE}.{node}\n")
+            f.write("import vct.col.ast.Type\n")
+            f.write("import vct.col.print._\n")
             f.write("\n")
             f.write(f"trait {node}Impl[G] {'{'} this: {node}[G] =>\n")
-            f.write("  \n")
+            f.write("  override def t: Type[G] = ???\n")
+            f.write("  // def layout(implicit ctx: Ctx): Doc = ???\n")
             f.write("}\n")

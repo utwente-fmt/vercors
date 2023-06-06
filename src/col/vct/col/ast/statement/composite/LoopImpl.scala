@@ -2,6 +2,8 @@ package vct.col.ast.statement.composite
 
 import vct.col.ast._
 import vct.col.origin.Origin
+import vct.col.print
+import vct.col.print._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -57,5 +59,50 @@ trait LoopImpl[G] { this: Loop[G] =>
         "we could not ascertain that the iteration variable is incremented by one each iteration"))
 
     Right(IterationContractData(v, low, high))
+  }
+
+  def layoutSilver(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      Group(Text("while") <+> "(" <> Doc.arg(cond) <> ")"),
+      contract,
+    )) <+> body.layoutAsBlock
+
+  def layoutGeneric(implicit ctx: Ctx): Doc =
+    if(init == Block[G](Nil) && update == Block[G](Nil)) layoutGenericWhile
+    else layoutGenericFor
+
+  def layoutGenericWhile(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      contract,
+      Group(Text("while") <+> "(" <> Doc.arg(cond) <> ")") <+> body.layoutAsBlock
+    ))
+
+  def layoutControlElement(e: Show)(implicit ctx: Ctx): Option[Show] = Some(e match {
+    case Eval(e) => e.show
+    case a: Assign[G] => a.layoutAsExpr
+    case e: VeyMontAssignExpression[G] => return layoutControlElement(e.assign)
+    case e: VeyMontCommExpression[G] => return layoutControlElement(e.assign)
+    case LocalDecl(local) => local.show
+    case JavaLocalDeclarationStatement(local) => local.show
+
+    case _ => return None
+  })
+
+  def layoutControl(stat: Statement[G])(implicit ctx: Ctx): Doc =
+    Group(Doc.args(stat.blockElementsForLayout.map(layoutControlElement(_).getOrElse(return stat.show))))
+
+  def layoutGenericFor(implicit ctx: Ctx): Doc =
+    Doc.stack(Seq(
+      contract,
+      Group(Text("for") <+> "(" <> Nest(NonWsLine <>
+        (if(init == Block[G](Nil)) Text(";") else layoutControl(init) <> ";" <+/> print.Empty) <>
+          cond <> ";" <>
+          (if(update == Block[G](Nil)) print.Empty else print.Empty <+/> layoutControl(update))
+      ) </> ")") <+> body.layoutAsBlock
+    ))
+
+  override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
+    case Ctx.Silver => layoutSilver
+    case _ => layoutGeneric
   }
 }

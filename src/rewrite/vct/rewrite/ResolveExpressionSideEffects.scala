@@ -220,7 +220,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   def doBranches(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit o: Origin): Statement[Post] =
     branches match {
       case Nil => Branch(Nil)
-      case (cond, impl) :: tail =>
+      case (cond, impl) +: tail =>
         doBranches(tail) match {
           case Branch(branches) =>
             frame(cond, cond => Branch((cond, dispatch(impl)) +: branches))
@@ -236,7 +236,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case inv @ InvokeMethod(obj, Ref(method), args, outArgs, typeArgs, givenMap, yields) =>
         val res = new Variable[Post](dispatch(method.returnType))(ResultVar)
         frameAll(obj +: args, {
-          case obj :: args => Scope(Seq(res),
+          case obj +: args => Scope(Seq(res),
             InvokeMethod[Post](
               obj, succ(method), args, res.get(inv.o) +: outArgs.map(dispatch),
               typeArgs.map(dispatch),

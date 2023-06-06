@@ -139,7 +139,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit decl: DeclaratorContext): CDeclarator[G] = decl match {
-    case Declarator0(_, _, extension::_) => ??(extension)
+    case Declarator0(_, _, extension+:_) => ??(extension)
     case Declarator0(Some(ptr), inner, Nil) =>
       val pointers = convert(ptr)
       CPointerDeclarator(pointers, convert(inner))

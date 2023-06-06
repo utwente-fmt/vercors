@@ -5,7 +5,7 @@ import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.lang.JavaAnnotationEx
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, Block, CType, EmptyProcess, Expr, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void, BipPortType, JavaParam, JavaAnnotation, Node}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -366,6 +366,7 @@ case object Java extends LazyLogging {
       case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelProcess[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefModelAction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefProverFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
     }
 
     ctx.stack.flatten.collectFirst(selectMatchingSignature).orElse(ctx.currentJavaNamespace.flatMap(ns => {
@@ -469,6 +470,7 @@ case object Java extends LazyLogging {
     case TAnyClass() => Null()
 
     case t: TAxiomatic[G] => throw WrongTypeForDefaultValue(t)
+    case t: TProverType[G] => throw WrongTypeForDefaultValue(t)
     case t: TType[G] => throw WrongTypeForDefaultValue(t)
     case t: CType[G] => throw WrongTypeForDefaultValue(t)
     case t: JavaType[G] => throw WrongTypeForDefaultValue(t)

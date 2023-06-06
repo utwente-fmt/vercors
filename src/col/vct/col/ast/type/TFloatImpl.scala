@@ -2,6 +2,7 @@ package vct.col.ast.`type`
 
 import vct.col.ast.{TFloat, Type}
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.print.{Ctx, Doc, Empty, Group, Text}
 import vct.col.typerules.CoercionUtils
 
 // https://en.wikipedia.org/wiki/Single-precision_floating-point_format#IEEE_754_standard:_binary32
@@ -37,4 +38,21 @@ object TFloats {
 trait TFloatImpl[G] { this: TFloat[G] =>
   assert(this.exponent > 0)
   assert(this.mantissa > 0)
+
+  def layoutFloat(implicit ctx: Ctx): Doc = Text(ctx.syntax match {
+    case Ctx.PVL => "float32"
+    case Ctx.Java => "float"
+    case _ => "float"
+  })
+
+  def layoutDouble(implicit ctx: Ctx): Doc = Text(ctx.syntax match {
+    case Ctx.PVL => "float64"
+    case Ctx.Java => "double"
+    case _ => "double"
+  })
+
+  override def layout(implicit ctx: Ctx): Doc =
+    if(this == TFloats.ieee754_32bit) layoutFloat
+    else if(this == TFloats.ieee754_64bit) layoutDouble
+    else Text(s"??float_${exponent}_${mantissa}??")
 }

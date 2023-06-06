@@ -15,7 +15,7 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
     override def code: String = "LLVMParseError"
 
     override def text: String =
-      s"Parsing file $fileName failed with exit code $errorCode:\n$error"
+      s"[ERROR] Parsing file $fileName failed with exit code $errorCode:\n$error"
   }
 
   override def parse[G](stream: CharStream): ParseResult[G] = {

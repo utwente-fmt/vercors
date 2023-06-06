@@ -3,7 +3,10 @@ package vct.col.origin
 import com.typesafe.scalalogging.Logger
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
+import spray.json.{JsString, JsValue, JsonParser}
+import vct.col.ast.Deserialize
 import vct.col.origin.RedirectOrigin.StringReadable
+
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -195,11 +198,11 @@ object InputOrigin {
   def inlineContext(readable: Readable, unsafeStartLineIdx: Int, unsafeEndLineIdx: Int, unsafeCols: Option[(Int, Int)]): String =
     readable.readLines().slice(unsafeStartLineIdx, unsafeEndLineIdx+1) match {
       case Nil => "(empty source region)"
-      case line :: Nil => unsafeCols match {
+      case line +: Nil => unsafeCols match {
         case None => compressInlineText(line)
         case Some((start, end)) => compressInlineText(line.slice(start, end))
       }
-      case first :: moreLines =>
+      case first +: moreLines =>
         val (context, last) = (moreLines.init, moreLines.last)
         unsafeCols match {
           case None => compressInlineText((first +: context :+ last).mkString("\n"))
@@ -369,4 +372,83 @@ trait PreferredNameOrigin extends Origin {
 
   override def toString: String =
     s"$name at $inner"
+}
+
+case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
+  private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
+    case string => Some(JsonParser(string).asJsObject().fields)
+  }
+
+  override def preferredName: String = parsedOrigin match {
+    case Some(o) => o.get("preferredName") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.preferredName
+    }
+    case None => deserializeOrigin.preferredName
+  }
+
+  def contextFragment: String = parsedOrigin match {
+    case Some(o) => o.get("context") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.context
+    }
+    case None => deserializeOrigin.context
+  }
+
+  override def context: String = {
+    val atLine = f" At $shortPosition:\n"
+    if(contextFragment == inlineContext) {
+      atLine + Origin.HR + contextFragment
+    } else {
+      atLine + Origin.HR + markedInlineContext
+    }
+  }
+
+  def markedInlineContext:String  = {
+    val startIndex = contextFragment.indexOf(inlineContext)
+    val endIndex = startIndex + inlineContext.length
+
+    val startRowCol = indexToRowCol(contextFragment, startIndex)
+    val endRowCol = indexToRowCol(contextFragment, endIndex)
+
+    val lines = contextFragment.split('\n')
+    if(startRowCol._1 == endRowCol._1) { // origin only covers (part of) a single row
+      val highlight = " " * (startRowCol._2) + "[" + ("-" * (inlineContext.length - 2)).mkString + "]"
+      (lines.slice(0, startRowCol._1) ++
+        Seq(highlight) ++
+        Seq(lines(startRowCol._1)) ++
+        Seq(highlight) ++
+        lines.slice(startRowCol._1 + 1, lines.length)).mkString("\n")
+    } else { // origin spans multiple lines, just mark the lines
+      val highlight = "[" + ("-" * (lines.map(s => s.length).max - 2)).mkString + "]"
+      (lines.slice(0, startRowCol._1) ++
+        Seq(highlight) ++
+          lines.slice(startRowCol._1, endRowCol._1 + 1) ++
+        Seq(highlight) ++
+          lines.slice(endRowCol._1 + 1, lines.length)).mkString("\n")
+    }
+  }
+
+  // assumes no tabs
+  def indexToRowCol(fragment:String, index:Int): (Int, Int) = {
+    val row = fragment.substring(0, index).count(c => c == '\n')
+    val col = fragment.substring(0, index).split('\n').last.length
+    (row, col)
+  }
+
+  override def inlineContext: String = parsedOrigin match {
+    case Some(o) => o.get("inlineContext") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.inlineContext
+    }
+    case None => deserializeOrigin.inlineContext
+  }
+
+  override def shortPosition: String = parsedOrigin match {
+    case Some(o) => o.get("shortPosition") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.shortPosition
+    }
+    case None => deserializeOrigin.shortPosition
+  }
 }

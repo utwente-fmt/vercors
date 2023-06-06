@@ -744,8 +744,8 @@ case class PostBlameSplit[T >: PostconditionFailed <: VerificationFailure](blame
   override def blame(error: T): Unit = error match {
     case PostconditionFailed(path, failure, invokable) => path match {
       case Nil => throw BlamePathError
-      case FailLeft :: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
-      case FailRight :: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
+      case FailLeft +: tail => blames(FailLeft).blame(PostconditionFailed(tail, failure, invokable))
+      case FailRight +: tail => blames(FailRight).blame(PostconditionFailed(tail, failure, invokable))
     }
     case other => default.blame(other)
   }
@@ -767,8 +767,8 @@ case class PreBlameSplit[T >: PreconditionFailed <: VerificationFailure](blames:
     case PreconditionFailed(path, failure, invokable) => path match {
       case Nil =>
         throw BlamePathError
-      case FailLeft :: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invokable))
-      case FailRight :: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invokable))
+      case FailLeft +: tail => blames(FailLeft).blame(PreconditionFailed(tail, failure, invokable))
+      case FailRight +: tail => blames(FailRight).blame(PreconditionFailed(tail, failure, invokable))
     }
     case other => default.blame(other)
   }

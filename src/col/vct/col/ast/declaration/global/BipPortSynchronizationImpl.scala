@@ -1,6 +1,7 @@
 package vct.col.ast.declaration.global
 
 import vct.col.ast.BipPortSynchronization
+import vct.col.print._
 
 trait BipPortSynchronizationImpl[G] { this: BipPortSynchronization[G] =>
   def summarize: String = {
@@ -13,4 +14,11 @@ trait BipPortSynchronizationImpl[G] { this: BipPortSynchronization[G] =>
        |Wires:
        |${wiresTxt}""".stripMargin
   }
+
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("/*") <+/>
+    Text("javaBipPortSynchronization {") <>> {
+      Text("ports:") <>> Doc.stack(ports.map(ctx.name).map(Text("-") <+> _)) <+/>
+        Text("wires:") <>> Doc.stack(wires.map(wire => Text(ctx.name(wire.dataOut)) <+> "->" <+> ctx.name(wire.dataIn)))
+    } <+/> "*/"
 }

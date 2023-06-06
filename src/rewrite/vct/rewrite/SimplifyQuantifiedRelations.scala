@@ -37,12 +37,12 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
                           exclusiveUpperBound: Map[Variable[Pre], ArrayBuffer[Expr[Pre]]])
   {
     def extremeValue(exprs: Seq[Expr[Pre]], maximizing: Boolean): Expr[Pre] = exprs match {
-      case expr :: Nil => expr
-      case left :: right :: tail =>
+      case expr +: Nil => expr
+      case left +: right +: tail =>
         Select(
           condition = if(maximizing) left > right else left < right,
-          whenTrue = extremeValue(left :: tail, maximizing),
-          whenFalse = extremeValue(right :: tail, maximizing),
+          whenTrue = extremeValue(left +: tail, maximizing),
+          whenFalse = extremeValue(right +: tail, maximizing),
         )
     }
 

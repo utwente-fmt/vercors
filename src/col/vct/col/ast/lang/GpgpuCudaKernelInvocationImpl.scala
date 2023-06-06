@@ -1,6 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{GpgpuCudaKernelInvocation, Type}
+import vct.col.print._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
 
@@ -19,4 +20,7 @@ trait GpgpuCudaKernelInvocationImpl[G] { this: GpgpuCudaKernelInvocation[G] =>
     case RefCGlobalDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case BuiltinInstanceMethod(f) => ???
   }
+
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Group(Group(Text(kernel) <> "<<<" <> Doc.args(Seq(blocks, threads)) <> ">>>") <> "(" <> Doc.args(args) <> ")") <> DocUtil.givenYields(givenArgs, yields))
 }

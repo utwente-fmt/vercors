@@ -1,0 +1,129 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases VerifyThis2011Ch4
+//:: tools silicon
+//:: verdict Pass
+
+/** A (potentially cyclic) linked list
+*/
+class Node {
+  Node next;
+
+  /** recursive predicate containing permissions for entire list
+    @param previous: nodes in the linked list _before_ the current node, to prevent recursion into cycle
+  */
+  resource state(seq<Node> previous) = Perm(next, write) ** 
+    (next != null && !(next in previous) ==> next.state(previous + seq<Node> { this }))
+    ;
+
+  /** recursive predicate for a non-cyclic list segment, i.e. a path, to given target
+  */
+  resource segment(Node target) = 
+    this != target 
+     ==> Perm(next, write) 
+        ** (next == null 
+            ? target == null 
+            : next.segment(target))
+    ;
+    
+  /** recursive function returning seq representation of path to given target
+  */
+  requires segment(target);
+  pure seq<Node> segmentToSeq(Node target)
+    = this == target ? seq<Node>{} 
+      : \unfolding segment(target) \in 
+        (next == null ? seq<Node>{this}
+         : seq<Node> {this} + next.segmentToSeq(target))
+    ;
+  
+  /** lemma to add another step to list segment, 
+      i.e. turn segment(oldTarget) into segment(oldTarget.next)
+  */
+  requires oldTarget != null;
+  requires segment(oldTarget) ** Perm(oldTarget.next, write);
+  requires oldTarget.next != oldTarget && !(oldTarget.next in segmentToSeq(oldTarget)); /// prevent cycle
+  ensures segment(\old(oldTarget.next));
+  ensures segmentToSeq(\old(oldTarget.next)) == \old(segmentToSeq(oldTarget)+seq<Node>{oldTarget});
+  ensures \result;
+  boolean extendSegment(Node oldTarget) {
+    if(oldTarget == this) {
+      if(this.next != null) {
+        fold this.next.segment(oldTarget.next);
+      }
+      fold segment(\old(oldTarget.next));
+    } else {
+      unfold segment(oldTarget);
+      next.extendSegment(oldTarget);
+      fold segment(\old(oldTarget.next));
+    }
+    return true;
+  }
+
+  /** recursive function computing length of (sub-)list (up to back pointer if it contains a cycle)
+    @param current: Node from which to compute length
+    @given previous: nodes in the linked list _before_ current, to prevent recursion into cycle
+  */
+  given seq<Node> previous;
+  requires current != null && !(current in previous) ==> current.state(previous);
+  ensures \result >= 0;
+  pure int length(Node current)
+    = (current == null || current in previous) 
+      ? 0 
+      : 1 + \unfolding current.state(previous) \in 
+              length(current.next) given {previous = previous + seq<Node> { current }}
+    ;
+
+  /** iterative method to check whether linked list is cyclic, 
+      i.e. whether "this" is reachable via "next" links
+      (Note: a lasso with "this" in the non-cyclic part is considered non-cyclic)
+      The given "state" predicate is split into a segment up to "last" and 
+      @yields last: Node whose "next" pointer is to earlier Node in the list 
+            (to "this" if cyclic, to another Node if list is lasso); 
+            null if whole list is cycle-free
+      @yields visited: seq representing path from this (incl) to last (excl)
+  */
+  yields Node last;
+  yields seq<Node> visited;
+  requires state(seq<Node>{});
+  ensures segment(last);
+  ensures visited == segmentToSeq(last);
+  ensures last != null ==> last.state(visited);
+  /// Soundness: positive result implies cycle
+  ensures \result ==> last != null 
+                    && \unfolding last.state(visited) \in last.next == this;
+  /// Completeness: negative result implies cycle-free or lasso later in list
+  ensures !\result ==> last == null 
+                    || \unfolding last.state(visited) \in last.next != this
+                        && (last.next in visited || last.next == last) 
+          ;
+  boolean cyclic() {
+    visited = seq<Node>{};
+  
+    last = this;
+    fold this.segment(this);
+
+    loop_invariant segment(last);
+    loop_invariant last != null ==> last.state(visited);
+    loop_invariant visited == segmentToSeq(last);
+    loop_invariant !(last in visited);
+    decreases length(last) given{previous=visited};
+    while(last != null) {
+      unfold last.state(visited);
+
+      if (last.next == this) {
+        fold last.state(visited);
+        return true;
+      } else if (last.next == last || last.next in visited) {
+        fold last.state(visited);
+        return false;
+      }
+      
+      visited = visited + seq<Node> { last };
+      Node l_next = last.next;
+      extendSegment(last);
+      last = l_next;
+    }
+
+    return false;
+  }
+}
+

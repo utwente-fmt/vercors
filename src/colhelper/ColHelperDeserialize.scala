@@ -41,6 +41,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       case proto.TBigInt => q"BigInt(new java.math.BigInteger($term.data.toByteArray()))"
       case proto.TBigDecimal => q"BigDecimal(${deserializeTerm(q"$term.unscaledValue", proto.TBigInt, null)}, $term.scale)"
       case proto.TString => term
+      case proto.TBitString => q"new BitString($term.data.toByteArray(), $term.skipAtLastByte)"
       case proto.TOption(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
       case proto.TSeq(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
       case proto.TSet(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))}).toSet"
@@ -64,7 +65,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
 
   def makeNodeDeserialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
-      ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin", q"Deserialize.Origin")}
+      ${defn.make(defn.params.map(deserializeParam(defn)), q"LLVMOrigin(Deserialize.Origin(node.origin))", q"LLVMOrigin(Deserialize.Origin(node.origin))")}
   """)
 
   def makeDeserialize(): List[Stat] = q"""
@@ -72,9 +73,10 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import vct.col.ref.LazyRef
     import scala.collection.mutable
     import scala.reflect.ClassTag
+    import vct.col.origin.LLVMOrigin
 
     object Deserialize {
-      case object Origin extends vct.col.origin.Origin {
+      case class Origin(stringOrigin:String="{}") extends vct.col.origin.Origin {
         override def preferredName: String = "unknown"
         override def context: String = "At: [deserialized node]"
         override def inlineContext: String = "[Deserialized node]"

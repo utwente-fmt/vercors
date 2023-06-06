@@ -11,7 +11,6 @@ import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
-import scala.::
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

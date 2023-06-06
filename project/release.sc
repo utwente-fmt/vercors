@@ -125,7 +125,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
 
     os.write(dest / executableName(),
       s"""#!/bin/sh
-         |HERE=$$(dirname $$(realpath $$0))
+         |HERE=$$(dirname $$(readlink -f $$0))
          |(cd $$HERE; java ${forkArgs().mkString(" ")} @${os.rel / ".classpath"} ${finalMainClass()} "$$@")
          |""".stripMargin)
     os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
@@ -148,7 +148,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
 
     os.write(dest / executableName(),
       s"""#!/bin/sh
-         |HERE=$$(dirname $$(realpath $$0))
+         |HERE=$$(dirname $$(readlink -f $$0))
          |(cd $$HERE; java ${forkArgs().mkString(" ")} @${os.rel / ".classpath"} ${finalMainClass()} "$$@")
          |""".stripMargin)
     os.perms.set(dest / executableName(), os.PermSet.fromString("rwxrwxr-x"))
@@ -176,7 +176,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |""".stripMargin)
 
     val out = T.dest / s"${executableName()}-${version()}-win.zip"
-    os.proc("zip", out, os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
+    os.proc("zip", out, "-r", os.list(dest).map(_.relativeTo(dest))).call(cwd = dest)
     PathRef(out)
   }
 

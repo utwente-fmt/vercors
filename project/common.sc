@@ -27,6 +27,7 @@ object Deps {
 
   val common = log ++ Agg(
     ivy"org.scala-lang.modules::scala-parallel-collections:1.0.4",
+    ivy"io.spray::spray-json:1.3.6"
   )
 }
 
@@ -40,6 +41,11 @@ trait JavaModule extends BaseJavaModule {
     val cpArg = "-cp " + cpString
     os.write(T.dest / "classpath", cpArg)
     T.dest / "classpath"
+  }
+
+  def javacOptions = T {
+    Seq("--release",
+        "17")
   }
 
   def windowsClassPathArgumentFile = T {
@@ -56,6 +62,7 @@ trait JavaModule extends BaseJavaModule {
   }
 
   def runScript = T {
+    // PB: this is nearly just Jvm.createLauncher, but you cannot set the filename, and uses a literal classpath instead of a file.
     for((name, mainClass) <- runScriptClasses()) {
       // thanks https://gist.github.com/lhns/ee821a5cd1b2031856b21a0e78e1ecc9
       val header = "@ 2>/dev/null # 2>nul & echo off & goto BOF"
@@ -70,8 +77,11 @@ trait JavaModule extends BaseJavaModule {
         "exit /B %errorlevel%",
       )
       val script = header + "\r\n" + unix.mkString("\n") + "\n\r\n" + batch.mkString("\r\n") + "\r\n"
-      os.write(T.dest / name, script)
-      os.perms.set(T.dest / name, os.PermSet.fromString("rwxrwxr-x"))
+      val isWin = scala.util.Properties.isWin
+      val wantBatch = isWin && !org.jline.utils.OSUtils.IS_CYGWIN && !org.jline.utils.OSUtils.IS_MSYSTEM
+      val fileName = if(wantBatch) name + ".bat" else name
+      os.write(T.dest / fileName, script)
+      if(!isWin) os.perms.set(T.dest / name, os.PermSet.fromString("rwxrwxr-x"))
     }
     T.dest
   }

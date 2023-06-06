@@ -42,9 +42,7 @@ case object Layout {
   def undoProgressMessage: String =
     if (wantProgress) {
       if (wantPrettyProgress) {
-        val clearLines = printedLines
-        printedLines = 0
-        upBy(clearLines) + clearToEnd
+        upBy(printedLines) + clearToEnd
       } else {
         "\r" + " ".repeat(maxWidth) + "\r"
       }
@@ -85,14 +83,20 @@ case object Layout {
     ""
   }
 
+  private var currentProgressMessage = ""
+
   /**
    * Print an updated progress message to stdout
    * @return whether the number of printed progres lines changed
    */
   def update(): Boolean = {
     val lastPrintedLines = printedLines
-    System.out.print(undoProgressMessage)
-    System.out.print(progressMessage)
-    printedLines != lastPrintedLines
+    val undo = undoProgressMessage
+    currentProgressMessage = progressMessage
+    System.out.print(undo + currentProgressMessage)
+    printedLines > lastPrintedLines
   }
+
+  def withProgressDiscarded(out: String): String =
+    undoProgressMessage + out + currentProgressMessage
 }

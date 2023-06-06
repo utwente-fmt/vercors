@@ -23,18 +23,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       decreases = None)(func.contract.blame)(func.contract.o)
 
 
-    rw.globalDeclarations.declare(
-      new Procedure[Post](
-        returnType = rw.dispatch(func.returnType),
-        args = rw.variables.collect {
-          func.args.foreach(rw.dispatch)
-        }._1,
-        outArgs = Nil,
-        typeArgs = Nil,
-        body = Some(rw.dispatch(func.body)),
-        contract = stubContract
-      )(func.blame)(func.o)
-    )
+    rw.labelDecls.scope {
+      rw.globalDeclarations.declare(
+        new Procedure[Post](
+          returnType = rw.dispatch(func.returnType),
+          args = rw.variables.collect {
+            func.args.foreach(rw.dispatch)
+          }._1,
+          outArgs = Nil,
+          typeArgs = Nil,
+          body = Some(rw.dispatch(func.functionBody)),
+          contract = stubContract
+        )(func.blame)(func.o)
+      )
+    }
   }
-
 }

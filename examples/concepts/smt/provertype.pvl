@@ -1,0 +1,17 @@
+prover_type bv1 \smtlib `(_ BitVec 1)`;
+prover_type bv8 \smtlib `(_ BitVec 8)`;
+prover_type bv23 \smtlib `(_ BitVec 23)`;
+prover_type float \smtlib `(_ FloatingPoint 8 24)`;
+
+prover_function bv1 bv1_mk(int i) \smtlib `(_ int2bv 1)`;
+prover_function bv8 bv8_mk(int i) \smtlib `(_ int2bv 8)`;
+prover_function bv23 bv23_mk(int i) \smtlib `(_ int2bv 23)`;
+prover_function float float_mk(bv1 sign, bv8 e, bv23 m) \smtlib fp;
+
+prover_function float float_add(float l, float r) \smtlib `fp.add RNE`;
+
+void test() {
+    float one = float_mk(bv1_mk(0), bv8_mk(127), bv23_mk(0));
+    float half = float_mk(bv1_mk(0), bv8_mk(126), bv23_mk(0));
+    assert float_add(half, half) == one;
+}

@@ -1,7 +1,9 @@
 package vct.col.ast.declaration.global
 
-import vct.col.ast.{Class}
+import vct.col.ast.Class
 import vct.col.ast.util.Declarator
+import vct.col.print._
+import vct.col.util.AstBuildHelpers.tt
 import vct.result.VerificationError.Unreachable
 
 trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
@@ -11,4 +13,17 @@ trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
       supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
 
   def transSupportArrows: Seq[(Class[G], Class[G])] = transSupportArrows(Set.empty)
+
+  def layoutLockInvariant(implicit ctx: Ctx): Doc =
+    Text("lock_invariant") <+> intrinsicLockInvariant <+/> Empty
+
+  override def layout(implicit ctx: Ctx): Doc =
+    (if(intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>
+      Group(
+        Text("class") <+> ctx.name(this) <>
+        (if(supports.isEmpty) Empty else Text(" implements") <+> Doc.args(supports.map(ctx.name).map(Text))) <+>
+        "{"
+      ) <>>
+      Doc.stack(declarations) <+/>
+    "}"
 }

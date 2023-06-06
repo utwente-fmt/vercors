@@ -36,6 +36,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new SequencesSpec(),
       new SetsSpec(),
       new SilverDomainSpec(),
+      new SmtSpec(),
       new SummationSpec(),
       new TechnicalAbruptSpec(),
       new TechnicalEnumSpec(),

@@ -43,8 +43,8 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
 
       result match {
         case Nil => None
-        case (_, x) :: Nil => Some(x)
-        case _ :: (rule, _) :: _ => fail(rule, "Only one clause of this type may occur in a contract")
+        case (_, x) +: Nil => Some(x)
+        case _ +: (rule, _) +: _ => fail(rule, "Only one clause of this type may occur in a contract")
       }
     }
 

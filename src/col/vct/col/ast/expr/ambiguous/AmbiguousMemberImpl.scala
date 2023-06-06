@@ -1,6 +1,7 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast.{AmbiguousMember, TBool, TInt, Type}
+import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.typerules.CoercionUtils
 
 trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
@@ -16,4 +17,7 @@ trait AmbiguousMemberImpl[G] { this: AmbiguousMember[G] =>
     else xs.t.asMap.get.key
 
   override lazy val t: Type[G] = if(isBagOp) TInt() else TBool()
+
+  override def precedence: Int = Precedence.PVL_CONTAINS
+  override def layout(implicit ctx: Ctx): Doc = lassoc(x, if(ctx.syntax == Ctx.Silver) "in" else "\\in", xs)
 }
