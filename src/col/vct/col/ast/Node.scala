@@ -1160,11 +1160,16 @@ final class LlvmFunctionDefinition[G](val returnType: Type[G],
                                      (val blame: Blame[CallableFailure])(implicit val o: Origin)
   extends GlobalDeclaration[G] with Applicable[G] with LLVMFunctionDefinitionImpl[G]
 
+final case class LlvmFunctionInvocation[G](ref: Ref[G, LlvmFunctionDefinition[G]],
+                                     args: Seq[Expr[G]],
+                                     givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
+                                     yields: Seq[(Expr[G], Ref[G, Variable[G]])])
+                                    (val blame: Blame[InvocationFailure])(implicit val o: Origin) extends Apply[G] with LLVMFunctionInvocationImpl[G]
+
 final case class LlvmLoop[G](cond:Expr[G], contract:LlvmLoopContract[G], body:Statement[G])
                        (implicit val o: Origin) extends CompositeStatement[G] with LLVMLoopImpl[G]
+
 sealed trait LlvmLoopContract[G] extends NodeFamily[G] with LLVMLoopContractImpl[G]
-
-
 final case class LlvmLoopInvariant[G](value:String, references:Seq[(String, Ref[G, Declaration[G]])])
                                      (val blame: Blame[LoopInvariantFailure])
                                      (implicit val o: Origin) extends LlvmLoopContract[G] with LLVMLoopInvariantImpl[G]
