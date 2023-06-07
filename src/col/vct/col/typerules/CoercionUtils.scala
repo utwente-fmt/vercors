@@ -274,4 +274,28 @@ case object CoercionUtils {
     case t: TEither[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
+
+  def getAnyBitvecCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibBitVector[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnyBitvecCoercion)
+    case t: TSmtlibBitVector[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
+
+  def getAnySmtlibFloatCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibFloatingPoint[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibFloatCoercion)
+    case t: TSmtlibFloatingPoint[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
+
+  def getAnySmtlibArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibArray[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibArrayCoercion)
+    case t: TSmtlibArray[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
+
+  def getAnySmtlibSeqCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibSeq[G])] = source match {
+    case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibSeqCoercion)
+    case t: TSmtlibSeq[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
 }

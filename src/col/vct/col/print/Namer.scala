@@ -10,8 +10,8 @@ case class Namer[G](syntax: Ctx.Syntax) {
   private val stack = ScopedStack[Node[G]]()
   private val names = mutable.Map[(scala.Any, String, Int), Declaration[G]]()
 
-  def nearest(f: PartialFunction[Node[G], Unit]): Option[Node[G]] =
-    stack.toSeq.find(n => f.isDefinedAt(n))
+  def nearest(f: PartialFunction[Node[G], Unit]): Seq[Node[G]] =
+    stack.toSeq.filter(n => f.isDefinedAt(n))
 
   private def nearestClass = nearest {
     case _: Class[G] | _: JavaClass[G] | _: VeyMontSeqProg[G] | _: JavaInterface[G] | _: JavaAnnotationInterface[G] => ()
@@ -73,14 +73,19 @@ case class Namer[G](syntax: Ctx.Syntax) {
     if (index == 0) name
     else s"$name$index"
 
-  def nameKeyed(key: scala.Any, decl: Declaration[G]): Unit = {
+  def nameKeyed(keys: Seq[scala.Any], decl: Declaration[G]): Unit = {
+    if(keys.isEmpty) {
+      // Refuse to name this declaration, it is unclear how to distinguish them.
+      return
+    }
+
     var (baseName, index) = unpackName(decl.o.preferredName)
 
-    while(names.contains((key, baseName, index))) {
+    while(keys.exists(key => names.contains((key, baseName, index)))) {
       index += 1
     }
 
-    names((key, baseName, index)) = decl
+    names((keys.head, baseName, index)) = decl
   }
 
   def name(node: Node[G]): Unit = {
@@ -89,7 +94,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     node match {
       case decl: GlobalDeclaration[G] => nameKeyed(nearest { case _: Program[G] => () }, decl)
       case decl: ClassDeclaration[G] => nameKeyed(nearestClass, decl)
-      case decl: ADTDeclaration[G] => nameKeyed(if(syntax == Ctx.Silver) 3 else nearest { case _: AxiomaticDataType[G] => () }, decl)
+      case decl: ADTDeclaration[G] => nameKeyed(if(syntax == Ctx.Silver) Seq(3) else nearest { case _: AxiomaticDataType[G] => () }, decl)
       case decl: ModelDeclaration[G] => nameKeyed(nearest { case _: Model[G] => () }, decl)
       case decl: EnumConstant[G] => nameKeyed(nearest { case _: Enum[G] => () }, decl)
       case decl: Variable[G] => nameKeyed(nearestVariableScope, decl)

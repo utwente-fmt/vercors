@@ -2,7 +2,7 @@ package vct.col.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{BlameCollector, LLVMOrigin, Origin}
+import vct.col.origin.{BlameCollector, LLVMOrigin, Origin, InvocationFailure}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.origin.RedirectOrigin.StringReadable
 import vct.col.ref.{LazyRef, Ref}
@@ -33,6 +33,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       )
     }
     functionMap.update(func, procedure)
+  }
+
+  def rewriteFunctionInvocation(inv: LlvmFunctionInvocation[Pre]): ProcedureInvocation[Post] = {
+    implicit val o: Origin = inv.o
+    new ProcedureInvocation[Post](
+      ref = new LazyRef[Post, Procedure[Post]](functionMap(inv.ref.decl)),
+      args = inv.args.map(rw.dispatch),
+      givenMap = inv.givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+      yields = inv.yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+      outArgs = Seq.empty,
+      typeArgs = Seq.empty
+    )(inv.blame)
   }
 
   def result(ref: RefLlvmFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =

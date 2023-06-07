@@ -76,6 +76,13 @@ case object InlineApplicables extends RewriterBuilder {
     override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
   }
 
+  case object InlineLetThisOrigin extends Origin {
+    override def preferredName: String = "self"
+    override def context: String = "[At let binding for `this`]"
+    override def inlineContext: String = "[Let binding for `this`]"
+    override def shortPosition: String = "generated"
+  }
+
   case class InlineFoldAssertFailed(fold: Fold[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       fold.blame.blame(FoldFailed(error.failure, fold))
@@ -140,7 +147,6 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
       cls.declarations.foreach(classOwner(_) = cls)
     }
-
     rewriteDefault(program)
   }
 
@@ -192,26 +198,26 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
         lazy val obj = {
           val instanceApply = apply.asInstanceOf[InstanceApply[Pre]]
           val cls = classOwner(instanceApply.ref.decl)
-          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)
+          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(InlineLetThisOrigin)
         }
 
         lazy val args =
           Replacements(for((arg, v) <- apply.args.zip(apply.ref.decl.args))
-            yield Replacement(v.get, arg))
+            yield Replacement(v.get, arg)(v.o))
 
         lazy val givenArgs =
           Replacements(for((Ref(v), arg) <- apply.asInstanceOf[InvokingNode[Pre]].givenMap)
-            yield Replacement(v.get, arg))
+            yield Replacement(v.get, arg)(v.o))
 
         lazy val outArgs = {
           val inv = apply.asInstanceOf[AnyMethodInvocation[Pre]]
           Replacements(for((out, v) <- inv.outArgs.zip(inv.ref.decl.outArgs))
-            yield Replacement(v.get, out))
+            yield Replacement(v.get, out)(v.o))
         }
 
         lazy val yields =
           Replacements(for((out, Ref(v)) <- apply.asInstanceOf[InvokingNode[Pre]].yields)
-            yield Replacement(v.get, out))
+            yield Replacement(v.get, out)(v.o))
 
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]
         // TODO: consider type arguments and out-arguments and given and yields (oof)

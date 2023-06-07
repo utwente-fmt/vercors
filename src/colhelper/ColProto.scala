@@ -28,7 +28,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
   sealed trait Typ {
     def isPrimitive: Boolean = this match {
-      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString => true
+      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString | TBitString => true
       case TName(_) => true
       case TOption(t) if t.isMarkable => true
       case TSeq(t) if t.isMarkable => true
@@ -37,7 +37,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     }
 
     def isMarkable: Boolean = this match {
-      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString => true
+      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString | TBitString => true
       case TName(_) => true
       case _ => false
     }
@@ -49,6 +49,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       case TBigInt => "BigInt"
       case TBigDecimal => "BigDecimal"
       case TString => "String"
+      case TBitString => "BitString"
       case TName(name) => name
       case TOption(t) => "Opt" + t.toString
       case TSeq(t) => "Seq" + t.toString
@@ -62,6 +63,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   case object TBigInt extends Typ
   case object TBigDecimal extends Typ
   case object TString extends Typ
+  case object TBitString extends Typ
   case class TRef()(val scalaArg: SType) extends Typ
   case class TName(name: String) extends Typ
   case class TOption(t: Typ)(val scalaArg: SType) extends Typ
@@ -83,6 +85,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     case SType.Apply(SType.Name("Ref"), List(SType.Name("G"), decl)) => TRef()(decl)
     case SType.Name("Int") => TInt
     case SType.Name("String") => TString
+    case SType.Name("BitString") => TBitString
     case SType.Name("Boolean") => TBool
     case SType.Name("BigInt") => TBigInt
     case SType.Name("BigDecimal") => TBigDecimal
@@ -136,6 +139,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       case TBigInt => builder.setTypeName("BigInt")
       case TBigDecimal => builder.setTypeName("BigDecimal")
       case TString => builder.setType(PType.TYPE_STRING)
+      case TBitString => builder.setTypeName("BitString")
       case TName(name) => builder.setTypeName(name)
       case TOption(t) => builder.setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL); setType(builder, t)
       case TSeq(t) => builder.setLabel(FieldDescriptorProto.Label.LABEL_REPEATED); setType(builder, t)
@@ -168,6 +172,10 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     message("BigDecimal")
       .addField(field("scale").setType(PType.TYPE_INT32))
       .addField(field("unscaledValue").setTypeName("BigInt"))
+      .build(),
+    message("BitString")
+      .addField(field("data").setType(PType.TYPE_BYTES))
+      .addField(field("skipAtLastByte").setType(PType.TYPE_INT32))
       .build(),
     message("Ref")
       .addField(field("index").setType(PType.TYPE_INT64))

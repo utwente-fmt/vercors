@@ -55,6 +55,5 @@ case class StagesPair[-Input, Mid, +Output](left: Stages[Input, Mid], right: Sta
     progressNext()
     right.runUnsafely(mid, progressNext)
   }
-
   override def flatNames: Seq[(String, Int)] = left.flatNames ++ right.flatNames
 }
