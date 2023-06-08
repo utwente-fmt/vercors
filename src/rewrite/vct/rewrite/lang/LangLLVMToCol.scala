@@ -16,6 +16,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   private val functionMap: SuccessionMap[LlvmFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
 
 
+  def rewriteLocal(local: LlvmLocal[Pre]): Expr[Post] = {
+    implicit val o: Origin = local.o
+    Local(rw.succ(local.ref.get.decl))
+  }
+
   def rewriteFunctionDef(func: LlvmFunctionDefinition[Pre]): Unit = {
     implicit val o: Origin = func.contract.o
     val procedure = rw.labelDecls.scope {

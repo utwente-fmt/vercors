@@ -15,27 +15,15 @@ import scala.collection.mutable
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class LLVMContractToCol[G](override val originProvider: OriginProvider,
                                 override val blameProvider: BlameProvider,
-                                override val errors: Seq[(Token, Token, ExpectedError)],
-                                references: Seq[(String, Ref[G, Declaration[G]])])
+                                override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol(originProvider, blameProvider, errors) {
-  val referenceLut: mutable.Map[String, Ref[G, Declaration[G]]] = mutable.Map(references: _*)
 
-  def addReference(context: ParserRuleContext, name: String, decl: Declaration[G]): Unit = referenceLut.get(name) match {
-    case Some(_) => fail(context, s"""Variable "$name" is already defined!""")
-    case None => referenceLut.update(name, decl.ref)
-  }
-
-  def local(ctx: ParserRuleContext, name: String): Expr[G] = referenceLut.get(name) match {
-    case Some(ref) => ref.decl match {
-      case variable: Variable[G] => Local[G](variable.ref)(origin(ctx))
-    }
-    case None => fail(ctx, s"""Unknown variable "$name"""")
-  }
+  def local(ctx: ParserRuleContext, name: String): Expr[G] =
+    LlvmLocal(name)(blame(ctx))(origin(ctx))
 
   def createVariable(ctx: ParserRuleContext, id: LangIdContext, t: LangTypeContext): Variable[G] = {
     val varId = convert(id)
     val variable = new Variable(convert(t))(SourceNameOrigin(varId, origin(ctx)))
-    addReference(ctx, varId, variable)
     variable
   }
 

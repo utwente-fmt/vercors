@@ -159,6 +159,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
     case inv: LlvmFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
+    case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
 
     case other => rewriteDefault(other)
   }

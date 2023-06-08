@@ -84,7 +84,7 @@ case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.S
     })
     val charStream = CharStreams.fromString(input.value)
     ColLLVMParser(originProvider, blameProvider)
-      .parseFunctionContract[G](charStream, input.references)._1
+      .parseFunctionContract[G](charStream)._1
   }
 }
 

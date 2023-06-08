@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.data.BitString
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.util.Declarator
@@ -14,6 +15,8 @@ import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, Spec
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
+
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
 
 case object Resolve {
   case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
@@ -576,6 +579,14 @@ case object ResolveReferences extends LazyLogging {
       val applicableContract = ctx.llvmSpecParser.parse(contract, contract.o)
       contract.data = Some(applicableContract)
       resolve(applicableContract, ctx)
+    case local: LlvmLocal[G] =>
+      local.ref = ctx.currentResult.get match {
+        case RefLlvmFunctionDefinition(decl) =>
+          decl.contract.variableRefs.find(ref => ref._1 == local.name) match {
+            case Some(ref) => Some(ref._2)
+            case None => throw NoSuchNameError("local", local.name, local)
+          }
+      }
     case _ =>
   }
 }

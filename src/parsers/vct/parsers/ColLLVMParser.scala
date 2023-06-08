@@ -41,7 +41,7 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
     ParseResult(COLProgram.declarations, Seq.empty)
   }
 
-  def parseFunctionContract[G](stream: CharStream, references: Seq[(String, Ref[G, Declaration[G]])]):
+  def parseFunctionContract[G](stream: CharStream):
   (vct.col.ast.ApplicableContract[G], Seq[ExpectedError]) = {
     val lexer = new LangLLVMSpecLexer(stream)
     val tokens = new CommonTokenStream(lexer)
@@ -55,7 +55,7 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
       val tree = parser.valEmbedContract()
       (errors, tree)
     }
-    val contract = LLVMContractToCol[G](originProvider, blameProvider, errors, references).convert(tree)
+    val contract = LLVMContractToCol[G](originProvider, blameProvider, errors).convert(tree)
     (contract, errors.map(_._3))
   }
 }
