@@ -10,6 +10,7 @@ expression
 instruction
     : binOpInstruction # binOpRule
     | compareInstruction # cmpOpRule
+    | callInstruction # callOpRule
     ;
 
 constant
@@ -31,7 +32,18 @@ integerConstant: IntegerConstant;
 
 identifier: Identifier;
 
+expressionList
+    : expression
+    | expression Comma expressionList
+    ;
+
 binOpInstruction: binOp Lparen expression Comma expression Rparen;
+
+compareInstruction: compOp Lparen compPred Comma expression Comma expression Rparen;
+
+callInstruction: CALL Identifier Lparen expressionList Rparen;
+
+
 
 binOp
     : ADD # add
@@ -41,7 +53,6 @@ binOp
     | SDIV # sdiv
     ;
 
-compareInstruction: compOp Lparen compPred Comma expression Comma expression Rparen;
 
 compOp
     : ICMP

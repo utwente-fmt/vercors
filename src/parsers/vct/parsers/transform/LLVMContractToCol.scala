@@ -78,6 +78,12 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     case LangId0(text) => text
   }
 
+  def convert(implicit exprs: ExpressionListContext): Seq[Expr[G]] = exprs match {
+    case ExpressionList0(expr) => Seq(convert(expr))
+    case ExpressionList1(expr, _, exprs) => convert(expr) +: convert(exprs)
+  }
+
+
   def convert(implicit expr: LangExprContext): Expr[G] = expr match {
     case LangExpr0(expr) => convert(expr)
   }
@@ -92,7 +98,16 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
   def convert(implicit inst: InstructionContext): Expr[G] = inst match {
     case BinOpRule(binOp) => convert(binOp)
     case CmpOpRule(cmpOp) => convert(cmpOp)
+    case CallOpRule(callOp) => convert(callOp)
   }
+
+  def convert(implicit callOp: CallInstructionContext): Expr[G] = callOp match {
+    case CallInstruction0(_, id, _, exprList, _) => {
+      val args: Seq[Expr[G]] = convert(exprList)
+      LlvmAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
+    }
+  }
+
 
   def convert(implicit binOp: BinOpInstructionContext): Expr[G] = binOp match {
     case BinOpInstruction0(op, _, lhs, _, rhs, _) => convert(op, lhs, rhs)

@@ -1187,6 +1187,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
+        LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields)(inv.blame)
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>

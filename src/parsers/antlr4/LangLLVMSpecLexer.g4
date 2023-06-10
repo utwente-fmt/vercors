@@ -81,6 +81,7 @@ SDIV: 'sdiv';
 
 // operators -> other
 ICMP: 'icmp';
+CALL: 'call';
 
 // compare predicates
 EQ_pred: 'eq';

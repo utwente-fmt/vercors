@@ -587,6 +587,14 @@ case object ResolveReferences extends LazyLogging {
             case None => throw NoSuchNameError("local", local.name, local)
           }
       }
+    case inv: LlvmAmbiguousFunctionInvocation[G] =>
+      inv.ref = ctx.currentResult.get match {
+        case RefLlvmFunctionDefinition(decl) =>
+          decl.contract.invokableRefs.find(ref => ref._1 == inv.name) match {
+            case Some(ref) => Some(ref._2)
+            case None => throw NoSuchNameError("function", inv.name, inv)
+          }
+      }
     case _ =>
   }
 }

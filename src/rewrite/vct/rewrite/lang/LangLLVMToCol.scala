@@ -22,7 +22,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
   }
 
   def rewriteFunctionDef(func: LlvmFunctionDefinition[Pre]): Unit = {
-    implicit val o: Origin = func.contract.o
+    implicit val o: Origin = func.o
     val procedure = rw.labelDecls.scope {
       rw.globalDeclarations.declare(
         new Procedure[Post](
@@ -33,11 +33,24 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           outArgs = Nil,
           typeArgs = Nil,
           body = Some(rw.dispatch(func.functionBody)),
-          contract = rw.dispatch(func.contract.data.get)
+          contract = rw.dispatch(func.contract.data.get),
+          pure = func.pure
         )(func.blame)
       )
     }
     functionMap.update(func, procedure)
+  }
+
+  def rewriteAmbiguousFunctionInvocation(inv: LlvmAmbiguousFunctionInvocation[Pre]): ProcedureInvocation[Post] = {
+    implicit val o: Origin = inv.o
+    new ProcedureInvocation[Post](
+      ref = new LazyRef[Post, Procedure[Post]](functionMap(inv.ref.get.decl)),
+      args = inv.args.map(rw.dispatch),
+      givenMap = inv.givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+      yields = inv.yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+      outArgs = Seq.empty,
+      typeArgs = Seq.empty
+    )(inv.blame)
   }
 
   def rewriteFunctionInvocation(inv: LlvmFunctionInvocation[Pre]): ProcedureInvocation[Post] = {

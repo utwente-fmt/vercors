@@ -1077,7 +1077,7 @@ final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) ext
 final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
 final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
-final class LlvmFunctionContract[G](val value:String, val variableRefs:Seq[(String, Ref[G, Variable[G]])])
+final class LlvmFunctionContract[G](val value:String, val variableRefs:Seq[(String, Ref[G, Variable[G]])], val invokableRefs:Seq[(String, Ref[G, LlvmFunctionDefinition[G]])])
                                    (val blame: Blame[NontrivialUnsatisfiable])
                                    (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
@@ -1110,7 +1110,13 @@ sealed trait LlvmExpr[G] extends Expr[G] with LLVMExprImpl[G]
 final case class LlvmLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends LlvmExpr[G] with LLVMLocalImpl[G] {
   var ref: Option[Ref[G, Variable[G]]] = None
 }
-
+final case class LlvmAmbiguousFunctionInvocation[G](name: String,
+                                                    args: Seq[Expr[G]],
+                                                    givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
+                                                    yields: Seq[(Expr[G], Ref[G, Variable[G]])])
+                                                   (val blame: Blame[InvocationFailure])(implicit val o: Origin) extends LlvmExpr[G] with LLVMAmbiguousFunctionInvocationImpl[G] {
+  var ref: Option[Ref[G, LlvmFunctionDefinition[G]]] = None
+}
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {
   var ref: Option[PVLTypeNameTarget[G]] = None
