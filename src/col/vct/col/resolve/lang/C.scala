@@ -49,9 +49,9 @@ case object C {
         innerInfo.params,
         t => innerInfo.typeOrReturnType(FuncTools.repeat[Type[G]](CTPointer(_), pointers.size, t)),
         innerInfo.name)
-    case c @ CArrayDeclarator(_, size, inner) =>
+    case c @ CArrayDeclarator(_, size, inner, _) =>
       val innerInfo = getDeclaratorInfo(inner)
-      DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t)(c.blame)), innerInfo.name)
+      DeclaratorInfo(innerInfo.params, t => innerInfo.typeOrReturnType(CTArray(size, t, c.blame)), innerInfo.name)
     case CTypedFunctionDeclarator(params, _, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params=Some(params), typeOrReturnType=(t => t), innerInfo.name)
@@ -111,7 +111,7 @@ case object C {
       case target: RefCFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
-  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[CDerefTarget[G]] =
+  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame1[G]): Option[CDerefTarget[G]] =
     (obj.t match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.decls.flatMap(Referrable.from).collectFirst {

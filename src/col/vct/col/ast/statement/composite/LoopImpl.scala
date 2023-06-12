@@ -23,7 +23,7 @@ trait LoopImpl[G] { this: Loop[G] =>
 
   def getVariableAndLowerBound(implicit o: Origin): Option[(Variable[G], Expr[G])] =
     init match {
-      case Block(Seq(Assign(Local(Ref(v)), low))) =>
+      case Block(Seq(Assign(Local(Ref(v)), low, _))) =>
         Some((v, low))
       case _ => None
     }
@@ -40,8 +40,8 @@ trait LoopImpl[G] { this: Loop[G] =>
   def doesIncrement(v: Variable[G], update: Statement[G] = update): Boolean =
     update match {
       case Block(Seq(s)) => doesIncrement(v, s)
-      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE))) => true
-      case Eval(PostAssignExpression(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)))) => true
+      case Assign(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)), _) => true
+      case Eval(PostAssignExpression(Local(Ref(`v`)), Plus(Local(Ref(`v`)), IntegerValue(ONE)), _)) => true
       case _ => false
     }
 

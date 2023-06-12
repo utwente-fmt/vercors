@@ -58,8 +58,8 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     case Plus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 + i2
     case Minus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 - i2
     case Mult(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 * i2
-    case FloorDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
-    case Mod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
+    case FloorDiv(e1, e2, _) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
+    case Mod(e1, e2, _) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
 
     case BitAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
     case BitOr(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 | i2
@@ -234,11 +234,11 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
       case (Minus(lhs1, lhs2), Minus(rhs1, rhs2)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Div(lhs1, lhs2), Div(rhs1, rhs2)) =>
+      case (Div(lhs1, lhs2, _), Div(rhs1, rhs2, _)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (FloorDiv(lhs1, lhs2), FloorDiv(rhs1, rhs2)) =>
+      case (FloorDiv(lhs1, lhs2, _), FloorDiv(rhs1, rhs2, _)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Mod(lhs1, lhs2), Mod(rhs1, rhs2)) =>
+      case (Mod(lhs1, lhs2, _), Mod(rhs1, rhs2, _)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
 
       case (BitShl(lhs1, lhs2), BitShl(rhs1, rhs2)) =>

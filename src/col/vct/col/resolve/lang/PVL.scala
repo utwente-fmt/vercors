@@ -37,7 +37,7 @@ case object PVL {
       case ref: RefField[G] if ref.name == name => ref
     }
 
-  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[PVLDerefTarget[G]] =
+  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame1[G]): Option[PVLDerefTarget[G]] =
     obj.t match {
       case TNotAValue(RefEnum(enum)) => enum.constants.flatMap(Referrable.from).collectFirst {
         case ref: RefEnumConstant[G] if ref.name == name => ref
@@ -50,7 +50,7 @@ case object PVL {
       case _ => Spec.builtinField(obj, name, blame)
     }
 
-  def findInstanceMethod[G](obj: Expr[G], method: String, args: Seq[Expr[G]], typeArgs: Seq[Type[G]], blame: Blame[BuiltinError]): Option[PVLInvocationTarget[G]] =
+  def findInstanceMethod[G](obj: Expr[G], method: String, args: Seq[Expr[G]], typeArgs: Seq[Type[G]], blame: Blame1[G]): Option[PVLInvocationTarget[G]] =
     obj.t match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefAxiomaticDataType(decl) => decl.declarations.flatMap(Referrable.from).collectFirst {

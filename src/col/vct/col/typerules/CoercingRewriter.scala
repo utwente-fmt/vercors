@@ -68,18 +68,18 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
       case CoerceMapOption(inner, _, target) =>
-        Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e)(NeverNone), inner)))
+        Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e, NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
         Select(IsRight(e),
-          EitherRight(applyCoercion(GetRight(e)(FramedGetRight), innerRight)),
-          EitherLeft(applyCoercion(GetLeft(e)(FramedGetLeft), innerLeft)),
+          EitherRight(applyCoercion(GetRight(e, FramedGetRight), innerRight)),
+          EitherLeft(applyCoercion(GetLeft(e, FramedGetLeft), innerLeft)),
         )
       case CoerceMapSeq(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable[Post](TSeq(dispatch(source)))
           val i = new Variable[Post](TInt())
-          val result_i = SeqSubscript(result, i.get)(FramedSeqIndex)
-          val v_i = SeqSubscript(v.get, i.get)(FramedSeqIndex)
+          val result_i = SeqSubscript(result, i.get, FramedSeqIndex)
+          val v_i = SeqSubscript(v.get, i.get, FramedSeqIndex)
 
           function(
             blame = AbstractApplicable,
@@ -96,7 +96,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("default coercion for seq<_> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PanicBlame("default coercion for seq<_> requires nothing."))
       case CoerceMapSet(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable(TSet(dispatch(source)))
@@ -116,7 +116,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for set<_> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PanicBlame("Default coercion for set<_> requires nothing."))
       case CoerceMapBag(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable(TBag(dispatch(source)))
@@ -136,7 +136,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil)(PanicBlame("Default coercion for bag<_> requires nothing."))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PanicBlame("Default coercion for bag<_> requires nothing."))
       case CoerceMapMatrix(inner, source, target) =>
         ???
       case CoerceMapMap(inner, (sourceKey, sourceValue), (targetKey, targetValue)) =>

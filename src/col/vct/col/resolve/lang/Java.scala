@@ -1,11 +1,9 @@
 package vct.col.resolve.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.io.RWFile
-import hre.util.FuncTools
 import vct.col.ast.lang.JavaAnnotationEx
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Blame1, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -21,8 +19,9 @@ import vct.result.VerificationError.{Unreachable, UserError}
 import java.io.File
 import java.lang.reflect.{Modifier, Parameter}
 import java.nio.file.Path
-import scala.annotation.tailrec
+
 import scala.collection.mutable
+import hre.util.FuncTools
 
 case object Java extends LazyLogging {
   case class UnexpectedJreDefinition(expectedKind: String, fullyQualifiedName: Seq[String]) extends UserError {
@@ -303,7 +302,7 @@ case object Java extends LazyLogging {
     }))
   }
 
-  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame[BuiltinError]): Option[JavaDerefTarget[G]] =
+  def findDeref[G](obj: Expr[G], name: String, ctx: ReferenceResolutionContext[G], blame: Blame1[G]): Option[JavaDerefTarget[G]] =
     ((obj.t match {
       case t: TNotAValue[G] => t.decl.get match {
         case RefUnloadedJavaNamespace(pkg) =>
@@ -351,7 +350,7 @@ case object Java extends LazyLogging {
       case _ => None
     }
 
-  def findMethod[G](ctx: ReferenceResolutionContext[G], obj: Expr[G], method: String, args: Seq[Expr[G]], blame: Blame[BuiltinError]): Option[JavaInvocationTarget[G]] =
+  def findMethod[G](ctx: ReferenceResolutionContext[G], obj: Expr[G], method: String, args: Seq[Expr[G]], blame: Blame1[G]): Option[JavaInvocationTarget[G]] =
     findMethodOnType(ctx, obj.t, method, args).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
   def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] = {
@@ -499,7 +498,7 @@ case object JavaAnnotationData {
   case object BipInvariant {
     def get[G](jc: JavaClassOrInterface[G]): Option[BipInvariant[G]] =
       jc.modifiers
-        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collect { case ja @ JavaAnnotation(_, _, _) if ja.data.isDefined => ja.data.get }
         .collectFirst { case bi: BipInvariant[G] => bi }
 
   }
@@ -514,7 +513,7 @@ case object JavaAnnotationData {
   case object BipComponent {
     def get[G](jc: JavaClassOrInterface[G]): Option[BipComponent[G]] =
       jc.modifiers
-        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collect { case ja @ JavaAnnotation(_, _, _) if ja.data.isDefined => ja.data.get }
         .collectFirst { case bct: BipComponent[G] => bct }
   }
   final case class BipComponent[G](name: String, initial: JavaBipStatePredicateTarget[G]) extends JavaAnnotationData[G]
@@ -540,7 +539,7 @@ case object JavaAnnotationData {
   case object BipGuard {
     def get[G](m: JavaMethod[G]): Option[BipGuard[G]] =
       m.modifiers
-        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
+        .collect { case ja @ JavaAnnotation(_, _, _) if ja.data.isDefined => ja.data.get }
         .collectFirst { case b: BipGuard[G] => b }
 
     def getName[G](method: JavaMethod[G]): Option[Expr[G]] =

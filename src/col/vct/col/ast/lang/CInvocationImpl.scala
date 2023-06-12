@@ -20,7 +20,7 @@ trait CInvocationImpl[G] { this: CInvocation[G] =>
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstancePredicate(decl) => decl.returnType
     case BuiltinInstanceMethod(f) => applicable match {
-      case CStructAccess(obj, _) => f(obj)(args).t
+      case CStructAccess(obj, _, _) => f(obj)(args).t
       case other => throw Unreachable("BuiltinInstanceMethod resolution of CInvocation must invoke a CStructAccess.")
     }
   }

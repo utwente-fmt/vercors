@@ -19,7 +19,7 @@ trait CheckFoldUnfoldTarget[G] extends NodeFamilyImpl[G] { this: NodeFamily[G] =
 
   @tailrec
   private def check(e: Expr[G]): Option[CheckError] = e match {
-    case Scale(_, res) => check(res)
+    case Scale(_, res, _) => check(res)
     case apply: ApplyAnyPredicate[G] => checkNonAbstract(apply.ref.decl, apply)
     case inv: PVLInvocation[G] => inv.ref.get match {
       case RefPredicate(decl) => checkNonAbstract(decl, inv)

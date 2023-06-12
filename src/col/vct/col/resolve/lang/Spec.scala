@@ -51,29 +51,29 @@ case object Spec {
     override def code: String = "builtinArgCount"
   }
 
-  def builtinField[G](obj: Expr[G], field: String, blame: Blame[BuiltinError]): Option[BuiltinField[G]] = {
+  def builtinField[G](obj: Expr[G], field: String, blame: Blame1[G]): Option[BuiltinField[G]] = {
     implicit val o: Origin = obj.o
     Some(BuiltinField((obj.t, field) match {
-      case (TArray(_), "length") => Length(_)(blame)
+      case (TArray(_), "length") => Length(_, blame)
 
       case (_: SizedType[G], "isEmpty") => Empty(_)
       case (_: SizedType[G], "size") => Size(_)
 
-      case (TSeq(_), "head") => Head(_)(blame)
+      case (TSeq(_), "head") => Head(_, blame)
       case (TSeq(_), "tail") => Tail(_)
 
       case (TMap(_, _), "values") => MapValueSet(_)
       case (TMap(_, _), "items") => MapItemSet(_)
       case (TMap(_, _), "keys") => MapKeySet(_)
 
-      case (TOption(_), "get") => OptGet(_)(blame)
+      case (TOption(_), "get") => OptGet(_, blame)
       case (TOption(_), "isEmpty") => OptEmpty(_)
 
       case (TTuple(_), "fst") => TupGet(_, 0)
       case (TTuple(_), "snd") => TupGet(_, 1)
 
-      case (TEither(_, _), "left") => GetLeft(_)(blame)
-      case (TEither(_, _), "right") => GetRight(_)(blame)
+      case (TEither(_, _), "left") => GetLeft(_, blame)
+      case (TEither(_, _), "right") => GetRight(_, blame)
       case (TEither(_, _), "isLeft") => IsLeft(_)
       case (TEither(_, _), "isRight") => IsRight(_)
 
@@ -86,7 +86,7 @@ case object Spec {
       if(args.size == n) f(obj)(args)
       else throw BuiltinArgumentCountError(obj, n)
 
-  def builtinInstanceMethod[G](obj: Expr[G], method: String, blame: Blame[BuiltinError]): Option[BuiltinInstanceMethod[G]] = {
+  def builtinInstanceMethod[G](obj: Expr[G], method: String, blame: Blame1[G]): Option[BuiltinInstanceMethod[G]] = {
     implicit val o: Origin = obj.o
     Some(BuiltinInstanceMethod((obj.t, method) match {
       case (t: TNotAValue[G], _) => (t.decl.get, method) match {
@@ -127,7 +127,7 @@ case object Spec {
 
       case (TMap(_, _), "add") => argCount(2)(obj => args => MapCons(obj, args(0), args(1)))
       case (TMap(_, _), "remove") => argCount(1)(obj => args => MapRemove(obj, args.head))
-      case (TMap(_, _), "get") => argCount(1)(obj => args => MapGet(obj, args.head)(blame))
+      case (TMap(_, _), "get") => argCount(1)(obj => args => MapGet(obj, args.head, blame))
       case (TMap(_, _), "equals") => argCount(1)(obj => args => MapEq(obj, args.head))
       case (TMap(_, _), "disjoint") => argCount(1)(obj => args => MapDisjoint(obj, args.head))
 
