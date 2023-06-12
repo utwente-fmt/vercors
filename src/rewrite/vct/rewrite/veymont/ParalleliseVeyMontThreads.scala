@@ -1,7 +1,7 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteDeref, RewriteJavaClass}
+import vct.col.ast.RewriteHelpers.{RewriteDeref, RewriteJavaClass, RewriteMethodInvocation}
 import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaTClass, Loop, MethodInvocation, Node, Program, RunMethod, Scope, Skip, Statement, TClass, ThisObject, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
 import vct.col.origin.{Origin, PreferredNameOrigin}
 import vct.col.ref.Ref
@@ -178,12 +178,12 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
           case Some((_,threadExpr)) => dispatch(threadExpr)
           case _ => throw ParalliseVeyMontThreadsError(node, "Condition of if statement or while loop must contain an expression for every thread")
         }
-        case m: MethodInvocation[Pre] => threadMethodSucc.get((thread,m.ref.decl)) match {
-          case Some(postMethod) => MethodInvocation[Post](dispatch(m.obj),postMethod.ref,m.args.map(dispatch),
-            m.outArgs.map(dispatch),m.typeArgs.map(dispatch),
-            m.givenMap.map{ case (r,e) => (dispatch(r),dispatch(e))},
-            m.yields.map{case (e,r) => (dispatch(e),dispatch(r))})(m.blame)(m.o)
-          case None => throw ParalliseVeyMontThreadsError(m,"No successor for this method found")
+        case m: MethodInvocation[Pre] => m.obj match {
+          case threadRef: DerefVeyMontThread[Pre] => m.rewrite(obj = dispatch(threadRef))
+          case _ => threadMethodSucc.get((thread, m.ref.decl)) match {
+            case Some(postMethod) => m.rewrite(obj = dispatch(m.obj), ref = postMethod.ref, m.args.map(dispatch))
+            case None => throw ParalliseVeyMontThreadsError(m, "No successor for this method found")
+          }
         }
         case t: ThisObject[Pre] => ThisObject(threadClassSucc.ref[Post, Class[Post]](threadBuildingBlocks.top.thread))(threadBuildingBlocks.top.thread.o)
         case d: Deref[Pre] => d.obj match {
@@ -224,7 +224,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
           case Loop(_, _, _, _, _) => rewriteDefault(st)
           case Scope(_, _) => rewriteDefault(st)
           case Block(_) => rewriteDefault(st)
-          case Eval(expr) => Eval(rewriteDefault(expr))(st.o)
+          case Eval(expr) => Eval(dispatch(expr))(st.o)
           case Assert(_) => rewriteDefault(st)
           case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
         }
