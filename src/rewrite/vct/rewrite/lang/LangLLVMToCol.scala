@@ -32,7 +32,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           }._1,
           outArgs = Nil,
           typeArgs = Nil,
-          body = Some(rw.dispatch(func.functionBody)),
+          body = if (func.pure) Some(GotoEliminator(func.functionBody match { case scope: Scope[Pre] => scope }).eliminate()) else Some(rw.dispatch(func.functionBody)),
+          //body = Some(GotoEliminator(func.functionBody match { case scope: Scope[Pre] => scope }).eliminate()),
           contract = rw.dispatch(func.contract.data.get),
           pure = func.pure
         )(func.blame)
@@ -67,4 +68,62 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
   def result(ref: RefLlvmFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
     Result[Post](functionMap.ref(ref.decl))
+
+  /*
+  Elimination works by replacing every goto with the block its referring too
+  effectively transforming the CFG into a tree. More efficient restructuring algorithms but this works for now.
+
+  This of course only works for acyclic CFGs as otherwise replacement would be infinitely recursive.
+  Loop restructuring should be handled by VCLLVM as it has much more analytical and contextual information about
+  the program.
+  */
+  case class GotoEliminator(bodyScope: Scope[Pre]) extends LazyLogging {
+    val labelDeclMap: Map[LabelDecl[Pre], Label[Pre]] = bodyScope.body match {
+      case block: Block[Pre] =>
+        block.statements.map {
+          case label: Label[Pre] => (label.decl, label)
+        }.toMap
+    }
+
+    def eliminate(): Scope[Post] = {
+      bodyScope match {
+        case scope: Scope[Pre] => Scope[Post](
+          rw.variables.collect {
+            scope.locals.foreach(rw.dispatch)
+          }._1,
+          scope.body match {
+            case bodyBlock: Block[Pre] => Block[Post](
+              bodyBlock.statements.head match {
+                case label: Label[Pre] => Seq(eliminate(label))
+              }
+            )(scope.body.o)
+          }
+        )(scope.o)
+      }
+    }
+
+    def eliminate(label: Label[Pre]): Block[Post] = {
+      implicit val o: Origin = label.o
+      label.stat match {
+        case block: Block[Pre] =>
+          block.statements.last match {
+            case goto: Goto[Pre] => Block[Post](block.statements.dropRight(1).map(rw.dispatch) ++ eliminate(labelDeclMap(goto.lbl.decl)).statements)
+            case _: Return[Pre] => rw.dispatch(block) match {
+              case block: Block[Post] => block
+            }
+            case branch: Branch[Pre] => Block[Post](block.statements.dropRight(1).map(rw.dispatch) :+ eliminate(branch))
+          }
+      }
+    }
+
+    def eliminate(branch: Branch[Pre]): Branch[Post] = {
+      implicit val o: Origin = branch.o
+      Branch[Post](
+        branch.branches.map(
+          bs => (rw.dispatch(bs._1), bs._2 match {
+            case goto: Goto[Pre] => eliminate(labelDeclMap(goto.lbl.decl))
+          })
+        ))
+    }
+  }
 }
