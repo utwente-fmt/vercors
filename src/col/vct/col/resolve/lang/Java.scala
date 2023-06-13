@@ -3,7 +3,7 @@ package vct.col.resolve.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.lang.JavaAnnotationEx
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Blame1, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{BlameVerCors, ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Blame1, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -19,9 +19,9 @@ import vct.result.VerificationError.{Unreachable, UserError}
 import java.io.File
 import java.lang.reflect.{Modifier, Parameter}
 import java.nio.file.Path
-
-import scala.collection.mutable
 import hre.util.FuncTools
+import scala.collection.mutable
+import scala.annotation.tailrec
 
 case object Java extends LazyLogging {
   case class UnexpectedJreDefinition(expectedKind: String, fullyQualifiedName: Seq[String]) extends UserError {
@@ -147,7 +147,8 @@ case object Java extends LazyLogging {
         typeParameters = Nil,
         signals = Nil,
         body = Block(Nil),
-        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None)(TrueSatisfiable),
+        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None, Blame1(BlameVerCors("?"), Nil)),
+        blame = Blame1(BlameVerCors("?"), Nil),
       )(SourceNameOrigin(cls.getSimpleName, o))
     })
 
@@ -161,8 +162,9 @@ case object Java extends LazyLogging {
         typeParameters = Nil,
         signals = Nil,
         body = None,
-        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None)(TrueSatisfiable),
-      )(AbstractApplicable)(SourceNameOrigin(method.getName, o))
+        contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None, Blame1(BlameVerCors("?"), Nil)),
+        blame = Blame1(BlameVerCors("?"), Nil),
+      )(SourceNameOrigin(method.getName, o))
     })
 
     val fields = cls.getFields.map(field => {

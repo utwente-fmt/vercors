@@ -40,9 +40,9 @@ object AstBuildHelpers {
     def +(right: Expr[G])(implicit origin: Origin): Plus[G] = Plus(left, right)
     def -(right: Expr[G])(implicit origin: Origin): Minus[G] = Minus(left, right)
     def *(right: Expr[G])(implicit origin: Origin): Mult[G] = Mult(left, right)
-    def /(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): FloorDiv[G] = FloorDiv(left, right)(blame)
-    def /:/(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Div[G] = Div(left, right)(blame)
-    def %(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Mod[G] = Mod(left, right)(blame)
+    def /(right: Expr[G])(implicit origin: Origin, blame: Blame1[G]): FloorDiv[G] = FloorDiv(left, right, blame)
+    def /:/(right: Expr[G])(implicit origin: Origin, blame: Blame1[G]): Div[G] = Div(left, right, blame)
+    def %(right: Expr[G])(implicit origin: Origin, blame: Blame1[G]): Mod[G] = Mod(left, right, blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)
     def !==(right: Expr[G])(implicit origin: Origin): Neq[G] = Neq(left, right)
@@ -58,9 +58,9 @@ object AstBuildHelpers {
 
     def ==>(right: Expr[G])(implicit origin: Origin): Implies[G] = Implies(left, right)
 
-    def ~>(field: SilverField[G])(implicit blame: Blame[InsufficientPermission], origin: Origin): SilverDeref[G] = SilverDeref[G](left, field.ref)(blame)
+    def ~>(field: SilverField[G])(implicit blame: Blame1[G], origin: Origin): SilverDeref[G] = SilverDeref[G](left, field.ref, blame)
 
-    def @@(index: Expr[G])(implicit blame: Blame[SeqBoundFailure], origin: Origin): SeqSubscript[G] = SeqSubscript(left, index)(blame)
+    def @@(index: Expr[G])(implicit blame: Blame1[G], origin: Origin): SeqSubscript[G] = SeqSubscript(left, index, blame)
   }
 
   implicit class VarBuildHelpers[G](left: Variable[G]) {
@@ -69,7 +69,7 @@ object AstBuildHelpers {
   }
 
   implicit class FieldBuildHelpers[G](left: SilverDeref[G]) {
-    def <~(right: Expr[G])(implicit blame: Blame[AssignFailed], origin: Origin): SilverFieldAssign[G] = SilverFieldAssign(left.obj, left.field, right)(blame)
+    def <~(right: Expr[G])(implicit blame: Blame1[G], origin: Origin): SilverFieldAssign[G] = SilverFieldAssign(left.obj, left.field, right, blame)
   }
 
   implicit class ApplicableBuildHelpers[Pre, Post](applicable: Applicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
@@ -126,7 +126,7 @@ object AstBuildHelpers {
                 typeArgs: => Seq[Variable[Post]] = rewriter.variables.dispatch(method.typeArgs),
                 inline: => Boolean = method.inline,
                 pure: => Boolean = method.pure,
-                blame: Blame[CallableFailure] = method.blame,
+                blame: Blame1[Post] = rewriter.dispatch(method.blame),
                ): AbstractMethod[Post] = method match {
       case procedure: Procedure[Pre] =>
         new RewriteProcedure(procedure).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure, blame = blame)
@@ -145,7 +145,7 @@ object AstBuildHelpers {
                 typeArgs: => Seq[Variable[Post]] = rewriter.variables.dispatch(function.typeArgs),
                 inline: => Boolean = function.inline,
                 threadLocal: => Boolean = function.threadLocal,
-                blame: => Blame[ContractedFailure] = function.blame,
+                blame: => Blame1[Post] = rewriter.dispatch(function.blame),
                ): ContractApplicable[Post] = function match {
       case function: Function[Pre] =>
         new RewriteFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
@@ -245,7 +245,7 @@ object AstBuildHelpers {
     IntegerValue(i)
 
   def contract[G]
-              (blame: Blame[NontrivialUnsatisfiable],
+              (blame: Blame1[G],
                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
@@ -254,7 +254,7 @@ object AstBuildHelpers {
                decreases: Option[DecreasesClause[G]] = None,
               )
               (implicit o: Origin): ApplicableContract[G] =
-    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(blame)
+    ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases, blame)
 
   def withResult[G, T <: ContractApplicable[G]](builder: Result[G] => T)(implicit o: Origin): T = {
     val box = SuccessionMap[Unit, ContractApplicable[G]]()
@@ -265,8 +265,8 @@ object AstBuildHelpers {
   }
 
   def procedure[G]
-               (blame: Blame[CallableFailure],
-                contractBlame: Blame[NontrivialUnsatisfiable],
+               (blame: Blame1[G],
+                contractBlame: Blame1[G],
                 returnType: Type[G] = TVoid[G](),
                 args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                 body: Option[Statement[G]] = None,
@@ -279,12 +279,12 @@ object AstBuildHelpers {
                 inline: Boolean = false, pure: Boolean = false)
                (implicit o: Origin): Procedure[G] =
     new Procedure(returnType, args, outArgs, typeArgs, body,
-      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
-      inline, pure)(blame)
+      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases, contractBlame),
+      inline, pure, blame)
 
   def function[G]
-              (blame: Blame[ContractedFailure],
-               contractBlame: Blame[NontrivialUnsatisfiable],
+              (blame: Blame1[G],
+               contractBlame: Blame1[G],
                returnType: Type[G] = TVoid(),
                args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                body: Option[Expr[G]] = None,
@@ -294,22 +294,22 @@ object AstBuildHelpers {
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
                decreases: Option[DecreasesClause[G]] = Some(DecreasesClauseNoRecursion[G]()(ConstOrigin("decreases"))),
-               inline: Boolean = false)(implicit o: Origin): Function[G] =
+               inline: Boolean = false, threadLocal: Boolean = false)(implicit o: Origin): Function[G] =
     new Function(returnType, args, typeArgs, body,
-      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
-      inline)(blame)
+      ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases, contractBlame),
+      inline, threadLocal, blame)
 
   def functionInvocation[G]
-                        (blame: Blame[InvocationFailure],
+                        (blame: Blame1[G],
                          ref: Ref[G, Function[G]],
                          args: Seq[Expr[G]] = Nil,
                          typeArgs: Seq[Type[G]] = Nil,
                          givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
                          yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): FunctionInvocation[G] =
-    FunctionInvocation(ref, args, typeArgs, givenMap, yields)(blame)
+    FunctionInvocation(ref, args, typeArgs, givenMap, yields, blame)
 
   def methodInvocation[G]
-                      (blame: Blame[InstanceInvocationFailure],
+                      (blame: Blame1[G],
                        obj: Expr[G],
                        ref: Ref[G, InstanceMethod[G]],
                        args: Seq[Expr[G]] = Nil,
@@ -317,7 +317,7 @@ object AstBuildHelpers {
                        typeArgs: Seq[Type[G]] = Nil,
                        givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
                        yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
-    MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+    MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields, blame)
 
   case object GeneratedQuantifier extends Origin {
     override def preferredName: String = "i"
@@ -327,7 +327,7 @@ object AstBuildHelpers {
   }
 
   def starall[G]
-             (blame: Blame[ReceiverNotInjective],
+             (blame: Blame1[G],
               t: Type[G],
               body: Local[G] => Expr[G],
               triggers: Local[G] => Seq[Seq[Expr[G]]] = (_: Local[G]) => Nil,
@@ -339,7 +339,8 @@ object AstBuildHelpers {
       bindings = Seq(i_var),
       triggers = triggers(i),
       body = body(i),
-    )(blame)
+      blame = blame
+    )
   }
 
   def forall[G]
@@ -387,16 +388,16 @@ object AstBuildHelpers {
   }
 
   def assignLocal[G](local: Local[G], value: Expr[G])(implicit o: Origin): Assign[G] =
-    Assign(local, value)(AssignLocalOk)
+    Assign(local, value, Blame1(BlameVerCors("?"), Nil))
 
-  def assignField[G](obj: Expr[G], field: Ref[G, InstanceField[G]], value: Expr[G], blame: Blame[AssignFailed])(implicit o: Origin): Assign[G] =
-    Assign(Deref(obj, field)(DerefAssignTarget), value)(blame)
+  def assignField[G](obj: Expr[G], field: Ref[G, InstanceField[G]], value: Expr[G], blame: Blame1[G])(implicit o: Origin): Assign[G] =
+    Assign(Deref(obj, field, Blame1(BlameVerCors("?"), Nil)), value, blame)
 
   def fieldPerm[G](obj: Expr[G], field: Ref[G, InstanceField[G]], amount: Expr[G])(implicit o: Origin): Perm[G] =
     Perm(FieldLocation(obj, field), amount)
 
-  def arrayPerm[G](arr: Expr[G], index: Expr[G], amount: Expr[G], arrayLocationError: Blame[ArrayLocationError])(implicit o: Origin): Perm[G] =
-    Perm(ArrayLocation(arr, index)(arrayLocationError), amount)
+  def arrayPerm[G](arr: Expr[G], index: Expr[G], amount: Expr[G], arrayLocationError: Blame1[G])(implicit o: Origin): Perm[G] =
+    Perm(ArrayLocation(arr, index, arrayLocationError), amount)
 
   def foldAnd[G](exprs: Iterable[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(And(_, _)).getOrElse(tt)

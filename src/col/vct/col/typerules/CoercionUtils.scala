@@ -55,7 +55,7 @@ case object CoercionUtils {
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
-      case (_ @ CTArray(_, innerType), _ @ TArray(element)) if element == innerType =>
+      case (_ @ CTArray(_, innerType, _), _ @ TArray(element)) if element == innerType =>
         CoerceCArrayPointer(element)
 
       case (TBool(), TResource()) => CoerceBoolResource()

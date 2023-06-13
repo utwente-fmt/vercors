@@ -1,12 +1,12 @@
 package vct.col.ast.declaration.category
 
 import vct.col.ast.util.Declarator
-import vct.col.ast.{ApplicableContract, ContractApplicable, Declaration, Variable}
+import vct.col.ast.{ApplicableContract, Blame1, ContractApplicable, Declaration, Variable}
 import vct.col.origin.{Blame, ContractedFailure, PostconditionFailed}
 
 trait ContractApplicableImpl[G] extends InlineableApplicableImpl[G] { this: ContractApplicable[G] =>
   def contract: ApplicableContract[G]
-  def blame: Blame[ContractedFailure]
+  def blame: Blame1[G]
   override def declarations: Seq[Declaration[G]] =
     super.declarations ++ contract.givenArgs ++ contract.yieldsArgs ++ typeArgs
 
