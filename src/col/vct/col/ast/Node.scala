@@ -671,7 +671,7 @@ final case class SuperType[G](left: Expr[G], right: Expr[G])(implicit val o: Ori
 final case class IndeterminateInteger[G](min: Expr[G], max: Expr[G])(implicit val o: Origin) extends Expr[G] with IndeterminateIntegerImpl[G]
 
 sealed trait AssignExpression[G] extends Expr[G] with AssignExpressionImpl[G]
-final case class VeyMontCommExpression[G](receiver: Ref[G,VeyMontThread[G]], sender : Ref[G,VeyMontThread[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontCommImpl[G]
+final case class VeyMontCommExpression[G](receiver: Ref[G,VeyMontThread[G]], sender : Ref[G,VeyMontThread[G]], chanType: Type[G], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontCommImpl[G]
 final case class VeyMontAssignExpression[G](thread : Ref[G,VeyMontThread[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
 final case class PreAssignExpression[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends AssignExpression[G] with PreAssignExpressionImpl[G]
 final case class PostAssignExpression[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends AssignExpression[G] with PostAssignExpressionImpl[G]

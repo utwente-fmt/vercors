@@ -93,7 +93,7 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
       new VeyMontAssignExpression[Post](succ(receiver), rewriteDefault(a))(a.o)
     else if (derefs.size == 1) {
       val sender = getAssignmentSender(derefs.head)
-      new VeyMontCommExpression[Post](succ(receiver), succ(sender), rewriteDefault(a))(a.o)
+      new VeyMontCommExpression[Post](succ(receiver), succ(sender), dispatch(derefs.head.ref.decl.t), rewriteDefault(a))(a.o)
     } else throw AddVeyMontAssignmentError(a.value, "The value of this assignment is not allowed to refer to multiple threads!")
   }
 
