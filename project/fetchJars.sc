@@ -16,7 +16,7 @@ object z3 extends Module {
 
 object antlr extends Module {
   def url = T {
-    "https://github.com/niomaster/antlr4/releases/download/4.8-extractors-2/antlr4.jar"
+    "https://github.com/pieter-bos/antlr4/releases/download/4.8-extractors-2/antlr4.jar"
   }
 
   def classPath = T {
