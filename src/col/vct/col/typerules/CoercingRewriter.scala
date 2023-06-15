@@ -4,6 +4,10 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
+import vct.col.failure.BlameVerCorsReasons.Applicable.{PostOfAbstract, PreIsTrue}
+import vct.col.failure.BlameVerCorsReasons.Contract.TrueIsSatisfiable
+import vct.col.failure.BlameVerCorsReasons.Structure.Trigger
+import vct.col.failure.BlameVerCorsReasons.WellFormedness.{EitherNotLeft, EitherNotRight, MapContains, OptNotEmpty, SeqBound}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewritten}
@@ -68,22 +72,22 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
       case CoerceMapOption(inner, _, target) =>
-        Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e, Blame1(BlameVerCors("?"), Nil)), inner)))
+        Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e, OptNotEmpty), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
         Select(IsRight(e),
-          EitherRight(applyCoercion(GetRight(e, Blame1(BlameVerCors("?"), Nil)), innerRight)),
-          EitherLeft(applyCoercion(GetLeft(e, Blame1(BlameVerCors("?"), Nil)), innerLeft)),
+          EitherRight(applyCoercion(GetRight(e, EitherNotLeft), innerRight)),
+          EitherLeft(applyCoercion(GetLeft(e, EitherNotRight), innerLeft)),
         )
       case CoerceMapSeq(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable[Post](TSeq(dispatch(source)))
           val i = new Variable[Post](TInt())
-          val result_i = SeqSubscript(result, i.get, Blame1(BlameVerCors("?"), Nil))
-          val v_i = SeqSubscript(v.get, i.get, Blame1(BlameVerCors("?"), Nil))
+          val result_i = SeqSubscript(result, i.get, SeqBound)
+          val v_i = SeqSubscript(v.get, i.get, SeqBound)
 
           function(
-            blame = Blame1(BlameVerCors("?"), Nil),
-            contractBlame = Blame1(BlameVerCors("?"), Nil),
+            blame = PostOfAbstract,
+            contractBlame = TrueIsSatisfiable,
             returnType = TSeq(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -96,15 +100,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, Blame1(BlameVerCors("?"), Nil))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PreIsTrue)
       case CoerceMapSet(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable(TSet(dispatch(source)))
           val elem = new Variable(dispatch(source))
 
           function(
-            blame = Blame1(BlameVerCors("?"), Nil),
-            contractBlame = Blame1(BlameVerCors("?"), Nil),
+            blame = PostOfAbstract,
+            contractBlame = TrueIsSatisfiable,
             returnType = TSet(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -116,15 +120,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, Blame1(BlameVerCors("?"), Nil))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PreIsTrue)
       case CoerceMapBag(inner, source, target) =>
         val f: Function[Post] = withResult((result: Result[Post]) => {
           val v = new Variable(TBag(dispatch(source)))
           val elem = new Variable(dispatch(source))
 
           function(
-            blame = Blame1(BlameVerCors("?"), Nil),
-            contractBlame = Blame1(BlameVerCors("?"), Nil),
+            blame = PostOfAbstract,
+            contractBlame = TrueIsSatisfiable,
             returnType = TBag(dispatch(target)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
@@ -136,7 +140,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, Blame1(BlameVerCors("?"), Nil))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PreIsTrue)
       case CoerceMapMatrix(inner, source, target) =>
         ???
       case CoerceMapMap(inner, (sourceKey, sourceValue), (targetKey, targetValue)) =>
@@ -145,20 +149,20 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           val k = new Variable(dispatch(sourceKey))
 
           function(
-            blame = Blame1(BlameVerCors("?"), Nil),
-            contractBlame = Blame1(BlameVerCors("?"), Nil),
+            blame = PostOfAbstract,
+            contractBlame = TrueIsSatisfiable,
             returnType = TMap(dispatch(targetKey), dispatch(targetValue)),
             args = Seq(v),
             ensures = UnitAccountedPredicate(
               Eq(MapKeySet(result), MapKeySet(v.get)) &&
-                Forall(Seq(k), Seq(Seq(MapGet(result, k.get, Blame1(BlameVerCors("?"), Nil)))),
-                  SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get, Blame1(BlameVerCors("?"), Nil)), MapGet(v.get, k.get, Blame1(BlameVerCors("?"), Nil))))
+                Forall(Seq(k), Seq(Seq(MapGet(result, k.get, Trigger))),
+                  SetMember(k.get, MapKeySet(result)) ==> Eq(MapGet(result, k.get, MapContains), MapGet(v.get, k.get, MapContains)))
             ),
           )
         })
 
         globalDeclarations.declare(f)
-        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, Blame1(BlameVerCors("?"), Nil))
+        FunctionInvocation[Post](f.ref, Seq(e), Nil, Nil, Nil, PreIsTrue)
       case CoerceMapTuple(inner, sourceTypes, targetTypes) =>
         LiteralTuple(targetTypes.map(dispatch), inner.zipWithIndex.map { case (c, i) => applyCoercion(TupGet(e, i), c) })
       case CoerceMapType(inner, source, target) =>

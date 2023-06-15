@@ -3,6 +3,7 @@ package vct.col.util
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.ast.expr.apply.FunctionInvocationImpl
+import vct.col.failure.BlameVerCorsReasons.Structure.{AssignField, AssignLocal}
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 
@@ -388,10 +389,10 @@ object AstBuildHelpers {
   }
 
   def assignLocal[G](local: Local[G], value: Expr[G])(implicit o: Origin): Assign[G] =
-    Assign(local, value, Blame1(BlameVerCors("?"), Nil))
+    Assign(local, value, AssignLocal)
 
   def assignField[G](obj: Expr[G], field: Ref[G, InstanceField[G]], value: Expr[G], blame: Blame1[G])(implicit o: Origin): Assign[G] =
-    Assign(Deref(obj, field, Blame1(BlameVerCors("?"), Nil)), value, blame)
+    Assign(Deref(obj, field, AssignField), value, blame)
 
   def fieldPerm[G](obj: Expr[G], field: Ref[G, InstanceField[G]], amount: Expr[G])(implicit o: Origin): Perm[G] =
     Perm(FieldLocation(obj, field), amount)
