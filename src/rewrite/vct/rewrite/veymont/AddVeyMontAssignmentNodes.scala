@@ -92,8 +92,16 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
     if (derefs.isEmpty)
       new VeyMontAssignExpression[Post](succ(receiver), rewriteDefault(a))(a.o)
     else if (derefs.size == 1) {
-      val sender = getAssignmentSender(derefs.head)
-      new VeyMontCommExpression[Post](succ(receiver), succ(sender), dispatch(derefs.head.ref.decl.t), rewriteDefault(a))(a.o)
+      val thread = derefs.head.obj match {
+        case t: DerefVeyMontThread[Pre] => t
+        case _ => throw AddVeyMontAssignmentError(a.value, "The value of this assignment is expected to be a Deref of a thread!")
+      }
+      if(thread.ref.decl == receiver)
+        new VeyMontAssignExpression[Post](succ(receiver),rewriteDefault(a))(a.o)
+      else {
+        val sender = getAssignmentSender(derefs.head)
+        new VeyMontCommExpression[Post](succ(receiver), succ(sender), dispatch(derefs.head.ref.decl.t), rewriteDefault(a))(a.o)
+      }
     } else throw AddVeyMontAssignmentError(a.value, "The value of this assignment is not allowed to refer to multiple threads!")
   }
 

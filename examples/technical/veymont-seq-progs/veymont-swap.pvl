@@ -25,7 +25,7 @@ seq_program SeqProgram(int x, int y) {
   int num() {}
   
   void foo() {
-     s1.temp = 5;
+     s1.temp = 7;
   }
   
   //void bar(int a) {}

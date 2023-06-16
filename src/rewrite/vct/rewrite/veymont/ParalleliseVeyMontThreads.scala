@@ -1,10 +1,13 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteDeref, RewriteJavaClass, RewriteMethodInvocation}
-import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaTClass, Local, Loop, MethodInvocation, Node, Program, RunMethod, Scope, Skip, Statement, TClass, ThisObject, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast
+import vct.col.ast.RewriteHelpers.{RewriteAssign, RewriteDeref, RewriteJavaClass, RewriteMethodInvocation}
+import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaInvocation, JavaMethod, JavaTClass, Local, Loop, MethodInvocation, Node, Program, RunMethod, Scope, Skip, Statement, TClass, ThisObject, ThisSeqProg, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
 import vct.col.origin.{Origin, PreferredNameOrigin}
 import vct.col.ref.Ref
+import vct.col.resolve.ctx.RefJavaMethod
+import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.getDerefsFromExpr
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
@@ -88,7 +91,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def createThreadClass(thread: VeyMontThread[Pre], threadRes: ThreadBuildingBlocks[Pre], threadMethods: Seq[ClassDeclaration[Post]]): Unit = {
     val channelFieldsForThread = threadRes.channelFields.view.filterKeys {
-      _.decl == thread
+      case (comExpr,_) => comExpr.receiver.decl == thread || comExpr.sender.decl == thread
     }.values.toSeq
     val threadRun = getThreadRunFromDecl(thread, threadRes.runMethod)
     classDeclarations.scope {
@@ -188,7 +191,6 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
             case None => throw ParalliseVeyMontThreadsError(m, "No successor for this method found")
           }
         }
-        case t: ThisObject[Pre] => ThisObject(threadClassSucc.ref[Post, Class[Post]](threadBuildingBlocks.top.thread))(threadBuildingBlocks.top.thread.o)
         case d: Deref[Pre] => d.obj match {
           case t: DerefVeyMontThread[Pre] =>
             val threadField = threadBuildingBlocks.top.threadField
@@ -213,36 +215,52 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
           case v@VeyMontCommExpression(recv,sender,chanType,assign) =>
             val channelField = threadBuildingBlocks.top.channelFields((v,v.o))
             val channelClass = threadBuildingBlocks.top.channelClasses(chanType)
+            val thisChanField = Deref(ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), channelField.ref[InstanceField[Post]])(null)(assign.o)
             val assignment = assign.asInstanceOf[Assign[Pre]]
-            if (recv.decl == thread)
-              dispatch(assign)
-            else if(sender.decl == thread) {
+            if (recv.decl == thread) {
+              val readMethod = findChannelClassMethod(v, channelClass, "readValue")
+              val assignValue = JavaInvocation(Some(thisChanField),Seq.empty, "readValue",Seq.empty, Seq.empty,Seq.empty)(null)(v.o)
+              assignValue.ref = Some(RefJavaMethod(readMethod))
+              Assign(dispatch(assignment.target),assignValue)(null)(v.o)
+            } else if(sender.decl == thread) {
               val writeMethod = findChannelClassMethod(v, channelClass, "writeValue")
-              val thisChanField = Deref(ThisObject(threadClassSucc.ref[Post, Class[Post]](thread))(thread.o), channelField.ref[InstanceField[Post]])(null)(assign.o)
-              Eval(MethodInvocation(thisChanField,writeMethod.ref[InstanceMethod[Post]],Seq(dispatch(assignment.value)),Seq.empty,Seq.empty,Seq.empty,Seq.empty)(null)(v.o))(v.o)
+              val writeInvoc = JavaInvocation(Some(thisChanField),Seq.empty,"writeValue",Seq(dispatch(assignment.value)),Seq.empty,Seq.empty)(null)(v.o)
+              writeInvoc.ref = Some(RefJavaMethod(writeMethod))
+              Eval(writeInvoc)(v.o)
             }
             else Skip()(assign.o)
-          case VeyMontAssignExpression(threadRef, assign) =>
+          case v@VeyMontAssignExpression(threadRef, assign) =>
             if (threadRef.decl == thread)
               dispatch(assign)
             else Skip()(assign.o)
-          case Assign(_, _) => rewriteDefault(st)
+          case a: Assign[Pre] => rewriteDefault(st)
           case Branch(_) => rewriteDefault(st)
           case Loop(_, _, _, _, _) => rewriteDefault(st)
           case Scope(_, _) => rewriteDefault(st)
           case Block(_) => rewriteDefault(st)
-          case Eval(expr) => Eval(dispatch(expr))(st.o)
-          case Assert(_) => rewriteDefault(st)
+          case Eval(expr) => expr match {
+            case m: MethodInvocation[Pre] => m.obj match {
+              case _: ThisSeqProg[Pre] => Eval(dispatch(expr))(st.o)
+              case d: DerefVeyMontThread[Pre] => if(d.ref.decl == thread) Eval(dispatch(expr))(st.o) else Skip()(st.o)
+              case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
+            }
+            case _ => rewriteDefault(st)
+          }
+          case _: Assert[Pre] => Skip()(st.o)
           case _ => throw ParalliseVeyMontThreadsError(st, "Statement not allowed in seq_program")
         }
       } else rewriteDefault(st)
     }
 
-  private def findChannelClassMethod(v: VeyMontCommExpression[Pre], channelClass: JavaClass[Post], methodName: String) = {
-    val writeMethod = channelClass.decls.find { case m: InstanceMethod[Pre] => m.o.preferredName == methodName } match {
-      case Some(m: InstanceMethod[Post]) => m
-      case _ => throw ParalliseVeyMontThreadsError(v, "Could not find method `" + methodName + "' for channelClass")
+  private def findChannelClassMethod(v: VeyMontCommExpression[Pre], channelClass: JavaClass[Post], methodName: String): JavaMethod[Post] = {
+    val method = channelClass.decls.find {
+      case jm: JavaMethod[Post] => jm.name == methodName
+      case _ => false
     }
-    writeMethod
+    method match {
+      case Some(m : JavaMethod[Post]) => m
+      case _ => throw ParalliseVeyMontThreadsError(v, "Could not find method `" + methodName + "' for channel class " + channelClass.name)
+    }
   }
+
 }
