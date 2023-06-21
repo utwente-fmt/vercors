@@ -1,6 +1,7 @@
 package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
+import hre.data.BitString
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
 import spray.json.{JsString, JsValue, JsonParser}
@@ -9,6 +10,7 @@ import vct.col.origin.RedirectOrigin.StringReadable
 
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable.ArrayBuffer
 
 case object Origin {
@@ -18,13 +20,9 @@ case object Origin {
   def messagesInContext(messages: Seq[(Origin, String)]): String =
     messages.zipWithIndex.map {
       case ((origin, message), idx) =>
-        origin.context.replaceAll("(^[\r\n]+)|([\r\n]+$)", "") + "\n" + HR + s"[${idx+1}/${messages.size}] $message\n"
+        origin.getContext.getOrElse(Context("")).context.replaceAll("(^[\r\n]+)|([\r\n]+$)", "") + "\n" + HR+ s"[${idx+1}/${messages.size}] $message\n"
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }
-
-
-// make origin a sequence of `preferedName`, etc. objects that can easily be added via
-// helper methods
 
 trait OriginContent
 
@@ -68,19 +66,31 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     Origin(originContents :+ InlineContext(inCtx))
   }
 
-  def messageInContext(message: String): String =
-    context match {
-      case "" => message
-      case context =>
-        BOLD_HR + context.strip() + "\n" + HR + message + "\n" + BOLD_HR
+  def getContext: Option[Context] = {
+    originContents.flatMap {
+      case Context(any) => Seq(Context(any))
+      case _ => Nil
+    } match {
+      case Seq(Context(any)) => Option(Context(any))
+      case _ => None
+    }
+  }
+
+  def messageInContext(message: String): String = {
+      originContents.flatMap{
+        case Context(innerMessage) => innerMessage match {
+          case "" => message
+          case context =>
+            BOLD_HR + context.strip() + "\n" + HR + message + "\n" + BOLD_HR
+        }
+        case other => Nil
+      }.mkString
     }
 
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)
   }
 }
-
-case object DiagnosticOrigin extends Origin(Nil)
 
 object InputOrigin {
   val CONTEXT = 2
@@ -255,13 +265,6 @@ object UserInputOrigin {
       case None => f"${readable.fileName}:${startLineIdx + 1}"
     }
 
-    def endText: String = cols match {
-      case Some((_, endColIdx)) => f"${endLineIdx + 1}:${endColIdx + 1}"
-      case None => f"${endLineIdx + 1}"
-    }
-
-    def toString: String = f"$startText - $endText"
-
     def baseFilename: String = Paths.get(readable.fileName).getFileName.toString
 
     def inlineContext: String = {
@@ -282,8 +285,8 @@ object UserInputOrigin {
     }
 
     def shortPosition: String = cols match {
-      case Some((startColIdx, _)) => ShortPosition(f"$baseFilename:${startLineIdx + 1}:${startColIdx + 1}")
-      case None => ShortPosition(f"$baseFilename:${startLineIdx + 1}")
+      case Some((startColIdx, _)) => f"$baseFilename:${startLineIdx + 1}:${startColIdx + 1}"
+      case None => f"$baseFilename:${startLineIdx + 1}"
     }
 
     Origin(Seq(ShortPosition(shortPosition), Context(context), InlineContext(inlineContext)))
@@ -303,44 +306,36 @@ object InterpretedOrigin {
             cols: Option[(Int, Int)],
             original: Origin): Origin = {
 
-  }
-  private def startText: String = cols match {
-    case Some((startColIdx, _)) => f"${interpreted.fileName}:${startLineIdx+1}:${startColIdx+1}"
-    case None => f"${interpreted.fileName}:${startLineIdx+1}"
-  }
-
-  private def endText: String = cols match {
-    case Some((_, endColIdx)) => f"${endLineIdx+1}:${endColIdx+1}"
-    case None => f"${endLineIdx+1}"
-  }
-
-  override def shortPosition: String = original.shortPosition
-
-  override def context: String = {
-    val interpretedAtLine = f" Interpreted at $startText as:\n"
-
-    val interpretedText = if(interpreted.isRereadable) {
-      interpretedAtLine + Origin.HR + InputOrigin.contextLines(interpreted, startLineIdx, endLineIdx, cols)
-    } else {
-      interpretedAtLine
+    def startText: String = cols match {
+      case Some((startColIdx, _)) => f"${interpreted.fileName}:${startLineIdx + 1}:${startColIdx + 1}"
+      case None => f"${interpreted.fileName}:${startLineIdx + 1}"
     }
 
-    original.context + Origin.HR + interpretedText
+    def context: Seq[OriginContent] = {
+      val interpretedAtLine = f" Interpreted at $startText as:\n"
+
+      val interpretedText = if (interpreted.isRereadable) {
+        interpretedAtLine + Origin.HR + InputOrigin.contextLines(interpreted, startLineIdx, endLineIdx, cols)
+      } else {
+        interpretedAtLine
+      }
+
+      original.originContents.map {
+        case Context(message) => Context(message + Origin.HR + interpretedText)
+        case other => other
+      }
+    }
+
+    def inlineContext: String =
+      if (interpreted.isRereadable)
+        InputOrigin.inlineContext(interpreted, startLineIdx, endLineIdx, cols)
+      else
+        f"(non-rereadable source ${interpreted.fileName})"
+
+    Origin(context :+ InlineContext(inlineContext))
   }
 
-  override def inlineContext: String =
-    if(interpreted.isRereadable)
-      InputOrigin.inlineContext(interpreted, startLineIdx, endLineIdx, cols)
-    else
-      f"(non-rereadable source ${interpreted.fileName})"
 
-  override def toString: String =
-    f"$startText - $endText interpreted from $original"
-}
-
-case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
-  override def toString: String =
-    s"$name at $inner"
 }
 
 case object RedirectOrigin {
@@ -354,122 +349,99 @@ case object RedirectOrigin {
   }
 }
 
-case class RedirectOrigin(o: Origin, textualOrigin: String, startLine: Int, endLine: Int, cols: Option[(Int, Int)]) extends Origin {
-  override def preferredName: String = o.preferredName
-
-  override def inlineContext: String = transposedOrigin.inlineContext
-
-  override def shortPosition: String = transposedOrigin.shortPosition
-
-  def transposedOrigin: Origin = o match {
-    case ReadableOrigin(readable, baseStartLine, baseEndLine, baseCols) =>
-      val realStartLine = baseStartLine + startLine
-      val realEndLine = baseEndLine + endLine
-      val c: Option[(Int, Int)] = (baseCols, cols) match {
-        case (Some((baseStartCol, _)), Some((innerStartCol, innerEndCol))) =>
-          // + 1 because need to account for starting quote that must be skipped
-          val realStart = (if(startLine == 0) baseStartCol + innerStartCol else innerStartCol) + 1
-          val realEnd = (if(endLine == 0) baseStartCol + innerEndCol else innerEndCol) + 1
-          Some((realStart, realEnd))
-        case (Some(baseCols), None) => if(startLine == 0) Some(baseCols) else None
-        case (None, cols) => cols
-      }
-      ReadableOrigin(readable, realStartLine, realEndLine, c)
-    case o: Origin =>
-      InterpretedOrigin(StringReadable(textualOrigin), startLine, endLine, cols, o)
-  }
-
-  override def context: String = transposedOrigin.context
-}
-
 trait PreferredNameOrigin extends Origin {
   def name: String
   def inner: Origin
-
-  def preferredName: String = name
-  def shortPosition: String = inner.shortPosition
-  def context: String = inner.context
-  def inlineContext: String = inner.inlineContext
-
   override def toString: String =
     s"$name at $inner"
 }
 
-case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
-  private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
-    case string => Some(JsonParser(string).asJsObject().fields)
-  }
+object LLVMOrigin {
 
-  override def preferredName: String = parsedOrigin match {
-    case Some(o) => o.get("preferredName") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.preferredName
+  def apply(deserializeOrigin: Deserialize.Origin): Origin = {
+    val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
+      case string => Some(JsonParser(string).asJsObject().fields)
     }
-    case None => deserializeOrigin.preferredName
-  }
 
-  def contextFragment: String = parsedOrigin match {
-    case Some(o) => o.get("context") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.context
+    def preferredName: String = parsedOrigin match {
+      case Some(o) => o.get("preferredName") match {
+        case Some(JsString(jsString)) => jsString
+        case _ => deserializeOrigin.preferredName
+      }
+      case None => deserializeOrigin.preferredName
     }
-    case None => deserializeOrigin.context
-  }
 
-  override def context: String = {
-    val atLine = f" At $shortPosition:\n"
-    if(contextFragment == inlineContext) {
-      atLine + Origin.HR + contextFragment
-    } else {
-      atLine + Origin.HR + markedInlineContext
+    def contextFragment: String = parsedOrigin match {
+      case Some(o) => o.get("context") match {
+        case Some(JsString(jsString)) => jsString
+        case _ => deserializeOrigin.context
+      }
+      case None => deserializeOrigin.context
     }
-  }
 
-  def markedInlineContext:String  = {
-    val startIndex = contextFragment.indexOf(inlineContext)
-    val endIndex = startIndex + inlineContext.length
+    def context: String = {
+      val atLine = f" At $shortPosition:\n"
+      if (contextFragment == inlineContext) {
+        atLine + Origin.HR + contextFragment
+      } else {
+        atLine + Origin.HR + markedInlineContext
+      }
+    }
 
-    val startRowCol = indexToRowCol(contextFragment, startIndex)
-    val endRowCol = indexToRowCol(contextFragment, endIndex)
+    def markedInlineContext: String = {
+      val startIndex = contextFragment.indexOf(inlineContext)
+      val endIndex = startIndex + inlineContext.length
 
-    val lines = contextFragment.split('\n')
-    if(startRowCol._1 == endRowCol._1) { // origin only covers (part of) a single row
-      val highlight = " " * (startRowCol._2) + "[" + ("-" * (inlineContext.length - 2)).mkString + "]"
-      (lines.slice(0, startRowCol._1) ++
-        Seq(highlight) ++
-        Seq(lines(startRowCol._1)) ++
-        Seq(highlight) ++
-        lines.slice(startRowCol._1 + 1, lines.length)).mkString("\n")
-    } else { // origin spans multiple lines, just mark the lines
-      val highlight = "[" + ("-" * (lines.map(s => s.length).max - 2)).mkString + "]"
-      (lines.slice(0, startRowCol._1) ++
-        Seq(highlight) ++
+      val startRowCol = indexToRowCol(contextFragment, startIndex)
+      val endRowCol = indexToRowCol(contextFragment, endIndex)
+
+      val lines = contextFragment.split('\n')
+      if (startRowCol._1 == endRowCol._1) { // origin only covers (part of) a single row
+        val highlight = " " * (startRowCol._2) + "[" + ("-" * (inlineContext.length - 2)).mkString + "]"
+        (lines.slice(0, startRowCol._1) ++
+          Seq(highlight) ++
+          Seq(lines(startRowCol._1)) ++
+          Seq(highlight) ++
+          lines.slice(startRowCol._1 + 1, lines.length)).mkString("\n")
+      } else { // origin spans multiple lines, just mark the lines
+        val highlight = "[" + ("-" * (lines.map(s => s.length).max - 2)).mkString + "]"
+        (lines.slice(0, startRowCol._1) ++
+          Seq(highlight) ++
           lines.slice(startRowCol._1, endRowCol._1 + 1) ++
-        Seq(highlight) ++
+          Seq(highlight) ++
           lines.slice(endRowCol._1 + 1, lines.length)).mkString("\n")
+      }
     }
-  }
 
-  // assumes no tabs
-  def indexToRowCol(fragment:String, index:Int): (Int, Int) = {
-    val row = fragment.substring(0, index).count(c => c == '\n')
-    val col = fragment.substring(0, index).split('\n').last.length
-    (row, col)
-  }
-
-  override def inlineContext: String = parsedOrigin match {
-    case Some(o) => o.get("inlineContext") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.inlineContext
+    // assumes no tabs
+    def indexToRowCol(fragment: String, index: Int): (Int, Int) = {
+      val row = fragment.substring(0, index).count(c => c == '\n')
+      val col = fragment.substring(0, index).split('\n').last.length
+      (row, col)
     }
-    case None => deserializeOrigin.inlineContext
-  }
 
-  override def shortPosition: String = parsedOrigin match {
-    case Some(o) => o.get("shortPosition") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.shortPosition
+    def inlineContext: String = parsedOrigin match {
+      case Some(o) => o.get("inlineContext") match {
+        case Some(JsString(jsString)) => jsString
+        case _ => deserializeOrigin.inlineContext
+      }
+      case None => deserializeOrigin.inlineContext
     }
-    case None => deserializeOrigin.shortPosition
+
+    def shortPosition: String = parsedOrigin match {
+      case Some(o) => o.get("shortPosition") match {
+        case Some(JsString(jsString)) => jsString
+        case _ => deserializeOrigin.shortPosition
+      }
+      case None => deserializeOrigin.shortPosition
+    }
+    Origin(
+      Seq(
+        PreferredName(preferredName),
+        ShortPosition(shortPosition),
+        Context(context),
+        InlineContext(inlineContext),
+      )
+    )
   }
 }
