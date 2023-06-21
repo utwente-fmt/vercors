@@ -22,12 +22,51 @@ case object Origin {
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }
 
-trait Origin extends Blame[VerificationFailure] {
-  def preferredName: String
 
-  def context: String
-  def inlineContext: String
-  def shortPosition: String
+// make origin a sequence of `preferedName`, etc. objects that can easily be added via
+// helper methods
+
+trait OriginContent
+
+case class PreferredName(preferredName: String) extends OriginContent
+case class RequiredName(requiredName: String) extends OriginContent
+case class FormalName(formalName: String) extends OriginContent
+case class Context(context: String) extends OriginContent
+case class InlineContext(inlineContext: String) extends OriginContent
+case class ShortPosition(shortPosition: String) extends OriginContent
+
+case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
+
+  def addPrefName(name: String): Origin = {
+    Origin(originContents :+ PreferredName(name))
+  }
+
+  def replacePrefName(name: String): Origin = {
+    Origin(originContents.flatMap{
+      case PreferredName(_) => Nil
+      case other => Seq(other)
+    } :+ PreferredName(name))
+  }
+
+  def addReqName(name: String): Origin = {
+    Origin(originContents :+ RequiredName(name))
+  }
+
+  def addFormalName(name: String): Origin = {
+    Origin(originContents :+ FormalName(name))
+  }
+
+  def addContext(ctx: String): Origin = {
+    Origin(originContents :+ Context(ctx))
+  }
+
+  def addShortPosition(shortP: String): Origin = {
+    Origin(originContents :+ ShortPosition(shortP))
+  }
+
+  def addInlineContext(inCtx: String): Origin = {
+    Origin(originContents :+ InlineContext(inCtx))
+  }
 
   def messageInContext(message: String): String =
     context match {
@@ -41,12 +80,7 @@ trait Origin extends Blame[VerificationFailure] {
   }
 }
 
-case object DiagnosticOrigin extends Origin {
-  override def preferredName: String = "unknown"
-  override def context: String = ""
-  override def inlineContext: String = ""
-  override def shortPosition: String = "unknown"
-}
+case object DiagnosticOrigin extends Origin(Nil)
 
 object InputOrigin {
   val CONTEXT = 2
@@ -211,8 +245,49 @@ object InputOrigin {
     }
 }
 
-abstract class InputOrigin extends Origin {
-  override def preferredName: String = "unknown"
+object UserInputOrigin {
+  def apply(readable: Readable,
+            startLineIdx: Int, endLineIdx: Int,
+            cols: Option[(Int, Int)]): Origin = {
+
+    def startText: String = cols match {
+      case Some((startColIdx, _)) => f"${readable.fileName}:${startLineIdx + 1}:${startColIdx + 1}"
+      case None => f"${readable.fileName}:${startLineIdx + 1}"
+    }
+
+    def endText: String = cols match {
+      case Some((_, endColIdx)) => f"${endLineIdx + 1}:${endColIdx + 1}"
+      case None => f"${endLineIdx + 1}"
+    }
+
+    def toString: String = f"$startText - $endText"
+
+    def baseFilename: String = Paths.get(readable.fileName).getFileName.toString
+
+    def inlineContext: String = {
+      if (readable.isRereadable)
+        InputOrigin.inlineContext(readable, startLineIdx, endLineIdx, cols)
+      else
+        f"(non-rereadable source ${readable.fileName})"
+    }
+
+    def context: String = {
+      val atLine = f" At $startText:\n"
+
+      if (readable.isRereadable) {
+        atLine + Origin.HR + InputOrigin.contextLines(readable, startLineIdx, endLineIdx, cols)
+      } else {
+        atLine
+      }
+    }
+
+    def shortPosition: String = cols match {
+      case Some((startColIdx, _)) => ShortPosition(f"$baseFilename:${startLineIdx + 1}:${startColIdx + 1}")
+      case None => ShortPosition(f"$baseFilename:${startLineIdx + 1}")
+    }
+
+    Origin(Seq(ShortPosition(shortPosition), Context(context), InlineContext(inlineContext)))
+  }
 }
 
 case class BlameCollector() extends Blame[VerificationFailure] {
@@ -222,62 +297,13 @@ case class BlameCollector() extends Blame[VerificationFailure] {
     errs += error
 }
 
-case class ReadableOrigin(readable: Readable,
-                          startLineIdx: Int, endLineIdx: Int,
-                          cols: Option[(Int, Int)])
-  extends InputOrigin {
-  private def startText: String = cols match {
-    case Some((startColIdx, _)) => f"${readable.fileName}:${startLineIdx+1}:${startColIdx+1}"
-    case None => f"${readable.fileName}:${startLineIdx+1}"
+object InterpretedOrigin {
+  def apply(interpreted: Readable,
+            startLineIdx: Int, endLineIdx: Int,
+            cols: Option[(Int, Int)],
+            original: Origin): Origin = {
+
   }
-
-  private def endText: String = cols match {
-    case Some((_, endColIdx)) => f"${endLineIdx+1}:${endColIdx+1}"
-    case None => f"${endLineIdx+1}"
-  }
-
-  private def baseFilename: String = Paths.get(readable.fileName).getFileName.toString
-
-  override def shortPosition: String = cols match {
-    case Some((startColIdx, _)) => f"$baseFilename:${startLineIdx+1}:${startColIdx+1}"
-    case None => f"$baseFilename:${startLineIdx+1}"
-  }
-
-  override def context: String = {
-    val atLine = f" At $startText:\n"
-
-    if(readable.isRereadable) {
-      atLine + Origin.HR + InputOrigin.contextLines(readable, startLineIdx, endLineIdx, cols)
-    } else {
-      atLine
-    }
-  }
-
-  override def inlineContext: String =
-    if(readable.isRereadable)
-      InputOrigin.inlineContext(readable, startLineIdx, endLineIdx, cols)
-    else
-      f"(non-rereadable source ${readable.fileName})"
-
-  override def toString: String = f"$startText - $endText"
-}
-
-case class InterpretedOriginVariable(name: String, original: Origin)
-  extends InputOrigin {
-  override def preferredName: String = name
-
-  override def context: String = original.context
-
-  override def inlineContext: String = original.inlineContext
-
-  override def shortPosition: String = original.shortPosition
-}
-
-case class InterpretedOrigin(interpreted: Readable,
-                             startLineIdx: Int, endLineIdx: Int,
-                             cols: Option[(Int, Int)],
-                             original: Origin)
-  extends InputOrigin {
   private def startText: String = cols match {
     case Some((startColIdx, _)) => f"${interpreted.fileName}:${startLineIdx+1}:${startColIdx+1}"
     case None => f"${interpreted.fileName}:${startLineIdx+1}"
@@ -313,11 +339,6 @@ case class InterpretedOrigin(interpreted: Readable,
 }
 
 case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
-  override def preferredName: String = name
-  override def shortPosition: String = inner.shortPosition
-  override def context: String = inner.context
-  override def inlineContext: String = inner.inlineContext
-
   override def toString: String =
     s"$name at $inner"
 }
