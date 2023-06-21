@@ -345,6 +345,13 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           convert(body)
         ))
       )
+    case PvlRangedFor(contract, _, _, Iter0(t, name, _, from, _, to), _, body) =>
+      withContract(contract, contract =>
+        Scope(Nil, RangedFor(
+          LocalDecl(new Variable(convert(t))(origin(name)))(origin(name)),
+          convert(from), convert(to),
+          contract.consumeLoopContract(stat),
+          convert(body))))
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
