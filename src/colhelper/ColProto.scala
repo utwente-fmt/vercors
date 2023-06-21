@@ -182,6 +182,8 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       .build(),
     message("ExpectedErrors")
       .build(),
+    // TODO add all 6 originContents and loook for the generated bitstring in out that
+    // corresponds to the new types
   )
 
   def declarationKinds(): Seq[DescriptorProto] =
