@@ -59,6 +59,7 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          inferHeapContextIntoFrame = options.inferHeapContextIntoFrame,
           bipResults = bipResults,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
@@ -162,6 +163,7 @@ case class SilverTransformation
   override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  inferHeapContextIntoFrame: Boolean = true,
   bipResults: BIP.VerificationResults,
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
@@ -225,7 +227,7 @@ case class SilverTransformation
     UntupledQuantifiers,
 
     // Encode proof helpers
-    EncodeProofHelpers,
+    EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
 
     // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
     // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
