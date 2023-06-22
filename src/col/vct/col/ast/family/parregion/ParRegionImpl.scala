@@ -2,7 +2,7 @@ package vct.col.ast.family.parregion
 
 import vct.col.ast.ParRegion
 import vct.col.ast.node.NodeFamilyImpl
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.origin.{Blame, ParPreconditionFailed}
 
 trait ParRegionImpl[G] extends NodeFamilyImpl[G] { this: ParRegion[G] =>

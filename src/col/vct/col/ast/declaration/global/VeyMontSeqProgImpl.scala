@@ -2,7 +2,7 @@ package vct.col.ast.declaration.global
 
 import vct.col.ast.{Class, Declaration, VeyMontSeqProg}
 import vct.col.ast.util.Declarator
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.origin.Origin
 import vct.col.print._
 

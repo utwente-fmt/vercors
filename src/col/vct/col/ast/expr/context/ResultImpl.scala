@@ -2,13 +2,13 @@ package vct.col.ast.expr.context
 
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{Result, Type}
-import vct.col.check.{CheckContext, CheckError, ResultOutsidePostcondition}
+import vct.col.check.{CheckContext, CheckMessage, ResultOutsidePostcondition}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 
 trait ResultImpl[G] extends NodeFamilyImpl[G] { this: Result[G] =>
   override def t: Type[G] = applicable.decl.returnType
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     if(context.inPostCondition) super.check(context)
     else Seq(ResultOutsidePostcondition(this))
 

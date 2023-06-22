@@ -7,14 +7,14 @@ import vct.col.origin.Origin
 import vct.col.ref.Ref
 
 case object Check {
-  def inOrder(check1: => Seq[CheckError], check2: => Seq[CheckError]): Seq[CheckError] =
+  def inOrder(check1: => Seq[CheckMessage], check2: => Seq[CheckMessage]): Seq[CheckMessage] =
     check1 match {
       case Nil => check2
       case more => more
     }
 }
 
-sealed trait CheckError {
+sealed trait CheckMessage {
   override def toString: String = this match {
     case TypeError(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
       expr.o.messageInContext(s"This expression is not a value.")
@@ -45,11 +45,8 @@ sealed trait CheckError {
         (declaration.o, "here, but it was expected to be declared"),
         (declarator.o, "in this declarator."),
       ))
-    // TODO PB: these are kind of obsolete? maybe?
-    case IncomparableTypes(left, right) =>
-      ???
     case TupleTypeCount(tup) =>
-      ???
+      tup.o.messageInContext("The number of types in this tuple does not match the number of values")
     case NotAPredicateApplication(res) =>
       res.o.messageInContext("This expression is not a (scaled) predicate application")
     case AbstractPredicate(res) =>
@@ -60,6 +57,8 @@ sealed trait CheckError {
       res.o.messageInContext("\\result may only occur in the postcondition.")
   }
 }
+
+sealed trait CheckError extends CheckMessage
 case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
 case class TypeErrorText(expr: Expr[_], expectedType: String) extends CheckError
 case class TypeErrorExplanation(expr: Expr[_], message: String) extends CheckError
@@ -67,12 +66,14 @@ case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckErr
 case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
 case class OutOfWriteScopeError[G](reason: Node[G], use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
 case class DoesNotDefine(declarator: Declarator[_], declaration: Declaration[_], use: Node[_]) extends CheckError
-case class IncomparableTypes(left: Expr[_], right: Expr[_]) extends CheckError
 case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
 case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
 case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
+
+sealed trait CheckHint extends CheckMessage
+case class
 
 case class CheckContext[G]
 (
@@ -96,11 +97,11 @@ case class CheckContext[G]
   def inWriteScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     scopes.drop(roScopes).exists(_.contains(ref.decl))
 
-  def checkInScope[Decl <: Declaration[G]](use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
+  def checkInScope[Decl <: Declaration[G]](use: Node[G], ref: Ref[G, Decl]): Seq[CheckMessage] =
     if(inScope(ref)) Nil
     else Seq(OutOfScopeError(use, ref))
 
-  def checkInWriteScope[Decl <: Declaration[G]](reason: Option[Node[G]], use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
+  def checkInWriteScope[Decl <: Declaration[G]](reason: Option[Node[G]], use: Node[G], ref: Ref[G, Decl]): Seq[CheckMessage] =
     if (!inScope(ref)) Seq(OutOfScopeError(use, ref))
     else if(!inWriteScope(ref)) Seq(OutOfWriteScopeError(reason.get, use, ref))
     else Nil

@@ -38,7 +38,7 @@ import scala.runtime.ScalaRunTime
  * @tparam G The generation marker: not used as a concrete type.
  */
 trait NodeImpl[G] extends Show { this: Node[G] =>
-  def check(context: CheckContext[G]): Seq[CheckError]
+  def check(context: CheckContext[G]): Seq[CheckMessage]
   def o: Origin
 
   def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
@@ -46,7 +46,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
 
   /* Check children first, so that the check of nodes higher in the tree may depend on the type and correctness of
     subnodes */
-  final def checkTrans(context: CheckContext[G]): Seq[CheckError] = {
+  final def checkTrans(context: CheckContext[G]): Seq[CheckMessage] = {
     val childrenErrors = checkContextRecursor(context, (ctx, node) => node.checkTrans(ctx)).flatten
 
     if(childrenErrors.nonEmpty) {

@@ -1,7 +1,7 @@
 package vct.col.ast.declaration.category
 
 import vct.col.ast.{AbstractMethod, Declaration, LabelDecl, LocalDecl, Return, Statement, Variable}
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.origin.{Blame, CallableFailure}
 
 trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] { this: AbstractMethod[G] =>
@@ -15,7 +15,7 @@ trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] { this: AbstractMe
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     super.enterCheckContext(context).withScope(transSubnodes.collect { case decl: LocalDecl[G] => decl.local }.toSet)
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     body.toSeq.flatMap(_.transSubnodes.flatMap {
       case Return(e) => e.checkSubType(returnType)
       case _ => Nil

@@ -1,14 +1,14 @@
 package vct.col.ast.declaration.model
 
 import vct.col.ast.{ModelAction, Node, TBool, TProcess, Type}
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.print._
 
 trait ModelActionImpl[G] { this: ModelAction[G] =>
   override def returnType: Type[G] = TProcess()
   override def body: Option[Node[G]] = None
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     requires.checkSubType(TBool()) ++ ensures.checkSubType(TBool())
 
   override def layout(implicit ctx: Ctx): Doc =

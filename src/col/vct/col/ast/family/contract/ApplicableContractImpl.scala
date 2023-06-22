@@ -2,7 +2,7 @@ package vct.col.ast.family.contract
 
 import vct.col.ast.{ApplicableContract, BooleanValue, Node, UnitAccountedPredicate}
 import vct.col.ast.node.NodeFamilyImpl
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.print._
 
 trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] { this: ApplicableContract[G] =>

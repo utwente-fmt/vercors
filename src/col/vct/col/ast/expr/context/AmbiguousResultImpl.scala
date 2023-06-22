@@ -2,7 +2,7 @@ package vct.col.ast.expr.context
 
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{AmbiguousResult, Type}
-import vct.col.check.{CheckContext, CheckError, ResultOutsidePostcondition}
+import vct.col.check.{CheckContext, CheckMessage, ResultOutsidePostcondition}
 import vct.col.err
 import vct.col.print._
 import vct.col.resolve.ctx._
@@ -24,7 +24,7 @@ trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G
     case RefInstanceOperatorFunction(decl) => decl.returnType
   }
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     if (context.inPostCondition) super.check(context)
     else Seq(ResultOutsidePostcondition(this))
 

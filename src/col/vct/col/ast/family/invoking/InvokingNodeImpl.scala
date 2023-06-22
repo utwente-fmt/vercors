@@ -1,7 +1,7 @@
 package vct.col.ast.family.invoking
 
 import vct.col.ast.{ContractApplicable, Expr, InvokingNode, Type, Variable}
-import vct.col.check.CheckError
+import vct.col.check.CheckMessage
 import vct.col.origin.{Blame, InvocationFailure}
 import vct.col.ref.Ref
 

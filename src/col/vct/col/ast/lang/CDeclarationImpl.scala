@@ -1,11 +1,11 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CDeclaration, TResource}
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.print._
 
 trait CDeclarationImpl[G] { this: CDeclaration[G] =>
-  override def check(context: CheckContext[G]): Seq[CheckError] = kernelInvariant.checkSubType(TResource())
+  override def check(context: CheckContext[G]): Seq[CheckMessage] = kernelInvariant.checkSubType(TResource())
 
   // PB: Please keep in sync with ApplicableContractImpl
   def layoutContract(implicit ctx: Ctx): Doc =

@@ -3,7 +3,7 @@ package vct.col.ast.util
 import vct.col.ast
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast._
-import vct.col.check.{AbstractPredicate, CheckContext, CheckError, NotAPredicateApplication}
+import vct.col.check.{AbstractPredicate, CheckContext, CheckMessage, NotAPredicateApplication}
 import vct.col.resolve.ctx._
 
 import scala.annotation.tailrec
@@ -11,14 +11,14 @@ import scala.annotation.tailrec
 trait CheckFoldUnfoldTarget[G] extends NodeFamilyImpl[G] { this: NodeFamily[G] =>
   def res: Expr[G]
 
-  private def checkNonAbstract(predicate: ast.AbstractPredicate[G], blame: Expr[G]): Option[CheckError] =
+  private def checkNonAbstract(predicate: ast.AbstractPredicate[G], blame: Expr[G]): Option[CheckMessage] =
     predicate.body match {
       case None => Some(AbstractPredicate(blame))
       case Some(_) => None
     }
 
   @tailrec
-  private def check(e: Expr[G]): Option[CheckError] = e match {
+  private def check(e: Expr[G]): Option[CheckMessage] = e match {
     case Scale(_, res) => check(res)
     case apply: ApplyAnyPredicate[G] => checkNonAbstract(apply.ref.decl, apply)
     case inv: PVLInvocation[G] => inv.ref.get match {
@@ -39,6 +39,6 @@ trait CheckFoldUnfoldTarget[G] extends NodeFamilyImpl[G] { this: NodeFamily[G] =
     case _ => Some(NotAPredicateApplication(e))
   }
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     super.check(context) ++ check(res).toSeq
 }

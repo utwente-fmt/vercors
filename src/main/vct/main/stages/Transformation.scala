@@ -5,7 +5,7 @@ import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{SimplificationRule, Verification}
-import vct.col.check.CheckError
+import vct.col.check.CheckMessage
 import vct.col.feature
 import vct.col.feature.Feature
 import vct.col.print.Ctx
@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 
 object Transformation {
-  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckMessage]) extends SystemError {
     override def text: String =
       s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
   }

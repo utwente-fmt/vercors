@@ -2,12 +2,12 @@ package vct.col.ast.statement.composite
 
 import vct.col.ast.{TNothing, TryCatchFinally, Type, Block}
 import vct.col.ast.node.NodeFamilyImpl
-import vct.col.check.{CheckContext, CheckError, RedundantCatchClause}
+import vct.col.check.{CheckContext, CheckMessage, RedundantCatchClause}
 import vct.col.print._
 import vct.col.typerules.Types
 
 trait TryCatchFinallyImpl[G] extends NodeFamilyImpl[G] { this: TryCatchFinally[G] =>
-  def checkOverlappingCatches: Seq[CheckError] = {
+  def checkOverlappingCatches: Seq[CheckMessage] = {
     this.catches.foldLeft[Type[G]](TNothing()) {
       case (caughtAlready, clause) =>
         if(caughtAlready.superTypeOf(clause.decl.t)) {
@@ -19,7 +19,7 @@ trait TryCatchFinallyImpl[G] extends NodeFamilyImpl[G] { this: TryCatchFinally[G
     Nil
   }
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     super.check(context) ++ checkOverlappingCatches
 
   override def layout(implicit ctx: Ctx): Doc =

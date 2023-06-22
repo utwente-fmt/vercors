@@ -10,7 +10,7 @@ import vct.col.typerules.{CoercingRewriter, NopCoercingRewriter}
   Expr (which always rewrites to an Expr), but also single-purpose nodes, such as a catch clause.
  */
 trait NodeFamilyImpl[G] extends NodeImpl[G] { this: NodeFamily[G] =>
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     try {
       NopCoercingRewriter().coerceAny(this.asInstanceOf[NodeFamily[InitialGeneration]])
       Nil

@@ -1,7 +1,7 @@
 package vct.col.ast.declaration
 
 import vct.col.ast.Declaration
-import vct.col.check.{CheckContext, CheckError, TypeError, TypeErrorExplanation, TypeErrorText}
+import vct.col.check.{CheckContext, CheckMessage, TypeError, TypeErrorExplanation, TypeErrorText}
 import vct.col.debug.{DebugRewriteState, Dropped, NotProcessed}
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.InitialGeneration
@@ -21,7 +21,7 @@ trait DeclarationImpl[G] { this: Declaration[G] =>
     */
   def ref[Decl <: Declaration[G]](implicit tag: ClassTag[Decl], witness: this.type <:< Decl): Ref[G, Decl] = new DirectRef[G, Decl](this)
 
-  override def check(context: CheckContext[G]): Seq[CheckError] =
+  override def check(context: CheckContext[G]): Seq[CheckMessage] =
     try {
       NopCoercingRewriter().coerce(this.asInstanceOf[Declaration[InitialGeneration]])
       Nil

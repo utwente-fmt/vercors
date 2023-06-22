@@ -5,7 +5,7 @@ import hre.stages.Stage
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Program, Refute, Verification, VerificationContext}
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast.{AddrOf, CGlobalDeclaration, Expr, Program, Refute, VerificationContext}
-import vct.col.check.CheckError
+import vct.col.check.CheckMessage
 import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.col.origin.{ExpectedError, FileSpanningOrigin, Origin}
 import vct.col.resolve.lang.{C, Java}
@@ -30,7 +30,7 @@ import java.io.{FileNotFoundException, Reader}
 import java.nio.file.Path
 
 case object Resolution {
-  case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
+  case class InputResolutionError(errors: Seq[CheckMessage]) extends UserError {
     override def code: String = "resolutionError"
     override def text: String = errors.map(_.toString).mkString("\n")
   }

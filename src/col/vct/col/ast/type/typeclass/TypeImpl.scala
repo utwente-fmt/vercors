@@ -1,7 +1,7 @@
 package vct.col.ast.`type`.typeclass
 
 import vct.col.ast._
-import vct.col.check.{CheckContext, CheckError}
+import vct.col.check.{CheckContext, CheckMessage}
 import vct.col.ref.Ref
 import vct.col.rewrite.NonLatchingRewriter
 import vct.col.typerules.CoercionUtils
@@ -11,7 +11,7 @@ trait TypeImpl[G] { this: Type[G] =>
   def superTypeOf(other: Type[G]): Boolean =
     CoercionUtils.getCoercion(other, this).isDefined
 
-  override def check(context: CheckContext[G]): Seq[CheckError] = Nil
+  override def check(context: CheckContext[G]): Seq[CheckMessage] = Nil
 
   def asSeq: Option[TSeq[G]] = CoercionUtils.getAnySeqCoercion(this).map(_._2)
   def asSet: Option[TSet[G]] = CoercionUtils.getAnySetCoercion(this).map(_._2)

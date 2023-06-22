@@ -2,12 +2,12 @@ package vct.col.ast.expr.heap.read
 
 import vct.col.ast.expr.ExprImpl
 import vct.col.ast.{ModelDeref, Type}
-import vct.col.check.{Check, CheckContext, CheckError}
+import vct.col.check.{Check, CheckContext, CheckMessage}
 import vct.col.print.{Ctx, Doc, Precedence}
 
 trait ModelDerefImpl[G] extends ExprImpl[G] { this: ModelDeref[G] =>
   override def t: Type[G] = ref.decl.t
-  override def check(context: CheckContext[G]): Seq[CheckError] = {
+  override def check(context: CheckContext[G]): Seq[CheckMessage] = {
     Check.inOrder(
       super.check(context),
       obj.t.asModel.get.model.decl.checkDefines(ref.decl, this),

@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.util.Declarator
-import vct.col.check.CheckError
+import vct.col.check.CheckMessage
 import vct.col.origin._
 import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
@@ -170,11 +170,11 @@ case object ResolveTypes {
 }
 
 case object ResolveReferences extends LazyLogging {
-  def resolve[G](program: Program[G], jp: SpecExprParser): Seq[CheckError] = {
+  def resolve[G](program: Program[G], jp: SpecExprParser): Seq[CheckMessage] = {
     resolve(program, ReferenceResolutionContext[G](jp))
   }
 
-  def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
+  def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckMessage] = {
     val inGPU = inGPUKernel || (node match {
       case f: CFunctionDefinition[G] => f.specs.collectFirst{case _: CGpgpuKernelSpecifier[G] => ()}.isDefined
       case _ => false

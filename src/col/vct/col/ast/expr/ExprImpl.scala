@@ -2,12 +2,12 @@ package vct.col.ast.expr
 
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{Expr, ProcessPar, Star, Type}
-import vct.col.check.{CheckError, TypeError}
+import vct.col.check.{CheckMessage, TypeError}
 import vct.col.print._
 import vct.col.typerules.CoercionUtils
 
 trait ExprImpl[G] extends NodeFamilyImpl[G] { this: Expr[G] =>
-  def checkSubType(other: Type[G]): Seq[CheckError] =
+  def checkSubType(other: Type[G]): Seq[CheckMessage] =
     CoercionUtils.getCoercion(t, other) match {
       case Some(_) => Nil
       case None => Seq(TypeError(this, other))
