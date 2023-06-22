@@ -34,9 +34,9 @@ case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] = (bounds.topOption, contract) match {
     case (Some((rf, iBounds)), l: LoopInvariant[Pre]) =>
-      l.rewrite(invariant = (iBounds && dispatch(l.invariant))(rf.o))
+      l.rewrite(invariant = (iBounds &* dispatch(l.invariant))(rf.o))
     case (Some((rf, iBounds)), ic: IterationContract[Pre]) =>
-      ic.rewrite(context_everywhere = (iBounds && dispatch(ic.context_everywhere))(rf.o))
+      ic.rewrite(context_everywhere = (iBounds &* dispatch(ic.context_everywhere))(rf.o))
     case (None, c) => rewriteDefault(c)
   }
 }
