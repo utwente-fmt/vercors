@@ -182,6 +182,7 @@ case class SilverTransformation
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
+    EncodeRangedFor,
 
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,
