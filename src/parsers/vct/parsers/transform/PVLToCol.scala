@@ -345,11 +345,9 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
           convert(body)
         ))
       )
-    case PvlRangedFor(contract, _, _, Iter0(t, name, _, from, _, to), _, body) =>
+    case PvlRangedFor(contract, _, _, iter, _, body) =>
       withContract(contract, contract =>
-        Scope(Nil, RangedFor(
-          new Variable(convert(t))(origin(name)),
-          convert(from), convert(to),
+        Scope(Nil, RangedFor(convert(iter),
           contract.consumeLoopContract(stat),
           convert(body))))
     case PvlBlock(inner) => convert(inner)
