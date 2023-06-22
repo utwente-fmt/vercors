@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import hre.util.ScopedStack
-import vct.col.ast.{Block, Assign, Expr, IterVariable, Local, LocalDecl, Loop, LoopInvariant, IterationContract, Eval, LoopContract, PostAssignExpression, Range, RangedFor, SeqMember, Statement, Variable}
+import vct.col.ast.{Select, Block, Assign, Expr, IterVariable, Local, LocalDecl, Loop, LoopInvariant, IterationContract, Eval, LoopContract, PostAssignExpression, Range, RangedFor, SeqMember, Statement, Variable}
 import vct.col.origin.AssignLocalOk
 import vct.col.util.AstBuildHelpers.const
 import vct.col.util.AstBuildHelpers._
@@ -16,7 +16,7 @@ case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
   val bounds = ScopedStack[(RangedFor[Pre], Expr[Post])]()
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case rf @ RangedFor(IterVariable(iVar, from, to), contract, body) =>
+    case rf @ RangedFor(iv @ IterVariable(iVar, from, to), contract, body) =>
       implicit val o = iVar.o
       val i = Local[Post](anySucc[Variable[Post]](iVar))(iVar.o)
       Loop(
@@ -24,9 +24,14 @@ case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
           LocalDecl(variables.collect(dispatch(iVar))._1.head),
           Assign(i, dispatch(from))(AssignLocalOk)
         ))(iVar.o),
-        SeqMember(i, Range(dispatch(from), dispatch(to))),
+        { implicit val o = iv.o; SeqMember(i, Range(dispatch(from), dispatch(to))) },
         Eval(PostAssignExpression(i, i + const(1))(AssignLocalOk)),
-        bounds.having((rf, SeqMember(i, Range(dispatch(from), dispatch(to) + const(1)))))(dispatch(contract)),
+        bounds.having((rf,
+          { implicit val o = iv.o;
+            Select(dispatch(from) < dispatch(to),
+              SeqMember(i, Range(dispatch(from), dispatch(to) + const(1))),
+              i === dispatch(from))
+          }))(dispatch(contract)),
         dispatch(body)
       )(rf.o)
     case stat => rewriteDefault(stat)
