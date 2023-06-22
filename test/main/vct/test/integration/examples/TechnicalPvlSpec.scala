@@ -7,11 +7,12 @@ class TechnicalPvlSpec extends VercorsSpec {
   """
   void m() {
     int max = -1;
+    loop_invariant max == i - 1;
     for (int i = 0 .. 10) {
       assert 0 <= i && i < 10;
       max = i;
     }
-    assert 0 <= max && max <= 10;
+    assert max == 9;
   }
   """
 }
