@@ -18,7 +18,7 @@ case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case rf @ RangedFor(iv @ IterVariable(iVar, from, to), contract, body) =>
       implicit val o = iVar.o
-      val i = Local[Post](anySucc[Variable[Post]](iVar))(iVar.o)
+      val i: Local[Post] = Local(succ[Variable[Post]](iVar))(iVar.o)
       Loop(
         Block(Seq(
           LocalDecl(variables.collect(dispatch(iVar))._1.head),
