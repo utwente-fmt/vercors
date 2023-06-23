@@ -285,6 +285,9 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](access))
     case reasons.MagicWandChunkNotFound(wand) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](wand))
     case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
+    case reasons.QPAssertionNotInjective(access) =>
+      val starall = info(access).starall.get
+      blame.ReceiverNotInjectiveFailure(starall, get(access))
   }
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] = reason match {

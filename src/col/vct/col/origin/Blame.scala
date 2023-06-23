@@ -27,6 +27,13 @@ case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def descCompletion: String = "the amount of permission in this permission predicate may be negative"
   override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be a negative permission amount"
 }
+case class ReceiverNotInjectiveFailure(quantifier: Starall[_], resource: Expr[_]) extends ContractFailure {
+  val node = quantifier
+
+  override def code: String = "notInjective"
+  override def descCompletion: String = "this resource may not be unique with regards to the quantified variables"
+  override def inlineDescCompletion: String = s"`${resource.o.inlineContext}` may not be unique with regards to the quantified variables"
+}
 
 trait VerificationFailure {
   def code: String
