@@ -52,7 +52,7 @@ object ColDefs {
     "ModelDeclaration" -> Seq("Program"),
     "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
-      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
+      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", "RangedForLoop", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
       "Predicate", "InstancePredicate", // Arguments
       "ModelProcess", "ModelAction", "ADTFunction",
