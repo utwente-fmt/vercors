@@ -22,6 +22,7 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
+import vct.rewrite.HeapVariableToRef
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
@@ -241,6 +242,7 @@ case class SilverTransformation
     ResolveScale,
     // No more classes
     ClassToRef,
+    HeapVariableToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
 

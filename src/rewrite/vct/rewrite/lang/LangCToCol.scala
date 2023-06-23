@@ -133,6 +133,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   val cFunctionSuccessor: SuccessionMap[CFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
   val cFunctionDeclSuccessor: SuccessionMap[(CGlobalDeclaration[Pre], Int), Procedure[Post]] = SuccessionMap()
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] = SuccessionMap()
+  val cGlobalNameSuccessor: SuccessionMap[CNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cCurrentDefinitionParamSubstitutions: ScopedStack[Map[CParam[Pre], CParam[Pre]]] = ScopedStack()
 
   val cudaCurrentThreadIdx: ScopedStack[CudaVec] = ScopedStack()
@@ -600,7 +601,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
               )
           )
         case None =>
-          throw CGlobalStateNotSupported(init)
+          cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) =
+            rw.globalDeclarations.declare(new HeapVariable(t)(init.o))
       }
     }
   }
@@ -745,7 +747,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         else
           Local(cNameSuccessor.ref(ref))
       case RefCFunctionDefinition(_) => throw NotAValue(local)
-      case RefCGlobalDeclaration(_, _) => throw NotAValue(local)
+      case ref @ RefCGlobalDeclaration(decl, initIdx) =>
+        C.getDeclaratorInfo(decl.decl.inits(initIdx).decl).params match {
+          case None => DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(local.blame)
+          case Some(_) => throw NotAValue(local)
+        }
       case ref: RefCLocalDeclaration[Pre] => Local(cNameSuccessor.ref(ref))
       case _: RefCudaVec[Pre] => throw NotAValue(local)
     }
