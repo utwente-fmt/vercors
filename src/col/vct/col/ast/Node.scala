@@ -221,6 +221,7 @@ final case class ModelDo[G](model: Expr[G], perm: Expr[G], after: Expr[G], actio
 sealed trait Declaration[G] extends Node[G] with DeclarationImpl[G]
 
 sealed trait GlobalDeclaration[G] extends Declaration[G] with GlobalDeclarationImpl[G]
+final class HeapVariable[G](val t: Type[G])(implicit val o: Origin) extends GlobalDeclaration[G] with HeapVariableImpl[G]
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
 final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
@@ -464,6 +465,7 @@ final case class ScopedExpr[G](declarations: Seq[Variable[G]], body: Expr[G])(im
 final case class Local[G](ref: Ref[G, Variable[G]])(implicit val o: Origin) extends Expr[G] with LocalImpl[G]
 final case class EnumUse[G](enum: Ref[G, Enum[G]], const: Ref[G, EnumConstant[G]])(implicit val o: Origin) extends Expr[G] with EnumUseImpl[G]
 sealed trait HeapDeref[G] extends Expr[G] with HeapDerefImpl[G]
+final case class DerefHeapVariable[G](ref: Ref[G, HeapVariable[G]])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr[G] with HeapDeref[G] with DerefHeapVariableImpl[G]
 final case class Deref[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends Expr[G] with HeapDeref[G] with DerefImpl[G]
 final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(val blame: Blame[ModelInsufficientPermission])(implicit val o: Origin) extends Expr[G] with ModelDerefImpl[G]
 final case class DerefPointer[G](pointer: Expr[G])(val blame: Blame[PointerDerefError])(implicit val o: Origin) extends Expr[G] with DerefPointerImpl[G]
@@ -552,6 +554,7 @@ final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(impl
 final case class Unfolding[G](res: Expr[G], body: Expr[G])(val blame: Blame[UnfoldFailed])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
 
 sealed trait Location[G] extends NodeFamily[G] with LocationImpl[G]
+final case class HeapVariableLocation[G](ref: Ref[G, HeapVariable[G]])(implicit val o: Origin) extends Location[G] with HeapVariableLocationImpl[G]
 final case class FieldLocation[G](obj: Expr[G], field: Ref[G, InstanceField[G]])(implicit val o: Origin) extends Location[G] with FieldLocationImpl[G]
 final case class ModelLocation[G](obj: Expr[G], field: Ref[G, ModelField[G]])(implicit val o: Origin) extends Location[G] with ModelLocationImpl[G]
 final case class SilverFieldLocation[G](obj: Expr[G], field: Ref[G, SilverField[G]])(implicit val o: Origin) extends Location[G] with SilverFieldLocationImpl[G]

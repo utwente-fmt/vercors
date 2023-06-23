@@ -26,6 +26,8 @@ case object DisambiguateLocation extends RewriterBuilder {
 
 case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre]  {
   def exprToLoc(expr: Expr[Pre], blame: Blame[PointerLocationError])(implicit o: Origin): Location[Post] = expr match {
+    case DerefHeapVariable(ref) =>
+      HeapVariableLocation(succ(ref.decl))
     case Deref(obj, ref) =>
       FieldLocation(dispatch(obj), succ(ref.decl))
     case ModelDeref(obj, ref) =>

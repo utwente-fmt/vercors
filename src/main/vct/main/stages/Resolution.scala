@@ -87,15 +87,6 @@ case class Resolution[G <: Generation]
   override def progressWeight: Int = 1
 
   override def run(in: ParseResult[G]): Verification[_ <: Generation] = {
-    in.decls.foreach(_.transSubnodes.foreach {
-      case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
-        if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
-          throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
-        }
-      })
-      case _ =>
-    })
-
     implicit val o: Origin = FileSpanningOrigin
 
     val parsedProgram = Program(in.decls)(blameProvider())

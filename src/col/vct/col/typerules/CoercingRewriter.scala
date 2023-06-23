@@ -892,6 +892,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         //DerefVeyMontThread( TVeyMontThread[Pre](ref))
       case deref @ Deref(obj, ref) =>
         Deref(cls(obj), ref)(deref.blame)
+      case deref @ DerefHeapVariable(ref) =>
+        DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case deref @ DerefVeyMontThread(ref) => deref
@@ -1599,6 +1601,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     decl match {
       case unit: CTranslationUnit[Pre] =>
         new CTranslationUnit(unit.declarations)
+      case variable: HeapVariable[Pre] =>
+        new HeapVariable(variable.t)
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] =>
@@ -1819,6 +1823,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: Location[Pre]): Location[Pre] = {
     implicit val o: Origin = node.o
     node match {
+      case HeapVariableLocation(ref) =>
+        HeapVariableLocation(ref)
       case FieldLocation(obj, field) =>
         FieldLocation(cls(obj), field)
       case ModelLocation(obj, field) =>

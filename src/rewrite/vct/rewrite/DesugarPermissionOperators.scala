@@ -32,7 +32,6 @@ case object DesugarPermissionOperators extends RewriterBuilder {
 
   case class PredicateValueError(loc: Location[_]) extends UserError {
     override def code: String = "predicateValue"
-
     override def text: String = loc.o.messageInContext("The predicate has a location but does not point to a value.")
   }
 
@@ -42,6 +41,7 @@ case class DesugarPermissionOperators[Pre <: Generation]() extends Rewriter[Pre]
 
   def extractValueFromLocation(loc: Location[Pre]): Expr[Pre] = {
     loc match {
+      case HeapVariableLocation(field) => DerefHeapVariable(field)(PointsToDeref)(loc.o)
       case FieldLocation(obj, field) => Deref(obj, field)(PointsToDeref)(loc.o)
       case ModelLocation(obj, field) => ModelDeref(obj, field)(PointsToDeref)(loc.o)
       case SilverFieldLocation(obj, field) => SilverDeref(obj, field)(PointsToDeref)(loc.o)
