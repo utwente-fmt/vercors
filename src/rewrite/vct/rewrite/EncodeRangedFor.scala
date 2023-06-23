@@ -1,8 +1,8 @@
 package vct.col.rewrite
 
 import hre.util.ScopedStack
-import vct.col.ast.{Select, Block, Assign, Expr, IterVariable, Local, LocalDecl, Loop, LoopInvariant, IterationContract, Eval, LoopContract, PostAssignExpression, Range, RangedFor, SeqMember, Statement, Variable}
-import vct.col.origin.AssignLocalOk
+import vct.col.ast.{Assign, Block, Eval, Expr, IterVariable, IterationContract, Local, LocalDecl, Loop, LoopContract, LoopInvariant, PostAssignExpression, Range, RangedFor, Select, SeqMember, Statement, TInt, Variable}
+import vct.col.origin.{AssignLocalOk, Origin, PreferredNameOrigin}
 import vct.col.util.AstBuildHelpers.const
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -10,27 +10,42 @@ import vct.col.ast.RewriteHelpers._
 case object EncodeRangedFor extends RewriterBuilder {
   override def key: String = "encodeRangedFor"
   override def desc: String = "Encodes ranged for as a regular for loop"
+
+  case class ForeachBoundOrigin(inner: Origin, name: String) extends PreferredNameOrigin
 }
 
 case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
+  import EncodeRangedFor._
+
   val bounds = ScopedStack[(RangedFor[Pre], Expr[Post])]()
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
-    case rf @ RangedFor(iv @ IterVariable(iVar, from, to), contract, body) =>
+    case rf @ RangedFor(iv @ IterVariable(iVar, fromExpr, toExpr), contract, body) =>
       implicit val o = iVar.o
       val i: Local[Post] = Local(succ[Variable[Post]](iVar))(iVar.o)
+
+      val fromVar = new Variable[Post](TInt()(fromExpr.o))(ForeachBoundOrigin(fromExpr.o, "from"))
+      val from = Local(fromVar.ref[Variable[Post]])(ForeachBoundOrigin(fromExpr.o, "from"))
+
+      val toVar = new Variable[Post](TInt()(toExpr.o))(ForeachBoundOrigin(toExpr.o, "to"))
+      val to = Local(toVar.ref[Variable[Post]])(ForeachBoundOrigin(toExpr.o, "to"))
+
       Loop(
         Block(Seq(
+          LocalDecl(fromVar)(fromExpr.o),
+          LocalDecl(toVar)(toExpr.o),
           LocalDecl(variables.collect(dispatch(iVar))._1.head),
-          Assign(i, dispatch(from))(AssignLocalOk)
+          Assign(from, dispatch(fromExpr))(AssignLocalOk),
+          Assign(to, dispatch(toExpr))(AssignLocalOk),
+          Assign(i, from)(AssignLocalOk)
         ))(iVar.o),
-        { implicit val o = iv.o; SeqMember(i, Range(dispatch(from), dispatch(to))) },
+        { implicit val o = iv.o; SeqMember(i, Range(from, to)) },
         Eval(PostAssignExpression(i, i + const(1))(AssignLocalOk)),
         bounds.having((rf,
           { implicit val o = iv.o;
-            Select(dispatch(from) < dispatch(to),
-              SeqMember(i, Range(dispatch(from), dispatch(to) + const(1))),
-              i === dispatch(from))
+            Select(from < to,
+              SeqMember(i, Range(from, to + const(1))),
+              i === from)
           }))(dispatch(contract)),
         dispatch(body)
       )(rf.o)
