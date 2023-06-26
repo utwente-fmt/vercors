@@ -3,9 +3,10 @@ package vct.parsers
 import hre.io.Readable
 import org.antlr.v4.runtime
 import org.antlr.v4.runtime.{BailErrorStrategy, CharStreams, CommonTokenStream, Token}
-import vct.col.origin.ExpectedError
 import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.UserError
+import vct.col.ast._
+import vct.col.origin.Origin
 
 import java.io.FileNotFoundException
 import scala.jdk.CollectionConverters._
@@ -16,10 +17,11 @@ abstract class Parser(val originProvider: OriginProvider, val blameProvider: Bla
     override def text: String = "There is no scope to close here."
   }
 
-  def expectedErrors(lexer: CommonTokenStream, channel: Int, startToken: Int, endToken: Int): Seq[(Token, Token, ExpectedError)] = {
+  def expectedErrors[G](lexer: CommonTokenStream, channel: Int, startToken: Int, endToken: Int): (Seq[ExpectedError[G]], Seq[(Token, Token, CancellativeFailureGrouping[G])]) = {
     lexer.fill()
     var startStack: Seq[(String, Token)] = Nil
-    var errors = Seq.empty[(Token, Token, ExpectedError)]
+    var errors = Seq.empty[ExpectedError[G]]
+    var groupings = Seq.empty[(Token, Token, CancellativeFailureGrouping[G])]
 
     for(token <- lexer.getTokens.asScala.filter(_.getChannel == channel)) {
       if(token.getType == startToken) {
@@ -36,12 +38,15 @@ abstract class Parser(val originProvider: OriginProvider, val blameProvider: Bla
         if(startStack.isEmpty) throw UnbalancedExpectedError(token)
         val (code, start) = startStack.last
         startStack = startStack.init
-        val err = ExpectedError(code, originProvider(start, token), blameProvider(start, token))
-        errors :+= (start, token, err)
+        implicit val o: Origin = originProvider(start, token)
+        val grouping = new CancellativeFailureGrouping[G](Some(code), Some(2))
+        val err = new ExpectedError[G](Blame1(BlameInput(), Seq(grouping.ref)))
+        errors :+= err
+        groupings :+= ((start, token, grouping))
       }
     }
 
-    errors.sortBy(_._1.getTokenIndex)
+    (errors, groupings.sortBy(_._1.getTokenIndex))
   }
 
   protected def getErrorsFor[T](parser: runtime.Parser, lexer: runtime.Lexer, originProvider: OriginProvider)(f: => T): Either[Seq[ParseError], T] = {

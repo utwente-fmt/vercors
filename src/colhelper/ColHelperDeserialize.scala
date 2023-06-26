@@ -33,8 +33,6 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
 
   def deserializeTerm(term: Term, typ: proto.Typ, scalaTyp: Type): Term =
     proto.primitivize(typ) match {
-      case proto.TName("ExpectedErrors") => q"Nil"
-
       case proto.TBool => term
       case r @ proto.TRef() => q"ref[${lastTypeArg(scalaTyp)}]($term.index)"
       case proto.TInt => term

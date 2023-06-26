@@ -17,7 +17,6 @@ import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -90,7 +89,7 @@ public class FunctionTransformer<T> {
 
         // Create method
         InstanceMethod<T> new_method = new InstanceMethod<>(return_type, parameters, col_system.NO_VARS, col_system.NO_VARS,
-                Option.apply(body), contract, false, pure, new GeneratedBlame<>(), OriGen.create(function.getName()));
+                Option.apply(body), contract, false, pure, OriGen.createBlame(), OriGen.create(function.getName()));
 
         // Register method in COL system context and return
         col_system.add_instance_method(function, sc_inst, process, new_method);
@@ -121,20 +120,20 @@ public class FunctionTransformer<T> {
 
         // Get reference to m
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
         // Create body
         java.util.List<Statement<T>> statements = new java.util.ArrayList<>();
-        statements.add(new Lock<>(m_deref, new GeneratedBlame<>(), OriGen.create()));
+        statements.add(new Lock<>(m_deref, OriGen.createBlame(), OriGen.create()));
         statements.addAll(transform_body(run_method, process, new java.util.HashMap<>()));
-        statements.add(new Unlock<>(m_deref, new GeneratedBlame<>(), OriGen.create()));
+        statements.add(new Unlock<>(m_deref, OriGen.createBlame(), OriGen.create()));
         Statement<T> body = new Block<>(List.from(CollectionConverters.asScala(statements)), OriGen.create());
 
         // Create contract
         ApplicableContract<T> contract = generate_run_method_specifications();
 
         // Create run method and return
-        return new RunMethod<>(Option.apply(body), contract, new GeneratedBlame<>(), OriGen.create());
+        return new RunMethod<>(Option.apply(body), contract, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -169,9 +168,9 @@ public class FunctionTransformer<T> {
 
         // Add m assignment to body
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
         Local<T> m_param_local = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), OriGen.create());
-        statements.add(new Assign<>(m_deref, m_param_local, new GeneratedBlame<>(), OriGen.create()));
+        statements.add(new Assign<>(m_deref, m_param_local, OriGen.createBlame(), OriGen.create()));
 
         // If there is a constructor given, add its parameters and statements to the parameters and body as well
         SCFunction constructor = col_class.get_constructor();
@@ -196,7 +195,7 @@ public class FunctionTransformer<T> {
         ApplicableContract<T> contract = generate_constructor_specifications(fields, m_param);
         
         return new PVLConstructor<>(contract, List.from(CollectionConverters.asScala(parameters)), Option.apply(body),
-                new GeneratedBlame<>(), OriGen.create());
+                OriGen.createBlame(), OriGen.create());
     }
 
     /**

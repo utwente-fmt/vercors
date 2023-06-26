@@ -17,7 +17,6 @@ import vct.col.ref.Ref;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.util.Constants;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -160,34 +159,34 @@ public class KnownTypeTransformer<T> {
         // Create references to FIFO object
         Ref<T, InstanceField<T>> fifo_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(),
                 ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, OriGen.createBlame(), OriGen.create());
         FieldLocation<T> fifo_loc = new FieldLocation<>(col_system.THIS, fifo_ref, OriGen.create());
 
         // Create references to m attribute
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(fifo_deref, m_ref, new GeneratedBlame<>(), m.o());
+        Deref<T> m_deref = new Deref<>(fifo_deref, m_ref, OriGen.createBlame(), m.o());
         FieldLocation<T> m_loc = new FieldLocation<>(fifo_deref, m_ref, m.o());
 
         // Create references to buffer attribute
         Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> buf_deref = new Deref<>(fifo_deref, buf_ref, new GeneratedBlame<>(), buf.o());
+        Deref<T> buf_deref = new Deref<>(fifo_deref, buf_ref, OriGen.createBlame(), buf.o());
         FieldLocation<T> buf_loc = new FieldLocation<>(fifo_deref, buf_ref, buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
 
         // Create references to num_read attribute
         Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> read_deref = new Deref<>(fifo_deref, read_ref, new GeneratedBlame<>(), nr_read.o());
+        Deref<T> read_deref = new Deref<>(fifo_deref, read_ref, OriGen.createBlame(), nr_read.o());
         FieldLocation<T> read_loc = new FieldLocation<>(fifo_deref, read_ref, nr_read.o());
 
         // Create references to written attribute
         Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> written_deref = new Deref<>(fifo_deref, written_ref, new GeneratedBlame<>(), written.o());
+        Deref<T> written_deref = new Deref<>(fifo_deref, written_ref, OriGen.createBlame(), written.o());
         FieldLocation<T> written_loc = new FieldLocation<>(fifo_deref, written_ref, written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
 
         // Create references to size parameter
         Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> fifo_size_deref = new Deref<>(col_system.THIS, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> fifo_size_deref = new Deref<>(col_system.THIS, fifo_size_ref, OriGen.createBlame(), OriGen.create());
 
         // Create permissions for invariant
         Perm<T> perm_fifo = new Perm<>(fifo_loc, new ReadPerm<>(OriGen.create()), OriGen.create());
@@ -230,22 +229,22 @@ public class KnownTypeTransformer<T> {
 
         // Constructor body
         Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)),
-                new GeneratedBlame<>(), m.o());
+                OriGen.createBlame(), m.o());
         Local<T> local_m_param = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), m_param.o());
-        Assign<T> m_assign = new Assign<>(local_m, local_m_param, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> m_assign = new Assign<>(local_m, local_m_param, OriGen.createBlame(), OriGen.create());
 
         Deref<T> local_buf = new Deref<>(col_system.THIS, new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class)),
-                new GeneratedBlame<>(), buf.o());
+                OriGen.createBlame(), buf.o());
         LiteralSeq<T> empty_seq = new LiteralSeq<>(t, col_system.NO_EXPRS, OriGen.create());
-        Assign<T> buf_assign = new Assign<>(local_buf, empty_seq, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> buf_assign = new Assign<>(local_buf, empty_seq, OriGen.createBlame(), OriGen.create());
 
         Deref<T> local_read = new Deref<>(col_system.THIS, new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class)),
-                new GeneratedBlame<>(), nr_read.o());
-        Assign<T> read_assign = new Assign<>(local_read, col_system.ZERO, new GeneratedBlame<>(), OriGen.create());
+                OriGen.createBlame(), nr_read.o());
+        Assign<T> read_assign = new Assign<>(local_read, col_system.ZERO, OriGen.createBlame(), OriGen.create());
 
         Deref<T> local_written = new Deref<>(col_system.THIS, new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class)),
-                new GeneratedBlame<>(), written.o());
-        Assign<T> written_assign = new Assign<>(local_written, empty_seq, new GeneratedBlame<>(), OriGen.create());
+                OriGen.createBlame(), written.o());
+        Assign<T> written_assign = new Assign<>(local_written, empty_seq, OriGen.createBlame(), OriGen.create());
 
         java.util.List<Statement<T>> assignments = java.util.List.of(m_assign, buf_assign, read_assign, written_assign);
         Statement<T> body = new Block<>(List.from(CollectionConverters.asScala(assignments)), OriGen.create());
@@ -268,9 +267,9 @@ public class KnownTypeTransformer<T> {
         java.util.List<Expr<T>> conds = java.util.List.of(perm_m, eq_m, perm_buf, eq_buf, perm_read, eq_read, perm_written, eq_written);
         ApplicableContract<T> contract = new ApplicableContract<>(new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()),
                 new UnitAccountedPredicate<>(col_system.fold_star(conds), OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
-                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
 
-        return new PVLConstructor<>(contract, params, Option.apply(body), new GeneratedBlame<>(), o);
+        return new PVLConstructor<>(contract, params, Option.apply(body), OriGen.createBlame(), o);
     }
 
     /**
@@ -289,42 +288,42 @@ public class KnownTypeTransformer<T> {
 
         // Get field references
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), m.o());
         Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, new GeneratedBlame<>(), buf.o());
+        Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, OriGen.createBlame(), buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
         Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, new GeneratedBlame<>(), nr_read.o());
+        Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, OriGen.createBlame(), nr_read.o());
         Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
+        Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, OriGen.createBlame(), written.o());
 
         // Get scheduling variable references
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(m_deref, update_ref, OriGen.createBlame(), OriGen.create());
 
         // Create precondition
         Less<T> not_all_read = new Less<>(read_deref, buf_size, OriGen.create());
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(new Star<>(perms, not_all_read, OriGen.create()), OriGen.create());
 
         // Unchanged variables
-        Eq<T> written_is_old = new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> written_is_old = new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Return value
         Ref<T, ContractApplicable<T>> ref = new LazyRef<T, ContractApplicable<T>>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.FIFO_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> ret = new Result<>(ref, OriGen.create());
-        SeqSubscript<T> access = new SeqSubscript<>(buf_deref, read_deref, new GeneratedBlame<>(), OriGen.create());
-        Eq<T> result = new Eq<>(ret, new Old<>(access, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        SeqSubscript<T> access = new SeqSubscript<>(buf_deref, read_deref, OriGen.createBlame(), OriGen.create());
+        Eq<T> result = new Eq<>(ret, new Old<>(access, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Update to num_read
-        Old<T> old_read = new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_read = new Old<>(read_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Plus<T> incr_old = new Plus<>(old_read, col_system.ONE, OriGen.create());
         Eq<T> incr_read = new Eq<>(read_deref, incr_old, OriGen.create());
 
         // Update to primitive_channel_update
         IntegerValue<T> update_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_update = new Old<>(update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         SeqUpdate<T> update_update = new SeqUpdate<>(old_update, update_index, col_system.TRUE, OriGen.create());
         Eq<T> new_update = new Eq<>(update_deref, update_update, OriGen.create());
 
@@ -334,9 +333,9 @@ public class KnownTypeTransformer<T> {
 
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
-                col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
-                new GeneratedBlame<>(), OriGen.create("fifo_read"));
+                OriGen.createBlame(), OriGen.create("fifo_read"));
     }
 
     /**
@@ -359,23 +358,23 @@ public class KnownTypeTransformer<T> {
 
         // Get field references
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), m.o());
         Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, new GeneratedBlame<>(), buf.o());
+        Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, OriGen.createBlame(), buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
         Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, new GeneratedBlame<>(), nr_read.o());
+        Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, OriGen.createBlame(), nr_read.o());
         Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
+        Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, OriGen.createBlame(), written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
 
         // Get scheduling variable references
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(m_deref, update_ref, OriGen.createBlame(), OriGen.create());
 
         // Get parameter references
         Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, OriGen.createBlame(), OriGen.create());
 
         // Create precondition
         Plus<T> total_size = new Plus<>(buf_size, written_size, OriGen.create());
@@ -383,19 +382,19 @@ public class KnownTypeTransformer<T> {
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(new Star<>(perms, within_bound, OriGen.create()), OriGen.create());
 
         // Unchanged variables
-        Eq<T> read_is_old = new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> read_is_old = new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> buffer_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Update to written
         Ref<T, Variable<T>> ref_to_new_val = new DirectRef<>(new_val, ClassTag$.MODULE$.apply(Variable.class));
         Seq<Expr<T>> literal_vals = List.from(CollectionConverters.asScala(java.util.List.of(new Local<>(ref_to_new_val, new_val.o()))));
         LiteralSeq<T> new_vals = new LiteralSeq<>(t, literal_vals, OriGen.create());
         Concat<T> concat = new Concat<>(written_deref, new_vals, OriGen.create());
-        Eq<T> new_written = new Eq<>(written_deref, new Old<>(concat, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> new_written = new Eq<>(written_deref, new Old<>(concat, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Update to primitive_channel_update
         IntegerValue<T> update_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_update = new Old<>(update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         SeqUpdate<T> update_update = new SeqUpdate<>(old_update, update_index, col_system.TRUE, OriGen.create());
         Eq<T> new_update = new Eq<>(update_deref, update_update, OriGen.create());
 
@@ -405,9 +404,9 @@ public class KnownTypeTransformer<T> {
 
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
-                col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
-                new GeneratedBlame<>(), OriGen.create("fifo_write"));
+                OriGen.createBlame(), OriGen.create("fifo_write"));
     }
 
     /**
@@ -424,44 +423,44 @@ public class KnownTypeTransformer<T> {
 
         // Get field references
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), m.o());
         Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(buf, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, new GeneratedBlame<>(), buf.o());
+        Deref<T> buf_deref = new Deref<>(col_system.THIS, buf_ref, OriGen.createBlame(), buf.o());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
         Ref<T, InstanceField<T>> read_ref = new DirectRef<>(nr_read, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, new GeneratedBlame<>(), nr_read.o());
-        Old<T> old_read = new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Deref<T> read_deref = new Deref<>(col_system.THIS, read_ref, OriGen.createBlame(), nr_read.o());
+        Old<T> old_read = new Old<>(read_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> written_ref = new DirectRef<>(written, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, new GeneratedBlame<>(), written.o());
+        Deref<T> written_deref = new Deref<>(col_system.THIS, written_ref, OriGen.createBlame(), written.o());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
-        Old<T> old_wr_size = new Old<>(written_size, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_wr_size = new Old<>(written_size, Option.empty(), OriGen.createBlame(), OriGen.create());
 
         // Get scheduling variable references
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(m_deref, update_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, OriGen.createBlame(), OriGen.create());
         Size<T> ev_size = new Size<>(ev_deref, OriGen.create());
 
         // Create precondition
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
 
         // Unchanged variables
-        Eq<T> proc_is_old = new Eq<>(proc_deref, new Old<>(proc_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> update_is_old = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> proc_is_old = new Eq<>(proc_deref, new Old<>(proc_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> update_is_old = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Access update sequence
         IntegerValue<T> update_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        SeqSubscript<T> u_i = new SeqSubscript<>(update_deref, update_index, new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> u_i = new SeqSubscript<>(update_deref, update_index, OriGen.createBlame(), OriGen.create());
         Not<T> n_u_i = new Not<>(u_i, OriGen.create());
 
         // CASE 1: Everything is unchanged
-        Eq<T> read_is_old = new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> written_is_old = new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> buf_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> ev_is_old = new Eq<>(ev_deref, new Old<>(ev_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> read_is_old = new Eq<>(read_deref, new Old<>(read_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> written_is_old = new Eq<>(written_deref, new Old<>(written_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> buf_is_old = new Eq<>(buf_deref, new Old<>(buf_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> ev_is_old = new Eq<>(ev_deref, new Old<>(ev_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
         Expr<T> everything_is_old = col_system.fold_and(java.util.List.of(read_is_old, written_is_old, buf_is_old, ev_is_old));
         Implies<T> not_updated = new Implies<>(n_u_i, everything_is_old, OriGen.create());
 
@@ -482,22 +481,22 @@ public class KnownTypeTransformer<T> {
         Take<T> prev_evs = new Take<>(ev_deref, min_ev, OriGen.create());
         Drop<T> next_evs = new Drop<>(ev_deref, next_ev, OriGen.create());
         Greater<T> has_been_read = new Greater<>(old_read, col_system.ZERO, OriGen.create());
-        SeqSubscript<T> read_ev_status = new SeqSubscript<>(ev_deref, r_ev, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_r_status = new Old<>(read_ev_status, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> read_ev_status = new SeqSubscript<>(ev_deref, r_ev, OriGen.createBlame(), OriGen.create());
+        Old<T> old_r_status = new Old<>(read_ev_status, Option.empty(), OriGen.createBlame(), OriGen.create());
         Select<T> new_r_status = new Select<>(has_been_read, col_system.MINUS_ONE, old_r_status, OriGen.create());
         Greater<T> has_been_written = new Greater<>(old_wr_size, col_system.ZERO, OriGen.create());
-        SeqSubscript<T> write_ev_status = new SeqSubscript<>(ev_deref, w_ev, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_w_status = new Old<>(write_ev_status, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> write_ev_status = new SeqSubscript<>(ev_deref, w_ev, OriGen.createBlame(), OriGen.create());
+        Old<T> old_w_status = new Old<>(write_ev_status, Option.empty(), OriGen.createBlame(), OriGen.create());
         Select<T> new_w_status = new Select<>(has_been_written, col_system.MINUS_ONE, old_w_status, OriGen.create());
 
         // CASE 2: Update is executed
         Eq<T> read_is_zero = new Eq<>(read_deref, col_system.ZERO, OriGen.create());
         Eq<T> written_is_empty = new Eq<>(written_size, col_system.ZERO, OriGen.create());
-        Eq<T> buf_update = new Eq<>(buf_deref, new Old<>(buf_written, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> prev_evs_unchanged = new Eq<>(prev_evs, new Old<>(prev_evs, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> buf_update = new Eq<>(buf_deref, new Old<>(buf_written, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> prev_evs_unchanged = new Eq<>(prev_evs, new Old<>(prev_evs, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
         Eq<T> read_ev_changed = new Eq<>(read_ev_status, new_r_status, OriGen.create());
         Eq<T> write_ev_changed = new Eq<>(write_ev_status, new_w_status, OriGen.create());
-        Eq<T> next_evs_unchanged = new Eq<>(next_evs, new Old<>(next_evs, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> next_evs_unchanged = new Eq<>(next_evs, new Old<>(next_evs, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
         java.util.List<Expr<T>> changes = java.util.List.of(read_is_zero, written_is_empty, buf_update, prev_evs_unchanged,
                 read_ev_changed, write_ev_changed, next_evs_unchanged);
         Implies<T> updated = new Implies<>(u_i, col_system.fold_and(changes), OriGen.create());
@@ -508,9 +507,9 @@ public class KnownTypeTransformer<T> {
 
         // Finish the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
-                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create("fifo_update"));
+                contract, false, false, OriGen.createBlame(), OriGen.create("fifo_update"));
     }
 
     /**
@@ -559,12 +558,12 @@ public class KnownTypeTransformer<T> {
         // Create references to signal
         Ref<T, InstanceField<T>> signal_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(),
                 ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> signal_deref = new Deref<>(col_system.THIS, signal_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> signal_deref = new Deref<>(col_system.THIS, signal_ref, OriGen.createBlame(), OriGen.create());
         FieldLocation<T> signal_loc = new FieldLocation<>(col_system.THIS, signal_ref, OriGen.create());
 
         // Create references to m
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(signal_deref, m_ref, new GeneratedBlame<>(), m.o());
+        Deref<T> m_deref = new Deref<>(signal_deref, m_ref, OriGen.createBlame(), m.o());
         FieldLocation<T> m_loc = new FieldLocation<>(signal_deref, m_ref, m.o());
 
         // Create references to val and val_
@@ -604,9 +603,9 @@ public class KnownTypeTransformer<T> {
         List<Variable<T>> params = List.from(CollectionConverters.asScala(java.util.List.of(m_param)));
 
         // Constructor body
-        Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
+        Deref<T> local_m = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), m.o());
         Local<T> local_m_param = new Local<>(new DirectRef<>(m_param, ClassTag$.MODULE$.apply(Variable.class)), m_param.o());
-        Assign<T> m_assign = new Assign<>(local_m, local_m_param, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> m_assign = new Assign<>(local_m, local_m_param, OriGen.createBlame(), OriGen.create());
 
         Statement<T> body = new Block<>(List.from(CollectionConverters.asScala(java.util.List.of(m_assign))), OriGen.create());
 
@@ -623,8 +622,8 @@ public class KnownTypeTransformer<T> {
         java.util.List<Expr<T>> conditions = java.util.List.of(perm_m, eq_m, perm_val, perm__val);
         ApplicableContract<T> contract = new ApplicableContract<>(new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()),
                 new UnitAccountedPredicate<>(col_system.fold_star(conditions), OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
-                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        return new PVLConstructor<>(contract, params, Option.apply(body), new GeneratedBlame<>(), o);
+                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
+        return new PVLConstructor<>(contract, params, Option.apply(body), OriGen.createBlame(), o);
     }
 
     /**
@@ -643,22 +642,22 @@ public class KnownTypeTransformer<T> {
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
 
         // Get references to relevant fields
-        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
-        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
-        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), m.o());
+        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), val.o());
+        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), _val.o());
         Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, new GeneratedBlame<>(), col_system.get_process_state().o());
+        Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, OriGen.createBlame(), col_system.get_process_state().o());
 
         // Unchanged variables
-        Eq<T> update_is_old = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> val_is_old = new Eq<>(val_deref, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
-        Eq<T> _val_is_old = new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> update_is_old = new Eq<>(update_deref, new Old<>(update_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> val_is_old = new Eq<>(val_deref, new Old<>(val_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
+        Eq<T> _val_is_old = new Eq<>(_val_deref, new Old<>(_val_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Method return value
         Ref<T, ContractApplicable<T>> ref = new LazyRef<>(() -> col_system.get_primitive_instance_method(sc_inst, Constants.SIGNAL_READ_METHOD),
                 Option.empty(), ClassTag$.MODULE$.apply(ContractApplicable.class));
         Result<T> ret = new Result<>(ref, OriGen.create());
-        Eq<T> result = new Eq<>(ret, new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create()), OriGen.create());
+        Eq<T> result = new Eq<>(ret, new Old<>(val_deref, Option.empty(), OriGen.createBlame(), OriGen.create()), OriGen.create());
 
         // Postcondition
         java.util.List<Expr<T>> conditions = java.util.List.of(perms, update_is_old, val_is_old, _val_is_old, result);
@@ -666,9 +665,9 @@ public class KnownTypeTransformer<T> {
 
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS, col_system.NO_VARS,
-                col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         return new InstanceMethod<>(t, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract, false, false,
-                new GeneratedBlame<>(), OriGen.create("signal_read"));
+                OriGen.createBlame(), OriGen.create("signal_read"));
     }
 
     /**
@@ -691,13 +690,13 @@ public class KnownTypeTransformer<T> {
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
 
         // Get references to relevant fields
-        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
-        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
-        Old<T> old_val = new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), m.o());
+        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), val.o());
+        Old<T> old_val = new Old<>(val_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
+        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), _val.o());
         Ref<T, InstanceField<T>> ref_to_update = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, new GeneratedBlame<>(), col_system.get_process_state().o());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(m_deref, ref_to_update, OriGen.createBlame(), col_system.get_process_state().o());
+        Old<T> old_update = new Old<>(update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Local<T> new_val_local = new Local<>(new DirectRef<>(new_val, ClassTag$.MODULE$.apply(Variable.class)), new_val.o());
 
         // Unchanged variables
@@ -711,7 +710,7 @@ public class KnownTypeTransformer<T> {
         Eq<T> val_not_changed = new Eq<>(new_val_local, old_val, OriGen.create());
         IntegerValue<T> prim_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
         SeqUpdate<T> update_update = new SeqUpdate<>(update_deref, prim_index, col_system.TRUE, OriGen.create());
-        Old<T> old_update_update = new Old<>(update_update, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_update_update = new Old<>(update_update, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> update_changed = new Eq<>(update_deref, old_update_update, OriGen.create());
         Eq<T> update_unchanged = new Eq<>(update_deref, old_update, OriGen.create());
         Implies<T> updated = new Implies<>(val_changed, update_changed, OriGen.create());
@@ -723,9 +722,9 @@ public class KnownTypeTransformer<T> {
 
         // Finishing the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
-                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, false, new GeneratedBlame<>(), OriGen.create("signal_write"));
+                false, false, OriGen.createBlame(), OriGen.create("signal_write"));
     }
 
     /**
@@ -740,22 +739,22 @@ public class KnownTypeTransformer<T> {
         Expr<T> perms = create_general_contract(m, true);
 
         // Get field references
-        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), m.o());
-        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), val.o());
-        Old<T> old_val = new Old<>(val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), new GeneratedBlame<>(), _val.o());
-        Old<T> old__val = new Old<>(_val_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), m.o());
+        Deref<T> val_deref = new Deref<>(col_system.THIS, new DirectRef<>(val, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), val.o());
+        Old<T> old_val = new Old<>(val_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
+        Deref<T> _val_deref = new Deref<>(col_system.THIS, new DirectRef<>(_val, ClassTag$.MODULE$.apply(InstanceField.class)), OriGen.createBlame(), _val.o());
+        Old<T> old__val = new Old<>(_val_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
 
         // Get scheduling variable references
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(m_deref, update_ref, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_update = new Old<>(update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(m_deref, update_ref, OriGen.createBlame(), OriGen.create());
+        Old<T> old_update = new Old<>(update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_proc = new Old<>(proc_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Deref<T> proc_deref = new Deref<>(m_deref, proc_ref, OriGen.createBlame(), OriGen.create());
+        Old<T> old_proc = new Old<>(proc_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> ev_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, new GeneratedBlame<>(), OriGen.create());
-        Old<T> old_ev = new Old<>(ev_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Deref<T> ev_deref = new Deref<>(m_deref, ev_ref, OriGen.createBlame(), OriGen.create());
+        Old<T> old_ev = new Old<>(ev_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
 
         // Precondition
         AccountedPredicate<T> precondition = new UnitAccountedPredicate<>(perms, OriGen.create());
@@ -767,7 +766,7 @@ public class KnownTypeTransformer<T> {
 
         // Access update sequence
         IntegerValue<T> prim_index = new IntegerValue<>(BigInt.apply(prim_channel_index), OriGen.create());
-        SeqSubscript<T> u_i = new SeqSubscript<>(update_deref, prim_index, new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> u_i = new SeqSubscript<>(update_deref, prim_index, OriGen.createBlame(), OriGen.create());
         Not<T> n_u_i = new Not<>(u_i, OriGen.create());
 
         // CASE 1: Everything is unchanged
@@ -784,7 +783,7 @@ public class KnownTypeTransformer<T> {
 
         // CASE 2: Value changed and write event notified
         SeqUpdate<T> ev_update = new SeqUpdate<>(ev_deref, w_ev, col_system.MINUS_ONE, OriGen.create());
-        Old<T> old_ev_update = new Old<>(ev_update, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_ev_update = new Old<>(ev_update, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> write_event_notified = new Eq<>(ev_deref, old_ev_update, OriGen.create());
         Eq<T> val_is_hidden_val = new Eq<>(val_deref, old__val, OriGen.create());
         And<T> both_changed = new And<>(write_event_notified, val_is_hidden_val, OriGen.create());
@@ -796,9 +795,9 @@ public class KnownTypeTransformer<T> {
 
         // Finish the method
         ApplicableContract<T> contract = new ApplicableContract<>(precondition, postcondition, col_system.TRUE, col_system.NO_SIGNALS,
-                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create("signal_update"));
+                contract, false, false, OriGen.createBlame(), OriGen.create("signal_update"));
     }
 
     /**
@@ -812,11 +811,11 @@ public class KnownTypeTransformer<T> {
     private Expr<T> create_general_contract(InstanceField<T> m, boolean include_scheduler_permissions) {
         // Create references
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), m.o());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), m.o());
         FieldLocation<T> m_loc = new FieldLocation<>(col_system.THIS, m_ref, m.o());
         Ref<T, InstanceField<T>> self_ref = new LazyRef<>(() -> col_system.get_primitive_channel(sc_inst), Option.empty(),
                 ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> self_deref = new Deref<>(m_deref, self_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> self_deref = new Deref<>(m_deref, self_ref, OriGen.createBlame(), OriGen.create());
 
         // Create individual contract conditions
         Perm<T> perm_m = new Perm<>(m_loc, new ReadPerm<>(OriGen.create()), OriGen.create());

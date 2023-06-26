@@ -82,7 +82,7 @@ import vct.result.VerificationError.Unreachable
 
 sealed trait NodeFamily[G] extends Node[G] with NodeFamilyImpl[G]
 
-final case class Verification[G](tasks: Seq[VerificationContext[G]], expectedErrors: Seq[ExpectedError])(implicit val o: Origin) extends NodeFamily[G] with VerificationImpl[G]
+final case class Verification[G](tasks: Seq[VerificationContext[G]])(implicit val o: Origin) extends NodeFamily[G] with VerificationImpl[G]
 final case class VerificationContext[G](program: Program[G])(implicit val o: Origin) extends NodeFamily[G] with VerificationContextImpl[G]
 final case class Program[G](declarations: Seq[GlobalDeclaration[G]], blame: Blame1[G])(implicit val o: Origin) extends NodeFamily[G] with ProgramImpl[G]
 
@@ -154,7 +154,8 @@ case class BlameSplitTerminationMeasure[G](terminationMeasure: BlameTrafo[G], ot
 case class BlameSplitContextEverywhere[G](contextEverywhere: BlameTrafo[G], otherwise: BlameTrafo[G])(implicit val o: Origin) extends BlameTrafo[G]
 case class BlameSplitSignals[G](signals: BlameTrafo[G], otherwise: BlameTrafo[G])(implicit val o: Origin) extends BlameTrafo[G]
 
-class CancellativeFailureGrouping[G]()(implicit val o: Origin) extends GlobalDeclaration[G]
+final class CancellativeFailureGrouping[G](val filterCode: Option[String], val filterFailureCount: Option[Int])(implicit val o: Origin) extends GlobalDeclaration[G]
+final class ExpectedError[G](val blame: Blame1[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ExpectedErrorImpl[G]
 case class Blame1[G](trafo: BlameTrafo[G], cancellativeGroupings: Seq[Ref[G, CancellativeFailureGrouping[G]]])(implicit val o: Origin) extends NodeFamily[G]
 
 sealed trait Type[G] extends NodeFamily[G] with TypeImpl[G]

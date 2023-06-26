@@ -16,8 +16,7 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class CToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(originProvider, blameProvider, errors) {
+case class CToCol[G](override val originProvider: OriginProvider, override val errors: Seq[(Token, Token, CancellativeFailureGrouping[G])]) extends ToCol(originProvider, errors) {
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(translationUnit, _) =>
       translationUnit.toSeq.map(convert(_))
@@ -39,7 +38,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         ??(declarationList)
       case FunctionDefinition0(maybeContract, declSpecs, declarator, None, body) =>
         withContract(maybeContract, contract =>
-          new CFunctionDefinition(contract.consumeApplicableContract(blame(funcDef)), convert(declSpecs), convert(declarator), convert(body))(blame(funcDef)))
+          new CFunctionDefinition(contract.consumeApplicableContract(blame(funcDef)), convert(declSpecs), convert(declarator), convert(body), blame(funcDef)))
     }
   }
 
@@ -124,8 +123,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit kernel: GpgpuKernelSpecifierContext): CGpgpuKernelSpecifier[G] = kernel match {
-    case GpgpuKernelSpecifier0(_) => CUDAKernel()(blame(kernel))
-    case GpgpuKernelSpecifier1(_) => OpenCLKernel()(blame(kernel))
+    case GpgpuKernelSpecifier0(_) => CUDAKernel(blame(kernel))
+    case GpgpuKernelSpecifier1(_) => OpenCLKernel(blame(kernel))
   }
 
   def convert(implicit decls: InitDeclaratorListContext): Seq[CInit[G]] = decls match {
@@ -162,7 +161,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   def convert(implicit decl: DirectDeclaratorContext): CDeclarator[G] = decl match {
     case DirectDeclarator0(name) => CName(convert(name))
     case DirectDeclarator1(inner, _, quals, dim, _) =>
-      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner))(blame(decl))
+      CArrayDeclarator(quals.map(convert(_)) getOrElse Nil, dim.map(convert(_)), convert(inner), blame(decl))
     case DirectDeclarator2(_, _, _, _, _, _) => ??(decl)
     case DirectDeclarator3(_, _, _, _, _, _) => ??(decl)
     case DirectDeclarator4(_, _, _, _, _) => ??(decl)
@@ -200,7 +199,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case Statement8(embedStat) => convert(embedStat)
     case Statement9(GpgpuBarrier0(contract, _, _, specifier, _)) => withContract(contract, c => {
       GpgpuBarrier(AstBuildHelpers.foldStar[G](c.consume(c.requires)), AstBuildHelpers.foldStar[G](c.consume(c.ensures))
-        , convert(specifier))(blame(stat))
+        , convert(specifier), blame(stat))
     })
     case Statement10(GpgpuAtomicBlock0(whiff, _, impl, den)) =>
       GpgpuAtomic(convert(impl), whiff.map(convert(_)).getOrElse(Block(Nil)), den.map(convert(_)).getOrElse(Block(Nil)))
@@ -316,16 +315,16 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => AmbiguousMult(target, value)
-        case "/=" => FloorDiv(target, value)(blame(expr))
-        case "%=" => col.Mod(target, value)(blame(expr))
-        case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
-        case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
+        case "/=" => FloorDiv(target, value, blame(expr))
+        case "%=" => col.Mod(target, value, blame(expr))
+        case "+=" => col.AmbiguousPlus(target, value, blame(valueNode))
+        case "-=" => col.AmbiguousMinus(target, value, blame(valueNode))
         case "<<=" => BitShl(target, value)
         case ">>=" => BitShr(target, value)
         case "&=" => BitAnd(target, value)
         case "^=" => BitXor(target, value)
         case "|=" => BitOr(target, value)
-      })(blame(expr))
+      }, blame(expr))
 
       convertEmbedWith(pre, convertEmbedThen(post, e))
   }
@@ -396,17 +395,17 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit expr: AdditiveExpressionContext): Expr[G] = expr match {
     case AdditiveExpression0(inner) => convert(inner)
-    case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right))(blame(expr))
-    case AdditiveExpression2(left, _, right) => col.AmbiguousMinus(convert(left), convert(right))(blame(expr))
+    case AdditiveExpression1(left, _, right) => AmbiguousPlus(convert(left), convert(right), blame(expr))
+    case AdditiveExpression2(left, _, right) => col.AmbiguousMinus(convert(left), convert(right), blame(expr))
   }
 
   def convert(implicit expr: MultiplicativeExpressionContext): Expr[G] = expr match {
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right), blame(expr))
+      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right), blame(expr))
+      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right), blame(expr))
     }
   }
 
@@ -436,13 +435,13 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousPlus(target, const(1), blame(expr)), blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousMinus(target, const(1), blame(expr)), blame(expr))
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
-      case "*" => DerefPointer(convert(arg))(blame(expr))
+      case "*" => DerefPointer(convert(arg), blame(expr))
       case "+" => convert(arg)
       case "-" => UMinus(convert(arg))
       case "~" => BitNot(convert(arg))
@@ -457,18 +456,18 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit expr: PostfixExpressionContext): Expr[G] = expr match {
     case PostfixExpression0(inner) => convert(inner)
-    case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx))(blame(expr))
+    case PostfixExpression1(arr, _, idx, _) => AmbiguousSubscript(convert(arr), convert(idx), blame(expr))
     case PostfixExpression2(f, _, args, _, given, yields) =>
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
-        convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
-    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
+        convertEmbedGiven(given), convertEmbedYields(yields), blame(expr))
+    case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field), blame(expr))
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousPlus(target, const(1), blame(expr)), blame(expr))
     case PostfixExpression6(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousMinus(target, const(1), blame(expr)), blame(expr))
     case PostfixExpression7(e, SpecPostfix0(postfix)) => convert(expr, postfix, convert(e))
     case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
@@ -476,7 +475,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case PostfixExpression11(_, _, _, _, _, _, _, _) => ??(expr)
     case PostfixExpression12(GpgpuCudaKernelInvocation0(name, _, blocks, _, threads, _, _, args, _, given, yields)) =>
       GpgpuCudaKernelInvocation(convert(name), convert(blocks), convert(threads), convert(args),
-        convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
+        convertEmbedGiven(given), convertEmbedYields(yields), blame(expr))
   }
 
   def convert(implicit expr: AnnotatedPrimaryExpressionContext): Expr[G] = expr match {
@@ -548,7 +547,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CLocal(name)(blame(ctx))(origin(ctx))
+    CLocal(name, blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)
@@ -556,7 +555,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(decl: LangClassDeclContext): Seq[ClassDeclaration[G]] = Nil
 
-  def withCollector[T](collector: ContractCollector[G], f: ContractCollector[G] => T): T = {
+  def withCollector[T](collector: ContractCollector, f: ContractCollector => T): T = {
     val result = f(collector)
     collector.nodes.headOption match {
       case Some(node) => fail(node, "This specification clause may not occur here")
@@ -564,21 +563,21 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     }
   }
 
-  def withContract[T](node: Option[ValEmbedContractContext], f: ContractCollector[G] => T): T = {
-    val collector = new ContractCollector[G]()
+  def withContract[T](node: Option[ValEmbedContractContext], f: ContractCollector => T): T = {
+    val collector = new ContractCollector()
     node.foreach(convert(_, collector))
     withCollector(collector, f)
   }
 
-  def withContract[T](node1: Option[ValEmbedContractContext], node2: Option[ValEmbedContractContext], f: ContractCollector[G] => T): T = {
-    val collector = new ContractCollector[G]()
+  def withContract[T](node1: Option[ValEmbedContractContext], node2: Option[ValEmbedContractContext], f: ContractCollector => T): T = {
+    val collector = new ContractCollector()
     node1.foreach(convert(_, collector))
     node2.foreach(convert(_, collector))
     withCollector(collector, f)
   }
 
-  def withContract[T](node: Seq[ValContractClauseContext], f: ContractCollector[G] => T): T = {
-    val collector = new ContractCollector[G]()
+  def withContract[T](node: Seq[ValContractClauseContext], f: ContractCollector => T): T = {
+    val collector = new ContractCollector()
     node.foreach(convert(_, collector))
     withCollector(collector, f)
   }
@@ -603,16 +602,16 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     withCollector(collector, f)
   }
 
-  def convert(contract: ValEmbedContractContext, collector: ContractCollector[G]): Unit = contract match {
+  def convert(contract: ValEmbedContractContext, collector: ContractCollector): Unit = contract match {
     case ValEmbedContract0(blocks) => blocks.foreach(convert(_, collector))
   }
 
-  def convert(contract: ValEmbedContractBlockContext, collector: ContractCollector[G]): Unit = contract match {
+  def convert(contract: ValEmbedContractBlockContext, collector: ContractCollector): Unit = contract match {
     case ValEmbedContractBlock0(_, clauses, _) => clauses.foreach(convert(_, collector))
     case ValEmbedContractBlock1(clauses) => clauses.foreach(convert(_, collector))
   }
 
-  def convert(implicit contract: ValContractClauseContext, collector: ContractCollector[G]): Unit = contract match {
+  def convert(implicit contract: ValContractClauseContext, collector: ContractCollector): Unit = contract match {
     case ValContractClause0(_, ids, _) => collector.modifies ++= convert(ids).map((contract, _))
     case ValContractClause1(_, ids, _) => collector.accessible ++= convert(ids).map((contract, _))
     case ValContractClause2(_, exp, _) => collector.requires += ((contract, convert(exp)))
@@ -759,7 +758,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.Div(left, right, blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
@@ -775,7 +774,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit root: ParserRuleContext, prefixOp: ValPrefixContext, xs: Expr[G]): Expr[G] = prefixOp match {
-    case ValScale(_, scale, _) => Scale(convert(scale), xs)(blame(prefixOp))
+    case ValScale(_, scale, _) => Scale(convert(scale), xs, blame(prefixOp))
   }
 
   def convert(implicit block: ValEmbedStatementBlockContext): Statement[G] = block match {
@@ -788,30 +787,30 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
           AstBuildHelpers.foldStar(contract.consume(contract.requires)),
           Block(body.map(convert(_))),
           AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
-        )(blame(block))
+          blame(block))
       })
   }
 
   def convert(implicit stat: ValStatementContext): Statement[G] = stat match {
-    case ValPackage(_, expr, innerStat) => WandPackage(convert(expr), convert(innerStat))(blame(stat))
-    case ValApplyWand(_, wand, _) => WandApply(convert(wand))(blame(stat))
+    case ValPackage(_, expr, innerStat) => WandPackage(convert(expr), convert(innerStat), blame(stat))
+    case ValApplyWand(_, wand, _) => WandApply(convert(wand), blame(stat))
     case ValFold(_, predicate, _) =>
-      Fold(convert(predicate))(blame(stat))
+      Fold(convert(predicate), blame(stat))
     case ValUnfold(_, predicate, _) =>
-      Unfold(convert(predicate))(blame(stat))
+      Unfold(convert(predicate), blame(stat))
     case ValOpen(_, _, _) => ??(stat)
     case ValClose(_, _, _) => ??(stat)
-    case ValAssert(_, assn, _) => Assert(convert(assn))(blame(stat))
+    case ValAssert(_, assn, _) => Assert(convert(assn), blame(stat))
     case ValAssume(_, assn, _) => Assume(convert(assn))
     case ValInhale(_, resource, _) => Inhale(convert(resource))
-    case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
+    case ValExhale(_, resource, _) => Exhale(convert(resource), blame(stat))
     case ValLabel(_, label, _) =>
       Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
-    case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
+    case ValRefute(_, assn, _) => Refute(convert(assn), blame(stat))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, name, _, delta, _, resource, _) =>
-      Send(new SendDecl()(SourceNameOrigin(convert(name), origin(stat))), convert(delta), convert(resource))(blame(stat))
+      Send(new SendDecl()(SourceNameOrigin(convert(name), origin(stat))), convert(delta), convert(resource), blame(stat))
     case ValRecv(_, name, _) =>
       Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
@@ -824,9 +823,9 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
         case ValActionImpl1(inner) => convert(inner)
       })
     case ValAtomic(_, _, invariant, _, body) =>
-      ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body))(blame(stat))
+      ParAtomic(Seq(new UnresolvedRef[G, ParInvariantDecl[G]](convert(invariant))), convert(body), blame(stat))
     case ValCommit(_, obj, _) =>
-      Commit(convert(obj))(blame(stat))
+      Commit(convert(obj), blame(stat))
     case ValExtract(_, body) =>
       Extract(convert(body))
     case ValFrame(_, clauses, body) =>
@@ -835,7 +834,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
           AstBuildHelpers.foldStar(contract.consume(contract.requires)),
           convert(body),
           AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
-        )(blame(stat))
+          blame(stat))
       })
   }
 
@@ -875,7 +874,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
             c.consumeApplicableContract(blame(decl)),
-            m.consume(m.inline))(blame(decl))(namedOrigin)
+            m.consume(m.inline), m.consume(m.threadLocal), blame(decl))(namedOrigin)
         })
       ))
     case ValModel(_, name, _, decls, _) =>
@@ -907,7 +906,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
             args.map(convert(_)).getOrElse(Nil),
             typeArgs.map(convert(_)).getOrElse(Nil),
             convert(definition),
-            c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
+            c.consumeApplicableContract(blame(decl)),
+            m.consume(m.inline), m.consume(m.threadLocal),
             blame(decl))(
             SourceNameOrigin(convert(name), origin(decl))))
         })
@@ -924,7 +924,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
-          c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
+          c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)),
           blame(decl))(SourceNameOrigin(convert(name), origin(decl)))
       }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
@@ -983,7 +983,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit e: ValPrimarySeqContext): Expr[G] = e match {
     case ValCardinality(_, xs, _) => Size(convert(xs))
-    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to))(blame(e))
+    case ValArrayValues(_, _, a, _, from, _, to, _) => Values(convert(a), convert(from), convert(to), blame(e))
   }
 
   def convert(implicit e: ValPrimaryOptionContext): Expr[G] = e match {
@@ -1019,10 +1019,10 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] = e match {
-    case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
-    case ValPerm(_, _, loc, _, perm, _) => Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-    case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc))(blame(e)))
-    case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(AmbiguousLocation(convert(loc))(blame(e)), convert(perm), convert(v))
+    case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc), blame(e)))
+    case ValPerm(_, _, loc, _, perm, _) => Perm(AmbiguousLocation(convert(loc), blame(e)), convert(perm))
+    case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc), blame(e)))
+    case ValPointsTo(_, _, loc, _, perm, _, v, _) => PointsTo(AmbiguousLocation(convert(loc), blame(e)), convert(perm), convert(v))
     case ValHPerm(_, _, loc, _, perm, _) => ModelPerm(convert(loc), convert(perm))
     case ValAPerm(_, _, loc, _, perm, _) => ActionPerm(convert(loc), convert(perm))
     case ValArrayPerm(_, _, arr, _, i, _, step, _, count, _, perm, _) => ??(e)
@@ -1030,9 +1030,9 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValArray(_, _, arr, _, dim, _) => ValidArray(convert(arr), convert(dim))
     case ValPointer(_, _, ptr, _, n, _, perm, _) => PermPointer(convert(ptr), convert(n), convert(perm))
     case ValPointerIndex(_, _, ptr, _, idx, _, perm, _) => PermPointerIndex(convert(ptr), convert(idx), convert(perm))
-    case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr))(blame(e))
-    case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
-    case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
+    case ValPointerBlockLength(_, _, ptr, _) => PointerBlockLength(convert(ptr), blame(e))
+    case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr), blame(e))
+    case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr), blame(e))
     case ValPolarityDependent(_, _, onInhale, _, onExhale, _) => PolarityDependent(convert(onInhale), convert(onExhale))
   }
 
@@ -1065,13 +1065,13 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       val conds = bindingConds ++ bodyConds
       symbol match {
         case ValForallSymb(_) => Forall(variables, Nil, implies(conds, body))
-        case ValStarallSymb(_) => Starall(variables, Nil, implies(conds, body))(blame(e))
+        case ValStarallSymb(_) => Starall(variables, Nil, implies(conds, body), blame(e))
         case ValExistsSymb(_) => Exists(variables, Nil, foldAnd(conds :+ body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
       Let(new Variable(convert(t))(SourceNameOrigin(convert(id), origin(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
-      ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
+      ForPerm(convert(bindings), AmbiguousLocation(convert(loc), blame(loc))(origin(loc)), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
@@ -1111,18 +1111,18 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValPrimary7(inner) => convert(inner)
     case ValPrimary8(inner) => convert(inner)
     case ValPrimary9(inner) => convert(inner)
-    case ValAny(_) => Any()(blame(e))
+    case ValAny(_) => Any(blame(e))
     case ValFunctionOf(_, inner, _, names, _) => FunctionOf(new UnresolvedRef[G, Variable[G]](convert(inner)), convert(names).map(new UnresolvedRef[G, Variable[G]](_)))
     case ValInlinePattern(open, pattern, _) =>
       val groupText = open.filter(_.isDigit)
       InlinePattern(convert(pattern), open.count(_ == '<'), if (groupText.isEmpty) 0 else groupText.toInt)
-    case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body))(blame(e))
-    case ValOld(_, _, expr, _) => Old(convert(expr), at = None)(blame(e))
-    case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))))(blame(e))
+    case ValUnfolding(_, predExpr, _, body) => Unfolding(convert(predExpr), convert(body), blame(e))
+    case ValOld(_, _, expr, _) => Old(convert(expr), at = None, blame(e))
+    case ValOldLabeled(_, _, label, _, _, expr, _) => Old(convert(expr), at = Some(new UnresolvedRef[G, LabelDecl[G]](convert(label))), blame(e))
     case ValTypeof(_, _, expr, _) => TypeOf(convert(expr))
     case ValTypeValue(_, _, t, _) => TypeValue(convert(t))
     case ValHeld(_, _, obj, _) => Held(convert(obj))
-    case ValCommitted(_, _, obj, _) => Committed(convert(obj))(blame(e))
+    case ValCommitted(_, _, obj, _) => Committed(convert(obj), blame(e))
     case ValIdEscape(text) => local(e, text.substring(1, text.length - 1))
     case ValSharedMemSize(_, _, ptr, _) => SharedMemSize(convert(ptr))
     case ValNdIndex(_, _, firstIndex, _, firstDim, parsePairs, _) =>

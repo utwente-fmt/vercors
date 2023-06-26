@@ -14,13 +14,13 @@ case class ColIParser(override val originProvider: OriginProvider, override val 
       val parser = new CParser(tokens)
 
       val (errors, tree) = noErrorsOrThrow(parser, lexer, originProvider) {
-        val errors = expectedErrors(tokens, LangCLexer.EXPECTED_ERROR_CHANNEL, LangCLexer.VAL_EXPECT_ERROR_OPEN, LangCLexer.VAL_EXPECT_ERROR_CLOSE)
+        val errors = expectedErrors[G](tokens, LangCLexer.EXPECTED_ERROR_CHANNEL, LangCLexer.VAL_EXPECT_ERROR_OPEN, LangCLexer.VAL_EXPECT_ERROR_CLOSE)
         val tree = parser.compilationUnit()
         (errors, tree)
       }
 
-      val decls = CToCol[G](originProvider, blameProvider, errors).convert(tree)
-      ParseResult(decls, errors.map(_._3))
+      val decls = CToCol[G](originProvider, errors._2).convert(tree)
+      ParseResult(errors._2.map(_._3) ++ errors._1 ++ decls)
     } catch {
       case m: MatchError =>
         throw ParseMatchError(m.getMessage())

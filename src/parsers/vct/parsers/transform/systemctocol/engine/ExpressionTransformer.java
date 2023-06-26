@@ -23,7 +23,6 @@ import vct.parsers.transform.systemctocol.colmodel.COLClass;
 import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.util.Constants;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
 import vct.parsers.transform.systemctocol.util.Timing;
 
@@ -305,7 +304,7 @@ public class ExpressionTransformer<T> {
      */
     private Statement<T> transform_assertion_expression(AssertionExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
         Expr<T> cond = create_expression(expr.getCondition(), sc_inst, obj);
-        Statement<T> result = new Assert<>(cond, new GeneratedBlame<>(), OriGen.create());
+        Statement<T> result = new Assert<>(cond, OriGen.createBlame(), OriGen.create());
 
         // Handle label
         return append_label(result, expr);
@@ -431,13 +430,13 @@ public class ExpressionTransformer<T> {
 
                 // Create reference to event sequence
                 Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-                Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+                Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
                 Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-                Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
+                Deref<T> events_deref = new Deref<>(m_deref, event_ref, OriGen.createBlame(), OriGen.create());
 
                 // Create sequence update
                 SeqUpdate<T> update_event = new SeqUpdate<>(events_deref, event_id, wait_time, OriGen.create());
-                Statement<T> result = new Assign<>(events_deref, update_event, new GeneratedBlame<>(), OriGen.create());
+                Statement<T> result = new Assign<>(events_deref, update_event, OriGen.createBlame(), OriGen.create());
 
                 // Handle label
                 return append_label(result, expr);
@@ -529,20 +528,20 @@ public class ExpressionTransformer<T> {
         if (obj == col_system.THIS && containing_class != null && !containing_class.equals(col_class)) {
             // Create m reference
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
             // Create reference to the instance of the class containing the variable
             Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
                     Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, OriGen.createBlame(), OriGen.create());
 
             result = new InvokeMethod<>(containing_deref, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
-                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
         }
         // Else invoke the method on the given object (might be this)
         else {
             result = new InvokeMethod<>(obj, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
-                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
         }
 
         // Handle label
@@ -649,7 +648,7 @@ public class ExpressionTransformer<T> {
                 }
                 else throw new UnsupportedException("Initialized variable " + var_expr.getVar() + " is of unsupported type.");
 
-                result = new Assign<>(var, init_val, new GeneratedBlame<>(), OriGen.create());
+                result = new Assign<>(var, init_val, OriGen.createBlame(), OriGen.create());
             }
         }
         else if (expr.getVariable() instanceof SCClassInstanceExpression) {
@@ -677,8 +676,8 @@ public class ExpressionTransformer<T> {
 
         // Create method invocation of generated method and assign its value to the variable
         MethodInvocation<T> randomize = new MethodInvocation<>(col_system.THIS, randomizer, col_system.NO_EXPRS, col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
-        Statement<T> result = new Assign<>(var, randomize, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
+        Statement<T> result = new Assign<>(var, randomize, OriGen.createBlame(), OriGen.create());
 
         // Handle label
         return append_label(result, expr);
@@ -809,12 +808,12 @@ public class ExpressionTransformer<T> {
 
         // Process and event field refs
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
         Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, OriGen.createBlame(), OriGen.create());
+        Deref<T> events_deref = new Deref<>(m_deref, event_ref, OriGen.createBlame(), OriGen.create());
 
         // Get parameters of wait call
         java.util.List<Expression> params = expr.getParameters();
@@ -840,7 +839,7 @@ public class ExpressionTransformer<T> {
 
         // Create process state update
         SeqUpdate<T> update_proc = new SeqUpdate<>(procs_deref, proc_id, ev_id, OriGen.create());
-        statements.add(new Assign<>(procs_deref, update_proc, new GeneratedBlame<>(), OriGen.create()));
+        statements.add(new Assign<>(procs_deref, update_proc, OriGen.createBlame(), OriGen.create()));
 
         // If the wait is waiting for time, also notify the event
         if (params.size() == 2) {
@@ -872,7 +871,7 @@ public class ExpressionTransformer<T> {
 
             // Create event state update
             SeqUpdate<T> update_event = new SeqUpdate<>(events_deref, ev_id, wait_time, OriGen.create());
-            statements.add(new Assign<>(events_deref, update_event, new GeneratedBlame<>(), OriGen.create()));
+            statements.add(new Assign<>(events_deref, update_event, OriGen.createBlame(), OriGen.create()));
         }
 
         // Add wait loop and finish block
@@ -904,9 +903,9 @@ public class ExpressionTransformer<T> {
 
         // Process field reference
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, OriGen.createBlame(), OriGen.create());
 
         // Decode the fifo queue
         SCPort sc_port = fifo.getSCPortSCSocket();
@@ -914,19 +913,19 @@ public class ExpressionTransformer<T> {
         Expr<T> fifo_queue = transform_sc_port_sc_socket_expression(fifo, sc_inst);
         InstanceField<T> fifo_buffer = col_system.get_primitive_instance_field(channel, Constants.FIFO_BUFFER);
         Ref<T, InstanceField<T>> buf_ref = new DirectRef<>(fifo_buffer, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> buf_deref = new Deref<>(fifo_queue, buf_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> buf_deref = new Deref<>(fifo_queue, buf_ref, OriGen.createBlame(), OriGen.create());
         Size<T> buf_size = new Size<>(buf_deref, OriGen.create());
         InstanceField<T> fifo_written = col_system.get_primitive_instance_field(channel, Constants.FIFO_WRITTEN);
         Ref<T, InstanceField<T>> written_ref = new DirectRef<>(fifo_written, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> written_deref = new Deref<>(fifo_queue, written_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> written_deref = new Deref<>(fifo_queue, written_ref, OriGen.createBlame(), OriGen.create());
         Size<T> written_size = new Size<>(written_deref, OriGen.create());
         InstanceField<T> fifo_num_read = col_system.get_primitive_instance_field(channel, Constants.FIFO_NUM_READ);
         Ref<T, InstanceField<T>> read_ref = new DirectRef<>(fifo_num_read, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> read_deref = new Deref<>(fifo_queue, read_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> read_deref = new Deref<>(fifo_queue, read_ref, OriGen.createBlame(), OriGen.create());
 
         // Get a reference to the FIFO size parameter
         Ref<T, InstanceField<T>> fifo_size_ref = new DirectRef<>(col_system.get_fifo_size_parameter(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> fifo_size_deref = new Deref<>(m_deref, fifo_size_ref, OriGen.createBlame(), OriGen.create());
 
         // Decode the function call
         Expr<T> cond;
@@ -964,7 +963,7 @@ public class ExpressionTransformer<T> {
 
         // Create wait statement
         SeqUpdate<T> new_process_state = new SeqUpdate<>(procs_deref, proc_id, ev_id, OriGen.create());
-        Assign<T> update_process_state = new Assign<>(procs_deref, new_process_state, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> update_process_state = new Assign<>(procs_deref, new_process_state, OriGen.createBlame(), OriGen.create());
 
         // Create wait loop
         Loop<T> wait_loop = create_wait_loop(proc_id, ev_id);
@@ -981,11 +980,11 @@ public class ExpressionTransformer<T> {
         // Create final statement, depending on whether a variable to assign to is given
         if (assign_to == null) {
             all_stmts.add(new InvokeMethod<>(fifo_queue, method_ref, List.from(CollectionConverters.asScala(args)), col_system.NO_EXPRS,
-                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create()));
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create()));
         }
         else {
             MethodInvocation<T> method_invocation = new MethodInvocation<>(fifo_queue, method_ref, List.from(CollectionConverters.asScala(args)),
-                    col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
             all_stmts.add(decode_assignment(assign_to, op, method_invocation));
         }
 
@@ -1035,11 +1034,11 @@ public class ExpressionTransformer<T> {
         // Create final statement, depending on whether a variable to assign to is given
         if (assign_to == null) {
             return new InvokeMethod<>(sc_signal, method_ref, List.from(CollectionConverters.asScala(args)), col_system.NO_EXPRS,
-                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
         }
         else {
             MethodInvocation<T> method_invocation = new MethodInvocation<>(sc_signal, method_ref, List.from(CollectionConverters.asScala(args)),
-                    col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
             return decode_assignment(assign_to, op, method_invocation);
         }
     }
@@ -1059,8 +1058,8 @@ public class ExpressionTransformer<T> {
             case "+=" -> new Plus<>(left, right, OriGen.create());
             case "-=" -> new Minus<>(left, right, OriGen.create());
             case "*=" -> new Mult<>(left, right, OriGen.create());
-            case "/=" -> new Div<>(left, right, new GeneratedBlame<>(), OriGen.create());
-            case "%=" -> new Mod<>(left, right, new GeneratedBlame<>(), OriGen.create());
+            case "/=" -> new Div<>(left, right, OriGen.createBlame(), OriGen.create());
+            case "%=" -> new Mod<>(left, right, OriGen.createBlame(), OriGen.create());
             case "&=" -> new AmbiguousComputationalAnd<>(left, right, OriGen.create());
             case "|=" -> new AmbiguousComputationalOr<>(left, right, OriGen.create());
             case "^=" -> new BitXor<>(left, right, OriGen.create());
@@ -1069,7 +1068,7 @@ public class ExpressionTransformer<T> {
             default -> throw new IllegalOperationException("Trying to transform an expression to a statement!");
         };
 
-        return new Assign<>(left, assign_value, new GeneratedBlame<>(), OriGen.create());
+        return new Assign<>(left, assign_value, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -1082,23 +1081,23 @@ public class ExpressionTransformer<T> {
     private Loop<T> create_wait_loop(IntegerValue<T> process_id, IntegerValue<T> event_id) {
         // Process and event field refs
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
         Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
         Ref<T, InstanceField<T>> event_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, new GeneratedBlame<>(), OriGen.create());
-        Deref<T> events_deref = new Deref<>(m_deref, event_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> procs_deref = new Deref<>(m_deref, proc_ref, OriGen.createBlame(), OriGen.create());
+        Deref<T> events_deref = new Deref<>(m_deref, event_ref, OriGen.createBlame(), OriGen.create());
 
         // Create waiting loop body
-        Unlock<T> unlock_m = new Unlock<>(m_deref, new GeneratedBlame<>(), OriGen.create());
-        Lock<T> lock_m = new Lock<>(m_deref, new GeneratedBlame<>(), OriGen.create());
+        Unlock<T> unlock_m = new Unlock<>(m_deref, OriGen.createBlame(), OriGen.create());
+        Lock<T> lock_m = new Lock<>(m_deref, OriGen.createBlame(), OriGen.create());
         java.util.List<Statement<T>> loop_body_statements = java.util.List.of(unlock_m, lock_m);
         Block<T> loop_body = new Block<>(List.from(CollectionConverters.asScala(loop_body_statements)), OriGen.create());
 
         // Create loop condition
-        SeqSubscript<T> proc_index = new SeqSubscript<>(procs_deref, process_id, new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> proc_index = new SeqSubscript<>(procs_deref, process_id, OriGen.createBlame(), OriGen.create());
         Neq<T> proc_ready = new Neq<>(proc_index, col_system.MINUS_ONE, OriGen.create());
-        SeqSubscript<T> ev_index = new SeqSubscript<>(events_deref, event_id, new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> ev_index = new SeqSubscript<>(events_deref, event_id, OriGen.createBlame(), OriGen.create());
         Neq<T> ev_notified = new Neq<>(ev_index, col_system.MINUS_TWO, OriGen.create());
         Or<T> loop_cond = new Or<>(proc_ready, ev_notified, OriGen.create());
 
@@ -1125,9 +1124,9 @@ public class ExpressionTransformer<T> {
         // Create completely empty method with appropriate return type
         ApplicableContract<T> contract = new ApplicableContract<>(new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()),
                 new UnitAccountedPredicate<>(col_system.TRUE, OriGen.create()), col_system.TRUE, col_system.NO_SIGNALS,
-                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_VARS, col_system.NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
         InstanceMethod<T> randomizer = new InstanceMethod<>(return_type, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS,
-                Option.empty(), contract, false, true, new GeneratedBlame<>(), OriGen.create(name));
+                Option.empty(), contract, false, true, OriGen.createBlame(), OriGen.create(name));
         newly_generated_methods.add(randomizer);
 
         // Return reference to the new method
@@ -1311,7 +1310,7 @@ public class ExpressionTransformer<T> {
         // Get index
         Expr<T> index = create_expression(expr.getAccess().get(0), sc_inst, obj);
 
-        return new ArraySubscript<>(array_var, index, new GeneratedBlame<>(), OriGen.create());
+        return new ArraySubscript<>(array_var, index, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -1365,8 +1364,8 @@ public class ExpressionTransformer<T> {
             case "+" -> new Plus<>(left, right, OriGen.create());
             case "-" -> new Minus<>(left, right, OriGen.create());
             case "*" -> new Mult<>(left, right, OriGen.create());
-            case "/" -> new FloorDiv<>(left, right, new GeneratedBlame<>(), OriGen.create());
-            case "%" -> new Mod<>(left, right, new GeneratedBlame<>(), OriGen.create());
+            case "/" -> new FloorDiv<>(left, right, OriGen.createBlame(), OriGen.create());
+            case "%" -> new Mod<>(left, right, OriGen.createBlame(), OriGen.create());
             case "==" -> new Eq<>(left, right, OriGen.create());
             case "!=" -> new Neq<>(left, right, OriGen.create());
             case ">" -> new Greater<>(left, right, OriGen.create());
@@ -1470,20 +1469,20 @@ public class ExpressionTransformer<T> {
         if (obj == col_system.THIS && containing_class != null && !containing_class.equals(col_class)) {
             // Create m reference
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
             // Create reference to the instance of the class containing the variable
             Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
                     Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, OriGen.createBlame(), OriGen.create());
 
             return new MethodInvocation<>(containing_deref, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
-                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
         }
         // Else invoke the method on the given object (might be this)
         else {
             return new MethodInvocation<>(obj, col_fun, List.from(CollectionConverters.asScala(arguments)), col_system.NO_EXPRS,
-                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                    col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
         }
     }
 
@@ -1499,9 +1498,9 @@ public class ExpressionTransformer<T> {
         Type<T> array_type = col_system.parse_type(expr.getObjType());
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
-        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, new GeneratedBlame<>(), OriGen.create());
+        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, OriGen.createBlame(), OriGen.create());
         else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0,
-                new GeneratedBlame<>(), OriGen.create());
+                OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -1546,7 +1545,7 @@ public class ExpressionTransformer<T> {
     private Expr<T> transform_sc_port_sc_socket_expression(SCPortSCSocketExpression expr, SCClassInstance sc_inst) {
         // Main reference field
         Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
         // Decode the port/socket expression
         SCPort sc_port = expr.getSCPortSCSocket();
@@ -1565,7 +1564,7 @@ public class ExpressionTransformer<T> {
         else throw new SystemCFormatException("SCPortSCSocketExpression " + expr + " does not have any connected channel!");
 
         // Return a reference to the field
-        return new Deref<>(m_deref, channel_ref, new GeneratedBlame<>(), OriGen.create());
+        return new Deref<>(m_deref, channel_ref, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -1589,10 +1588,10 @@ public class ExpressionTransformer<T> {
         // If the variable is a parameter, return a reference of the Main class field
         if (col_system.is_parameter(sc_var)) {
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
             InstanceField<T> param = col_system.get_parameter(sc_var);
             Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, ClassTag$.MODULE$.apply(InstanceField.class));
-            return new Deref<>(m_deref, param_ref, new GeneratedBlame<>(), OriGen.create());
+            return new Deref<>(m_deref, param_ref, OriGen.createBlame(), OriGen.create());
         }
 
         // Else find it in the global system
@@ -1606,18 +1605,18 @@ public class ExpressionTransformer<T> {
         if (obj == col_system.THIS && !containing_class.equals(col_class)) {
             // Create m reference
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> m_deref = new Deref<>(col_system.THIS, m_ref, OriGen.createBlame(), OriGen.create());
 
             // Create reference to the instance of the class containing the variable
             Ref<T, InstanceField<T>> containing_instance = new LazyRef<>(() -> col_system.get_instance_by_class(containing_class),
                     Option.empty(), ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> containing_deref = new Deref<>(m_deref, containing_instance, OriGen.createBlame(), OriGen.create());
 
             // Return the complete path to the variable
-            return new Deref<>(containing_deref, var_ref, new GeneratedBlame<>(), OriGen.create());
+            return new Deref<>(containing_deref, var_ref, OriGen.createBlame(), OriGen.create());
         }
         // Else return it in relation to the given access object
-        return new Deref<>(obj, var_ref, new GeneratedBlame<>(), OriGen.create());
+        return new Deref<>(obj, var_ref, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -1663,8 +1662,8 @@ public class ExpressionTransformer<T> {
         if (incr) incr_decr = new Plus<>(original, new IntegerValue<>(BigInt.apply(1), OriGen.create()), OriGen.create());
         else incr_decr = new Minus<>(original, new IntegerValue<>(BigInt.apply(1), OriGen.create()), OriGen.create());
 
-        if (pre) return new PreAssignExpression<>(original, incr_decr, new GeneratedBlame<>(), OriGen.create());
-        else return new PostAssignExpression<>(original, incr_decr, new GeneratedBlame<>(), OriGen.create());
+        if (pre) return new PreAssignExpression<>(original, incr_decr, OriGen.createBlame(), OriGen.create());
+        else return new PostAssignExpression<>(original, incr_decr, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -1695,7 +1694,7 @@ public class ExpressionTransformer<T> {
 
         // Return the method invocation
         return new MethodInvocation<>(sc_signal, method_ref, List.from(CollectionConverters.asScala(args)), col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
     }
 
     // ============================================================================================================== //

@@ -1744,8 +1744,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: Verification[Pre]): Verification[Pre] = {
     implicit val o: Origin = node.o
-    val Verification(tasks, expectedErrors) = node
-    Verification(tasks, expectedErrors)
+    val Verification(tasks) = node
+    Verification(tasks)
   }
 
   def coerce(node: VerificationContext[Pre]): VerificationContext[Pre] = {

@@ -134,7 +134,7 @@ class ColDescription {
       else
         q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.anySucc[${Type.Name(tDecl)}[Post]]($term.decl))"
     case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("BigDecimal") |
-         Type.Name("BitString") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
+         Type.Name("BitString") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) =>
       term
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
       q"$term.left.map(l => ${rewriteDefault(q"l", t1)}).map(r => ${rewriteDefault(q"r", t2)})"

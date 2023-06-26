@@ -37,8 +37,6 @@ case class ColHelperSerialize(info: ColDescription, proto: ColProto) extends Col
 
   def serializeTerm(term: Term, typ: proto.Typ): Term =
     proto.primitivize(typ) match {
-      case proto.TName("ExpectedErrors") => q"ser.ExpectedErrors()"
-
       case proto.TBool => term
       case proto.TRef() => q"ser.Ref(decls($term.decl))"
       case proto.TInt => term

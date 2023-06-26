@@ -23,13 +23,11 @@ import scala.reflect.ClassTag$;
 import vct.col.ast.*;
 import vct.col.ast.Class;
 import vct.col.ast.Void;
-import vct.col.origin.ExpectedError;
 import vct.col.ref.DirectRef;
 import vct.col.ref.Ref;
 import vct.parsers.ParseResult;
 import vct.parsers.transform.systemctocol.exceptions.SystemCFormatException;
 import vct.parsers.transform.systemctocol.exceptions.UnsupportedException;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 import java.util.stream.Collectors;
@@ -84,7 +82,7 @@ public class COLSystem<T> {
     public final IntegerValue<T> MINUS_THREE = new IntegerValue<>(BigInt.apply(-3), OriGen.create());
     /** Constant value for 1\2 */
     public final Expr<T> HALF = new Div<>(new IntegerValue<>(BigInt.apply(1), OriGen.create()), new IntegerValue<>(BigInt.apply(2), OriGen.create()),
-            new GeneratedBlame<>(), OriGen.create());
+            OriGen.createBlame(), OriGen.create());
     /** Constant null value */
     public final Null<T> NULL = new Null<>(OriGen.create());
     /** Constant void literal */
@@ -232,7 +230,7 @@ public class COLSystem<T> {
     public ApplicableContract<T> to_applicable_contract(Expr<T> pre, Expr<T> post) {
         AccountedPredicate<T> requires = new UnitAccountedPredicate<>(pre, OriGen.create());
         AccountedPredicate<T> ensures = new UnitAccountedPredicate<>(post, OriGen.create());
-        return new ApplicableContract<>(requires, ensures, TRUE, NO_SIGNALS, NO_VARS, NO_VARS, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        return new ApplicableContract<>(requires, ensures, TRUE, NO_SIGNALS, NO_VARS, NO_VARS, Option.empty(), OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -269,7 +267,7 @@ public class COLSystem<T> {
             // Get parameter field
             InstanceField<T> param = get_parameter(var_expr.getVar());
             Ref<T, InstanceField<T>> param_ref = new DirectRef<>(param, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> param_deref = new Deref<>(m_deref, param_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> param_deref = new Deref<>(m_deref, param_ref, OriGen.createBlame(), OriGen.create());
 
             // Add specification
             conds.add(new ValidArray<>(field_deref, param_deref, OriGen.create()));
@@ -278,8 +276,8 @@ public class COLSystem<T> {
         else throw new UnsupportedException("Array size can only be a constant or a parameter, not " + size_expr + "!");
 
         // Also add write permission to all fields of the array
-        Any<T> any_index = new Any<>(new GeneratedBlame<>(), OriGen.create());
-        ArrayLocation<T> arr_loc = new ArrayLocation<>(field_deref, any_index, new GeneratedBlame<>(), OriGen.create());
+        Any<T> any_index = new Any<>(OriGen.createBlame(), OriGen.create());
+        ArrayLocation<T> arr_loc = new ArrayLocation<>(field_deref, any_index, OriGen.createBlame(), OriGen.create());
         conds.add(new Perm<>(arr_loc, new WritePerm<>(OriGen.create()), OriGen.create()));
 
         return conds;
@@ -534,9 +532,7 @@ public class COLSystem<T> {
      * @return Parse result of the COL transformation
      */
     public ParseResult<T> to_parse_result() {
-        java.util.List<ExpectedError> expected_errors = java.util.List.of();
-        return new ParseResult<>(List.from(CollectionConverters.asScala(global_declarations)),
-                List.from(CollectionConverters.asScala(expected_errors)));
+        return new ParseResult<>(List.from(CollectionConverters.asScala(global_declarations)));
     }
 
     // ===================================================== //

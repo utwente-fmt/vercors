@@ -35,7 +35,7 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
     }
     val protoProgram = Program.parseFrom(process.getInputStream)
     val COLProgram = Deserialize.deserialize[G](protoProgram)
-    ParseResult(COLProgram.declarations, Seq.empty)
+    ParseResult(COLProgram.declarations)
   }
 
 }

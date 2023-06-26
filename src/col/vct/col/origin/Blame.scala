@@ -103,6 +103,7 @@ trait WithContractFailure extends VerificationFailure {
     inlineDescWithSource(node.o.inlineContext, failure.inlineDescCompletion)
 }
 
+/*
 sealed trait ExpectedErrorFailure extends VerificationFailure {
   def err: ExpectedError
 }
@@ -120,6 +121,7 @@ case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFail
   override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
+*/
 
 case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
   override def code: String = "assignFieldFailed"
@@ -716,6 +718,7 @@ trait Blame[-T <: VerificationFailure] {
   def blame(error: T): Unit
 }
 
+/*
 case class FilterExpectedErrorBlame(otherwise: Blame[VerificationFailure], expectedError: ExpectedError) extends Blame[VerificationFailure] {
   override def blame(error: VerificationFailure): Unit =
     if(expectedError.errorCode.r.matches(error.code)) {
@@ -724,6 +727,7 @@ case class FilterExpectedErrorBlame(otherwise: Blame[VerificationFailure], expec
       otherwise.blame(error)
     }
 }
+*/
 
 case object BlamePathError extends SystemError {
   override def text: String = "The accounting for a pre- or postcondition is wrong: the path is empty before the layered blames are resolved, or an empty path was expected but it is not."

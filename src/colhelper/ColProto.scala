@@ -72,8 +72,6 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   case class TTuple(ts: Seq[Typ])(val scalaArg: Seq[SType]) extends Typ
 
   def getType(t: SType): Typ = t match {
-    case SType.Apply(SType.Name("Seq"), List(SType.Name("ExpectedError"))) => TName("ExpectedErrors")
-
     case SType.Apply(SType.Name("Seq"), List(arg)) => TSeq(getType(arg))(arg)
     case SType.Apply(SType.Name("Option"), List(arg)) => TOption(getType(arg))(arg)
     case SType.Apply(SType.Name("Set"), List(arg)) => TSet(getType(arg))(arg)
@@ -179,8 +177,6 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       .build(),
     message("Ref")
       .addField(field("index").setType(PType.TYPE_INT64))
-      .build(),
-    message("ExpectedErrors")
       .build(),
   )
 

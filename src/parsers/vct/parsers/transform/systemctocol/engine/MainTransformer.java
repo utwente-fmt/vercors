@@ -24,7 +24,6 @@ import vct.parsers.transform.systemctocol.colmodel.COLSystem;
 import vct.parsers.transform.systemctocol.colmodel.ProcessClass;
 import vct.parsers.transform.systemctocol.colmodel.StateClass;
 import vct.parsers.transform.systemctocol.util.Constants;
-import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
 
 /**
@@ -234,7 +233,7 @@ public class MainTransformer<T> {
         // Create reference to primitive_channel_update
         InstanceField<T> prim_channel_update = col_system.get_primitive_channel_update();
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, OriGen.createBlame(), OriGen.create());
         FieldLocation<T> update_loc = new FieldLocation<>(col_system.THIS, update_ref, OriGen.create());
 
         // Create some auxiliary values
@@ -260,10 +259,10 @@ public class MainTransformer<T> {
     private void create_scheduler_invariant() {
         // Create references to the scheduling variables
         Ref<T, InstanceField<T>> proc_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> proc_state_deref = new Deref<>(col_system.THIS, proc_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> proc_state_deref = new Deref<>(col_system.THIS, proc_state_ref, OriGen.createBlame(), OriGen.create());
         FieldLocation<T> proc_state_loc = new FieldLocation<>(col_system.THIS, proc_state_ref, OriGen.create());
         Ref<T, InstanceField<T>> ev_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> ev_state_deref = new Deref<>(col_system.THIS, ev_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> ev_state_deref = new Deref<>(col_system.THIS, ev_state_ref, OriGen.createBlame(), OriGen.create());
         FieldLocation<T> ev_state_loc = new FieldLocation<>(col_system.THIS, ev_state_ref, OriGen.create());
 
         // Create some auxiliary values
@@ -291,7 +290,7 @@ public class MainTransformer<T> {
         And<T> i_bounds = new And<>(i_lower, i_upper, OriGen.create());
 
         // Create forall body
-        SeqSubscript<T> proc_i = new SeqSubscript<>(proc_state_deref, i_loc, new GeneratedBlame<>(), OriGen.create());
+        SeqSubscript<T> proc_i = new SeqSubscript<>(proc_state_deref, i_loc, OriGen.createBlame(), OriGen.create());
         InlinePattern<T> trigger = new InlinePattern<>(proc_i, 0, 0, OriGen.create());
         Eq<T> proc_ready = new Eq<>(trigger, col_system.MINUS_ONE, OriGen.create());
         LessEq<T> proc_lower = new LessEq<>(col_system.ZERO, proc_i, OriGen.create());
@@ -329,7 +328,7 @@ public class MainTransformer<T> {
         InstanceField<T> fifo_param = col_system.get_fifo_size_parameter();
         if (fifo_param != null) {
             Ref<T, InstanceField<T>> fifo_ref = new DirectRef<>(fifo_param, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> fifo_deref = new Deref<>(col_system.THIS, fifo_ref, OriGen.createBlame(), OriGen.create());
             FieldLocation<T> fifo_loc = new FieldLocation<>(col_system.THIS, fifo_ref, OriGen.create());
             // Permission to the parameter
             conditions.add(new Perm<>(fifo_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
@@ -379,10 +378,10 @@ public class MainTransformer<T> {
         for (InstanceField<T> state : state_classes) {
             conditions.add(create_field_permissions(state));
             Ref<T, InstanceField<T>> state_ref = new DirectRef<>(state, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, OriGen.createBlame(), OriGen.create());
             Ref<T, InstanceField<T>> state_m_ref = new DirectRef<>(col_system.get_class_main_ref(class_by_field.get(state)),
                     ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> state_m_deref = new Deref<>(state_deref, state_m_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> state_m_deref = new Deref<>(state_deref, state_m_ref, OriGen.createBlame(), OriGen.create());
             FieldLocation<T> state_m_loc = new FieldLocation<>(state_deref, state_m_ref, OriGen.create());
             conditions.add(new Perm<>(state_m_loc, new ReadPerm<>(OriGen.create()), OriGen.create()));
             conditions.add(new Eq<>(state_m_deref, col_system.THIS, OriGen.create()));
@@ -405,7 +404,7 @@ public class MainTransformer<T> {
 
         // Get reference to the field instance
         Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, OriGen.createBlame(), OriGen.create());
         FieldLocation<T> field_loc = new FieldLocation<>(col_system.THIS, field_ref, OriGen.create());
 
         // Add permissions to the field itself
@@ -421,7 +420,7 @@ public class MainTransformer<T> {
 
             // Get references to the field
             Ref<T, InstanceField<T>> f_field_ref = new DirectRef<>(f_field, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> f_field_deref = new Deref<>(field_deref, f_field_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> f_field_deref = new Deref<>(field_deref, f_field_ref, OriGen.createBlame(), OriGen.create());
             FieldLocation<T> f_field_loc = new FieldLocation<>(field_deref, f_field_ref, OriGen.create());
 
             // If the variable is an array, try to return array specifications. Also, only include read permission in
@@ -464,7 +463,7 @@ public class MainTransformer<T> {
         }
 
         // Add a commit statement to the end of the constructor to ensure the lock invariant
-        initializations.add(new Commit<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create()));
+        initializations.add(new Commit<>(col_system.THIS, OriGen.createBlame(), OriGen.create()));
 
         Statement<T> body = new Block<>(List.from(CollectionConverters.asScala(initializations)), OriGen.create());
 
@@ -472,7 +471,7 @@ public class MainTransformer<T> {
         Expr<T> ensures = create_scheduler_contract();
         ApplicableContract<T> contract = col_system.to_applicable_contract(col_system.TRUE, ensures);
 
-        main_constructor = new PVLConstructor<>(contract, col_system.NO_VARS, Option.apply(body), new GeneratedBlame<>(), OriGen.create());
+        main_constructor = new PVLConstructor<>(contract, col_system.NO_VARS, Option.apply(body), OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -484,7 +483,7 @@ public class MainTransformer<T> {
         // Get reference to process state field
         InstanceField<T> process_state = col_system.get_process_state();
         Ref<T, InstanceField<T>> state_ref = new DirectRef<>(process_state, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, OriGen.createBlame(), OriGen.create());
 
         // Construct the literal sequence it should be initialized as ([-1] * #processes)
         java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
@@ -494,7 +493,7 @@ public class MainTransformer<T> {
         LiteralSeq<T> literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
 
         // Assign the literal to the field
-        return new Assign<>(state_deref, literal, new GeneratedBlame<>(), OriGen.create());
+        return new Assign<>(state_deref, literal, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -506,7 +505,7 @@ public class MainTransformer<T> {
         // Get reference to the event state field
         InstanceField<T> event_state = col_system.get_event_state();
         Ref<T, InstanceField<T>> state_ref = new DirectRef<>(event_state, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> state_deref = new Deref<>(col_system.THIS, state_ref, OriGen.createBlame(), OriGen.create());
 
         // Construct the literal sequence it should be initialized as ([-3] * #events)
         java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
@@ -516,7 +515,7 @@ public class MainTransformer<T> {
         LiteralSeq<T> literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
 
         // Assign the literal to the field
-        return new Assign<>(state_deref, literal, new GeneratedBlame<>(), OriGen.create());
+        return new Assign<>(state_deref, literal, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -529,7 +528,7 @@ public class MainTransformer<T> {
         // Get reference to the primitive channel update field
         InstanceField<T> prim_channel_update = col_system.get_primitive_channel_update();
         Ref<T, InstanceField<T>> update_ref = new DirectRef<>(prim_channel_update, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> update_deref = new Deref<>(col_system.THIS, update_ref, OriGen.createBlame(), OriGen.create());
 
         // Construct the literal sequence it should be initialized as ([false] * #primitive channels)
         java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
@@ -539,7 +538,7 @@ public class MainTransformer<T> {
         LiteralSeq<T> literal = new LiteralSeq<>(col_system.T_BOOL, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
 
         // Assign the literal to the field
-        return new Assign<>(update_deref, literal, new GeneratedBlame<>(), OriGen.create());
+        return new Assign<>(update_deref, literal, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -555,7 +554,7 @@ public class MainTransformer<T> {
 
         // Get reference to field
         Ref<T, InstanceField<T>> field_ref = new DirectRef<>(field, ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> field_deref = new Deref<>(col_system.THIS, field_ref, OriGen.createBlame(), OriGen.create());
 
         // Find out which type of field it is
         COLClass col_class = class_by_field.get(field);
@@ -596,8 +595,8 @@ public class MainTransformer<T> {
 
         // Create the new expression and return the assignment
         PVLNew<T> new_expr = new PVLNew<>(field.t(), List.from(CollectionConverters.asScala(parameters)), col_system.NO_GIVEN,
-                col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
-        return new Assign<>(field_deref, new_expr, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
+        return new Assign<>(field_deref, new_expr, OriGen.createBlame(), OriGen.create());
     }
 
     /**
@@ -621,19 +620,19 @@ public class MainTransformer<T> {
     private InstanceMethod<T> create_immediate_wakeup() {
         // Create references to the event and process state variables
         Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, OriGen.createBlame(), OriGen.create());
 
         // Create general permission context
         Expr<T> context = create_helper_context();
 
         // Create condition on event state and primitive update sequence
-        Old<T> old_event_state = new Old<>(event_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_event_state = new Old<>(event_state_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> event_state_unchanged = new Eq<>(event_state_deref, old_event_state, OriGen.create());
-        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> prim_update_unchanged = new Eq<>(prim_update_deref, old_prim_update, OriGen.create());
         And<T> unchanged = new And<>(event_state_unchanged, prim_update_unchanged, OriGen.create());
 
@@ -643,10 +642,10 @@ public class MainTransformer<T> {
         for (int i = 0; i < ProcessClass.get_nr_processes(); i++) {
             // Prepare appropriate sequence accesses
             SeqSubscript<T> proc_state_i = new SeqSubscript<>(process_state_deref, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
-                    new GeneratedBlame<>(), OriGen.create());
-            Old<T> old_proc_state_i = new Old<>(proc_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-            SeqSubscript<T> event_state_proc_state_i = new SeqSubscript<>(event_state_deref, old_proc_state_i, new GeneratedBlame<>(), OriGen.create());
-            Old<T> old_event_state_proc_state_i = new Old<>(event_state_proc_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                    OriGen.createBlame(), OriGen.create());
+            Old<T> old_proc_state_i = new Old<>(proc_state_i, Option.empty(), OriGen.createBlame(), OriGen.create());
+            SeqSubscript<T> event_state_proc_state_i = new SeqSubscript<>(event_state_deref, old_proc_state_i, OriGen.createBlame(), OriGen.create());
+            Old<T> old_event_state_proc_state_i = new Old<>(event_state_proc_state_i, Option.empty(), OriGen.createBlame(), OriGen.create());
 
             // Create left side of implication (condition met)
             GreaterEq<T> proc_waiting = new GreaterEq<>(old_proc_state_i, col_system.ZERO, OriGen.create());
@@ -687,19 +686,19 @@ public class MainTransformer<T> {
     private InstanceMethod<T> create_reset_events_no_delta() {
         // Create references to the event and process state variables
         Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, OriGen.createBlame(), OriGen.create());
 
         // Create general permission context
         Expr<T> context = create_helper_context();
 
         // Create condition on process state and primitive update sequence
-        Old<T> old_process_state = new Old<>(process_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_process_state = new Old<>(process_state_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> process_state_unchanged = new Eq<>(process_state_deref, old_process_state, OriGen.create());
-        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> prim_update_unchanged = new Eq<>(prim_update_deref, old_prim_update, OriGen.create());
         And<T> unchanged = new And<>(process_state_unchanged, prim_update_unchanged, OriGen.create());
 
@@ -709,8 +708,8 @@ public class MainTransformer<T> {
         for (int i = 0; i < col_system.get_total_nr_events(); i++) {
             // Prepare appropriate sequence accesses
             SeqSubscript<T> ev_state_i = new SeqSubscript<>(event_state_deref, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
-                    new GeneratedBlame<>(), OriGen.create());
-            Old<T> old_ev_state_i = new Old<>(ev_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                    OriGen.createBlame(), OriGen.create());
+            Old<T> old_ev_state_i = new Old<>(ev_state_i, Option.empty(), OriGen.createBlame(), OriGen.create());
 
             // Create left side of implication (condition met)
             Eq<T> event_ready = new Eq<>(old_ev_state_i, col_system.ZERO, OriGen.create());
@@ -774,7 +773,7 @@ public class MainTransformer<T> {
         for (int i = 0; i < col_system.get_total_nr_events(); i++) {
             // Prepare sequence access
             SeqSubscript<T> vals_i = new SeqSubscript<>(vals_local, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
-                    new GeneratedBlame<>(), OriGen.create());
+                    OriGen.createBlame(), OriGen.create());
 
             // Create condition that result is a lower bound
             LessEq<T> bound = new LessEq<>(result, vals_i, OriGen.create());
@@ -808,7 +807,7 @@ public class MainTransformer<T> {
         // Generate contract and method and return
         ApplicableContract<T> contract = col_system.to_applicable_contract(requires, col_system.fold_star(ensures));
         return new InstanceMethod<>(col_system.T_INT, params, col_system.NO_VARS, col_system.NO_VARS, Option.empty(), contract,
-                false, true, new GeneratedBlame<>(), OriGen.create("find_minimum_advance"));
+                false, true, OriGen.createBlame(), OriGen.create("find_minimum_advance"));
     }
 
     /**
@@ -821,19 +820,19 @@ public class MainTransformer<T> {
     private InstanceMethod<T> create_wakeup_after_wait() {
         // Create references to the event and process state variables
         Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, OriGen.createBlame(), OriGen.create());
 
         // Create general permission context
         Expr<T> context = create_helper_context();
 
         // Create condition on event state and primitive update sequence
-        Old<T> old_event_state = new Old<>(event_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_event_state = new Old<>(event_state_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> event_state_unchanged = new Eq<>(event_state_deref, old_event_state, OriGen.create());
-        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> prim_update_unchanged = new Eq<>(prim_update_deref, old_prim_update, OriGen.create());
         And<T> unchanged = new And<>(event_state_unchanged, prim_update_unchanged, OriGen.create());
 
@@ -843,10 +842,10 @@ public class MainTransformer<T> {
         for (int i = 0; i < ProcessClass.get_nr_processes(); i++) {
             // Prepare appropriate sequence accesses
             SeqSubscript<T> proc_state_i = new SeqSubscript<>(process_state_deref, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
-                    new GeneratedBlame<>(), OriGen.create());
-            Old<T> old_proc_state_i = new Old<>(proc_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
-            SeqSubscript<T> event_state_proc_state_i = new SeqSubscript<>(event_state_deref, old_proc_state_i, new GeneratedBlame<>(), OriGen.create());
-            Old<T> old_event_state_proc_state_i = new Old<>(event_state_proc_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                    OriGen.createBlame(), OriGen.create());
+            Old<T> old_proc_state_i = new Old<>(proc_state_i, Option.empty(), OriGen.createBlame(), OriGen.create());
+            SeqSubscript<T> event_state_proc_state_i = new SeqSubscript<>(event_state_deref, old_proc_state_i, OriGen.createBlame(), OriGen.create());
+            Old<T> old_event_state_proc_state_i = new Old<>(event_state_proc_state_i, Option.empty(), OriGen.createBlame(), OriGen.create());
 
             // Create left side of implication (condition met)
             GreaterEq<T> proc_waiting = new GreaterEq<>(old_proc_state_i, col_system.ZERO, OriGen.create());
@@ -890,19 +889,19 @@ public class MainTransformer<T> {
     private InstanceMethod<T> create_reset_all_events() {
         // Create references to the event and process state variables
         Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, OriGen.createBlame(), OriGen.create());
         Ref<T, InstanceField<T>> prim_update_ref = new DirectRef<>(col_system.get_primitive_channel_update(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> prim_update_deref = new Deref<>(col_system.THIS, prim_update_ref, OriGen.createBlame(), OriGen.create());
 
         // Create general permission context
         Expr<T> context = create_helper_context();
 
         // Create condition on process state and primitive update sequence
-        Old<T> old_process_state = new Old<>(process_state_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_process_state = new Old<>(process_state_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> process_state_unchanged = new Eq<>(process_state_deref, old_process_state, OriGen.create());
-        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Old<T> old_prim_update = new Old<>(prim_update_deref, Option.empty(), OriGen.createBlame(), OriGen.create());
         Eq<T> prim_update_unchanged = new Eq<>(prim_update_deref, old_prim_update, OriGen.create());
         And<T> unchanged = new And<>(process_state_unchanged, prim_update_unchanged, OriGen.create());
 
@@ -912,8 +911,8 @@ public class MainTransformer<T> {
         for (int i = 0; i < col_system.get_total_nr_events(); i++) {
             // Prepare appropriate sequence accesses
             SeqSubscript<T> ev_state_i = new SeqSubscript<>(event_state_deref, new IntegerValue<>(BigInt.apply(i), OriGen.create()),
-                    new GeneratedBlame<>(), OriGen.create());
-            Old<T> old_ev_state_i = new Old<>(ev_state_i, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+                    OriGen.createBlame(), OriGen.create());
+            Old<T> old_ev_state_i = new Old<>(ev_state_i, Option.empty(), OriGen.createBlame(), OriGen.create());
 
             // Create left side of implication (condition met)
             Eq<T> event_zero = new Eq<>(old_ev_state_i, col_system.ZERO, OriGen.create());
@@ -975,7 +974,7 @@ public class MainTransformer<T> {
      */
     private InstanceMethod<T> create_abstract_method(ApplicableContract<T> contract, String method_name) {
         return new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS, Option.empty(),
-                contract, false, false, new GeneratedBlame<>(), OriGen.create(method_name));
+                contract, false, false, OriGen.createBlame(), OriGen.create(method_name));
     }
 
     /**
@@ -988,7 +987,7 @@ public class MainTransformer<T> {
         Expr<T> context = create_scheduler_contract();
         ApplicableContract<T> contract = col_system.to_applicable_contract(context, context);
         scheduler = new InstanceMethod<>(col_system.T_VOID, col_system.NO_VARS, col_system.NO_VARS, col_system.NO_VARS,
-                Option.apply(body), contract, false, false, new GeneratedBlame<>(), OriGen.create("main"));
+                Option.apply(body), contract, false, false, OriGen.createBlame(), OriGen.create("main"));
     }
 
     /**
@@ -1003,10 +1002,10 @@ public class MainTransformer<T> {
         java.util.List<Join<T>> joins = new java.util.ArrayList<>();
         for (InstanceField<T> process : processes) {
             Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(process, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> proc_deref = new Deref<>(col_system.THIS, proc_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> proc_deref = new Deref<>(col_system.THIS, proc_ref, OriGen.createBlame(), OriGen.create());
 
-            forks.add(new Fork<>(proc_deref, new GeneratedBlame<>(), OriGen.create()));
-            joins.add(new Join<>(proc_deref, new GeneratedBlame<>(), OriGen.create()));
+            forks.add(new Fork<>(proc_deref, OriGen.createBlame(), OriGen.create()));
+            joins.add(new Join<>(proc_deref, OriGen.createBlame(), OriGen.create()));
         }
 
         // Add forks to method body
@@ -1014,8 +1013,8 @@ public class MainTransformer<T> {
 
         // Add scheduler loop to method body
         Statement<T> loop_body = create_scheduler_loop_body();
-        Committed<T> committed = new Committed<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create());
-        LoopInvariant<T> inv = new LoopInvariant<>(committed, Option.empty(), new GeneratedBlame<>(), OriGen.create());
+        Committed<T> committed = new Committed<>(col_system.THIS, OriGen.createBlame(), OriGen.create());
+        LoopInvariant<T> inv = new LoopInvariant<>(committed, Option.empty(), OriGen.createBlame(), OriGen.create());
         body.add(new Loop<>(col_system.get_empty_block(), col_system.TRUE, col_system.get_empty_block(), inv, loop_body, OriGen.create()));
 
         // Add joins to method body
@@ -1033,34 +1032,34 @@ public class MainTransformer<T> {
     private Statement<T> create_scheduler_loop_body() {
         // Prepare sequence accesses
         Ref<T, InstanceField<T>> process_state_ref = new DirectRef<>(col_system.get_process_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> process_state_deref = new Deref<>(col_system.THIS, process_state_ref, OriGen.createBlame(), OriGen.create());
 
         // Lock the global lock
-        Lock<T> lock_this = new Lock<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create());
+        Lock<T> lock_this = new Lock<>(col_system.THIS, OriGen.createBlame(), OriGen.create());
 
         // Call immediate_wakeup
         Ref<T, InstanceMethod<T>> iw_ref = new DirectRef<>(immediate_wakeup, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_iw = new InvokeMethod<>(col_system.THIS, iw_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
 
         // Call reset_events_no_delta
         Ref<T, InstanceMethod<T>> rend_ref = new DirectRef<>(reset_events_no_delta, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_rend = new InvokeMethod<>(col_system.THIS, rend_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
 
         // Branch: Only go further if no process is ready
         Statement<T> if_body = create_scheduler_loop_if_body();
         java.util.List<Expr<T>> conds = new java.util.ArrayList<>();
         for (int i = 0; i < ProcessClass.get_nr_processes(); i++) {
             IntegerValue<T> i_val = new IntegerValue<>(BigInt.apply(i), OriGen.create());
-            SeqSubscript<T> proc_i = new SeqSubscript<>(process_state_deref, i_val, new GeneratedBlame<>(), OriGen.create());
+            SeqSubscript<T> proc_i = new SeqSubscript<>(process_state_deref, i_val, OriGen.createBlame(), OriGen.create());
             conds.add(new Neq<>(proc_i, col_system.MINUS_ONE, OriGen.create()));
         }
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = java.util.List.of(new Tuple2<>(col_system.fold_and(conds), if_body));
         Branch<T> branch = new Branch<>(List.from(CollectionConverters.asScala(branches)), OriGen.create());
 
         // Unlock the global lock
-        Unlock<T> unlock_this = new Unlock<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create());
+        Unlock<T> unlock_this = new Unlock<>(col_system.THIS, OriGen.createBlame(), OriGen.create());
 
         // Combine statements to block and return
         java.util.List<Statement<T>> statements = java.util.List.of(lock_this, call_iw, call_rend, branch, unlock_this);
@@ -1075,7 +1074,7 @@ public class MainTransformer<T> {
     private Statement<T> create_scheduler_loop_if_body() {
         // Prepare sequence accesses
         Ref<T, InstanceField<T>> event_state_ref = new DirectRef<>(col_system.get_event_state(), ClassTag$.MODULE$.apply(InstanceField.class));
-        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, new GeneratedBlame<>(), OriGen.create());
+        Deref<T> event_state_deref = new Deref<>(col_system.THIS, event_state_ref, OriGen.createBlame(), OriGen.create());
 
         // Create local variable min_advance
         Variable<T> min_advance = new Variable<>(col_system.T_INT, OriGen.create("min_advance"));
@@ -1091,12 +1090,12 @@ public class MainTransformer<T> {
         Ref<T, InstanceMethod<T>> fma_ref = new DirectRef<>(find_minimum_advance, ClassTag$.MODULE$.apply(InstanceMethod.class));
         java.util.List<Expr<T>> params = java.util.List.of(event_state_deref);
         MethodInvocation<T> fma_invoke = new MethodInvocation<>(col_system.THIS, fma_ref, List.from(CollectionConverters.asScala(params)),
-                col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
-        Assign<T> assign_ma = new Assign<>(ma_local, fma_invoke, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_EXPRS, col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
+        Assign<T> assign_ma = new Assign<>(ma_local, fma_invoke, OriGen.createBlame(), OriGen.create());
 
         // Set min_advance to zero if it is -1
         Eq<T> cond = new Eq<>(ma_local, col_system.MINUS_ONE, OriGen.create());
-        Assign<T> reset_ma = new Assign<>(ma_local, col_system.ZERO, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> reset_ma = new Assign<>(ma_local, col_system.ZERO, OriGen.createBlame(), OriGen.create());
         java.util.List<Tuple2<Expr<T>, Statement<T>>> branches = java.util.List.of(new Tuple2<>(cond, reset_ma));
         Branch<T> cond_reset_ma = new Branch<>(List.from(CollectionConverters.asScala(branches)), OriGen.create());
 
@@ -1104,23 +1103,23 @@ public class MainTransformer<T> {
         java.util.List<Expr<T>> literal_values = new java.util.ArrayList<>();
         for (int i = 0; i < col_system.get_total_nr_events(); i++) {
             IntegerValue<T> i_val = new IntegerValue<>(BigInt.apply(i), OriGen.create());
-            SeqSubscript<T> ev_i = new SeqSubscript<>(event_state_deref, i_val, new GeneratedBlame<>(), OriGen.create());
+            SeqSubscript<T> ev_i = new SeqSubscript<>(event_state_deref, i_val, OriGen.createBlame(), OriGen.create());
             Less<T> condition = new Less<>(ev_i, col_system.MINUS_ONE, OriGen.create());
             Minus<T> minus = new Minus<>(ev_i, ma_local, OriGen.create());
             literal_values.add(new Select<>(condition, col_system.MINUS_THREE, minus, OriGen.create()));
         }
         LiteralSeq<T> reset_literal = new LiteralSeq<>(col_system.T_INT, List.from(CollectionConverters.asScala(literal_values)), OriGen.create());
-        Assign<T> advance_delays = new Assign<>(event_state_deref, reset_literal, new GeneratedBlame<>(), OriGen.create());
+        Assign<T> advance_delays = new Assign<>(event_state_deref, reset_literal, OriGen.createBlame(), OriGen.create());
 
         // Call wakeup_after_wait
         Ref<T, InstanceMethod<T>> waw_ref = new DirectRef<>(wakeup_after_wait, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_waw = new InvokeMethod<>(col_system.THIS, waw_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
 
         // Call reset_all_events
         Ref<T, InstanceMethod<T>> rae_ref = new DirectRef<>(reset_all_events, ClassTag$.MODULE$.apply(InstanceMethod.class));
         InvokeMethod<T> call_rae = new InvokeMethod<>(col_system.THIS, rae_ref, col_system.NO_EXPRS, col_system.NO_EXPRS,
-                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create());
+                col_system.NO_TYPES, col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create());
 
         // Put it all together and return
         java.util.List<Statement<T>> statements = java.util.List.of(update_phase, declare_ma, assign_ma, cond_reset_ma, advance_delays, call_waw, call_rae);
@@ -1136,7 +1135,7 @@ public class MainTransformer<T> {
                 // Get reference to the channel field
                 InstanceField<T> channel_field = col_system.get_primitive_channel(channel);
                 Ref<T, InstanceField<T>> channel_ref = new DirectRef<>(channel_field, ClassTag$.MODULE$.apply(InstanceField.class));
-                Deref<T> channel_deref = new Deref<>(col_system.THIS, channel_ref, new GeneratedBlame<>(), OriGen.create());
+                Deref<T> channel_deref = new Deref<>(col_system.THIS, channel_ref, OriGen.createBlame(), OriGen.create());
 
                 // Get reference to the update method
                 InstanceMethod<T> update_method = col_system.get_primitive_instance_method(channel, Constants.PRIMITIVE_UPDATE_METHOD_INDEX);
@@ -1144,7 +1143,7 @@ public class MainTransformer<T> {
 
                 // Add update function call to body
                 statements.add(new InvokeMethod<>(channel_deref, method_ref, col_system.NO_EXPRS, col_system.NO_EXPRS, col_system.NO_TYPES,
-                        col_system.NO_GIVEN, col_system.NO_YIELDS, new GeneratedBlame<>(), OriGen.create()));
+                        col_system.NO_GIVEN, col_system.NO_YIELDS, OriGen.createBlame(), OriGen.create()));
             }
         }
 
@@ -1167,13 +1166,13 @@ public class MainTransformer<T> {
         for (InstanceField<T> proc : processes) {
             // Create references to the field
             Ref<T, InstanceField<T>> proc_ref = new DirectRef<>(proc, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> proc_deref = new Deref<>(col_system.THIS, proc_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> proc_deref = new Deref<>(col_system.THIS, proc_ref, OriGen.createBlame(), OriGen.create());
             FieldLocation<T> proc_loc = new FieldLocation<>(col_system.THIS, proc_ref, OriGen.create());
 
             // Find field's Main attribute
             InstanceField<T> m = col_system.get_class_main_ref(class_by_field.get(proc));
             Ref<T, InstanceField<T>> m_ref = new DirectRef<>(m, ClassTag$.MODULE$.apply(InstanceField.class));
-            Deref<T> m_deref = new Deref<>(proc_deref, m_ref, new GeneratedBlame<>(), OriGen.create());
+            Deref<T> m_deref = new Deref<>(proc_deref, m_ref, OriGen.createBlame(), OriGen.create());
             FieldLocation<T> m_loc = new FieldLocation<>(proc_deref, m_ref, OriGen.create());
 
             // Create individual conditions
@@ -1187,7 +1186,7 @@ public class MainTransformer<T> {
             conditions.add(col_system.fold_star(conds));
         }
 
-        conditions.add(new Committed<>(col_system.THIS, new GeneratedBlame<>(), OriGen.create()));
+        conditions.add(new Committed<>(col_system.THIS, OriGen.createBlame(), OriGen.create()));
 
         return col_system.fold_star(conditions);
     }
