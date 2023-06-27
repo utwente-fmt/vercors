@@ -1288,6 +1288,7 @@ case class Printer(out: Appendable,
     case InstancePredicateLocation(predicate, obj, args) => say(expr(obj)._1, ".", name(predicate.decl), "(", commas(args.map(NodePhrase)), ")")
     case AmbiguousLocation(expr) => say(expr)
     case x =>
+
       say(s"Unknown location type in Printer.scala: ${x.getClass.getCanonicalName}")
   }
 
