@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import hre.util.ScopedStack
 import vct.col.ast
 import vct.col.ast.RewriteHelpers.{RewriteAssign, RewriteDeref, RewriteJavaClass, RewriteMethodInvocation}
-import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaInvocation, JavaMethod, JavaTClass, Local, Loop, MethodInvocation, Node, Program, RunMethod, Scope, Skip, Statement, TClass, ThisObject, ThisSeqProg, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.{Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaInvocation, JavaMethod, JavaNamedType, JavaTClass, Local, Loop, MethodInvocation, Node, Program, RunMethod, Scope, Skip, Statement, TClass, ThisObject, ThisSeqProg, Type, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
 import vct.col.origin.{Origin, PreferredNameOrigin}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefJavaMethod
@@ -47,7 +47,7 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
   }
 }
 
-case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] {
+case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
 
   private val threadBuildingBlocks: ScopedStack[ThreadBuildingBlocks[Pre]] = ScopedStack()
   private val threadClassSucc: SuccessionMap[VeyMontThread[Pre],Class[Post]] = SuccessionMap()
@@ -126,12 +126,26 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     channelTypes.map(channelType =>
       channelType -> {
         val chanClassPre = channelClass.asInstanceOf[JavaClass[Pre]]
-        new RewriteJavaClass[Pre, Post](chanClassPre)(new ChannelClassGenerator[Pre](channelType)).rewrite(decls = classDeclarations.collect {
-          chanClassPre.decls.foreach(d => dispatch(d))
+        val rw = new ChannelClassGenerator(channelType)
+        new RewriteJavaClass[Pre, Post](chanClassPre)(rw).rewrite(decls = classDeclarations.collect {
+          chanClassPre.decls.foreach(d => rw.dispatch(d))
         }._1)
       }
     ).toMap
-  }//new ChannelClassGenerator(channelType).globalDeclarations.dispatch(channelClass.unsafeTransmuteGeneration[JavaClass, Pre])
+  }
+
+  case class ChannelClassGenerator(channelType: Type[_]) extends Rewriter[Pre] {
+    override val allScopes = outer.allScopes
+
+    override def dispatch(t: Type[Pre]): Type[Post] = t match {
+      //  case jt: JavaType[Pre] => jt match {
+      case jnt: JavaNamedType[Pre] =>
+        if (jnt.names.head._1 == "MessageType") {
+          dispatch(channelType.asInstanceOf[Type[Pre]])
+        } else rewriteDefault(jnt)
+      case _ => rewriteDefault(t)
+    }
+  }
 
   private def collectChannelsFromRun(seqProg: VeyMontSeqProg[Pre]) =
     seqProg.runMethod match {

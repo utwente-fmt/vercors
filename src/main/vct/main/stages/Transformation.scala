@@ -22,7 +22,7 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.veymont.{ChannelClassGenerator, ParalleliseVeyMontThreads}
+import vct.rewrite.veymont.ParalleliseVeyMontThreads
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
