@@ -71,7 +71,6 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "CFunctionDefinition",
       "PVLConstructor",
-      "LlvmFunctionDefinition"
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),
     "SendDecl" -> Seq("ParBlock", "Loop"),
