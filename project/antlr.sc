@@ -2,7 +2,7 @@ import $file.common
 import $file.fetchJars
 
 import mill._
-import modules.Jvm
+import util.Jvm
 import define._
 
 import common.Dir
@@ -12,13 +12,13 @@ trait GenModule extends Module {
   def base = T { Dir.src / "parsers" / "antlr4" }
 
   def lexer: String
-  final def lexerRef: Sources = T.sources { base() / lexer }
+  final def lexerRef = T.sources { base() / lexer }
 
   def parser: String
-  final def parserRef: Sources = T.sources { base() / parser }
+  final def parserRef = T.sources { base() / parser }
 
   def deps: Seq[String]
-  final def depsRef: Sources = T.sources { deps.map(dep => base() / dep).map(PathRef(_)) }
+  final def depsRef = T.sources { deps.map(dep => base() / dep).map(PathRef(_)) }
 
   def generate = T {
     def runAntlr(target: os.Path, args: Seq[String] = Nil): Unit = {

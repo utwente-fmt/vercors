@@ -2,7 +2,7 @@ import $file.common
 
 import mill._
 import scalalib._
-import modules.Jvm
+import util.Jvm
 
 import common.{Dir, VercorsModule, ScalaPBModule}
 

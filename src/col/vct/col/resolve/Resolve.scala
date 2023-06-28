@@ -301,10 +301,16 @@ case object ResolveReferences extends LazyLogging {
       if(func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
         throw MultipleForwardDeclarationContractError(func)
       }
-      ctx
-        .declare(C.paramsFromDeclarator(func.decl.inits.head.decl) ++ func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
-        .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
-          .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
+
+      func.decl.inits.zipWithIndex.foldLeft(
+        ctx.declare(func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
+      ) {
+        case (ctx, (init, idx)) =>
+          val info = C.getDeclaratorInfo(init.decl)
+          ctx
+            .declare(info.params.getOrElse(Nil))
+            .copy(currentResult=info.params.map(_ => RefCGlobalDeclaration(func, idx)))
+      }
     case func: LlvmFunctionDefinition[G] => ctx
       .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
     case par: ParStatement[G] => ctx
