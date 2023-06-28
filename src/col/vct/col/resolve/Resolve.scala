@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.data.BitString
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.util.Declarator
@@ -10,10 +11,12 @@ import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, Java, PVL, Spec}
-import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
+import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
+
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
 
 case object Resolve {
   case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
@@ -25,6 +28,10 @@ case object Resolve {
   trait SpecExprParser {
     // If parsing fails, throw/terminate
     def parse[G](input: String, o: Origin): Expr[G]
+  }
+
+  trait SpecContractParser {
+    def parse[G](input: LlvmFunctionContract[G], o:Origin): ApplicableContract[G]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -170,8 +177,8 @@ case object ResolveTypes {
 }
 
 case object ResolveReferences extends LazyLogging {
-  def resolve[G](program: Program[G], jp: SpecExprParser): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G](jp))
+  def resolve[G](program: Program[G], jp: SpecExprParser, lsp: SpecContractParser): Seq[CheckError] = {
+    resolve(program, ReferenceResolutionContext[G](jp, lsp))
   }
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
@@ -304,6 +311,8 @@ case object ResolveReferences extends LazyLogging {
             .declare(info.params.getOrElse(Nil))
             .copy(currentResult=info.params.map(_ => RefCGlobalDeclaration(func, idx)))
       }
+    case func: LlvmFunctionDefinition[G] => ctx
+      .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
@@ -572,6 +581,26 @@ case object ResolveReferences extends LazyLogging {
     case portName @ JavaBipGlueName(JavaTClass(Ref(cls: JavaClass[G]), Nil), name) =>
       portName.data = Some((cls, getLit(name)))
 
+    case contract: LlvmFunctionContract[G] =>
+      val applicableContract = ctx.llvmSpecParser.parse(contract, contract.o)
+      contract.data = Some(applicableContract)
+      resolve(applicableContract, ctx)
+    case local: LlvmLocal[G] =>
+      local.ref = ctx.currentResult.get match {
+        case RefLlvmFunctionDefinition(decl) =>
+          decl.contract.variableRefs.find(ref => ref._1 == local.name) match {
+            case Some(ref) => Some(ref._2)
+            case None => throw NoSuchNameError("local", local.name, local)
+          }
+      }
+    case inv: LlvmAmbiguousFunctionInvocation[G] =>
+      inv.ref = ctx.currentResult.get match {
+        case RefLlvmFunctionDefinition(decl) =>
+          decl.contract.invokableRefs.find(ref => ref._1 == inv.name) match {
+            case Some(ref) => Some(ref._2)
+            case None => throw NoSuchNameError("function", inv.name, inv)
+          }
+      }
     case _ =>
   }
 }

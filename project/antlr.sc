@@ -75,3 +75,12 @@ object pvl extends GenModule {
     "LangPVLParser.g4", "LangPVLLexer.g4",
   )
 }
+
+object llvm extends GenModule {
+  def lexer = "LangLLVMSpecLexer.g4"
+  def parser = "LLVMSpecParser.g4"
+  def deps = Seq(
+    "SpecParser.g4", "SpecLexer.g4",
+    "LangLLVMSpecParser.g4", "LangLLVMSpecLexer.g4"
+  )
+}

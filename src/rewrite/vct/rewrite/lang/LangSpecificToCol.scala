@@ -115,6 +115,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       result.ref.get match {
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
+        case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
@@ -158,6 +159,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
     case inv: LlvmFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
+    case inv: LlvmAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
+    case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
 
     case other => rewriteDefault(other)
   }

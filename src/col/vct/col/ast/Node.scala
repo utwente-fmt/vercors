@@ -1013,6 +1013,7 @@ final case class JavaNamedType[G](names: Seq[(String, Option[Seq[Type[G]]])])(im
   var ref: Option[JavaTypeNameTarget[G]] = None
 }
 final case class JavaTClass[G](ref: Ref[G, JavaClassOrInterface[G]], typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with JavaTClassImpl[G]
+
 final case class JavaWildcard[G]()(implicit val o: Origin = DiagnosticOrigin) extends JavaType[G] with JavaWildcardImpl[G]
 
 sealed trait JavaExpr[G] extends Expr[G] with JavaExprImpl[G]
@@ -1080,9 +1081,11 @@ final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) ext
 final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
 final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
-final class LlvmFunctionContract[G](val value:String, val references:Seq[(String, Ref[G, Declaration[G]])])
+final class LlvmFunctionContract[G](val value:String, val variableRefs:Seq[(String, Ref[G, Variable[G]])], val invokableRefs:Seq[(String, Ref[G, LlvmFunctionDefinition[G]])])
                                    (val blame: Blame[NontrivialUnsatisfiable])
-                                   (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G]
+                                   (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
+  var data: Option[ApplicableContract[G]] = None
+}
 
 final class LlvmFunctionDefinition[G](val returnType: Type[G],
                                       val args: Seq[Variable[G]],
@@ -1106,6 +1109,18 @@ final case class LlvmLoopInvariant[G](value:String, references:Seq[(String, Ref[
                                      (val blame: Blame[LoopInvariantFailure])
                                      (implicit val o: Origin) extends LlvmLoopContract[G] with LLVMLoopInvariantImpl[G]
 
+sealed trait LlvmExpr[G] extends Expr[G] with LLVMExprImpl[G]
+
+final case class LlvmLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends LlvmExpr[G] with LLVMLocalImpl[G] {
+  var ref: Option[Ref[G, Variable[G]]] = None
+}
+final case class LlvmAmbiguousFunctionInvocation[G](name: String,
+                                                    args: Seq[Expr[G]],
+                                                    givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
+                                                    yields: Seq[(Expr[G], Ref[G, Variable[G]])])
+                                                   (val blame: Blame[InvocationFailure])(implicit val o: Origin) extends LlvmExpr[G] with LLVMAmbiguousFunctionInvocationImpl[G] {
+  var ref: Option[Ref[G, LlvmFunctionDefinition[G]]] = None
+}
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {
   var ref: Option[PVLTypeNameTarget[G]] = None
