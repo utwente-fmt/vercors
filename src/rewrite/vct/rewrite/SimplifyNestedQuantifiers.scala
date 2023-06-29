@@ -524,6 +524,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
 
   case class Pointer[G](index: Expr[G], subnodes: Seq[Node[G]], array: Expr[G]) extends Subscript[G]
 
+  case class Sequence[G](index: Expr[G], subnodes: Seq[Node[G]], array: Expr[G]) extends Subscript[G]
+
     class FindLinearArrayAccesses(quantifierData: RewriteQuantifierData){
 
       // Search for linear array expressions
@@ -533,6 +535,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             testSubscript(Array(e.subscript, e.subnodes, e.array))
           case e @ ArraySubscript(_, _)  =>
             testSubscript(Array(e.index, e.subnodes, e.arr))
+          case e@SeqSubscript(_, _) =>
+            testSubscript(Sequence(e.index, e.subnodes, e.seq))
           case e @ PointerSubscript(_, _)  =>
             testSubscript(Pointer(e.index, e.subnodes, e.pointer))
           case e @ PointerAdd(_, _) =>
@@ -778,6 +782,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
             case arrayIndex: Array[Pre] =>
               Seq(Seq(ArraySubscript(newGen(arrayIndex.array), xNewVar)(triggerBlame)),
               )
+            case seqIndex: Sequence[Pre] =>
+              Seq(Seq(SeqSubscript(newGen(seqIndex.array), xNewVar)(triggerBlame)))
             case arrayIndex: Pointer[Pre] =>
               Seq(Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(triggerBlame)),
                 Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame)))
