@@ -132,7 +132,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
       val scale = (x: Expr[Post]) => nonQuantVars.foldLeft(x)((body, iter) => {
         val scale = to(iter) - from(iter)
-        Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))
+        Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))(body.o)
       })
 
       if(quantVars.isEmpty) scale(dispatch(e))
@@ -144,11 +144,11 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
         e match {
           case Forall(bindings, Nil, body) =>
-            Forall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))
+            Forall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))(body.o)
           case s @ Starall(bindings, Nil, body) =>
-            Starall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))(s.blame)
+            Starall(variables.dispatch(bindings ++ quantVars), Nil, range ==> scale(dispatch(body)))(s.blame)(body.o)
           case other =>
-            Starall(variables.dispatch(quantVars), Nil, range ==> scale(dispatch(other)))(ParBlockNotInjective(block, other))
+            Starall(variables.dispatch(quantVars), Nil, range ==> scale(dispatch(other)))(ParBlockNotInjective(block, other))(other.o)
         }
       }
     })
