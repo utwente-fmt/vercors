@@ -66,19 +66,18 @@ trait SeparatePackedResourcesModule extends JavaModule {
     )
   }
 
-  def compileClasspath: T[Agg[PathRef]] = T {
-    transitiveLocalPackedClasspath() ++
-      packedResources() ++
-      unmanagedClasspath() ++
-      resolvedIvyDeps()
-  }
-
   def runClasspathElements = T {
     val paths = localPackedClasspath().map(_.path) ++
       upstreamAssemblyClasspath().map(_.path) ++
       bareResourcePaths() ++
       transitiveBareResourcePaths()
     paths.map(_.toString)
+  }
+
+  def runClasspath = T {
+    localPackedClasspath() ++
+      upstreamAssemblyClasspath() ++
+      (bareResourcePaths() ++ transitiveBareResourcePaths()).map(PathRef(_))
   }
 }
 
