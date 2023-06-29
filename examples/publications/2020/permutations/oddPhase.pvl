@@ -43,10 +43,10 @@ pure boolean property2(seq<int> xs, seq<int> ys) =
 class OddPhase {
 	////////////////////////////////////////////////////////////////////////////////////////Lemmas
 	requires |xs| == |ys|;
-	requires (\forall int i; i>=0 && i<|xs|/2 && 2*i+1<|xs|; xs[2*i] <= xs[2*i+1]);
-	requires (\forall int i; i>=0 && i<|ys|/2 && 2*i+2<|ys|; ys[2*i+1] <= ys[2*i+2]);
-	requires (\forall int i; i>=0 && i<|xs|; xs[i] == ys[i]);
-	ensures  (\forall int i; i>=0 && i<|ys|/2 && 2*i+2<|ys|; ys[2*i] <= ys[2*i+1] && ys[2*i+1] <= ys[2*i+2]);
+	requires (\forall int i; i>=0 && i < |xs|/2 && 2*i+1 < |xs|; xs[2*i] <= xs[2*i+1]);
+	requires (\forall int i; i>=0 && i < |ys|/2 && 2*i+2 < |ys|; ys[2*i+1] <= ys[2*i+2]);
+	requires (\forall int i; i>=0 && i < |xs|; xs[i] == {: ys[i] :});
+	ensures  (\forall int i; i>=0 && i < |ys|/2 && 2*i+2 < |ys|; ys[2*i] <= ys[2*i+1] && ys[2*i+1] <= ys[2*i+2]);
 	void lemma_concat(seq<int> xs, seq<int> ys){
 
 	}
@@ -147,7 +147,7 @@ class OddPhase {
 		int k = 0;
 
 		loop_invariant 0 <= k && k <= |xs|;
-		loop_invariant (\forall int l; l>=0 && l<k; counter(xs + ys, xs[l]) == counter(xs, xs[l]) + counter(ys, xs[l]));
+		loop_invariant (\forall int l; l>=0 && l<k; {: counter(xs + ys, xs[l]) :} == counter(xs, xs[l]) + counter(ys, xs[l]));
 		while(k < |xs|)
 		{
 			lemma_count_app(xs, ys, xs[k]);
@@ -215,7 +215,7 @@ class OddPhase {
 		int k = 0;
 
 		loop_invariant 0 <= k && k <= |xs|;
-		loop_invariant (\forall int l; l>=0 && l<k; counter(xs, xs[l]) == counter(ys, xs[l]));
+		loop_invariant (\forall int l; l>=0 && l<k; {: counter(xs, xs[l]) :} == counter(ys, xs[l]));
 		while(k < |xs|)
 		{
 			lemma_swap_permutation(xs, ys, i, j, xs[k]);
@@ -282,9 +282,11 @@ class OddPhase {
 	requires isSorted[0]  ==> (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]][j] == inp_seq_cur[j]);
 	context isApermutation(inp_seq_all[0], inp_seq_cur);
 	ensures (\forall int i; 0 <= i && i < contrib.length/2 && 2*i+1 < contrib.length; contrib[2*i+1] == 1);
-	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
- 	 	 	 							 inp_seq_all[loopCounter[0]+1][2*i+1] <= inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
- 	 	 								 (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|; inp_seq_cur[i] == inp_seq_all[loopCounter[0]+1][i]);
+	ensures (\let int loopCounter0succ = loopCounter[0] + 1;
+	    (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+ 	 	 	 							 inp_seq_all[loopCounter0succ][2*i+1] <= inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
+ 	 	 								 (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|; inp_seq_cur[i] == inp_seq_all[loopCounter0succ][i])
+ 	 	 								 );
 	ensures (\forall int i; 0 <= i && i < input.length/2 && 2*i+2 < input.length; input[2*i+1] <= input[2*i+2]);
 	ensures (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
 	 									((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2]) ==>
@@ -321,9 +323,11 @@ class OddPhase {
  	 	 								((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 0) ==>
  	 	 								(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+1] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+2]))) **
 
-	 								(\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
-	 									((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 1) ==>
-	 									(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter[0]+1][2*i+2] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter[0]+1][2*i+1]))) **
+                                    (\let int loopCounter0succ = loopCounter[0] + 1;
+	 								  (\forall int i; 0 <= i && i < |inp_seq_all[loopCounter[0]+1]|/2 && 2*i+2 < |inp_seq_all[loopCounter[0]+1]|;
+	 								  	((inp_seq_all[loopCounter[0]+1][2*i+1] > inp_seq_all[loopCounter[0]+1][2*i+2] && contrib[2*i+1] == 1) ==>
+	 								  	(inp_seq_cur[2*i+1] == inp_seq_all[loopCounter0succ][2*i+2] && inp_seq_cur[2*i+2] == inp_seq_all[loopCounter0succ][2*i+1])))
+                                    ) **
 
 										property1(inp_seq_cur, inp_seq_all[loopCounter[0]+1]) **
 
