@@ -308,12 +308,13 @@ class OddPhase {
 									(\forall int i; 0 <= i && i < loopCounter[0]+2; input.length == |inp_seq_all[i]|) **
 									(\forall* int i; 0 <= i && i < contrib.length; Perm(contrib[i], 1\2)) **
 									(\forall* int i; 0 <= i && i < input.length; Perm(input[i], write)) **
-		              (\forall int i; 0 <= i && i < input.length; {: input[i] :} == {: inp_seq_cur[i] :}) **
+		              (\forall int i; 0 <= i && i < input.length; input[i] == inp_seq_cur[i]) **
 
 										isApermutation(inp_seq_all[0], inp_seq_cur) **
 
-									((\forall int i; 0 <= i && i < (contrib.length); {: contrib[i] :} == 0) ==>
-									   (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter[0]+1][j] == {: inp_seq_cur[j] :})) **
+									((\forall int i; 0 <= i && i < (contrib.length); contrib[i] == 0) ==>
+									   (\let int loopCounter0succ = loopCounter[0] + 1;
+									    (\forall int j; j >= 0 && j < |inp_seq_cur|; inp_seq_all[loopCounter0succ][j] == inp_seq_cur[j]))) **
 
 										 property2(inp_seq_cur, inp_seq_all[loopCounter[0]+1]) **
 
