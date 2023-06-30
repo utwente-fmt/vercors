@@ -323,13 +323,11 @@ case class SourceNameOrigin(name: String, inner: Origin) extends Origin {
 }
 
 case object RedirectOrigin {
-  case class StringReadable(data: String) extends Readable {
+  case class StringReadable(data: String, fileName:String="<unknown filename>") extends Readable {
     override def isRereadable: Boolean = true
 
     override protected def getReader: Reader =
       new StringReader(data)
-
-    override def fileName: String = "<unknown filename>"
   }
 }
 
@@ -379,6 +377,8 @@ case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
     case string => Some(JsonParser(string).asJsObject().fields)
   }
 
+  def fileName: String = deserializeOrigin.fileName
+
   override def preferredName: String = parsedOrigin match {
     case Some(o) => o.get("preferredName") match {
       case Some(JsString(jsString)) => jsString
@@ -397,10 +397,12 @@ case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
 
   override def context: String = {
     val atLine = f" At $shortPosition:\n"
-    if(contextFragment == inlineContext) {
+    if (contextFragment == inlineContext) {
       atLine + Origin.HR + contextFragment
-    } else {
+    } else if (contextFragment.contains(inlineContext)) {
       atLine + Origin.HR + markedInlineContext
+    } else {
+      deserializeOrigin.context
     }
   }
 

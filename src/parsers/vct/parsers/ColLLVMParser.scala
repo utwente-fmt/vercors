@@ -2,10 +2,13 @@ package vct.parsers
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.Readable
-import org.antlr.v4.runtime.CharStream
-import vct.col.ast.Deserialize
+import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
+import vct.antlr4.generated.{LLVMSpecParser, LangLLVMSpecLexer}
+import vct.col.ast.{Declaration, Deserialize}
+import vct.col.origin.ExpectedError
+import vct.col.ref.Ref
 import vct.col.serialize.{GlobalDeclaration, Program}
-import vct.parsers.transform.{BlameProvider, OriginProvider}
+import vct.parsers.transform.{BlameProvider, LLVMContractToCol, OriginProvider}
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 import java.io.{InputStreamReader, StringWriter}
@@ -24,7 +27,7 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
 
   override def parse[G](readable: Readable): ParseResult[G] = {
     val command = Seq("VCLLVM", readable.fileName)
-    val process = new ProcessBuilder(command:_*).start()
+    val process = new ProcessBuilder(command: _*).start()
     process.waitFor()
     if (process.exitValue() != 0) {
       val writer = new StringWriter()
@@ -34,8 +37,25 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
       throw LLVMParseError(readable.fileName, process.exitValue(), writer.toString)
     }
     val protoProgram = Program.parseFrom(process.getInputStream)
-    val COLProgram = Deserialize.deserialize[G](protoProgram)
+    val COLProgram = Deserialize.deserializeProgram[G](protoProgram, readable.fileName)
     ParseResult(COLProgram.declarations, Seq.empty)
   }
 
+  def parseFunctionContract[G](stream: CharStream):
+  (vct.col.ast.ApplicableContract[G], Seq[ExpectedError]) = {
+    val lexer = new LangLLVMSpecLexer(stream)
+    val tokens = new CommonTokenStream(lexer)
+    originProvider.setTokenStream(tokens)
+    val parser = new LLVMSpecParser(tokens)
+    // we're parsing a contract so set the parser to specLevel == 1
+    parser.specLevel = 1
+
+    val (errors, tree) = noErrorsOrThrow(parser, lexer, originProvider) {
+      val errors = expectedErrors(tokens, LangLLVMSpecLexer.EXPECTED_ERROR_CHANNEL, LangLLVMSpecLexer.VAL_EXPECT_ERROR_OPEN, LangLLVMSpecLexer.VAL_EXPECT_ERROR_CLOSE)
+      val tree = parser.valEmbedContract()
+      (errors, tree)
+    }
+    val contract = LLVMContractToCol[G](originProvider, blameProvider, errors).convert(tree)
+    (contract, errors.map(_._3))
+  }
 }

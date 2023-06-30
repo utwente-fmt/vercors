@@ -134,6 +134,10 @@ case object Options {
         .action((p, c) => c.copy(bipReportFile = Some(p)))
         .text("Write JavaBIP verification report to file, or standard out if \"-\" is used"),
 
+      opt[Unit]("no-infer-heap-context-into-frame")
+        .action((_, c) => c.copy(inferHeapContextIntoFrame = false))
+        .text("Disables smart inference of contextual heap into frame statements using `forperm`"),
+
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
         .text("Encode all abrupt control flow using exception, even when not necessary"),
@@ -354,6 +358,8 @@ case class Options
   siliconPrintQuantifierStats: Option[Int] = None,
 
   bipReportFile: Option[PathOrStd] = None,
+
+  inferHeapContextIntoFrame: Boolean = true,
 
   // Verify options - hidden
   devAbruptExc: Boolean = false,

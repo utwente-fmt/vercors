@@ -15,7 +15,7 @@ case object Spec {
     case RefInstanceMethod(decl) => decl.contract
     case RefCLocalDeclaration(decls, _) => decls.decl.contract
     case RefCGlobalDeclaration(decls, _) => decls.decl.contract
-//    case RefCFunctionDefinition(decl) =>
+    case RefCFunctionDefinition(decl) => decl.contract
     case RefCPPLocalDeclaration(decls, _) => decls.decl.contract
     case RefCPPGlobalDeclaration(decls, _) => decls.decl.contract
     case RefCPPFunctionDefinition(decl) => decl.contract

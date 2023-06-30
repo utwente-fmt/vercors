@@ -137,7 +137,7 @@ case object Referrable {
     case decl: VeyMontSeqProg[G] => RefSeqProg(decl)
     case decl: VeyMontThread[G] => RefVeyMontThread(decl)
     case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
-    case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition()
+    case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
     case decl: ProverType[G] => RefProverType(decl)
     case decl: ProverFunction[G] => RefProverFunction(decl)
   })
@@ -179,6 +179,7 @@ sealed trait JavaInvocationTarget[G] extends Referrable[G]
 sealed trait CInvocationTarget[G] extends Referrable[G]
 sealed trait CPPInvocationTarget[G] extends Referrable[G]
 sealed trait PVLInvocationTarget[G] extends Referrable[G]
+sealed trait LlvmInvocationTarget[G] extends Referrable[G]
 sealed trait SpecInvocationTarget[G]
   extends JavaInvocationTarget[G]
     with CNameTarget[G]
@@ -248,7 +249,7 @@ case class RefPVLConstructor[G](decl: PVLConstructor[G]) extends Referrable[G] w
 case class RefJavaBipStatePredicate[G](state: String, decl: JavaAnnotation[G]) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
-case class RefLlvmFunctionDefinition[G]() extends Referrable[G]
+case class RefLlvmFunctionDefinition[G](decl: LlvmFunctionDefinition[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
 case class RefVeyMontThread[G](decl: VeyMontThread[G]) extends Referrable[G] with PVLNameTarget[G]
 case class RefProverType[G](decl: ProverType[G]) extends Referrable[G] with SpecTypeNameTarget[G]

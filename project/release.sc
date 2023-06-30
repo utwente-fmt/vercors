@@ -1,15 +1,14 @@
 import mill._
 import scalalib._
 import define.Sources
-import modules.Jvm
 
 import os.Path
 
 trait SeparatePackedResourcesModule extends JavaModule {
   def bareResourcePaths: T[Seq[Path]] = T { Seq.empty[Path] }
-  def bareResources: Sources = T.sources { bareResourcePaths().map(PathRef(_)) }
+  def bareResources = T.sources { bareResourcePaths().map(PathRef(_)) }
 
-  def packedResources: Sources
+  def packedResources: T[Seq[PathRef]]
 
   final def resources = T.sources {
     bareResources() ++ packedResources()
@@ -50,7 +49,7 @@ trait SeparatePackedResourcesModule extends JavaModule {
   }
 
   def upstreamAssembly = T {
-    Jvm.createAssembly(
+    Assembly.createAssembly(
       upstreamAssemblyClasspath().map(_.path),
       manifest(),
       assemblyRules = assemblyRules
@@ -58,7 +57,7 @@ trait SeparatePackedResourcesModule extends JavaModule {
   }
 
   def assembly = T {
-    Jvm.createAssembly(
+    Assembly.createAssembly(
       Agg.from(localPackedClasspath().map(_.path)),
       manifest(),
       prependShellScript(),
@@ -67,19 +66,18 @@ trait SeparatePackedResourcesModule extends JavaModule {
     )
   }
 
-  def compileClasspath: T[Agg[PathRef]] = T {
-    transitiveLocalPackedClasspath() ++
-      packedResources() ++
-      unmanagedClasspath() ++
-      resolvedIvyDeps()
-  }
-
   def runClasspathElements = T {
     val paths = localPackedClasspath().map(_.path) ++
       upstreamAssemblyClasspath().map(_.path) ++
       bareResourcePaths() ++
       transitiveBareResourcePaths()
     paths.map(_.toString)
+  }
+
+  def runClasspath = T {
+    localPackedClasspath() ++
+      upstreamAssemblyClasspath() ++
+      (bareResourcePaths() ++ transitiveBareResourcePaths()).map(PathRef(_))
   }
 }
 

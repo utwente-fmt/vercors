@@ -2,10 +2,8 @@ import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
 import $file.release
 
 import mill._
-import define.Sources
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import scalalib.{ScalaModule => BaseScalaModule, JavaModule => BaseJavaModule, _}
-import modules.Jvm
 import os._
 
 import release.ReleaseModule
@@ -41,6 +39,11 @@ trait JavaModule extends BaseJavaModule {
     val cpArg = "-cp " + cpString
     os.write(T.dest / "classpath", cpArg)
     T.dest / "classpath"
+  }
+
+  def javacOptions = T {
+    Seq("--release",
+        "17")
   }
 
   def windowsClassPathArgumentFile = T {
@@ -92,17 +95,17 @@ trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
 
 trait VercorsJavaModule extends JavaModule with ReleaseModule { outer =>
   def key: String
-	def deps: T[Agg[Dep]]
-	def sourcesDir = T { Dir.src / key }
-	def sources = T.sources { sourcesDir() }
+  def deps: T[Agg[Dep]]
+  def sourcesDir = T { Dir.src / key }
+  def sources = T.sources { sourcesDir() }
   def packedResources = T.sources { Dir.res / key }
-	def docResources = T.sources { Dir.docs / key }
-	def unmanagedClasspath = T {
-		if(os.exists(Dir.lib / key))
-			Agg.from(os.list(Dir.lib / key).filter(_.ext == "jar").map(PathRef(_)))
-		else Agg.empty
-	}
-	def ivyDeps = Deps.common ++ deps()
+  def docResources = T.sources { Dir.docs / key }
+  def unmanagedClasspath = T {
+    if(os.exists(Dir.lib / key))
+      Agg.from(os.list(Dir.lib / key).filter(_.ext == "jar").map(PathRef(_)))
+    else Agg.empty
+  }
+  def ivyDeps = Deps.common ++ deps()
 
   def classPathFileElements = T { runClasspathElements() }
 }

@@ -9,7 +9,10 @@ import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.resolve._
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.result.VerificationError.UserError
+import vct.col.util.SuccessionMap
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -123,6 +126,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
         case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
         case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
+        case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
@@ -167,6 +171,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
+
+    case inv: LlvmFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
+    case inv: LlvmAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
+    case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
 
     case other => rewriteDefault(other)
   }
