@@ -36,6 +36,11 @@ trait CheckFoldUnfoldTarget[G] extends NodeFamilyImpl[G] { this: NodeFamily[G] =
       case RefInstancePredicate(decl) => checkNonAbstract(decl, inv)
       case _ => Some(NotAPredicateApplication(e))
     }
+    case inv: CPPInvocation[G] => inv.ref.get match {
+      case RefPredicate(decl) => checkNonAbstract(decl, inv)
+      case RefInstancePredicate(decl) => checkNonAbstract(decl, inv)
+      case _ => Some(NotAPredicateApplication(e))
+    }
     case _ => Some(NotAPredicateApplication(e))
   }
 

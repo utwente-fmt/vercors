@@ -6,7 +6,7 @@ import vct.result.VerificationError.{SystemError, UserError}
 
 trait ResolutionError extends UserError
 
-case class MultipleForwardDeclarationContractError(declaration: CGlobalDeclaration[_]) extends ResolutionError {
+case class MultipleForwardDeclarationContractError(declaration: GlobalDeclaration[_]) extends ResolutionError {
   override def code: String = "multipleForwardDeclarationContract"
 
   override def text: String = declaration.o.messageInContext("Cannot simultaneously bind a contract to multiple global declarations.")

@@ -46,6 +46,7 @@ object parsers extends VercorsModule {
 	def generatedSources = T.sources {
 		Seq(
 			antlr.c.generate(),
+			antlr.cpp.generate(),
 			antlr.java.generate(),
 			antlr.pvl.generate()
 		)

@@ -6,7 +6,7 @@ import vct.col.check.{CheckContext, CheckError, ResultOutsidePostcondition}
 import vct.col.err
 import vct.col.print._
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.C
+import vct.col.resolve.lang.{C, CPP}
 
 trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G] =>
   override lazy val t: Type[G] = ref.getOrElse(
@@ -15,6 +15,10 @@ trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G
       C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) =>
       C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
+    case RefCPPFunctionDefinition(decl) =>
+      CPP.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
+    case RefCPPGlobalDeclaration(decls, initIdx) =>
+      CPP.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefFunction(decl) => decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefJavaMethod(decl) => decl.returnType

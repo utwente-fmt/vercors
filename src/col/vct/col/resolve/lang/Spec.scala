@@ -16,6 +16,9 @@ case object Spec {
     case RefCLocalDeclaration(decls, _) => decls.decl.contract
     case RefCGlobalDeclaration(decls, _) => decls.decl.contract
 //    case RefCFunctionDefinition(decl) =>
+    case RefCPPLocalDeclaration(decls, _) => decls.decl.contract
+    case RefCPPGlobalDeclaration(decls, _) => decls.decl.contract
+    case RefCPPFunctionDefinition(decl) => decl.contract
     case RefJavaConstructor(decl) => decl.contract
     case RefJavaMethod(decl) => decl.contract
     case RefPVLConstructor(decl) => decl.contract

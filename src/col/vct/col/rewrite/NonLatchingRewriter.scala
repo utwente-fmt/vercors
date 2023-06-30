@@ -1,6 +1,5 @@
 package vct.col.rewrite
 
-import hre.debug.TimeTravel
 import vct.col.ast._
 import vct.col.util.CurrentProgramRewriteContext
 import vct.result.VerificationError
@@ -40,6 +39,12 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: CPointer[Pre]): CPointer[Post] = rewriteDefault(node)
   override def dispatch(node: CInit[Pre]): CInit[Post] = rewriteDefault(node)
   override def dispatch(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
+
+  override def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
+  override def dispatch(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(node)
+  override def dispatch(node: CPPPointer[Pre]): CPPPointer[Post] = rewriteDefault(node)
+  override def dispatch(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
+  override def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
 
   override def dispatch(node: JavaVariableDeclaration[Pre]): JavaVariableDeclaration[Post] = rewriteDefault(node)
   override def dispatch(node: JavaModifier[Pre]): JavaModifier[Post] = rewriteDefault(node)
