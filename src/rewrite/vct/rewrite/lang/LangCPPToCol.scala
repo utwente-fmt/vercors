@@ -14,12 +14,6 @@ import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
 case object LangCPPToCol {
-  case class CPPGlobalStateNotSupported(example: CPPInit[_]) extends UserError {
-    override def code: String = "notSupported"
-
-    override def text: String =
-      example.o.messageInContext("Global variables in C++ are not supported.")
-  }
 
   case class WrongCPPType(decl: CPPLocalDeclaration[_]) extends UserError {
     override def code: String = "wrongCPPType"
@@ -47,6 +41,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val cppFunctionSuccessor: SuccessionMap[CPPFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
   val cppFunctionDeclSuccessor: SuccessionMap[(CPPGlobalDeclaration[Pre], Int), Procedure[Post]] = SuccessionMap()
   val cppNameSuccessor: SuccessionMap[CPPNameTarget[Pre], Variable[Post]] = SuccessionMap()
+  val cppGlobalNameSuccessor: SuccessionMap[CPPNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cppCurrentDefinitionParamSubstitutions: ScopedStack[Map[CPPParam[Pre], CPPParam[Pre]]] = ScopedStack()
 
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
@@ -131,7 +126,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
             )(AbstractApplicable)(init.o)
           )
         case None =>
-          throw CPPGlobalStateNotSupported(init)
+          cppGlobalNameSuccessor(RefCPPGlobalDeclaration(decl, idx)) =
+            rw.globalDeclarations.declare(new HeapVariable(t)(init.o))
       }
     }
   }
@@ -190,7 +186,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         else
           Local(cppNameSuccessor.ref(ref))
       case RefCPPFunctionDefinition(_) => throw NotAValue(local)
-      case RefCPPGlobalDeclaration(_, _) => throw NotAValue(local)
+      case ref @ RefCPPGlobalDeclaration(decl, initIdx) =>
+        CPP.getDeclaratorInfo(decl.decl.inits(initIdx).decl).params match {
+          case None => DerefHeapVariable[Post](cppGlobalNameSuccessor.ref(ref))(local.blame)
+          case Some(_) => throw NotAValue(local)
+        }
       case ref: RefCPPLocalDeclaration[Pre] => Local(cppNameSuccessor.ref(ref))
     }
   }

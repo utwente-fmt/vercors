@@ -6,13 +6,11 @@ import org.antlr.v4.runtime.CharStreams
 import vct.col.ast._
 import vct.col.check.CheckError
 import vct.col.origin.{FileSpanningOrigin, LLVMOrigin, Origin}
-import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
 import vct.col.rewrite.bip.IsolateBipGlue
 import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
-import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
 import vct.options.Options
 import vct.options.types.ClassPathEntry
@@ -96,20 +94,6 @@ case class Resolution[G <: Generation]
   override def progressWeight: Int = 1
 
   override def run(in: ParseResult[G]): Verification[_ <: Generation] = {
-    in.decls.foreach(_.transSubnodes.foreach {
-      case decl: CGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
-        if(C.getDeclaratorInfo(init.decl).params.isEmpty) {
-          throw TemporarilyUnsupported("GlobalCVariable", Seq(decl))
-        }
-      })
-      case decl: CPPGlobalDeclaration[_] => decl.decl.inits.foreach(init => {
-        if (CPP.getDeclaratorInfo(init.decl).params.isEmpty) {
-          throw TemporarilyUnsupported("GlobalCPPVariable", Seq(decl))
-        }
-      })
-      case _ =>
-    })
-
     implicit val o: Origin = FileSpanningOrigin
 
     val parsedProgram = Program(in.decls)(blameProvider())
