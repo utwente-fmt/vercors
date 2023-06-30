@@ -2,7 +2,7 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.Stage
-import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, LlvmFunctionContract, Program, Refute, Verification, VerificationContext}
+import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, GlobalDeclaration, LlvmFunctionContract, LlvmGlobal, Program, Refute, Verification, VerificationContext}
 import org.antlr.v4.runtime.CharStreams
 import vct.col.check.CheckError
 import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
@@ -85,6 +85,16 @@ case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.S
     val charStream = CharStreams.fromString(input.value)
     ColLLVMParser(originProvider, blameProvider)
       .parseFunctionContract[G](charStream)._1
+  }
+
+  override def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G] = {
+    val originProvider = ReadableOriginProvider(input.o match {
+      case o: LLVMOrigin => StringReadable(input.value, o.fileName)
+      case _ => StringReadable(input.value)
+    })
+    val charStream = CharStreams.fromString(input.value)
+    ColLLVMParser(originProvider, blameProvider)
+      .parseGlobal(charStream)._1
   }
 }
 

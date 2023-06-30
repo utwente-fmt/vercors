@@ -1,5 +1,6 @@
 package vct.parsers.transform
 
+import hre.data.BitString
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.antlr4.generated.LLVMSpecParser._
 import vct.antlr4.generated.LLVMSpecParserPatterns
@@ -10,6 +11,7 @@ import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
 
 import scala.annotation.nowarn
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
@@ -358,4 +360,41 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     case ValExpressionList0(expr) => Seq(convert(expr))
     case ValExpressionList1(head, _, tail) => convert(head) +: convert(tail)
   }
+
+  def convert(implicit decl: ValGlobalDeclarationContext): GlobalDeclaration[G] = decl match {
+    case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
+      val contractCollector = new ContractCollector[G]()
+      contract.foreach(convert(_, contractCollector))
+
+      val modifierCollector = new ModifierCollector()
+      modifiers.foreach(convert(_, modifierCollector))
+
+      val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
+      new LlvmSpecFunction(
+        convert(name),
+        convert(t),
+        args.map(convert(_)).getOrElse(Nil),
+        Nil, // TODO implement
+        convert(definition),
+        contractCollector.consumeApplicableContract(blame(decl)),
+        modifierCollector.consume(modifierCollector.inline))(blame(decl)
+      )(namedOrigin)
+  }
+
+  def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
+    case ValPureAbstractBody(_) => None
+    case ValPureBody(_, expr, _) => Some(convert(expr))
+  }
+
+  def convert(mod: ValModifierContext, collector: ModifierCollector): Unit = mod match {
+    case ValModifier0(name) => name match {
+      case "pure" => collector.pure += mod
+      case "inline" => collector.inline += mod
+      case "thread_local" => collector.threadLocal += mod
+      case "bip_annotation" => collector.bipAnnotation += mod
+    }
+    case ValStatic(_) => collector.static += mod
+  }
+
+
 }
