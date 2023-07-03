@@ -23,15 +23,23 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit declSeq: DeclarationseqContext): Seq[GlobalDeclaration[G]] = declSeq match {
-    case Declarationseq0(decls) => decls.flatMap(convert(_))
+    case Declarationseq0(decl, _) => convert(decl)
+    case Declarationseq1(declSeq, decl, _) => convert(declSeq) ++ convert(decl)
   }
 
-  // Only support block declarations, function declarations, empty declarations, and VerCors global declarations
+  // Only support block declarations, function declarations, namespace declarations, empty declarations, and VerCors global declarations
   def convert(implicit decl: DeclarationContext): Seq[GlobalDeclaration[G]] = decl match {
-    case Declaration0(blockDecl) => Seq(new CPPGlobalDeclaration(convert(blockDecl)))
-    case Declaration1(funcDecl) => Seq(convert(funcDecl))
+    case Declaration0(funcDecl) => Seq(convert(funcDecl))
+    case Declaration1(blockDecl) => Seq(new CPPGlobalDeclaration(convert(blockDecl)))
+    case Declaration6(namespaceDecl) => Seq(convert(namespaceDecl))
     case Declaration7(_) => Seq()
     case Declaration9(globalSpecDecl) => convert(globalSpecDecl)
+    case x => ??(x)
+  }
+
+  // Do not support inline and unnamed namespaces
+  def convert(implicit nsDef: NamespaceDefinitionContext): CPPNamespaceDefinition[G] = nsDef match {
+    case NamespaceDefinition0(None, _, Some(name), _, maybeBody, _) => new CPPNamespaceDefinition(convert(name), maybeBody.toSeq.flatMap(convert(_)))
     case x => ??(x)
   }
 
@@ -260,8 +268,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def convert(implicit expr: PrependExpressionContext): Expr[G] = expr match {
-    case PrependExpression0(left, PrependOp0(specOp), right) => convert(expr, specOp, convert(left), convert(right))
-    case PrependExpression1(inner) => convert(inner)
+    case PrependExpression0(inner) => convert(inner)
+    case PrependExpression1(left, PrependOp0(specOp), right) => convert(expr, specOp, convert(left), convert(right))
   }
 
   // Do not support cast expressions
@@ -356,7 +364,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case PrimaryExpression1(literals) if literals.length == 1 => convert(literals.head)
     case PrimaryExpression2(_) => AmbiguousThis()
     case PrimaryExpression3(_, inner, _) => convert(inner)
-    case PrimaryExpression4(inner) => local(expr, convert(inner).name)
+    case PrimaryExpression4(inner) => CPPLocal(convert(inner).nestedName)(blame(expr))(origin(expr))
     case x => ??(x)
   }
 
@@ -371,7 +379,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case Literal6(_) => ??(literal)
   }
 
-  def convert(implicit idExpr: IdExpressionContext): CPPName[G] = idExpr match {
+  def convert(implicit idExpr: IdExpressionContext): CPPTypedefName[G] = idExpr match {
     case IdExpression0(id) => convert(id)
     case IdExpression1(id) => convert(id)
   }
@@ -470,9 +478,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case x => ??(x)
   }
 
-  // Do not support types: template, char16_t, char32_t, wchar_t, auto, decltype()
+  // Do not support types: template, char16_t, char32_t, wchar_t, auto, decltype(), and combination of namespace and typename
   def convert(implicit typeSpec: SimpleTypeSpecifierContext): Seq[CPPTypeSpecifier[G]] = typeSpec match {
-    case SimpleTypeSpecifier0(Some(nestedNameSpec), typeName) => convert(nestedNameSpec) :+ convert(typeName)
     case SimpleTypeSpecifier0(None, typeName) => Seq(convert(typeName))
     case SimpleTypeSpecifier2(signedness) => Seq(convert(signedness))
     case SimpleTypeSpecifier3(Some(signedness), typeLengthMods) => Seq(convert(signedness)) ++ typeLengthMods.map(convert(_))
@@ -500,24 +507,26 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case SimpleTypeLengthModifier1(_) => new CPPLong[G]()
   }
 
-  // Do not support template, namespaces or decltypes
-  def convert(implicit nestedNameSpec: NestedNameSpecifierContext): Seq[CPPTypeSpecifier[G]] = nestedNameSpec match {
-    case value: NestedNameSpecifier0Context =>
-      if (value.theTypeName() != null) {
-        Seq(convert(value.theTypeName()))
-      } else if (value.namespaceName() != null) {
-        ??(value.namespaceName())
-      } else if (value.decltypeSpecifier() != null) {
-        ??(value.decltypeSpecifier())
-      } else {
-        ??(value)
+  // Do not support template or decltypes, or a typename as identifier in the nestedname
+  def convert(implicit nestedNameSpec: NestedNameSpecifierContext): CPPTypedefName[G] = nestedNameSpec match {
+    case NestedNameSpecifier0(theTypeName, _) =>
+      convert(theTypeName) match {
+        case name@CPPTypedefName(_) => name
+        case x => ??(theTypeName)
       }
-    case value: NestedNameSpecifier1Context =>
-      if (value.simpleTemplateId() != null) {
-        ??(value.simpleTemplateId())
-      } else {
-        convert(value.nestedNameSpecifier()) :+ CPPTypedefName(convert(value.clangppIdentifier()))
+    case NestedNameSpecifier1(namespaceName, _) => convert(namespaceName)
+    case NestedNameSpecifier3(_) => CPPTypedefName(Seq())
+    case NestedNameSpecifier4(inner, id, _) =>
+      convert(inner) match {
+        case CPPTypedefName(nestedName) => CPPTypedefName(nestedName :+ convert(id))
+        case _ => ??(inner)
       }
+    case x => ??(x)
+  }
+
+  def convert(implicit namespaceName: NamespaceNameContext): CPPTypedefName[G] = namespaceName match {
+    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(Seq(convert(id)))
+    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(Seq(convert(id)))
   }
 
   // Do not support enum-names, typedef-names and template-names
@@ -528,7 +537,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
 
   // Do not support template-names
   def convert(implicit className: ClassNameContext): CPPTypeSpecifier[G] = className match {
-    case value: ClassName0Context => CPPTypedefName(convert(value.clangppIdentifier()))
+    case ClassName0(name) => CPPTypedefName(Seq(convert(name)))
     case x => ??(x)
   }
 
@@ -613,19 +622,20 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
 
   // Do not support if spread operator '...' is used
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
-    case Declaratorid0(None, idExpr) => convert(idExpr)
+    case Declaratorid0(None, idExpr) => CPPName(convert(idExpr).nestedName.mkString("::"))
     case x => ??(x)
   }
 
   // Do not support operatorFunctionId, conversionFunctionId, literalOperatorId, templateId, and things starting with a tilde
-  def convert(implicit unqualifiedId: UnqualifiedIdContext): CPPName[G] = unqualifiedId match {
-    case UnqualifiedId0(clangppId) => CPPName(convert(clangppId))
+  def convert(implicit unqualifiedId: UnqualifiedIdContext): CPPTypedefName[G] = unqualifiedId match {
+    case UnqualifiedId0(clangppId) => CPPTypedefName(Seq(convert(clangppId)))
     case x => ??(x)
   }
 
-  // Do not support template or nestedNameSpecifier
-  def convert(implicit qualifiedId: QualifiedIdContext): CPPName[G] = qualifiedId match {
-    case QualifiedId0(nestedNameSpec, _, _) => ??(nestedNameSpec)
+  // Do not support template
+  def convert(implicit qualifiedId: QualifiedIdContext): CPPTypedefName[G] = qualifiedId match {
+    case QualifiedId0(nestedNameSpec, None, id) => CPPTypedefName(convert(nestedNameSpec).nestedName ++ convert(id).nestedName)
+    case x => ??(x)
   }
 
   def convert(implicit id: ClangppIdentifierContext): String = id match {
@@ -657,7 +667,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CPPLocal(name)(blame(ctx))(origin(ctx))
+    CPPLocal(Seq(name))(blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)

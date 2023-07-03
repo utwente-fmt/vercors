@@ -351,6 +351,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: CDeclaration[Pre]): CDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: CDeclaration[Pre]): CDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = node
+  def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
+  override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = postCoerce(coerce(preCoerce(node)))
+
   def preCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = node
   def postCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
   override final def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = postCoerce(coerce(preCoerce(node)))
@@ -370,10 +374,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
   def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
   override final def dispatch(node: CPPInit[Pre]): CPPInit[Post] = postCoerce(coerce(preCoerce(node)))
-
-  def preCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = node
-  def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
-  override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
   def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
@@ -1660,6 +1660,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         declaration
       case definition: CPPFunctionDefinition[Pre] =>
         definition
+      case namespace: CPPNamespaceDefinition[Pre] =>
+        namespace
       case declaration: CPPGlobalDeclaration[Pre] =>
         declaration
       case namespace: JavaNamespace[Pre] =>

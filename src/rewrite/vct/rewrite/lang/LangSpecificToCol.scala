@@ -9,10 +9,7 @@ import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.col.resolve._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.result.VerificationError.UserError
-import vct.col.util.SuccessionMap
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -72,6 +69,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
     case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
     case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
+    case ns: CPPNamespaceDefinition[Pre] => cpp.rewriteNamespaceDef(ns)
     case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
 

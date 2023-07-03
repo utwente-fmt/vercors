@@ -28,5 +28,5 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
   }
 
-  override def layout(implicit ctx: Ctx): Doc = Text(name)
+  override def layout(implicit ctx: Ctx): Doc = Text(name.mkString("::"))
 }

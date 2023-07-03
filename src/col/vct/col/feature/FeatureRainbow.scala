@@ -223,6 +223,7 @@ class FeatureRainbow[G] {
     case node: CPPLocalDeclaration[G] => CPPSpecific
     case node: CPPLong[G] => CPPSpecific
     case node: CPPName[G] => CPPSpecific
+    case node: CPPNamespaceDefinition[G] => CPPSpecific
     case node: CPPParam[G] => CPPSpecific
     case node: CPPPrimitiveType[G] => CPPSpecific
     case node: CPPPure[G] => CPPSpecific

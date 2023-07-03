@@ -55,11 +55,12 @@ unqualifiedId:
 qualifiedId: nestedNameSpecifier Template? unqualifiedId;
 
 nestedNameSpecifier:
-	(theTypeName | namespaceName | decltypeSpecifier)? Doublecolon
-	| nestedNameSpecifier (
-		clangppIdentifier
-		| Template? simpleTemplateId
-	) Doublecolon;
+	theTypeName Doublecolon
+	| namespaceName Doublecolon
+	| decltypeSpecifier Doublecolon
+	| Doublecolon
+	| nestedNameSpecifier clangppIdentifier Doublecolon
+	| nestedNameSpecifier Template? simpleTemplateId Doublecolon;
 
 lambdaExpression:
 	lambdaIntroducer lambdaDeclarator? compoundStatement;
@@ -181,8 +182,8 @@ pointerMemberExpression:
 	| pointerMemberExpression ArrowStar prependExpression;
 
 prependExpression:
-    castExpression prependOp prependExpression
-    | castExpression;
+		castExpression
+    | castExpression prependOp prependExpression;
 
 prependOp: {specLevel>0}? valPrependOp;
 
@@ -345,11 +346,13 @@ jumpStatement:
 	| Goto clangppIdentifier Semi;
 
 // Declarations
-declarationseq: declaration+;
+declarationseq:
+	declaration Semi*
+	| declarationseq declaration Semi*;
 
 declaration:
-	blockDeclaration
-	| functionDefinition
+	functionDefinition
+	| blockDeclaration
 	| templateDeclaration
 	| explicitInstantiation
 	| explicitSpecialization
@@ -493,8 +496,7 @@ namespaceName: originalNamespaceName | namespaceAlias;
 originalNamespaceName: clangppIdentifier;
 
 namespaceDefinition:
-	Inline? Namespace (clangppIdentifier | originalNamespaceName)? LeftBrace namespaceBody = declarationseq
-		? RightBrace;
+	Inline? Namespace clangppIdentifier? LeftBrace declarationseq? RightBrace;
 
 namespaceAlias: clangppIdentifier;
 

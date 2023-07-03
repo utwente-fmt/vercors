@@ -38,6 +38,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
+  val namespace: ScopedStack[CPPNamespaceDefinition[Pre]] = ScopedStack()
   val cppFunctionSuccessor: SuccessionMap[CPPFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
   val cppFunctionDeclSuccessor: SuccessionMap[(CPPGlobalDeclaration[Pre], Int), Procedure[Post]] = SuccessionMap()
   val cppNameSuccessor: SuccessionMap[CPPNameTarget[Pre], Variable[Post]] = SuccessionMap()
@@ -163,6 +164,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
+  def rewriteNamespaceDef(ns: CPPNamespaceDefinition[Pre]): Unit = {
+    ns.drop()
+    namespace.having(ns) {
+      // Do not enter a scope, so classes of the namespace are declared to the program.
+      ns.declarations.foreach(rw.dispatch)
+    }
+  }
+
   def result(ref: RefCPPFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
     Result[Post](cppFunctionSuccessor.ref(ref.decl))
 
@@ -199,7 +208,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val CPPInvocation(applicable, args, givenMap, yields) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
-      case RefFunction(decl) =>0
+      case RefFunction(decl) =>
         FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)

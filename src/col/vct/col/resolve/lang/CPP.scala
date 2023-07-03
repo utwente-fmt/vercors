@@ -80,17 +80,50 @@ case object CPP {
   def paramsFromDeclarator[G](declarator: CPPDeclarator[G]): Seq[CPPParam[G]] =
     getDeclaratorInfo(declarator).params.get
 
-  def findCPPTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] =
+  def findCPPTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] =
     ctx.stack.flatten.collectFirst {
-      case target: CPPTypeNameTarget[G] if target.name == name => target
+      case target: CPPTypeNameTarget[G] if target.name == names.mkString("::") => target
     }
 
-  def findCPPName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] =
-    name match {
-      case _ => ctx.stack.flatten.collectFirst {
-        case target: CPPNameTarget[G] if target.name == name => target
+  def findCPPName[G](name: Seq[String], ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] = {
+    if (name.length == 1) {
+      ctx.stack.flatten.collectFirst {
+        case target: CPPNameTarget[G] if target.name == name.head => target
+      }
+    } else {
+      val ctxTarget: Option[RefCPPNamespaceDefinition[G]] = ctx.stack.flatten.collectFirst {
+        case namespace: RefCPPNamespaceDefinition[G] if namespace.decl.name == name.head => namespace
+      }
+
+      ctxTarget match {
+        case Some(ref) =>
+          var curNameSeq = name.drop(1);
+          var foundNamespace: Option[CPPNamespaceDefinition[G]] = Some(ref.decl);
+          var returnVal: Option[CPPNameTarget[G]] = None;
+          while (curNameSeq.nonEmpty) {
+            if (foundNamespace.isEmpty) {
+              return None
+            }
+
+            if (curNameSeq.length > 1) {
+              // Look for nested namespaces
+              foundNamespace = foundNamespace.get.declarations.collectFirst {
+                case namespace: CPPNamespaceDefinition[G] if namespace.name == curNameSeq.head => namespace
+              }
+            } else {
+              // Look for final nameTarget
+              returnVal = foundNamespace.get.declarations.collectFirst {
+                case funcDef: CPPFunctionDefinition[G] if getDeclaratorInfo(funcDef.declarator).name == curNameSeq.head  => RefCPPFunctionDefinition(funcDef)
+                case globalDecl: CPPGlobalDeclaration[G] if getDeclaratorInfo(globalDecl.decl.inits.head.decl).name == curNameSeq.head => RefCPPGlobalDeclaration(globalDecl, 0)
+              }
+            }
+            curNameSeq = curNameSeq.drop(1)
+          }
+          returnVal
+        case None => None
       }
     }
+  }
 
   def findForwardDeclaration[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPGlobalDeclaration[G]] =
     ctx.stack.flatten.collectFirst {
