@@ -95,6 +95,10 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     case Expression1(constant) => convert(constant)
     case Expression2(identifier) => convert(identifier)
     case Expression3(valExpr) => convert(valExpr)
+    case Expression4(e1, impOp, e2) => impOp match {
+      case ValImpOp0(_) => ???
+      case ValImpOp1(_) => Implies(convert(e1), convert(e2))
+    }
   }
 
   def convert(implicit inst: InstructionContext): Expr[G] = inst match {
@@ -128,6 +132,19 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
       case Sub(_) => Minus(left, right)
       case Mul(_) => Mult(left, right)
       case Udiv(_) | Sdiv(_) => FloorDiv(left, right)(blame(op))
+      // bitwise/boolean
+      case bitOp => left.t match {
+        case TBool() => bitOp match {
+          case LLVMSpecParserPatterns.And(_) => vct.col.ast.And(left, right)
+          case LLVMSpecParserPatterns.Or(_) => vct.col.ast.Or(left, right)
+          case Xor(_) => Neq(left, right)
+        }
+        case TInt() => bitOp match {
+          case LLVMSpecParserPatterns.And(_) => BitAnd(left, right)
+          case LLVMSpecParserPatterns.Or(_) => BitOr(left, right)
+          case Xor(_) => BitXor(left, right)
+        }
+      }
     }
   }
 

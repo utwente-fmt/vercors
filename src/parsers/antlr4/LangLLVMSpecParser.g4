@@ -5,6 +5,7 @@ expression
     | constant
     | identifier
     | valExpr
+    | <assoc=right> expression valImpOp expression
     ;
 
 instruction
@@ -52,6 +53,9 @@ binOp
     | MUL # mul
     | UDIV # udiv
     | SDIV # sdiv
+    | AND # and
+    | OR # or
+    | XOR # xor
     ;
 
 
