@@ -4,15 +4,20 @@ import vct.col.ast._
 import vct.col.resolve.NoSuchNameError
 import vct.col.resolve.ctx.ReferenceResolutionContext
 import vct.col.resolve.ctx._
+
 object LLVM {
 
   def findCallable[G](name: String, ctx: ReferenceResolutionContext[G]): Option[LlvmCallable[G]] = {
-    val callable = ctx.stack.flatten.collectFirst {
-      case RefLlvmGlobal(decl) if decl.data.nonEmpty => decl.data.get.collectFirst {
-        case f: LlvmSpecFunction[G] if f.name == name => f
+    // look in context
+    val callable = ctx.stack.flatten.map {
+      case RefLlvmGlobal(decl) => decl.data.get match {
+        case f: LlvmSpecFunction[G] if f.name == name => Some(f)
+        case _ => None
       }
-    }
-    callable.get match {
+      case _ => None
+    }.collectFirst { case Some(f) => f }
+    // if not present in context, might find it in the call site of the current function definition
+    callable match {
       case Some(callable) => Some(callable)
       case None => ctx.currentResult.get match {
         case RefLlvmFunctionDefinition(decl) =>
