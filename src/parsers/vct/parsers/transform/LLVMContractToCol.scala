@@ -101,15 +101,19 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     case BinOpRule(binOp) => convert(binOp)
     case CmpOpRule(cmpOp) => convert(cmpOp)
     case CallOpRule(callOp) => convert(callOp)
+    case BrOpRule(brOp) => convert(brOp)
+  }
+
+  def convert(implicit brOp:BranchInstructionContext): Expr[G] = brOp match {
+    case BranchInstruction0(_, _, testExpr, _, trueExpr, _, falseExpr, _) =>
+      Select(convert(testExpr), convert(trueExpr), convert(falseExpr))
   }
 
   def convert(implicit callOp: CallInstructionContext): Expr[G] = callOp match {
-    case CallInstruction0(_, id, _, exprList, _) => {
+    case CallInstruction0(_, id, _, exprList, _) =>
       val args: Seq[Expr[G]] = convert(exprList)
       LlvmAmbiguousFunctionInvocation(id, args, Nil, Nil)(blame(callOp))
-    }
   }
-
 
   def convert(implicit binOp: BinOpInstructionContext): Expr[G] = binOp match {
     case BinOpInstruction0(op, _, lhs, _, rhs, _) => convert(op, lhs, rhs)

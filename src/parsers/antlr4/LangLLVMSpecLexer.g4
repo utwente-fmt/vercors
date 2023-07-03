@@ -83,6 +83,9 @@ SDIV: 'sdiv';
 ICMP: 'icmp';
 CALL: 'call';
 
+// operators -> termops
+BR: 'br';
+
 // compare predicates
 EQ_pred: 'eq';
 NE_pred: 'ne';
