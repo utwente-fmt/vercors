@@ -560,6 +560,12 @@ class OddEvenSort {
 			////////////////////////////////////////////////////////////////Even phase
 
 			even_kernel(input, isSorted, contrib, loopCounter);
+			if(isSorted[0])
+			{
+			    // Restate precondition 1 of lemma_concat here to make sure it's provable later
+			    seq<int> xs = inp_seq_all[loopCounter[0]];
+			    assert (\forall int i; i >= 0 && i < |xs|/2 && 2*i+1 < |xs|; xs[2*i] <= xs[2*i+1]);
+			}
 
 			assert (\forall int i; 0 <= i && i < loopCounter[0]+1; input.length == |inp_seq_all[i]|);
 			inp_seq_all = inp_seq_all + seq<seq<int>> {inp_seq_cur};
@@ -571,6 +577,9 @@ class OddEvenSort {
 
 			if(isSorted[0])
 			{
+			    // Restate precondition 2 of lemma_concat explicitly here, this makes the proof go through
+			    seq<int> ys = inp_seq_all[loopCounter[0] + 1];
+			    assert (\forall int i; i>=0 && i < |ys|/2 && 2*i+2 < |ys|; ys[2*i+1] <= ys[2*i+2]);
 				lemma_concat(inp_seq_all[loopCounter[0]], inp_seq_all[loopCounter[0]+1]);
 			}
 
