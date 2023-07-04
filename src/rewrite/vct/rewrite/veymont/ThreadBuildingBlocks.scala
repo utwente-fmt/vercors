@@ -1,8 +1,7 @@
 package vct.rewrite.veymont
 
-import vct.col.ast.{ClassDeclaration, InstanceField, JavaClass, Statement, Type, VeyMontCommExpression, VeyMontThread}
+import vct.col.ast.{ClassDeclaration, InstanceField, JavaClass, Type, VeyMontCommExpression, VeyMontThread}
 import vct.col.origin.Origin
-import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewritten}
 
 class ThreadBuildingBlocks[Pre <: Generation](
