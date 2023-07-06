@@ -78,6 +78,7 @@ case object AxiomaticDataTypes extends Feature
 case object SmtOperators extends Feature
 case object JavaSpecific extends Feature
 case object CSpecific extends Feature
+case object CPPSpecific extends Feature
 case object PvlSpecific extends Feature
 case object SilverSpecific extends Feature
 case object Contracts extends Feature

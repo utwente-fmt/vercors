@@ -57,6 +57,8 @@ case object CoercionUtils {
 
       case (_ @ CTArray(_, innerType), _ @ TArray(element)) if element == innerType =>
         CoerceCArrayPointer(element)
+      case (_@CPPTArray(_, innerType), _@TArray(element)) if element == innerType =>
+        CoerceCPPArrayPointer(element)
 
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
@@ -122,6 +124,26 @@ case object CoercionUtils {
           case None => return None
         }
 
+      case (source@CPPPrimitiveType(specs), target) =>
+        specs.collectFirst { case spec: CPPSpecificationType[G] => spec } match {
+          case Some(CPPSpecificationType(t)) =>
+            CoercionSequence(Seq(
+              CoerceCPPPrimitiveToCol(source, t),
+              getCoercion(t, target).getOrElse(return None),
+            ))
+          case None => return None
+        }
+
+      case (source, target@CPPPrimitiveType(specs)) =>
+        specs.collectFirst { case spec: CPPSpecificationType[G] => spec } match {
+          case Some(CPPSpecificationType(t)) =>
+            CoercionSequence(Seq(
+              getCoercion(source, t).getOrElse(return None),
+              CoerceColToCPPPrimitive(t, target),
+            ))
+          case None => return None
+        }
+
       // Something with TVar?
 
       // Unsafe coercions
@@ -157,26 +179,48 @@ case object CoercionUtils {
       case None => None
     }
 
+  def getAnyCPPCoercion[G](source: Type[G]): Option[(Coercion[G], Type[G])] = source match {
+    case t: CPPPrimitiveType[G] =>
+      t.specifiers.collectFirst { case spec: CPPSpecificationType[G] => spec }.map {
+        case CPPSpecificationType(inner) => (CoerceCPPPrimitiveToCol(t, inner), inner)
+      }
+    case _ => None
+  }
+
+  def chainCPPCoercion[G, T](source: CPPPrimitiveType[G], next: Type[G] => Option[(Coercion[G], T)]): Option[(Coercion[G], T)] =
+    getAnyCPPCoercion(source) match {
+      case Some(inner) => next(inner._2) match {
+        case Some((coercion, finalType)) =>
+          Some((CoercionSequence(Seq(coercion, inner._1)), finalType))
+        case None => None
+      }
+      case None => None
+    }
+
   def getAnySeqCoercion[G](source: Type[G]): Option[(Coercion[G], TSeq[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySeqCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySeqCoercion)
     case t: TSeq[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnySetCoercion[G](source: Type[G]): Option[(Coercion[G], TSet[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySetCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySetCoercion)
     case t: TSet[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyBagCoercion[G](source: Type[G]): Option[(Coercion[G], TBag[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyBagCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyBagCoercion)
     case t: TBag[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnySizedCoercion[G](source: Type[G]): Option[(Coercion[G], SizedType[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySizedCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySizedCoercion)
     case t: TSeq[G] => Some((CoerceIdentity(source), t))
     case t: TSet[G] => Some((CoerceIdentity(source), t))
     case t: TBag[G] => Some((CoerceIdentity(source), t))
@@ -189,6 +233,8 @@ case object CoercionUtils {
     case t: TPointer[G] => Some((CoerceIdentity(source), t))
     case t: CTPointer[G] => Some((CoerceIdentity(source), TPointer(t.innerType)))
     case t: CTArray[G] => Some((CoerceCArrayPointer(t.innerType), TPointer(t.innerType)))
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyPointerCoercion)
+    case t: CPPTArray[G] => Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType)))
     case _: TNull[G] =>
       val t = TPointer[G](TAny())
       Some((CoerceNullPointer(t), t))
@@ -201,8 +247,15 @@ case object CoercionUtils {
     case _ => None
   }
 
+  def getAnyCPPArrayCoercion[G](source: Type[G]): Option[(Coercion[G], CPPTArray[G])] = source match {
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyCPPArrayCoercion)
+    case t: CPPTArray[G] => Some((CoerceIdentity(source), t))
+    case _ => None
+  }
+
   def getAnyArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TArray[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyArrayCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyArrayCoercion)
     case t: TArray[G] => Some((CoerceIdentity(source), t))
     case _: TNull[G] =>
       val t = TArray[G](TAny())
@@ -212,6 +265,7 @@ case object CoercionUtils {
 
   def getAnyMatrixArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TArray[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyMatrixArrayCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyMatrixArrayCoercion)
     case t @ TArray(TArray(_)) => Some((CoerceIdentity(source), t))
     case TArray(TNull()) => Some(???)
     case TNull() =>
@@ -222,36 +276,42 @@ case object CoercionUtils {
 
   def getAnyOptionCoercion[G](source: Type[G]): Option[(Coercion[G], TOption[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyOptionCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyOptionCoercion)
     case t: TOption[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyMapCoercion[G](source: Type[G]): Option[(Coercion[G], TMap[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyMapCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyMapCoercion)
     case t: TMap[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyTupleCoercion[G](source: Type[G]): Option[(Coercion[G], TTuple[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyTupleCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyTupleCoercion)
     case t: TTuple[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyMatrixCoercion[G](source: Type[G]): Option[(Coercion[G], TMatrix[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyMatrixCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyMatrixCoercion)
     case t: TMatrix[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyModelCoercion[G](source: Type[G]): Option[(Coercion[G], TModel[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyModelCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyModelCoercion)
     case t: TModel[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyClassCoercion[G](source: Type[G]): Option[(Coercion[G], TClass[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyClassCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyClassCoercion)
     case t: TClass[G] => Some((CoerceIdentity(source), t))
 
     case t: TUnion[G] =>
@@ -271,30 +331,35 @@ case object CoercionUtils {
 
   def getAnyEitherCoercion[G](source: Type[G]): Option[(Coercion[G], TEither[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyEitherCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyEitherCoercion)
     case t: TEither[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnyBitvecCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibBitVector[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyBitvecCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyBitvecCoercion)
     case t: TSmtlibBitVector[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnySmtlibFloatCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibFloatingPoint[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibFloatCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySmtlibFloatCoercion)
     case t: TSmtlibFloatingPoint[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnySmtlibArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibArray[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibArrayCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySmtlibArrayCoercion)
     case t: TSmtlibArray[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }
 
   def getAnySmtlibSeqCoercion[G](source: Type[G]): Option[(Coercion[G], TSmtlibSeq[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnySmtlibSeqCoercion)
+    case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnySmtlibSeqCoercion)
     case t: TSmtlibSeq[G] => Some((CoerceIdentity(source), t))
     case _ => None
   }

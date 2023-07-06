@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.util.Declarator
-import vct.col.ast.{CType, Declaration, GlobalDeclaration, JavaType, PVLType, Program, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type}
+import vct.col.ast.{CPPType, CType, Declaration, GlobalDeclaration, JavaType, PVLType, Program, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type}
 import vct.col.typerules.CoercingRewriter
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{Blame, SourceNameOrigin, UnsafeCoercion}
@@ -64,6 +64,7 @@ case object ImportADT {
     case TUnion(ts) => "union$" + ts.map(typeText).mkString("__") + "$"
     case _: JavaType[_] => throw ExtraNode
     case _: CType[_] => throw ExtraNode
+    case _: CPPType[_] => throw ExtraNode
     case _: PVLType[_] => throw ExtraNode
   }
 }

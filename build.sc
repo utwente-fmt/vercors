@@ -41,19 +41,20 @@ object col extends VercorsModule {
 
 
 object parsers extends VercorsModule {
-  def key = "parsers"
-  def generatedSources = T.sources {
-    Seq(
-      antlr.c.generate(),
-      antlr.java.generate(),
-      antlr.pvl.generate(),
-			antlr.llvm.generate(),
-    )
-  }
-  def deps = Agg(
-    ivy"org.antlr:antlr4-runtime:4.8"
-  )
-  def moduleDeps = Seq(hre, col)
+	def key = "parsers"
+	def generatedSources = T.sources {
+		Seq(
+			antlr.c.generate(),
+			antlr.cpp.generate(),
+			antlr.java.generate(),
+			antlr.pvl.generate(),
+      antlr.llvm.generate(),
+		)
+	}
+	def deps = Agg(
+		ivy"org.antlr:antlr4-runtime:4.8"
+	)
+	def moduleDeps = Seq(hre, col)
 }
 
 object rewrite extends VercorsModule {

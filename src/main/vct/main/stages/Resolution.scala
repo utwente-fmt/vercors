@@ -2,31 +2,24 @@ package vct.main.stages
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.stages.Stage
-import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, LlvmFunctionContract, Program, Refute, Verification, VerificationContext}
 import org.antlr.v4.runtime.CharStreams
+import vct.col.ast._
 import vct.col.check.CheckError
-import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
-import vct.col.origin.{ExpectedError, FileSpanningOrigin, LLVMOrigin, Origin}
-import vct.col.resolve.lang.{C, Java}
+import vct.col.origin.{FileSpanningOrigin, LLVMOrigin, Origin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
 import vct.col.rewrite.bip.IsolateBipGlue
+import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
-import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Resolution.InputResolutionError
-import vct.main.stages.Transformation.TransformationCheckError
 import vct.options.Options
 import vct.options.types.ClassPathEntry
-import vct.parsers.ParseResult
-import vct.parsers.transform.BlameProvider
-import vct.parsers.{ColJavaParser, ColLLVMParser, FileNotFound, ParseResult}
 import vct.parsers.transform.{BlameProvider, ReadableOriginProvider, RedirectOriginProvider}
+import vct.parsers.{ColJavaParser, ColLLVMParser, FileNotFound, ParseResult}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
-import viper.silver.frontend.DefaultStates.Initial
 
 import java.io.{FileNotFoundException, Reader}
-import java.nio.file.Path
 
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
