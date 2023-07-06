@@ -39,6 +39,9 @@ BooleanLiteral: False | True;
 
 PointerLiteral: Nullptr;
 
+// EW: Will be moved to own SYCL lexer later
+SYCLQueue: 'sycl::queue';
+
 UserDefinedLiteral:
 	UserDefinedIntegerLiteral
 	| UserDefinedFloatingLiteral

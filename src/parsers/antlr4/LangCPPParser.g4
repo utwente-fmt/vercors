@@ -446,6 +446,7 @@ simpleTypeSpecifier:
 	| Float
 	| simpleTypeLengthModifier? Double
 	| Void
+	| SYCLQueue // EW: Will be moved to own SYCL Parser later
 	| Auto
 	| {specLevel>0}? valType
 	| decltypeSpecifier;

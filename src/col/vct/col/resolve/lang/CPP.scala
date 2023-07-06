@@ -65,6 +65,7 @@ case object CPP {
       case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
       case Seq(CPPSpecificationType(t@TFloat(_, _))) => t
       case Seq(CPPBool()) => TBool()
+      case Seq(SYCLQueue()) => TSYCLQueue()
       case Seq(defn@CPPTypedefName(_)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ
       case spec +: _ => throw CPPTypeNotSupported(context.orElse(Some(spec)))
@@ -80,44 +81,70 @@ case object CPP {
   def paramsFromDeclarator[G](declarator: CPPDeclarator[G]): Seq[CPPParam[G]] =
     getDeclaratorInfo(declarator).params.get
 
-  def findCPPTypeName[G](names: Seq[String], ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] =
+  def findCPPTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] =
     ctx.stack.flatten.collectFirst {
-      case target: CPPTypeNameTarget[G] if target.name == names.mkString("::") => target
+      case target: CPPTypeNameTarget[G] if target.name == name => target
     }
 
-  def findCPPName[G](name: Seq[String], ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] = {
-    if (name.length == 1) {
+  def replacePotentialSYCLClassInstance[G](name: String, ctx: ReferenceResolutionContext[G]): String = {
+    if (name.contains('.') && name.count(x => x == '.') == 1) {
+      // Class method, replace with SYCL equivalent
+      val classVarName = name.split('.').head
+      val methodName = name.split('.').last
+
+      // Get type (so class) of variable (instance)
+      val classTarget = ctx.stack.flatten.collectFirst {
+        case target: CPPNameTarget[G] if target.name == classVarName => target
+      }
+      val className = classTarget match {
+        case Some(RefCPPLocalDeclaration(decl, _)) => Some(getPrimitiveType(decl.decl.specs))
+        case Some(RefCPPGlobalDeclaration(decl, _)) => Some(getPrimitiveType(decl.decl.specs))
+        case _ => None
+      }
+      // Replace class reference name to a namespace name
+      if (className.isDefined) {
+        return name.replace(classVarName + ".", "VERCORS::" + className.get.toString + "::VERCORS__")
+      }
+    }
+    name
+  }
+
+  def findCPPName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] = {
+    val targetName: String = replacePotentialSYCLClassInstance(name, ctx)
+
+    var nameSeq = targetName.split("::")
+    if (nameSeq.length == 1) {
       ctx.stack.flatten.collectFirst {
-        case target: CPPNameTarget[G] if target.name == name.head => target
+        case target: CPPNameTarget[G] if target.name == targetName => target
       }
     } else {
       val ctxTarget: Option[RefCPPNamespaceDefinition[G]] = ctx.stack.flatten.collectFirst {
-        case namespace: RefCPPNamespaceDefinition[G] if namespace.decl.name == name.head => namespace
+        case namespace: RefCPPNamespaceDefinition[G] if namespace.decl.name == nameSeq.head => namespace
       }
 
       ctxTarget match {
         case Some(ref) =>
-          var curNameSeq = name.drop(1);
-          var foundNamespace: Option[CPPNamespaceDefinition[G]] = Some(ref.decl);
+          nameSeq = nameSeq.drop(1);
+          var foundNamespace: Option[CPPNamespaceDefinition[G]] = Some(ref.decl)
           var returnVal: Option[CPPNameTarget[G]] = None;
-          while (curNameSeq.nonEmpty) {
+          while (nameSeq.nonEmpty) {
             if (foundNamespace.isEmpty) {
               return None
             }
 
-            if (curNameSeq.length > 1) {
+            if (nameSeq.length > 1) {
               // Look for nested namespaces
               foundNamespace = foundNamespace.get.declarations.collectFirst {
-                case namespace: CPPNamespaceDefinition[G] if namespace.name == curNameSeq.head => namespace
+                case namespace: CPPNamespaceDefinition[G] if namespace.name == nameSeq.head => namespace
               }
             } else {
               // Look for final nameTarget
               returnVal = foundNamespace.get.declarations.collectFirst {
-                case funcDef: CPPFunctionDefinition[G] if getDeclaratorInfo(funcDef.declarator).name == curNameSeq.head  => RefCPPFunctionDefinition(funcDef)
-                case globalDecl: CPPGlobalDeclaration[G] if getDeclaratorInfo(globalDecl.decl.inits.head.decl).name == curNameSeq.head => RefCPPGlobalDeclaration(globalDecl, 0)
+                case funcDef: CPPFunctionDefinition[G] if getDeclaratorInfo(funcDef.declarator).name == nameSeq.head  => RefCPPFunctionDefinition(funcDef)
+                case globalDecl: CPPGlobalDeclaration[G] if getDeclaratorInfo(globalDecl.decl.inits.head.decl).name == nameSeq.head => RefCPPGlobalDeclaration(globalDecl, 0)
               }
             }
-            curNameSeq = curNameSeq.drop(1)
+            nameSeq = nameSeq.drop(1)
           }
           returnVal
         case None => None

@@ -19,6 +19,9 @@ trait CPPInvocationImpl[G] { this: CPPInvocation[G] =>
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstancePredicate(decl) => decl.returnType
+    case BuiltinInstanceMethod(f) => applicable match {
+      case _ => throw Unreachable("BuiltinInstanceMethod resolution of CPPInvocation cannot invoke anything.")
+    }
   }
 
   override def precedence: Int = Precedence.POSTFIX

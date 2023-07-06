@@ -129,7 +129,7 @@ case object ResolveTypes {
       ))
     case t@CPPTypedefName(nestedName) =>
       t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
-        throw NoSuchNameError("class, struct, or namespace", nestedName.mkString("::"), t)
+        throw NoSuchNameError("class, struct, or namespace", nestedName, t)
       ))
     case t @ PVLNamedType(name, typeArgs) =>
       t.ref = Some(PVL.findTypeName(name, ctx).getOrElse(
@@ -350,7 +350,7 @@ case object ResolveReferences extends LazyLogging {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPLocal(name) =>
-      local.ref = Some(CPP.findCPPName(name, ctx).getOrElse(throw NoSuchNameError("local", name.mkString("::"), local)))
+      local.ref = Some(CPP.findCPPName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))

@@ -10,6 +10,7 @@
 	}
 */
 
+//@ context_everywhere size >= 0;
 //@ context_everywhere \pointer(a, size, read);
 int sum(int a[], int size) {
 	//@ ghost bool positive = true;

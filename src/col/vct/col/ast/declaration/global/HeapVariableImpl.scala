@@ -5,7 +5,7 @@ import vct.col.print._
 
 trait HeapVariableImpl[G] { this: HeapVariable[G] =>
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
-    case Ctx.C | Ctx.Cuda | Ctx.OpenCL =>
+    case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP =>
       val (spec, decl) = t.layoutSplitDeclarator
       spec <+> decl <> ctx.name(this) <> ";"
     case _ =>

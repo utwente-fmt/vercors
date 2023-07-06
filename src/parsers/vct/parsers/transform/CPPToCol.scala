@@ -339,6 +339,11 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case PostfixExpression3(target, _, args, _, given, yields) =>
       CPPInvocation(convert(target), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
+    case PostfixExpression4(classVar, _, None, idExpr) =>
+      convert(classVar) match {
+        case CPPLocal(className) => CPPLocal(className + "." + convert(idExpr).nestedName)(blame(expr))
+        case _ => ??(expr)
+      }
     case PostfixExpression8(targetNode, _) =>
       val target = convert(targetNode)
       PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
@@ -493,7 +498,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case SimpleTypeSpecifier11(Some(typeLengthMod), _) => Seq(convert(typeLengthMod), CPPSpecificationType(TFloats.ieee754_64bit))
     case SimpleTypeSpecifier11(None, _) => Seq(CPPSpecificationType(TFloats.ieee754_64bit))
     case SimpleTypeSpecifier12(_) => Seq(new CPPVoid[G]())
-    case SimpleTypeSpecifier14(valType) => Seq(CPPSpecificationType(convert(valType)))
+    case SimpleTypeSpecifier13(_) => Seq(new SYCLQueue[G]())
+    case SimpleTypeSpecifier15(valType) => Seq(CPPSpecificationType(convert(valType)))
     case x => ??(x)
   }
 
@@ -509,24 +515,24 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
 
   // Do not support template or decltypes, or a typename as identifier in the nestedname
   def convert(implicit nestedNameSpec: NestedNameSpecifierContext): CPPTypedefName[G] = nestedNameSpec match {
-    case NestedNameSpecifier0(theTypeName, _) =>
+    case NestedNameSpecifier0(theTypeName, sep) =>
       convert(theTypeName) match {
-        case name@CPPTypedefName(_) => name
+        case name@CPPTypedefName(_) => name.appendName(sep)
         case x => ??(theTypeName)
       }
-    case NestedNameSpecifier1(namespaceName, _) => convert(namespaceName)
-    case NestedNameSpecifier3(_) => CPPTypedefName(Seq())
-    case NestedNameSpecifier4(inner, id, _) =>
+    case NestedNameSpecifier1(namespaceName, sep) => convert(namespaceName).appendName(sep)
+    case NestedNameSpecifier3(sep) => CPPTypedefName(sep)
+    case NestedNameSpecifier4(inner, id, sep) =>
       convert(inner) match {
-        case CPPTypedefName(nestedName) => CPPTypedefName(nestedName :+ convert(id))
+        case name@CPPTypedefName(_) => name.appendName(convert(id)).appendName(sep)
         case _ => ??(inner)
       }
     case x => ??(x)
   }
 
   def convert(implicit namespaceName: NamespaceNameContext): CPPTypedefName[G] = namespaceName match {
-    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(Seq(convert(id)))
-    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(Seq(convert(id)))
+    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(convert(id))
+    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(convert(id))
   }
 
   // Do not support enum-names, typedef-names and template-names
@@ -537,7 +543,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
 
   // Do not support template-names
   def convert(implicit className: ClassNameContext): CPPTypeSpecifier[G] = className match {
-    case ClassName0(name) => CPPTypedefName(Seq(convert(name)))
+    case ClassName0(name) => CPPTypedefName(convert(name))
     case x => ??(x)
   }
 
@@ -622,13 +628,13 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
 
   // Do not support if spread operator '...' is used
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
-    case Declaratorid0(None, idExpr) => CPPName(convert(idExpr).nestedName.mkString("::"))
+    case Declaratorid0(None, idExpr) => CPPName(convert(idExpr).nestedName)
     case x => ??(x)
   }
 
   // Do not support operatorFunctionId, conversionFunctionId, literalOperatorId, templateId, and things starting with a tilde
   def convert(implicit unqualifiedId: UnqualifiedIdContext): CPPTypedefName[G] = unqualifiedId match {
-    case UnqualifiedId0(clangppId) => CPPTypedefName(Seq(convert(clangppId)))
+    case UnqualifiedId0(clangppId) => CPPTypedefName(convert(clangppId))
     case x => ??(x)
   }
 
@@ -667,7 +673,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CPPLocal(Seq(name))(blame(ctx))(origin(ctx))
+    CPPLocal(name)(blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)

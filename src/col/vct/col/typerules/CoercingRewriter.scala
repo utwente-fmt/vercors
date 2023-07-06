@@ -177,6 +177,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceJavaClassAnyClass(_) => e
       case CoerceCPrimitiveToCol(_, _) => e
       case CoerceColToCPrimitive(_, _) => e
+      case CoerceCPPPrimitiveToCol(_, _) => e
+      case CoerceColToCPPPrimitive(_, _) => e
       case CoerceNullRef() => e
       case CoerceNullArray(_) => e
       case CoerceNullClass(_) => e
@@ -1998,6 +2000,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CPPBool() => CPPBool()
       case CPPTypedefName(name) => CPPTypedefName(name)
       case CPPSpecificationType(t) => CPPSpecificationType(t)
+      case SYCLQueue() => SYCLQueue()
     }
   }
 

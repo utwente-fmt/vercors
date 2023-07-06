@@ -3,15 +3,6 @@
 //:: tools silicon
 //:: verdict Pass
 
-void test() {
-	// Not supported atm
-//	int arr[10];
-	// assert \array(arr, 10);
-	// assert \pointer(arr, 10, write);
-//	arr[5] = 8;
-	// assert arr[5] == 8;
-}
-
 //@ requires a != nullptr && size > 0;
 //@ context \pointer(a, size, read);
 //@ requires (\forall int i = 0 .. size; {: a[i] :} == 0);

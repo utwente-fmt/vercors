@@ -6,7 +6,7 @@ void test() {
 	int a = 10;
 	int b = 10;
 
-	{ // CompoundStatement { statements }
+	{
 		a = 20;
 		int b = 20;
 		//@ assert a == 20;

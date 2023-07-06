@@ -167,7 +167,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteNamespaceDef(ns: CPPNamespaceDefinition[Pre]): Unit = {
     ns.drop()
     namespace.having(ns) {
-      // Do not enter a scope, so classes of the namespace are declared to the program.
+      // Do not enter a scope, so methods of the namespace are declared globally to the program.
       ns.declarations.foreach(rw.dispatch)
     }
   }
