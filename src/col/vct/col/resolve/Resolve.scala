@@ -10,7 +10,7 @@ import vct.col.origin._
 import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.{C, CPP, Java, PVL, Spec}
+import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
@@ -31,7 +31,9 @@ case object Resolve {
   }
 
   trait SpecContractParser {
-    def parse[G](input: LlvmFunctionContract[G], o:Origin): ApplicableContract[G]
+    def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G]
+
+    def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -335,6 +337,9 @@ case object ResolveReferences extends LazyLogging {
       }
     case func: LlvmFunctionDefinition[G] => ctx
       .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
+    case func: LlvmSpecFunction[G] => ctx
+      .copy(currentResult = Some(RefLlvmSpecFunction(func)))
+      .declare(func.args)
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
@@ -625,15 +630,18 @@ case object ResolveReferences extends LazyLogging {
             case Some(ref) => Some(ref._2)
             case None => throw NoSuchNameError("local", local.name, local)
           }
+        case RefLlvmSpecFunction(_) =>
+          Some(Spec.findLocal(local.name, ctx).getOrElse(throw NoSuchNameError("local", local.name, local)).ref)
       }
     case inv: LlvmAmbiguousFunctionInvocation[G] =>
-      inv.ref = ctx.currentResult.get match {
-        case RefLlvmFunctionDefinition(decl) =>
-          decl.contract.invokableRefs.find(ref => ref._1 == inv.name) match {
-            case Some(ref) => Some(ref._2)
-            case None => throw NoSuchNameError("function", inv.name, inv)
-          }
+      inv.ref = LLVM.findCallable(inv.name, ctx) match {
+        case Some(callable) => Some(callable.ref)
+        case None => throw NoSuchNameError("function", inv.name, inv)
       }
+    case glob: LlvmGlobal[G] =>
+      val decl = ctx.llvmSpecParser.parse(glob, glob.o)
+      glob.data = Some(decl)
+      resolve(decl, ctx)
     case _ =>
   }
 }

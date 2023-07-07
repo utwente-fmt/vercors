@@ -1766,7 +1766,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case definition: LlvmFunctionDefinition[Pre] => definition
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
-    }
+      case function: LlvmSpecFunction[Pre] =>
+        new LlvmSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
+      case glob: LlvmGlobal[Pre] => glob
+      }
   }
 
   def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {

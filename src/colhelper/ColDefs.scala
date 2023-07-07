@@ -74,7 +74,8 @@ object ColDefs {
       "CFunctionDefinition",
       "CPPFunctionDefinition",
       "PVLConstructor",
-      "LlvmFunctionDefinition"
+      "LlvmFunctionDefinition",
+      "LlvmSpecFunction"
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),
     "SendDecl" -> Seq("ParBlock", "Loop"),

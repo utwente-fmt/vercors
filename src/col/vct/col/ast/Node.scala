@@ -1144,36 +1144,35 @@ final case class BipInternal[G]()(implicit val o: Origin = DiagnosticOrigin) ext
 final case class BipPortSynchronization[G](ports: Seq[Ref[G, BipPort[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipPortSynchronizationImpl[G]
 final case class BipTransitionSynchronization[G](transitions: Seq[Ref[G, BipTransition[G]]], wires: Seq[BipGlueDataWire[G]])(val blame: Blame[BipSynchronizationFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with BipTransitionSynchronizationImpl[G]
 
-final class LlvmFunctionContract[G](val value:String, val variableRefs:Seq[(String, Ref[G, Variable[G]])], val invokableRefs:Seq[(String, Ref[G, LlvmFunctionDefinition[G]])])
+final class LlvmFunctionContract[G](val value:String, val variableRefs:Seq[(String, Ref[G, Variable[G]])], val invokableRefs:Seq[(String, Ref[G, LlvmCallable[G]])])
                                    (val blame: Blame[NontrivialUnsatisfiable])
                                    (implicit val o: Origin) extends NodeFamily[G] with LLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-
+sealed trait LlvmCallable[G] extends GlobalDeclaration[G]
 final class LlvmFunctionDefinition[G](val returnType: Type[G],
                                       val args: Seq[Variable[G]],
                                       val functionBody: Statement[G],
                                       val contract: LlvmFunctionContract[G],
                                       val pure: Boolean = false)
                                      (val blame: Blame[CallableFailure])(implicit val o: Origin)
-  extends GlobalDeclaration[G] with Applicable[G] with LLVMFunctionDefinitionImpl[G]
-
+  extends LlvmCallable[G] with Applicable[G] with LLVMFunctionDefinitionImpl[G]
+final class LlvmSpecFunction[G](val name: String, val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
+                                val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false)
+                               (val blame: Blame[ContractedFailure])(implicit val o: Origin)
+  extends LlvmCallable[G] with AbstractFunction[G] with LLVMSpecFunctionImpl[G]
 final case class LlvmFunctionInvocation[G](ref: Ref[G, LlvmFunctionDefinition[G]],
                                      args: Seq[Expr[G]],
                                      givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
                                      yields: Seq[(Expr[G], Ref[G, Variable[G]])])
                                     (val blame: Blame[InvocationFailure])(implicit val o: Origin) extends Apply[G] with LLVMFunctionInvocationImpl[G]
-
 final case class LlvmLoop[G](cond:Expr[G], contract:LlvmLoopContract[G], body:Statement[G])
                        (implicit val o: Origin) extends CompositeStatement[G] with LLVMLoopImpl[G]
-
 sealed trait LlvmLoopContract[G] extends NodeFamily[G] with LLVMLoopContractImpl[G]
 final case class LlvmLoopInvariant[G](value:String, references:Seq[(String, Ref[G, Declaration[G]])])
                                      (val blame: Blame[LoopInvariantFailure])
                                      (implicit val o: Origin) extends LlvmLoopContract[G] with LLVMLoopInvariantImpl[G]
-
 sealed trait LlvmExpr[G] extends Expr[G] with LLVMExprImpl[G]
-
 final case class LlvmLocal[G](name: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends LlvmExpr[G] with LLVMLocalImpl[G] {
   var ref: Option[Ref[G, Variable[G]]] = None
 }
@@ -1182,7 +1181,11 @@ final case class LlvmAmbiguousFunctionInvocation[G](name: String,
                                                     givenMap: Seq[(Ref[G, Variable[G]], Expr[G])],
                                                     yields: Seq[(Expr[G], Ref[G, Variable[G]])])
                                                    (val blame: Blame[InvocationFailure])(implicit val o: Origin) extends LlvmExpr[G] with LLVMAmbiguousFunctionInvocationImpl[G] {
-  var ref: Option[Ref[G, LlvmFunctionDefinition[G]]] = None
+  var ref: Option[Ref[G, LlvmCallable[G]]] = None
+}
+
+final class LlvmGlobal[G](val value: String)(implicit val o: Origin) extends GlobalDeclaration[G] with LLVMGlobalImpl[G] {
+  var data: Option[GlobalDeclaration[G]] = None
 }
 sealed trait PVLType[G] extends Type[G] with PVLTypeImpl[G]
 final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends PVLType[G] with PVLNamedTypeImpl[G] {

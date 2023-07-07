@@ -79,10 +79,17 @@ SUB: 'sub';
 MUL: 'mul';
 UDIV: 'udiv';
 SDIV: 'sdiv';
+// bitwise
+AND: 'and';
+OR: 'or';
+XOR: 'xor';
 
 // operators -> other
 ICMP: 'icmp';
 CALL: 'call';
+
+// operators -> termops
+BR: 'br';
 
 // compare predicates
 EQ_pred: 'eq';

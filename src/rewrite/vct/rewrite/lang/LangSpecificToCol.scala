@@ -74,6 +74,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case decl: CPPLocalDeclaration[Pre] => ???
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+    case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
