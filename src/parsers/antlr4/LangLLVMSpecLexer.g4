@@ -27,6 +27,7 @@ COLON: ':';
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_PACKAGE: 'package';
+CONS: '::';
 
 INC: '++';
 ARROW: '->';

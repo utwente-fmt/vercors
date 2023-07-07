@@ -37,6 +37,8 @@ object ColDefs {
     "ParInvariantDecl",
     "CLocalDeclaration",
     "CParam",
+    "CPPLocalDeclaration",
+    "CPPParam",
     "JavaLocalDeclaration",
     "VeyMontThread",
     "JavaParam",
@@ -70,6 +72,7 @@ object ColDefs {
       "InstanceFunction", "InstanceMethod",
       "JavaConstructor", "JavaMethod",
       "CFunctionDefinition",
+      "CPPFunctionDefinition",
       "PVLConstructor",
       "LlvmFunctionDefinition",
       "LlvmSpecFunction"
@@ -84,6 +87,13 @@ object ColDefs {
     ),
     "CParam" -> Seq(
       "CGlobalDeclaration", "CFunctionDefinition",
+    ),
+    "CPPLocalDeclaration" -> Seq(
+      "CPPGlobalDeclaration", "CPPFunctionDefinition",
+      "Scope",
+    ),
+    "CPPParam" -> Seq(
+      "CPPGlobalDeclaration", "CPPFunctionDefinition",
     ),
     "JavaLocalDeclaration" -> Seq(
       "JavaConstructor", "JavaMethod",

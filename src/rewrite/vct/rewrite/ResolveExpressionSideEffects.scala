@@ -320,6 +320,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
       case proof: FramedProof[Pre] => rewriteDefault(proof)
       case _: CStatement[Pre] => throw ExtraNode
+      case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
     }
   }

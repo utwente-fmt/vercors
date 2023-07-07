@@ -10,7 +10,7 @@ import vct.col.origin._
 import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.{C, Java, LLVM, PVL, Spec}
+import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
@@ -129,6 +129,10 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
+    case t@CPPTypedefName(nestedName) =>
+      t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
+        throw NoSuchNameError("class, struct, or namespace", nestedName, t)
+      ))
     case t @ PVLNamedType(name, typeArgs) =>
       t.ref = Some(PVL.findTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("class", name, t)))
@@ -214,6 +218,7 @@ case object ResolveReferences extends LazyLogging {
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
     case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
     => Seq(decl)
+    case CPPDeclarationStatement(decl) => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
     case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
@@ -303,7 +308,6 @@ case object ResolveReferences extends LazyLogging {
       if(func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
         throw MultipleForwardDeclarationContractError(func)
       }
-
       func.decl.inits.zipWithIndex.foldLeft(
         ctx.declare(func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
       ) {
@@ -312,6 +316,24 @@ case object ResolveReferences extends LazyLogging {
           ctx
             .declare(info.params.getOrElse(Nil))
             .copy(currentResult=info.params.map(_ => RefCGlobalDeclaration(func, idx)))
+      }
+    case func: CPPFunctionDefinition[G] =>
+      ctx
+        .copy(currentResult = Some(RefCPPFunctionDefinition(func)))
+        .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
+    case ns: CPPNamespaceDefinition[G] => ctx.declare(ns.declarations)
+    case func: CPPGlobalDeclaration[G] =>
+      if (func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
+        throw MultipleForwardDeclarationContractError(func)
+      }
+      func.decl.inits.zipWithIndex.foldLeft(
+        ctx.declare(func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
+      ) {
+        case (ctx, (init, idx)) =>
+          val info = CPP.getDeclaratorInfo(init.decl)
+          ctx
+            .declare(info.params.getOrElse(Nil))
+            .copy(currentResult = info.params.map(_ => RefCPPGlobalDeclaration(func, idx)))
       }
     case func: LlvmFunctionDefinition[G] => ctx
       .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
@@ -332,6 +354,8 @@ case object ResolveReferences extends LazyLogging {
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@CPPLocal(name) =>
+      local.ref = Some(CPP.findCPPName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
@@ -380,6 +404,10 @@ case object ResolveReferences extends LazyLogging {
 
     case inv@CInvocation(obj, _, givenMap, yields) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv@CPPInvocation(obj, _, givenMap, yields) =>
+      inv.ref = Some(CPP.resolveInvocation(obj))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv@GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>
@@ -468,6 +496,11 @@ case object ResolveReferences extends LazyLogging {
       defn.ref = C.findForwardDeclaration(defn.declarator, ctx)
     case decl: CInit[G] =>
       decl.ref = C.findDefinition(decl.decl, ctx)
+
+    case defn: CPPFunctionDefinition[G] =>
+      defn.ref = CPP.findForwardDeclaration(defn.declarator, ctx)
+    case decl: CPPInit[G] =>
+      decl.ref = CPP.findDefinition(decl.decl, ctx)
 
     case goto@CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
