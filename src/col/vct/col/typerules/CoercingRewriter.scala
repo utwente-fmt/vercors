@@ -1574,7 +1574,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case ass @ SilverFieldAssign(obj, field, value) => SilverFieldAssign(ref(obj), field, coerce(value, field.decl.t))(ass.blame)
       case SilverLocalAssign(v, value) => SilverLocalAssign(v, coerce(value, v.decl.t))
       case SilverNewRef(v, fields) => SilverNewRef(v, fields)
-      case Skip() => Skip()
       case SpecIgnoreEnd() => SpecIgnoreEnd()
       case SpecIgnoreStart() => SpecIgnoreStart()
       case Switch(expr, body) => Switch(expr, body)
