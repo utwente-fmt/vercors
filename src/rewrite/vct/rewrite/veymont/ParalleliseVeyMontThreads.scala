@@ -158,7 +158,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
 
     override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-      case jc: JavaConstructor[Pre] => classDeclarations.declare(jc.rewrite(name = getChannelClassName(channelType))) //TODO: deze rewrite verwijderd de constructor..
+      case jc: JavaConstructor[Pre] => classDeclarations.declare(jc.rewrite(name = getChannelClassName(channelType)))
       case other => rewriteDefault(other)
     }
   }

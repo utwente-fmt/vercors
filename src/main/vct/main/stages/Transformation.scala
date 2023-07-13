@@ -65,13 +65,12 @@ object Transformation {
         )
     }
 
-  def veymontOfOptions(options: Options): Transformation =
+  def veymontTransformationOfOptions(options: Options): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         VeyMontTransformation(
           onBeforePassKey = writeOutFunctions(options.outputBeforePass),
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
-          channelClass = Util.loadJavaClass(options.veymontChannel),
         )
     }
 }
@@ -289,12 +288,12 @@ case class SilverTransformation
   ))
 
 case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                                 val channelClass: JavaClass[_])
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     AddVeyMontAssignmentNodes,
     AddVeyMontConditionNodes,
     StructureCheck,
-    ParalleliseVeyMontThreads.withArg(channelClass),
   ))
+
+
 
