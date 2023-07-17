@@ -1,11 +1,11 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.{RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
-import vct.col.ast.{ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
 import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefJavaMethod
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg, Rewritten}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.ParalleliseVeyMontThreads.{ChannelFieldOrigin, ParalliseVeyMontThreadsError, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
@@ -123,8 +123,15 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         rewritingConstr.top._2.cls.decl.o.preferredName,
         p.args.map(createJavaParam),
         variables.dispatch(p.typeArgs),
-        Seq.empty, dispatch(p.body.get),
-        dispatch(p.contract))(null)(p.o)
+        Seq.empty,
+        p.body match {
+          case Some(s: Scope[Pre]) => s.body match {
+            case b: Block[Pre] => dispatch(Block(b.statements.tail.dropRight(1))(p.o))
+            case other => dispatch(other)
+          }
+          case None => Block(Seq.empty)(p.o)
+        },
+        p.contract.rewrite(ensures = UnitAccountedPredicate[Post](BooleanValue(true)(p.o))(p.o)))(null)(p.o)
 
     def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
       new JavaParam[Post](Seq.empty, getVarName(v), dispatch(v.t))(v.o)
@@ -134,23 +141,19 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         if(rewritingConstr.nonEmpty && rewritingConstr.top._1.contains(l.ref.decl))
           JavaLocal[Post](getVarName(l.ref.decl))(null)(e.o)
         else rewriteDefault(l)
-      case no: NewObject[Pre] =>
-        val newClassType = TClass(no.cls)
-        if(rewritingConstr.nonEmpty && rewritingConstr.top._2 == newClassType)
-          NewObject(givenClassSucc.ref[Post,Class[Post]](newClassType))(no.o)
-        else rewriteDefault(no)
       case t: ThisObject[Pre] =>
         val thisClassType = TClass(t.cls)
         if(rewritingConstr.nonEmpty && rewritingConstr.top._2 == thisClassType)
           ThisObject(givenClassSucc.ref[Post,Class[Post]](thisClassType))(t.o)
         else rewriteDefault(t)
+      case d: Deref[Pre] =>
+        if(rewritingConstr.nonEmpty)
+          d.obj match {
+            case _: Local[Pre] => d.rewrite(obj = ThisObject(givenClassSucc.ref[Post,Class[Post]](rewritingConstr.top._2))(d.o))
+            case other => rewriteDefault(other)
+          }
+        else rewriteDefault(d)
       case other => rewriteDefault(other)
-    }
-
-    override def dispatch(t: Type[Pre]): Type[Post] = {
-      if(rewritingConstr.nonEmpty && rewritingConstr.top._2 == t)
-        TClass(givenClassSucc.ref(t))
-      else rewriteDefault(t)
     }
   }
 
@@ -190,13 +193,13 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     val threadConstrArgs: Seq[JavaParam[Post]] =
       threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a, t)(ThreadClassOrigin(thread)) }
     val passedArgs = threadConstrArgs.map(a => JavaLocal[Post](a.name)(null)(ThreadClassOrigin(thread)))
-    val ThreadTypeName = thread.threadType match {
+    val threadTypeName = thread.threadType match { //TODO: replace by using givenClassSucc
       case tc: TClass[Pre] => tc.cls.decl.o.preferredName
       case _ => throw ParalliseVeyMontThreadsError(thread.threadType,"This type is expected to be a class")
     }
     val threadConstrBody = {
       Assign(getThisVeyMontDeref(thread,ThreadClassOrigin(thread),threadField),
-      JavaInvocation[Post](None, Seq.empty, "new " + ThreadTypeName, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
+      JavaInvocation[Post](None, Seq.empty, "new " + threadTypeName, passedArgs, Seq.empty, Seq.empty)(null)(ThreadClassOrigin(thread)))(null)(ThreadClassOrigin(thread))
     }
     val threadConstrContract = new ApplicableContract[Post](
       UnitAccountedPredicate[Post](BooleanValue(true)(ThreadClassOrigin(thread)))(ThreadClassOrigin(thread)),
