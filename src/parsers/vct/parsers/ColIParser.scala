@@ -2,7 +2,6 @@ package vct.parsers
 
 import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
 import vct.antlr4.generated.{CParser, LangCLexer}
-import vct.col.ast.GlobalDeclaration
 import vct.parsers.transform.{BlameProvider, CToCol, OriginProvider}
 
 case class ColIParser(override val originProvider: OriginProvider, override val blameProvider: BlameProvider) extends Parser(originProvider, blameProvider) {

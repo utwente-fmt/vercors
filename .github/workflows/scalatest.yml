@@ -33,7 +33,7 @@ jobs:
             !**/upstreamAssembly.json
           key: vercors-ci-ubuntu
       - name: Compile
-        run: ./mill --no-default-predef -j 0 allTests.assembly
+        run: ./mill -j 0 allTests.assembly
       - name: Upload
         uses: actions/upload-artifact@v3
         with:

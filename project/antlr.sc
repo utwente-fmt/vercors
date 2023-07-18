@@ -2,7 +2,7 @@ import $file.common
 import $file.fetchJars
 
 import mill._
-import modules.Jvm
+import util.Jvm
 import define._
 
 import common.Dir
@@ -12,13 +12,13 @@ trait GenModule extends Module {
   def base = T { Dir.src / "parsers" / "antlr4" }
 
   def lexer: String
-  final def lexerRef: Sources = T.sources { base() / lexer }
+  final def lexerRef = T.sources { base() / lexer }
 
   def parser: String
-  final def parserRef: Sources = T.sources { base() / parser }
+  final def parserRef = T.sources { base() / parser }
 
   def deps: Seq[String]
-  final def depsRef: Sources = T.sources { deps.map(dep => base() / dep).map(PathRef(_)) }
+  final def depsRef = T.sources { deps.map(dep => base() / dep).map(PathRef(_)) }
 
   def generate = T {
     def runAntlr(target: os.Path, args: Seq[String] = Nil): Unit = {
@@ -58,6 +58,15 @@ object c extends GenModule {
   )
 }
 
+object cpp extends GenModule {
+  def lexer = "LangCPPLexer.g4"
+  def parser = "CPPParser.g4"
+  def deps = Seq(
+    "SpecParser.g4", "SpecLexer.g4",
+    "LangCPPParser.g4", "LangCPPLexer.g4"
+  )
+}
+
 object java extends GenModule {
   def lexer = "LangJavaLexer.g4"
   def parser = "JavaParser.g4"
@@ -73,5 +82,14 @@ object pvl extends GenModule {
   def deps = Seq(
     "SpecParser.g4", "SpecLexer.g4",
     "LangPVLParser.g4", "LangPVLLexer.g4",
+  )
+}
+
+object llvm extends GenModule {
+  def lexer = "LangLLVMSpecLexer.g4"
+  def parser = "LLVMSpecParser.g4"
+  def deps = Seq(
+    "SpecParser.g4", "SpecLexer.g4",
+    "LangLLVMSpecParser.g4", "LangLLVMSpecLexer.g4"
   )
 }

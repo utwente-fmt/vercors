@@ -1,11 +1,7 @@
 package vct.resources
 
-import hre.platform.Platform
-import hre.resource.ResourceUtil.{getPlatformBinary, getResource}
-import vct.result.VerificationError.SystemError
+import hre.resource.ResourceUtil.getResource
 
-import java.io.File
-import java.net.URISyntaxException
 import java.nio.file.{Path, Paths}
 
 case object Resources {
@@ -14,8 +10,10 @@ case object Resources {
 
   def getAdtPath: Path = getResource("/adt")
   def getCIncludePath: Path = getResource("/c")
+  def getCPPIncludePath: Path = getResource("/cpp")
   def getJrePath: Path = getResource("/jdk")
   def getCcPath: Path = Paths.get("clang")
+  def getCPPcPath: Path = Paths.get("clang++")
   def getSystemCConfig: Path = getResource("/systemc/config")
   def getVeymontChannel: Path = getResource("/include/IntegerChannel.java")
 }

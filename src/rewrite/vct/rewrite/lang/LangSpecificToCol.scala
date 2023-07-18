@@ -9,10 +9,7 @@ import vct.col.origin._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.col.resolve._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.result.VerificationError.UserError
-import vct.col.util.SuccessionMap
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -35,6 +32,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
+  val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
@@ -67,7 +65,16 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case func: CFunctionDefinition[Pre] => c.rewriteFunctionDef(func)
     case decl: CGlobalDeclaration[Pre] => c.rewriteGlobalDecl(decl)
     case decl: CLocalDeclaration[Pre] => ???
+
+    case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
+    case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
+    case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
+    case ns: CPPNamespaceDefinition[Pre] => cpp.rewriteNamespaceDef(ns)
+    case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
+    case decl: CPPLocalDeclaration[Pre] => ???
+
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+    case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
 
     case cls: Class[Pre] =>
       currentClass.having(cls) {
@@ -103,6 +110,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) => java.initLocal(locals)
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
+    case CPPDeclarationStatement(decl) => cpp.rewriteLocal(decl)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
@@ -115,6 +123,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       result.ref.get match {
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
+        case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
+        case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
+        case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
         case RefProcedure(decl) => Result[Post](anySucc(decl))
         case RefJavaMethod(decl) => Result[Post](java.javaMethod.ref(decl))
@@ -154,8 +165,15 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
 
+    case local: CPPLocal[Pre] => cpp.local(local)
+    case inv: CPPInvocation[Pre] => cpp.invocation(inv)
+
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
+
+    case inv: LlvmFunctionInvocation[Pre] => llvm.rewriteFunctionInvocation(inv)
+    case inv: LlvmAmbiguousFunctionInvocation[Pre] => llvm.rewriteAmbiguousFunctionInvocation(inv)
+    case local: LlvmLocal[Pre] => llvm.rewriteLocal(local)
 
     case other => rewriteDefault(other)
   }
@@ -164,6 +182,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
+    case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }
 }

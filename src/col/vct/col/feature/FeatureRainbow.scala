@@ -112,6 +112,8 @@ class FeatureRainbow[G] {
     case node: CoerceClassAnyClass[G] => Coercions
     case node: CoerceColToCPrimitive[G] => Coercions
     case node: CoerceCPrimitiveToCol[G] => Coercions
+    case node: CoerceColToCPPPrimitive[G] => Coercions
+    case node: CoerceCPPPrimitiveToCol[G] => Coercions
     case node: CoerceFloatRat[G] => Coercions
     case node: CoerceFracZFrac[G] => Coercions
     case node: CoerceIdentity[G] => Coercions
@@ -207,6 +209,32 @@ class FeatureRainbow[G] {
     case node: LocalThreadId[G] => CSpecific
     case node: OpenCLKernel[G] => CSpecific
     case node: SharedMemSize[G] => CSpecific
+
+    case node: CPPArrayDeclarator[G] => CPPSpecific
+    case node: CPPBool[G] => CPPSpecific
+    case node: CPPDeclaration[G] => CPPSpecific
+    case node: CPPFunctionDefinition[G] => CPPSpecific
+    case node: CPPGlobalDeclaration[G] => CPPSpecific
+    case node: CPPInit[G] => CPPSpecific
+    case node: CPPInline[G] => CPPSpecific
+    case node: CPPInt[G] => CPPSpecific
+    case node: CPPInvocation[G] => CPPSpecific
+    case node: CPPLocal[G] => CPPSpecific
+    case node: CPPLocalDeclaration[G] => CPPSpecific
+    case node: CPPLong[G] => CPPSpecific
+    case node: CPPName[G] => CPPSpecific
+    case node: CPPNamespaceDefinition[G] => CPPSpecific
+    case node: CPPParam[G] => CPPSpecific
+    case node: CPPPrimitiveType[G] => CPPSpecific
+    case node: CPPPure[G] => CPPSpecific
+    case node: CPPShort[G] => CPPSpecific
+    case node: CPPSigned[G] => CPPSpecific
+    case node: CPPSpecificationType[G] => CPPSpecific
+    case node: CPPTranslationUnit[G] => CPPSpecific
+    case node: CPPTypedefName[G] => CPPSpecific
+    case node: CPPTypedFunctionDeclarator[G] => CPPSpecific
+    case node: CPPUnsigned[G] => CPPSpecific
+    case node: CPPVoid[G] => CPPSpecific
 
     case node: CurrentThreadId[G] => CurrentThread
 
@@ -643,6 +671,10 @@ class FeatureRainbow[G] {
     case node: CGoto[G] => return Seq(CSpecific, Gotos)
     case node: CPointer[G] => return Seq(CSpecific, Pointers)
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
+    case node: CPPChar[G] => return Seq(CPPSpecific, TextTypes)
+    case node: CPPDeclarationStatement[G] => return Seq(CPPSpecific, UnscopedDeclaration)
+    case node: CPPPointer[G] => return Seq(CPPSpecific, Pointers)
+    case node: CPPPointerDeclarator[G] => return Seq(CPPSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
 

@@ -182,6 +182,7 @@ statement
  | 'atomic' '(' identifierList ')' block # pvlAtomic
  | contract 'while' '(' expr ')' statement # pvlWhile
  | contract 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement # pvlFor
+ | contract 'for' '(' iter ')' statement # pvlRangedFor
  | block # pvlBlock
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel

@@ -320,6 +320,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
       case proof: FramedProof[Pre] => rewriteDefault(proof)
       case _: CStatement[Pre] => throw ExtraNode
+      case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode
     }
   }
@@ -371,6 +372,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
   def assignTarget(target: Expr[Pre]): Expr[Post] = {
     val result = target match {
       case Local(Ref(v)) => Local[Post](succ(v))(target.o)
+      case deref @ DerefHeapVariable(Ref(v)) => DerefHeapVariable[Post](succ(v))(deref.blame)(target.o)
       case Deref(obj, Ref(f)) => Deref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
       case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
