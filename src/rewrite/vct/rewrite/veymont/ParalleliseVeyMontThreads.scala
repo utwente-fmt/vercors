@@ -2,13 +2,13 @@ package vct.rewrite.veymont
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
 import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.ParalleliseVeyMontThreads.{ChannelFieldOrigin, ParalliseVeyMontThreadsError, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
+import vct.rewrite.veymont.ParalleliseVeyMontThreads.{ChannelFieldOrigin, ParalliseVeyMontThreadsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
 
 import java.lang
 
@@ -53,6 +53,16 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
 
     override def shortPosition: String = assign.o.shortPosition
   }
+
+  case class RunMethodOrigin(runMethod: RunMethod[_]) extends Origin {
+    override def preferredName: String = "run"
+
+    override def context: String = runMethod.o.context
+
+    override def inlineContext: String = runMethod.o.inlineContext
+
+    override def shortPosition: String = runMethod.o.shortPosition
+  }
 }
 
 case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
@@ -66,7 +76,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
   override def dispatch(decl : Declaration[Pre]) : Unit = {
     decl match {
       case p: Procedure[Pre] => givenClassConstrSucc.update(p.returnType,p)
-      case c : Class[Pre] => globalDeclarations.declare(dispatchGivenClass(c))
+      case c : Class[Pre] => globalDeclarations.succeed(c, dispatchGivenClass(c))
       case seqProg: VeyMontSeqProg[Pre] => dispatchThreads(seqProg)
       case thread: VeyMontThread[Pre] => dispatchThread(thread)
       case other => rewriteDefault(other)
@@ -220,7 +230,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     case _ => throw ParalliseVeyMontThreadsError(thread, "Methods of seq_program need to be of type InstanceMethod")
   }
 
-  private def getThreadRunFromDecl(thread: VeyMontThread[Pre], decl: ClassDeclaration[Pre]): RunMethod[Post] = decl match {
+  private def getThreadRunFromDecl(thread: VeyMontThread[Pre], decl: ClassDeclaration[Pre]): InstanceMethod[Post] = decl match {
     case m: RunMethod[Pre] => getThreadRunMethod(m)
     case _ => throw ParalliseVeyMontThreadsError(thread, "RunMethod expected in seq_program")
   }
@@ -243,6 +253,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         val rw = ChannelClassGenerator(channelType)
         new RewriteJavaClass[Pre, Post](chanClassPre)(rw).rewrite(
           name = getChannelClassName(channelType),
+          modifiers = Seq.empty,
           decls = classDeclarations.collect {
             chanClassPre.decls.foreach(d => rw.dispatch(d))
           }._1)
@@ -302,10 +313,12 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
         dispatch(method.contract))(method.blame)(method.o)
   }
 
-  private def getThreadRunMethod(run: RunMethod[Pre]): RunMethod[Post] = {
-    new RunMethod[Post](
+  private def getThreadRunMethod(run: RunMethod[Pre]): InstanceMethod[Post] = {
+    new InstanceMethod[Post](
+      TVoid[Post](),
+      Seq.empty,Seq.empty,Seq.empty,
       run.body.map(dispatch),
-      dispatch(run.contract))(run.blame)(run.o)
+      dispatch(run.contract))(run.blame)(RunMethodOrigin(run))
   }
 
   override def dispatch(node: Expr[Pre]): Expr[Post] = {

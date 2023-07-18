@@ -22,7 +22,7 @@ seq_program SeqProgram(int x, int y) {
    thread s1 = Storage(x);
    thread s2 = Storage(y);
 
-  int num() {}
+  //int num() {}
   
   void foo() {
      s1.temp = 7;

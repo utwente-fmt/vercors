@@ -33,6 +33,8 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
       case m: InstanceMethod[Pre] =>
         if (inSeqProg.nonEmpty && m.args.nonEmpty)
           throw VeyMontStructCheckError(m, "Methods in seq_program cannot have any arguments!")
+        else if(inSeqProg.nonEmpty && m.returnType != TVoid[Pre]())
+          throw VeyMontStructCheckError(m, "Methods in seq_program cannot have a non-void return type!")
         else rewriteDefault(decl)
       case r: RunMethod[Pre] =>
         if(r.body.isEmpty)
