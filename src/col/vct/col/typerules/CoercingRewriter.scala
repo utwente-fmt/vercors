@@ -1625,7 +1625,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
-      case VeyMontCommExpression(r,s,a) => VeyMontCommExpression(r,s,a)
+      case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
     }
   }
 
