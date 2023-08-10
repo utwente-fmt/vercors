@@ -37,6 +37,7 @@ object ColDefs {
     "ParInvariantDecl",
     "CLocalDeclaration",
     "CParam",
+    "CStructMemberDeclarator",
     "CPPLocalDeclaration",
     "CPPParam",
     "JavaLocalDeclaration",
@@ -88,6 +89,7 @@ object ColDefs {
     "CParam" -> Seq(
       "CGlobalDeclaration", "CFunctionDefinition",
     ),
+    "CStructMemberDeclarator" -> Seq("CStructDeclaration"),
     "CPPLocalDeclaration" -> Seq(
       "CPPGlobalDeclaration", "CPPFunctionDefinition",
       "Scope",

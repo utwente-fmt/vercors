@@ -7,6 +7,7 @@ import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
+import vct.col.typerules.Types
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
 
@@ -69,6 +70,12 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
           throw IncompleteTypeArgs(t)
 
         TAxiomatic(succ(adt), adt.typeArgs.map(arg => dispatch(t.partialTypeArgs.find(_._1.decl == arg).get._2)))
+      case TNotAValue(decl) =>
+        decl match {
+          case RefCStruct(decl) =>
+            CTStruct(succ(decl))
+          case _ => rewriteDefault(t)
+        }
       case other => rewriteDefault(other)
     }
   }
@@ -134,6 +141,17 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
               CInit(decl, init.init.map(dispatch)),
             ),
           ),
+        ))
+      })
+    case declaration@CGlobalDeclaration(CDeclaration(_, _, Seq(_: CStructDeclaration[Pre]), Seq())) =>
+      rewriteDefault(declaration)
+    case declaration: CStructMemberDeclarator[Pre] =>
+      declaration.decls.foreach(decl => {
+        implicit val o: Origin = decl.o
+        val (specs, newDecl) = normalizeCDeclaration(declaration.specs, decl, context = Some(declaration))
+        cStructMemberDeclarators.declare(declaration.rewrite(
+         specs = specs,
+          decls = Seq(newDecl)
         ))
       })
     case declaration: CGlobalDeclaration[Pre] =>

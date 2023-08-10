@@ -105,12 +105,38 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
     case TypeSpecifier2(valType) => CSpecificationType(convert(valType))
     case TypeSpecifier3(_) => ??(typeSpec)
-    case TypeSpecifier4(_) => ??(typeSpec)
+    case TypeSpecifier4(struct) => convert(struct)
     case TypeSpecifier5(_) => ??(typeSpec)
     case TypeSpecifier6(name) => name match {
       case TypedefName0(name) => CTypedefName(convert(name))
     }
     case TypeSpecifier7(_, _, _, _) => ??(typeSpec)
+  }
+
+  def convert(implicit struct: StructOrUnionSpecifierContext): CTypeSpecifier[G] = struct match {
+    case StructOrUnionSpecifier0(StructOrUnion0(_), name, _, declarations, _) => CStructDeclaration(name.map(convert), convert(declarations))
+    case StructOrUnionSpecifier1(StructOrUnion0(_), name) => CStructSpecifier(convert(name))
+  }
+
+  def convert(implicit specifiers: StructDeclarationListContext): Seq[CStructMemberDeclarator[G]] = specifiers match {
+    case StructDeclarationList0(decl) => Seq(convert(decl))
+    case StructDeclarationList1(decls, decl) => convert(decls) :+ convert(decl)
+  }
+
+  def convert(implicit decl: StructDeclarationContext): CStructMemberDeclarator[G] = decl match {
+    case StructDeclaration0(specs, decls, _) => CStructMemberDeclarator(convert(specs), convert(decls))
+    case StructDeclaration1(specs, _) => ??(decl) // Quite complicated use case, lets not allow it for now
+    case StructDeclaration2(_) => ??(decl)
+  }
+
+  def convert(implicit decl: StructDeclaratorListContext): Seq[CDeclarator[G]] = decl match {
+    case StructDeclaratorList0(decl) => Seq(convert(decl))
+    case StructDeclaratorList1(decls, _, decl) => convert(decls) :+ convert(decl)
+  }
+
+  def convert(implicit decl:  StructDeclaratorContext): CDeclarator[G] = decl match {
+    case StructDeclarator0(decl) => convert(decl)
+    case StructDeclarator1(_, _, _) => ??(decl)
   }
 
   def convert(implicit quals: TypeQualifierListContext): Seq[CTypeQualifier[G]] =
@@ -462,7 +488,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       CInvocation(convert(f), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
     case PostfixExpression3(struct, _, field) => CStructAccess(convert(struct), convert(field))(blame(expr))
-    case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))
+    case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))(blame(expr))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
       PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))

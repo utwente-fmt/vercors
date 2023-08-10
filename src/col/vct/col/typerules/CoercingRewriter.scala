@@ -214,6 +214,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: SignalsClause[Pre] => node
     case node: FieldFlag[Pre] => node
     case node: IterVariable[Pre] => node
+    case node: CDeclaration[Pre] => node
     case node: CDeclarator[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
     case node: CTypeQualifier[Pre] => node
@@ -911,8 +912,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
         CStructAccess(struct, field)(acc.blame)
-      case CStructDeref(struct, field) =>
-        CStructDeref(struct, field)
+      case deref @ CStructDeref(struct, field) =>
+        CStructDeref(struct, field)(deref.blame)
       case CurPerm(loc) =>
         CurPerm(loc)
       case CurrentThreadId() =>
@@ -1660,6 +1661,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         definition
       case declaration: CGlobalDeclaration[Pre] =>
         declaration
+      case declaration: CStructMemberDeclarator[Pre] =>
+        declaration
       case definition: CPPFunctionDefinition[Pre] =>
         definition
       case namespace: CPPNamespaceDefinition[Pre] =>
@@ -1916,6 +1919,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         CTypeQualifierDeclarationSpecifier(typeQual)
       case specifier: CFunctionSpecifier[Pre] => specifier
       case specifier: CAlignmentSpecifier[Pre] => specifier
+      case specifier: CStructDeclaration[Pre] => specifier
+      case specifier: CStructSpecifier[Pre] => specifier
       case ck @ CUDAKernel() => CUDAKernel()(ck.blame)
       case ok @ OpenCLKernel() => OpenCLKernel()(ok.blame)
     }
@@ -1929,6 +1934,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CVolatile() => CVolatile()
       case CAtomic() => CAtomic()
     }
+  }
+
+  def coerce(node: CStructMemberDeclarator[Pre]): CStructMemberDeclarator[Pre] = {
+    implicit val o: Origin = node.o
+    val CStructMemberDeclarator(specs, decls) = node
+    CStructMemberDeclarator(specs, decls)
   }
 
   def coerce(node: CPointer[Pre]): CPointer[Pre] = {

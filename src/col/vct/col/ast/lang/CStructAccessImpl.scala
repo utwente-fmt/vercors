@@ -4,9 +4,11 @@ import vct.col.ast.{CStructAccess, TInt, TNotAValue, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
+import vct.col.resolve.lang.C
 
 trait CStructAccessImpl[G] { this: CStructAccess[G] =>
   override lazy val t: Type[G] = ref.get match {
+    case ref: RefCStructField[G] => C.typeOrReturnTypeFromDeclaration(ref.decls.specs, ref.decls.decls(ref.idx))
     case ref: RefModelField[G] => ref.decl.t
     case ref: RefFunction[G] => Types.notAValue(ref)
     case ref: RefProcedure[G] => Types.notAValue(ref)

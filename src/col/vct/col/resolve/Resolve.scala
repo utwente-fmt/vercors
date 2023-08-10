@@ -129,6 +129,10 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
+    case t@CStructSpecifier(name) =>
+      t.ref = Some(C.findCStruct(name, ctx).getOrElse(
+        throw NoSuchNameError("struct", name, t)
+      ))
     case t@CPPTypedefName(nestedName) =>
       t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
         throw NoSuchNameError("class, struct, or namespace", nestedName, t)
@@ -380,7 +384,8 @@ case object ResolveReferences extends LazyLogging {
       vars.foreach(v => v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf))))
     case local@SilverLocalAssign(ref, _) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-
+    case deref@CStructDeref(struct, field) =>
+      deref.ref = Some(C.findPointerDeref(struct, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@JavaDeref(obj, field) =>
