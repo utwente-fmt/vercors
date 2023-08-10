@@ -24,5 +24,5 @@ trait CStructAccessImpl[G] { this: CStructAccess[G] =>
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    assoc(struct) <> "->" <> field
+    assoc(struct) <> "." <> field
 }
