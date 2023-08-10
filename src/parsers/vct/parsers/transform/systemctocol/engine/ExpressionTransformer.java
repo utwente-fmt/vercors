@@ -1499,8 +1499,8 @@ public class ExpressionTransformer<T> {
         Type<T> array_type = col_system.parse_type(expr.getObjType());
         Expr<T> size = create_expression(expr.getSize(), sc_inst, obj);
 
-        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, new GeneratedBlame<>(), OriGen.create());
-        else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0,
+        if (size == null) return new NewArray<>(array_type, col_system.NO_EXPRS, 1, true, new GeneratedBlame<>(), OriGen.create());
+        else return new NewArray<>(array_type, List.from(CollectionConverters.asScala(java.util.List.of(size))), 0, true,
                 new GeneratedBlame<>(), OriGen.create());
     }
 

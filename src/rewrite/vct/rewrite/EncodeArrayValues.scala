@@ -59,7 +59,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
   val valuesFunctions: mutable.Map[Type[Pre], Function[Post]] = mutable.Map()
 
-  val arrayCreationMethods: mutable.Map[(Type[Pre], Int, Int), Procedure[Post]] = mutable.Map()
+  val arrayCreationMethods: mutable.Map[(Type[Pre], Int, Int, Boolean), Procedure[Post]] = mutable.Map()
 
   def makeFunctionFor(arrayType: TArray[Pre]): Function[Post] = {
     implicit val o: Origin = ValuesFunctionOrigin()
@@ -98,7 +98,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     )))
   }
 
-  def makeCreationMethodFor(elementType: Type[Pre], definedDims: Int, undefinedDims: Int): Procedure[Post] = {
+  def makeCreationMethodFor(elementType: Type[Pre], definedDims: Int, undefinedDims: Int, initialize: Boolean): Procedure[Post] = {
     implicit val o: Origin = ArrayCreationOrigin()
 
     val dimArgs = (0 until definedDims).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"dim$i")))
@@ -128,7 +128,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         }
       }
 
-      val ensures = foldStar((0 until definedDims).map(count => {
+      var ensures = foldStar((0 until definedDims).map(count => {
         val injective = if(count > 0) {
           val leftBindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"i$i")))
           val rightBindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"j$i")))
@@ -156,6 +156,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val undefinedValue: Expr[Post] =
         dispatch(Java.zeroValue(FuncTools.repeat[Type[Pre]](TArray(_), undefinedDims, elementType)))
 
+      ensures = if(initialize) ensures &* forall(definedDims, (access, _) => access === undefinedValue) else ensures
+
       val requires = foldAnd(dimArgs.map(argument => GreaterEq(argument.get, const[Post](0))))
       procedure(
         blame = AbstractApplicable,
@@ -163,8 +165,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         returnType = FuncTools.repeat[Type[Post]](TArray(_), definedDims + undefinedDims, dispatch(elementType)),
         args = dimArgs,
         requires = UnitAccountedPredicate(requires),
-        ensures = UnitAccountedPredicate(ensures &* forall(definedDims, (access, _) => access === undefinedValue))
-      )(ArrayCreationOrigin("make_array"))
+        ensures = UnitAccountedPredicate(ensures)
+      )(ArrayCreationOrigin(if(initialize) "make_array_initialized" else "make_array"))
     }))
   }
 
@@ -175,9 +177,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         val arrayType = CoercionUtils.getAnyArrayCoercion(arr.t).get._2
         val func = valuesFunctions.getOrElseUpdate(arrayType, makeFunctionFor(arrayType))
         FunctionInvocation[Post](func.ref, Seq(dispatch(arr), dispatch(from), dispatch(to)), Nil, Nil, Nil)(NoContext(ArrayValuesPreconditionFailed(values)))
-      case newArr @ NewArray(element, dims, moreDims) =>
-
-        val method = arrayCreationMethods.getOrElseUpdate((element, dims.size, moreDims), makeCreationMethodFor(element, dims.size, moreDims))
+      case newArr @ NewArray(element, dims, moreDims, initialize) =>
+        val method = arrayCreationMethods.getOrElseUpdate((element, dims.size, moreDims, initialize), makeCreationMethodFor(element, dims.size, moreDims, initialize))
         ProcedureInvocation[Post](method.ref, dims.map(dispatch), Nil, Nil, Nil, Nil)(ArrayCreationFailed(newArr))
       case other => rewriteDefault(other)
     }

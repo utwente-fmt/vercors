@@ -1148,8 +1148,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Neq(left, right) =>
         val sharedType = Types.leastCommonSuperType(left.t, right.t)
         Neq(coerce(left, sharedType), coerce(right, sharedType))
-      case na @ NewArray(element, dims, moreDims) =>
-        NewArray(element, dims.map(int), moreDims)(na.blame)
+      case na @ NewArray(element, dims, moreDims, initialize) =>
+        NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
       case NewObject(cls) =>
         NewObject(cls)
       case NoPerm() =>

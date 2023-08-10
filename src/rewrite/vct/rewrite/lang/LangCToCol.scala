@@ -30,6 +30,13 @@ case object LangCToCol {
       decl.o.messageInContext(s"We don't support declaring multiple shared memory variables at a single line.")
   }
 
+  case class UnsupportedCArrayParameter(decl: Node[_]) extends UserError {
+    override def code: String = "unsupportedCArrayParameter"
+
+    override def text: String =
+      decl.o.messageInContext(s"This array parameter is declared incorrectly.")
+  }
+
   case class WrongGPUKernelParameterType(param: CParam[_]) extends UserError {
     override def code: String = "wrongParameterType"
     override def text: String =
@@ -238,6 +245,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     rw.variables.declare(v)
   }
 
+  def rewriteArrayParam(cParam: CParam[Pre]): TArray[Post] = {
+    cParam.specifiers match {
+      case CSpecificationType(CTArray(None, t)) +: Seq() =>
+        TArray(rw.dispatch(t))
+      case _ => throw UnsupportedCArrayParameter(cParam)
+    }
+  }
+
   def rewriteParam(cParam: CParam[Pre]): Unit = {
     if(kernelSpecifier.isDefined) return rewriteGPUParam(cParam, kernelSpecifier.get)
     cParam.specifiers.collectFirst {
@@ -245,11 +260,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case GPUGlobal() => throw WrongGPUType(cParam)
     }
 
+    // If it is an CTArray type, we rewrite it towards an TArray
+    val arrayParam = cParam.specifiers.collectFirst{case CSpecificationType(_: CTArray[Pre]) => rewriteArrayParam(cParam) }
+
+    // Otherwise, just get the normal specification type
+    val specType = arrayParam.getOrElse(cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get)
+
     cParam.drop()
     val varO = InterpretedOriginVariable(C.getDeclaratorInfo(cParam.declarator).name, cParam.o)
 
-    val v = new Variable[Post](cParam.specifiers.collectFirst
-      { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get)(varO)
+    val v = new Variable[Post](specType)(varO)
     cNameSuccessor(RefCParam(cParam)) = v
     rw.variables.declare(v)
   }
@@ -364,7 +384,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       rw.variables.declare(v)
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0)(PanicBlame("Shared memory sizes cannot be negative.")))
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0, false)(PanicBlame("Shared memory sizes cannot be negative.")))
       result ++= Seq(decl, assign)
     })
     staticSharedMemNames.foreach{case (d,(size, blame)) =>
@@ -372,7 +392,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         // Since we set the size and blame together, we can assume the blame is not None
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0)(blame.get))
+        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0, false)(blame.get))
       result ++= Seq(decl, assign)
     }
 
@@ -626,7 +646,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         implicit val o: Origin = init.o
         val v = new Variable[Post](TArray(t))(varO)
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
-        val newArr = NewArray[Post](t, Seq(size), 0)(cta.blame)
+        val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
         Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
       case _ =>
         val v = new Variable[Post](t)(varO)
@@ -941,7 +961,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {
-    // TODO: we should not use pointer here
-    TPointer(rw.dispatch(t.innerType))
+    CTArray(t.size.map(rw.dispatch(_)), rw.dispatch(t.innerType))(t.blame)
   }
 }

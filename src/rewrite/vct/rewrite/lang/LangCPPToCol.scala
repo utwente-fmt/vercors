@@ -152,7 +152,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         implicit val o: Origin = init.o
         val v = new Variable[Post](TArray(t))(varO)
         cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
-        val newArr = NewArray[Post](t, Seq(size), 0)(cta.blame)
+        val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
         Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
       case _ =>
         val v = new Variable[Post](t)(varO)
