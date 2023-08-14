@@ -562,7 +562,13 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit t: LangTypeContext): Type[G] = t match {
-    case LangType0(typeSpec) => CPrimitiveType(Seq(convert(typeSpec)))
+    case LangType0(typeSpec) => convert(typeSpec)
+  }
+
+  def convert(t: TypeSpecifierWithPointerOrArrayContext): Type[G] = t match {
+    case TypeSpecifierWithPointerOrArray0(typeSpec) => CPrimitiveType(Seq(convert(typeSpec)))
+    case TypeSpecifierWithPointerOrArray1(typeSpec, _, _) => CTArray(None, CPrimitiveType(Seq(convert(typeSpec))))(blame(t))
+    case TypeSpecifierWithPointerOrArray2(typeSpec, _) => CTPointer(CPrimitiveType(Seq(convert(typeSpec))))
   }
 
   def convert(id: LangIdContext): String = id match {

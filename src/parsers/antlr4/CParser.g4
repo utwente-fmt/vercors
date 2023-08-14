@@ -9,7 +9,7 @@ import LangCParser, SpecParser;
 langExpr: expression;
 langId: clangIdentifier;
 langConstInt: Constant;
-langType: typeSpecifier;
+langType: typeSpecifierWithPointerOrArray;
 langStatement: blockItem;
 langStatic: EOF EOF;
 langGlobalDecl: externalDeclaration;
@@ -17,3 +17,5 @@ langClassDecl: EOF EOF;
 
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};
+
+typeSpecifierWithPointerOrArray : typeSpecifier | typeSpecifier '[' ']' | typeSpecifier '*';

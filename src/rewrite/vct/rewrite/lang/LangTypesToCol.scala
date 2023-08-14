@@ -74,6 +74,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         decl match {
           case RefCStruct(decl) =>
             CTStruct(succ(decl))
+          case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
           case _ => rewriteDefault(t)
         }
       case other => rewriteDefault(other)
