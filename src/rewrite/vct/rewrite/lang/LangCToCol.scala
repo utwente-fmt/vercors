@@ -278,6 +278,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     func.drop()
     val info = C.getDeclaratorInfo(func.declarator)
     val returnType = func.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
+    val pure = func.specs.collectFirst{case CPure() => ()}.isDefined
+    val inline = func.specs.collectFirst{case CInline() => ()}.isDefined
 
     val (contract, subs: Map[CParam[Pre], CParam[Pre]]) = func.ref match {
       case Some(RefCGlobalDeclaration(decl, idx)) if decl.decl.contract.nonEmpty =>
@@ -307,6 +309,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                     typeArgs = Nil,
                     body = Some(rw.dispatch(func.body)),
                     contract = rw.dispatch(contract),
+                    inline = inline,
+                    pure = pure
                   )(func.blame)(namedO)
                 }
               } )
