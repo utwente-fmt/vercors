@@ -327,9 +327,16 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
   }
 
   def convert(implicit expr: InitializerContext): Expr[G] = expr match {
-    case Initializer0(_, _, _) => ??(expr)
-    case Initializer1(_, _, _, _) => ??(expr)
+    case Initializer0(_, list, _) => CLiteralArray(convert(list))
+    case Initializer1(_, list, _, _) => CLiteralArray(convert(list))
     case Initializer2(inner) => convert(inner)
+  }
+
+  def convert(implicit list: InitializerListContext): Seq[Expr[G]] = list match {
+    case InitializerList0(None, init) => Seq(convert(init))
+    case InitializerList0(Some(_), init) => ??(list)
+    case InitializerList1(inits, _, None, last) => convert(inits) :+ convert(last)
+    case InitializerList1(inits, _, Some(_), last) => ??(list)
   }
 
   def convert(implicit expr: AssignmentExpressionContext): Expr[G] = expr match {

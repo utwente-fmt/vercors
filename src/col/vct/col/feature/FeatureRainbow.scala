@@ -666,6 +666,7 @@ class FeatureRainbow[G] {
     case node: ValidMatrix[G] => return Seq(SugarPermissionOperator, Arrays)
     case node: PermPointer[G] => return Seq(SugarPermissionOperator, Pointers)
     case node: PermPointerIndex[G] => return Seq(SugarPermissionOperator, Pointers)
+    case node: CLiteralArray[G] => return Seq(CSpecific, Arrays)
     case node: CCast[G] => return Seq(CSpecific, TypeValuesAndGenerics)
     case node: CChar[G] => return Seq(CSpecific, TextTypes)
     case node: CDeclarationStatement[G] => return Seq(CSpecific, UnscopedDeclaration)

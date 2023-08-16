@@ -887,6 +887,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
         CInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case CLiteralArray(exprs) =>
+        CLiteralArray(exprs)
       case CLocal(name) => e
       case c @ Committed(obj) =>
         Committed(cls(obj))(c.blame)

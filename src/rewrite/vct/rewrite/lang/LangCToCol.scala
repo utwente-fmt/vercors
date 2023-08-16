@@ -4,11 +4,13 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
+import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, ArraySizeError, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CNameTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCStruct, RefCStructField, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecInvocationTarget}
+import vct.col.resolve.lang.Java.logger
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
@@ -156,6 +158,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   private val staticSharedMemNames: mutable.Map[CNameTarget[Pre], (BigInt, Option[Blame[ArraySizeError]])] = mutable.Map()
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
+
+  case class CInlineArrayInitializerOrigin(inner: Origin) extends Origin {
+    override def preferredName: String = "arrayInitializer"
+    override def shortPosition: String = inner.shortPosition
+    override def context: String = inner.context
+    override def inlineContext: String = inner.inlineContext
+  }
 
   case class CudaIndexVariableOrigin(dim: RefCudaVecDim[_]) extends Origin {
     override def preferredName: String =
@@ -634,8 +643,55 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
+  def assignliteralArray(array: Variable[Post], exprs: Seq[Expr[Pre]], origin: Origin): Seq[Statement[Post]] = {
+    implicit val o: Origin = origin
+    (exprs.zipWithIndex.map {
+        case (value, index) => Assign[Post](AmbiguousSubscript(array.get, const(index))(PanicBlame("The explicit initialization of an array in C should never generate an assignment that exceeds the bounds of the array")), rw.dispatch(value))(
+          PanicBlame("Assignment for an explicit array initializer cannot fail."))
+      }
+    )
+  }
+
+  def rewriteArrayDeclaration(decl: CLocalDeclaration[Pre]): Statement[Post] = {
+    // LangTypesToCol makes it so that each declaration only has one init
+    val init = decl.decl.inits.head
+    val info = C.getDeclaratorInfo(init.decl)
+    val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+    implicit val o: Origin = init.o
+
+    decl.decl.specs match {
+      case Seq(CSpecificationType(cta@CTArray(sizeOption, oldT))) =>
+        val t = rw.dispatch(oldT)
+        val v = new Variable[Post](TPointer(t))(varO)
+        cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+
+        (sizeOption, init.init) match {
+          case (None, None) => throw WrongCType(decl)
+          case (Some(size), None) =>
+            isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCType(decl))
+            val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
+          case (None, Some(CLiteralArray(exprs))) =>
+            val newArr = NewPointerArray[Post](t, const[Post](exprs.size))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs, o))
+          case (Some(size), Some(CLiteralArray(exprs))) =>
+            val realSize = isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCType(decl))
+            if(realSize < exprs.size) logger.warn(s"Excess elements in array initializer: '${decl}'")
+            val newArr = NewPointerArray[Post](t, const[Post](realSize))(cta.blame)
+            Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs.take(realSize.intValue), o))
+          case _ => throw WrongCType(decl)
+        }
+      case _ => throw WrongCType(decl)
+    }
+  }
+
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     decl.drop()
+    val isArray = decl.decl.specs.collectFirst { case CSpecificationType(_: CTArray[Pre]) => () }.isDefined
+    if(isArray){
+      return rewriteArrayDeclaration(decl)
+    }
+
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
     decl.decl.specs.foreach {
       case _: CSpecificationType[Pre] =>
@@ -647,22 +703,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     val info = C.getDeclaratorInfo(init.decl)
     val varO: Origin = InterpretedOriginVariable(info.name, init.o)
-    t match {
-      case cta @ CTArray(Some(size), t) =>
-        if(init.init.isDefined) throw WrongCType(decl)
-        implicit val o: Origin = init.o
-        val v = new Variable[Post](TArray(t))(varO)
-        cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
-        val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
-        Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
-      case _ =>
-        val v = new Variable[Post](t)(varO)
-        cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
-        implicit val o: Origin = init.o
-        init.init
-          .map(value => Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value)))))
-          .getOrElse(LocalDecl(v))
-    }
+    val v = new Variable[Post](t)(varO)
+    cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
+    implicit val o: Origin = init.o
+    init.init
+      .map(value => Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value)))))
+      .getOrElse(LocalDecl(v))
   }
 
   def rewriteGoto(goto: CGoto[Pre]): Statement[Post] =

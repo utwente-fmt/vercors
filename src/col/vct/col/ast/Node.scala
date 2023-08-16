@@ -959,6 +959,8 @@ final case class GpgpuCudaKernelInvocation[G](kernel: String, blocks: Expr[G], t
 
 final case class CCast[G](expr: Expr[G], t: Type[G])(implicit val o: Origin) extends CExpr[G]
 
+final case class CLiteralArray[G](exprs: Seq[Expr[G]])(implicit val o: Origin) extends CExpr[G] with CLiteralArrayImpl[G]
+
 sealed trait CType[G] extends Type[G] with CTypeImpl[G]
 final case class CPrimitiveType[G](specifiers: Seq[CDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CPrimitiveTypeImpl[G]
 final case class CTPointer[G](innerType: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends CType[G] with CTPointerImpl[G]
