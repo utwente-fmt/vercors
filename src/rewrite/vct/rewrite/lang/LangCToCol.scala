@@ -245,10 +245,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     rw.variables.declare(v)
   }
 
-  def rewriteArrayParam(cParam: CParam[Pre]): TArray[Post] = {
+  def rewriteArrayParam(cParam: CParam[Pre]): TPointer[Post] = {
     cParam.specifiers match {
-      case CSpecificationType(CTArray(None, t)) +: Seq() =>
-        TArray(rw.dispatch(t))
+      case Seq(CSpecificationType(CTArray(None, t))) =>
+//        TArray(rw.dispatch(t))
+        TPointer(rw.dispatch(t))
       case _ => throw UnsupportedCArrayParameter(cParam)
     }
   }
@@ -388,7 +389,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       rw.variables.declare(v)
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0, false)(PanicBlame("Shared memory sizes cannot be negative.")))
+        NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), Local(v.ref))(PanicBlame("Shared memory sizes cannot be negative.")))
+        //NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0, false)(PanicBlame("Shared memory sizes cannot be negative.")))
       result ++= Seq(decl, assign)
     })
     staticSharedMemNames.foreach{case (d,(size, blame)) =>
@@ -396,7 +398,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         // Since we set the size and blame together, we can assume the blame is not None
-        NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0, false)(blame.get))
+        NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), IntegerValue(size))(blame.get))
+        //NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0, false)(blame.get))
       result ++= Seq(decl, assign)
     }
 
@@ -967,6 +970,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {
-    CTArray(t.size.map(rw.dispatch(_)), rw.dispatch(t.innerType))(t.blame)
+    if(t.size.isDefined) throw UnsupportedCArrayParameter(t)
+    TPointer(rw.dispatch(t.innerType))
+//    CTArray(t.size.map(rw.dispatch(_)), rw.dispatch(t.innerType))(t.blame)
   }
 }

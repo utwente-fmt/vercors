@@ -57,7 +57,6 @@ case object Spec {
   def builtinField[G](obj: Expr[G], field: String, blame: Blame[BuiltinError]): Option[BuiltinField[G]] = {
     implicit val o: Origin = obj.o
     Some(BuiltinField((obj.t, field) match {
-      case (CPrimitiveType(CSpecificationType(_ : CTArray[G]) +: Seq()), "length") => Length(_)(blame)
       case (TArray(_), "length") => Length(_)(blame)
 
       case (_: SizedType[G], "isEmpty") => Empty(_)
