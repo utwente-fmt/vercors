@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, ArraySizeError, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CNameTarget, CStructTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCStruct, RefCStructField, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecInvocationTarget}
@@ -62,7 +62,7 @@ case object LangCToCol {
     override def code: String = "wrongStructType"
 
     override def text: String =
-      decl.o.messageInContext(s"This struct declaration has a type that is not supported.")
+      decl.o.messageInContext(s"This has a struct type that is not supported.")
   }
 
   case class WrongGPULocalType(local: CLocalDeclaration[_]) extends UserError {
@@ -938,6 +938,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     With(Block(Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))) ++ fieldAssigns), v.get)
   }
 
+  def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
+    assign.target.t match {
+      case CPrimitiveType(Seq(CSpecificationType(CTStruct(ref)))) =>
+        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl)
+        PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(assign.o)
+      case _ => throw WrongStructType(assign.target)
+    }
+  }
+
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
     // Create copy for any direct structure arguments
@@ -946,7 +955,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         case CPrimitiveType(specs) if specs.collectFirst {case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
           specs match {
             case Seq(CSpecificationType(CTStruct(ref))) =>  createStructCopy(rw.dispatch(a), ref.decl)
-            case _ => ???
+            case _ => throw WrongStructType(a)
           }
         case _ => rw.dispatch(a)
       }
