@@ -158,6 +158,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case local: CLocal[Pre] => c.local(local)
     case deref: CStructAccess[Pre] => c.deref(deref)
+    case deref: CStructDeref[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
     case kernel: GpgpuCudaKernelInvocation[Pre] => c.cudaKernelInvocation(kernel)
@@ -182,6 +183,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
+    case t: CTStruct[Pre] => c.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }
