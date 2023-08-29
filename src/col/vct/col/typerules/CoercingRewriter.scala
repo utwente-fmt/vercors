@@ -177,6 +177,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceJavaClassAnyClass(_) => e
       case CoerceCPrimitiveToCol(_, _) => e
       case CoerceColToCPrimitive(_, _) => e
+      case CoerceCPPPrimitiveToCol(_, _) => e
+      case CoerceColToCPPPrimitive(_, _) => e
       case CoerceNullRef() => e
       case CoerceNullArray(_) => e
       case CoerceNullClass(_) => e
@@ -217,7 +219,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node
     case node: CInit[Pre] => node
-    case node: CDeclaration[Pre] => node
+    case node: CPPDeclarator[Pre] => node
+    case node: CPPDeclarationSpecifier[Pre] => node
+    case node: CPPDeclaration[Pre] => node
+    case node: CPPPointer[Pre] => node
+    case node: CPPInit[Pre] => node
     case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
@@ -350,6 +356,26 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Pre] = node
   def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
   override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = node
+  def postCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Pre] = node
+  def postCoerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Pre] = node
+  def postCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPPointer[Pre]): CPPPointer[Pre] = node
+  def postCoerce(node: CPPPointer[Pre]): CPPPointer[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPPointer[Pre]): CPPPointer[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
+  def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPInit[Pre]): CPPInit[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
   def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
@@ -878,6 +904,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
+        CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case CPPLocal(name) => e
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
@@ -1543,6 +1572,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CGoto(label) => CGoto(label)
       case c @ Commit(obj) => Commit(cls(obj))(c.blame)
       case Continue(label) => Continue(label)
+      case CPPDeclarationStatement(decl) => CPPDeclarationStatement(decl)
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
@@ -1595,7 +1625,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
-      case VeyMontCommExpression(r,s,a) => VeyMontCommExpression(r,s,a)
+      case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
     }
   }
 
@@ -1604,6 +1634,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     decl match {
       case unit: CTranslationUnit[Pre] =>
         new CTranslationUnit(unit.declarations)
+      case unit: CPPTranslationUnit[Pre] =>
+        new CPPTranslationUnit(unit.declarations)
       case variable: HeapVariable[Pre] =>
         new HeapVariable(variable.t)
       case rule: SimplificationRule[Pre] =>
@@ -1627,6 +1659,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case definition: CFunctionDefinition[Pre] =>
         definition
       case declaration: CGlobalDeclaration[Pre] =>
+        declaration
+      case definition: CPPFunctionDefinition[Pre] =>
+        definition
+      case namespace: CPPNamespaceDefinition[Pre] =>
+        namespace
+      case declaration: CPPGlobalDeclaration[Pre] =>
         declaration
       case namespace: JavaNamespace[Pre] =>
         namespace
@@ -1694,6 +1732,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         param
       case decl: CLocalDeclaration[Pre] =>
         decl
+      case param: CPPParam[Pre] =>
+        param
+      case decl: CPPLocalDeclaration[Pre] =>
+        decl
       case declaration: JavaLocalDeclaration[Pre] =>
         new JavaLocalDeclaration[Pre](declaration.modifiers, declaration.t, declaration.decls.map {
           case JavaVariableDeclaration(name, dims, None) => JavaVariableDeclaration(name, dims, None)
@@ -1724,7 +1766,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case definition: LlvmFunctionDefinition[Pre] => definition
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
-    }
+      case function: LlvmSpecFunction[Pre] =>
+        new LlvmSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
+      case glob: LlvmGlobal[Pre] => glob
+      }
   }
 
   def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {
@@ -1927,6 +1972,57 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case GpuGlobalMemoryFence() => GpuGlobalMemoryFence()
       case GpuZeroMemoryFence(value) => GpuZeroMemoryFence(value)
     }
+  }
+
+  def coerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPPPointerDeclarator(pointers, inner) =>
+        CPPPointerDeclarator(pointers, inner)
+      case array @ CPPArrayDeclarator(inner, size) =>
+        CPPArrayDeclarator(inner, size.map(int))(array.blame)
+      case CPPTypedFunctionDeclarator(params, varargs, inner) =>
+        CPPTypedFunctionDeclarator(params, varargs, inner)
+      case CPPName(name) =>
+        CPPName(name)
+    }
+  }
+
+  def coerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPPPure() => CPPPure()
+      case CPPInline() => CPPInline()
+      case CPPVoid() => CPPVoid()
+      case CPPChar() => CPPChar()
+      case CPPShort() => CPPShort()
+      case CPPInt() => CPPInt()
+      case CPPLong() => CPPLong()
+      case CPPSigned() => CPPSigned()
+      case CPPUnsigned() => CPPUnsigned()
+      case CPPBool() => CPPBool()
+      case CPPTypedefName(name) => CPPTypedefName(name)
+      case CPPSpecificationType(t) => CPPSpecificationType(t)
+      case SYCLQueue() => SYCLQueue()
+    }
+  }
+
+  def coerce(node: CPPDeclaration[Pre]): CPPDeclaration[Pre] = {
+    implicit val o: Origin = node.o
+    val CPPDeclaration(contract, specs, init) = node
+    CPPDeclaration(contract, specs, init)
+  }
+
+  def coerce(node: CPPPointer[Pre]): CPPPointer[Pre] = {
+    implicit val o: Origin = node.o
+    val CPPPointer() = node
+    CPPPointer()
+  }
+
+  def coerce(node: CPPInit[Pre]): CPPInit[Pre] = {
+    implicit val o: Origin = node.o
+    val CPPInit(decl, init) = node
+    CPPInit(decl, init)
   }
 
   def coerce(node: JavaName[Pre]): JavaName[Pre] = {

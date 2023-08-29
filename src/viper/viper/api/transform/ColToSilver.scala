@@ -1,7 +1,7 @@
 package viper.api.transform
 
 import hre.util.ScopedStack
-import vct.col.ast.{AmbiguousLocation, ArrayLocation, FieldLocation, InstancePredicateLocation, ModelLocation, PointerLocation, PredicateLocation, SilverFieldLocation}
+import vct.col.ast.{PredicateLocation, SilverFieldLocation}
 import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
@@ -253,6 +253,7 @@ case class ColToSilver(program: col.Program[_]) {
 
   def typ(t: col.Type[_]): silver.Type = t match {
     case col.TBool() => silver.Bool
+    case col.TSYCLQueue() => silver.Ref
     case col.TInt() => silver.Int
     case col.TRational() => silver.Perm
     case col.TRef() => silver.Ref

@@ -1,11 +1,12 @@
 package vct.options
 
-import scopt.{OParser, OptionDef}
+import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
-import vct.options.types.{Backend, ClassPathEntry, Mode, PathOrStd, ReadLanguage, Verbosity}
+import vct.options.types._
 import vct.resources.Resources
+import vct.resources.Resources.getVeymontChannel
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -349,6 +350,8 @@ case class Options
   adtPath: Path = Resources.getAdtPath,
   cc: Path = Resources.getCcPath,
   cIncludePath: Path = Resources.getCIncludePath,
+  ccpp: Path = Resources.getCPPcPath,
+  cppIncludePath: Path = Resources.getCPPIncludePath,
   classPath: Seq[ClassPathEntry] = Seq(ClassPathEntry.DefaultJre, ClassPathEntry.SourcePackageRoot),
   z3Path: Path = viper.api.Resources.getZ3Path,
   boogiePath: Path = viper.api.Resources.getBoogiePath,
@@ -385,6 +388,7 @@ case class Options
 
   // VeyMont options
   veymontOutput: Path = null, // required
+  veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
 
   // VeSUV options
   vesuvOutput: Path = null,

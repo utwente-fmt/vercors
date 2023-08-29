@@ -5,11 +5,10 @@ import hre.stages.Stage
 import vct.col.rewrite.Generation
 import vct.main.stages.Parsing.{Language, UnknownFileExtension}
 import vct.options.Options
-import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
 import vct.parsers._
+import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
-import viper.api
 import viper.api.transform.ColSilverParser
 
 import java.nio.file.Path
@@ -21,7 +20,9 @@ case object Parsing {
     def fromFilename(filename: String): Option[Language] =
       filename.split('.').last match {
         case "cl" | "c" | "cu" => Some(C)
+        case "cpp" => Some(CPP)
         case "i" => Some(InterpretedC)
+        case "ipp" => Some(InterpretedCPP)
         case "java" => Some(Java)
         case "pvl" => Some(PVL)
         case "sil" | "vpr" => Some(Silver)
@@ -32,6 +33,8 @@ case object Parsing {
 
     case object C extends Language
     case object InterpretedC extends Language
+    case object CPP extends Language
+    case object InterpretedCPP extends Language
     case object Java extends Language
     case object PVL extends Language
     case object Silver extends Language
@@ -63,6 +66,10 @@ case class Parsing[G <: Generation]
   cSystemInclude: Path = Resources.getCIncludePath,
   cOtherIncludes: Seq[Path] = Nil,
   cDefines: Map[String, String] = Map.empty,
+  ccpp: Path = Resources.getCPPcPath,
+  cppSystemInclude: Path = Resources.getCPPIncludePath,
+  cppOtherIncludes: Seq[Path] = Nil,
+  cppDefines: Map[String, String] = Map.empty,
 ) extends Stage[Seq[Readable], ParseResult[G]] {
   override def friendlyName: String = "Parsing"
   override def progressWeight: Int = 4
@@ -78,6 +85,8 @@ case class Parsing[G <: Generation]
       val parser = language match {
         case Language.C => ColCParser(originProvider, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
         case Language.InterpretedC => ColIParser(originProvider, blameProvider)
+        case Language.CPP => ColCPPParser(originProvider, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
+        case Language.InterpretedCPP => ColIPPParser(originProvider, blameProvider)
         case Language.Java => ColJavaParser(originProvider, blameProvider)
         case Language.PVL => ColPVLParser(originProvider, blameProvider)
         case Language.Silver => ColSilverParser(originProvider, blameProvider)

@@ -4,7 +4,6 @@ import hre.util.ScopedStack
 import vct.col.ast._
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 case class Namer[G](syntax: Ctx.Syntax) {
   private val stack = ScopedStack[Node[G]]()
@@ -58,6 +57,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: JavaConstructor[G] => ()
     case _: PVLConstructor[G] => ()
     case _: CFunctionDefinition[G] => ()
+    case _: CPPFunctionDefinition[G] => ()
   }
 
   def unpackName(name: String): (String, Int) = {
@@ -104,6 +104,8 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case decl: ParInvariantDecl[G] => nameKeyed(nearest { case _: ParInvariant[G] => () }, decl)
       case decl: CLocalDeclaration[G] => nameKeyed(nearestVariableScope, decl)
       case decl: CParam[G] => nameKeyed(nearestCallable, decl)
+      case decl: CPPLocalDeclaration[G] => nameKeyed(nearestVariableScope, decl)
+      case decl: CPPParam[G] => nameKeyed(nearestCallable, decl)
       case decl: JavaLocalDeclaration[G] => nameKeyed(nearestCallable, decl)
       case decl: VeyMontThread[G] => nameKeyed(nearest { case _: VeyMontSeqProg[G] => () }, decl)
       case decl: JavaParam[G] => nameKeyed(nearestCallable, decl)
