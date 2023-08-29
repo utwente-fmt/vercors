@@ -48,15 +48,15 @@ case object InlineApplicables extends RewriterBuilder {
   }
 
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
-    case object IdentitySuccessor extends SuccessorsProviderTrafo(allScopes.freeze) {
-      override def preTransform[I <: Declaration[G], O <: Declaration[G]](pre: I): Option[O] =
-        Some(pre.asInstanceOf[O])
+    case class SuccOrIdentity() extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
+      override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] =
+        Some(post.getOrElse(pre.asInstanceOf[T]))
     }
 
-    override def succProvider: SuccessorsProvider[G, G] = IdentitySuccessor
+    override def succProvider: SuccessorsProvider[G, G] = SuccOrIdentity()
 
     override def dispatch(stat: Statement[G]): Statement[G] = stat match {
-      case Return(e) => newStatement(e)
+      case Return(e) => newStatement(dispatch(e))
       case other => rewriteDefault(other)
     }
   }
@@ -103,7 +103,8 @@ case object InlineApplicables extends RewriterBuilder {
     def +(other: Replacement[Pre]): Replacements[Pre] = Replacements(replacements :+ other)
 
     def expr(e: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
-      val replaced = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap).dispatch(e)
+      val sub = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap)
+      val replaced = sub.labelDecls.scope { sub.dispatch(e) }
       replacements.foldRight(replaced) {
         case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)
       }
@@ -112,12 +113,15 @@ case object InlineApplicables extends RewriterBuilder {
     def captureReturn(t: Type[Pre], body: Statement[Pre])(implicit o: Origin): Expr[Pre] = {
       val done = Label[Pre](new LabelDecl(), Block(Nil))
       val result = new Variable[Pre](t)
-      val newBody = ReplaceReturn((e: Expr[Pre]) => Block(Seq(assignLocal(result.get, e), Goto[Pre](done.decl.ref)))).dispatch(body)
+      val sub = ReplaceReturn((e: Expr[Pre]) => Block(Seq(assignLocal(result.get, e), Goto[Pre](done.decl.ref))))
+      val newBody = sub.labelDecls.scope { sub.dispatch(body) }
       ScopedExpr(Seq(result), With(Block(Seq(newBody, done)), result.get))
     }
 
     def stat(t: Type[Pre], s: Statement[Pre], outReplacements: Replacements[Pre])(implicit o: Origin): Expr[Pre] = {
-      val replaced = Substitute[Pre]((this + outReplacements).replacements.map(r => r.replacing -> r.withVariable.get).toMap).dispatch(s)
+      val sub = Substitute[Pre]((this + outReplacements).replacements.map(r => r.replacing -> r.withVariable.get).toMap)
+      // labelDecls is the only scope peeled off by taking the body of the to-be-inlined applicable.
+      val replaced = sub.labelDecls.scope { sub.dispatch(s) }
       val capture = captureReturn(t, replaced)
       ScopedExpr((this + outReplacements).replacements.map(_.withVariable),
         With(Block(
@@ -220,19 +224,19 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
             yield Replacement(v.get, out)(v.o))
 
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]
-        // TODO: consider type arguments and out-arguments and given and yields (oof)
+        // TODO: consider type arguments
         apply match {
           case PredicateApply(Ref(pred), _, WritePerm()) => // TODO inline predicates with non-write perm
             dispatch(args.expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
           case PredicateApply(Ref(pred), _, _) => ???
           case ProcedureInvocation(Ref(proc), _, _, typeArgs, _, _) =>
             dispatch((args + givenArgs).stat(apply.t, proc.body.getOrElse(throw AbstractInlineable(apply, proc)), outArgs + yields))
-          case FunctionInvocation(Ref(func), _, typeArgs, _, yields) =>
+          case FunctionInvocation(Ref(func), _, typeArgs, _, _) =>
             dispatch((args + givenArgs).expr(func.body.getOrElse(throw AbstractInlineable(apply, func))))
 
           case MethodInvocation(_, Ref(method), _, _, typeArgs, _, _) =>
             dispatch((obj + args + givenArgs).stat(apply.t, method.body.getOrElse(throw AbstractInlineable(apply, method)), outArgs + yields))
-          case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, yields) =>
+          case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, _) =>
             dispatch((obj + args + givenArgs).expr(func.body.getOrElse(throw AbstractInlineable(apply, func))))
           case InstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
             dispatch((obj + args).expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
