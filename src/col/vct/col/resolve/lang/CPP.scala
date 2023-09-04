@@ -90,7 +90,6 @@ case object CPP {
     if (name.contains('.') && name.count(x => x == '.') == 1) {
       // Class method, replace with SYCL equivalent
       val classVarName = name.split('.').head
-      val methodName = name.split('.').last
 
       // Get type (so class) of variable (instance)
       val classTarget = ctx.stack.flatten.collectFirst {
@@ -103,7 +102,7 @@ case object CPP {
       }
       // Replace class reference name to a namespace name
       if (className.isDefined) {
-        return name.replace(classVarName + ".", "VERCORS::" + className.get.toString + "::VERCORS__")
+        return name.replace(classVarName + ".", className.get.toString + "::VERCORS__")
       }
     }
     name
@@ -119,7 +118,7 @@ case object CPP {
       }
     } else {
       val ctxTarget: Option[RefCPPNamespaceDefinition[G]] = ctx.stack.flatten.collectFirst {
-        case namespace: RefCPPNamespaceDefinition[G] if namespace.decl.name == nameSeq.head => namespace
+        case namespace: RefCPPNamespaceDefinition[G] if namespace.name == nameSeq.head => namespace
       }
 
       ctxTarget match {

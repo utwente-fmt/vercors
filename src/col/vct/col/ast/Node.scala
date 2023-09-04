@@ -974,8 +974,9 @@ final case class CPPBool[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G
 final case class CPPTypedefName[G](var nestedName: String)(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPTypedefNameImpl[G] {
   var ref: Option[CPPTypeNameTarget[G]] = None
 }
+sealed trait SYCLType[G] extends Type[G] with SYCLTypeImpl[G]
 final case class SYCLQueue[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with SYCLQueueImpl[G]
-final case class TSYCLQueue[G]()(implicit val o: Origin) extends Type[G] with TSYCLQueueImpl[G]
+final case class TSYCLQueue[G]()(implicit val o: Origin) extends SYCLType[G] with TSYCLQueueImpl[G]
 
 final case class CPPSpecificationType[G](t: Type[G])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSpecificationTypeImpl[G]
 

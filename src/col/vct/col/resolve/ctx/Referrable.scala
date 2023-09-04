@@ -22,7 +22,7 @@ sealed trait Referrable[G] {
     case RefCPPTranslationUnit(_) => ""
     case RefCPPParam(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPFunctionDefinition(decl) => CPP.nameFromDeclarator(decl.declarator)
-    case RefCPPNamespaceDefinition(_) => ""
+    case RefCPPNamespaceDefinition(decl) => decl.name
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefCPPLocalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefJavaNamespace(_) => ""

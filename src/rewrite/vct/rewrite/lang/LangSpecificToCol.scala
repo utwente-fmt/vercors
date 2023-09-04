@@ -10,6 +10,7 @@ import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
+import vct.rewrite.lang.LangSYCLToCol
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -35,6 +36,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
+  val sycl: LangSYCLToCol[Pre] = LangSYCLToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
 
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
@@ -183,6 +185,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
+    case t: SYCLType[Pre] => sycl.rewriteType(t)
     case other => rewriteDefault(other)
   }
 }
