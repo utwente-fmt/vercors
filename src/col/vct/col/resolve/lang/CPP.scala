@@ -156,16 +156,22 @@ case object CPP {
       case target: RefCPPGlobalDeclaration[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
-  // For abstract function definitions, only find definitions in same or deeper scope, and not in outer scopes.
+  // For stub methods, only find a definition in the same scope.
   def findDefinition[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPFunctionDefinition[G]] = {
-    var maxStackLevel = ctx.stack.length - 1
     if (declarator.isInstanceOf[CPPTypedFunctionDeclarator[G]] && ctx.currentResult.isDefined) {
-      val foundLevel = ctx.stack.indexWhere(stack => stack.contains(ctx.currentResult.get))
-      // Update maxStackLevel if the currentResult was found in the stack
-      if (foundLevel > -1) maxStackLevel = foundLevel
-    }
-    ctx.stack.take(maxStackLevel + 1).flatten.collectFirst {
-      case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
+      // declarator refers to a stub method
+      val scopeLevel = ctx.stack.indexWhere(stack => stack.contains(ctx.currentResult.get))
+      if (scopeLevel > -1) {
+        ctx.stack(scopeLevel).collectFirst {
+          case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
+        }
+      } else {
+        None
+      }
+    } else {
+      ctx.stack.flatten.collectFirst {
+        case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
+      }
     }
   }
 
