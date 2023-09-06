@@ -6,7 +6,7 @@ import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, ReceiverNotInjective, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, PointerInsufficientPermission, ReceiverNotInjective, TrueSatisfiable, VerificationFailure}
 import vct.col.ref.Ref
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CNameTarget, CStructTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCStruct, RefCStructField, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecInvocationTarget}
@@ -140,6 +140,12 @@ case object LangCToCol {
     override def code: String = "unsupportedCast"
     override def text: String = c.o.messageInContext("This cast is not supported")
   }
+
+  case class UnsupportedMalloc(c: Expr[_]) extends UserError {
+    override def code: String = "unsupportedMalloc"
+
+    override def text: String = c.o.messageInContext("Only 'malloc' of the format '(t *) malloc(x*typeof(t)' is supported.")
+  }
 }
 
 case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -243,9 +249,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     res.getOrElse(throw NotDynamicSharedMem(pointer))
   }
 
-  def cast(c: CCast[Pre]): Expr[Post] = c.t match {
-    case t if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
+  def cast(c: CCast[Pre]): Expr[Post] = c match {
+    case CCast(_, t) if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
+    case CCast(CInvocation(CLocal(name), Seq(AmbiguousMult(l, SizeOf(t1))), Nil, Nil), CTPointer(t2))
+      if name == "malloc" && t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(l))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+    case CCast(CInvocation(CLocal(name), Seq(AmbiguousMult(SizeOf(t1), r)), Nil, Nil), CTPointer(t2))
+      if name == "malloc" && t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(r))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+    case CCast(CInvocation(CLocal(name), _, _, _), _) if name == "malloc" => throw UnsupportedMalloc(c)
     case _ => throw UnsupportedCast(c)
   }
 
@@ -701,7 +712,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         (sizeOption, init.init) match {
           case (None, None) => throw WrongCType(decl)
           case (Some(size), None) =>
-            isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCType(decl))
+//            isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCType(decl))
             val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CLiteralArray(exprs))) =>
@@ -906,7 +917,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case target: SpecInvocationTarget[Pre] => ???
       case dim: RefCudaVecDim[Pre] => getCuda(dim)
       case struct: RefCStruct[Pre] => ???
-      case struct: RefCStructField[Pre] => Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref(struct.decls))(deref.o)
+      case struct: RefCStructField[Pre] => Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref(struct.decls))(deref.blame)
     }
   }
 
@@ -918,7 +929,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case BuiltinField(f) => rw.dispatch(f(deref.struct))
       case target: SpecInvocationTarget[Pre] => ???
       case struct: RefCStruct[Pre] => ???
-      case struct: RefCStructField[Pre] => Deref[Post](DerefPointer(rw.dispatch(deref.struct))(deref.struct.o), cStructFieldsSuccessor.ref(struct.decls))(deref.o)
+      case struct: RefCStructField[Pre] =>
+        val b = PanicBlame("Can't get this blame right") // TODO: How to fix this???
+        Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref(struct.decls))(deref.o)
     }
   }
 

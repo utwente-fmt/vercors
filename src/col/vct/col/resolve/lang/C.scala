@@ -124,6 +124,12 @@ case object C {
       }
       case CPrimitiveType(Seq(CSpecificationType(CTPointer(struct: CTStruct[G])))) =>
         getCStructDeref(struct.ref.decl, name)
+      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, innerType: TNotAValue[G])))) => innerType.decl.get match {
+        case RefCStruct(decl) => getCStructDeref(decl, name)
+        case _ => None
+      }
+      case CPrimitiveType(Seq(CSpecificationType(CTArray(_, struct: CTStruct[G])))) =>
+        getCStructDeref(struct.ref.decl, name)
       case _ => None
     }
 
@@ -146,6 +152,8 @@ case object C {
         case _ => None
       }
       case CPrimitiveType(Seq(CSpecificationType(struct: CTStruct[G]))) =>
+        getCStructDeref(struct.ref.decl, name)
+      case struct: CTStruct[G] =>
         getCStructDeref(struct.ref.decl, name)
       case CTCudaVec() =>
         val ref = obj.asInstanceOf[CLocal[G]].ref.get.asInstanceOf[RefCudaVec[G]]

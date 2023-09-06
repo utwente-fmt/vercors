@@ -1020,6 +1020,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case JavaNewDefaultArray(baseType, specifiedDims, moreDims) => e
       case JavaNewLiteralArray(baseType, dims, initializer) => e
       case str @ JavaStringValue(_, _) => str
+      case sizeof @ SizeOf(_) => sizeof
       case str @ StringValue(_) => str
       case JoinToken(thread) =>
         JoinToken(cls(thread))

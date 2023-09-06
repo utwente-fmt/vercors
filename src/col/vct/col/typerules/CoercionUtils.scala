@@ -55,11 +55,23 @@ case object CoercionUtils {
       case (TNull(), TPointer(target)) => CoerceNullPointer(target)
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
 
-      case (_ @ CTArray(_, innerType), _ @ TArray(element)) if element == innerType =>
+      case (CTArray(_, innerType), TArray(element)) if element == innerType =>
         CoerceCArrayPointer(element)
-      case (_@CPPTArray(_, innerType), _@TArray(element)) if element == innerType =>
+      case (CPPTArray(_, innerType), TArray(element)) if element == innerType =>
         CoerceCPPArrayPointer(element)
-
+      case (CTPointer(innerType), TPointer(element)) => //if element == innerType =>
+        getCoercion(element, innerType).getOrElse(return None)
+      case (TPointer(element), CTPointer(innerType)) => //if element == innerType =>
+        getCoercion(element, innerType).getOrElse(return None)
+      case (CTArray(_, innerType), CTPointer(element)) =>
+        if(element == innerType){
+          CoerceCArrayPointer(innerType)
+        } else {
+          CoercionSequence(Seq(
+            CoerceCArrayPointer(element),
+            getCoercion(element, innerType).getOrElse(return None)
+          ))
+        }
       case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))

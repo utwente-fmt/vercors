@@ -450,6 +450,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit typeName: TypeNameContext): Type[G] = typeName match {
     case TypeName0(specifiers, None) => CPrimitiveType(convert(specifiers))
+    case TypeName0(specifiers, Some(AbstractDeclarator0(Pointer0(_, None)))) => CTPointer(CPrimitiveType(convert(specifiers)))
     case TypeName0(_, _) => ??(typeName)
   }
 
@@ -482,7 +483,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       case "!" => col.Not(convert(arg))
     }
     case UnaryExpression4(_, _) => ??(expr)
-    case UnaryExpression5(_, _, _, _) => ??(expr)
+    case UnaryExpression5(_, _, tname, _) => SizeOf(convert(tname))
     case UnaryExpression6(_, _, _, _) => ??(expr)
     case UnaryExpression7(_, _) => ??(expr)
     case UnaryExpression8(SpecPrefix0(op), inner) => convert(expr, op, convert(inner))
