@@ -1118,6 +1118,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           Mod(int(left), int(right))(div.blame),
           Mod(rat(left), rat(right))(div.blame),
         )
+      case div@CMod(left, right) =>
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
+          CMod(int(left), int(right))(div.blame),
+          CMod(rat(left), rat(right))(div.blame),
+        )
       case ModelAbstractState(m, state) =>
         ModelAbstractState(model(m)._1, bool(state))
       case ModelChoose(m, perm, totalProcess, choice) =>

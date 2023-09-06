@@ -502,6 +502,7 @@ class FeatureRainbow[G] {
     case node: Local[G] => SmtOperators
     case node: Minus[G] => SmtOperators
     case node: Mod[G] => SmtOperators
+    case node: CMod[G] => SmtOperators
     case node: Mult[G] => SmtOperators
     case node: Neq[G] => SmtOperators
     case node: NoPerm[G] => SmtOperators

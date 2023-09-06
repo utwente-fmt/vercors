@@ -159,6 +159,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case deref: CStructAccess[Pre] => c.deref(deref)
     case deref: CStructDeref[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
+    case mod: CMod[Pre] => c.cmod(mod)
     case assign: PreAssignExpression[Pre] =>
       assign.target.t match {
         case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>

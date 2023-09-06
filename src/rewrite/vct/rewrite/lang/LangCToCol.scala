@@ -289,6 +289,59 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     rw.variables.declare(v)
   }
 
+  val cmodFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
+  val cabsFunction: mutable.Map[Unit, Function[Post]] = mutable.Map()
+
+  def cmod(mod: CMod[Pre]): Expr[Post] = {
+    val cmod_func = cmodFunctions.getOrElseUpdate((), makeCModFunction())
+    FunctionInvocation[Post](cmod_func.ref, Seq(rw.dispatch(mod.left), rw.dispatch(mod.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(mod.o)
+  }
+
+  case class CModFunctionOrigin(preferredName: String = "unknown") extends Origin {
+    override def shortPosition: String = "generated"
+
+    override def context: String = "[At node generated for c % operator]"
+
+    override def inlineContext: String = "[At node generated for c % operator]"
+  }
+
+  def makeAbsFunction(): Function[Post] = {
+    implicit val o: Origin = CModFunctionOrigin()
+    val new_t = TInt[Post]()
+    val x_var = new Variable[Post](new_t)(CModFunctionOrigin("x"))
+
+    val x = Local[Post](x_var.ref)
+
+    rw.globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
+      blame = AbstractApplicable,
+      contractBlame = PanicBlame("the function for abs always has a satisfiable contract"),
+      returnType = new_t,
+      args = Seq(x_var),
+      body = Some(Select(x > const(0), x, UMinus(x)))
+    )(CModFunctionOrigin("cmod_abs"))))
+  }
+
+  def makeCModFunction(): Function[Post] = {
+    implicit val o: Origin = CModFunctionOrigin()
+    val new_t = TInt[Post]()
+    val a_var = new Variable[Post](new_t)(CModFunctionOrigin("a"))
+    val b_var = new Variable[Post](new_t)(CModFunctionOrigin("b"))
+    val abs_func = cabsFunction.getOrElseUpdate((), makeAbsFunction())
+
+    val a = Local[Post](a_var.ref)
+    val b = Local[Post](b_var.ref)
+    val absb = FunctionInvocation[Post](abs_func.ref, Seq(b), Nil, Nil, Nil)(PanicBlame("Cannot fail"))
+
+    rw.globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
+      blame = AbstractApplicable,
+      contractBlame = PanicBlame("the function for abs always has a satisfiable contract"),
+      returnType = new_t,
+      args = Seq(a_var, b_var),
+      requires = UnitAccountedPredicate(b !== const(0)),
+      body = Some(Select(a >= const(0), a % b, (a % b) - absb))
+    )(CModFunctionOrigin("cmod"))))
+  }
+
   def rewriteParam(cParam: CParam[Pre]): Unit = {
     if(kernelSpecifier.isDefined) return rewriteGPUParam(cParam, kernelSpecifier.get)
     cParam.specifiers.collectFirst {
