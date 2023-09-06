@@ -102,7 +102,7 @@ case object CPP {
       }
       // Replace class reference name to a namespace name
       if (className.isDefined) {
-        return name.replace(classVarName + ".", className.get.toString + "::VERCORS__")
+        return name.replace(classVarName + ".", className.get.toString + "::")
       }
     }
     name
@@ -156,10 +156,18 @@ case object CPP {
       case target: RefCPPGlobalDeclaration[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
-  def findDefinition[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPFunctionDefinition[G]] =
-    ctx.stack.flatten.collectFirst {
+  // For abstract function definitions, only find definitions in same or deeper scope, and not in outer scopes.
+  def findDefinition[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPFunctionDefinition[G]] = {
+    var maxStackLevel = ctx.stack.length - 1
+    if (declarator.isInstanceOf[CPPTypedFunctionDeclarator[G]] && ctx.currentResult.isDefined) {
+      val foundLevel = ctx.stack.indexWhere(stack => stack.contains(ctx.currentResult.get))
+      // Update maxStackLevel if the currentResult was found in the stack
+      if (foundLevel > -1) maxStackLevel = foundLevel
+    }
+    ctx.stack.take(maxStackLevel + 1).flatten.collectFirst {
       case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
+  }
 
   def resolveInvocation[G](obj: Expr[G]): CPPInvocationTarget[G] =
     obj.t match {

@@ -1,6 +1,6 @@
 namespace sycl {
 	namespace queue {
-		int VERCORS__submit(int kernel);
-		int VERCORS__test2();
+		int submit(int kernel);
+		int test2();
 	}
 }
