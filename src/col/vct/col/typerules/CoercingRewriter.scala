@@ -882,7 +882,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Cast(value, typeValue) =>
         Cast(value, typeValue)
       case CastFloat(e, t) =>
-        CastFloat(float(e), t)
+        firstOk(e, s"Can only cast between integer and float or float and float.",
+          CastFloat(float(e), t),
+          CastFloat(int(e), t),
+        )
       case CCast(e, t) => CCast(e, t)
       case c @ CharValue(_) => c
       case inv @ CInvocation(applicable, args, givenArgs, yields) =>
@@ -1376,6 +1379,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case SmtlibFpToReal(arg) => SmtlibFpToReal(fp(arg)._1)
       case SmtlibFpToSInt(arg, bits) => SmtlibFpToSInt(fp(arg)._1, bits)
       case SmtlibFpToUInt(arg, bits) => SmtlibFpToUInt(fp(arg)._1, bits)
+      case SmtlibToInt(arg) => SmtlibToInt(rat(arg))
       case SmtlibLiteralString(data) => SmtlibLiteralString(data)
       case SmtlibReAll() => SmtlibReAll()
       case SmtlibReAllChar() => SmtlibReAllChar()

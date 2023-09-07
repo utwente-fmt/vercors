@@ -249,8 +249,16 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     res.getOrElse(throw NotDynamicSharedMem(pointer))
   }
 
+  def isFloat(t: Type[Pre]): Boolean = t match {
+    case CPrimitiveType(Seq(CSpecificationType(_: TFloat[Pre]))) => true
+    case _: TFloat[Pre] => true
+    case _ => false
+  }
+
   def cast(c: CCast[Pre]): Expr[Post] = c match {
     case CCast(_, t) if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
+      CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
+    case CCast(e, t) if isFloat(e.t) =>
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
     case CCast(CInvocation(CLocal(name), Seq(AmbiguousMult(l, SizeOf(t1))), Nil, Nil), CTPointer(t2))
       if name == "malloc" && t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(l))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)

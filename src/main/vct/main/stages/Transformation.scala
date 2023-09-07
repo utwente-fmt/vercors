@@ -22,7 +22,7 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.HeapVariableToRef
+import vct.rewrite.{HeapVariableToRef, SmtlibToProverTypes}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
@@ -255,6 +255,7 @@ case class SilverTransformation
     ExtractInlineQuantifierPatterns,
     // Translate internal types to domains
     FloatToRat,
+    SmtlibToProverTypes,
     EnumToDomain,
     ImportArray.withArg(adtImporter),
     ImportPointer.withArg(adtImporter),

@@ -122,6 +122,7 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
         case SmtlibFpToReal(arg) => getExpr(e, "fp.to_real", arg)
         case SmtlibFpToSInt(arg, bits) => getExpr(e, s"(_ fp.to_sbv $bits)", arg)
         case SmtlibFpToUInt(arg, bits) => getExpr(e, s"(_ fp.to_ubv $bits)", arg)
+        case SmtlibToInt(arg) => getExpr(e, "to_int", arg)
         case SmtlibLiteralString(data) =>
           // PB: it seems "\" need not be escaped, except when an *entire* escape sequence occurs in the string
           //     literally in the string to be escaped. Here we just escape all backslashes, which is one way of

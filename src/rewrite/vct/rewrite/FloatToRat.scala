@@ -43,17 +43,18 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
   val casts: mutable.Map[(Type[Pre], Type[Pre]), Function[Post]] = mutable.Map()
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case CastFloat(e, t) if e.t == t => dispatch(e)
+    case c@CastFloat(e, t: TFloat[Pre]) if e.t == TInt[Pre]() =>
+      implicit val o: Origin = c.o
+      dispatch(e) /:/ const(1)
+    case c@CastFloat(e, t: TInt[Pre]) if e.t.isInstanceOf[TFloat[Pre]] =>
+      SmtlibToInt[Post](dispatch(e))(CastFuncOrigin("to_int"))
     case CastFloat(e, t) =>
-      if (e.t == t) {
-        dispatch(e)
-      } else {
         val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t, t))
         implicit val o: Origin = expr.o
         FunctionInvocation(f.ref[Function[Post]], Seq(dispatch(e)), Nil, Nil, Nil)(PanicBlame("Can always call cast on float"))
-      }
-
     case f @ FloatValue(num, _) =>
-      implicit val o = f.o
+      implicit val o: Origin = f.o
       var numerator = num
       var denominator = BigInt(1)
       while (!numerator.isWhole) {
