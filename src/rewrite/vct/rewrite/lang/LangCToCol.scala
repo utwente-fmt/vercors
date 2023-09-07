@@ -346,7 +346,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       returnType = new_t,
       args = Seq(a_var, b_var),
       requires = UnitAccountedPredicate(b !== const(0)),
-      body = Some(Select(a >= const(0), a % b, (a % b) - absb))
+      body = Some(let(new_t, a % b, (mod: Local[Post]) => Select(a >= const(0) || mod === const(0), mod, mod - absb)))
     )(CModFunctionOrigin("cmod"))))
   }
 
