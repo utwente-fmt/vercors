@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.TFloats.ieee754_32bit
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, PointerInsufficientPermission, ReceiverNotInjective, TrueSatisfiable, VerificationFailure}
@@ -297,43 +298,57 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     rw.variables.declare(v)
   }
 
-  val cmodFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
+  val tmodFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
+  val tdivFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
   val cabsFunction: mutable.Map[Unit, Function[Post]] = mutable.Map()
 
-  def cmod(mod: CMod[Pre]): Expr[Post] = {
-    val cmod_func = cmodFunctions.getOrElseUpdate((), makeCModFunction())
-    FunctionInvocation[Post](cmod_func.ref, Seq(rw.dispatch(mod.left), rw.dispatch(mod.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(mod.o)
+  def tmod(mod: TMod[Pre]): Expr[Post] = {
+    val tmod_func = tmodFunctions.getOrElseUpdate((), makeTModFunction())
+    FunctionInvocation[Post](tmod_func.ref, Seq(rw.dispatch(mod.left), rw.dispatch(mod.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(mod.o)
   }
 
-  case class CModFunctionOrigin(preferredName: String = "unknown") extends Origin {
+  def tdiv(div: TDiv[Pre]): Expr[Post] = {
+    if(isFloat(div.left.t)) {
+      FloorDiv[Post](rw.dispatch(div.left), rw.dispatch(div.right))(div.blame)(div.o)
+    }
+    val tdiv_func = tdivFunctions.getOrElseUpdate((), makeTDivFunction())
+    FunctionInvocation[Post](tdiv_func.ref, Seq(rw.dispatch(div.left), rw.dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
+  }
+
+  case class TFunctionOrigin(operator: String, preferredName: String) extends Origin {
     override def shortPosition: String = "generated"
 
-    override def context: String = "[At node generated for c % operator]"
+    override def context: String = "[At node generated for c " + operator + "operator]"
 
-    override def inlineContext: String = "[At node generated for c % operator]"
+    override def inlineContext: String = "[At node generated for c " + operator + "operator]"
   }
 
   def makeAbsFunction(): Function[Post] = {
-    implicit val o: Origin = CModFunctionOrigin()
+    implicit val o: Origin = TFunctionOrigin("%", "unknown")
     val new_t = TInt[Post]()
-    val x_var = new Variable[Post](new_t)(CModFunctionOrigin("x"))
+    val x_var = new Variable[Post](new_t)(TFunctionOrigin("%","x"))
 
     val x = Local[Post](x_var.ref)
 
     rw.globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
       blame = AbstractApplicable,
-      contractBlame = PanicBlame("the function for abs always has a satisfiable contract"),
+      contractBlame = TrueSatisfiable,
       returnType = new_t,
       args = Seq(x_var),
       body = Some(Select(x > const(0), x, UMinus(x)))
-    )(CModFunctionOrigin("cmod_abs"))))
+    )(TFunctionOrigin("%", "tmod_abs"))))
   }
 
-  def makeCModFunction(): Function[Post] = {
-    implicit val o: Origin = CModFunctionOrigin()
+  /* Make a truncated modulo function.
+     It should be equivalent to
+      tmod(a,b) = let mod == (a % b) in (a >= 0 || mod == 0) ? mod : mod - abs(b)
+     where / and % are euclidean division and modulo, which Viper uses as default.
+    */
+  def makeTModFunction(): Function[Post] = {
+    implicit val o: Origin = TFunctionOrigin("%", "unknown")
     val new_t = TInt[Post]()
-    val a_var = new Variable[Post](new_t)(CModFunctionOrigin("a"))
-    val b_var = new Variable[Post](new_t)(CModFunctionOrigin("b"))
+    val a_var = new Variable[Post](new_t)(TFunctionOrigin("%", "a"))
+    val b_var = new Variable[Post](new_t)(TFunctionOrigin("%", "b"))
     val abs_func = cabsFunction.getOrElseUpdate((), makeAbsFunction())
 
     val a = Local[Post](a_var.ref)
@@ -342,12 +357,39 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     rw.globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
       blame = AbstractApplicable,
-      contractBlame = PanicBlame("the function for abs always has a satisfiable contract"),
+      contractBlame = PanicBlame("TODO: Integer division should not have zero second parameter"),
       returnType = new_t,
       args = Seq(a_var, b_var),
       requires = UnitAccountedPredicate(b !== const(0)),
       body = Some(let(new_t, a % b, (mod: Local[Post]) => Select(a >= const(0) || mod === const(0), mod, mod - absb)))
-    )(CModFunctionOrigin("cmod"))))
+    )(TFunctionOrigin("%", "tmod"))))
+  }
+
+  /* Make a truncated division function.
+   It should be equivalent to
+    tdiv(a,b) = let div == (a / b) in let mod == (a % b) in (a >= 0 || mod == 0) ? div : div + (b > 0 ? 1 : -1)
+   where / and % are euclidean division and modulo, which Viper uses as default.
+  */
+  def makeTDivFunction(): Function[Post] = {
+    implicit val o: Origin = TFunctionOrigin("/", "unknown")
+    val new_t = TInt[Post]()
+    val a_var = new Variable[Post](new_t)(TFunctionOrigin("/", "a"))
+    val b_var = new Variable[Post](new_t)(TFunctionOrigin("/", "b"))
+
+    val a = Local[Post](a_var.ref)
+    val b = Local[Post](b_var.ref)
+    val one = Select(b > const(0), const(1), const(-1))
+
+    rw.globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
+      blame = AbstractApplicable,
+      contractBlame = PanicBlame("TODO"),
+      returnType = new_t,
+      args = Seq(a_var, b_var),
+      requires = UnitAccountedPredicate(b !== const(0)),
+      body = Some(let(new_t, a / b, (div: Local[Post]) =>
+        let(new_t, a % b, (mod: Local[Post]) =>
+          Select(a >= const(0) || mod === const(0), div, div + one))))
+    )(TFunctionOrigin("/", "tdiv"))))
   }
 
   def rewriteParam(cParam: CParam[Pre]): Unit = {
@@ -720,6 +762,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def rewriteGlobalDecl(decl: CGlobalDeclaration[Pre]): Unit = {
     val isStruct = decl.decl.specs.collectFirst { case t: CStructDeclaration[Pre] => () }.isDefined
     if(isStruct){ rewriteStruct(decl); return}
+    val pure = decl.decl.specs.collectFirst { case CPure() => () }.isDefined
+    val inline = decl.decl.specs.collectFirst { case CInline() => () }.isDefined
+
 
     val t = decl.decl.specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
     for((init, idx) <- decl.decl.inits.zipWithIndex if init.ref.isEmpty) {
@@ -738,6 +783,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                   typeArgs = Nil,
                   body = None,
                   contract = rw.dispatch(decl.decl.contract),
+                  pure = pure,
+                  inline = inline
                 )(AbstractApplicable)(init.o)
               )
           )
@@ -1023,6 +1070,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
+
+    applicable match {
+      case CLocal(name) if name == "euclidean_div" && args.size == 2 && givenMap.isEmpty && yields.isEmpty =>
+        return FloorDiv[Post](rw.dispatch(args(0)), rw.dispatch(args(1)))(PanicBlame("TODO"))(inv.o)
+      case CLocal(name) if name == "euclidean_mod" && args.size == 2 && givenMap.isEmpty && yields.isEmpty =>
+        return Mod[Post](rw.dispatch(args(0)), rw.dispatch(args(1)))(PanicBlame("TODO"))(inv.o)
+      case CLocal(name) if name == "is_int" && args.size == 1  && isFloat(args(0).t) && givenMap.isEmpty && yields.isEmpty =>
+        return SmtlibIsInt[Post](rw.dispatch(args.head))(inv.o)
+      case CLocal(name) if name == "pow_math_h" && args.size == 2 && isFloat(args(0).t) && isFloat(args(1).t) && givenMap.isEmpty && yields.isEmpty =>
+        return SmtlibPow[Post](rw.dispatch(args(0)), rw.dispatch(args(1)))(inv.o)
+      case _ => ()
+    }
     // Create copy for any direct structure arguments
     val newArgs = args.map( a =>
       a.t match {
