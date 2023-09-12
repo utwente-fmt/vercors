@@ -222,7 +222,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: CPPDeclarator[Pre] => node
     case node: CPPDeclarationSpecifier[Pre] => node
     case node: CPPDeclaration[Pre] => node
-    case node: CPPPointer[Pre] => node
+    case node: CPPAddressing[Pre] => node
     case node: CPPInit[Pre] => node
     case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
@@ -369,9 +369,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: CPPPointer[Pre]): CPPPointer[Pre] = node
-  def postCoerce(node: CPPPointer[Pre]): CPPPointer[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPPointer[Pre]): CPPPointer[Post] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = node
+  def postCoerce(node: CPPAddressing[Pre]): CPPAddressing[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPAddressing[Pre]): CPPAddressing[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
   def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
@@ -904,6 +904,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case defn@CPPLambdaDefinition(contract, declarator, body) =>
+        CPPLambdaDefinition(contract, declarator, body)(defn.blame)
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CPPLocal(name) => e
@@ -1443,6 +1445,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Sum(bindings, bool(condition), int(main))
       case SuperType(left, right) =>
         SuperType(left, right)
+      case SYCLLocal(name, arg) => e
       case Tail(xs) =>
         Tail(seq(xs)._1)
       case Take(xs, count) =>
@@ -1977,12 +1980,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = {
     implicit val o: Origin = node.o
     node match {
-      case CPPPointerDeclarator(pointers, inner) =>
-        CPPPointerDeclarator(pointers, inner)
+      case CPPAddressingDeclarator(pointers, inner) =>
+        CPPAddressingDeclarator(pointers, inner)
       case array @ CPPArrayDeclarator(inner, size) =>
         CPPArrayDeclarator(inner, size.map(int))(array.blame)
       case CPPTypedFunctionDeclarator(params, varargs, inner) =>
         CPPTypedFunctionDeclarator(params, varargs, inner)
+      case CPPLambdaDeclarator(params) =>
+        CPPLambdaDeclarator(params)
       case CPPName(name) =>
         CPPName(name)
     }
@@ -2001,9 +2006,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CPPSigned() => CPPSigned()
       case CPPUnsigned() => CPPUnsigned()
       case CPPBool() => CPPBool()
-      case CPPTypedefName(name) => CPPTypedefName(name)
+      case CPPTypedefName(name, arg) => CPPTypedefName(name, arg)
       case CPPSpecificationType(t) => CPPSpecificationType(t)
-      case SYCLQueue() => SYCLQueue()
+      case SYCLClass(name, arg) => SYCLClass(name, arg)
     }
   }
 
@@ -2013,10 +2018,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     CPPDeclaration(contract, specs, init)
   }
 
-  def coerce(node: CPPPointer[Pre]): CPPPointer[Pre] = {
+  def coerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = {
     implicit val o: Origin = node.o
-    val CPPPointer() = node
-    CPPPointer()
+    node match {
+      case CPPPointer() => CPPPointer()
+      case CPPReference() => CPPReference()
+    }
   }
 
   def coerce(node: CPPInit[Pre]): CPPInit[Pre] = {

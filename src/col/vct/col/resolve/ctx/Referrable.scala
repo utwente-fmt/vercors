@@ -209,6 +209,8 @@ case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) ex
 case class RefCPPTranslationUnit[G](decl: CPPTranslationUnit[G]) extends Referrable[G]
 case class RefCPPParam[G](decl: CPPParam[G]) extends Referrable[G] with CPPNameTarget[G]
 case class RefCPPFunctionDefinition[G](decl: CPPFunctionDefinition[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
+case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with ResultTarget[G]
+case class RefCPPLambdaType[G]() extends CPPTypeNameTarget[G]
 case class RefCPPNamespaceDefinition[G](decl: CPPNamespaceDefinition[G]) extends Referrable[G]
 case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
 case class RefCPPLocalDeclaration[G](decls: CPPLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G]

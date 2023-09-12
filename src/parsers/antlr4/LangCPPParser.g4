@@ -45,12 +45,12 @@ annotatedPrimaryExpression: valEmbedWith? primaryExpression valEmbedThen?;
 idExpression: unqualifiedId | qualifiedId;
 
 unqualifiedId:
-	clangppIdentifier
+	templateId
+	| clangppIdentifier
 	| operatorFunctionId
 	| conversionFunctionId
 	| literalOperatorId
-	| Tilde (className | decltypeSpecifier)
-	| templateId;
+	| Tilde (className | decltypeSpecifier);
 
 qualifiedId: nestedNameSpecifier Template? unqualifiedId;
 
@@ -280,9 +280,9 @@ constantExpression: conditionalExpression;
 
 // Statements
 statement:
-    attributeSpecifierSeq? statementTwo
-	| labeledStatement
-	| blockDeclaration;
+  attributeSpecifierSeq? statementTwo
+  | blockDeclaration
+	| labeledStatement;
 
 statementTwo:
     expressionStatement
@@ -446,16 +446,15 @@ simpleTypeSpecifier:
 	| Float
 	| simpleTypeLengthModifier? Double
 	| Void
-	| SYCLQueue // EW: Will be moved to own SYCL Parser later
 	| Auto
 	| {specLevel>0}? valType
 	| decltypeSpecifier;
 
 theTypeName:
-	className
+	simpleTemplateId
+	| className
 	| enumName
-	| typedefName
-	| simpleTemplateId;
+	| typedefName;
 
 decltypeSpecifier:
 	Decltype LeftParen (expression | Auto) RightParen;
@@ -794,7 +793,8 @@ typeParameter:
 	) ((Ellipsis? clangppIdentifier?) | (clangppIdentifier? Assign theTypeId));
 
 simpleTemplateId:
-	templateName Less templateArgumentList? Greater;
+	templateName Less templateArgument Greater
+	| templateName Less templateArgumentList? Greater;
 
 templateId:
 	simpleTemplateId

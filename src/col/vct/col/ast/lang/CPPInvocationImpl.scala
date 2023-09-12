@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CPPInvocation, Type}
+import vct.col.ast.{CPPInvocation, TVoid, Type}
 import vct.col.print._
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
@@ -15,6 +15,7 @@ trait CPPInvocationImpl[G] { this: CPPInvocation[G] =>
     case RefModelProcess(decl) => decl.returnType
     case RefModelAction(decl) => decl.returnType
     case RefCPPFunctionDefinition(decl) => CPP.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
+    case RefCPPLambdaDefinition(_) => TVoid()
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType

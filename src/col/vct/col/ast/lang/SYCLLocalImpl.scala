@@ -1,12 +1,12 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CPPLocal, CPPPrimitiveType, Type}
-import vct.col.print.{Ctx, Doc, Text}
+import vct.col.ast.{CPPPrimitiveType, SYCLLocal, Type}
+import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.typerules.Types
 
-trait CPPLocalImpl[G] { this: CPPLocal[G] =>
+trait SYCLLocalImpl[G] { this: SYCLLocal[G] =>
   override lazy val t: Type[G] = ref.get match {
     case ref: RefCPPParam[G] => CPP.typeOrReturnTypeFromDeclaration(ref.decl.specifiers, ref.decl.declarator)
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
@@ -29,5 +29,8 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
   }
 
-  override def layout(implicit ctx: Ctx): Doc = Text(name)
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Text("SYCLClass") <> "(" <> Text(name) <>
+      (if (genericArg.isDefined) (Text("<") <> Text(genericArg.get.toString) <> Text(">")) else Text("")) <>
+      ")")
 }

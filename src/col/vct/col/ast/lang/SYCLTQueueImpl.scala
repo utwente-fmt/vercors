@@ -1,8 +1,8 @@
-package vct.col.ast.`type`
+package vct.col.ast.lang
 
-import vct.col.ast.TSYCLQueue
+import vct.col.ast.SYCLTQueue
 import vct.col.print.{Ctx, Doc, Text}
 
-trait TSYCLQueueImpl[G] { this: TSYCLQueue[G] =>
+trait SYCLTQueueImpl[G] { this: SYCLTQueue[G] =>
   override def layout(implicit ctx: Ctx): Doc = Text("sycl::queue")
 }

@@ -210,6 +210,7 @@ class FeatureRainbow[G] {
     case node: OpenCLKernel[G] => CSpecific
     case node: SharedMemSize[G] => CSpecific
 
+    case node: CPPAddressingDeclarator[G] => CPPSpecific
     case node: CPPArrayDeclarator[G] => CPPSpecific
     case node: CPPBool[G] => CPPSpecific
     case node: CPPDeclaration[G] => CPPSpecific
@@ -219,6 +220,8 @@ class FeatureRainbow[G] {
     case node: CPPInline[G] => CPPSpecific
     case node: CPPInt[G] => CPPSpecific
     case node: CPPInvocation[G] => CPPSpecific
+    case node: CPPLambdaDeclarator[G] => CPPSpecific
+    case node: CPPLambdaDefinition[G] => CPPSpecific
     case node: CPPLocal[G] => CPPSpecific
     case node: CPPLocalDeclaration[G] => CPPSpecific
     case node: CPPLong[G] => CPPSpecific
@@ -230,11 +233,34 @@ class FeatureRainbow[G] {
     case node: CPPShort[G] => CPPSpecific
     case node: CPPSigned[G] => CPPSpecific
     case node: CPPSpecificationType[G] => CPPSpecific
+    case node: CPPTLambda[G] => CPPSpecific
     case node: CPPTranslationUnit[G] => CPPSpecific
     case node: CPPTypedefName[G] => CPPSpecific
     case node: CPPTypedFunctionDeclarator[G] => CPPSpecific
     case node: CPPUnsigned[G] => CPPSpecific
     case node: CPPVoid[G] => CPPSpecific
+
+    case node: SYCLBasicKernelDefinition[G] => CPPSpecific
+    case node: SYCLClass[G] => CPPSpecific
+    case node: SYCLClassObject[G] => CPPSpecific
+    case node: SYCLCommandGroupDefinition[G] => CPPSpecific
+    case node: SYCLEvent[G] => CPPSpecific
+    case node: SYCLHandler[G] => CPPSpecific
+    case node: SYCLItem[G] => CPPSpecific
+    case node: SYCLKernelDefinition[G] => CPPSpecific
+    case node: SYCLNDItem[G] => CPPSpecific
+    case node: SYCLNDRange[G] => CPPSpecific
+    case node: SYCLNDRangeKernelDefinition[G] => CPPSpecific
+    case node: SYCLQueue[G] => CPPSpecific
+    case node: SYCLRange[G] => CPPSpecific
+    case node: SYCLTClass[G] => CPPSpecific
+    case node: SYCLTEvent[G] => CPPSpecific
+    case node: SYCLTHandler[G] => CPPSpecific
+    case node: SYCLTItem[G] => CPPSpecific
+    case node: SYCLTNDItem[G] => CPPSpecific
+    case node: SYCLTNDRange[G] => CPPSpecific
+    case node: SYCLTQueue[G] => CPPSpecific
+    case node: SYCLTRange[G] => CPPSpecific
 
     case node: CurrentThreadId[G] => CurrentThread
 
@@ -673,8 +699,9 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: CPPChar[G] => return Seq(CPPSpecific, TextTypes)
     case node: CPPDeclarationStatement[G] => return Seq(CPPSpecific, UnscopedDeclaration)
+    case node: CPPAddressing[G] => return Seq(CPPSpecific, Pointers)
     case node: CPPPointer[G] => return Seq(CPPSpecific, Pointers)
-    case node: CPPPointerDeclarator[G] => return Seq(CPPSpecific, Pointers)
+    case node: CPPReference[G] => return Seq(CPPSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
 
