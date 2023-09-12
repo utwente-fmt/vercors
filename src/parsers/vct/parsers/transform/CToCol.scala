@@ -349,8 +349,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => AmbiguousMult(target, value)
-        case "/=" => FloorDiv(target, value)(blame(expr))
-        case "%=" => col.CMod(target, value)(blame(expr))
+        case "/=" => TDiv(target, value)(blame(expr))
+        case "%=" => TMod(target, value)(blame(expr))
         case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
         case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
         case "<<=" => BitShl(target, value)
@@ -437,8 +437,8 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => col.CMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => TDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => TMod(convert(left), convert(right))(blame(expr))
       case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
     }
   }

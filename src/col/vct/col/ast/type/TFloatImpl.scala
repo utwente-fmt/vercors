@@ -1,6 +1,6 @@
 package vct.col.ast.`type`
 
-import vct.col.ast.{TFloat, Type}
+import vct.col.ast.{CPrimitiveType, CSpecificationType, TFloat, Type}
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.print.{Ctx, Doc, Empty, Group, Text}
 import vct.col.typerules.CoercionUtils
@@ -22,10 +22,15 @@ object TFloats {
     // If one if them needs to be coerced, we coerce and try again
     case (l @ TFloat(le, lm), r) => coerceToMax(l, CoercionUtils.getCoercion(r, l).get.target)
     case (l, r @ TFloat(re, rm)) => coerceToMax(r, CoercionUtils.getCoercion(l, r).get.target)
+    case (CPrimitiveType(Seq(CSpecificationType(inner1))), CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
+      val res = coerceToMax(inner1, inner2)
+      CPrimitiveType(Seq(CSpecificationType(coerceToMax(inner1, inner2))(res.o)))
     case _ => ???
   }
 
   def isFloatOp[G](l: Type[G], r: Type[G]): Boolean = (l, r) match {
+    case (CPrimitiveType(Seq(CSpecificationType(inner1))), CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
+      isFloatOp(inner1, inner2)
     case (t1 @ TFloat(_, _), t2 @ TFloat(_, _)) =>
       CoercionUtils.getCoercion(t1, t2).isDefined || CoercionUtils.getCoercion(t2, t1).isDefined
     case (t, f @ TFloat(_, _)) => CoercionUtils.getCoercion(t, f).isDefined

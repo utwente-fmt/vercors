@@ -21,7 +21,7 @@ int main () {
    free(xs);
 
    // Should fail
-   //@ assert(xs[0] == 0);
+   // assert(xs[0] == 0);
 
    return 0;
 }

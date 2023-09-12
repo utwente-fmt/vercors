@@ -530,9 +530,10 @@ final case class Plus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) 
 final case class Minus[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends NumericBinExpr[G] with MinusImpl[G]
 final case class Mult[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends NumericBinExpr[G] with MultImpl[G]
 final case class Div[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with DivImpl[G]
-final case class FloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends BinExpr[G] with DividingExpr[G] with FloorDivImpl[G]
+final case class FloorDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with FloorDivImpl[G]
 final case class Mod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with ModImpl[G]
-final case class CMod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with CModImpl[G]
+final case class TMod[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with TModImpl[G]
+final case class TDiv[G](left: Expr[G], right: Expr[G])(val blame: Blame[DivByZero])(implicit val o: Origin) extends NumericBinExpr[G] with DividingExpr[G] with TDivImpl[G]
 
 final case class StringConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with StringConcatImpl[G]
 
@@ -785,6 +786,8 @@ case class SmtlibFpToSInt[G](arg: Expr[G], bits: Int)(implicit val o: Origin) ex
 case class SmtlibFpToUInt[G](arg: Expr[G], bits: Int)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpToUIntImpl[G]
 
 case class SmtlibToInt[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibToIntImpl[G]
+case class SmtlibIsInt[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibIsIntImpl[G]
+case class SmtlibPow[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibPowImpl[G]
 
 case class SmtlibLiteralString[G](data: String)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibLiteralStringImpl[G]
 case class SmtlibStrConcat[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibStrConcatImpl[G]

@@ -32,6 +32,31 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
     case TFloat(e, m) => s"f${e}_$m"
   }
 
+
+  case object NonDetFloatOrigin extends Origin {
+    override def preferredName: String = "nonDetFloat"
+    override def shortPosition: String = "generated non-det float"
+
+    override def context: String = "[At node generated for float to rational conversion]"
+
+    override def inlineContext: String = "[At node generated for float to rational conversion]"
+  }
+
+  val nonDetFloat: mutable.Map[Unit, Function[Post]] = mutable.Map()
+
+  def getNonDetFloat(): Expr[Post] = {
+    val nondetFunc = nonDetFloat.getOrElseUpdate((), makeNondetFloatFunc())
+    FunctionInvocation[Post](nondetFunc.ref, Seq(), Nil, Nil, Nil)(TrueSatisfiable)(NonDetFloatOrigin)
+  }
+
+  def makeNondetFloatFunc(): Function[Post] = {
+    globalDeclarations.declare(withResult((result: Result[Post]) => function[Post](
+      blame = AbstractApplicable,
+      contractBlame = TrueSatisfiable,
+      returnType = TRational(),
+    )(NonDetFloatOrigin))(NonDetFloatOrigin))
+  }
+
   def makeCast(from: Type[Pre], to: Type[Pre]): Function[Post] = {
     globalDeclarations.declare(function[Post](
       args = Seq(new Variable(dispatch(from))(DiagnosticOrigin)),
@@ -62,6 +87,11 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
         denominator = denominator * 10
       }
       const[Post](numerator.toBigIntExact.get) /:/ const(denominator)
+    case div @ FloorDiv(left, right) if left.t.isInstanceOf[TFloat[Pre]] =>
+      // Normally floats don't fail on division by zero, they get the `inf` value. Rewriting this to not fail on division by zero.
+      implicit val o: Origin = div.o
+      val newRight = dispatch(right)
+      Select(newRight !== const[Post](0) /:/ const(1), Div(dispatch(left), newRight)(div.blame)(div.o), getNonDetFloat())(div.o)
     case e => rewriteDefault(e)
   }
 

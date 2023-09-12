@@ -961,7 +961,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           Exp(rat(left), rat(right)),
         )
       case div @ FloorDiv(left, right) =>
-        FloorDiv(int(left), int(right))(div.blame)
+        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
+          FloorDiv(int(left), int(right))(div.blame),
+          FloorDiv(float(left), float(right))(div.blame),
+        )
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
       case ForPerm(bindings, loc, body) =>
@@ -1121,10 +1124,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           Mod(int(left), int(right))(div.blame),
           Mod(rat(left), rat(right))(div.blame),
         )
-      case div@CMod(left, right) =>
+      case div@TMod(left, right) => TMod(int(left), int(right))(div.blame)
+      case div@TDiv(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
-          CMod(int(left), int(right))(div.blame),
-          CMod(rat(left), rat(right))(div.blame),
+          TDiv(int(left), int(right))(div.blame),
+          TDiv(float(left), float(right))(div.blame),
         )
       case ModelAbstractState(m, state) =>
         ModelAbstractState(model(m)._1, bool(state))
@@ -1380,6 +1384,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case SmtlibFpToSInt(arg, bits) => SmtlibFpToSInt(fp(arg)._1, bits)
       case SmtlibFpToUInt(arg, bits) => SmtlibFpToUInt(fp(arg)._1, bits)
       case SmtlibToInt(arg) => SmtlibToInt(rat(arg))
+      case SmtlibIsInt(arg) =>
+        firstOk(e, s"Expected operand to be floating, but got ${arg.t}.",
+          SmtlibIsInt(float(arg)),
+          SmtlibIsInt(rat(arg)),
+        )
+      case SmtlibPow(left, right) =>
+        firstOk(e, s"Expected args to be floating, but got ${left.t} and ${right.t}.",
+          SmtlibPow(float(left), float(right)),
+          SmtlibPow(rat(left), rat(right)),
+        )
       case SmtlibLiteralString(data) => SmtlibLiteralString(data)
       case SmtlibReAll() => SmtlibReAll()
       case SmtlibReAllChar() => SmtlibReAllChar()
