@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast.{Assign, Block, Eval, Expr, IterVariable, IterationContract, Local, LocalDecl, Loop, LoopContract, LoopInvariant, PostAssignExpression, Range, RangedFor, Select, SeqMember, Statement, TInt, Variable}
-import vct.col.origin.{AssignLocalOk, Origin, PreferredNameOrigin}
+import vct.col.origin.{AssignLocalOk, Origin}
 import vct.col.util.AstBuildHelpers.const
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -11,7 +11,7 @@ case object EncodeRangedFor extends RewriterBuilder {
   override def key: String = "encodeRangedFor"
   override def desc: String = "Encodes ranged for as a regular for loop"
 
-  case class ForeachBoundOrigin(inner: Origin, name: String) extends PreferredNameOrigin
+  def ForeachBoundOrigin(inner: Origin, name: String): Origin = inner.replacePrefName(name)
 }
 
 case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {

@@ -1,7 +1,7 @@
 package vct.rewrite
 
 import vct.col.ast._
-import vct.col.origin.{AbstractApplicable, Origin, PanicBlame, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition, TrueSatisfiable}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.{function, functionInvocation}
@@ -11,12 +11,14 @@ case object HeapVariableToRef extends RewriterBuilder {
   override def key: String = "heapVarToRef"
   override def desc: String = "Translate global heap variables to the field of a constant Ref"
 
-  case object GlobalsOrigin extends Origin {
-    override def preferredName: String = "globals"
-    override def context: String = "At: [globals]"
-    override def inlineContext: String = "[globals]"
-    override def shortPosition: String = "generated"
-  }
+  private def GlobalsOrigin: Origin = Origin(
+    Seq(
+      PreferredName("globals"),
+      Context("At: [globals]"),
+      InlineContext("[globals]"),
+      ShortPosition("generated"),
+    )
+  )
 }
 
 case class HeapVariableToRef[Pre <: Generation]() extends Rewriter[Pre] {

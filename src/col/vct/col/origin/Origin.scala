@@ -395,10 +395,5 @@ case object RedirectOrigin {
   }
 }
 
-trait PreferredNameOrigin extends Origin {
-  def name: String
-  def inner: Origin
-  override def toString: String =
-    s"$name at $inner"
-}
+
 

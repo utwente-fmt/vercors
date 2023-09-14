@@ -20,33 +20,13 @@ object EncodeForkJoin extends RewriterBuilder {
   override def key: String = "forkJoin"
   override def desc: String = "Encode fork and join statements with the contract of the run method it refers to."
 
-  case class IdleToken(cls: Class[_]) extends Origin {
-    override def preferredName: String = cls.o.preferredName + "Idle"
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def IdleToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredName.get.preferredName + "Idle")
 
-  case class RunningToken(cls: Class[_]) extends Origin {
-    override def preferredName: String = cls.o.preferredName + "Running"
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def RunningToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredName.get.preferredName + "Running")
 
-  case class ForkMethod(cls: Class[_]) extends Origin {
-    override def preferredName: String = "fork" + cls.o.preferredName
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def ForkMethod(cls: Class[_]): Origin = cls.o.replacePrefName("fork" + cls.o.getPreferredName.get.preferredName)
 
-  case class JoinMethod(cls: Class[_]) extends Origin {
-    override def preferredName: String = "join" + cls.o.preferredName
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def JoinMethod(cls: Class[_]): Origin = cls.o.replacePrefName("join" + cls.o.getPreferredName.get.preferredName)
 
   case class ForkInstanceInvocation(fork: Fork[_]) extends Blame[InstanceInvocationFailure] {
     override def blame(error: InstanceInvocationFailure): Unit = error match {

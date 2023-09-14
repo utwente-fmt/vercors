@@ -9,32 +9,41 @@ case object EncodeProofHelpers extends RewriterBuilderArg[Boolean] {
   override def key: String = "proofHelpers"
   override def desc: String = "Encode statements framed with FramedProof, and indeterminate integers."
 
-  case object Once extends Origin {
-    override def preferredName: String = "once"
-    override def context: String = "[At node generated to execute a while loop once]"
-    override def inlineContext: String = "Node generated to execute a while loop once"
-    override def shortPosition: String = "generated"
-  }
+  private def Once: Origin = Origin(
+    Seq(
+      PreferredName("once"),
+      Context("[At node generated to execute a while loop once]"),
+      InlineContext("Node generated to execute a while loop once"),
+      ShortPosition("generated"),
+    )
+  )
 
-  case object Indet extends Origin {
-    override def preferredName: String = "indet"
-    override def context: String = "[At node generated to contain an indeterminate integer]"
-    override def inlineContext: String = "Node generated to contain an indeterminate integer"
-    override def shortPosition: String = "generated"
-  }
+  private def Indet: Origin = Origin(
+    Seq(
+      PreferredName("indet"),
+      Context("[At node generated to contain an indeterminate integer]"),
+      InlineContext("Node generated to contain an indeterminate integer"),
+      ShortPosition("generated"),
+    )
+  )
 
-  case object Before extends Origin {
-    override def preferredName: String = "beforeFrame"
-    override def context: String = "[At node generated to indicate the point before a proof frame]"
-    override def inlineContext: String = "Node generated to indicate the point before a proof frame"
-    override def shortPosition: String = "generated"
-  }
+  private def Before: Origin = Origin(
+    Seq(
+      PreferredName("beforeFrame"),
+      Context("[At node generated to indicate the point before a proof frame]"),
+      InlineContext("Node generated to indicate the point before a proof frame"),
+      ShortPosition("generated"),
+    )
+  )
 
-  case class BeforeVar(preferredName: String) extends Origin {
-    override def context: String = "[At variable generated for forperm]"
-    override def inlineContext: String = "Variable generated for forperm"
-    override def shortPosition: String = "generated"
-  }
+  private def BeforeVar(preferredName: String): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      Context("[At variable generated for forperm]"),
+      InlineContext("Variable generated for forperm"),
+      ShortPosition("generated"),
+    )
+  )
 
   case class FramedProofLoopInvariantFailed(proof: FramedProof[_]) extends Blame[LoopInvariantFailure] {
     override def blame(error: LoopInvariantFailure): Unit = error match {
