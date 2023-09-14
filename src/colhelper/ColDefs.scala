@@ -61,6 +61,8 @@ object ColDefs {
       // given/yields variables must be deemed in the same scope as the applicable.
       // maybe they can be non-variables, since they are not referenced via Local?
       "Program",
+      // EW TODO: remove?
+      "CPPLambdaDefinition",
       // "Function", "Procedure",
       // "InstanceFunction", "InstanceMethod",
       // "JavaConstructor", "JavaMethod",
@@ -73,6 +75,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "CFunctionDefinition",
       "CPPFunctionDefinition",
+      "CPPLambdaDefinition",
       "PVLConstructor",
       "LlvmFunctionDefinition",
       "LlvmSpecFunction"
@@ -89,11 +92,11 @@ object ColDefs {
       "CGlobalDeclaration", "CFunctionDefinition",
     ),
     "CPPLocalDeclaration" -> Seq(
-      "CPPGlobalDeclaration", "CPPFunctionDefinition",
+      "CPPGlobalDeclaration", "CPPFunctionDefinition", "CPPLambdaDefinition",
       "Scope",
     ),
     "CPPParam" -> Seq(
-      "CPPGlobalDeclaration", "CPPFunctionDefinition",
+      "CPPGlobalDeclaration", "CPPFunctionDefinition", "CPPLambdaDefinition",
     ),
     "JavaLocalDeclaration" -> Seq(
       "JavaConstructor", "JavaMethod",

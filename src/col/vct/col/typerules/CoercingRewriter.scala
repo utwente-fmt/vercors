@@ -906,9 +906,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
       case defn@CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
+      case CPPLambdaRef() => CPPLambdaRef()
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
-      case CPPLocal(name) => e
+      case CPPLocal(name, arg) => e
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
@@ -1445,7 +1446,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Sum(bindings, bool(condition), int(main))
       case SuperType(left, right) =>
         SuperType(left, right)
-      case SYCLLocal(name, arg) => e
       case Tail(xs) =>
         Tail(seq(xs)._1)
       case Take(xs, count) =>

@@ -45,6 +45,7 @@ case object CPP {
   case class DeclaratorInfo[G](params: Option[Seq[CPPParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
 
   def getDeclaratorInfo[G](decl: CPPDeclarator[G]): DeclaratorInfo[G] = decl match {
+   // EW TODO: split parameters into normal and lambda params
     case CPPAddressingDeclarator(operators, inner) =>
       // EW TODO check if allowed
       val innerInfo = getDeclaratorInfo(inner)
@@ -70,9 +71,14 @@ case object CPP {
       val innerInfo = getDeclaratorInfo(inner)
       DeclaratorInfo(params = Some(params), typeOrReturnType = t => t, innerInfo.name)
     case CPPLambdaDeclarator(params) =>
+      val filteredParams = Seq()
+      val lambdaParams = Seq()
       DeclaratorInfo(params = Some(params), typeOrReturnType = _ => TVoid(), "")
     case CPPName(name) => DeclaratorInfo(params = None, typeOrReturnType = (t => t), name)
   }
+
+  def filterOutLambdaParams[G](params: Seq[CPPParam[G]]): Seq[CPPParam[G]] =
+    params.filterNot(param => getPrimitiveType(param.specifiers).isInstanceOf[CPPTLambda[G]])
 
   def getPrimitiveType[G](specs: Seq[CPPDeclarationSpecifier[G]], context: Option[Node[G]] = None): Type[G] =
     specs.collect { case spec: CPPTypeSpecifier[G] => spec } match {
@@ -88,6 +94,7 @@ case object CPP {
       case Seq(SYCLClass("nd_item", Some(dim))) => SYCLTNDItem(dim)
       case Seq(SYCLClass("range", Some(dim))) => SYCLTRange(dim)
       case Seq(SYCLClass("nd_range", Some(dim))) => SYCLTNDRange(dim)
+      case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
       case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ
       case spec +: _ => throw CPPTypeNotSupported(context.orElse(Some(spec)))
@@ -105,7 +112,7 @@ case object CPP {
 
   def findCPPTypeName[G](name: String, ctx: TypeResolutionContext[G]): Option[CPPTypeNameTarget[G]] = {
     if (name == "VERCORS::LAMBDA") {
-      return Some(RefCPPLambdaType[G]())
+      return Some(RefCPPLambda[G](CPPLambdaRef()))
     }
     ctx.stack.flatten.collectFirst {
       case target: CPPTypeNameTarget[G] if target.name == name => target
@@ -137,12 +144,12 @@ case object CPP {
     name
   }
 
-  def findCPPName[G](name: String, genericArg: Option[Int], ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] = {
+  def findCPPName[G](name: String, genericArg: Option[Int], ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
     val targetName: String = replacePotentialSYCLClassInstance(name, ctx)
 
     var nameSeq = targetName.split("::")
     if (nameSeq.length == 1) {
-      ctx.stack.flatten.collectFirst {
+      ctx.stack.flatten.collect {
         case target: CPPNameTarget[G] if target.name == targetName => target
       }
     } else {
@@ -154,10 +161,10 @@ case object CPP {
         case Some(ref) =>
           nameSeq = nameSeq.drop(1);
           var foundNamespace: Option[CPPNamespaceDefinition[G]] = Some(ref.decl)
-          var returnVal: Option[CPPNameTarget[G]] = None;
+          var returnVal: Seq[CPPNameTarget[G]] = Seq()
           while (nameSeq.nonEmpty) {
             if (foundNamespace.isEmpty) {
-              return None
+              return Seq()
             }
 
             if (nameSeq.length > 1) {
@@ -171,27 +178,23 @@ case object CPP {
               if (returnVal.isEmpty) {
                 returnVal = foundNamespace.get.declarations.collectFirst {
                   case namespace: CPPNamespaceDefinition[G] if namespace.name == nameSeq.head =>
-                    findDeclInNamespace("constructor" + (if (genericArg.isDefined) "_" + genericArg.get else ""), namespace)
-                }.flatten
+                    findDeclInNamespace("constructor", namespace)
+                }.getOrElse(Seq())
               }
             }
             nameSeq = nameSeq.drop(1)
           }
           returnVal
-        case None => None
+        case None => Seq()
       }
     }
   }
 
-  def findDeclInNamespace[G](name: String, namespace: CPPNamespaceDefinition[G]): Option[CPPNameTarget[G]] =
-    namespace.declarations.collectFirst {
+  def findDeclInNamespace[G](name: String, namespace: CPPNamespaceDefinition[G]): Seq[CPPNameTarget[G]] =
+    namespace.declarations.collect {
       case funcDef: CPPFunctionDefinition[G] if getDeclaratorInfo(funcDef.declarator).name == name => RefCPPFunctionDefinition(funcDef)
       case globalDecl: CPPGlobalDeclaration[G] if getDeclaratorInfo(globalDecl.decl.inits.head.decl).name == name => RefCPPGlobalDeclaration(globalDecl, 0)
     }
-
-  def findSYCLName[G](name: String, genericArg: Option[Int], ctx: ReferenceResolutionContext[G]): Option[CPPNameTarget[G]] = {
-    findCPPName("sycl::" + name, genericArg, ctx)
-  }
 
   def findForwardDeclaration[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPGlobalDeclaration[G]] =
     ctx.stack.flatten.collectFirst {
@@ -217,11 +220,59 @@ case object CPP {
     }
   }
 
-  def resolveInvocation[G](obj: Expr[G]): CPPInvocationTarget[G] =
+  def checkArgs[G](params: Seq[Type[G]], args: Seq[Expr[G]]): Boolean = {
+    if (params.size != args.size) return false
+    !params.indices.exists(i => {
+      val argType = args(i).t match {
+        case value: CPPPrimitiveType[G] => getPrimitiveType(value.specifiers)
+        case _ => args(i).t
+      }
+      params(i) != argType && !(params(i).isInstanceOf[TInt[G]] && argType.isInstanceOf[TBoundedInt[G]])
+    })
+  }
+
+  def getParamTypes[G](ref: CPPInvocationTarget[G]): Seq[Type[G]] = ref match {
+    case globalDeclRef: RefCPPGlobalDeclaration[G] if globalDeclRef.decls.decl.inits.size == 1 =>
+      paramsFromDeclarator(globalDeclRef.decls.decl.inits.head.decl).map(param => getPrimitiveType(param.specifiers))
+    case functionDeclRef: RefCPPFunctionDefinition[G] =>
+      paramsFromDeclarator(functionDeclRef.decl.declarator).map(param => getPrimitiveType(param.specifiers))
+    case functionRef: RefFunction[G] => functionRef.decl.args.map(variable => variable.t)
+    case procedureRef: RefProcedure[G] => procedureRef.decl.args.map(variable => variable.t)
+    case predicateRef: RefPredicate[G] => predicateRef.decl.args.map(variable => variable.t)
+    case instanceFunctionRef: RefInstanceFunction[G] => instanceFunctionRef.decl.args.map(variable => variable.t)
+    case instanceMethodRef: RefInstanceMethod[G] => instanceMethodRef.decl.args.map(variable => variable.t)
+    case instancePredicateRef: RefInstancePredicate[G] => instancePredicateRef.decl.args.map(variable => variable.t)
+    case aDTFunctionRef: RefADTFunction[G] => aDTFunctionRef.decl.args.map(variable => variable.t)
+    case modelProcessRef: RefModelProcess[G] => modelProcessRef.decl.args.map(variable => variable.t)
+    case modelActionRef: RefModelAction[G] => modelActionRef.decl.args.map(variable => variable.t)
+    case proverFunctionRef: RefProverFunction[G] => proverFunctionRef.decl.args.map(variable => variable.t)
+    case _ => Seq()
+  }
+
+  def resolveInvocation[G](obj: Expr[G], args: Seq[Expr[G]], ctx: ReferenceResolutionContext[G]): CPPInvocationTarget[G] =
     obj.t match {
-      // EW TODO: Also check args
       case t: TNotAValue[G] => t.decl.get match {
-        case target: CPPInvocationTarget[G] => target
+        // Do not check arguments for BuiltinInstanceMethods as we do not know the argument types
+        case target: BuiltinInstanceMethod[G] => target
+        // The previously found method is already the correct one
+        case target: CPPInvocationTarget[G] if checkArgs(getParamTypes(target), args) => target
+        case _ if obj.isInstanceOf[CPPLocal[G]] =>
+          // Currently linked method does not have correct params
+          // So find all declarations with correct name and see if there is
+          // an alternative whose parameters do match the arguments
+          val local = obj.asInstanceOf[CPPLocal[G]]
+          for (decl <- findCPPName(local.name, local.genericArg, ctx)) {
+            decl match {
+              case value: CPPInvocationTarget[G] =>
+                if (checkArgs(getParamTypes(value), args)) {
+                  local.ref = Some(decl)
+                  t.decl = Some(decl)
+                  return value
+                }
+              case _ =>
+            }
+          }
+          throw NotApplicable(obj)
         case _ => throw NotApplicable(obj)
       }
       case _ => throw NotApplicable(obj)

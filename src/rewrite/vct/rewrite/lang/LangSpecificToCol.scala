@@ -124,6 +124,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
         case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
+        case ref: RefCPPLambdaDefinition[Pre] => cpp.result(ref)
         case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
         case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
@@ -167,6 +168,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case local: CPPLocal[Pre] => cpp.local(local)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
+//    case func: CPPLambdaDefinition[Pre] => cpp.rewriteLambdaDef(func)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
@@ -182,7 +184,11 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
+//    case t: CPPTPointer[Pre] => cpp.pointerType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
+    // EW TODO: Remove?
+    case t: SYCLTClass[Pre] => TRef()
+//    case t: CPPTLambda[Pre] => cpp.lambdaType(t)
     case other => rewriteDefault(other)
   }
 }

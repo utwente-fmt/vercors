@@ -341,8 +341,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
     case PostfixExpression4(classVar, _, None, idExpr) =>
       convert(classVar) match {
-        case CPPLocal(className) => convert(idExpr) match {
-          case CPPTypedefName(name, None) => CPPLocal(className + "." + name)(blame(expr))
+        case CPPLocal(className, arg) => convert(idExpr) match {
+          case CPPTypedefName(name, None) => CPPLocal(className + "." + name, arg)(blame(expr))
           case _ => ??(expr)
         }
         case _ => ??(expr)
@@ -373,8 +373,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case PrimaryExpression2(_) => AmbiguousThis()
     case PrimaryExpression3(_, inner, _) => convert(inner)
     case PrimaryExpression4(inner) => convert(inner) match {
-      case CPPTypedefName(name, None) => CPPLocal(name)(blame(expr))(origin(expr))
-      case SYCLClass(name, arg) => SYCLLocal(name, arg)(blame(expr))(origin(expr))
+      case CPPTypedefName(name, None) => CPPLocal(name, None)(blame(expr))(origin(expr))
+      case SYCLClass(name, arg) => CPPLocal("sycl::" + name, arg)(blame(expr))(origin(expr))
       case _ => ??(expr)
     }
     case PrimaryExpression5(lambda) => convert(lambda)
@@ -745,7 +745,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   }
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CPPLocal(name)(blame(ctx))(origin(ctx))
+    CPPLocal(name, None)(blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)

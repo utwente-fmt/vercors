@@ -358,10 +358,8 @@ case object ResolveReferences extends LazyLogging {
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@CPPLocal(name) =>
-      local.ref = Some(CPP.findCPPName(name, None, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@SYCLLocal(name, arg) =>
-      local.ref = Some(CPP.findSYCLName(name, arg, ctx).getOrElse(throw NoSuchNameError("SYCL local", name, local)))
+    case local@CPPLocal(name, arg) =>
+      local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
@@ -413,7 +411,7 @@ case object ResolveReferences extends LazyLogging {
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv@CPPInvocation(obj, args, givenMap, yields) =>
-      inv.ref = Some(CPP.resolveInvocation(obj))
+      inv.ref = Some(CPP.resolveInvocation(obj, args, ctx))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv@GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>

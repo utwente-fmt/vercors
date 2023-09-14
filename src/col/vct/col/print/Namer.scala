@@ -45,6 +45,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
     case _: Let[G] => ()
     case _: ScopedExpr[G] => ()
     case _: ForPerm[G] => ()
+    case _: CPPLambdaDefinition[G] => ()
   }
 
   private def nearestCallable = nearest {

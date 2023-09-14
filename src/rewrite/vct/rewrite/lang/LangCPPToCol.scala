@@ -31,6 +31,20 @@ case object LangCPPToCol {
         decl.o -> "... but its forward declaration also has a contract.",
       ))
   }
+
+  case class KernelParFailure(kernel: CPPLambdaDefinition[_]) extends Blame[ParBlockFailure] {
+    override def blame(error: ParBlockFailure): Unit = error match {
+//      case ParPredicateNotInjective(_, predicate) =>
+//        kernel.blame.blame(KernelPredicateNotInjective(kernel, predicate))
+//      case ParPreconditionFailed(_, _) =>
+//        PanicBlame("Kernel parallel block precondition cannot fail, since an identical predicate is required before.").blame(error)
+//      case ParBlockPostconditionFailed(failure, _) =>
+//        kernel.blame.blame(KernelPostconditionFailed(failure, kernel))
+//      case ParBlockMayNotThrow(_) =>
+//        PanicBlame("Please don't throw exceptions from a gpgpu kernel, it's not polite.").blame(error)
+      case _ => PanicBlame("ELLEN: Implement blame!").blame(error)
+    }
+  }
 }
 
 case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -44,6 +58,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val cppNameSuccessor: SuccessionMap[CPPNameTarget[Pre], Variable[Post]] = SuccessionMap()
   val cppGlobalNameSuccessor: SuccessionMap[CPPNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cppCurrentDefinitionParamSubstitutions: ScopedStack[Map[CPPParam[Pre], CPPParam[Pre]]] = ScopedStack()
+  val cppLambdaSuccessor: SuccessionMap[CPPLambdaDefinition[Pre], Procedure[Post]] = SuccessionMap()
 
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
     cppUnit.declarations.foreach(rw.dispatch)
@@ -62,14 +77,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def rewriteFunctionDef(func: CPPFunctionDefinition[Pre]): Unit = {
     func.drop()
     val info = CPP.getDeclaratorInfo(func.declarator)
+    val infoParams = CPP.filterOutLambdaParams(info.params.get)
     val returnType = func.specs.collectFirst { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get
 
     val (contract, subs: Map[CPPParam[Pre], CPPParam[Pre]]) = func.ref match {
       case Some(RefCPPGlobalDeclaration(decl, idx)) if decl.decl.contract.nonEmpty =>
         if (func.contract.nonEmpty) throw CPPDoubleContracted(decl, func)
-
+        // EW TODO: params are also filtered here, is ok?
         val declParams = CPP.getDeclaratorInfo(decl.decl.inits(idx).decl).params.get
-        val defnParams = info.params.get
+        val defnParams = infoParams
 
         (decl.decl.contract, declParams.zip(defnParams).toMap)
       case _ =>
@@ -82,7 +98,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         rw.globalDeclarations.declare(
           {
             val params = rw.variables.collect {
-              info.params.get.foreach(rw.dispatch)
+              infoParams.foreach(rw.dispatch)
             }._1
             rw.labelDecls.scope {
               new Procedure[Post](
@@ -107,28 +123,62 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
+  def rewriteLambdaDef(lambda: CPPLambdaDefinition[Pre], body: Statement[Pre]): Unit = {
+    val info = CPP.getDeclaratorInfo(lambda.declarator)
+    val returnType = TVoid[Post]()
+
+    val namedO = InterpretedOriginVariable("VERCORS_LAMBDA_METHOD", lambda.o)
+    val proc =
+      cppCurrentDefinitionParamSubstitutions.having(Map.empty) {
+        rw.globalDeclarations.declare(
+          {
+            val params = rw.variables.collect {
+              CPP.filterOutLambdaParams(info.params.get).foreach(rw.dispatch)
+            }._1
+            rw.labelDecls.scope {
+              new Procedure[Post](
+                returnType = returnType,
+                args = params,
+                outArgs = Nil,
+                typeArgs = Nil,
+                body = Some(rw.dispatch(body)),
+                contract = rw.dispatch(lambda.contract),
+              )(lambda.blame)(namedO)
+            }
+          }
+        )
+      }
+
+    cppLambdaSuccessor(lambda) = proc
+
+//    val returnExpr = new CPPLambdaRef[Post]()(namedO)
+//    returnExpr.ref = Some(new RefProcedure[Post](proc))
+//    returnExpr
+  }
+
   def rewriteGlobalDecl(decl: CPPGlobalDeclaration[Pre]): Unit = {
     val t = decl.decl.specs.collectFirst { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get
     for ((init, idx) <- decl.decl.inits.zipWithIndex if init.ref.isEmpty) {
       // If the reference is empty, skip the declaration: the definition is used instead.
       val info = CPP.getDeclaratorInfo(init.decl)
+      val namedO = InterpretedOriginVariable(info.name, init.o)
       info.params match {
         case Some(params) =>
           cppFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
             new Procedure[Post](
               returnType = t,
               args = rw.variables.collect {
-                params.foreach(rw.dispatch)
+                CPP.filterOutLambdaParams(params).foreach(rw.dispatch)
               }._1,
               outArgs = Nil,
               typeArgs = Nil,
               body = None,
               contract = rw.dispatch(decl.decl.contract),
-            )(AbstractApplicable)(init.o)
+            )(AbstractApplicable)(namedO)
           )
         case None =>
           cppGlobalNameSuccessor(RefCPPGlobalDeclaration(decl, idx)) =
-            rw.globalDeclarations.declare(new HeapVariable(t)(init.o))
+            rw.globalDeclarations.declare(new HeapVariable(t)(namedO))
       }
     }
   }
@@ -174,6 +224,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def result(ref: RefCPPFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =
     Result[Post](cppFunctionSuccessor.ref(ref.decl))
+
+  def result(ref: RefCPPLambdaDefinition[Pre])(implicit o: Origin): Expr[Post] =
+    Result[Post](cppLambdaSuccessor.ref(ref.decl))
 
   def result(ref: RefCPPGlobalDeclaration[Pre])(implicit o: Origin): Expr[Post] = {
     val maybeDefinition = ref.decls.decl.inits(ref.initIdx).ref
@@ -229,7 +282,16 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
       case BuiltinInstanceMethod(f) => ???
       case ref: RefCPPFunctionDefinition[Pre] =>
-        ProcedureInvocation[Post](cppFunctionSuccessor.ref(ref.decl), args.map(rw.dispatch), Nil, Nil,
+        var filteredArgs = Seq[Expr[Pre]]()
+        args.foreach {
+          case argument: CPPLambdaDefinition[Pre] =>
+          case argument => filteredArgs = filteredArgs :+ argument
+        }
+        ProcedureInvocation[Post](cppFunctionSuccessor.ref(ref.decl), filteredArgs.map(rw.dispatch), Nil, Nil,
+          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
+      case ref: RefCPPLambdaDefinition[Pre] =>
+        ProcedureInvocation[Post](cppLambdaSuccessor.ref(ref.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case e: RefCPPGlobalDeclaration[Pre] => globalInvocation(e, inv)
@@ -248,16 +310,70 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         case _ => None
       }
     } else None
+    // Process lambda parameters and remove them from the parameter list
+    var filteredArgs = Seq[Expr[Pre]]()
+    args.foreach {
+      case argument: CPPLambdaDefinition[Pre] =>
+      case argument => filteredArgs = filteredArgs :+ argument
+    }
     (e.name, arg) match {
-      case _ => ProcedureInvocation[Post](cppFunctionDeclSuccessor.ref((decls, initIdx)), args.map(rw.dispatch), Nil, Nil,
-        givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-        yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
+      case _ => {
+        var procedureRef: Ref[Post, Procedure[Post]] = cppFunctionDeclSuccessor.ref((decls, initIdx))
+        procedureRef = rewritePotentialSYCLProcedure(e, procedureRef, inv)
+        ProcedureInvocation[Post](
+          procedureRef, filteredArgs.map(rw.dispatch), Nil, Nil,
+          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) }
+        )(inv.blame)
+      }
     }
   }
+
+  def rewritePotentialSYCLProcedure(declaration: RefCPPGlobalDeclaration[Pre], declProcedureRef: Ref[Post, Procedure[Post]], invocation: CPPInvocation[Pre]): Ref[Post, Procedure[Post]] = {
+    // cppLambdaSuccessor(invocation.args(0))
+    // EW TODO: better method matching
+    if (declaration.name == "submit" && CPP.getPrimitiveType(declaration.decls.decl.specs).isInstanceOf[SYCLTEvent[Pre]]) {
+      // Command group submit method
+//      val commandGroupProcedure = cppLambdaSuccessor(invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]])
+      val lambdaDef: CPPLambdaDefinition[Pre] = invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]]
+      rewriteLambdaDef(lambdaDef, lambdaDef.body)
+      val mew = 5;
+    } else if (declaration.name == "parallel_for" && CPP.getPrimitiveType(declaration.decls.decl.specs).isInstanceOf[TVoid[Pre]]) {
+      // Kernel parallel_for
+      val lambdaDef: CPPLambdaDefinition[Pre] = invocation.args.toSeq(1).asInstanceOf[CPPLambdaDefinition[Pre]]
+      implicit val o: Origin = lambdaDef.body.o
+      val innerBody = lambdaDef.body.asInstanceOf[Scope[Pre]].body.asInstanceOf[Block[Pre]]
+      val blockDecl = new ParBlockDecl[Pre]()
+      val UnitAccountedPredicate(contractRequires: Expr[Pre]) = lambdaDef.contract.requires
+      val UnitAccountedPredicate(contractEnsures: Expr[Pre]) = lambdaDef.contract.ensures
+      val newOuterBody = ParStatement[Pre](ParBlock[Pre](
+        decl = blockDecl,
+        iters = Seq(),
+        // Context is already inherited
+        context_everywhere = lambdaDef.contract.contextEverywhere,
+        requires = contractRequires,
+        ensures = contractEnsures,
+        content = Scope[Pre](Seq(), Block[Pre](Seq(innerBody))),
+      )(KernelParFailure(lambdaDef)))
+
+      rewriteLambdaDef(lambdaDef, newOuterBody)
+//      val kernelProcedure = cppLambdaSuccessor(invocation.args.toSeq(1).asInstanceOf[CPPLambdaDefinition[Pre]])
+//      kernelProcedure.body.get.body
+      val mew = 5;
+    }
+    declProcedureRef
+  }
+//
+//  def pointerType(t: CPPTPointer[Pre]): Type[Post] = {
+//    TPointer(rw.dispatch(t.innerType))
+//  }
 
   def arrayType(t: CPPTArray[Pre]): Type[Post] = {
     // TODO: we should not use pointer here
     TPointer(rw.dispatch(t.innerType))
   }
+
+  // EW TODO: remove?
+  def lambdaType(t: CPPTLambda[Pre]): Type[Post] = TRef()
 
 }
