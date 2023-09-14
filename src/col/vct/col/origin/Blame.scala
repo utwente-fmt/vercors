@@ -15,17 +15,17 @@ sealed trait ContractFailure {
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def code: String = "false"
   override def descCompletion: String = "this expression may be false"
-  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be false"
+  override def inlineDescCompletion: String = s"`${node.o.getInlineContext.get.inlineContext}` may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def code: String = "perm"
   override def descCompletion: String = "there might not be enough permission to exhale this amount"
-  override def inlineDescCompletion: String = s"there might be insufficient permission for `${node.o.inlineContext}`"
+  override def inlineDescCompletion: String = s"there might be insufficient permission for `${node.o.getInlineContext.get.inlineContext}`"
 }
 case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def code: String = "negativePermValue"
   override def descCompletion: String = "the amount of permission in this permission predicate may be negative"
-  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be a negative permission amount"
+  override def inlineDescCompletion: String = s"`${node.o.getInlineContext.get.inlineContext}` may be a negative permission amount"
 }
 
 trait VerificationFailure {
@@ -76,9 +76,9 @@ trait NodeVerificationFailure extends VerificationFailure {
   def descInContext: String
   def inlineDescWithSource(source: String): String
 
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPosition.get.shortPosition
   override def desc: String = node.o.messageInContext(descInContext + errUrl)
-  override def inlineDesc: String = inlineDescWithSource(node.o.inlineContext)
+  override def inlineDesc: String = inlineDescWithSource(node.o.getInlineContext.get.inlineContext)
 }
 
 trait WithContractFailure extends VerificationFailure {
@@ -89,7 +89,7 @@ trait WithContractFailure extends VerificationFailure {
   def descInContext: String
   def inlineDescWithSource(node: String, failure: String): String
 
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPosition.get.shortPosition
 
   override def code: String = s"$baseCode:${failure.code}"
 
@@ -100,7 +100,7 @@ trait WithContractFailure extends VerificationFailure {
     ))
 
   override def inlineDesc: String =
-    inlineDescWithSource(node.o.inlineContext, failure.inlineDescCompletion)
+    inlineDescWithSource(node.o.getInlineContext.get.inlineContext, failure.inlineDescCompletion)
 }
 
 sealed trait ExpectedErrorFailure extends VerificationFailure {
@@ -109,14 +109,14 @@ sealed trait ExpectedErrorFailure extends VerificationFailure {
 
 case class ExpectedErrorTrippedTwice(err: ExpectedError, left: VerificationFailure, right: VerificationFailure) extends ExpectedErrorFailure {
   override def code: String = "trippedTwice"
-  override def position: String = err.errorRegion.shortPosition
+  override def position: String = err.errorRegion.getShortPosition.get.shortPosition
   override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` occurred multiple times."
 }
 
 case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFailure {
   override def code: String = "notTripped"
-  override def position: String = err.errorRegion.shortPosition
+  override def position: String = err.errorRegion.getShortPosition.get.shortPosition
   override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
@@ -217,14 +217,14 @@ case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractF
 }
 case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
-  override def position: String = measure.o.shortPosition
+  override def position: String = measure.o.getShortPosition.get.shortPosition
   override def desc: String = Origin.messagesInContext(Seq(
     applicable.o -> "Applicable may not terminate, since ...",
     apply.o -> "... from this invocation ...",
     measure.o -> "... this measure may not be bounded, or may not decrease.",
   ))
   override def inlineDesc: String =
-    s"`${apply.o.inlineContext}` may not terminate, since `${measure.o.inlineContext}` is not decreased or not bounded"
+    s"`${apply.o.getInlineContext.get.inlineContext}` may not terminate, since `${measure.o.getInlineContext.get.inlineContext}` is not decreased or not bounded"
 }
 case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
@@ -254,9 +254,9 @@ case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvari
 }
 case class LoopTerminationMeasureFailed(node: DecreasesClause[_]) extends LoopInvariantFailure with NodeVerificationFailure {
   override def code: String = "loopDecreasesFailed"
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPosition.get.shortPosition
   override def descInContext: String = "Loop may not terminate, since this measure may not be bounded, or may not decrease."
-  override def inlineDescWithSource(source: String): String = s"Loop may not terminate, since `${node.o.inlineContext}` may be unbounded or nondecreasing"
+  override def inlineDescWithSource(source: String): String = s"Loop may not terminate, since `${node.o.getInlineContext.get.inlineContext}` may be unbounded or nondecreasing"
 }
 case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
@@ -264,9 +264,9 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) exten
     quantifier.o -> "This quantifier causes the resources in its body to be quantified, ...",
     resource.o   -> "... but this resource may not be unique with regards to the quantified variables.",
   ))
-  override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.inlineContext}` may not be unique with regards to the quantified variables."
+  override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.getInlineContext.get.inlineContext}` may not be unique with regards to the quantified variables."
 
-  override def position: String = resource.o.shortPosition
+  override def position: String = resource.o.getShortPosition.get.shortPosition
 }
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def code: String = "divByZero"
@@ -356,7 +356,7 @@ case class KernelPostconditionFailed(failure: ContractFailure, node: CGpgpuKerne
 }
 case class KernelPredicateNotInjective(kernel: CGpgpuKernelSpecifier[_], predicate: Expr[_]) extends KernelFailure {
   override def code: String = "kernelNotInjective"
-  override def position: String = predicate.o.shortPosition
+  override def position: String = predicate.o.getShortPosition.get.shortPosition
 
   override def desc: String =
     Origin.messagesInContext(Seq(
@@ -365,7 +365,7 @@ case class KernelPredicateNotInjective(kernel: CGpgpuKernelSpecifier[_], predica
     ))
 
   override def inlineDesc: String =
-    s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
+    s"`${predicate.o.getInlineContext.get.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
 }
 
 sealed trait KernelBarrierFailure extends VerificationFailure
@@ -420,7 +420,7 @@ case class ParBarrierInvariantBroken(failure: ContractFailure, node: ParBarrier[
 sealed trait ParBlockFailure extends VerificationFailure
 case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) extends ParBlockFailure {
   override def code: String = "parNotInjective"
-  override def position: String = predicate.o.shortPosition
+  override def position: String = predicate.o.getShortPosition.get.shortPosition
   override def desc: String =
     Origin.messagesInContext(Seq(
       (block.o, "This parallel block causes the formulas in its body to be quantified over all threads, ..."),
@@ -428,7 +428,7 @@ case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) exte
     ))
 
   override def inlineDesc: String =
-    s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
+    s"`${predicate.o.getInlineContext.get.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
 }
 
 sealed trait ParBlockContractFailure extends ParBlockFailure

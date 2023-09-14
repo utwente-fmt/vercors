@@ -75,11 +75,6 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import scala.reflect.ClassTag
 
     object Deserialize {
-      case class Origin(stringOrigin:String="{}", fileName:String="<unknown>") extends vct.col.origin.Origin {
-        override def preferredName: String = "unknown"
-        override def context: String = "At: [deserialized node]"
-        override def inlineContext: String = "[Deserialized node]"
-        override def shortPosition: String = "serialized"
       def deserialize(originContent: ser.OriginContent): OriginContent = originContent.v match {
         case ser.OriginContent.V.RequiredName(ser.RequiredName(str, _)) => RequiredName(str)
         case ser.OriginContent.V.PreferredName(ser.PreferredName(str, _)) => PreferredName(str)

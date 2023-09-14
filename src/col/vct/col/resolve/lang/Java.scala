@@ -6,7 +6,7 @@ import hre.util.FuncTools
 import vct.col.ast.lang.JavaAnnotationEx
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
-import vct.col.origin._
+import vct.col.origin.{UserInputOrigin, _}
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
 import vct.col.resolve._
@@ -30,11 +30,14 @@ case object Java extends LazyLogging {
     override def code: String = "unexpectedJreDefinition"
   }
 
-  case class JavaSystemOrigin(preferredName: String) extends Origin {
-    override def shortPosition: String = "reflection"
-    override def context: String = s"At: [Class loaded from JRE with reflection]"
-    override def inlineContext: String = "[Class loaded from JRE with reflection]"
-  }
+  def JavaSystemOrigin(preferredName: String) = Origin (
+    Seq(
+      PreferredName(preferredName),
+      ShortPosition("reflection"),
+      Context(s"At: [Class loaded from JRE with reflection]"),
+      InlineContext("[Class loaded from JRE with reflection]")
+    )
+  )
 
   private implicit val o: Origin = DiagnosticOrigin
   def JAVA_LANG_OBJECT[G]: JavaNamedType[G] = JavaNamedType(Seq(("java", None), ("lang", None), ("Object", None)))
@@ -136,7 +139,7 @@ case object Java extends LazyLogging {
   }
 
   def translateRuntimeParameter[G](param: Parameter)(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaParam[G] = {
-    new JavaParam(Seq(), param.getName, translateRuntimeType(param.getType))(SourceNameOrigin(param.getName, o))
+    new JavaParam(Seq(), param.getName, translateRuntimeType(param.getType))(Origin(PreferredName(param.getName) +: o.originContents))
   }
 
   def translateRuntimeClass[G](cls: Class[_])(implicit o: Origin, ctx: TypeResolutionContext[G]): JavaClassOrInterface[G] = {
@@ -149,7 +152,7 @@ case object Java extends LazyLogging {
         signals = Nil,
         body = Block(Nil),
         contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None)(TrueSatisfiable),
-      )(SourceNameOrigin(cls.getSimpleName, o))
+      )(Origin(PreferredName(cls.getSimpleName) +: o.originContents))
     })
 
     val methods = cls.getMethods.map(method => {
@@ -163,7 +166,7 @@ case object Java extends LazyLogging {
         signals = Nil,
         body = None,
         contract = ApplicableContract(UnitAccountedPredicate(tt), UnitAccountedPredicate(tt), tt, Nil, Nil, Nil, None)(TrueSatisfiable),
-      )(AbstractApplicable)(SourceNameOrigin(method.getName, o))
+      )(AbstractApplicable)(Origin(PreferredName(method.getName) +: o.originContents))
     })
 
     val fields = cls.getFields.map(field => {
@@ -182,7 +185,7 @@ case object Java extends LazyLogging {
         modifiers = Nil,
         ext = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx))(0),
         decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
-      )(SourceNameOrigin(cls.getName.split('.').last, o))
+      )(Origin(PreferredName(cls.getName.split('.').last) +: o.originContents))
     } else if(cls.isInterface) {
       new JavaInterface[G](
         name = cls.getName.split('.').last,
@@ -190,7 +193,7 @@ case object Java extends LazyLogging {
         typeParams = Nil,
         ext = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
         decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
-      )(SourceNameOrigin(cls.getName.split('.').last, o))
+      )(Origin(PreferredName(cls.getName.split('.').last) +: o.originContents))
     } else {
       new JavaClass[G](
         name = cls.getName.split('.').last,
@@ -200,7 +203,7 @@ case object Java extends LazyLogging {
         ext = Option(cls.getSuperclass).map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)).getOrElse(JAVA_LANG_OBJECT),
         imp = cls.getInterfaces.toIndexedSeq.map(cls => lazyType(cls.getName.split('.').toIndexedSeq, ctx)),
         decls = fields.toIndexedSeq ++ cons.toIndexedSeq ++ methods.toIndexedSeq,
-      )(SourceNameOrigin(cls.getName.split('.').last, o))
+      )(Origin(PreferredName(cls.getName.split('.').last) +: o.originContents))
     }
   }
 
@@ -219,7 +222,7 @@ case object Java extends LazyLogging {
             // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
             for {
               ns <- ctx.namespace
-              ReadableOrigin(readable, _, _, _) <- Some(ns.o)
+              UserInputOrigin(readable, _, _, _) <- Some(ns.o)
               file <- readable.underlyingFile
               baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Option(file.getParentFile)) {
                 case (name, Some(file)) if file.getName == name => Option(file.getParentFile)

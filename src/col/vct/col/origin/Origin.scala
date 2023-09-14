@@ -76,6 +76,36 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
+  def getPreferredName: Option[PreferredName] = {
+    originContents.flatMap {
+      case PreferredName(any) => Seq(PreferredName(any))
+      case _ => Nil
+    } match {
+      case Seq(PreferredName(any)) => Option(PreferredName(any))
+      case _ => None
+    }
+  }
+
+  def getInlineContext: Option[InlineContext] = {
+    originContents.flatMap {
+      case InlineContext(any) => Seq(InlineContext(any))
+      case _ => Nil
+    } match {
+      case Seq(InlineContext(any)) => Option(InlineContext(any))
+      case _ => None
+    }
+  }
+
+  def getShortPosition: Option[ShortPosition] = {
+    originContents.flatMap {
+      case ShortPosition(any) => Seq(ShortPosition(any))
+      case _ => Nil
+    } match {
+      case Seq(ShortPosition(any)) => Option(ShortPosition(any))
+      case _ => None
+    }
+  }
+
   def messageInContext(message: String): String = {
       originContents.flatMap{
         case Context(innerMessage) => innerMessage match {
@@ -356,85 +386,3 @@ trait PreferredNameOrigin extends Origin {
     s"$name at $inner"
 }
 
-case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
-  private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
-    case string => Some(JsonParser(string).asJsObject().fields)
-  }
-
-  def fileName: String = deserializeOrigin.fileName
-
-  override def preferredName: String = parsedOrigin match {
-    case Some(o) => o.get("preferredName") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.preferredName
-    }
-    case None => deserializeOrigin.preferredName
-  }
-
-  def contextFragment: String = parsedOrigin match {
-    case Some(o) => o.get("context") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.context
-    }
-    case None => deserializeOrigin.context
-  }
-
-  override def context: String = {
-    val atLine = f" At $shortPosition:\n"
-    if (contextFragment == inlineContext) {
-      atLine + Origin.HR + contextFragment
-    } else if (contextFragment.contains(inlineContext)) {
-      atLine + Origin.HR + markedInlineContext
-    } else {
-      deserializeOrigin.context
-    }
-  }
-
-  def markedInlineContext:String  = {
-    val startIndex = contextFragment.indexOf(inlineContext)
-    val endIndex = startIndex + inlineContext.length
-
-    val startRowCol = indexToRowCol(contextFragment, startIndex)
-    val endRowCol = indexToRowCol(contextFragment, endIndex)
-
-    val lines = contextFragment.split('\n')
-    if(startRowCol._1 == endRowCol._1) { // origin only covers (part of) a single row
-      val highlight = " " * (startRowCol._2) + "[" + ("-" * (inlineContext.length - 2)).mkString + "]"
-      (lines.slice(0, startRowCol._1) ++
-        Seq(highlight) ++
-        Seq(lines(startRowCol._1)) ++
-        Seq(highlight) ++
-        lines.slice(startRowCol._1 + 1, lines.length)).mkString("\n")
-    } else { // origin spans multiple lines, just mark the lines
-      val highlight = "[" + ("-" * (lines.map(s => s.length).max - 2)).mkString + "]"
-      (lines.slice(0, startRowCol._1) ++
-        Seq(highlight) ++
-          lines.slice(startRowCol._1, endRowCol._1 + 1) ++
-        Seq(highlight) ++
-          lines.slice(endRowCol._1 + 1, lines.length)).mkString("\n")
-    }
-  }
-
-  // assumes no tabs
-  def indexToRowCol(fragment:String, index:Int): (Int, Int) = {
-    val row = fragment.substring(0, index).count(c => c == '\n')
-    val col = fragment.substring(0, index).split('\n').last.length
-    (row, col)
-  }
-
-  override def inlineContext: String = parsedOrigin match {
-    case Some(o) => o.get("inlineContext") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.inlineContext
-    }
-    case None => deserializeOrigin.inlineContext
-  }
-
-  override def shortPosition: String = parsedOrigin match {
-    case Some(o) => o.get("shortPosition") match {
-      case Some(JsString(jsString)) => jsString
-      case _ => deserializeOrigin.shortPosition
-    }
-    case None => deserializeOrigin.shortPosition
-  }
-}
