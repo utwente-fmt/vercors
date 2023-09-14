@@ -30,9 +30,9 @@ case object Java extends LazyLogging {
     override def code: String = "unexpectedJreDefinition"
   }
 
-  def JavaSystemOrigin(preferredName: String) = Origin (
+  private def JavaSystemOrigin(): Origin = Origin(
     Seq(
-      PreferredName(preferredName),
+      PreferredName("unknown_jre"),
       ShortPosition("reflection"),
       Context(s"At: [Class loaded from JRE with reflection]"),
       InlineContext("[Class loaded from JRE with reflection]")
@@ -92,7 +92,7 @@ case object Java extends LazyLogging {
     if(currentlyLoading.contains(potentialFQName))
       throw Unreachable("Aborting cyclic loading of classes from Java runtime")
 
-    implicit val o: Origin = JavaSystemOrigin("unknown_jre")
+    implicit val o: Origin = JavaSystemOrigin()
     currentlyLoading(potentialFQName) = mutable.ArrayBuffer()
 
     logger.warn(s"Attempting to load a shim of ${potentialFQName.mkString(".")} via reflection.")
@@ -222,7 +222,7 @@ case object Java extends LazyLogging {
             // E.g. /root/pkg/a/Cls.java declaring package pkg.a; -> /root
             for {
               ns <- ctx.namespace
-              UserInputOrigin(readable, _, _, _) <- Some(ns.o)
+              readable <- Some(ns.o.getReadable.get.readable)
               file <- readable.underlyingFile
               baseFile <- ns.pkg.getOrElse(JavaName(Nil)).names.foldRight[Option[File]](Option(file.getParentFile)) {
                 case (name, Some(file)) if file.getName == name => Option(file.getParentFile)

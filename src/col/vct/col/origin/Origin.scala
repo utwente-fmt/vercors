@@ -32,6 +32,7 @@ case class FormalName(formalName: String) extends OriginContent
 case class Context(context: String) extends OriginContent
 case class InlineContext(inlineContext: String) extends OriginContent
 case class ShortPosition(shortPosition: String) extends OriginContent
+case class ReadableOrigin(readable: Readable) extends OriginContent
 
 case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
 
@@ -64,6 +65,20 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
 
   def addInlineContext(inCtx: String): Origin = {
     Origin(originContents :+ InlineContext(inCtx))
+  }
+
+  def addReadableOrigin(readable: Readable): Origin = {
+    Origin(originContents :+ ReadableOrigin(readable))
+  }
+
+  def getReadable: Option[ReadableOrigin] = {
+    originContents.flatMap {
+      case ReadableOrigin(any) => Seq(ReadableOrigin(any))
+      case _ => Nil
+    } match {
+      case Seq(ReadableOrigin(any)) => Option(ReadableOrigin(any))
+      case _ => None
+    }
   }
 
   def getContext: Option[Context] = {
@@ -287,6 +302,7 @@ object InputOrigin {
 
 object DiagnosticOrigin extends Origin(Nil)
 
+// decided to include the readable in the origin itself, this is perhaps not necessary?
 object UserInputOrigin {
   def apply(readable: Readable,
             startLineIdx: Int, endLineIdx: Int,
