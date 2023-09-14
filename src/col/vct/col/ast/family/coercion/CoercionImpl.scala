@@ -1,6 +1,6 @@
 package vct.col.ast.family.coercion
 
-import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceClassAnyClass, CoerceColToCPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIncreasePrecision, CoerceIntRat, CoerceJavaClassAnyClass, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullAnyClass, CoerceNullArray, CoerceNullClass, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
+import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceCPPPrimitiveToCol, CoerceClassAnyClass, CoerceColToCPrimitive, CoerceColToCPPPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIncreasePrecision, CoerceIntRat, CoerceJavaClassAnyClass, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullAnyClass, CoerceNullArray, CoerceNullClass, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
 
 trait CoercionImpl[G] { this: Coercion[G] =>
   def target: Type[G]
@@ -34,6 +34,8 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceJavaClassAnyClass(_) => true
     case CoerceCPrimitiveToCol(_, _) => true
     case CoerceColToCPrimitive(_, _) => true
+    case CoerceCPPPrimitiveToCol(_, _) => true
+    case CoerceColToCPPPrimitive(_, _) => true
     case CoerceMapOption(inner, _, _) => inner.isPromoting
     case CoerceMapTuple(inner, _, _) => inner.forall(_.isPromoting)
     case CoerceMapEither(inner, _, _) => inner._1.isPromoting && inner._2.isPromoting

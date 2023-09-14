@@ -58,6 +58,15 @@ object c extends GenModule {
   )
 }
 
+object cpp extends GenModule {
+  def lexer = "LangCPPLexer.g4"
+  def parser = "CPPParser.g4"
+  def deps = Seq(
+    "SpecParser.g4", "SpecLexer.g4",
+    "LangCPPParser.g4", "LangCPPLexer.g4"
+  )
+}
+
 object java extends GenModule {
   def lexer = "LangJavaLexer.g4"
   def parser = "JavaParser.g4"
@@ -73,5 +82,14 @@ object pvl extends GenModule {
   def deps = Seq(
     "SpecParser.g4", "SpecLexer.g4",
     "LangPVLParser.g4", "LangPVLLexer.g4",
+  )
+}
+
+object llvm extends GenModule {
+  def lexer = "LangLLVMSpecLexer.g4"
+  def parser = "LLVMSpecParser.g4"
+  def deps = Seq(
+    "SpecParser.g4", "SpecLexer.g4",
+    "LangLLVMSpecParser.g4", "LangLLVMSpecLexer.g4"
   )
 }

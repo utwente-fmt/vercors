@@ -30,6 +30,16 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
       case dcl: VeyMontSeqProg[Pre] => inSeqProg.having(()) {
         rewriteDefault(dcl)
       }
+      case m: InstanceMethod[Pre] =>
+        if (inSeqProg.nonEmpty && m.args.nonEmpty)
+          throw VeyMontStructCheckError(m, "Methods in seq_program cannot have any arguments!")
+        else if(inSeqProg.nonEmpty && m.returnType != TVoid[Pre]())
+          throw VeyMontStructCheckError(m, "Methods in seq_program cannot have a non-void return type!")
+        else rewriteDefault(decl)
+      case r: RunMethod[Pre] =>
+        if(r.body.isEmpty)
+          throw VeyMontStructCheckError(r, "Method run in seq_program needs to have a body!")
+        else rewriteDefault(decl)
       case _ => rewriteDefault(decl)
     }
 
@@ -48,7 +58,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
     if(inSeqProg.nonEmpty)
       st match {
-        case VeyMontCommExpression(_,_,_) => rewriteDefault(st)
+        case VeyMontCommExpression(_,_,_,_) => rewriteDefault(st)
         case VeyMontAssignExpression(_,_) => rewriteDefault (st)
         case Assign(_,_) => rewriteDefault (st)
         case Branch(_) => rewriteDefault(st)

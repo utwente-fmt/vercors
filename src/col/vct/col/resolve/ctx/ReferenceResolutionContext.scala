@@ -3,7 +3,7 @@ package vct.col.resolve.ctx
 import vct.col.ast._
 import vct.col.check.CheckContext
 import vct.col.origin.DiagnosticOrigin
-import vct.col.resolve.Resolve.SpecExprParser
+import vct.col.resolve.Resolve.{SpecContractParser, SpecExprParser}
 import vct.col.util.SuccessionMap
 
 import scala.collection.immutable.{HashMap, ListMap}
@@ -12,6 +12,7 @@ import scala.collection.mutable
 case class ReferenceResolutionContext[G]
 (
   javaParser: SpecExprParser,
+  llvmSpecParser: SpecContractParser,
   stack: Seq[Seq[Referrable[G]]] = Nil,
   topLevelJavaDeref: Option[JavaDeref[G]] = None,
   externallyLoadedElements: mutable.ArrayBuffer[GlobalDeclaration[G]] = mutable.ArrayBuffer[GlobalDeclaration[G]](),

@@ -341,13 +341,11 @@ object InterpretedOrigin {
 }
 
 case object RedirectOrigin {
-  case class StringReadable(data: String) extends Readable {
+  case class StringReadable(data: String, fileName:String="<unknown filename>") extends Readable {
     override def isRereadable: Boolean = true
 
     override protected def getReader: Reader =
       new StringReader(data)
-
-    override def fileName: String = "<unknown filename>"
   }
 }
 
@@ -356,4 +354,87 @@ trait PreferredNameOrigin extends Origin {
   def inner: Origin
   override def toString: String =
     s"$name at $inner"
+}
+
+case class LLVMOrigin(deserializeOrigin: Deserialize.Origin) extends Origin {
+  private val parsedOrigin: Option[Map[String, JsValue]] = deserializeOrigin.stringOrigin match {
+    case string => Some(JsonParser(string).asJsObject().fields)
+  }
+
+  def fileName: String = deserializeOrigin.fileName
+
+  override def preferredName: String = parsedOrigin match {
+    case Some(o) => o.get("preferredName") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.preferredName
+    }
+    case None => deserializeOrigin.preferredName
+  }
+
+  def contextFragment: String = parsedOrigin match {
+    case Some(o) => o.get("context") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.context
+    }
+    case None => deserializeOrigin.context
+  }
+
+  override def context: String = {
+    val atLine = f" At $shortPosition:\n"
+    if (contextFragment == inlineContext) {
+      atLine + Origin.HR + contextFragment
+    } else if (contextFragment.contains(inlineContext)) {
+      atLine + Origin.HR + markedInlineContext
+    } else {
+      deserializeOrigin.context
+    }
+  }
+
+  def markedInlineContext:String  = {
+    val startIndex = contextFragment.indexOf(inlineContext)
+    val endIndex = startIndex + inlineContext.length
+
+    val startRowCol = indexToRowCol(contextFragment, startIndex)
+    val endRowCol = indexToRowCol(contextFragment, endIndex)
+
+    val lines = contextFragment.split('\n')
+    if(startRowCol._1 == endRowCol._1) { // origin only covers (part of) a single row
+      val highlight = " " * (startRowCol._2) + "[" + ("-" * (inlineContext.length - 2)).mkString + "]"
+      (lines.slice(0, startRowCol._1) ++
+        Seq(highlight) ++
+        Seq(lines(startRowCol._1)) ++
+        Seq(highlight) ++
+        lines.slice(startRowCol._1 + 1, lines.length)).mkString("\n")
+    } else { // origin spans multiple lines, just mark the lines
+      val highlight = "[" + ("-" * (lines.map(s => s.length).max - 2)).mkString + "]"
+      (lines.slice(0, startRowCol._1) ++
+        Seq(highlight) ++
+          lines.slice(startRowCol._1, endRowCol._1 + 1) ++
+        Seq(highlight) ++
+          lines.slice(endRowCol._1 + 1, lines.length)).mkString("\n")
+    }
+  }
+
+  // assumes no tabs
+  def indexToRowCol(fragment:String, index:Int): (Int, Int) = {
+    val row = fragment.substring(0, index).count(c => c == '\n')
+    val col = fragment.substring(0, index).split('\n').last.length
+    (row, col)
+  }
+
+  override def inlineContext: String = parsedOrigin match {
+    case Some(o) => o.get("inlineContext") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.inlineContext
+    }
+    case None => deserializeOrigin.inlineContext
+  }
+
+  override def shortPosition: String = parsedOrigin match {
+    case Some(o) => o.get("shortPosition") match {
+      case Some(JsString(jsString)) => jsString
+      case _ => deserializeOrigin.shortPosition
+    }
+    case None => deserializeOrigin.shortPosition
+  }
 }

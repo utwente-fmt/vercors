@@ -75,6 +75,11 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import scala.reflect.ClassTag
 
     object Deserialize {
+      case class Origin(stringOrigin:String="{}", fileName:String="<unknown>") extends vct.col.origin.Origin {
+        override def preferredName: String = "unknown"
+        override def context: String = "At: [deserialized node]"
+        override def inlineContext: String = "[Deserialized node]"
+        override def shortPosition: String = "serialized"
       def deserialize(originContent: ser.OriginContent): OriginContent = originContent.v match {
         case ser.OriginContent.V.RequiredName(ser.RequiredName(str, _)) => RequiredName(str)
         case ser.OriginContent.V.PreferredName(ser.PreferredName(str, _)) => PreferredName(str)
@@ -84,11 +89,11 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
         case ser.OriginContent.V.ShortPosition(ser.ShortPosition(str, _)) => ShortPosition(str)
       }
 
-      def deserialize[G](program: ser.Program): Program[G] =
-        Deserialize[G](mutable.Map()).deserializeProgram(program)
+      def deserializeProgram[G](program: ser.Program, fileName:String="<unknown>"): Program[G] =
+        Deserialize[G](mutable.Map(), fileName).deserializeProgram(program)
 
-      def deserialize[G](verification: ser.Verification): Verification[G] =
-        Deserialize[G](mutable.Map()).deserializeVerification(verification)
+      def deserializeVerification[G](verification: ser.Verification, fileName:String="<unknown>"): Verification[G] =
+        Deserialize[G](mutable.Map(), fileName).deserializeVerification(verification)
 
       trait DeserializeFunc[S, N[_] <: Node[_]] {
         def deserialize[G](s: Deserialize[G], n: S): N[G]
@@ -98,7 +103,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       ..${info.families.flatMap(makeFamilyDispatchLut(_, decl = false)).toList}
     }
 
-    case class Deserialize[G](decls: mutable.Map[Long, Declaration[G]]) {
+    case class Deserialize[G](decls: mutable.Map[Long, Declaration[G]], fileName:String) {
       def ref[T <: Declaration[G]](id: Long)(implicit tag: ClassTag[T]): Ref[G, T] =
         new LazyRef[G, T](decls(id))
 

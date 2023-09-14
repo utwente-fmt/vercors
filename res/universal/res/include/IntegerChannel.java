@@ -1,16 +1,14 @@
-package include;
-
-public final class IntegerChannel {
+public final class Channel {
 
     private boolean transfering;
 
-    private int exchangeValue;
+    private MessageType exchangeValue;
 
-    public IntegerChannel() {
+    public Channel() {
         transfering = true;
     }
 
-    public synchronized void writeValue(int v) {
+    public synchronized void writeValue(MessageType v) {
         while (!transfering) {
             try {
                 wait();
@@ -23,7 +21,7 @@ public final class IntegerChannel {
         notify();
     }
 
-    public synchronized int readValue() {
+    public synchronized MessageType readValue() {
         while (transfering) {
             try {
                 wait();

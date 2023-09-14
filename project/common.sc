@@ -83,6 +83,17 @@ trait JavaModule extends BaseJavaModule {
     }
     T.dest
   }
+
+  def bspTransitiveCompileClasspath: T[Agg[UnresolvedPath]] = T {
+    T.traverse(
+      (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
+    )(m =>
+      T.task {
+        m.bspCompileClasspath() ++ Agg(m.bspCompileClassesPath())
+      }
+    )()
+      .flatten
+  }
 }
 
 trait ScalaModule extends BaseScalaModule with JavaModule {

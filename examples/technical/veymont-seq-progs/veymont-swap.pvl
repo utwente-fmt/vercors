@@ -22,13 +22,13 @@ seq_program SeqProgram(int x, int y) {
    thread s1 = Storage(x);
    thread s2 = Storage(y);
 
-  int num() {}
+  //int num() {}
   
   void foo() {
-     s1.temp = 5;
+     s1.temp = 7;
   }
   
-  void bar(int a) {}
+  //void bar(int a) {}
 
   run {
     if(s1.v == 5 && s2.v == 6) {

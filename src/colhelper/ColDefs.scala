@@ -37,6 +37,8 @@ object ColDefs {
     "ParInvariantDecl",
     "CLocalDeclaration",
     "CParam",
+    "CPPLocalDeclaration",
+    "CPPParam",
     "JavaLocalDeclaration",
     "VeyMontThread",
     "JavaParam",
@@ -52,7 +54,7 @@ object ColDefs {
     "ModelDeclaration" -> Seq("Program"),
     "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
-      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
+      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", "RangedForLoop", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
       "Predicate", "InstancePredicate", // Arguments
       "ModelProcess", "ModelAction", "ADTFunction",
@@ -70,7 +72,10 @@ object ColDefs {
       "InstanceFunction", "InstanceMethod",
       "JavaConstructor", "JavaMethod",
       "CFunctionDefinition",
+      "CPPFunctionDefinition",
       "PVLConstructor",
+      "LlvmFunctionDefinition",
+      "LlvmSpecFunction"
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),
     "SendDecl" -> Seq("ParBlock", "Loop"),
@@ -82,6 +87,13 @@ object ColDefs {
     ),
     "CParam" -> Seq(
       "CGlobalDeclaration", "CFunctionDefinition",
+    ),
+    "CPPLocalDeclaration" -> Seq(
+      "CPPGlobalDeclaration", "CPPFunctionDefinition",
+      "Scope",
+    ),
+    "CPPParam" -> Seq(
+      "CPPGlobalDeclaration", "CPPFunctionDefinition",
     ),
     "JavaLocalDeclaration" -> Seq(
       "JavaConstructor", "JavaMethod",

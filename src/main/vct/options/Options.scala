@@ -1,11 +1,12 @@
 package vct.options
 
-import scopt.{OParser, OptionDef}
+import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
-import vct.options.types.{Backend, ClassPathEntry, Mode, PathOrStd, ReadLanguage, Verbosity}
+import vct.options.types._
 import vct.resources.Resources
+import vct.resources.Resources.getVeymontChannel
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -133,6 +134,10 @@ case object Options {
       opt[PathOrStd]("bip-report-file").valueName("<path>")
         .action((p, c) => c.copy(bipReportFile = Some(p)))
         .text("Write JavaBIP verification report to file, or standard out if \"-\" is used"),
+
+      opt[Unit]("no-infer-heap-context-into-frame")
+        .action((_, c) => c.copy(inferHeapContextIntoFrame = false))
+        .text("Disables smart inference of contextual heap into frame statements using `forperm`"),
 
       opt[Unit]("dev-abrupt-exc").maybeHidden()
         .action((_, c) => c.copy(devAbruptExc = true))
@@ -345,6 +350,8 @@ case class Options
   adtPath: Path = Resources.getAdtPath,
   cc: Path = Resources.getCcPath,
   cIncludePath: Path = Resources.getCIncludePath,
+  ccpp: Path = Resources.getCPPcPath,
+  cppIncludePath: Path = Resources.getCPPIncludePath,
   classPath: Seq[ClassPathEntry] = Seq(ClassPathEntry.DefaultJre, ClassPathEntry.SourcePackageRoot),
   z3Path: Path = viper.api.Resources.getZ3Path,
   boogiePath: Path = viper.api.Resources.getBoogiePath,
@@ -353,6 +360,8 @@ case class Options
   siliconPrintQuantifierStats: Option[Int] = None,
 
   bipReportFile: Option[PathOrStd] = None,
+
+  inferHeapContextIntoFrame: Boolean = true,
 
   // Verify options - hidden
   devAbruptExc: Boolean = false,
@@ -379,6 +388,7 @@ case class Options
 
   // VeyMont options
   veymontOutput: Path = null, // required
+  veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
 
   // VeSUV options
   vesuvOutput: Path = null,
