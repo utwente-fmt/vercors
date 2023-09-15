@@ -30,7 +30,7 @@ object Deps {
 }
 
 trait JavaModule extends BaseJavaModule {
-  def forkArgs = Seq("-Xmx2G", "-Xss20m")
+  def forkArgs = Seq("-Xmx2G", "-Xss32m")
 
   def classPathFileElements = T { runClasspath().map(_.path.toString) }
 
