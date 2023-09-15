@@ -11,33 +11,47 @@ pure bool is_int(float x);
 /*@
   // Gets replaced by internal SMT function in VerCors
   decreases;
-pure float pow_math_h(float x, float y);
+pure double pow_math_h(double x, double y);
 @*/
 
 /*@
-  ensures \result == (is_int(x) ? x : (float)((int)x + 1));
+  ensures \result == (is_int(x) ? x : (double)((int)x + 1));
   decreases;
 @*/
-float /*@ pure @*/ ceilf(float x);
-
-/*@
-  ensures \result == (float)((int)x);
-  decreases;
-@*/
-float /*@ pure @*/ floor(float x);
-
+double /*@ pure @*/ ceil(double x);
 /*@
   decreases;
 @*/
-float /*@ pure @*/ fabs(float x) = x >= 0 ? x : -x;
+double /*@ pure @*/ fabs(double x) = x >= 0 ? x : -x;
+
+/*@
+  ensures \result == (double)((int)x);
+  decreases;
+@*/
+double /*@ pure @*/ floor(double x);
 
 /*@
   // Gets replaced by internal SMT function in VerCors
   ensures \result == pow_math_h(x, y);
   decreases;
 @*/
-float /*@ pure @*/ pow(float x, float y);
+double /*@ pure @*/ pow(double x, double y);
 
+/*@
+  // Given precision, since we cannot express irrational numbers
+  given double eps;
+  requires eps > 0.0;
+  requires x >= 0.0;
+  ensures x - eps <= \result*\result && x + eps < \result*\result;
+  decreases;
+@*/
+double /*@ pure @*/ sqrt(double x);
+
+/*@
+  ensures \result == (double)(int)(x + 0.5);
+  decreases;
+@*/
+double /*@ pure @*/ round(double x);
 
 #endif
 

@@ -7,13 +7,14 @@ import vct.col.ast.`type`.TFloats
 import vct.col.ast.`type`.TFloats.ieee754_32bit
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, PointerInsufficientPermission, ReceiverNotInjective, TrueSatisfiable, VerificationFailure}
+import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, FrontendInvocationError, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, PointerInsufficientPermission, ReceiverNotInjective, TrueSatisfiable, VerificationFailure}
 import vct.col.ref.Ref
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CNameTarget, CStructTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCStruct, RefCStructField, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecInvocationTarget}
 import vct.col.resolve.lang.C.nameFromDeclarator
 import vct.col.resolve.lang.Java.logger
 import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.typerules.CoercionUtils.getCoercion
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -256,15 +257,23 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => false
   }
 
+  def getBaseType(t: Type[Pre]): Type[Pre] = t match {
+    case CPrimitiveType(Seq(CSpecificationType(inner))) => inner
+    case _ => t
+  }
+
   def cast(c: CCast[Pre]): Expr[Post] = c match {
+    case CCast(e, t) if getBaseType(e.t) == getBaseType(t) => rw.dispatch(c.expr)
     case CCast(_, t) if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
     case CCast(e, t) if isFloat(e.t) =>
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
-    case CCast(CInvocation(CLocal(name), Seq(AmbiguousMult(l, SizeOf(t1))), Nil, Nil), CTPointer(t2))
-      if name == "malloc" && t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(l))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
-    case CCast(CInvocation(CLocal(name), Seq(AmbiguousMult(SizeOf(t1), r)), Nil, Nil), CTPointer(t2))
-      if name == "malloc" && t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(r))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+    case CCast(CInvocation(CLocal("malloc"), Seq(SizeOf(t1)), Nil, Nil), CTPointer(t2))
+      if t1 == t2 => NewPointerArray(rw.dispatch(t1), const(1)(c.o))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+    case CCast(CInvocation(CLocal("malloc"), Seq(AmbiguousMult(l, SizeOf(t1))), Nil, Nil), CTPointer(t2))
+      if t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(l))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+    case CCast(CInvocation(CLocal("malloc"), Seq(AmbiguousMult(SizeOf(t1), r)), Nil, Nil), CTPointer(t2))
+      if t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(r))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
     case CCast(CInvocation(CLocal(name), _, _, _), _) if name == "malloc" => throw UnsupportedMalloc(c)
     case _ => throw UnsupportedCast(c)
   }
@@ -309,7 +318,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def tdiv(div: TDiv[Pre]): Expr[Post] = {
     if(isFloat(div.left.t)) {
-      FloorDiv[Post](rw.dispatch(div.left), rw.dispatch(div.right))(div.blame)(div.o)
+      return FloorDiv[Post](rw.dispatch(div.left), rw.dispatch(div.right))(div.blame)(div.o)
     }
     val tdiv_func = tdivFunctions.getOrElseUpdate((), makeTDivFunction())
     FunctionInvocation[Post](tdiv_func.ref, Seq(rw.dispatch(div.left), rw.dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
@@ -1068,20 +1077,79 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
+  def isCPointer(t: Type[_]) = t match {
+    case CTPointer(_) => true
+    case CPrimitiveType(Seq(CSpecificationType(CTPointer(_)))) => true
+    case _ => false
+  }
+
+  case class FreeFuncOrigin(preferedName: String = "unknown") extends Origin {
+    override def preferredName: String = preferedName
+
+    override def shortPosition: String = "generated free function"
+
+    override def context: String = "[At node generated for free function]"
+
+    override def inlineContext: String = "[At node generated for free function]"
+  }
+
+  val freeMethods: mutable.Map[Type[Post], Procedure[Post]] = mutable.Map()
+
+  def makeFree(t: Type[Post], global: RefCGlobalDeclaration[Pre]): Procedure[Post] = {
+    val RefCGlobalDeclaration(decls, idx) = global
+    val f = decls.decl.inits(idx)
+
+    val args = C.getDeclaratorInfo(decls.decl.inits(idx).decl).params.get
+//    decls.decl.inits(initIdx).decl
+
+    implicit val o: Origin = FreeFuncOrigin()
+    rw.globalDeclarations.declare({
+      val (vars, ptr) = rw.variables.collect {
+        val Seq(v: CParam[Pre]) = args
+//        v.drop()
+        val a_var = new Variable[Post](TPointer(t))(v.o)
+//        cNameSuccessor(RefCParam(v)) = a_var
+        rw.variables.declare(a_var)
+        Local[Post](a_var.ref)
+      }
+
+      val b = PanicBlame("???")
+
+      procedure(
+        blame = b,
+        contractBlame = decls.decl.contract.blame,
+        returnType = TVoid[Post](),
+        args = vars,
+        outArgs = Nil,
+        typeArgs = Nil,
+        body = None,
+        /*@
+          requires ptr != NULL;
+          requires \pointer_block_offset(ptr) == 0;
+          requires (\forall* int i; 0 <= i && i < \pointer_block_length(ptr); Perm(&ptr[i], write));
+        @*/
+        requires = UnitAccountedPredicate(
+          (ptr !== Null[Post]())
+          &* (PointerBlockOffset(ptr)(PanicBlame("Checked NULL")) === const(0))
+          &* starall(b, TInt(), i => (const[Post](0) <= i && i < PointerBlockLength(ptr)(PanicBlame("Checked NULL"))) ==>
+           Perm(AmbiguousLocation(AddrOf(AmbiguousSubscript(ptr, i)(b) ))(b), WritePerm()))
+        ),
+        decreases = decls.decl.contract.decreases.map(rw.dispatch)
+      )(f.o)
+
+//      new Procedure[Post](
+//        returnType = TVoid[Post](),
+//        args = vars,
+//        outArgs = Nil,
+//        typeArgs = Nil,
+//        body = None,
+//        contract = rw.dispatch(decls.decl.contract),
+//      )(PanicBlame("???"))(f.o)
+    })
+  }
+
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
-
-    applicable match {
-      case CLocal(name) if name == "euclidean_div" && args.size == 2 && givenMap.isEmpty && yields.isEmpty =>
-        return FloorDiv[Post](rw.dispatch(args(0)), rw.dispatch(args(1)))(PanicBlame("TODO"))(inv.o)
-      case CLocal(name) if name == "euclidean_mod" && args.size == 2 && givenMap.isEmpty && yields.isEmpty =>
-        return Mod[Post](rw.dispatch(args(0)), rw.dispatch(args(1)))(PanicBlame("TODO"))(inv.o)
-      case CLocal(name) if name == "is_int" && args.size == 1  && isFloat(args(0).t) && givenMap.isEmpty && yields.isEmpty =>
-        return SmtlibIsInt[Post](rw.dispatch(args.head))(inv.o)
-      case CLocal(name) if name == "pow_math_h" && args.size == 2 && isFloat(args(0).t) && isFloat(args(1).t) && givenMap.isEmpty && yields.isEmpty =>
-        return SmtlibPow[Post](rw.dispatch(args(0)), rw.dispatch(args(1)))(inv.o)
-      case _ => ()
-    }
     // Create copy for any direct structure arguments
     val newArgs = args.map( a =>
       a.t match {
@@ -1093,6 +1161,22 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         case _ => rw.dispatch(a)
       }
     )
+
+    if(givenMap.isEmpty && yields.isEmpty) {
+      (applicable, args) match {
+        case (CLocal("euclidean_div"), Seq(x, y)) =>
+          return FloorDiv[Post](rw.dispatch(x), rw.dispatch(y))(PanicBlame("TODO"))(inv.o)
+        case (CLocal("euclidean_div"), Seq(x, y)) =>
+          return FloorDiv[Post](rw.dispatch(x), rw.dispatch(y))(PanicBlame("TODO"))(inv.o)
+        case (CLocal("euclidean_mod"), Seq(x, y)) =>
+          return Mod[Post](rw.dispatch(x), rw.dispatch(y))(PanicBlame("TODO"))(inv.o)
+        case (CLocal("is_int"), Seq(x)) if isFloat(x.t) =>
+          return SmtlibIsInt[Post](rw.dispatch(args.head))(inv.o)
+        case (CLocal("pow_math_h"), Seq(x, y)) if isFloat(x.t) && isFloat(y.t) =>
+          return SmtlibPow[Post](rw.dispatch(x), rw.dispatch(y))(inv.o)
+        case _ =>
+      }
+    }
 
     implicit val o: Origin = inv.o
     inv.ref.get match {
@@ -1241,6 +1325,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         case _ => None
       }
     } else None
+
+    (e.name, args, givenMap, yields) match {
+      case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
+      case("free", Seq(xs), _, _) if isCPointer(xs.t) =>
+        val newXs = rw.dispatch(xs)
+        val TPointer(t) = newXs.t
+        val free = freeMethods.getOrElseUpdate(t, makeFree(t, e))
+        return ProcedureInvocation[Post](free.ref, Seq(newXs), Nil, Nil, Nil, Nil)(inv.blame)(inv.o)
+      case _ => ()
+    }
+
     (e.name, arg) match {
       case ("get_local_id", Some(i)) => getCudaLocalThread(i, o)
       case ("get_group_id", Some(i)) => getCudaGroupThread(i, o)

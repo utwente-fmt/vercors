@@ -19,18 +19,28 @@ object TFloats {
     case (l @ TFloat(le, lm), r @ TFloat(re, rm)) if le < re && lm < rm => l
     case (l @ TFloat(le, lm), r @ TFloat(re, rm)) if re < le && rm < lm => r
     case (l @ TFloat(le, lm), r @ TFloat(re, rm)) => ??? // Assuming there is only one TFloat for each exponent, mantissa
+    case (CPrimitiveType(Seq(CSpecificationType(inner1))), CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
+      val res = coerceToMax(inner1, inner2)
+      CPrimitiveType(Seq(CSpecificationType(res)(res.o)))
+    case (CPrimitiveType(Seq(CSpecificationType(inner1))), _: TFloat[_]) =>
+      val res = coerceToMax(inner1, r)
+      CPrimitiveType(Seq(CSpecificationType(res)(res.o)))
+    case (_: TFloat[_], CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
+      val res = coerceToMax(l, inner2)
+      CPrimitiveType(Seq(CSpecificationType(res)(res.o)))
     // If one if them needs to be coerced, we coerce and try again
     case (l @ TFloat(le, lm), r) => coerceToMax(l, CoercionUtils.getCoercion(r, l).get.target)
     case (l, r @ TFloat(re, rm)) => coerceToMax(r, CoercionUtils.getCoercion(l, r).get.target)
-    case (CPrimitiveType(Seq(CSpecificationType(inner1))), CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
-      val res = coerceToMax(inner1, inner2)
-      CPrimitiveType(Seq(CSpecificationType(coerceToMax(inner1, inner2))(res.o)))
     case _ => ???
   }
 
   def isFloatOp[G](l: Type[G], r: Type[G]): Boolean = (l, r) match {
     case (CPrimitiveType(Seq(CSpecificationType(inner1))), CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
       isFloatOp(inner1, inner2)
+    case (CPrimitiveType(Seq(CSpecificationType(inner1))), _) =>
+      isFloatOp(inner1, r)
+    case (_, CPrimitiveType(Seq(CSpecificationType(inner2)))) =>
+      isFloatOp(l, inner2)
     case (t1 @ TFloat(_, _), t2 @ TFloat(_, _)) =>
       CoercionUtils.getCoercion(t1, t2).isDefined || CoercionUtils.getCoercion(t2, t1).isDefined
     case (t, f @ TFloat(_, _)) => CoercionUtils.getCoercion(t, f).isDefined
