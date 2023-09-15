@@ -1665,8 +1665,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         declaration
       case definition: CPPFunctionDefinition[Pre] =>
         definition
-      case namespace: CPPNamespaceDefinition[Pre] =>
-        namespace
       case declaration: CPPGlobalDeclaration[Pre] =>
         declaration
       case namespace: JavaNamespace[Pre] =>

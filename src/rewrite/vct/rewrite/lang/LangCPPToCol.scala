@@ -4,16 +4,21 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.ref.Ref
+import vct.col.ref.{DirectRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
-import vct.col.util.SuccessionMap
+import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.result.VerificationError.UserError
 
 case object LangCPPToCol {
+
+  sealed abstract class KernelScopeLevel(val idName: String)
+  case class GlobalScope() extends KernelScopeLevel("GLOBAL_ID");
+  case class LocalScope() extends KernelScopeLevel("LOCAL_ID");
+  case class GroupScope() extends KernelScopeLevel("GROUP_ID");
 
   case class WrongCPPType(decl: CPPLocalDeclaration[_]) extends UserError {
     override def code: String = "wrongCPPType"
@@ -34,16 +39,30 @@ case object LangCPPToCol {
 
   case class KernelParFailure(kernel: CPPLambdaDefinition[_]) extends Blame[ParBlockFailure] {
     override def blame(error: ParBlockFailure): Unit = error match {
-//      case ParPredicateNotInjective(_, predicate) =>
-//        kernel.blame.blame(KernelPredicateNotInjective(kernel, predicate))
-//      case ParPreconditionFailed(_, _) =>
-//        PanicBlame("Kernel parallel block precondition cannot fail, since an identical predicate is required before.").blame(error)
-//      case ParBlockPostconditionFailed(failure, _) =>
-//        kernel.blame.blame(KernelPostconditionFailed(failure, kernel))
-//      case ParBlockMayNotThrow(_) =>
-//        PanicBlame("Please don't throw exceptions from a gpgpu kernel, it's not polite.").blame(error)
       case _ => PanicBlame("ELLEN: Implement blame!").blame(error)
     }
+  }
+
+  case class MultipleKernels(decl1: Statement[_], decl2: CPPInvocation[_]) extends UserError {
+    override def code: String = "unsupportedMultipleKernels"
+
+    override def text: String = Origin.messagesInContext(Seq(
+      decl2.o -> "This kernel declaration is not allowed, as only one kernel declaration is allowed per command group, ...",
+      decl1.o -> "... and there is already a kernel declared here.",
+    ))
+  }
+
+  case class MissingKernel(decl: Statement[_]) extends UserError {
+    override def code: String = "unsupportedMissingKernel"
+
+    override def text: String = decl.o.messageInContext(s"There is no kernel declaration in this command group.")
+  }
+
+  case class WrongKernelDimensionsType(expr: Expr[_]) extends VerificationFailure {
+    override def code: String = "unexpectedKernelDimensionType"
+    override def position: String = expr.o.shortPosition
+    override def desc: String = expr.o.messageInContext("Wrong type for the dimensions parameter of the kernel. The dimensions parameter in a kernel declaration is supposed to be of type sycl::range<int> or sycl::nd_range<int>.")
+    override def inlineDesc: String = "Wrong type for the dimensions parameter, it is supposed to be of type sycl::range<int> or sycl::nd_range<int>."
   }
 }
 
@@ -52,13 +71,16 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
-  val namespace: ScopedStack[CPPNamespaceDefinition[Pre]] = ScopedStack()
   val cppFunctionSuccessor: SuccessionMap[CPPFunctionDefinition[Pre], Procedure[Post]] = SuccessionMap()
   val cppFunctionDeclSuccessor: SuccessionMap[(CPPGlobalDeclaration[Pre], Int), Procedure[Post]] = SuccessionMap()
   val cppNameSuccessor: SuccessionMap[CPPNameTarget[Pre], Variable[Post]] = SuccessionMap()
   val cppGlobalNameSuccessor: SuccessionMap[CPPNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cppCurrentDefinitionParamSubstitutions: ScopedStack[Map[CPPParam[Pre], CPPParam[Pre]]] = ScopedStack()
   val cppLambdaSuccessor: SuccessionMap[CPPLambdaDefinition[Pre], Procedure[Post]] = SuccessionMap()
+
+  var currentGlobalDimensions: ScopedStack[Seq[IterVariable[Pre]]] = ScopedStack()
+  var currentLocalDimensions: ScopedStack[Seq[IterVariable[Pre]]] = ScopedStack()
+  var currentGroupDimensions: ScopedStack[Seq[IterVariable[Pre]]] = ScopedStack()
 
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
     cppUnit.declarations.foreach(rw.dispatch)
@@ -123,39 +145,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
-  def rewriteLambdaDef(lambda: CPPLambdaDefinition[Pre], body: Statement[Pre]): Unit = {
-    val info = CPP.getDeclaratorInfo(lambda.declarator)
-    val returnType = TVoid[Post]()
-
-    val namedO = InterpretedOriginVariable("VERCORS_LAMBDA_METHOD", lambda.o)
-    val proc =
-      cppCurrentDefinitionParamSubstitutions.having(Map.empty) {
-        rw.globalDeclarations.declare(
-          {
-            val params = rw.variables.collect {
-              CPP.filterOutLambdaParams(info.params.get).foreach(rw.dispatch)
-            }._1
-            rw.labelDecls.scope {
-              new Procedure[Post](
-                returnType = returnType,
-                args = params,
-                outArgs = Nil,
-                typeArgs = Nil,
-                body = Some(rw.dispatch(body)),
-                contract = rw.dispatch(lambda.contract),
-              )(lambda.blame)(namedO)
-            }
-          }
-        )
-      }
-
-    cppLambdaSuccessor(lambda) = proc
-
-//    val returnExpr = new CPPLambdaRef[Post]()(namedO)
-//    returnExpr.ref = Some(new RefProcedure[Post](proc))
-//    returnExpr
-  }
-
   def rewriteGlobalDecl(decl: CPPGlobalDeclaration[Pre]): Unit = {
     val t = decl.decl.specs.collectFirst { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get
     for ((init, idx) <- decl.decl.inits.zipWithIndex if init.ref.isEmpty) {
@@ -211,14 +200,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         init.init
           .map(value => Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(value)))))
           .getOrElse(LocalDecl(v))
-    }
-  }
-
-  def rewriteNamespaceDef(ns: CPPNamespaceDefinition[Pre]): Unit = {
-    ns.drop()
-    namespace.having(ns) {
-      // Do not enter a scope, so methods of the namespace are declared globally to the program.
-      ns.declarations.foreach(rw.dispatch)
     }
   }
 
@@ -304,22 +285,41 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val RefCPPGlobalDeclaration(decls, initIdx) = e
     implicit val o: Origin = inv.o
 
-    val arg = if (args.size == 1) {
-      args.head match {
-        case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
-        case _ => None
-      }
-    } else None
     // Process lambda parameters and remove them from the parameter list
     var filteredArgs = Seq[Expr[Pre]]()
     args.foreach {
       case argument: CPPLambdaDefinition[Pre] =>
       case argument => filteredArgs = filteredArgs :+ argument
     }
-    (e.name, arg) match {
+    val firstArgIntValue = if (filteredArgs.size == 1) {
+      filteredArgs.head match {
+        case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
+        case _ => None
+      }
+    }
+    else None
+    (e.name, firstArgIntValue) match {
+      case ("sycl::range::constructor", _) => {
+        SYCLRange[Post](filteredArgs.map {
+          case IntegerValue(i) => i.toInt
+          case _ => -1
+        })
+      }
+      case ("sycl::item::get_id", Some(i)) => rw.dispatch(getSYCLWorkItemId(GlobalScope(), i))
+      case ("sycl::item::get_linear_id", None) => rw.dispatch(getSYCLLinearWorkItemId(GlobalScope()))
+      case ("sycl::item::get_range", Some(i)) => rw.dispatch(getSYCLWorkItemRange(GlobalScope(), i))
+      case ("sycl::nd_item::get_global_id", Some(i)) => rw.dispatch(getSYCLWorkItemId(GlobalScope(), i))
+      case ("sycl::nd_item::get_global_linear_id", None) => rw.dispatch(getSYCLLinearWorkItemId(GlobalScope()))
+      case ("sycl::nd_item::get_global_range", Some(i)) => rw.dispatch(getSYCLWorkItemRange(GlobalScope(), i))
+      case ("sycl::nd_item::get_local_id", Some(i)) => rw.dispatch(getSYCLWorkItemId(LocalScope(), i))
+      case ("sycl::nd_item::get_local_linear_id", None) => rw.dispatch(getSYCLLinearWorkItemId(GlobalScope()))
+      case ("sycl::nd_item::get_local_range", Some(i)) => rw.dispatch(getSYCLWorkItemRange(LocalScope(), i))
+      case ("sycl::nd_item::get_group_id", Some(i)) => rw.dispatch(getSYCLWorkItemId(GroupScope(), i))
+      case ("sycl::nd_item::get_group_linear_id", None) => rw.dispatch(getSYCLLinearWorkItemId(GlobalScope()))
+      case ("sycl::nd_item::get_group_range", Some(i)) => rw.dispatch(getSYCLWorkItemRange(GroupScope(), i))
+      case ("sycl::queue::submit", _) => rewriteSYCLQueueSubmit(inv)
       case _ => {
-        var procedureRef: Ref[Post, Procedure[Post]] = cppFunctionDeclSuccessor.ref((decls, initIdx))
-        procedureRef = rewritePotentialSYCLProcedure(e, procedureRef, inv)
+        val procedureRef: Ref[Post, Procedure[Post]] = cppFunctionDeclSuccessor.ref((decls, initIdx))
         ProcedureInvocation[Post](
           procedureRef, filteredArgs.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
@@ -329,44 +329,144 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
-  def rewritePotentialSYCLProcedure(declaration: RefCPPGlobalDeclaration[Pre], declProcedureRef: Ref[Post, Procedure[Post]], invocation: CPPInvocation[Pre]): Ref[Post, Procedure[Post]] = {
-    // cppLambdaSuccessor(invocation.args(0))
-    // EW TODO: better method matching
-    if (declaration.name == "submit" && CPP.getPrimitiveType(declaration.decls.decl.specs).isInstanceOf[SYCLTEvent[Pre]]) {
-      // Command group submit method
-//      val commandGroupProcedure = cppLambdaSuccessor(invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]])
-      val lambdaDef: CPPLambdaDefinition[Pre] = invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]]
-      rewriteLambdaDef(lambdaDef, lambdaDef.body)
-      val mew = 5;
-    } else if (declaration.name == "parallel_for" && CPP.getPrimitiveType(declaration.decls.decl.specs).isInstanceOf[TVoid[Pre]]) {
-      // Kernel parallel_for
-      val lambdaDef: CPPLambdaDefinition[Pre] = invocation.args.toSeq(1).asInstanceOf[CPPLambdaDefinition[Pre]]
-      implicit val o: Origin = lambdaDef.body.o
-      val innerBody = lambdaDef.body.asInstanceOf[Scope[Pre]].body.asInstanceOf[Block[Pre]]
-      val blockDecl = new ParBlockDecl[Pre]()
-      val UnitAccountedPredicate(contractRequires: Expr[Pre]) = lambdaDef.contract.requires
-      val UnitAccountedPredicate(contractEnsures: Expr[Pre]) = lambdaDef.contract.ensures
-      val newOuterBody = ParStatement[Pre](ParBlock[Pre](
-        decl = blockDecl,
-        iters = Seq(),
-        // Context is already inherited
-        context_everywhere = lambdaDef.contract.contextEverywhere,
-        requires = contractRequires,
-        ensures = contractEnsures,
-        content = Scope[Pre](Seq(), Block[Pre](Seq(innerBody))),
-      )(KernelParFailure(lambdaDef)))
-
-      rewriteLambdaDef(lambdaDef, newOuterBody)
-//      val kernelProcedure = cppLambdaSuccessor(invocation.args.toSeq(1).asInstanceOf[CPPLambdaDefinition[Pre]])
-//      kernelProcedure.body.get.body
-      val mew = 5;
+  def getRangeDimensions(level: KernelScopeLevel): Seq[IterVariable[Pre]] =
+    try {
+      level match {
+        case GlobalScope() => currentGlobalDimensions.top
+        case LocalScope() => currentLocalDimensions.top
+        case GroupScope() => currentGroupDimensions.top
+      }
+    } catch {
+      case _: NoSuchElementException => throw new Exception()
     }
-    declProcedureRef
+
+  def getSYCLWorkItemId(level: KernelScopeLevel, index: Int)(implicit o: Origin): Expr[Pre] =
+    new Local[Pre](new DirectRef(getRangeDimensions(level)(index).variable))
+
+  def getSYCLLinearWorkItemId(level: KernelScopeLevel)(implicit o: Origin): Expr[Pre] = try {
+    val dimensions = getRangeDimensions(level)
+    // See SYCL Specification section 3.11.1 for the linearization formulas
+    dimensions match {
+      case Seq(x) => new Local[Pre](new DirectRef(x.variable))
+      case Seq(x, y) =>
+        val xRef = new Local[Pre](new DirectRef(x.variable))
+        val yRef = new Local[Pre](new DirectRef(y.variable))
+        Plus(yRef, Mult(xRef, y.to))
+      case Seq(x, y, z) =>
+        val xRef = new Local[Pre](new DirectRef(x.variable))
+        val yRef = new Local[Pre](new DirectRef(y.variable))
+        val zRef = new Local[Pre](new DirectRef(z.variable))
+        Plus(Plus(zRef, Mult(yRef, z.to)), Mult(Mult(xRef, y.to), z.to))
+    }
+  } catch {
+    case _: NoSuchElementException => throw new Exception()
   }
-//
-//  def pointerType(t: CPPTPointer[Pre]): Type[Post] = {
-//    TPointer(rw.dispatch(t.innerType))
-//  }
+
+  def getSYCLWorkItemRange(level: KernelScopeLevel, index: Int): Expr[Pre] =
+    getRangeDimensions(level)(index).to
+
+  def createRange(scope: KernelScopeLevel, dimension_index: Int, count: Int)(implicit o: Origin): IterVariable[Pre] = {
+    if (count < 1) {
+      // EW TODO: Throw custom error
+      throw new Exception()
+    }
+    val variable = new Variable[Pre](TInt())(SourceNameOrigin(s"${scope.idName}_${dimension_index}", o))
+    new IterVariable[Pre](variable, IntegerValue(0), IntegerValue(count))
+  }
+
+  def rewriteSYCLQueueSubmit(invocation: CPPInvocation[Pre]): Expr[Post] = {
+
+    // Get the lambda describing the command group
+    val commandGroupBody: Statement[Pre] = invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]].body
+
+    // Get the kernel declarations in the command group
+    val collectedKernelDeclarations: Seq[CPPInvocation[Pre]] = {
+      commandGroupBody.asInstanceOf[Scope[Pre]].body.asInstanceOf[Block[Pre]].statements.collect({
+        case Eval(inv) if inv.isInstanceOf[CPPInvocation[Pre]] && inv.asInstanceOf[CPPInvocation[Pre]].ref.isDefined &&
+          inv.asInstanceOf[CPPInvocation[Pre]].ref.get.name == "sycl::handler::parallel_for" =>
+          inv.asInstanceOf[CPPInvocation[Pre]]
+      })
+    }
+    // Make sure there is only one kernel definition
+    if (collectedKernelDeclarations.isEmpty){
+      throw MissingKernel(commandGroupBody)
+    } else if (collectedKernelDeclarations.size > 1) {
+      throw MultipleKernels(commandGroupBody, collectedKernelDeclarations(1))
+    }
+
+    val kernelDimensions = collectedKernelDeclarations.head.args.head
+    val kernelDeclaration = collectedKernelDeclarations.head.args(1).asInstanceOf[CPPLambdaDefinition[Pre]]
+
+    // Create a block of code based on what kind of kernel it is
+    val kernelBody = kernelDimensions.t match {
+      case primitive: CPPPrimitiveType[_] if CPP.getPrimitiveType(primitive.specifiers).isInstanceOf[SYCLTRange[_]] =>
+        createBasicKernelBody(kernelDimensions, kernelDeclaration)
+      case SYCLTRange(_) => createBasicKernelBody(kernelDimensions, kernelDeclaration)
+//      case SYCLTNDRange(_) =>
+      case _ => throw BlameUnreachable("Type mismatch", WrongKernelDimensionsType(kernelDimensions))// EW TODO implement error
+    }
+
+    // EW: Contract will be replaced with permissions for data accessors
+    // Create a contract for the method that will hold the generated kernel code
+    val methodContract = {
+      implicit val o: Origin = commandGroupBody.o
+      ApplicableContract[Pre](
+        UnitAccountedPredicate(AstBuildHelpers.foldStar(Seq())),
+        UnitAccountedPredicate(AstBuildHelpers.foldStar(Seq())),
+        AstBuildHelpers.foldStar(Seq()),
+        Seq(), Seq(), Seq(), None
+      )(kernelDeclaration.contract.blame)
+    }
+
+    // Declare the newly generated kernel code inside a new method
+    val proc = rw.globalDeclarations.declare(
+      {
+        rw.labelDecls.scope {
+          new Procedure[Post](
+            returnType = TRef[Post](),
+            args = Seq(),
+            outArgs = Nil,
+            typeArgs = Nil,
+            body = Some(rw.dispatch(kernelBody)),
+            contract = rw.dispatch(methodContract),
+          )(kernelDeclaration.blame)(InterpretedOriginVariable("VERCORS_LAMBDA_METHOD", kernelDeclaration.o))
+        }
+      }
+    )
+
+    // Return an invocation to the new method holding the kernel code
+    ProcedureInvocation[Post](
+      new DirectRef(proc), Seq(), Nil, Nil,
+      invocation.givenArgs.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
+      invocation.yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) }
+    )(invocation.blame)(invocation.o)
+  }
+
+  // EW TODO: clean up function
+  def createBasicKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre]): ParStatement[Pre] = {
+    implicit val o: Origin = kernelDeclaration.body.o
+    // Get kernel dimensions
+    // EW TODO: actually check instead of assuming it is sycl range
+    val range: SYCLRange[Post] = rw.dispatch(kernelDimensions).asInstanceOf[SYCLRange[Post]]
+
+    val iters = range.dimensions.indices.map(index => createRange(GlobalScope(), index, range.dimensions(index)))
+    currentGlobalDimensions.push(iters)
+
+    val innerBody = kernelDeclaration.body.asInstanceOf[Scope[Pre]].body.asInstanceOf[Block[Pre]]
+    val blockDecl = new ParBlockDecl[Pre]()(SourceNameOrigin("SYCL_BASIC_KERNEL", o))
+    val UnitAccountedPredicate(contractRequires: Expr[Pre]) = kernelDeclaration.contract.requires
+    val UnitAccountedPredicate(contractEnsures: Expr[Pre]) = kernelDeclaration.contract.ensures
+
+    ParStatement[Pre](ParBlock[Pre](
+      decl = blockDecl,
+      iters = iters,
+      // Context is already inherited
+      context_everywhere = kernelDeclaration.contract.contextEverywhere,
+      requires = contractRequires,
+      ensures = contractEnsures,
+      content = Scope[Pre](Seq(), Block[Pre](Seq(innerBody))),
+    )(KernelParFailure(kernelDeclaration)))
+  }
 
   def arrayType(t: CPPTArray[Pre]): Type[Post] = {
     // TODO: we should not use pointer here

@@ -18,6 +18,21 @@ import scala.jdk.CollectionConverters._
 case class CPPToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
   extends ToCol(originProvider, blameProvider, errors) {
 
+  var currentNamespacePath: Seq[String] = Seq()
+  def getPrependedNameDeclarator(declarator: CPPDeclarator[G])(implicit o: Origin): CPPDeclarator[G] = {
+    if (prependNamespace) {
+      declarator match {
+        case decl: CPPTypedFunctionDeclarator[G] => CPPTypedFunctionDeclarator[G](decl.params, decl.varargs, getPrependedNameDeclarator(decl.inner))
+        case CPPName(name) => CPPName[G]((currentNamespacePath :+ name).mkString("::"))(o)
+        case _ => declarator
+      }
+    } else {
+      declarator
+    }
+  }
+
+  var prependNamespace: Boolean = true
+
   def convert(implicit unit: TranslationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case TranslationUnit0(maybeDeclSeq, _) => Seq(new CPPTranslationUnit(maybeDeclSeq.toSeq.flatMap(convert(_))))
   }
@@ -31,24 +46,39 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   def convert(implicit decl: DeclarationContext): Seq[GlobalDeclaration[G]] = decl match {
     case Declaration0(funcDecl) => Seq(convert(funcDecl))
     case Declaration1(blockDecl) => Seq(new CPPGlobalDeclaration(convert(blockDecl)))
-    case Declaration6(namespaceDecl) => Seq(convert(namespaceDecl))
+    case Declaration6(namespaceDecl) => convert(namespaceDecl)
     case Declaration7(_) => Seq()
-    case Declaration9(globalSpecDecl) => convert(globalSpecDecl)
+    case Declaration9(globalSpecDecl) => {
+      prependNamespace = false
+      val converted = convert(globalSpecDecl)
+      prependNamespace = true
+      converted
+    }
     case x => ??(x)
   }
 
   // Do not support inline and unnamed namespaces
-  def convert(implicit nsDef: NamespaceDefinitionContext): CPPNamespaceDefinition[G] = nsDef match {
-    case NamespaceDefinition0(None, _, Some(name), _, maybeBody, _) => new CPPNamespaceDefinition(convert(name), maybeBody.toSeq.flatMap(convert(_)))
+  def convert(implicit nsDef: NamespaceDefinitionContext): Seq[GlobalDeclaration[G]] = nsDef match {
+    case NamespaceDefinition0(None, _, Some(name), _, maybeBody, _) => {
+      val nameStr = convert(name)
+      currentNamespacePath = currentNamespacePath :+ nameStr
+      val result = maybeBody.toSeq.flatMap(convert(_))
+      currentNamespacePath = currentNamespacePath.dropRight(1)
+      result
+    }
     case x => ??(x)
   }
 
   // Not supporting attribute specifiers and virtual specifiers
   def convert(implicit funcDef: FunctionDefinitionContext): CPPFunctionDefinition[G] = funcDef match {
     case FunctionDefinition0(maybeContract, None, maybeDeclSpecs, declarator, None, body) =>
-      withContract(maybeContract, contract =>
-        new CPPFunctionDefinition(contract.consumeApplicableContract(blame(funcDef)), maybeDeclSpecs.toSeq.flatMap(convert(_)), convert(declarator), convert(body))(blame(funcDef))
+      val convertedDeclarator = getPrependedNameDeclarator(convert(declarator))
+      prependNamespace = false
+      val converted = withContract(maybeContract, contract =>
+        new CPPFunctionDefinition(contract.consumeApplicableContract(blame(funcDef)), maybeDeclSpecs.toSeq.flatMap(convert(_)), convertedDeclarator, convert(body))(blame(funcDef))
       )
+      prependNamespace = true
+      converted
     case x => ??(x)
   }
 
@@ -96,9 +126,15 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   // Not supporting attribute specifiers
   def convert(implicit simpleDecl: SimpleDeclarationContext): CPPDeclaration[G] = simpleDecl match {
     case SimpleDeclaration0(maybeContract, Some(declSpecs), maybeInits, _) =>
+      var convertedInits: Seq[CPPInit[G]] = Nil
+      if (maybeInits.isDefined) {
+        convertedInits = convert(maybeInits.get).map(init => {
+          CPPInit(getPrependedNameDeclarator(init.decl), init.init)
+        })
+      }
       withContract(maybeContract, contract =>
         new CPPDeclaration[G](contract.consumeApplicableContract(blame(simpleDecl)),
-          specs = convert(declSpecs), inits = maybeInits.map(convert(_)) getOrElse Nil)
+          specs = convert(declSpecs), inits = convertedInits)
       )
     case x => ??(x)
   }
@@ -703,8 +739,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   // Do not support lambdas without a declarator and ignore captures like [=] and [&]
   // EW TODO: add contract
   def convert(implicit lambda: LambdaExpressionContext): CPPLambdaDefinition[G] = lambda match {
-    case LambdaExpression0(_, Some(lambdaDecl), compoundStmnt) =>
-      withContract(None, contract =>
+    case LambdaExpression0(maybeContract, _, Some(lambdaDecl), compoundStmnt) =>
+      withContract(maybeContract, contract =>
         CPPLambdaDefinition(contract.consumeApplicableContract(blame(lambda)), convert(lambdaDecl), convert(compoundStmnt))(blame(lambda))
       )
     case x => ??(x)

@@ -119,7 +119,7 @@ case object CPP {
     }
   }
 
-  def replacePotentialSYCLClassInstance[G](name: String, ctx: ReferenceResolutionContext[G]): String = {
+  def replacePotentialClassmemberName[G](name: String, ctx: ReferenceResolutionContext[G]): String = {
     if (name.contains('.') && name.count(x => x == '.') == 1) {
       // Class method, replace with SYCL equivalent
       val classVarName = name.split('.').head
@@ -145,56 +145,19 @@ case object CPP {
   }
 
   def findCPPName[G](name: String, genericArg: Option[Int], ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
-    val targetName: String = replacePotentialSYCLClassInstance(name, ctx)
+    val targetName: String = replacePotentialClassmemberName(name, ctx)
 
-    var nameSeq = targetName.split("::")
-    if (nameSeq.length == 1) {
-      ctx.stack.flatten.collect {
-        case target: CPPNameTarget[G] if target.name == targetName => target
-      }
-    } else {
-      val ctxTarget: Option[RefCPPNamespaceDefinition[G]] = ctx.stack.flatten.collectFirst {
-        case namespace: RefCPPNamespaceDefinition[G] if namespace.name == nameSeq.head => namespace
-      }
-
-      ctxTarget match {
-        case Some(ref) =>
-          nameSeq = nameSeq.drop(1);
-          var foundNamespace: Option[CPPNamespaceDefinition[G]] = Some(ref.decl)
-          var returnVal: Seq[CPPNameTarget[G]] = Seq()
-          while (nameSeq.nonEmpty) {
-            if (foundNamespace.isEmpty) {
-              return Seq()
-            }
-
-            if (nameSeq.length > 1) {
-              // Look for nested namespaces
-              foundNamespace = foundNamespace.get.declarations.collectFirst {
-                case namespace: CPPNamespaceDefinition[G] if namespace.name == nameSeq.head => namespace
-              }
-            } else {
-              // Look for final nameTarget
-              returnVal = findDeclInNamespace(nameSeq.head, foundNamespace.get)
-              if (returnVal.isEmpty) {
-                returnVal = foundNamespace.get.declarations.collectFirst {
-                  case namespace: CPPNamespaceDefinition[G] if namespace.name == nameSeq.head =>
-                    findDeclInNamespace("constructor", namespace)
-                }.getOrElse(Seq())
-              }
-            }
-            nameSeq = nameSeq.drop(1)
-          }
-          returnVal
-        case None => Seq()
-      }
+    var targets = ctx.stack.flatten.collect {
+      case target: CPPNameTarget[G] if target.name == targetName => target
     }
+
+    if (targets.isEmpty && !name.endsWith("::constructor")) {
+      // Not a known method, so search for constructor
+      targets = findCPPName(name + "::constructor", genericArg, ctx)
+    }
+    targets
   }
 
-  def findDeclInNamespace[G](name: String, namespace: CPPNamespaceDefinition[G]): Seq[CPPNameTarget[G]] =
-    namespace.declarations.collect {
-      case funcDef: CPPFunctionDefinition[G] if getDeclaratorInfo(funcDef.declarator).name == name => RefCPPFunctionDefinition(funcDef)
-      case globalDecl: CPPGlobalDeclaration[G] if getDeclaratorInfo(globalDecl.decl.inits.head.decl).name == name => RefCPPGlobalDeclaration(globalDecl, 0)
-    }
 
   def findForwardDeclaration[G](declarator: CPPDeclarator[G], ctx: ReferenceResolutionContext[G]): Option[RefCPPGlobalDeclaration[G]] =
     ctx.stack.flatten.collectFirst {

@@ -69,7 +69,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
     case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
     case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
-    case ns: CPPNamespaceDefinition[Pre] => cpp.rewriteNamespaceDef(ns)
     case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
 
@@ -168,7 +167,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case local: CPPLocal[Pre] => cpp.local(local)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
-//    case func: CPPLambdaDefinition[Pre] => cpp.rewriteLambdaDef(func)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)

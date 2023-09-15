@@ -24,6 +24,22 @@ namespace sycl {
 
   namespace item {
   	/*@ pure @*/ int get_id(int dimension);
+  	/*@ pure @*/ int get_linear_id();
+  	/*@ pure @*/ int get_range(int dimension);
+  }
+
+  namespace nd_item {
+		/*@ pure @*/ int get_global_id(int dimension);
+		/*@ pure @*/ int get_global_linear_id();
+		/*@ pure @*/ int get_global_range(int dimension);
+
+		/*@ pure @*/ int get_local_id(int dimension);
+		/*@ pure @*/ int get_local_linear_id();
+		/*@ pure @*/ int get_local_range(int dimension);
+
+		/*@ pure @*/ int get_group_id(int dimension);
+		/*@ pure @*/ int get_group_linear_id();
+		/*@ pure @*/ int get_group_range(int dimension);
   }
 
 }

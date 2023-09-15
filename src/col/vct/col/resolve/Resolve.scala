@@ -325,7 +325,6 @@ case object ResolveReferences extends LazyLogging {
       ctx
         .copy(currentResult = Some(RefCPPLambdaDefinition(func)))
         .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
-    case ns: CPPNamespaceDefinition[G] => ctx.declare(ns.declarations)
     case func: CPPGlobalDeclaration[G] =>
       if (func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
         throw MultipleForwardDeclarationContractError(func)

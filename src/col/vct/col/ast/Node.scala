@@ -1004,7 +1004,6 @@ final class CPPLocalDeclaration[G](val decl: CPPDeclaration[G])(implicit val o: 
 final class CPPFunctionDefinition[G](val contract: ApplicableContract[G], val specs: Seq[CPPDeclarationSpecifier[G]], val declarator: CPPDeclarator[G], val body: Statement[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends GlobalDeclaration[G] with CPPFunctionDefinitionImpl[G] {
   var ref: Option[RefCPPGlobalDeclaration[G]] = None
 }
-final class CPPNamespaceDefinition[G](val name: String, val declarations: Seq[GlobalDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with CPPNamespaceDefinitionImpl[G]
 
 sealed trait CPPStatement[G] extends Statement[G] with CPPStatementImpl[G]
 final case class CPPDeclarationStatement[G](decl: CPPLocalDeclaration[G])(implicit val o: Origin) extends CPPStatement[G] with CPPDeclarationStatementImpl[G]
@@ -1041,10 +1040,10 @@ sealed trait SYCLClassObject[G] extends CPPExpr[G]
 final case class SYCLEvent[G](kernel: GlobalDeclaration[G])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLEventImpl[G]
 final case class SYCLQueue[G](kernels: Seq[GlobalDeclaration[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLQueueImpl[G]
 final case class SYCLHandler[G](kernel: GlobalDeclaration[G])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLHandlerImpl[G]
-final case class SYCLItem[G](dimCount: Int, dimensions: Seq[Int])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLItemImpl[G]
-final case class SYCLNDItem[G](dimCount: Int, dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDItemImpl[G]
-final case class SYCLRange[G](dimCount: Int, dimensions: Seq[Int])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLRangeImpl[G]
-final case class SYCLNDRange[G](dimCount: Int, dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDRangeImpl[G]
+final case class SYCLItem[G](dimensions: Seq[Int])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLItemImpl[G]
+final case class SYCLNDItem[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDItemImpl[G]
+final case class SYCLRange[G](dimensions: Seq[Int])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLRangeImpl[G]
+final case class SYCLNDRange[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDRangeImpl[G]
 
 sealed trait SYCLKernelDefinition[G] extends GlobalDeclaration[G]
 final case class SYCLBasicKernelDefinition[G](dimensions: Expr[G], body: GlobalDeclaration[G])(implicit val o: Origin) extends SYCLKernelDefinition[G] with SYCLBasicKernelDefinitionImpl[G]

@@ -6,7 +6,6 @@
 int x;
 
 namespace spaceA {
-	int x;
 
 	//@ context Perm(x, write);
 	//@ ensures x == 90;
@@ -28,21 +27,15 @@ namespace spaceA {
 	}
 }
 
-//@ context Perm(spaceA::x, write);
 //@ context Perm(x, write);
 int main() {
 	x = 99;
-	spaceA::x = 5;
-	//@ assert spaceA::x == 5;
   int varA = spaceA::incr();
-  //@ assert varA == 6;
-  //@ assert spaceA::x == 90;
+  //@ assert varA == 100;
+  //@ assert x == 90;
   int varB = spaceA::spaceB::incr();
   //@ assert varB == 92;
   spaceA::spaceB::doNothing();
-  int varX = spaceA::x;
-  //@ assert varX == 90;
-
-  //@ assert x == 99;
+  //@ assert x == 90;
   return 0;
 }
