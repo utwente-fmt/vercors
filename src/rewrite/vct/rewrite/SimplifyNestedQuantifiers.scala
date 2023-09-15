@@ -780,7 +780,8 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
               )
             case arrayIndex: Pointer[Pre] =>
               Seq(Seq(PointerSubscript(newGen(arrayIndex.array), xNewVar)(triggerBlame)),
-                Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame)))
+//                Seq(PointerAdd(newGen(arrayIndex.array), xNewVar)(triggerBlame))
+              )
           }
 
           for(x <- vars){
