@@ -69,6 +69,7 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case CastFloat(e, t) if e.t == t => dispatch(e)
+    case CastFloat(e, t: TFloat[Pre]) if e.t.isInstanceOf[TFloat[Pre]] => dispatch(e)
     case c@CastFloat(e, t: TFloat[Pre]) if e.t == TInt[Pre]() =>
       implicit val o: Origin = c.o
       dispatch(e) /:/ const(1)
@@ -91,6 +92,7 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       // Normally floats don't fail on division by zero, they get the `inf` value. Rewriting this to not fail on division by zero.
       implicit val o: Origin = div.o
       val newRight = dispatch(right)
+//      Div(dispatch(left), newRight)(div.blame)
       Select(newRight !== const[Post](0) /:/ const(1), Div(dispatch(left), newRight)(div.blame)(div.o), getNonDetFloat())(div.o)
     case e => rewriteDefault(e)
   }
