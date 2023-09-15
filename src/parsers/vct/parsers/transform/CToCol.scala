@@ -64,7 +64,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case DeclarationSpecifier0(storageClass) => convert(storageClass)
     case DeclarationSpecifier1(typeSpec) => convert(typeSpec)
     case DeclarationSpecifier2(typeQual) => CTypeQualifierDeclarationSpecifier(convert(typeQual))
-    case DeclarationSpecifier3(functionSpecifier) => ??(functionSpecifier)
+    case DeclarationSpecifier3(functionSpecifier) => convert(functionSpecifier)
     case DeclarationSpecifier4(alignmentSpecifier) => ??(alignmentSpecifier)
     case DeclarationSpecifier5(kernelSpecifier) => convert(kernelSpecifier)
     case DeclarationSpecifier6(valEmbedModifier) => withModifiers(valEmbedModifier, m => {
@@ -75,6 +75,13 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
       else
         fail(m.nodes.head, "This modifier cannot be attached to a declaration in C")
     })
+  }
+
+  def convert(implicit functionSpec: FunctionSpecifierContext): CDeclarationSpecifier[G] = functionSpec match {
+    case FunctionSpecifier0("inline") => CInline[G]()
+    case FunctionSpecifier0(_) => ??(functionSpec)
+    case FunctionSpecifier1(_) => ??(functionSpec)
+    case FunctionSpecifier2(_) => ??(functionSpec)
   }
 
   def convert(implicit storageClass: StorageClassSpecifierContext): CStorageClassSpecifier[G] = storageClass match {
