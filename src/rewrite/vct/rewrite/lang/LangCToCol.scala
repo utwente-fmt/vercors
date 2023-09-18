@@ -251,22 +251,34 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     res.getOrElse(throw NotDynamicSharedMem(pointer))
   }
 
-  def isFloat(t: Type[Pre]): Boolean = t match {
-    case CPrimitiveType(Seq(CSpecificationType(_: TFloat[Pre]))) => true
+  def isRatFloatOrInt(t: Type[Pre]): Boolean = getBaseType(t) match {
     case _: TFloat[Pre] => true
+    case _: TRational[Pre] => true
+    case _: TInt[Pre] => true
     case _ => false
   }
 
+  def isFloat(t: Type[Pre]): Boolean = getBaseType(t) match {
+      case _: TFloat[Pre] => true
+      case _ => false
+  }
+
   def getBaseType(t: Type[Pre]): Type[Pre] = t match {
-    case CPrimitiveType(Seq(CSpecificationType(inner))) => inner
+    case CPrimitiveType(specs) =>
+      val typeSpecs = specs
+        .filterNot(_.isInstanceOf[CSpecificationModifier[_]])
+        .filterNot(_.isInstanceOf[CStorageClassSpecifier[_]])
+      typeSpecs match {
+        case Seq(CSpecificationType(t)) => t
+        case other => CPrimitiveType(other)
+      }
     case _ => t
   }
 
   def cast(c: CCast[Pre]): Expr[Post] = c match {
     case CCast(e, t) if getBaseType(e.t) == getBaseType(t) => rw.dispatch(c.expr)
-    case CCast(_, t) if t == TFloats.ieee754_64bit || t == TFloats.ieee754_32bit =>
-      CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
-    case CCast(e, t) if isFloat(e.t) =>
+    case CCast(e, t) if (isFloat(t) && isRatFloatOrInt(e.t)) || (isRatFloatOrInt(t) && isFloat(e.t)) =>
+      // We can convert between rationals, integers and floats
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
     case CCast(CInvocation(CLocal("malloc"), Seq(SizeOf(t1)), Nil, Nil), CTPointer(t2))
       if t1 == t2 => NewPointerArray(rw.dispatch(t1), const(1)(c.o))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
