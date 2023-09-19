@@ -359,6 +359,10 @@ case object ResolveReferences extends LazyLogging {
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPLocal(name, arg) =>
       local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
+      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
+      local.classLocalRef = Some(CPP.findCPPClassLocal(local.classInstanceRef.get, classLocalName, ctx).headOption.
+        getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))

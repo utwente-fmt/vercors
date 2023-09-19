@@ -109,10 +109,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) => java.initLocal(locals)
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
-    case CPPDeclarationStatement(decl) => cpp.rewriteLocal(decl)
+    case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
-
+    case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
     case other => rewriteDefault(other)
   }
 
@@ -123,7 +123,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case ref: RefCFunctionDefinition[Pre] => c.result(ref)
         case ref: RefCGlobalDeclaration[Pre] => c.result(ref)
         case ref: RefCPPFunctionDefinition[Pre] => cpp.result(ref)
-        case ref: RefCPPLambdaDefinition[Pre] => cpp.result(ref)
         case ref: RefCPPGlobalDeclaration[Pre] => cpp.result(ref)
         case ref: RefLlvmFunctionDefinition[Pre] => llvm.result(ref)
         case RefFunction(decl) => Result[Post](anySucc(decl))
@@ -165,8 +164,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
 
-    case local: CPPLocal[Pre] => cpp.local(local)
+    case local: CPPLocal[Pre] => cpp.local(Left(local))
+    case local: CPPClassInstanceLocal[Pre] => cpp.classInstanceLocal(local)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
+    case preAssign@PreAssignExpression(CPPLocal(_, _), _) => cpp.preAssign(preAssign)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
@@ -185,6 +186,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 //    case t: CPPTPointer[Pre] => cpp.pointerType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     // EW TODO: Remove?
+    case t: SYCLTEvent[Pre] => SYCLTEvent[Post](t.inhale.map(dispatch))(t.o)
     case t: SYCLTClass[Pre] => TRef()
 //    case t: CPPTLambda[Pre] => cpp.lambdaType(t)
     case other => rewriteDefault(other)

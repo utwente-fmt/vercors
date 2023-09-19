@@ -239,27 +239,10 @@ class FeatureRainbow[G] {
     case node: CPPUnsigned[G] => CPPSpecific
     case node: CPPVoid[G] => CPPSpecific
 
-    case node: SYCLBasicKernelDefinition[G] => CPPSpecific
-    case node: SYCLClass[G] => CPPSpecific
-    case node: SYCLClassObject[G] => CPPSpecific
-    case node: SYCLCommandGroupDefinition[G] => CPPSpecific
-    case node: SYCLEvent[G] => CPPSpecific
-    case node: SYCLHandler[G] => CPPSpecific
-    case node: SYCLItem[G] => CPPSpecific
     case node: SYCLKernelDefinition[G] => CPPSpecific
-    case node: SYCLNDItem[G] => CPPSpecific
-    case node: SYCLNDRange[G] => CPPSpecific
-    case node: SYCLNDRangeKernelDefinition[G] => CPPSpecific
-    case node: SYCLQueue[G] => CPPSpecific
-    case node: SYCLRange[G] => CPPSpecific
+    case node: SYCLClass[G] => CPPSpecific
     case node: SYCLTClass[G] => CPPSpecific
-    case node: SYCLTEvent[G] => CPPSpecific
-    case node: SYCLTHandler[G] => CPPSpecific
-    case node: SYCLTItem[G] => CPPSpecific
-    case node: SYCLTNDItem[G] => CPPSpecific
-    case node: SYCLTNDRange[G] => CPPSpecific
-    case node: SYCLTQueue[G] => CPPSpecific
-    case node: SYCLTRange[G] => CPPSpecific
+    case node: SYCLClassObject[G] => CPPSpecific
 
     case node: CurrentThreadId[G] => CurrentThread
 

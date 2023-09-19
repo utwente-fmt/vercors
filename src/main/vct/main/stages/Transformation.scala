@@ -23,6 +23,7 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.HeapVariableToRef
+import vct.rewrite.lang.ReplaceSYCLTypes
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
@@ -176,6 +177,8 @@ case class SilverTransformation
 
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
+    // Replace leftover SYCL types
+    ReplaceSYCLTypes,
 
     // Delete stuff that may be declared unsupported at a later stage
     FilterSpecIgnore,

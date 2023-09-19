@@ -4,10 +4,8 @@ namespace sycl {
   	void wait();
   }
 
-
 	namespace queue {
 		sycl::event submit(VERCORS::LAMBDA lambda_method);
-		void wait();
 	}
 
 	namespace range {
@@ -16,10 +14,20 @@ namespace sycl {
 		sycl::range<3> constructor(int dim0, int dim1, int dim2);
 	}
 
+	namespace nd_range {
+		sycl::nd_range<1> constructor(sycl::range<1> globalSize, sycl::range<1> localSize);
+		sycl::nd_range<2> constructor(sycl::range<2> globalSize, sycl::range<2> localSize);
+		sycl::nd_range<3> constructor(sycl::range<3> globalSize, sycl::range<3> localSize);
+	}
+
 	namespace handler {
 		void parallel_for(sycl::range<1> numWorkItems, VERCORS::LAMBDA lambda_method);
 		void parallel_for(sycl::range<2> numWorkItems, VERCORS::LAMBDA lambda_method);
 		void parallel_for(sycl::range<3> numWorkItems, VERCORS::LAMBDA lambda_method);
+
+		void parallel_for(sycl::nd_range<1> numWorkItems, VERCORS::LAMBDA lambda_method);
+    void parallel_for(sycl::nd_range<2> numWorkItems, VERCORS::LAMBDA lambda_method);
+    void parallel_for(sycl::nd_range<3> numWorkItems, VERCORS::LAMBDA lambda_method);
   }
 
   namespace item {

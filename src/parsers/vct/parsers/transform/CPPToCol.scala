@@ -377,8 +377,8 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
     case PostfixExpression4(classVar, _, None, idExpr) =>
       convert(classVar) match {
-        case CPPLocal(className, arg) => convert(idExpr) match {
-          case CPPTypedefName(name, None) => CPPLocal(className + "." + name, arg)(blame(expr))
+        case CPPLocal(className, None) => convert(idExpr) match {
+          case CPPTypedefName(name, None) => CPPClassInstanceLocal(className, name)(blame(expr))
           case _ => ??(expr)
         }
         case _ => ??(expr)
@@ -405,7 +405,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
   // Dot not more than 1 literal
   def convert(implicit expr: PrimaryExpressionContext): Expr[G] = expr match {
     case PrimaryExpression0(inner) => convert(inner)
-    case PrimaryExpression1(literals) if literals.length == 1 => convert(literals.head)
+    case PrimaryExpression1(literal) => convert(literal)
     case PrimaryExpression2(_) => AmbiguousThis()
     case PrimaryExpression3(_, inner, _) => convert(inner)
     case PrimaryExpression4(inner) => convert(inner) match {

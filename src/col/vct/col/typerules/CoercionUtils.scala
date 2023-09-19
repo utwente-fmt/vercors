@@ -144,6 +144,10 @@ case object CoercionUtils {
           case None => return None
         }
 
+      // Make sure that SYCL event types with different inhale values are allowed
+      // EW TODO: make own coercion node
+      case (source@SYCLTEvent(_), target@SYCLTEvent(_)) => CoerceCPPPrimitiveToCol(source, target)
+
       // Something with TVar?
 
       // Unsafe coercions

@@ -349,20 +349,29 @@ case class RunnableNotRunning(node: Join[_]) extends JoinFailure with NodeVerifi
 }
 
 sealed trait KernelFailure extends VerificationFailure
-case class KernelPostconditionFailed(failure: ContractFailure, node: CGpgpuKernelSpecifier[_]) extends KernelFailure with WithContractFailure {
+case class KernelPostconditionFailed(failure: ContractFailure, eitherNode: Either[CGpgpuKernelSpecifier[_], CPPLambdaDefinition[_]]) extends KernelFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "The postcondition of this kernel may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The postcondition of `$node` may not hold, since $failure."
+  override def node: Node[_] = eitherNode match {
+    case Left(cgpuKernelSpec) => cgpuKernelSpec
+    case Right(cppLambdaDef) => cppLambdaDef
+  }
 }
-case class KernelPredicateNotInjective(kernel: CGpgpuKernelSpecifier[_], predicate: Expr[_]) extends KernelFailure {
+case class KernelPredicateNotInjective(kernel: Either[CGpgpuKernelSpecifier[_], CPPLambdaDefinition[_]], predicate: Expr[_]) extends KernelFailure {
   override def code: String = "kernelNotInjective"
   override def position: String = predicate.o.shortPosition
 
-  override def desc: String =
+  override def desc: String = {
+    val kernelOrigin = kernel match {
+      case Left(cgpuKernelSpec) => cgpuKernelSpec.o
+      case Right(cppLambdaDef) => cppLambdaDef.o
+    }
     Origin.messagesInContext(Seq(
-      (kernel.o, "This kernel causes the formulas in its body to be quantified over all threads, ..."),
+      (kernelOrigin, "This kernel causes the formulas in its body to be quantified over all threads, ..."),
       (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." + errUrl),
     ))
+  }
 
   override def inlineDesc: String =
     s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."

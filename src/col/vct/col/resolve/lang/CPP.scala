@@ -145,10 +145,8 @@ case object CPP {
   }
 
   def findCPPName[G](name: String, genericArg: Option[Int], ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
-    val targetName: String = replacePotentialClassmemberName(name, ctx)
-
     var targets = ctx.stack.flatten.collect {
-      case target: CPPNameTarget[G] if target.name == targetName => target
+      case target: CPPNameTarget[G] if target.name == name => target
     }
 
     if (targets.isEmpty && !name.endsWith("::constructor")) {
@@ -156,6 +154,22 @@ case object CPP {
       targets = findCPPName(name + "::constructor", genericArg, ctx)
     }
     targets
+  }
+
+  def findCPPClassLocal[G](classRef: CPPNameTarget[G], classLocalName: String, ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
+    val className = classRef match {
+      case RefCPPLocalDeclaration(decl, _) => Some(getPrimitiveType(decl.decl.specs))
+      case RefCPPGlobalDeclaration(decl, _) => Some(getPrimitiveType(decl.decl.specs))
+      case RefCPPParam(decl) => Some(getPrimitiveType(decl.specifiers))
+      case _ => None
+    }
+    // Replace class reference name to a namespace name
+    if (className.isDefined) {
+      // Remove generic type part, e.g. 'item<3>' becomes 'item'
+      val newClassName = className.get.toString.replaceFirst("<\\d>$", "")
+      return findCPPName(newClassName + "::" + classLocalName, None, ctx)
+    }
+    Seq()
   }
 
 
@@ -229,6 +243,23 @@ case object CPP {
               case value: CPPInvocationTarget[G] =>
                 if (checkArgs(getParamTypes(value), args)) {
                   local.ref = Some(decl)
+                  t.decl = Some(decl)
+                  return value
+                }
+              case _ =>
+            }
+          }
+          throw NotApplicable(obj)
+        case _ if obj.isInstanceOf[CPPClassInstanceLocal[G]] =>
+          // Currently linked method does not have correct params
+          // So find all declarations with correct name and see if there is
+          // an alternative whose parameters do match the arguments
+          val local = obj.asInstanceOf[CPPClassInstanceLocal[G]]
+          for (decl <- findCPPClassLocal(local.classInstanceRef.get, local.classLocalName, ctx)) {
+            decl match {
+              case value: CPPInvocationTarget[G] =>
+                if (checkArgs(getParamTypes(value), args)) {
+                  local.classLocalRef = Some(decl)
                   t.decl = Some(decl)
                   return value
                 }
