@@ -22,7 +22,7 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
     case TRef() => "$Ref"
     case TInt() => "Int"
     case TRational() => "$Perm"
-    case TAxiomatic(adt, args) => adt.decl.o.preferredName + "<" + args.map(smtTypeString).mkString("~_") + ">"
+    case TAxiomatic(adt, args) => adt.decl.o.getPreferredName.get.preferredName + "<" + args.map(smtTypeString).mkString("~_") + ">"
     case TProverType(ref) => ref.decl.interpretation.collectFirst { case (SmtLib(), int) => int }.get
     case TSmtlibArray(index, value) => s"(Array ${index.map(smtTypeString).mkString(" ")} ${smtTypeString(value)})"
     case TSmtlibBitVector(size) => s"(_ BitVec $size)"
@@ -177,9 +177,9 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
           getExpr(e, s"(as const ${smtTypeString(TSmtlibArray(domain, codomain))})", value)
         case Z3ArrayOfFunction(ref) =>
           // https://github.com/utwente-fmt/vercors/issues/1022
-          getExpr(e, s"(_ as-array ${ref.ref.decl.o.preferredName})")
+          getExpr(e, s"(_ as-array ${ref.ref.decl.o.getPreferredName.get.preferredName})")
         case Z3ArrayMap(ref, args) =>
-          getExpr(e, s"(_ map ${ref.ref.decl.o.preferredName})", args: _*)
+          getExpr(e, s"(_ map ${ref.ref.decl.o.getPreferredName.get.preferredName})", args: _*)
         case Z3SeqEmpty(elementType) => getExpr(e, s"(as seq.empty (Seq ${smtTypeString(elementType)}))")
         case Z3SeqUnit(arg) => getExpr(e, "seq.unit", arg)
         case Z3SeqConcat(left, right) => getExpr(e, "seq.++", left, right)
@@ -196,7 +196,7 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
         case Z3SeqFoldl(f, base, seq) => getExpr(e, "seq.foldl", f, base, seq)
         case Z3SeqFoldlI(f, offset, base, seq) => getExpr(e, "seq.foldli", f, offset, base, seq)
         case Z3TransitiveClosure(ref, args) =>
-          getExpr(e, s"(_ transitive-closure ${ref.ref.decl.o.preferredName})", args: _*)
+          getExpr(e, s"(_ transitive-closure ${ref.ref.decl.o.getPreferredName.get.preferredName})", args: _*)
       }
     case other => rewriteDefault(other)
   }

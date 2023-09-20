@@ -11,12 +11,8 @@ case object TupledQuantifiers extends RewriterBuilder {
   override def key: String = "tupledQuant"
   override def desc: String = "Collect the bindings of a quantifier into one binding: a tuple"
 
-  case class CollectedBindingsOrigin(vs: Seq[Variable[_]], inner: Origin) extends Origin {
-    override def preferredName: String = vs.map(_.o.preferredName).mkString("_")
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
-  }
+  def CollectedBindingsOrigin(vs: Seq[Variable[_]], inner: Origin): Origin =
+    inner.replacePrefName(vs.map(_.o.getPreferredName.get.preferredName).mkString("_"))
 }
 
 case class TupledQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
