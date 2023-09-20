@@ -3,7 +3,7 @@ package vct.col.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.lang.LangBipToCol._
-import vct.col.origin.{DiagnosticOrigin, Origin, SourceNameOrigin}
+import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.resolve.lang.{JavaAnnotationData => jad}
@@ -44,33 +44,22 @@ case object LangBipToCol {
     ))
   }
 
-  case class BipPortOrigin(ns: JavaNamespace[_], cls: JavaClass[_], port: jad.BipPort[_]) extends Origin {
-    override def preferredName: String = {
-      val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
+  private def BipPortOrigin(ns: JavaNamespace[_], cls: JavaClass[_], port: jad.BipPort[_]): Origin = {
+    port.o.replacePrefName {
+      val fqn = (ns.name.map (Seq (_) ).getOrElse (Seq () ) :+ cls.name).mkString (".")
       s"($fqn,${port.name})"
     }
-
-    override def context: String = port.o.context
-    override def inlineContext: String = port.o.inlineContext
-    override def shortPosition: String = port.o.shortPosition
   }
 
-  case class BipDataWireOrigin(cls0: JavaClass[_], port0: String, cls1: JavaClass[_], port1: String, o: Origin) extends Origin {
-    override def preferredName: String = s"(${cls0.name},$port0)->(${cls1.name},$port1)"
-    override def context: String = o.context
-    override def inlineContext: String = o.inlineContext
-    override def shortPosition: String = o.shortPosition
+  private def BipDataWireOrigin(cls0: JavaClass[_], port0: String, cls1: JavaClass[_], port1: String, o: Origin): Origin = {
+    o.replacePrefName(s"(${cls0.name},$port0)->(${cls1.name},$port1)")
   }
 
-  case class BipDataOrigin(ns: JavaNamespace[_], cls: JavaClass[_], data: jad.BipData[_]) extends Origin {
-    override def preferredName: String = {
+  private def BipDataOrigin(ns: JavaNamespace[_], cls: JavaClass[_], data: jad.BipData[_]): Origin = {
+    data.o.replacePrefName {
       val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
       s"($fqn,${data.name})"
     }
-
-    override def context: String = data.o.context
-    override def inlineContext: String = data.o.inlineContext
-    override def shortPosition: String = data.o.shortPosition
   }
 }
 
@@ -145,7 +134,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.dispatch).getOrElse(tt),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
+      rw.dispatch(m.body.get))(m.blame)(m.o.addPrefName(m.name))
 
     javaMethodSuccTransition((m, transition)) = rw.classDeclarations.declare(trans)
   }
@@ -172,7 +161,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       m.parameters.map(rewriteParameter),
       rw.dispatch(m.body.get),
       true
-    )(m.blame)(SourceNameOrigin(m.name, m.o)))
+    )(m.blame)(m.o.addPrefName(m.name)))
   }
 
   def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
@@ -210,7 +199,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create bip state predicates
     jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>
       val bspNode = rw.classDeclarations.declare(
-        new BipStatePredicate[Post](rw.dispatch(expr))(SourceNameOrigin(name, bspData.o)))
+        new BipStatePredicate[Post](rw.dispatch(expr))(bspData.o.addPrefName(name)))
       statePredicates(bspData) = bspNode
     }
 

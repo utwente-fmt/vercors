@@ -5,7 +5,7 @@ import hre.data.BitString
 import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
 import spray.json.{JsString, JsValue, JsonParser}
-import vct.col.ast.Deserialize
+import vct.col.ast.{Deserialize, Variable}
 import vct.col.origin.RedirectOrigin.StringReadable
 
 import java.io.{Reader, StringReader}
@@ -32,7 +32,7 @@ case class FormalName(formalName: String) extends OriginContent
 case class Context(context: String) extends OriginContent
 case class InlineContext(inlineContext: String) extends OriginContent
 case class ShortPosition(shortPosition: String) extends OriginContent
-case class ReadableOrigin(readable: Readable) extends OriginContent
+case class ReadableOrigin(readable: Readable, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]) extends OriginContent
 
 case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
 
@@ -41,10 +41,17 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
   }
 
   def replacePrefName(name: String): Origin = {
-    Origin(originContents.flatMap{
+    Origin(originContents.flatMap {
       case PreferredName(_) => Nil
       case other => Seq(other)
     } :+ PreferredName(name))
+  }
+
+  def replaceContext(name: String): Origin = {
+    Origin(originContents.flatMap {
+      case Context(_) => Nil
+      case other => Seq(other)
+    } :+ Context(name))
   }
 
   def addReqName(name: String): Origin = {
@@ -67,16 +74,17 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     Origin(originContents :+ InlineContext(inCtx))
   }
 
-  def addReadableOrigin(readable: Readable): Origin = {
-    Origin(originContents :+ ReadableOrigin(readable))
+  def addReadableOrigin(readable: Readable, startLineIdx: Int, endLineIdx: Int,
+                        cols: Option[(Int, Int)]): Origin = {
+    Origin(originContents :+ ReadableOrigin(readable, startLineIdx, endLineIdx, cols))
   }
 
   def getReadable: Option[ReadableOrigin] = {
     originContents.flatMap {
-      case ReadableOrigin(any) => Seq(ReadableOrigin(any))
+      case ReadableOrigin(any1, any2, any3, any4) => Seq(ReadableOrigin(any1, any2, any3, any4))
       case _ => Nil
     } match {
-      case Seq(ReadableOrigin(any)) => Option(ReadableOrigin(any))
+      case Seq(ReadableOrigin(any1, any2, any3, any4)) => Option(ReadableOrigin(any1, any2, any3, any4))
       case _ => None
     }
   }
@@ -393,6 +401,26 @@ case object RedirectOrigin {
     override protected def getReader: Reader =
       new StringReader(data)
   }
+
+  def transposeOrigin(o: Origin, textualOrigin: String, startLine: Int, endLine: Int, cols: Option[(Int, Int)]): Origin
+  = o.originContents.collectFirst{
+    case ReadableOrigin(readable, baseStartLine, baseEndLine, baseCols) =>
+      val realStartLine = baseStartLine + startLine
+      val realEndLine = baseEndLine + endLine
+      val c: Option[(Int, Int)] = (baseCols, cols) match {
+        case (Some((baseStartCol, _)), Some((innerStartCol, innerEndCol))) =>
+          // + 1 because need to account for starting quote that must be skipped
+          val realStart = (if (startLine == 0) baseStartCol + innerStartCol else innerStartCol) + 1
+          val realEnd = (if (endLine == 0) baseStartCol + innerEndCol else innerEndCol) + 1
+          Some((realStart, realEnd))
+        case (Some(baseCols), None) => if (startLine == 0) Some(baseCols) else None
+        case (None, cols) => cols
+      }
+      Origin(Seq(ReadableOrigin(readable, realStartLine, realEndLine, c)))
+    case _ =>
+      InterpretedOrigin(StringReadable(textualOrigin), startLine, endLine, cols, o)
+  }.get
+
 }
 
 

@@ -7,7 +7,7 @@ import vct.col.ast.util.Declarator
 import vct.col.ast.{CPPType, CType, Declaration, GlobalDeclaration, JavaType, PVLType, Program, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type}
 import vct.col.typerules.CoercingRewriter
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{Blame, SourceNameOrigin, UnsafeCoercion}
+import vct.col.origin.{Blame, UnsafeCoercion}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, RewriterBuilderArg}
 
@@ -36,10 +36,10 @@ case object ImportADT {
     case TArray(element) => "arr_" + typeText(element)
     case TPointer(element) => "ptr_" + typeText(element)
     case TProcess() => "proc"
-    case TModel(Ref(model)) => model.o.preferredName
+    case TModel(Ref(model)) => model.o.getPreferredName.get.preferredName
     case TAxiomatic(Ref(adt), args) => args match {
-      case Nil => adt.o.preferredName
-      case ts => adt.o.preferredName + "$" + ts.map(typeText).mkString("__") + "$"
+      case Nil => adt.o.getPreferredName.get.preferredName
+      case ts => adt.o.getPreferredName.get.preferredName + "$" + ts.map(typeText).mkString("__") + "$"
     }
     case TOption(element) => "opt_" + typeText(element)
     case TTuple(elements) => "tup$" + elements.map(typeText).mkString("__") + "$"
@@ -59,8 +59,8 @@ case object ImportADT {
     case TFraction() => "fract"
     case TZFraction() => "zfract"
     case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
-    case TClass(Ref(cls)) => cls.o.preferredName
-    case TVar(Ref(v)) => v.o.preferredName
+    case TClass(Ref(cls)) => cls.o.getPreferredName.get.preferredName
+    case TVar(Ref(v)) => v.o.getPreferredName.get.preferredName
     case TUnion(ts) => "union$" + ts.map(typeText).mkString("__") + "$"
     case _: JavaType[_] => throw ExtraNode
     case _: CType[_] => throw ExtraNode
@@ -88,7 +88,7 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends
 
   protected def find[T](decls: Seq[Declaration[Post]], name: String)(implicit tag: ClassTag[T]): T =
     decls.collectFirst {
-      case decl: T if decl.o.isInstanceOf[SourceNameOrigin] && decl.o.asInstanceOf[SourceNameOrigin].name == name =>
+      case decl: T if decl.o.getPreferredName.isDefined && decl.o.getPreferredName.get.preferredName == name =>
         decl
     }.get
 

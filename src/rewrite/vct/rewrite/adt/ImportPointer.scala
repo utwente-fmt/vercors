@@ -10,12 +10,14 @@ import vct.col.util.AstBuildHelpers.ExprBuildHelpers
 import scala.collection.mutable
 
 case object ImportPointer extends ImportADTBuilder("pointer") {
-  case class PointerField(t: Type[_]) extends Origin {
-    override def preferredName: String = typeText(t)
-    override def shortPosition: String = "generated"
-    override def context: String = s"[At field generated for pointer location of type $t]"
-    override def inlineContext: String = s"[Field generated for pointer location of type $t]"
-  }
+  private def PointerField(t: Type[_]): Origin = Origin(
+    Seq(
+      PreferredName(typeText(t)),
+      ShortPosition("generated"),
+      Context(s"[At field generated for pointer location of type $t]"),
+      InlineContext(s"[Field generated for pointer location of type $t]"),
+    )
+  )
 
   case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_]) extends Blame[OptionNone] {
     override def blame(error: OptionNone): Unit =

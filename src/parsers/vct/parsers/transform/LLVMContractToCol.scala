@@ -6,7 +6,7 @@ import vct.antlr4.generated.LLVMSpecParser._
 import vct.antlr4.generated.LLVMSpecParserPatterns
 import vct.antlr4.generated.LLVMSpecParserPatterns._
 import vct.col.ast._
-import vct.col.origin.{ExpectedError, Origin, SourceNameOrigin}
+import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
 
@@ -25,7 +25,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
 
   def createVariable(ctx: ParserRuleContext, id: LangIdContext, t: LangTypeContext): Variable[G] = {
     val varId = convert(id)
-    val variable = new Variable(convert(t))(SourceNameOrigin(varId, origin(ctx)))
+    val variable = new Variable(convert(t))(origin(ctx).replacePrefName(varId))
     variable
   }
 
@@ -390,7 +390,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
       val modifierCollector = new ModifierCollector()
       modifiers.foreach(convert(_, modifierCollector))
 
-      val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
+      val namedOrigin = origin(decl).replacePrefName(convert(name))
       new LlvmSpecFunction(
         convert(name),
         convert(t),

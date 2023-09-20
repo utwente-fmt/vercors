@@ -16,21 +16,25 @@ import viper.silver.{ast => silver}
 import java.nio.file.{Path, Paths}
 
 case object SilverToCol {
-  case class SilverPositionOrigin(node: silver.Positioned) extends Origin {
-    override def preferredName: String = "unknown"
-    override def shortPosition: String = node.pos match {
-      case pos: AbstractSourcePosition => s"${pos.start.line}:${pos.start.column}"
-      case _ => "unknown"
-    }
-    override def context: String = node.pos match {
-      case NoPosition => "[Unknown position from silver parse tree]"
-      case pos: AbstractSourcePosition =>
-        val (start, end) = (pos.start, pos.end.getOrElse(pos.start))
-        ReadableOrigin(RWFile(pos.file.toFile), start.line-1, end.line-1, Some((start.column-1, end.column-1))).context
-      case other => s"[Unknown silver position kind: $other]"
-    }
-    override def inlineContext: String = InputOrigin.compressInlineText(node.toString)
-  }
+  private def SilverPositionOrigin(node: silver.Positioned): Origin = Origin(
+    Seq(
+      PreferredName("unknown"),
+      ShortPosition(node.pos match {
+        case pos: AbstractSourcePosition => s"${pos.start.line}:${pos.start.column}"
+        case _ => "unknown"
+      }),
+      Context(node.pos match {
+        case NoPosition => "[Unknown position from silver parse tree]"
+        case pos: AbstractSourcePosition =>
+          val (start, end) = (pos.start, pos.end.getOrElse(pos.start))
+          UserInputOrigin(
+            RWFile(pos.file.toFile), start.line - 1, end.line - 1, Some((start.column - 1, end.column - 1))
+          ).getContext.get.context
+        case other => s"[Unknown silver position kind: $other]"
+      }),
+      InlineContext(InputOrigin.compressInlineText(node.toString)),
+    )
+  )
 
   case class SilverNodeNotSupported(node: silver.Node) extends UserError {
     override def code: String = "silverNodeNotSupported"
@@ -68,9 +72,9 @@ case object SilverToCol {
 
 case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider) {
   def origin(node: silver.Positioned, sourceName: String = ""): Origin =
-    if(sourceName.nonEmpty) SourceNameOrigin(sourceName, SilverPositionOrigin(node))
+    if(sourceName.nonEmpty) SilverPositionOrigin(node).replacePrefName(sourceName)
     else node match {
-      case node: silver.Declaration => SourceNameOrigin(node.name, SilverPositionOrigin(node))
+      case node: silver.Declaration => SilverPositionOrigin(node).replacePrefName(node.name)
       case _ => SilverPositionOrigin(node)
     }
 
@@ -107,7 +111,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
     )(origin(domain))
 
   def transform(o: Origin)(tVar: silver.TypeVar): col.Variable[G] =
-    new col.Variable(col.TType(col.TAny()))(SourceNameOrigin(tVar.name, o))
+    new col.Variable(col.TType(col.TAny()))(o.replacePrefName(tVar.name))
 
   def transform(func: silver.DomainFunc): col.ADTFunction[G] =
     new col.ADTFunction(

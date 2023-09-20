@@ -4,7 +4,7 @@ import vct.col.ast._
 import RewriteHelpers._
 import hre.util.ScopedStack
 import vct.col.rewrite.error.ExcludedByPassOrder
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -18,47 +18,59 @@ case object EncodeBreakReturn extends RewriterBuilder {
   override def key: String = "breakReturn"
   override def desc: String = "Encode break and return with goto or with exceptions."
 
-  case class PostLabeledStatementOrigin(label: LabelDecl[_]) extends Origin {
-    override def preferredName: String = "break_" + label.o.preferredName
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to jump past a statement]"
-    override def inlineContext: String = "[After] " + label.o.inlineContext
-  }
+  private def PostLabeledStatementOrigin(label: LabelDecl[_]): Origin = Origin(
+    Seq(
+      PreferredName("break_" + label.o.getPreferredName.get.preferredName),
+      ShortPosition("generated"),
+      Context("[At node generated to jump past a statement]"),
+      InlineContext("[After] " + label.o.getInlineContext.get.inlineContext),
+      )
+    )
 
-  case object ReturnClass extends Origin {
-    override def preferredName: String = "Return"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At class generated to encode return with an exception]"
-    override def inlineContext: String = "[Return value exception class]"
-  }
+  private def ReturnClass: Origin = Origin(
+    Seq(
+      PreferredName("Return"),
+      ShortPosition("generated"),
+      Context("[At class generated to encode return with an exception]"),
+      InlineContext("[Return value exception class]"),
+      )
+    )
 
-  case object ReturnField extends Origin {
-    override def preferredName: String = "value"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At field generated to encode return with an exception]"
-    override def inlineContext: String = "[Return value exception class field]"
-  }
+  private def ReturnField: Origin = Origin(
+    Seq(
+      PreferredName("value"),
+      ShortPosition("generated"),
+      Context("[At field generated to encode return with an exception]"),
+      InlineContext("[Return value exception class field]"),
+      )
+    )
 
-  case object ReturnTarget extends Origin {
-    override def preferredName: String = "end"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At label generated for the end of the method]"
-    override def inlineContext: String = "[End of method]"
-  }
+  private def ReturnTarget: Origin = Origin(
+    Seq(
+      PreferredName("end"),
+      ShortPosition("generated"),
+      Context("[At label generated for the end of the method]"),
+      InlineContext("[End of method]"),
+      )
+    )
 
-  case object ReturnVariable extends Origin {
-    override def preferredName: String = "return"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At variable generated for the result of the method]"
-    override def inlineContext: String = "[Return value]"
-  }
+  private def ReturnVariable: Origin = Origin(
+    Seq(
+      PreferredName("return"),
+      ShortPosition("generated"),
+      Context("[At variable generated for the result of the method]"),
+      InlineContext("[Return value]"),
+      )
+    )
 
-  case object BreakException extends Origin {
-    override def preferredName: String = "Break"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At exception class generated to break on a label or loop]"
-    override def inlineContext: String = "[Break exception class]"
-  }
+  private def BreakException: Origin = Origin(
+    Seq(
+      PreferredName("Break"),
+      ShortPosition("generated"),
+      Context("[At exception class generated to break on a label or loop]"),
+      InlineContext("[Break exception class]"),
+      )
+    )
 }
 
 case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {

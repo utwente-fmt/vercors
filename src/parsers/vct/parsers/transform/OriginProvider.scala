@@ -35,16 +35,16 @@ case class ConstantBlameProvider(globalBlame: Blame[VerificationFailure]) extend
 }
 
 case class ReadableOriginProvider(readable: Readable) extends OriginProvider {
-  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): ReadableOrigin = {
-    ReadableOrigin(readable, startLineIdx, endLineIdx, cols)
+  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin = {
+    UserInputOrigin(readable, startLineIdx, endLineIdx, cols)
   }
 
   override def apply(): Origin = FileSpanningOrigin
 }
 
 case class RedirectOriginProvider(o: Origin, textualOrigin: String) extends OriginProvider {
-  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): RedirectOrigin = {
-    RedirectOrigin(o, textualOrigin, startLineIdx, endLineIdx, cols)
+  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin = {
+    RedirectOrigin.transposeOrigin(o, textualOrigin, startLineIdx, endLineIdx, cols)
   }
 
   override def apply(): Origin = FileSpanningOrigin
@@ -67,12 +67,12 @@ case class InterpretedFileOriginProvider(original: OriginProvider, interpreted: 
     None
   }
 
-  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): InputOrigin = {
+  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin = {
     (getLineOffset(startLineIdx), getLineOffset(endLineIdx)) match {
       case (Some(startOffset), Some(endOffset)) =>
         InterpretedOrigin(interpreted, startLineIdx, endLineIdx, cols, original(startLineIdx+startOffset, endLineIdx+endOffset, None))
       case _ =>
-        ReadableOrigin(interpreted, startLineIdx, endLineIdx, cols)
+        Origin(Seq(ReadableOrigin(interpreted, startLineIdx, endLineIdx, cols)))
     }
   }
 

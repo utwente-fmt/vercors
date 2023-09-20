@@ -24,9 +24,9 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
     channelType.toString.capitalize + channelClassName
 
   def getThreadClassName(thread: VeyMontThread[_]) : String =
-    thread.o.preferredName.capitalize + threadClassName
+    thread.o.getPreferredName.get.preferredName.capitalize + threadClassName
 
-  def getVarName(v: Variable[_]) = v.o.preferredName
+  def getVarName(v: Variable[_]) = v.o.getPreferredName.get.preferredName
 
   case class ParalliseVeyMontThreadsError(node : Node[_], msg: String) extends UserError {
     override def code: String = "ParalleliseVeyMontThreadsError"
@@ -34,34 +34,16 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
     override def text: String = node.o.messageInContext(msg)
   }
 
-  case class ThreadClassOrigin(thread: VeyMontThread[_]) extends Origin {
-    override def preferredName: String = getThreadClassName(thread)
-
-    override def context: String = thread.o.context
-
-    override def inlineContext: String = thread.o.inlineContext
-
-    override def shortPosition: String = thread.o.shortPosition
+  private def ThreadClassOrigin(thread: VeyMontThread[_]): Origin = {
+    thread.o.replacePrefName(getThreadClassName(thread))
   }
 
-  case class ChannelFieldOrigin(channelName: String, assign: Statement[_]) extends Origin {
-    override def preferredName: String = channelName
-
-    override def context: String = assign.o.context
-
-    override def inlineContext: String = assign.o.inlineContext
-
-    override def shortPosition: String = assign.o.shortPosition
+  private def ChannelFieldOrigin(channelName: String, assign: Statement[_]): Origin = {
+    assign.o.replacePrefName(channelName)
   }
 
-  case class RunMethodOrigin(runMethod: RunMethod[_]) extends Origin {
-    override def preferredName: String = "run"
-
-    override def context: String = runMethod.o.context
-
-    override def inlineContext: String = runMethod.o.inlineContext
-
-    override def shortPosition: String = runMethod.o.shortPosition
+  private def RunMethodOrigin(runMethod: RunMethod[_]): Origin = {
+    runMethod.o.replacePrefName("run")
   }
 }
 
@@ -130,7 +112,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
     def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] =
       new JavaConstructor[Post](Seq(JavaPublic[Post]()(p.o)),
-        rewritingConstr.top._2.cls.decl.o.preferredName,
+        rewritingConstr.top._2.cls.decl.o.getPreferredName.get.preferredName,
         p.args.map(createJavaParam),
         variables.dispatch(p.typeArgs),
         Seq.empty,
@@ -197,14 +179,14 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def createThreadClassConstructor(thread: VeyMontThread[Pre], threadField: InstanceField[Post]): JavaConstructor[Post] = {
     val threadConstrArgBlocks = thread.args.map{
-      case l: Local[Pre] => (l.ref.decl.o.preferredName,dispatch(l.t))
+      case l: Local[Pre] => (l.ref.decl.o.getPreferredName.get.preferredName,dispatch(l.t))
       case other => throw ParalliseVeyMontThreadsError(other,"This node is expected to be an argument of seq_prog, and have type Local")
     }
     val threadConstrArgs: Seq[JavaParam[Post]] =
       threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a, t)(ThreadClassOrigin(thread)) }
     val passedArgs = threadConstrArgs.map(a => JavaLocal[Post](a.name)(null)(ThreadClassOrigin(thread)))
     val threadTypeName = thread.threadType match { //TODO: replace by using givenClassSucc
-      case tc: TClass[Pre] => tc.cls.decl.o.preferredName
+      case tc: TClass[Pre] => tc.cls.decl.o.getPreferredName.get.preferredName
       case _ => throw ParalliseVeyMontThreadsError(thread.threadType,"This type is expected to be a class")
     }
     val threadConstrBody = {
@@ -299,7 +281,8 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def getChannelNamesAndTypes(s: Statement[Pre]): Seq[ChannelInfo[Pre]] = {
     s.collect { case e@VeyMontCommExpression(recv, sender, chanType, assign) =>
-      new ChannelInfo(e,chanType, recv.decl.o.preferredName + sender.decl.o.preferredName + "Channel")
+      new ChannelInfo(e,chanType, recv.decl.o.getPreferredName.get.preferredName
+        + sender.decl.o.getPreferredName.get.preferredName + "Channel")
     }
   }
 

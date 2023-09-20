@@ -6,7 +6,7 @@ import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, Global
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast._
 import vct.col.check.CheckError
-import vct.col.origin.{FileSpanningOrigin, LLVMOrigin, Origin}
+import vct.col.origin.{FileSpanningOrigin, Origin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
 import vct.col.rewrite.bip.IsolateBipGlue
