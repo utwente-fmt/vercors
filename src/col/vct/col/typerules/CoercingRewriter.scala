@@ -907,10 +907,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CPPClassInstanceLocal(_, _) => e
       case defn@CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
-      case CPPLambdaRef() => CPPLambdaRef()
+      case CPPLambdaRef() => e
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
-      case CPPLocal(name, arg) => e
+      case CPPLocal(_, _) => e
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
@@ -2007,7 +2007,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CPPBool() => CPPBool()
       case CPPTypedefName(name, arg) => CPPTypedefName(name, arg)
       case CPPSpecificationType(t) => CPPSpecificationType(t)
-      case SYCLClass(name, arg) => SYCLClass(name, arg)
+      case SYCLClassDefName(name, arg) => SYCLClassDefName(name, arg)
     }
   }
 

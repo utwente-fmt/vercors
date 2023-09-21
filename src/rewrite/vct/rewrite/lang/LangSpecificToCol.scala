@@ -165,9 +165,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case cast: CCast[Pre] => c.cast(cast)
 
     case local: CPPLocal[Pre] => cpp.local(Left(local))
-    case local: CPPClassInstanceLocal[Pre] => cpp.classInstanceLocal(local)
+    case local: CPPClassInstanceLocal[Pre] => cpp.local(Right(local))
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
     case preAssign@PreAssignExpression(CPPLocal(_, _), _) => cpp.preAssign(preAssign)
+    case _: CPPLambdaDefinition[Pre] => ???
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
@@ -183,12 +184,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
-//    case t: CPPTPointer[Pre] => cpp.pointerType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
-    // EW TODO: Remove?
-    case t: SYCLTEvent[Pre] => SYCLTEvent[Post](t.inhale.map(dispatch))(t.o)
-    case t: SYCLTClass[Pre] => TRef()
-//    case t: CPPTLambda[Pre] => cpp.lambdaType(t)
+    case t: SYCLTEvent[Pre] => cpp.syclEventType(t)
     case other => rewriteDefault(other)
   }
 }

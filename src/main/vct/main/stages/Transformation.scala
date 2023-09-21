@@ -9,12 +9,12 @@ import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
 import vct.col.print.Ctx
+import vct.col.rewrite._
 import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
-import vct.col.rewrite._
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
@@ -170,6 +170,9 @@ case class SilverTransformation
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    // Replace leftover SYCL types
+    ReplaceSYCLTypes,
+
     ComputeBipGlue,
     InstantiateBipSynchronizations,
     EncodeBipPermissions,
@@ -177,8 +180,6 @@ case class SilverTransformation
 
     // Remove the java.lang.Object -> java.lang.Object inheritance loop
     NoSupportSelfLoop,
-    // Replace leftover SYCL types
-    ReplaceSYCLTypes,
 
     // Delete stuff that may be declared unsupported at a later stage
     FilterSpecIgnore,

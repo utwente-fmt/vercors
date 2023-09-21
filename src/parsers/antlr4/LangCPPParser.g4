@@ -34,7 +34,7 @@ clangppIdentifier:
 // Expressions
 primaryExpression:
     valExpr
-	| literal // EW: changed to match only one literal to prevent parsing errors
+	| literal // EW: Changed to match only one literal to prevent parsing errors
 	| This
 	| LeftParen expression RightParen
 	| idExpression

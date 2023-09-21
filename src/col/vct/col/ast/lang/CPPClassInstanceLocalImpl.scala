@@ -1,13 +1,14 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CPPLocal, CPPPrimitiveType, Type}
+import vct.col.ast.{CPPClassInstanceLocal, CPPLocal, CPPPrimitiveType, Type}
 import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.typerules.Types
 
-trait CPPLocalImpl[G] { this: CPPLocal[G] =>
-  override lazy val t: Type[G] = ref.get match {
+trait CPPClassInstanceLocalImpl[G] { this: CPPClassInstanceLocal[G] =>
+  // Keep same as CPPLocalImpl
+  override lazy val t: Type[G] = classLocalRef.get match {
     case ref: RefCPPParam[G] => CPP.typeOrReturnTypeFromDeclarator(ref.decl.specifiers, ref.decl.declarator)
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case RefVariable(decl) => decl.t
@@ -28,6 +29,5 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
   }
 
-  override def layout(implicit ctx: Ctx): Doc = Group(Text(name) <>
-    (if (genericArg.isDefined) (Text("<") <> Text(genericArg.get.toString) <> Text(">")) else Text("")))
+  override def layout(implicit ctx: Ctx): Doc = Group(Text(classInstanceRefName) <> "." <> Text(classLocalName))
 }

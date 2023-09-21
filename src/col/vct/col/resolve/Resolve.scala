@@ -321,10 +321,6 @@ case object ResolveReferences extends LazyLogging {
       ctx
         .copy(currentResult = Some(RefCPPFunctionDefinition(func)))
         .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
-    case func: CPPLambdaDefinition[G] =>
-      ctx
-        .copy(currentResult = Some(RefCPPLambdaDefinition(func)))
-        .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
     case func: CPPGlobalDeclaration[G] =>
       if (func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
         throw MultipleForwardDeclarationContractError(func)
@@ -338,6 +334,10 @@ case object ResolveReferences extends LazyLogging {
             .declare(info.params.getOrElse(Nil))
             .copy(currentResult = info.params.map(_ => RefCPPGlobalDeclaration(func, idx)))
       }
+    case func: CPPLambdaDefinition[G] =>
+      ctx
+        .copy(currentResult = Some(RefCPPLambdaDefinition(func)))
+        .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
     case func: LlvmFunctionDefinition[G] => ctx
       .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
     case func: LlvmSpecFunction[G] => ctx
@@ -360,8 +360,9 @@ case object ResolveReferences extends LazyLogging {
     case local@CPPLocal(name, arg) =>
       local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
-      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
-      local.classLocalRef = Some(CPP.findCPPClassLocal(local.classInstanceRef.get, classLocalName, ctx).headOption.
+      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.
+        getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
+      local.classLocalRef = Some(CPP.findCPPClassLocalName(local.classInstanceRef.get, classLocalName, ctx).headOption.
         getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {

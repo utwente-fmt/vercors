@@ -239,8 +239,7 @@ class FeatureRainbow[G] {
     case node: CPPUnsigned[G] => CPPSpecific
     case node: CPPVoid[G] => CPPSpecific
 
-    case node: SYCLKernelDefinition[G] => CPPSpecific
-    case node: SYCLClass[G] => CPPSpecific
+    case node: SYCLClassDefName[G] => CPPSpecific
     case node: SYCLTClass[G] => CPPSpecific
     case node: SYCLClassObject[G] => CPPSpecific
 
