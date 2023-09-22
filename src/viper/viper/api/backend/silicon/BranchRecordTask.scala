@@ -6,7 +6,7 @@ import viper.api.backend.silicon.SiliconLogListener.{BranchCondition, BranchCond
 
 case class BranchRecordTask(superTask: AbstractTask, cond: BranchCondition) extends Task {
   override def profilingBreadcrumb: String = cond match {
-    case BranchConditionExp(e) => e.toString()
+    case BranchConditionExp(e) => CachedExpRender(e)
     case BranchConditionTerm(e) => e.toString
     case BranchConditionNone(at, count) => s"alternative $at/$count"
   }
