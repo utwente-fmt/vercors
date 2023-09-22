@@ -21,7 +21,7 @@ trait ParBlockImpl[G] extends ParRegionImpl[G] with Declarator[G] { this: ParBlo
   }
 
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    context.copy(roScopes = context.scopes.size, roScopeReason = Some(this)).withScope(declarations.toSet)
+    context.copy(roScopes = context.scopes.size, roScopeReason = Some(this)).withScope(declarations)
 
   override def layout(implicit ctx: Ctx): Doc = {
     val header = Group(Text("par") <+> ctx.name(decl) <>

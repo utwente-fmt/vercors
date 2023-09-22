@@ -8,7 +8,7 @@ import vct.col.resolve.ResolveReferences
 trait ScopeImpl[G] {
   this: Scope[G] =>
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    context.withScope((locals ++ ResolveReferences.scanScope(body, inGPUKernel = false)).toSet)
+    context.withScope(locals, toScan = Seq(body))
 
   override def layout(implicit ctx: Ctx): Doc = layoutAsBlock
   override def blockElementsForLayout(implicit ctx: Ctx): Seq[Show] =

@@ -5,6 +5,7 @@ import vct.col.ast.util.Declarator
 import vct.col.err.ASTStateError
 import vct.col.origin.Origin
 import vct.col.ref.Ref
+import vct.col.resolve.ResolveReferences
 
 case object Check {
   def inOrder(check1: => Seq[CheckError], check2: => Seq[CheckError]): Seq[CheckError] =
@@ -74,15 +75,33 @@ case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
 case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
 
+case object CheckContext {
+  case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
+    private lazy val declSet = decls.toSet
+    private lazy val scannedDeclSet = scanLazily.flatMap(ResolveReferences.scanScope(_, inGPUKernel = false)).toSet
+
+    def contains(decl: Declaration[G]): Boolean =
+      declSet.contains(decl) || (scanLazily.nonEmpty && scannedDeclSet.contains(decl))
+  }
+}
+
 case class CheckContext[G]
 (
-  scopes: Seq[Set[Declaration[G]]] = Seq(),
+  scopes: Seq[CheckContext.ScopeFrame[G]] = Seq(),
   roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
 ) {
-  def withScope(decls: Set[Declaration[G]]): CheckContext[G] =
-    copy(scopes = scopes :+ decls)
+  def withScope(decls: Seq[Declaration[G]]): CheckContext[G] =
+    copy(scopes = scopes :+ CheckContext.ScopeFrame(decls, Nil))
+
+  /**
+   * In effect toScan is just scanned for LocalDecl's, and these are added to decls. We want to delay this, because
+   * the scanning operation is expensive, and for most of the transformation run the declaration is declared directly
+   * anyway.
+   */
+  def withScope(decls: Seq[Declaration[G]], toScan: Seq[Node[G]]): CheckContext[G] =
+    copy(scopes = scopes :+ CheckContext.ScopeFrame(decls, toScan))
 
   def withApplicable(applicable: Applicable[G]): CheckContext[G] =
     copy(currentApplicable = Some(applicable))
