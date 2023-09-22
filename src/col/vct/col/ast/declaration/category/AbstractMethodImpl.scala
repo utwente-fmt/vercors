@@ -12,9 +12,6 @@ trait AbstractMethodImpl[G] extends ContractApplicableImpl[G] { this: AbstractMe
 
   override def declarations: Seq[Declaration[G]] = super.declarations ++ outArgs
 
-  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    super.enterCheckContext(context).withScope(transSubnodes.collect { case decl: LocalDecl[G] => decl.local }.toSet)
-
   override def check(context: CheckContext[G]): Seq[CheckError] =
     body.toSeq.flatMap(_.transSubnodes.flatMap {
       case Return(e) => e.checkSubType(returnType)
