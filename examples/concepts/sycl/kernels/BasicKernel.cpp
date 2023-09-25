@@ -8,7 +8,7 @@ void main() {
 			cgh.parallel_for(sycl::range<3>(6,4,2),
 				/*@
 					requires it.get_id(0) > -1;
-					ensures it.get_linear_id() > 0;
+					ensures it.get_linear_id() > -1;
 				*/
 				[=] (sycl::item<3> it) {
 					int a = it.get_id(0);
