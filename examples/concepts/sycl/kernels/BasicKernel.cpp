@@ -11,7 +11,7 @@ void main() {
 					ensures it.get_linear_id() > -1;
 				*/
 				[=] (sycl::item<3> it) {
-					int a = it.get_id(0);
+					int a = it.get_id(1);
 					//@ assert a < 6 && a >= 0;
 					int b = it.get_linear_id();
 					//@ assert b < 48 && b >= 0;
@@ -21,4 +21,6 @@ void main() {
 			);
 		}
 	);
+	int a = 5;
+	myEvent.wait();
 }

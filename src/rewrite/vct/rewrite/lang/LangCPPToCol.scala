@@ -7,8 +7,9 @@ import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
+import vct.col.rewrite.ParBlockEncoder.ParBlockNotInjective
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.rewrite.{Generation, Rewritten}
+import vct.col.rewrite.{Generation, ParBlockEncoder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.result.VerificationError.UserError
@@ -44,11 +45,17 @@ case object LangCPPToCol {
       ))
   }
 
-  case class SYCLEventWaitWrongType(inv: CPPInvocation[_]) extends VerificationFailure {
+  case class NoReassigningEventVars(ass: PreAssignExpression[_]) extends UserError {
+    override def code: String = "unsupportedReassigningOfEventVars"
+
+    override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL event is not supported.")
+  }
+
+  case class SYCLEventWaitWrongType(inv: Expr[_]) extends VerificationFailure {
     override def code: String = "unexpectedSYCLEventWaitWrongType"
     override def position: String = inv.o.shortPosition
-    override def desc: String = inv.o.messageInContext("The declarator for the invocation to sycl::event::wait() has the wrong type.")
-    override def inlineDesc: String = "The declarator for the invocation to sycl::event::wait() has the wrong type."
+    override def desc: String = inv.o.messageInContext("The declarator for the invocation to sycl::event::wait() is not a SYCL event.")
+    override def inlineDesc: String = "The declarator for the invocation to sycl::event::wait() is not a SYCL event."
   }
 
   case class ContractForCommandGroup(contract: ApplicableContract[_]) extends UserError {
@@ -92,6 +99,15 @@ case object LangCPPToCol {
     override def position: String = expr.o.shortPosition
     override def desc: String = expr.o.messageInContext("The dimensions parameter of the kernel was not rewritten to a (nd_)range.")
     override def inlineDesc: String = "The dimensions parameter of the kernel was not rewritten to a (nd_)range."
+  }
+
+  case class KernelJoinBlame() extends Blame[JoinFailure] {
+    case class KernelJoinError(error: JoinFailure) extends UserError {
+      override def code: String = error.code
+      override def text: String = error.desc
+    }
+
+    override def blame(error: JoinFailure): Unit = throw KernelJoinError(error)
   }
 
   case class KernelNotInjective(kernel: CPPLambdaDefinition[_]) extends Blame[ReceiverNotInjective] {
@@ -146,6 +162,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   var currentDimensions: mutable.Map[KernelScopeLevel, Seq[IterVariable[Post]]] = mutable.Map.empty
   var currentKernelType: Option[KernelType] = None
+
 
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
     cppUnit.declarations.foreach(rw.dispatch)
@@ -260,42 +277,27 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         val newArr = NewArray[Post](t, Seq(size), 0)(cta.blame)
         Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
       case typ =>
-        var v = new Variable[Post](t)(varO)
         implicit val o: Origin = init.o
+        var v = new Variable[Post](t)(varO)
+        var result: Statement[Post] = LocalDecl(v)
         if (init.init.isDefined) {
-          val value = rw.dispatch(init.init.get)
-          // Update the inhale variable if needed
-          value match {
-            case procInv: ProcedureInvocation[Post] if procInv.ref.decl.returnType.isInstanceOf[SYCLTEvent[Post]] =>
-              // When method returns sycl::event, we need to get it from the method, as type of invocation does not have the correct inhale variable
-              v = new Variable[Post](procInv.ref.decl.returnType.asInstanceOf[SYCLTEvent[Post]])(varO)
-            case _ if typ.isInstanceOf[SYCLTEvent[Post]] =>
-              v = new Variable[Post](value.t)(varO)
+          val preValue = init.init.get
+          // Update the current event map if needed
+          preValue match {
+            case inv: CPPInvocation[Pre] if inv.ref.get.name == "sycl::queue::submit" =>
+              val (block, syclEventRef) = rewriteSYCLQueueSubmit(init.init.get.asInstanceOf[CPPInvocation[Pre]])
+              v = syclEventRef
+              result = block
+            case local: CPPLocal[Pre] if typ.isInstanceOf[SYCLTEvent[Post]] =>
+              v = new Variable(cppNameSuccessor(local.ref.get).t)(varO)
+              result = Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(preValue))))
             case _ =>
+              result = Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(preValue))))
           }
-          cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
-          Block(Seq(LocalDecl(v), assignLocal(v.get, value)))
-        } else {
-          cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
-          LocalDecl(v)
         }
+        cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
+        result
     }
-  }
-
-  def preAssign(preAssign: PreAssignExpression[Pre]): Expr[Post] = {
-    val rewrittenPreAssign = rw.rewriteDefault(preAssign).asInstanceOf[PreAssignExpression[Post]]
-    val postTarget = rewrittenPreAssign.target
-    val postValue = rewrittenPreAssign.value
-    (postTarget.t, postValue) match {
-      // Update the inhale variable if needed
-      case (targetEvent: SYCLTEvent[Post], procInv: ProcedureInvocation[Post]) if procInv.ref.decl.returnType.isInstanceOf[SYCLTEvent[Post]] =>
-        // When method returns sycl::event, we need to get it from the method, as type of invocation does not have the correct inhale variable
-        targetEvent.inhale = procInv.ref.decl.returnType.asInstanceOf[SYCLTEvent[Post]].inhale
-      case (targetEvent: SYCLTEvent[Post], _) if postValue.t.isInstanceOf[SYCLTEvent[Post]] =>
-        targetEvent.inhale = postValue.t.asInstanceOf[SYCLTEvent[Post]].inhale
-      case _ =>
-    }
-    rewrittenPreAssign
   }
 
   def local(local: Either[CPPLocal[Pre], CPPClassInstanceLocal[Pre]]): Expr[Post] = {
@@ -323,21 +325,30 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
+  def preAssignStatement(eval: Eval[Pre]): Statement[Post] = {
+    implicit val o: Origin = eval.o
+    val preAssign = eval.expr.asInstanceOf[PreAssignExpression[Pre]]
+    preAssign.target match {
+      case target: CPPLocal[Pre] if target.t.isInstanceOf[CPPPrimitiveType[Pre]] &&
+        CPP.getBaseTypeFromSpecs(target.t.asInstanceOf[CPPPrimitiveType[Pre]].specifiers).isInstanceOf[SYCLTEvent[Pre]] =>
+        throw NoReassigningEventVars(preAssign)
+      case _ => Eval[Post](rw.rewriteDefault(preAssign))(eval.o)
+    }
+  }
+
   def invocationStatement(eval: Eval[Pre]): Statement[Post] = {
     val inv = eval.expr.asInstanceOf[CPPInvocation[Pre]]
-    if (inv.ref.get.name == "sycl::event::wait" && inv.applicable.isInstanceOf[CPPClassInstanceLocal[Pre]]) {
-      implicit val o: Origin = inv.o
-      val classRef = inv.applicable.asInstanceOf[CPPClassInstanceLocal[Pre]].classInstanceRef.get
-      cppNameSuccessor.get(classRef) match {
-        case Some(v: Variable[Post]) if v.t.isInstanceOf[SYCLTEvent[Post]] =>
-          val returnVal = v.t.asInstanceOf[SYCLTEvent[Post]].inhale.getOrElse(Block(Seq()))
-          // Remove inhale value, so you cannot 'wait' twice on the same kernel
-          v.t.asInstanceOf[SYCLTEvent[Post]].inhale = None
-          returnVal
-        case _ => throw BlameUnreachable("Type is not SYCLTEvent.", SYCLEventWaitWrongType(inv))
-      }
-    } else {
-      rw.rewriteDefault(eval)
+    inv.ref.get.name match {
+      case "sycl::event::wait" if inv.applicable.isInstanceOf[CPPClassInstanceLocal[Pre]] =>
+        implicit val o: Origin = inv.o
+        val classRef = inv.applicable.asInstanceOf[CPPClassInstanceLocal[Pre]].classInstanceRef.get
+        cppNameSuccessor.get(classRef) match {
+          case Some(v) =>
+            Join(v.get)(KernelJoinBlame())
+          case _ => throw BlameUnreachable("The type of the caller is not a SYCL event.", SYCLEventWaitWrongType(inv.applicable))
+        }
+      case "sycl::queue::submit" => rewriteSYCLQueueSubmit(inv)._1
+      case _ => rw.rewriteDefault(eval)
     }
   }
 
@@ -401,7 +412,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case ("sycl::nd_item::get_group_id", Some(i)) => getSYCLWorkItemId(GroupScope(), i)
       case ("sycl::nd_item::get_group_linear_id", None) => getSYCLLinearWorkItemId(GlobalScope())
       case ("sycl::nd_item::get_group_range", Some(i)) => getSYCLWorkItemRange(GroupScope(), i)
-      case ("sycl::queue::submit", None) => rewriteSYCLQueueSubmit(inv)
       case _ => {
         val procedureRef: Ref[Post, Procedure[Post]] = cppFunctionDeclSuccessor.ref((decls, initIdx))
         ProcedureInvocation[Post](
@@ -413,7 +423,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
-  private def rewriteSYCLQueueSubmit(invocation: CPPInvocation[Pre]): Expr[Post] = {
+  private def rewriteSYCLQueueSubmit(invocation: CPPInvocation[Pre]): (Block[Post], Variable[Post]) = {
     // Do not allow given and yields on the invocation
     if (invocation.givenArgs.nonEmpty || invocation.yields.nonEmpty) throw GivenYieldsOnSYCLMethods(invocation)
 
@@ -450,51 +460,62 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val rangeType = getKernelRangeType(kernelDimensions.t, kernelDeclaration.declarator)
 
     // Create a block of code for the kernel body based on what type of kernel it is
-    val kernelParBlock = rangeType match {
+    val (kernelParBlock, contractRequires, contractEnsures) = rangeType match {
       case SYCLTRange(_) => createBasicKernelBody(kernelDimensions, kernelDeclaration)
       case SYCLTNDRange(_) => createNDRangeKernelBody(kernelDimensions, kernelDeclaration)
       case _ => throw BlameUnreachable("Type mismatch", WrongKernelDimensionType(kernelDimensions))
     }
-    val kernelBody = ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o)
 
-    // Create the precondition for the method that will hold the generated kernel code
-    val preCondition = getKernelQuantifiedCondition(rw.dispatch(kernelDeclaration.contract.requires), KernelNotInjective(kernelDeclaration))
-    // Create the post condition that will be inhaled when wait() is called on this kernel's event
-    val postCondition = getKernelQuantifiedCondition(rw.dispatch(kernelDeclaration.contract.ensures), KernelNotInjective(kernelDeclaration))
+    // Create the pre- and postconditions for the method that will hold the generated kernel code
+    val preCondition = getKernelQuantifiedCondition(kernelParBlock, contractRequires)(kernelDeclaration.contract.requires.o)
+    val postCondition = getKernelQuantifiedCondition(kernelParBlock, contractEnsures)(kernelDeclaration.contract.ensures.o)
 
     // Create a contract for the method that will hold the generated kernel code
     val methodContract = {
       implicit val o: Origin = commandGroupBody.o
       ApplicableContract[Post](
         UnitAccountedPredicate(preCondition)(kernelDeclaration.contract.requires.o),
-        UnitAccountedPredicate(AstBuildHelpers.foldStar(Seq())),
+        UnitAccountedPredicate(postCondition)(kernelDeclaration.contract.ensures.o),
         AstBuildHelpers.foldStar(Seq()),
         Seq(), Seq(), Seq(), None
       )(kernelDeclaration.contract.blame)
     }
 
-    // Declare the newly generated kernel code inside a new method
-    val proc = rw.globalDeclarations.declare(
-      {
-        rw.labelDecls.scope {
-          new Procedure[Post](
-            returnType = SYCLTEvent[Post](Some(Inhale[Post](postCondition)(invocation.o)))(invocation.o),
-            args = Seq(),
-            outArgs = Nil,
-            typeArgs = Nil,
-            body = Some(kernelBody),
-            contract = methodContract,
-          )(kernelDeclaration.blame)(InterpretedOriginVariable("VERCORS_SYCL_KERNEL_WRAPPER", kernelDeclaration.o))
-        }
-      }
-    )
+    implicit val o: Origin = kernelDeclaration.o
 
-    // Return an invocation to the new method holding the kernel code
+    // Declare the newly generated kernel code inside a run method
+    val kernelBody = ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o)
+    val runMethod = new RunMethod[Post](
+      body = Some(kernelBody),
+      contract = methodContract,
+    )(kernelDeclaration.blame)(o)
+
+    // Reset the kernel type as we are done processing the kernel
     currentKernelType = None
-    ProcedureInvocation[Post](new DirectRef(proc), Seq(), Nil, Nil, Seq(), Seq())(invocation.blame)(invocation.o)
+
+    // Create a new class to hold the kernel method
+    val classWrapper = rw.globalDeclarations.declare({
+      rw.labelDecls.scope {
+        new Class[Post](
+          Seq(runMethod),
+          Seq(),
+          BooleanValue(value = true)
+        )(InterpretedOriginVariable("SYCL_EVENT_CLASS", o))
+      }
+    })
+
+    // Create a variable to refer to the class instance
+    val variable = new Variable[Post](TClass(classWrapper.ref))(InterpretedOriginVariable("sycl_event_ref", o))
+
+    // Create a new class instance and assign it to the class instance variable, then fork that variable
+    (Block[Post](Seq(
+      LocalDecl[Post](variable),
+      assignLocal(variable.get, NewObject[Post](classWrapper.ref)),
+      Fork(variable.get)(kernelDeclaration.blame)
+    )), variable)
   }
 
-  private def createBasicKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre]): ParBlock[Post] = {
+  private def createBasicKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre]): (ParBlock[Post], Expr[Post], Expr[Post]) = {
     implicit val o: Origin = kernelDeclaration.body.o
 
     // Register the kernel dimensions
@@ -506,21 +527,24 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     currentKernelType = Some(BasicKernel(range.size))
     currentDimensions(GlobalScope()) = range.indices.map(index => createRangeIterVar(GlobalScope(), index, range(index)))
 
-    // Get the precondition
+    // Get the pre- and postcondition
     val UnitAccountedPredicate(contractRequires: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.requires)
+    val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
 
     // Create the parblock representing the kernels
-    ParBlock[Post](
+    val parBlock = ParBlock[Post](
       decl = new ParBlockDecl[Post]()(SourceNameOrigin("SYCL_BASIC_KERNEL", o)),
       iters = currentDimensions(GlobalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
-      ensures = BooleanValue(value = true), // Do not add ensures contract here, is instead inhaled when calling event::wait()
+      ensures = contractEnsures, // Do not add ensures contract here, is instead inhaled when calling event::wait()
       content = rw.dispatch(kernelDeclaration.body),
     )(KernelParFailure(kernelDeclaration))
+
+    (parBlock, contractRequires, contractEnsures)
   }
 
-  private def createNDRangeKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre]): ParBlock[Post] = {
+  private def createNDRangeKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre]): (ParBlock[Post], Expr[Post], Expr[Post]) = {
     implicit val o: Origin = kernelDeclaration.body.o
 
     // Register the kernel dimensions
@@ -535,18 +559,21 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     currentDimensions(GroupScope()) = globalRange.indices.map(index =>
       createRangeIterVar(GroupScope(), index,  FloorDiv(globalRange(index), localRange(index))(KernelRangeDivByZero(kernelDimensions))))
 
-    // Get the precondition
+    // Get the pre- and postcondition
     val UnitAccountedPredicate(contractRequires: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.requires)
+    val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
 
     // Create the parblock representing the work-groups
-    ParBlock[Post](
+    val parBlock = ParBlock[Post](
       decl = new ParBlockDecl[Post]()(SourceNameOrigin("SYCL_ND_RANGE_KERNEL", o)),
       iters = currentDimensions(GroupScope()) ++ currentDimensions(LocalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
-      ensures = BooleanValue(value = true), // Do not add ensures contract here, is instead inhaled when calling event::wait()
+      ensures = contractEnsures,
       content = rw.dispatch(kernelDeclaration.body)
     )(KernelParFailure(kernelDeclaration))
+
+    (parBlock, contractRequires, contractEnsures)
   }
 
   // Returns what kind of kernel we are working with and check that the kernel ranges match with the (nd_)item ranges
@@ -568,15 +595,44 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     kernelRangeType
   }
 
-  // Used for generation the contract for the method wrapping the parblocks and for the postcondition that is inhaled when event::wait() is called
-  private def getKernelQuantifiedCondition(condition: AccountedPredicate[Post], blame: KernelNotInjective): Starall[Post] = {
-    implicit val o: Origin = condition.o
+  // Used for generation the contract for the method wrapping the parblocks
+  // Code based on the quantify() method in ParBlockEncoder
+  def getKernelQuantifiedCondition(block: ParBlock[Post], condition: Expr[Post])(implicit o: Origin): Expr[Post] = {
+    val parEncoder = new ParBlockEncoder[Pre]()
+    val rangesMap: mutable.Map[Variable[Post], (Expr[Post], Expr[Post])] = mutable.Map.empty
+    block.iters.map(iterVar => rangesMap.put(iterVar.variable, (iterVar.from, iterVar.to)))
 
-    val UnitAccountedPredicate(contractCondition: Expr[Post]) = condition
-    val (names, bindings) = currentDimensions.values.toSeq.flatten.foldLeft((Seq(): Seq[Variable[Post]], Seq(): Seq[SeqMember[Post]]))((acc, iterVar: IterVariable[Post]) => {
-      (acc._1 :+ iterVar.variable, acc._2 :+ SeqMember(Local(iterVar.variable.ref), Range(iterVar.from, iterVar.to)))
+    val conditions = AstBuildHelpers.unfoldStar(condition)
+    val vars = block.iters.map(_.variable).toSet
+
+    val rewrittenExpr = conditions.map(cond => {
+      val quantVars = parEncoder.depVars(vars, cond)
+      val nonQuantVars = vars.diff(quantVars)
+
+      val scale = (x: Expr[Post]) => nonQuantVars.foldLeft(x)((body, iter) => {
+        val scale = rangesMap(iter)._2 - rangesMap(iter)._1
+        Scale(scale, body)(PanicBlame("Par block was checked to be non-empty"))
+      })
+
+      if (quantVars.isEmpty) scale(cond)
+      else rw.variables.scope {
+        val range = quantVars.map(v =>
+          rangesMap(v)._1 <= Local[Post](v.ref) &&
+            Local[Post](v.ref) < rangesMap(v)._2
+        ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
+
+        cond match {
+          case Forall(bindings, Nil, body) =>
+            Forall(bindings ++ quantVars, Nil, range ==> scale(body))
+          case s@Starall(bindings, Nil, body) =>
+            Starall(bindings ++ quantVars, Nil, range ==> scale(body))(s.blame)
+          case other =>
+            Starall(quantVars.toSeq, Nil, range ==> scale(other))(ParBlockNotInjective(block, other))
+        }
+      }
     })
-    Starall(names, Nil, Implies(foldAnd(bindings), contractCondition))(blame)
+
+    AstBuildHelpers.foldStar(rewrittenExpr)
   }
 
   // Generates COL code that returns the id of a work-item
@@ -662,10 +718,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def arrayType(t: CPPTArray[Pre]): Type[Post] = {
     // TODO: we should not use pointer here
     TPointer(rw.dispatch(t.innerType))
-  }
-
-  def syclEventType(t: SYCLTEvent[Pre]): Type[Post] = {
-    SYCLTEvent[Post](t.inhale.map(rw.dispatch))(t.o)
   }
 
 }

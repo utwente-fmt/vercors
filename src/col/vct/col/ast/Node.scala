@@ -378,8 +378,6 @@ final case class CoerceColToCPrimitive[G](source: Type[G], target: Type[G])(impl
 final case class CoerceCPPPrimitiveToCol[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceCPPPrimitiveToColImpl[G]
 final case class CoerceColToCPPPrimitive[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceColToCPPPrimitiveImpl[G]
 
-final case class CoerceSYCLTEvent[G](source: Type[G], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceSYCLTEventImpl[G]
-
 final case class CoerceMapOption[G](inner: Coercion[G], sourceOptionElement: Type[G], targetOptionElement: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceMapOptionImpl[G]
 final case class CoerceMapTuple[G](inner: Seq[Coercion[G]], sourceTypes: Seq[Type[G]], targetTypes: Seq[Type[G]])(implicit val o: Origin) extends Coercion[G] with CoerceMapTupleImpl[G]
 final case class CoerceMapEither[G](inner: (Coercion[G], Coercion[G]), sourceTypes: (Type[G], Type[G]), targetTypes: (Type[G], Type[G]))(implicit val o: Origin) extends Coercion[G] with CoerceMapEitherImpl[G]
@@ -1033,7 +1031,7 @@ final case class CPPTLambda[G]()(implicit val o: Origin) extends CPPType[G] with
 final case class SYCLClassDefName[G](name: String, genericArg: Option[Int])(implicit val o: Origin) extends CPPTypeSpecifier[G] with SYCLClassDefNameImpl[G]
 
 sealed trait SYCLTClass[G] extends Type[G] with SYCLTClassImpl[G]
-final case class SYCLTEvent[G](var inhale: Option[Statement[G]] = None)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTEventImpl[G]
+final case class SYCLTEvent[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTEventImpl[G]
 final case class SYCLTHandler[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTHandlerImpl[G]
 final case class SYCLTQueue[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTQueueImpl[G]
 final case class SYCLTItem[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTItemImpl[G]
