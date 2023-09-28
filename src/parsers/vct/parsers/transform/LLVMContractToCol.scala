@@ -15,10 +15,9 @@ import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class LLVMContractToCol[G](override val originProvider: OriginProvider,
-                                override val blameProvider: BlameProvider,
+case class LLVMContractToCol[G](override val blameProvider: BlameProvider,
                                 override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(originProvider, blameProvider, errors) {
+  extends ToCol(blameProvider, errors) {
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
     LlvmLocal(name)(blame(ctx))(origin(ctx))
@@ -61,7 +60,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     //case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = createVariable(contract, id, t)
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     //case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))

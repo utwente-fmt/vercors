@@ -2,9 +2,9 @@ package vct.parsers
 
 import hre.io.Readable
 import org.antlr.v4.runtime
-import org.antlr.v4.runtime.{BailErrorStrategy, CharStreams, CommonTokenStream, Token}
+import org.antlr.v4.runtime.{CharStreams, CommonTokenStream, Token}
 import vct.col.origin.ExpectedError
-import vct.parsers.transform.{BlameProvider}
+import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.UserError
 
 import java.io.FileNotFoundException
@@ -36,7 +36,7 @@ abstract class Parser(val blameProvider: BlameProvider) {
         if(startStack.isEmpty) throw UnbalancedExpectedError(token)
         val (code, start) = startStack.last
         startStack = startStack.init
-        val err = ExpectedError(code, originProvider(start, token), blameProvider(start, token))
+        val err = ExpectedError(code, OriginProvider(start, token), blameProvider(start, token))
         errors :+= (start, token, err)
       }
     }
@@ -44,11 +44,11 @@ abstract class Parser(val blameProvider: BlameProvider) {
     errors.sortBy(_._1.getTokenIndex)
   }
 
-  protected def getErrorsFor[T](parser: runtime.Parser, lexer: runtime.Lexer, originProvider: OriginProvider)(f: => T): Either[Seq[ParseError], T] = {
+  protected def getErrorsFor[T](parser: runtime.Parser, lexer: runtime.Lexer)(f: => T): Either[Seq[ParseError], T] = {
     parser.setErrorHandler(ParseErrorStrategy())
     parser.removeErrorListeners()
     lexer.removeErrorListeners()
-    val ec = CollectingErrorListener(originProvider)
+    val ec = CollectingErrorListener()
     parser.addErrorListener(ec)
     lexer.addErrorListener(ec)
 
@@ -60,8 +60,8 @@ abstract class Parser(val blameProvider: BlameProvider) {
     }
   }
 
-  protected def noErrorsOrThrow[T](parser: runtime.Parser, lexer: runtime.Lexer, originProvider: OriginProvider)(f: => T): T =
-    getErrorsFor(parser, lexer, originProvider)(f) match {
+  protected def noErrorsOrThrow[T](parser: runtime.Parser, lexer: runtime.Lexer)(f: => T): T =
+    getErrorsFor(parser, lexer)(f) match {
       case Left(errs) => throw ParseErrors(errs)
       case Right(t) => t
     }

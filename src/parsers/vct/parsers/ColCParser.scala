@@ -3,7 +3,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.{RWFile, Readable}
 import org.antlr.v4.runtime.{CharStream, CharStreams}
 import vct.parsers.CParser.PreprocessorError
-import vct.parsers.transform.{BlameProvider, InterpretedFileOriginProvider, OriginProvider}
+import vct.parsers.transform.{BlameProvider}
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import java.io.{File, FileNotFoundException, InputStreamReader, OutputStreamWriter, StringWriter}
@@ -18,12 +18,11 @@ case object CParser {
   }
 }
 
-case class ColCParser(override val originProvider: OriginProvider,
-                      override val blameProvider: BlameProvider,
+case class ColCParser(override val blameProvider: BlameProvider,
                       cc: Path,
                       systemInclude: Path,
                       otherIncludes: Seq[Path],
-                      defines: Map[String, String]) extends Parser(originProvider, blameProvider) with LazyLogging {
+                      defines: Map[String, String]) extends Parser(blameProvider) with LazyLogging {
   def interpret(localInclude: Seq[Path], input: String, output: String): Process = {
     var command = Seq(cc.toString, "-C", "-E")
 
@@ -76,7 +75,7 @@ case class ColCParser(override val originProvider: OriginProvider,
         throw PreprocessorError(readable.fileName, process.exitValue(), writer.toString)
       }
 
-      val result = ColIParser(InterpretedFileOriginProvider(originProvider, RWFile(interpreted)), blameProvider).parse[G](RWFile(interpreted))
+      val result = ColIParser(blameProvider).parse[G](RWFile(interpreted))
       result
     } catch {
       case _: FileNotFoundException => throw FileNotFound(readable.fileName)

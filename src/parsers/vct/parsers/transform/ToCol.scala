@@ -13,7 +13,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: Seq[(Token, Token, ExpectedError)]) {
+abstract class ToCol[G](val blameProvider: BlameProvider, val errors: Seq[(Token, Token, ExpectedError)]) {
   class ContractCollector[G1]() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
@@ -92,7 +92,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
   }
 
-  implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
+  implicit def origin(implicit node: ParserRuleContext): Origin = OriginProvider(node)
 
   def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
     errors.foldLeft(blameProvider(node)) {
@@ -131,7 +131,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
   }
 
   def fail(tree: ParserRuleContext, message: String): Nothing = {
-    throw ParseError(originProvider(tree), message)
+    throw ParseError(OriginProvider(tree), message)
   }
 
   /**

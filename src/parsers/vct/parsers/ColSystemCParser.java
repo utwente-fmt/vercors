@@ -22,8 +22,8 @@ public class ColSystemCParser extends Parser {
 
     private final String systemCConfig;
 
-    public ColSystemCParser(OriginProvider originProvider, BlameProvider blameProvider, Path systemCConfig) {
-        super(originProvider, blameProvider);
+    public ColSystemCParser(BlameProvider blameProvider, Path systemCConfig) {
+        super(blameProvider);
         this.systemCConfig = systemCConfig.toString();
     }
 

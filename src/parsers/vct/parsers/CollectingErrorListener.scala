@@ -10,16 +10,16 @@ import vct.result.VerificationError.Unreachable
 
 import java.util
 
-case class CollectingErrorListener(originProvider: OriginProvider) extends ANTLRErrorListener with LazyLogging {
+case class CollectingErrorListener() extends ANTLRErrorListener with LazyLogging {
   var errors: Seq[ParseError] = Nil
 
   override def syntaxError(recognizer: Recognizer[_, _], anyToken: Any,
                            line: Int, charPositionInLine: Int, message: String, e: RecognitionException): Unit = {
     anyToken match {
       case token: Token if anyToken != null =>
-        errors :+= ParseError(originProvider(token, token), message)
+        errors :+= ParseError(OriginProvider(token, token), message)
       case _ =>
-        errors :+= ParseError(originProvider(line-1, line-1, Some((charPositionInLine-1, charPositionInLine-1))), message)
+        errors :+= ParseError(OriginProvider(line-1, line-1, Some((charPositionInLine-1, charPositionInLine-1))), message)
     }
   }
 

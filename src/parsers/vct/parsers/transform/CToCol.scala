@@ -16,8 +16,8 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class CToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(originProvider, blameProvider, errors) {
+case class CToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol(blameProvider, errors) {
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(translationUnit, _) =>
       translationUnit.toSeq.map(convert(_))
@@ -235,7 +235,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit stat: LabeledStatementContext): Statement[G] = stat match {
     case LabeledStatement0(label, _, inner) =>
-      Label(new LabelDecl()(originProvider(stat).replacePrefName(convert(label))), convert(inner))
+      Label(new LabelDecl()(OriginProvider(stat).replacePrefName(convert(label))), convert(inner))
     case LabeledStatement1(_, _, _, _) => ??(stat)
     case LabeledStatement2(_, _, _) => ??(stat)
   }
@@ -631,7 +631,7 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = new Variable(convert(t))(origin(contract).replacePrefName(convert(id)))
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))

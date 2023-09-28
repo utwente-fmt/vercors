@@ -21,8 +21,26 @@ trait PositionContextProvider[T] {
   def apply(): T
 }
 
-object OriginProvider {
-  def apply()
+object OriginProvider extends PositionContextProvider[Origin] {
+  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin =
+    Origin(Seq(StartEndLines(startLineIdx, endLineIdx))).addOriginCols(cols)
+
+  override def apply(): Origin = Origin(Seq())
+}
+
+object ReadableOriginProvider extends PositionContextProvider[Origin] {
+  def apply(readable: Readable): Origin =
+    Origin(Seq()).addReadableOrigin(readable)
+
+  override def apply(): Origin = Origin(Seq())
+}
+
+object RedirectOriginProvider extends PositionContextProvider[Origin] {
+  def apply(origin: Origin, textualOrigin: String): Unit = {
+
+  }
+
+  override def apply(): Origin = ???
 }
 
 trait BlameProvider extends PositionContextProvider[Blame[VerificationFailure]]

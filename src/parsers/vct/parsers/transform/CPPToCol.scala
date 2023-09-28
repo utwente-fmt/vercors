@@ -15,8 +15,8 @@ import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class CPPToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(originProvider, blameProvider, errors) {
+case class CPPToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol(blameProvider, errors) {
 
   def convert(implicit unit: TranslationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case TranslationUnit0(maybeDeclSeq, _) => Seq(new CPPTranslationUnit(maybeDeclSeq.toSeq.flatMap(convert(_))))
@@ -756,7 +756,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = new Variable(convert(t))(origin(contract).replacePrefName((convert(id))))
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))

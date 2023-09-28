@@ -76,9 +76,16 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     Origin(originContents :+ InlineContext(inCtx))
   }
 
-  def addReadableOrigin(readable: Readable, startLineIdx: Int, endLineIdx: Int,
-                        cols: Option[(Int, Int)]): Origin = {
+  def addReadableOrigin(readable: Readable): Origin = {
     Origin(originContents :+ ReadableOrigin(readable))
+  }
+
+  def addStartEndLines(startIdx: Int, endIdx: Int): Origin = {
+    Origin(originContents :+ StartEndLines(startIdx, endIdx))
+  }
+
+  def addOriginCols(cols: Option[(Int, Int)]): Origin = {
+    Origin(originContents :+ OriginCols(cols))
   }
 
   def getReadable: Option[ReadableOrigin] = {

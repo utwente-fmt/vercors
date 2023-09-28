@@ -15,7 +15,7 @@ import vct.importer.JavaLibraryLoader
 import vct.main.stages.Resolution.InputResolutionError
 import vct.options.Options
 import vct.options.types.ClassPathEntry
-import vct.parsers.transform.{BlameProvider, ReadableOriginProvider, RedirectOriginProvider}
+import vct.parsers.transform.{BlameProvider}
 import vct.parsers.{ColJavaParser, ColLLVMParser, FileNotFound, ParseResult}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError

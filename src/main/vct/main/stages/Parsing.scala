@@ -83,15 +83,15 @@ case class Parsing[G <: Generation]
       val originProvider = ReadableOriginProvider(readable)
 
       val parser = language match {
-        case Language.C => ColCParser(originProvider, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
-        case Language.InterpretedC => ColIParser(originProvider, blameProvider)
-        case Language.CPP => ColCPPParser(originProvider, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
-        case Language.InterpretedCPP => ColIPPParser(originProvider, blameProvider)
-        case Language.Java => ColJavaParser(originProvider, blameProvider)
-        case Language.PVL => ColPVLParser(originProvider, blameProvider)
-        case Language.Silver => ColSilverParser(originProvider, blameProvider)
-        case Language.SystemC => new ColSystemCParser(originProvider, blameProvider, Resources.getSystemCConfig)
-        case Language.LLVM => ColLLVMParser(originProvider, blameProvider)
+        case Language.C => ColCParser(blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
+        case Language.InterpretedC => ColIParser(blameProvider)
+        case Language.CPP => ColCPPParser(blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
+        case Language.InterpretedCPP => ColIPPParser(blameProvider)
+        case Language.Java => ColJavaParser(blameProvider)
+        case Language.PVL => ColPVLParser(blameProvider)
+        case Language.Silver => ColSilverParser(blameProvider)
+        case Language.SystemC => new ColSystemCParser(blameProvider, Resources.getSystemCConfig)
+        case Language.LLVM => ColLLVMParser(blameProvider)
       }
 
       parser.parse[G](readable)

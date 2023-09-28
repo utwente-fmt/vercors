@@ -18,8 +18,8 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class JavaToCol[G](override val originProvider: OriginProvider, override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](originProvider, blameProvider, errors) with LazyLogging {
+case class JavaToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol[G](blameProvider, errors) with LazyLogging {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
       Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))
@@ -136,7 +136,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
 
   def convert(implicit pair: ElementValuePairContext): Option[(String, Expr[G])] = pair match {
     case ElementValuePair0(name, _, ElementValue0(expr)) =>
-      logger.warn(s"Annotation array initializer at ${originProvider(pair).getShortPosition.get.shortPosition} is discarded")
+      logger.warn(s"Annotation array initializer at ${OriginProvider(pair).getShortPosition.get.shortPosition} is discarded")
       None
     case ElementValuePair0(name, _, ElementValue1(expr)) => Some((convert(name), convert(expr)))
     case x => ??(x)
@@ -957,7 +957,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = new Variable(convert(t))(origin(contract).replacePrefName(convert(id)))
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))
