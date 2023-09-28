@@ -4,13 +4,13 @@ import hre.io.Readable
 import org.antlr.v4.runtime
 import org.antlr.v4.runtime.{BailErrorStrategy, CharStreams, CommonTokenStream, Token}
 import vct.col.origin.ExpectedError
-import vct.parsers.transform.{BlameProvider, OriginProvider}
+import vct.parsers.transform.{BlameProvider}
 import vct.result.VerificationError.UserError
 
 import java.io.FileNotFoundException
 import scala.jdk.CollectionConverters._
 
-abstract class Parser(val originProvider: OriginProvider, val blameProvider: BlameProvider) {
+abstract class Parser(val blameProvider: BlameProvider) {
   case class UnbalancedExpectedError(tok: Token) extends UserError {
     override def code: String = "unbalancedExpectedError"
     override def text: String = "There is no scope to close here."

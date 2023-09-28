@@ -32,7 +32,9 @@ case class FormalName(formalName: String) extends OriginContent
 case class Context(context: String) extends OriginContent
 case class InlineContext(inlineContext: String) extends OriginContent
 case class ShortPosition(shortPosition: String) extends OriginContent
-case class ReadableOrigin(readable: Readable, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]) extends OriginContent
+case class ReadableOrigin(readable: Readable) extends OriginContent
+case class StartEndLines(startEndLineIdx: (Int, Int)) extends OriginContent
+case class OriginCols(cols: Option[(Int, Int)]) extends OriginContent
 
 case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
 
@@ -76,15 +78,15 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
 
   def addReadableOrigin(readable: Readable, startLineIdx: Int, endLineIdx: Int,
                         cols: Option[(Int, Int)]): Origin = {
-    Origin(originContents :+ ReadableOrigin(readable, startLineIdx, endLineIdx, cols))
+    Origin(originContents :+ ReadableOrigin(readable))
   }
 
   def getReadable: Option[ReadableOrigin] = {
     originContents.flatMap {
-      case ReadableOrigin(any1, any2, any3, any4) => Seq(ReadableOrigin(any1, any2, any3, any4))
+      case ReadableOrigin(any1) => Seq(ReadableOrigin(any1))
       case _ => Nil
     } match {
-      case Seq(ReadableOrigin(any1, any2, any3, any4)) => Option(ReadableOrigin(any1, any2, any3, any4))
+      case Seq(ReadableOrigin(any1)) => Option(ReadableOrigin(any1))
       case _ => None
     }
   }
@@ -125,6 +127,26 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case _ => Nil
     } match {
       case Seq(ShortPosition(any)) => Option(ShortPosition(any))
+      case _ => None
+    }
+  }
+
+  def getStartEndLines: Option[StartEndLines] = {
+    originContents.flatMap {
+      case StartEndLines(any) => Seq(StartEndLines(any))
+      case _ => Nil
+    } match {
+      case Seq(StartEndLines(any)) => Option(StartEndLines(any))
+      case _ => None
+    }
+  }
+
+  def getOriginCols: Option[OriginCols] = {
+    originContents.flatMap {
+      case OriginCols(any) => Seq(OriginCols(any))
+      case _ => Nil
+    } match {
+      case Seq(OriginCols(any)) => Option(OriginCols(any))
       case _ => None
     }
   }
@@ -403,11 +425,12 @@ case object RedirectOrigin {
   }
 
   def transposeOrigin(o: Origin, textualOrigin: String, startLine: Int, endLine: Int, cols: Option[(Int, Int)]): Origin
-  = o.originContents.collectFirst{
-    case ReadableOrigin(readable, baseStartLine, baseEndLine, baseCols) =>
-      val realStartLine = baseStartLine + startLine
-      val realEndLine = baseEndLine + endLine
-      val c: Option[(Int, Int)] = (baseCols, cols) match {
+  = o.originContents.collectFirst {
+    case ReadableOrigin(readable) =>
+      val startEndLine = o.getStartEndLines
+      val realStartLine = startEndLine.get.startEndLineIdx._1 + startLine
+      val realEndLine = startEndLine.get.startEndLineIdx._2 + endLine
+      val c: Option[(Int, Int)] = (o.getOriginCols.get.cols, cols) match {
         case (Some((baseStartCol, _)), Some((innerStartCol, innerEndCol))) =>
           // + 1 because need to account for starting quote that must be skipped
           val realStart = (if (startLine == 0) baseStartCol + innerStartCol else innerStartCol) + 1
@@ -416,7 +439,7 @@ case object RedirectOrigin {
         case (Some(baseCols), None) => if (startLine == 0) Some(baseCols) else None
         case (None, cols) => cols
       }
-      Origin(Seq(ReadableOrigin(readable, realStartLine, realEndLine, c)))
+      Origin(Seq(ReadableOrigin(readable), StartEndLines(realStartLine, realEndLine), OriginCols(c)))
     case _ =>
       InterpretedOrigin(StringReadable(textualOrigin), startLine, endLine, cols, o)
   }.get
