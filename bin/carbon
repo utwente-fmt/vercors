@@ -1,6 +1,6 @@
 #!/bin/sh
 ROOT=$(dirname $(dirname $(readlink -f $0)))
-(cd $ROOT; ./mill vercors.runScript)
+(cd $ROOT; ./mill vercors.main.runScript)
 
 
 if [[ "$OSTYPE" == "darwin" ]]; then
@@ -11,4 +11,4 @@ else
   BOOGIE_EXE="$ROOT/res/universal/deps/unix/boogie/Boogie"
 fi
 
-BOOGIE_EXE=$BOOGIE_EXE $ROOT/out/vercors/runScript.dest/carbon --z3Exe $Z3 "$@"
+BOOGIE_EXE=$BOOGIE_EXE $ROOT/out/vercors/main/runScript.dest/carbon --z3Exe $Z3 "$@"
