@@ -66,7 +66,13 @@ sealed trait Referrable[G] {
     case RefVeyMontThread(decl) => Referrable.originName(decl)
     case RefProverType(decl) => Referrable.originName(decl)
     case RefProverFunction(decl) => Referrable.originName(decl)
+    case RefJavaBipGuard(decl) => Referrable.originName(decl)
+    case RefLlvmFunctionDefinition(decl) => Referrable.originName(decl)
+    case RefLlvmGlobal(decl) => Referrable.originName(decl)
+    case RefLlvmSpecFunction(decl) => Referrable.originName(decl)
 
+    case RefJavaBipGlueContainer() => ""
+    case PVLBuiltinInstanceMethod(_) => ""
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""

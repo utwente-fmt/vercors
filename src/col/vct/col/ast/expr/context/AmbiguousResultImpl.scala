@@ -22,7 +22,9 @@ trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G
     case RefFunction(decl) => decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefJavaMethod(decl) => decl.returnType
+    case RefJavaAnnotationMethod(decl) => decl.returnType
     case RefLlvmFunctionDefinition(decl) => decl.returnType
+    case RefLlvmSpecFunction(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceOperatorMethod(decl) => decl.returnType

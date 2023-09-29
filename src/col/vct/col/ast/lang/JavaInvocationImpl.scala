@@ -19,6 +19,8 @@ trait JavaInvocationImpl[G] { this: JavaInvocation[G] =>
     case RefJavaMethod(decl) => decl.returnType
     case RefProverFunction(decl) => decl.returnType
     case BuiltinInstanceMethod(f) => f(obj.get)(arguments).t
+    case RefJavaAnnotationMethod(decl) => decl.returnType
+    case RefLlvmSpecFunction(decl) => decl.returnType
   }
 
   override def precedence: Int = Precedence.POSTFIX

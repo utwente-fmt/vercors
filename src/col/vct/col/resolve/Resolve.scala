@@ -278,9 +278,6 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
-    case app: ContractApplicable[G] => ctx
-      .copy(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
-      .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
@@ -344,6 +341,9 @@ case object ResolveReferences extends LazyLogging {
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
       .declare(locals ++ scanScope(body, inGPUKernel))
+    case app: ContractApplicable[G] => ctx
+      .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
+      .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case app: Applicable[G] => ctx
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case declarator: Declarator[G] => ctx
@@ -364,7 +364,7 @@ case object ResolveReferences extends LazyLogging {
         Java.findJavaName(name, ctx.asTypeResolutionContext)
           .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
             case Some(target: JavaNameTarget[G]) => Some(target)
-            case None => None
+            case Some(_) | None => None
           }))
           .getOrElse(
             if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
@@ -632,6 +632,7 @@ case object ResolveReferences extends LazyLogging {
           }
         case RefLlvmSpecFunction(_) =>
           Some(Spec.findLocal(local.name, ctx).getOrElse(throw NoSuchNameError("local", local.name, local)).ref)
+        case _ => None
       }
     case inv: LlvmAmbiguousFunctionInvocation[G] =>
       inv.ref = LLVM.findCallable(inv.name, ctx) match {

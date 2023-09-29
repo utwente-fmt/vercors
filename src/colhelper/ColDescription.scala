@@ -168,11 +168,15 @@ class ColDescription {
         case List(Term.Param(List(scala.meta.Mod.Implicit(), scala.meta.Mod.ValParam()), Name("o"), Some(scala.meta.Type.Name("Origin")), _)) =>
           if(parameterLists.size == 2) {
             defs += ClassDef(path :+ name.value, parameterLists.head, blameType=None, mods)
-          } else {
+          } else if(parameterLists.size == 3) {
             parameterLists(1) match {
               case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_, _)), _)) =>
                 defs += ClassDef(path :+ name.value, parameterLists.head, Some(t), mods)
+              case _ =>
+                ColHelperUtil.fail("The second (of three) parameter lists must only contain the blame parameter", node=Some(stat))
             }
+          } else {
+            ColHelperUtil.fail("Class must have two or three parameter lists", node=Some(stat))
           }
         case _ =>
       }

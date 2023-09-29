@@ -264,8 +264,6 @@ case object Java extends LazyLogging {
       case moreNames => Seq(moreNames)
     }
 
-
-
     FuncTools.firstOption(potentialFQNames, findJavaTypeInStack[G](_, ctx))
       .orElse(FuncTools.firstOption(potentialFQNames, findLoadedJavaTypeName[G](_, ctx)))
       .orElse(FuncTools.firstOption(potentialFQNames, findLibraryJavaType[G](_, ctx)))
@@ -283,15 +281,17 @@ case object Java extends LazyLogging {
     ctx.stack.flatten.collectFirst {
       case target: JavaNameTarget[G] if target.name == name => target
     }.orElse(ctx.namespace.flatMap(ns => {
-      def classOrEnum(target: JavaTypeNameTarget[G]): JavaNameTarget[G] = target match {
-        case r @ RefJavaClass(_) => r
-        case r @ RefEnum(_) => r
+      // PB: I optionified this, but not entirely sure what the intention is here.
+      def classOrEnum(target: JavaTypeNameTarget[G]): Option[JavaNameTarget[G]] = target match {
+        case r @ RefJavaClass(_) => Some(r)
+        case r @ RefEnum(_) => Some(r)
+        case _ => None
       }
       val potentialRefs: Seq[JavaNameTarget[G]] = ns.imports.collect {
         case JavaImport(/* static = */ false, JavaName(fqn), /* star = */ false) if fqn.last == name =>
-          findJavaTypeName(fqn, ctx).map(classOrEnum)
+          findJavaTypeName(fqn, ctx).flatMap(classOrEnum)
         case JavaImport(/* static = */ false, JavaName(pkg), /* star = */ true) =>
-          findJavaTypeName(pkg :+ name, ctx).map(classOrEnum)
+          findJavaTypeName(pkg :+ name, ctx).flatMap(classOrEnum)
       }.flatten
 
       potentialRefs match {
@@ -344,8 +344,8 @@ case object Java extends LazyLogging {
       }
       case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
       case TUnion(ts) => findMethodOnType(ctx, Types.leastCommonSuperType(ts), method, args)
-      case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G])) => findMethodInClass(cls, method, args)
-      case TNotAValue(RefAxiomaticDataType(adt)) => adt.decls.flatMap(Referrable.from).collectFirst {
+      case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G @unchecked])) => findMethodInClass[G](cls, method, args)
+      case TNotAValue(RefAxiomaticDataType(adt: AxiomaticDataType[G @unchecked])) => adt.decls.flatMap(Referrable.from).collectFirst {
         case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       }
       case _ => None
@@ -423,6 +423,7 @@ case object Java extends LazyLogging {
         case decl: JavaClassDeclaration[G] if decl.isStatic => Referrable.from(decl)
       }.flatten
     case RefEnum(enum) => enum.constants.map(RefEnumConstant(Some(enum), _))
+    case _ => Nil // PB: I guess? Maybe we should support "ghost static importing" adt functions and whatnot :)
   }
 
   def findStaticMember[G](javaTypeName: JavaTypeNameTarget[G], name: String): Option[Referrable[G]] =
@@ -435,47 +436,29 @@ case object Java extends LazyLogging {
   }
 
   def zeroValue[G](t: Type[G]): Expr[G] = t match {
-    case t: TUnion[G] => throw WrongTypeForDefaultValue(t)
-    case t: TVar[G] => throw WrongTypeForDefaultValue(t)
     case TArray(_) => Null()
     case TPointer(_) => Null()
     case TSeq(element) => LiteralSeq(element, Nil)
     case TSet(element) => LiteralSet(element, Nil)
     case TBag(element) => LiteralBag(element, Nil)
     case TOption(_) => OptNone()
-    case t: TTuple[G] => throw WrongTypeForDefaultValue(t)
-    case t: TEither[G] => throw WrongTypeForDefaultValue(t)
-    case t: TMatrix[G] => throw WrongTypeForDefaultValue(t)
     case TMap(key, value) => LiteralMap(key, value, Nil)
-    case t: TAny[G] => throw WrongTypeForDefaultValue(t)
-    case t: TNothing[G] => throw WrongTypeForDefaultValue(t)
     case TVoid() => Void()
     case TNull() => Null()
     case TBool() => ff
-    case t: TResource[G] => throw WrongTypeForDefaultValue(t)
-    case t: TChar[G] => throw WrongTypeForDefaultValue(t)
     case TString() => Null()
     case TRef() => Null()
     case TProcess() => EmptyProcess()
     case TInt() => const(0)
-    case t: TBoundedInt[G] => throw WrongTypeForDefaultValue(t)
     case t: TFloat[G] => const(0)
     case TRational() => const(0)
-    case t: TFraction[G] => throw WrongTypeForDefaultValue(t)
     case TZFraction() => const(0)
-    case t: TModel[G] => throw WrongTypeForDefaultValue(t)
     case TClass(_) => Null()
     case JavaTClass(_, _) => Null()
     case TEnum(_) => Null()
     case TAnyClass() => Null()
 
-    case t: TAxiomatic[G] => throw WrongTypeForDefaultValue(t)
-    case t: TProverType[G] => throw WrongTypeForDefaultValue(t)
-    case t: TType[G] => throw WrongTypeForDefaultValue(t)
-    case t: CType[G] => throw WrongTypeForDefaultValue(t)
-    case t: JavaType[G] => throw WrongTypeForDefaultValue(t)
-    case t: PVLType[G] => throw WrongTypeForDefaultValue(t)
-    case _: TNotAValue[G] => throw WrongTypeForDefaultValue(t)
+    case t => throw WrongTypeForDefaultValue(t)
   }
 
   def double[G](implicit o: Origin = DiagnosticOrigin): TFloat[G] = TFloats.ieee754_64bit

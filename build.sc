@@ -356,6 +356,7 @@ object viper extends ScalaModule {
 
   object silver extends ScalaModule {
     override def scalaVersion = "2.13.10"
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
     def repo = silverGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
@@ -387,11 +388,13 @@ object viper extends ScalaModule {
 
     object common extends ScalaModule {
       override def scalaVersion = "2.13.10"
+      override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
       override def sources = T.sources { silicon.repo.repo() / "common" / "src" / "main" / "scala" }
       override def moduleDeps = Seq(silver)
     }
 
     override def scalaVersion = "2.13.10"
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
     def repo = siliconGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
@@ -407,6 +410,7 @@ object viper extends ScalaModule {
 
   object carbon extends ScalaModule {
     override def scalaVersion = "2.13.10"
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
     def repo = carbonGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log
