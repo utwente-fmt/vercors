@@ -122,6 +122,26 @@ object util {
       localCompileClasspath().toSeq ++ packedResources() ++ Agg(compile().classes)
     }
 
+    def transitiveLocalPackedClasspath = T {
+      (T.traverse(
+        (moduleDeps ++ compileModuleDeps).flatMap(_.transitiveModuleDeps).distinct
+      ) {
+        case module: SeparatePackedResourcesModule => module.localPackedClasspath
+        case m => m.localClasspath
+      })().flatten
+    }
+
+    override def upstreamAssembly = T {
+      Assembly.createAssembly(
+        (transitiveLocalPackedClasspath() ++
+          unmanagedClasspath() ++
+          resolvedRunIvyDeps()
+        ).map(_.path),
+        manifest(),
+        assemblyRules = assemblyRules
+      )
+    }
+
     override def assembly = T {
       Assembly.createAssembly(
         Agg.from(localPackedClasspath().map(_.path)),
