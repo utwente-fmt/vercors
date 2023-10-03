@@ -80,18 +80,18 @@ case class Parsing[G <: Generation]
         .orElse(Language.fromFilename(readable.fileName))
         .getOrElse(throw UnknownFileExtension(readable.fileName))
 
-      val originProvider = ReadableOriginProvider(readable)
+      val origin = ReadableOriginProvider(readable)
 
       val parser = language match {
-        case Language.C => ColCParser(blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
-        case Language.InterpretedC => ColIParser(blameProvider)
-        case Language.CPP => ColCPPParser(blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
-        case Language.InterpretedCPP => ColIPPParser(blameProvider)
-        case Language.Java => ColJavaParser(blameProvider)
-        case Language.PVL => ColPVLParser(blameProvider)
-        case Language.Silver => ColSilverParser(blameProvider)
-        case Language.SystemC => new ColSystemCParser(blameProvider, Resources.getSystemCConfig)
-        case Language.LLVM => ColLLVMParser(blameProvider)
+        case Language.C => ColCParser(origin, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
+        case Language.InterpretedC => ColIParser(origin, blameProvider)
+        case Language.CPP => ColCPPParser(origin, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
+        case Language.InterpretedCPP => ColIPPParser(origin, blameProvider)
+        case Language.Java => ColJavaParser(origin, blameProvider)
+        case Language.PVL => ColPVLParser(origin, blameProvider)
+        case Language.Silver => ColSilverParser(origin, blameProvider)
+        case Language.SystemC => new ColSystemCParser(origin, blameProvider, Resources.getSystemCConfig)
+        case Language.LLVM => ColLLVMParser(origin, blameProvider)
       }
 
       parser.parse[G](readable)

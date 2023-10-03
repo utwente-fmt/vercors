@@ -3,12 +3,13 @@ package vct.parsers
 import org.antlr.v4.runtime.{CharStream, CommonTokenStream}
 import vct.antlr4.generated._
 import vct.col.ast.GlobalDeclaration
-import vct.col.origin.ExpectedError
+import vct.col.origin.{ExpectedError, Origin}
 import vct.parsers.transform.{BlameProvider, JavaToCol, OriginProvider}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-case class ColJavaParser(override val blameProvider: BlameProvider) extends Parser(blameProvider) {
+case class ColJavaParser(override val origin: Origin,
+                         override val blameProvider: BlameProvider) extends Parser(origin, blameProvider) {
   override def parse[G](stream: CharStream): ParseResult[G] = parse(stream, true)
 
   def parse[G](stream: CharStream, specCommentsNeeded: Boolean): ParseResult[G] = {
@@ -22,7 +23,7 @@ case class ColJavaParser(override val blameProvider: BlameProvider) extends Pars
         parser.specLevel = 1
       }
 
-      val (errors, tree) = noErrorsOrThrow(parser, lexer) {
+      val (errors, tree) = noErrorsOrThrow(origin, parser, lexer) {
         val errors = expectedErrors(tokens, LangJavaLexer.EXPECTED_ERROR_CHANNEL, LangJavaLexer.VAL_EXPECT_ERROR_OPEN, LangJavaLexer.VAL_EXPECT_ERROR_CLOSE)
         val tree = parser.compilationUnit()
         (errors, tree)
@@ -46,7 +47,7 @@ case class ColJavaParser(override val blameProvider: BlameProvider) extends Pars
         parser.specLevel = 1
       }
 
-      val tree = noErrorsOrThrow(parser, lexer) {
+      val tree = noErrorsOrThrow(origin, parser, lexer) {
         parser.expr()
       }
       val decls = JavaToCol[G](blameProvider, errors).convert(tree)

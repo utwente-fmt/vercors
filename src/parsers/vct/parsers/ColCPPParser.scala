@@ -3,6 +3,7 @@ package vct.parsers
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.{RWFile, Readable}
 import org.antlr.v4.runtime.CharStream
+import vct.col.origin.Origin
 import vct.parsers.CParser.PreprocessorError
 import vct.parsers.transform.{BlameProvider, OriginProvider}
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -19,11 +20,12 @@ case object CPPParser {
   }
 }
 
-case class ColCPPParser(override val blameProvider: BlameProvider,
-                      cc: Path,
-                      systemInclude: Path,
-                      otherIncludes: Seq[Path],
-                      defines: Map[String, String]) extends Parser(blameProvider) with LazyLogging {
+case class ColCPPParser(override val origin: Origin,
+                        override val blameProvider: BlameProvider,
+                        cc: Path,
+                        systemInclude: Path,
+                        otherIncludes: Seq[Path],
+                        defines: Map[String, String]) extends Parser(origin, blameProvider) with LazyLogging {
 
   def interpret(localInclude: Seq[Path], input: String, output: String): Process = {
     var command = Seq(cc.toString, "-C", "-E")
@@ -77,7 +79,7 @@ case class ColCPPParser(override val blameProvider: BlameProvider,
         throw PreprocessorError(readable.fileName, process.exitValue(), writer.toString)
       }
 
-      val result = ColIPPParser(blameProvider).parse[G](RWFile(interpreted))
+      val result = ColIPPParser(origin, blameProvider).parse[G](RWFile(interpreted))
       result
     } catch {
       case _: FileNotFoundException => throw FileNotFound(readable.fileName)

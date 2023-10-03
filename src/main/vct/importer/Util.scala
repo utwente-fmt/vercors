@@ -2,7 +2,7 @@ package vct.importer
 
 import hre.io.Readable
 import vct.col.ast.{JavaClass, JavaNamespace, Program}
-import vct.col.origin.{Blame, VerificationFailure}
+import vct.col.origin.{Blame, ReadableOrigin, VerificationFailure}
 import vct.col.rewrite.Disambiguate
 import vct.main.stages.Resolution
 import vct.parsers.{ColJavaParser, ColPVLParser}

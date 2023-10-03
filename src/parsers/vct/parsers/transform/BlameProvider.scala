@@ -21,27 +21,31 @@ trait PositionContextProvider[T] {
   def apply(): T
 }
 
-object OriginProvider extends PositionContextProvider[Origin] {
-  override def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin =
+object OriginProvider {
+  def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin =
     Origin(Seq(StartEndLines(startLineIdx, endLineIdx))).addOriginCols(cols)
 
-  override def apply(): Origin = Origin(Seq())
-}
-
-object ReadableOriginProvider extends PositionContextProvider[Origin] {
-  def apply(readable: Readable): Origin =
-    Origin(Seq()).addReadableOrigin(readable)
-
-  override def apply(): Origin = Origin(Seq())
-}
-
-object RedirectOriginProvider extends PositionContextProvider[Origin] {
-  def apply(origin: Origin, textualOrigin: String): Unit = {
-
+  def apply(origin: Origin, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin = {
+    Origin(origin.originContents ++ apply(startLineIdx, endLineIdx, cols).originContents)
   }
 
-  override def apply(): Origin = ???
+  def apply(start: Token, stop: Token): Origin =  {
+    val startLineIdx = start.getLine - 1
+    val startColIdx = start.getCharPositionInLine
+    val endLineIdx = stop.getLine - 1
+    val endColIdx = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
+    apply(startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
+  }
+
+  def apply(origin: Origin, start: Token, stop: Token): Origin = {
+    Origin(origin.originContents ++ apply(start, stop).originContents)
+  }
+
+  def apply(ctx: ParserRuleContext): Origin = apply(ctx.start, ctx.stop)
+
+  def apply(): Origin = Origin(Seq())
 }
+
 
 trait BlameProvider extends PositionContextProvider[Blame[VerificationFailure]]
 

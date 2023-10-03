@@ -15,8 +15,10 @@ import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class CPPToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(blameProvider, errors) {
+case class CPPToCol[G](override val baseOrigin: Origin,
+                       override val blameProvider: BlameProvider,
+                       override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol(baseOrigin, blameProvider, errors) {
 
   def convert(implicit unit: TranslationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case TranslationUnit0(maybeDeclSeq, _) => Seq(new CPPTranslationUnit(maybeDeclSeq.toSeq.flatMap(convert(_))))

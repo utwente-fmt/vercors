@@ -35,6 +35,8 @@ case class ShortPosition(shortPosition: String) extends OriginContent
 case class ReadableOrigin(readable: Readable) extends OriginContent
 case class StartEndLines(startEndLineIdx: (Int, Int)) extends OriginContent
 case class OriginCols(cols: Option[(Int, Int)]) extends OriginContent
+case class OriginFilename(filename: String) extends OriginContent
+case class InlineBipContext(bipContext: String) extends OriginContent
 
 case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
 
@@ -56,6 +58,10 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     } :+ Context(name))
   }
 
+  def addFilename(filename: String): Origin = {
+    Origin(originContents :+ OriginFilename(filename))
+  }
+
   def addReqName(name: String): Origin = {
     Origin(originContents :+ RequiredName(name))
   }
@@ -74,6 +80,10 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
 
   def addInlineContext(inCtx: String): Origin = {
     Origin(originContents :+ InlineContext(inCtx))
+  }
+
+  def addInlineBipContext(bipCtx: String): Origin = {
+    Origin(originContents :+ InlineBipContext(bipCtx))
   }
 
   def addReadableOrigin(readable: Readable): Origin = {
@@ -124,6 +134,26 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case _ => Nil
     } match {
       case Seq(InlineContext(any)) => Option(InlineContext(any))
+      case _ => None
+    }
+  }
+
+  def getInlineBipContext: Option[InlineBipContext] = {
+    originContents.flatMap {
+      case InlineBipContext(any) => Seq(InlineBipContext(any))
+      case _ => Nil
+    } match {
+      case Seq(InlineBipContext(any)) => Option(InlineBipContext(any))
+      case _ => None
+    }
+  }
+
+  def getFilename: Option[OriginFilename] = {
+    originContents.flatMap {
+      case OriginFilename(any) => Seq(OriginFilename(any))
+      case _ => Nil
+    } match {
+      case Seq(OriginFilename(any)) => Option(OriginFilename(any))
       case _ => None
     }
   }
