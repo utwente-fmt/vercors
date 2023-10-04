@@ -8,7 +8,7 @@ import scala.meta.prettyprinters.Show
 object ColHelper {
   def main(args: Array[String]): Unit =
     ColHelper().generate(
-      args.tail.map(new File(_)),
+      args.toSeq.tail.map(new File(_)),
       new File(args.head),
       (f, data) => {
         new File(f.getParent).mkdirs()
