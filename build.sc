@@ -42,8 +42,29 @@ object util {
       T.dest / "classpath"
     }
 
+    def strictOptionsFile = T.source {
+      settings.root / ".compile-strict"
+    }
+
+    def strictOptions: T[Boolean] = T {
+      os.exists(strictOptionsFile().path)
+    }
+
     override def javacOptions = T {
-      Seq("--release", "17")
+      val shared = Seq(
+        "--release", "17",
+        "-deprecation",
+      )
+
+      if(strictOptions()) {
+        Seq(
+          "-Werror",
+        ) ++ shared
+      } else {
+        Seq (
+          // nothing here yet
+        ) ++ shared
+      }
     }
 
     def windowsClassPathArgumentFile = T {
@@ -87,6 +108,23 @@ object util {
 
   trait ScalaModule extends BaseScalaModule with JavaModule {
     def scalaVersion = "2.13.5"
+
+    override def scalacOptions = T {
+      val shared = Seq(
+        "-deprecation",
+      )
+
+      if (strictOptions()) {
+        Seq(
+          "-Ypatmat-exhaust-depth", "off",
+          "-Werror",
+        ) ++ shared
+      } else {
+        Seq(
+          "-Ypatmat-exhaust-depth", "40",
+        ) ++ shared
+      }
+    }
   }
 
   trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
@@ -376,7 +414,7 @@ object viper extends ScalaModule {
 
   object silver extends ScalaModule {
     override def scalaVersion = "2.13.10"
-    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = silverGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
@@ -408,13 +446,13 @@ object viper extends ScalaModule {
 
     object common extends ScalaModule {
       override def scalaVersion = "2.13.10"
-      override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+      override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
       override def sources = T.sources { silicon.repo.repo() / "common" / "src" / "main" / "scala" }
       override def moduleDeps = Seq(silver)
     }
 
     override def scalaVersion = "2.13.10"
-    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = siliconGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
@@ -430,7 +468,7 @@ object viper extends ScalaModule {
 
   object carbon extends ScalaModule {
     override def scalaVersion = "2.13.10"
-    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = carbonGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log
