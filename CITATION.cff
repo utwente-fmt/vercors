@@ -1,0 +1,57 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: VerCors
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Lukas
+    family-names: Armborst
+  - given-names: Pieter
+    family-names: Bos
+  - given-names: Marieke
+    family-names: Huisman
+  - given-names: Robert
+    family-names: Rubbens
+  - given-names: Ömer
+    family-names: Şakar
+  - given-names: Philip
+    family-names: Tasche
+  - given-names: Naum
+    family-names: Tomov
+identifiers:
+  - type: doi
+    value: 10.1007/978-3-319-66845-1_7
+repository-code: 'https://github.com/utwente-fmt/vercors'
+url: 'https://vercors.ewi.utwente.nl/'
+abstract: >-
+  VerCors aims to verify many different concurrency
+  constructs, including: heterogeneous concurrency (Java and
+  C), GPU kernels using barriers and atomics (OpenCL), and
+  compiler directives as used in deterministic parallelism
+  (OpenMP). VerCors is able to prove data-race freedom,
+  memory safety, and functional correctness of (concurrent)
+  programs written in Java, C, OpenCL, OpenMP, and PVL
+  (Prototypal Verification Language, a procedural toy
+  language for prototyping new verification features).
+  Moreover, VerCors is designed to be language-independent,
+  which makes adding new front-end languages a
+  straightforward engineering effort.
+keywords:
+  - VerCors
+  - deductive verification
+  - concurrency
+  - data-race freedom
+  - GPU
+  - CUDA
+  - OpenCL
+  - C
+  - Java
+  - auto-active verification
+license: MPL-2.0
+commit: 04ee726e92eca082717158765f53ea67de8aa9c0
+version: 2.0.0
+date-released: '2023-03-16'
