@@ -11,7 +11,8 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.col.resolve.lang.Java
+import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.resolve.lang.{Java, JavaAnnotationData}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipTransition}
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -245,13 +246,17 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ))
         }
       case method: JavaMethod[Pre] =>
-        if (BipTransition.get(method).nonEmpty) {
-          rw.bip.rewriteTransition(method)
-        } else if (BipGuard.get(method).isDefined) {
-          rw.bip.rewriteGuard(method)
-        } else if (BipData.get(method).isDefined) {
-          rw.bip.rewriteOutgoingData(method)
-        } else {
+        // For each javabip annotation that we encounter, execute a rewrite
+        val results = method.modifiers.collect {
+          case annotation @ JavaAnnotationEx(_, _, guard @ JavaAnnotationData.BipGuard(_)) =>
+            rw.bip.rewriteGuard(method, annotation, guard)
+          case annotation @ JavaAnnotationEx(_, _, transition : JavaAnnotationData.BipTransition[Pre]) =>
+            rw.bip.rewriteTransition(method, annotation, transition)
+          case annotation @ JavaAnnotationEx(_, _, data: JavaAnnotationData.BipData[Pre]) =>
+            rw.bip.rewriteOutgoingData(method, annotation, data)
+        }
+        // If no rewrites were triggered, it must be a regular java method, so execute the default rewrite
+        if (results.isEmpty) {
           rw.dispatch(method)
         }
 

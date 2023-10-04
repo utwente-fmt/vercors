@@ -122,9 +122,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     data.ref
   }
 
-  def rewriteTransition(m: JavaMethod[Pre]): Unit = jad.BipTransition.get(m).foreach(rewriteTransition(m, _))
-
-  def rewriteTransition(m: JavaMethod[Pre], transition: jad.BipTransition[Pre]): Unit = {
+  def rewriteTransition(m: JavaMethod[Pre], annotation: JavaAnnotation[Pre], transition: jad.BipTransition[Pre]): Unit = {
     val jad.BipTransition(portName, source, target, guardText, guard, requires, ensures) = transition
 
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
@@ -163,32 +161,28 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     BipLocalIncomingData(javaParamSucc.ref[Post, BipIncomingData[Post]](decl))(local.o)
   }
 
-  def rewriteGuard(m: JavaMethod[Pre]): Unit = {
-    val annotation = jad.BipGuard.get(m).get
-    val Some(jad.BipGuard(_)) = annotation.data
+  def rewriteGuard(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], guard: jad.BipGuard[Pre]): Unit = {
+    if (method.returnType != TBool[Pre]()) { throw LangBipToCol.WrongGuardReturnType(method) }
 
-    if (m.returnType != TBool[Pre]()) { throw LangBipToCol.WrongGuardReturnType(m) }
-
-    javaMethodSuccGuard(m) = rw.classDeclarations.declare(new BipGuard[Post](
-      m.parameters.map(rewriteParameter),
-      rw.dispatch(m.body.get),
+    javaMethodSuccGuard(method) = rw.classDeclarations.declare(new BipGuard[Post](
+      method.parameters.map(rewriteParameter),
+      rw.dispatch(method.body.get),
       true
-    )(annotation.blame)(SourceNameOrigin(m.name, m.o)))
+    )(annotation.blame)(SourceNameOrigin(method.name, method.o)))
   }
 
-  def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
-    val data @ jad.BipData(name) = jad.BipData.get(m).get
-    if (!jad.BipPure.isPure(m)) {
-      throw ImpureData(m);
+  def rewriteOutgoingData(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], data: jad.BipData[Pre]): Unit = {
+    if (!jad.BipPure.isPure(method)) {
+      throw ImpureData(method);
     }
 
-    javaMethodSuccOutgoingData(m) = rw.classDeclarations.declare(
+    javaMethodSuccOutgoingData(method) = rw.classDeclarations.declare(
       new BipOutgoingData(
-        rw.dispatch(m.returnType),
-        rw.dispatch(m.body.get),
-        jad.BipPure.isPure(m)
-      )(m.blame)(BipDataOrigin(rw.java.namespace.top, currentClass(), data)))
-    dataOut((currentClass(), name)) = javaMethodSuccOutgoingData(m)
+        rw.dispatch(method.returnType),
+        rw.dispatch(method.body.get),
+        jad.BipPure.isPure(method)
+      )(annotation.blame)(BipDataOrigin(rw.java.namespace.top, currentClass(), data)))
+    dataOut((currentClass(), data.name)) = javaMethodSuccOutgoingData(method)
   }
 
   def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {

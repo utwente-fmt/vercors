@@ -88,11 +88,11 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
     override def blame(error: NontrivialUnsatisfiable): Unit = node match {
       case g: BipGuard[_] => g.blame.blame(BipGuardPreconditionUnsatisfiable(g))
-      case t: BipTransition[_] =>
-        results.reportPreconditionNotVerified(t)
-        results.report(t, UpdateFunctionFailure)
-        t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
-      case t: BipOutgoingData[_] => t.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(t))
+      case transition: BipTransition[_] =>
+        results.reportPreconditionNotVerified(transition)
+        results.report(transition, UpdateFunctionFailure)
+        transition.blame.blame(BipTransitionPreconditionUnsatisfiable(transition))
+      case data: BipOutgoingData[_] => data.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(data))
       case _ => throw Unreachable("This blame is not constructed for other types of node.")
     }
   }

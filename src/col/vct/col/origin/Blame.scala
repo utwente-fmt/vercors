@@ -675,7 +675,7 @@ case class BipTransitionPreconditionUnsatisfiable(node: BipTransition[_]) extend
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for transition `$source`"
 }
 
-case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) extends BipTransitionFailure with NodeVerificationFailure {
+case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) extends JavaAnnotationFailure with NodeVerificationFailure {
   override def code: String = "bipOutgoingDataPreconditionUnsatisfiable"
   override def descInContext: String = "The precondition of this outgoing data is unsatisfiable"
 
