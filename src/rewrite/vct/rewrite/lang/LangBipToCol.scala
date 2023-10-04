@@ -143,7 +143,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.dispatch).getOrElse(tt),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(m.blame)(SourceNameOrigin(m.name, m.o))
+      rw.dispatch(m.body.get))(annotation.blame)(SourceNameOrigin(m.name, m.o))
 
     javaMethodSuccTransition((m, transition)) = rw.classDeclarations.declare(trans)
   }
