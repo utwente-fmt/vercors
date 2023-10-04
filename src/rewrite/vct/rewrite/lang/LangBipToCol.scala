@@ -164,7 +164,8 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteGuard(m: JavaMethod[Pre]): Unit = {
-    val jad.BipGuard(_) = jad.BipGuard.get(m).get
+    val annotation = jad.BipGuard.get(m).get
+    val Some(jad.BipGuard(_)) = annotation.data
 
     if (m.returnType != TBool[Pre]()) { throw LangBipToCol.WrongGuardReturnType(m) }
 
@@ -172,7 +173,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       m.parameters.map(rewriteParameter),
       rw.dispatch(m.body.get),
       true
-    )(m.blame)(SourceNameOrigin(m.name, m.o)))
+    )(annotation.blame)(SourceNameOrigin(m.name, m.o)))
   }
 
   def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {

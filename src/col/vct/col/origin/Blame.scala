@@ -682,8 +682,8 @@ case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) ex
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for outgoing data `$source`"
 }
 
-case class BipGuardNontrivialUnsatisfiable(node: BipGuard[_]) extends NodeVerificationFailure {
-  override def code: String = "bipGuardNontrivialUnsatisfiable"
+case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends JavaAnnotationFailure with NodeVerificationFailure {
+  override def code: String = "bipGuardPreconditionUnsatisfiable"
   override def descInContext: String = "The precondition of this guard (consisting of only the component invariant) is unsatisfiable"
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for guard `$source`"
 }

@@ -1131,7 +1131,7 @@ final class BipTransition[G](val signature: BipTransitionSignature[G],
                              val data: Seq[Ref[G, BipIncomingData[G]]], val guard: Expr[G],
                              val requires: Expr[G], val ensures: Expr[G], val body: Statement[G]
                             )(val blame: Blame[BipTransitionFailure])(implicit val o: Origin) extends ClassDeclaration[G] with BipTransitionImpl[G]
-final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val pure: Boolean)(val blame: Blame[BipGuardNontrivialUnsatisfiable])(implicit val o: Origin) extends ClassDeclaration[G] with BipGuardImpl[G]
+final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val pure: Boolean)(val blame: Blame[BipGuardPreconditionUnsatisfiable])(implicit val o: Origin) extends ClassDeclaration[G] with BipGuardImpl[G]
 final case class BipGuardInvocation[G](obj: Expr[G], guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] with BipGuardInvocationImpl[G]
 final class BipComponent[G](val fqn: Seq[String], val constructors: Seq[Ref[G, Procedure[G]]], val invariant: Expr[G],
                             val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] with BipComponentImpl[G]

@@ -46,7 +46,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
       }
       case ctx: SignalsFailed => PanicBlame("BIP transition does not have signals").blame(ctx)
       case ctx: ExceptionNotInSignals => PanicBlame("BIP transition does not have signals").blame(ctx)
-      case _: BipConstructorFailure | _: BipTransitionFailure | _: BipGuardFailure => PanicBlame("This error never occurs in the encoding, so why is it under CallableFailure?").blame(error)
+      case _: BipConstructorFailure | _: BipTransitionFailure => PanicBlame("This error never occurs in the encoding, so why is it under CallableFailure?").blame(error)
     }
   }
 
@@ -69,7 +69,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
       }
       case ctx: SignalsFailed => proc.blame.blame(ctx)
       case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
-      case _: BipConstructorFailure | _: BipTransitionFailure | _: BipGuardFailure => PanicBlame("This error never occurs in the encoding, so why is it under CallableFailure?").blame(error)
+      case _: BipConstructorFailure | _: BipTransitionFailure =>PanicBlame("This error never occurs in the encoding, so why is it under CallableFailure?").blame(error)
     }
   }
 
