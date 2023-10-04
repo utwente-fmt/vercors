@@ -682,9 +682,8 @@ case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) ex
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for outgoing data `$source`"
 }
 
-sealed trait BipGuardFailure extends CallableFailure
-case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends BipGuardFailure with NodeVerificationFailure {
-  override def code: String = "bipGuardPreconditionUnsatisfiable"
+case class BipGuardNontrivialUnsatisfiable(node: BipGuard[_]) extends NodeVerificationFailure {
+  override def code: String = "bipGuardNontrivialUnsatisfiable"
   override def descInContext: String = "The precondition of this guard (consisting of only the component invariant) is unsatisfiable"
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for guard `$source`"
 }
