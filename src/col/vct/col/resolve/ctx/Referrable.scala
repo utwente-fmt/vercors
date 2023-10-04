@@ -144,12 +144,22 @@ case object Referrable {
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
     case decl: VeyMontSeqProg[G] => RefSeqProg(decl)
     case decl: VeyMontThread[G] => RefVeyMontThread(decl)
-    case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
     case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
     case decl: LlvmGlobal[G] => RefLlvmGlobal(decl)
     case decl: LlvmSpecFunction[G] => RefLlvmSpecFunction(decl)
     case decl: ProverType[G] => RefProverType(decl)
     case decl: ProverFunction[G] => RefProverFunction(decl)
+    case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
+    case decl: BipComponent[G] => RefBipComponent(decl)
+    case decl: BipGlue[G] => RefBipGlue(decl)
+    case decl: BipGuard[G] => RefBipGuard(decl)
+    case decl: BipIncomingData[G] => RefBipIncomingData(decl)
+    case decl: BipOutgoingData[G] => RefBipOutgoingData(decl)
+    case decl: BipPort[G] => RefBipPort(decl)
+    case decl: BipPortSynchronization[G] => RefBipPortSynchronization(decl)
+    case decl: BipStatePredicate[G] => RefBipStatePredicate(decl)
+    case decl: BipTransition[G] => RefBipTransition(decl)
+    case decl: BipTransitionSynchronization[G] => RefBipTransitionSynchronization(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -261,6 +271,16 @@ case class RefJavaBipGuard[G](decl: JavaMethod[G]) extends Referrable[G] with Ja
 case class RefJavaBipGlueContainer[G]() extends Referrable[G] // Bip glue jobs are not actually referrable
 case class RefLlvmFunctionDefinition[G](decl: LlvmFunctionDefinition[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
 case class RefLlvmGlobal[G](decl: LlvmGlobal[G]) extends Referrable[G]
+case class RefBipComponent[G](decl: BipComponent[G]) extends Referrable[G]
+case class RefBipGlue[G](decl: BipGlue[G]) extends Referrable[G]
+case class RefBipGuard[G](decl: BipGuard[G]) extends Referrable[G]
+case class RefBipIncomingData[G](decl: BipIncomingData[G]) extends Referrable[G]
+case class RefBipOutgoingData[G](decl: BipOutgoingData[G]) extends Referrable[G]
+case class RefBipPort[G](decl: BipPort[G]) extends Referrable[G]
+case class RefBipPortSynchronization[G](decl: BipPortSynchronization[G]) extends Referrable[G]
+case class RefBipStatePredicate[G](decl: BipStatePredicate[G]) extends Referrable[G]
+case class RefBipTransition[G](decl: BipTransition[G]) extends Referrable[G]
+case class RefBipTransitionSynchronization[G](decl: BipTransitionSynchronization[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
