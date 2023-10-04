@@ -134,6 +134,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         case RefInstanceMethod(decl) => Result[Post](anySucc(decl))
         case RefInstanceOperatorFunction(decl) => Result[Post](anySucc(decl))
         case RefInstanceOperatorMethod(decl) => Result[Post](anySucc(decl))
+        case RefLlvmSpecFunction(decl) => Result[Post](anySucc(decl))
       }
 
     case diz @ AmbiguousThis() =>

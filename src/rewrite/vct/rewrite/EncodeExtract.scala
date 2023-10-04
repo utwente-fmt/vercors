@@ -2,7 +2,7 @@ package vct.col.rewrite
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
-import vct.col.rewrite.EncodeExtract.{ExtractMayNotJumpOut, ExtractMayNotReturn, ExtractedOnlyPost, FramedProofPostconditionFailed, FramedProofPreconditionFailed, LoopInvariantPreconditionFailed}
+import vct.col.rewrite.EncodeExtract.{ExtractMayNotJumpOut, ExtractMayNotReturn, ExtractedOnlyPost, FramedProofPostconditionFailed, FramedProofPreconditionFailed, LoopInvariantPreconditionFailed, WrongExtractNode}
 import vct.col.util.AstBuildHelpers.contract
 import vct.col.util.Substitute
 import vct.result.VerificationError.UserError
@@ -10,6 +10,11 @@ import vct.result.VerificationError.UserError
 case object EncodeExtract extends RewriterBuilder {
   override def key: String = "extract"
   override def desc: String = "Extract contracted nodes into separate methods"
+
+  case class WrongExtractNode(node: Statement[_]) extends UserError {
+    override def code: String = "wrongExtract"
+    override def text: String = node.o.messageInContext("This kind of node cannot be extracted into a separate method")
+  }
 
   case class ExtractedOnlyPost(blame: Blame[PostconditionFailed]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
@@ -142,6 +147,8 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
           post,
           FramedProofPostconditionFailed(proof),
         )(extract.o)
+
+      case other => throw WrongExtractNode(other)
     }
 
     case other => rewriteDefault(other)
