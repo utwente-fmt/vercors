@@ -619,8 +619,9 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
 }
 
 sealed trait JavaAnnotationFailure extends VerificationFailure
+sealed trait JavaConstructorFailure extends VerificationFailure
 
-sealed trait BipConstructorFailure extends CallableFailure
+sealed trait BipConstructorFailure extends JavaConstructorFailure
 sealed trait BipTransitionFailure extends JavaAnnotationFailure
 
 sealed trait BipTransitionContractFailure extends BipTransitionFailure with WithContractFailure {
