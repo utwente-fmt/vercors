@@ -1054,7 +1054,7 @@ sealed trait JavaGlobalDeclaration[G] extends GlobalDeclaration[G] with JavaGlob
 final class JavaNamespace[G](val pkg: Option[JavaName[G]], val imports: Seq[JavaImport[G]], val declarations: Seq[GlobalDeclaration[G]])(implicit val o: Origin) extends JavaGlobalDeclaration[G] with Declarator[G] with JavaNamespaceImpl[G]
 
 sealed trait JavaClassOrInterface[G] extends JavaGlobalDeclaration[G] with Declarator[G] with JavaClassOrInterfaceImpl[G]
-final class JavaClass[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val intrinsicLockInvariant: Expr[G], val ext: Type[G], val imp: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaClassImpl[G]
+final class JavaClass[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val intrinsicLockInvariant: Expr[G], val ext: Type[G], val imp: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(val blame: Blame[JavaImplicitConstructorFailure])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaClassImpl[G]
 final class JavaInterface[G](val name: String, val modifiers: Seq[JavaModifier[G]], val typeParams: Seq[Variable[G]], val ext: Seq[Type[G]], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaInterfaceImpl[G]
 final class JavaAnnotationInterface[G](val name: String, val modifiers: Seq[JavaModifier[G]], val ext: Type[G], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends JavaClassOrInterface[G] with JavaAnnotationInterfaceImpl[G]
 
