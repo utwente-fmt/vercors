@@ -44,18 +44,18 @@ case object CPP {
 
   case class DeclaratorInfo[G](params: Option[Seq[CPPParam[G]]], typeOrReturnType: Type[G] => Type[G], name: String)
 
-  def getDeclaratorInfo[G](decl: CPPDeclarator[G]): DeclaratorInfo[G] = decl match {
+  def getDeclaratorInfo[G](decl: CPPDeclarator[G], isParam: Boolean = false): DeclaratorInfo[G] = decl match {
     case CPPAddressingDeclarator(operators, inner) =>
       val innerInfo = getDeclaratorInfo(inner)
-      if (operators.size == 1 && operators.head.isInstanceOf[CPPReference[G]]) {
-        // Pass by reference, so & can be ignored
+      if (isParam && operators.size == 1 && operators.head.isInstanceOf[CPPReference[G]]) {
+        // Pass by reference parameter, so & can be ignored
         DeclaratorInfo(
           innerInfo.params,
           t => innerInfo.typeOrReturnType(t),
           innerInfo.name)
       } else if (operators.collectFirst({ case x: CPPReference[G] => x }).isDefined) {
         // Do not support multiple &, or & later in the sequence
-        throw CPPTypeNotSupported(None)
+        throw CPPTypeNotSupported(Some(decl))
       } else {
         DeclaratorInfo(
           innerInfo.params,

@@ -100,7 +100,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
                             declarator: CPPDeclarator[Pre],
                             context: Option[Node[Pre]] = None)
                            (implicit o: Origin): (Seq[CPPDeclarationSpecifier[Post]], CPPDeclarator[Post]) = {
-    val info = CPP.getDeclaratorInfo(declarator)
+    val info = CPP.getDeclaratorInfo(declarator, context.getOrElse(false).isInstanceOf[CPPParam[Pre]])
     val baseType = CPP.getBaseTypeFromSpecs(specifiers, context)
     val otherSpecifiers = specifiers.filter(!_.isInstanceOf[CPPTypeSpecifier[Pre]]).map(dispatch)
     val newSpecifiers = CPPSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +: otherSpecifiers

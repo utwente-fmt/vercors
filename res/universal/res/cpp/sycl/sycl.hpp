@@ -30,24 +30,157 @@ namespace sycl {
     void parallel_for(sycl::nd_range<3> numWorkItems, VERCORS::LAMBDA lambda_method);
   }
 
+	// See SYCL spec 3.11.1 for the linearization formulas
+  //@ pure int linearize2(int id0, int id1, int r1) = id1 + (id0 * r1);
+  //@ pure int linearize3(int id0, int id1, int id2, int r1, int r2) = id2 + (id1 * r2) + (id0 * r1 * r2);
+
   namespace item {
+		/*@
+			given seq<int> ids;
+			requires dimension >= 0;
+			requires dimension < |ids|;
+			ensures \result == ids[dimension];
+  	@*/
   	/*@ pure @*/ int get_id(int dimension);
+
+  	/*@
+			given seq<int> ranges;
+			requires dimension >= 0;
+			requires dimension < |ranges|;
+			ensures \result == ranges[dimension];
+		@*/
+		/*@ pure @*/ int get_range(int dimension);
+
+  	/*@
+			given seq<int> ids;
+			given seq<int> ranges;
+			requires |ids| == |ranges|;
+			ensures |ids| == 1 ==> \result == ids[0];
+			ensures |ids| == 2 ==> \result == sycl::linearize2(
+				sycl::item::get_id(0) given{ids = ids},
+				sycl::item::get_id(1) given{ids = ids},
+				sycl::item::get_range(1) given{ranges = ranges});
+			ensures |ids| == 3 ==> \result == sycl::linearize3(
+				sycl::item::get_id(0) given{ids = ids},
+				sycl::item::get_id(1) given{ids = ids},
+				sycl::item::get_id(2) given{ids = ids},
+				sycl::item::get_range(1) given{ranges = ranges},
+				sycl::item::get_range(2) given{ranges = ranges});
+		@*/
   	/*@ pure @*/ int get_linear_id();
-  	/*@ pure @*/ int get_range(int dimension);
   }
 
   namespace nd_item {
-		/*@ pure @*/ int get_global_id(int dimension);
-		/*@ pure @*/ int get_global_linear_id();
-		/*@ pure @*/ int get_global_range(int dimension);
 
+		/*@
+			given seq<int> ids;
+			requires dimension >= 0;
+			requires dimension < |ids|;
+			ensures \result == ids[dimension];
+		@*/
 		/*@ pure @*/ int get_local_id(int dimension);
-		/*@ pure @*/ int get_local_linear_id();
+
+		/*@
+			given seq<int> ranges;
+			requires dimension >= 0;
+			requires dimension < |ranges|;
+			ensures \result == ranges[dimension];
+		@*/
 		/*@ pure @*/ int get_local_range(int dimension);
 
+		/*@
+			given seq<int> ids;
+			given seq<int> ranges;
+			requires |ids| == |ranges|;
+			ensures |ids| == 1 ==> \result == ids[0];
+			ensures |ids| == 2 ==> \result == sycl::linearize2(
+				sycl::nd_item::get_local_id(0) given{ids = ids},
+				sycl::nd_item::get_local_id(1) given{ids = ids},
+				sycl::nd_item::get_local_range(1) given{ranges = ranges});
+			ensures |ids| == 3 ==> \result == sycl::linearize3(
+				sycl::nd_item::get_local_id(0) given{ids = ids},
+				sycl::nd_item::get_local_id(1) given{ids = ids},
+				sycl::nd_item::get_local_id(2) given{ids = ids},
+				sycl::nd_item::get_local_range(1) given{ranges = ranges},
+				sycl::nd_item::get_local_range(2) given{ranges = ranges});
+		@*/
+		/*@ pure @*/ int get_local_linear_id();
+
+		/*@
+			given seq<int> ids;
+			requires dimension >= 0;
+			requires dimension < |ids|;
+			ensures \result == ids[dimension];
+		@*/
 		/*@ pure @*/ int get_group_id(int dimension);
-		/*@ pure @*/ int get_group_linear_id();
+
+		/*@
+			given seq<int> ranges;
+			requires dimension >= 0;
+			requires dimension < |ranges|;
+			ensures \result == ranges[dimension];
+		@*/
 		/*@ pure @*/ int get_group_range(int dimension);
+
+		/*@
+			given seq<int> ids;
+			given seq<int> ranges;
+			requires |ids| == |ranges|;
+			ensures |ids| == 1 ==> \result == ids[0];
+			ensures |ids| == 2 ==> \result == sycl::linearize2(
+				sycl::nd_item::get_group_id(0) given{ids = ids},
+				sycl::nd_item::get_group_id(1) given{ids = ids},
+				sycl::nd_item::get_group_range(1) given{ranges = ranges});
+			ensures |ids| == 3 ==> \result == sycl::linearize3(
+				sycl::nd_item::get_group_id(0) given{ids = ids},
+				sycl::nd_item::get_group_id(1) given{ids = ids},
+				sycl::nd_item::get_group_id(2) given{ids = ids},
+				sycl::nd_item::get_group_range(1) given{ranges = ranges},
+				sycl::nd_item::get_group_range(2) given{ranges = ranges});
+		@*/
+		/*@ pure @*/ int get_group_linear_id();
+
+
+		/*@
+			given seq<int> groupIds;
+			given seq<int> localIds;
+			given seq<int> groupRanges;
+			requires |groupIds| == |localIds| && |localIds| == |groupRanges|;
+			requires dimension >= 0;
+			requires dimension < |groupIds|;
+			ensures \result == groupIds[dimension] + (localIds[dimension] * groupRanges[dimension]);
+		@*/
+		/*@ pure @*/ int get_global_id(int dimension);
+
+		/*@
+			given seq<int> groupRanges;
+			given seq<int> localRanges;
+			requires |groupRanges| == |localRanges|;
+			requires dimension >= 0;
+			requires dimension < |groupRanges|;
+			ensures \result == groupRanges[dimension] * localRanges[dimension];
+		@*/
+		/*@ pure @*/ int get_global_range(int dimension);
+
+		/*@
+			given seq<int> groupIds;
+			given seq<int> localIds;
+			given seq<int> groupRanges;
+			given seq<int> localRanges;
+			requires |groupIds| == |localIds| && |localIds| == |groupRanges| && |groupRanges| == |localRanges|;
+			ensures |groupIds| == 1 ==> \result == sycl::nd_item::get_global_id(0) given {groupIds = groupIds, localIds = localIds, groupRanges = groupRanges};
+			ensures |groupIds| == 2 ==> \result == sycl::linearize2(
+				sycl::nd_item::get_global_id(0) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges},
+				sycl::nd_item::get_global_id(1) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges},
+				sycl::nd_item::get_global_range(1) given{groupRanges = groupRanges, localRanges = localRanges});
+			ensures |groupIds| == 3 ==> \result == sycl::linearize3(
+				sycl::nd_item::get_global_id(0) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges},
+				sycl::nd_item::get_global_id(1) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges},
+				sycl::nd_item::get_global_id(2) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges},
+				sycl::nd_item::get_global_range(1) given{groupRanges = groupRanges, localRanges = localRanges},
+				sycl::nd_item::get_global_range(2) given{groupRanges = groupRanges, localRanges = localRanges});
+		@*/
+		/*@ pure @*/ int get_global_linear_id();
   }
 
 }

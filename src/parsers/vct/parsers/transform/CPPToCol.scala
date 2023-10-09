@@ -146,7 +146,6 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
 
   def convert(implicit expr: ExpressionContext): Expr[G] = expr match {
     case Expression0(inner) => convert(inner)
-    case Expression1(first, _, result) => With(Eval(convert(first)), convert(result))
   }
 
   // Do not support switch statement
@@ -1096,11 +1095,11 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
       withModifiers(modifiers, mods =>
         Seq(new Predicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))
-        (SourceNameOrigin(convert(name), origin(decl)))))
+        (SourceNameOrigin((currentNamespacePath.reverse :+ convert(name)).mkString("::"), origin(decl)))))
     case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c =>
         withModifiers(modifiers, m => {
-          val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
+          val namedOrigin = SourceNameOrigin((currentNamespacePath.reverse :+ convert(name)).mkString("::"), origin(decl))
           new Function(
             convert(t),
             args.map(convert(_)).getOrElse(Nil),
@@ -1116,7 +1115,7 @@ case class CPPToCol[G](override val originProvider: OriginProvider, override val
       convert(inner)
     case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
       Seq(new AxiomaticDataType(decls.map(convert(_)), typeArgs.map(convert(_)).getOrElse(Nil))(
-        SourceNameOrigin(convert(name), origin(decl))))
+        SourceNameOrigin((currentNamespacePath.reverse :+ convert(name)).mkString("::"), origin(decl))))
   }
 
   def convert(implicit decl: ValEmbedClassDeclarationBlockContext): Seq[ClassDeclaration[G]] = decl match {
