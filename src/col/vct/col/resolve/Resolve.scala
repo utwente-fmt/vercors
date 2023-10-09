@@ -149,7 +149,7 @@ case object ResolveTypes {
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
-      Java.findJavaName(local.name, ctx) match {
+      Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(
         _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
         _ // Statically imported, or regular previously imported typename
@@ -280,9 +280,13 @@ case object ResolveReferences extends LazyLogging {
       .declare(cls.declarations)
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
+      .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
     case fields: JavaFields[G] => ctx
       .copy(currentInitializerType=Some(fields.t))
+      .copy(inStaticJavaContext=fields.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
+    case init: JavaSharedInitialization[G] => ctx
+      .copy(inStaticJavaContext=init.isStatic)
     case locals: JavaLocalDeclaration[G] => ctx
       .copy(currentInitializerType=Some(locals.t))
     case decl: JavaVariableDeclaration[G] => ctx
@@ -361,7 +365,7 @@ case object ResolveReferences extends LazyLogging {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
       } else { None }
       local.ref = Some(start.orElse(
-        Java.findJavaName(name, ctx.asTypeResolutionContext)
+        Java.findJavaName(name, fromStaticContext = ctx.inStaticJavaContext, ctx.asTypeResolutionContext)
           .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
             case Some(target: JavaNameTarget[G]) => Some(target)
             case Some(_) | None => None
