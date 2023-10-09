@@ -396,7 +396,6 @@ class FeatureRainbow[G] {
     case node: ParBlockDecl[G] => ParallelRegion
     case node: ParInvariantDecl[G] => ParallelRegion
     case node: IterVariable[G] => ParallelRegion
-    case node: ParSequential[G] => ParallelRegion
 
     case node: Permutation[G] => PermutationOperator
 
@@ -681,8 +680,6 @@ class FeatureRainbow[G] {
     case node: CPPChar[G] => return Seq(CPPSpecific, TextTypes)
     case node: CPPDeclarationStatement[G] => return Seq(CPPSpecific, UnscopedDeclaration)
     case node: CPPAddressing[G] => return Seq(CPPSpecific, Pointers)
-    case node: CPPPointer[G] => return Seq(CPPSpecific, Pointers)
-    case node: CPPReference[G] => return Seq(CPPSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
 

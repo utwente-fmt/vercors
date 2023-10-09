@@ -39,10 +39,14 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
         case PostconditionFailed(Seq(FailRight, FailRight), failure, _) =>
           results.report(transition, PostconditionNotVerified)
           transition.blame.blame(BipTransitionPostconditionFailure(failure, transition))
+        case PostconditionFailed(_, _, _) =>
+          throw BlamePathError
+        case ctx: TerminationMeasureFailed => PanicBlame("BIP transition does not have termination measures").blame(ctx)
         case ctx: ContextEverywhereFailedInPost => PanicBlame("BIP transition does not have context everywhere").blame(ctx)
       }
       case ctx: SignalsFailed => PanicBlame("BIP transition does not have signals").blame(ctx)
       case ctx: ExceptionNotInSignals => PanicBlame("BIP transition does not have signals").blame(ctx)
+      case _: BipConstructorFailure | _: BipTransitionFailure | _: BipGuardFailure => PanicBlame("This error never occurs in the encoding, so why is it under CallableFailure?").blame(error)
     }
   }
 
@@ -58,10 +62,14 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
         case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
           results.report(component, PostconditionNotVerified)
           proc.blame.blame(PostconditionFailed(path, failure, node))
+        case PostconditionFailed(_, _, _) =>
+          throw BlamePathError
+        case ctx: TerminationMeasureFailed => proc.blame.blame(ctx)
         case ctx: ContextEverywhereFailedInPost => proc.blame.blame(ctx)
       }
       case ctx: SignalsFailed => proc.blame.blame(ctx)
       case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
+      case _: BipConstructorFailure | _: BipTransitionFailure | _: BipGuardFailure => PanicBlame("This error never occurs in the encoding, so why is it under CallableFailure?").blame(error)
     }
   }
 
@@ -85,6 +93,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
         results.report(t, UpdateFunctionFailure)
         t.blame.blame(BipTransitionPreconditionUnsatisfiable(t))
       case t: BipOutgoingData[_] => t.blame.blame(BipOutgoingDataPreconditionUnsatisfiable(t))
+      case _ => throw Unreachable("This blame is not constructed for other types of node.")
     }
   }
 
@@ -224,7 +233,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case thisObj: ThisObject[Pre] => replaceThis.topOption match {
       case Some((otherThis, res)) if thisObj == otherThis => res
-      case None => thisObj.rewrite()
+      case Some(_) | None => thisObj.rewrite()
     }
 
     case l @ BipLocalIncomingData(Ref(data)) => incomingDataContext.top match {

@@ -139,7 +139,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
         if(needsCommitted.contains(cls)) {
           implicit val o: Origin = CommittedOrigin(cls)
-          committed(cls) = classDeclarations.declare(new InstanceFunction(TBool(), Nil, Nil, None, contract(PanicBlame("empty contract")), false)(AbstractApplicable))
+          committed(cls) = classDeclarations.declare(new InstanceFunction(TBool(), Nil, Nil, None, contract(PanicBlame("empty contract"), decreases = Some(DecreasesClauseAssume[Post]())), false)(AbstractApplicable))
         }
 
         cls.declarations.foreach(dispatch)

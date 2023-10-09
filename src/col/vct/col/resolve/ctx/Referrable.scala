@@ -23,6 +23,8 @@ sealed trait Referrable[G] {
     case RefCPPParam(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPFunctionDefinition(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
+    case RefCPPLambda(decl) => ""
+    case RefCPPLambdaDefinition(decl) => ""
     case RefCPPLocalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
@@ -65,7 +67,13 @@ sealed trait Referrable[G] {
     case RefVeyMontThread(decl) => Referrable.originName(decl)
     case RefProverType(decl) => Referrable.originName(decl)
     case RefProverFunction(decl) => Referrable.originName(decl)
+    case RefJavaBipGuard(decl) => Referrable.originName(decl)
+    case RefLlvmFunctionDefinition(decl) => Referrable.originName(decl)
+    case RefLlvmGlobal(decl) => Referrable.originName(decl)
+    case RefLlvmSpecFunction(decl) => Referrable.originName(decl)
 
+    case RefJavaBipGlueContainer() => ""
+    case PVLBuiltinInstanceMethod(_) => ""
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
@@ -208,7 +216,7 @@ case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) ex
 case class RefCPPTranslationUnit[G](decl: CPPTranslationUnit[G]) extends Referrable[G]
 case class RefCPPParam[G](decl: CPPParam[G]) extends Referrable[G] with CPPNameTarget[G]
 case class RefCPPFunctionDefinition[G](decl: CPPFunctionDefinition[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
-case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with ResultTarget[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
+case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
 case class RefCPPLambda[G](decl: CPPLambdaRef[G]) extends Referrable[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
 case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
 case class RefCPPLocalDeclaration[G](decls: CPPLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G]

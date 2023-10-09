@@ -91,8 +91,8 @@ case object Verify extends LazyLogging {
   }
 
   def friendlyHandleBipReport(report: VerificationReport, path: Option[PathOrStd]): Unit = (report, path) match {
-    case (report, Some(path)) if report.nonEmpty() => path.write(w => w.write(report.toJson()))
-    case (report, None) if report.nonEmpty() => logger.warn("JavaBIP verification report was produced, but no output path was specified. Use `--bip-report-file` to specify an output. See `--help` for more info.")
-    case (report, None) if report.isEmpty() =>
+    case (report, _) if report.isEmpty() =>
+    case (report, Some(path)) => path.write(w => w.write(report.toJson()))
+    case (report, None) => logger.warn("JavaBIP verification report was produced, but no output path was specified. Use `--bip-report-file` to specify an output. See `--help` for more info.")
   }
 }

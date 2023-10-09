@@ -105,9 +105,9 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   private def debugLayout(x: scala.Any)(implicit ctx: Ctx): Doc = x match {
     case n: Node[_] => n.show
     case r: Ref[_, _] => Text("Ref(") <> ctx.name(r) <> ")"
-    case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
     case o: scala.Option[scala.Any] if o.isEmpty => Text("None")
     case o: scala.Option[scala.Any] => Text("Some(") <> debugLayout(o.get) <> ")"
+    case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
     case i: scala.Iterable[scala.Any] => Group(Text(i.getClass.getSimpleName) <> "(" <> Doc.args(i.map(debugLayout).toSeq) <> ")")
     case other => Text(other.toString)
   }

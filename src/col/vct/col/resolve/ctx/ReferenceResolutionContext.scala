@@ -22,6 +22,7 @@ case class ReferenceResolutionContext[G]
   currentThis: Option[ThisTarget[G]] = None,
   currentResult: Option[ResultTarget[G]] = None,
   currentInitializerType: Option[Type[G]] = None,
+  inStaticJavaContext: Boolean = false,
   javaBipStatePredicates: ListMap[Expr[G], JavaAnnotation[G]] = ListMap[Expr[G], JavaAnnotation[G]](),
   javaBipGuards: ListMap[Expr[G], JavaMethod[G]] = ListMap[Expr[G], JavaMethod[G]](),
   // When true and resolving a local, guard names should also be considered

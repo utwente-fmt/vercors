@@ -357,6 +357,7 @@ case class ColToSilver(program: col.Program[_]) {
         silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(loc), info=expInfo(e)), silver.WildcardPerm()())(pos=pos(e), info=expInfo(e))
       case col.PredicateLocation(predicate, args) =>
         silver.PredicateAccessPredicate(silver.PredicateAccess(args.map(exp), ref(predicate))(pos = pos(loc), NodeInfo(loc)), silver.WildcardPerm()())(pos = pos(e), expInfo(e))
+      case default => ??(default)
     }
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(pos=pos(e), info=expInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(pos=pos(e), info=expInfo(e))

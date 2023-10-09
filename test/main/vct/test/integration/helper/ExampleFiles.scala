@@ -42,7 +42,7 @@ case object ExampleFiles {
 
   def find(directory: File): Seq[File] =
     Option(directory.listFiles()) match {
-      case Some(files) => files.filterNot(f => EXCLUSIONS.exists(_(f))).sortBy(_.getName).flatMap(f => if(f.isDirectory) find(f) else Seq(f))
+      case Some(files) => files.toSeq.filterNot(f => EXCLUSIONS.exists(_(f))).sortBy(_.getName).flatMap(f => if(f.isDirectory) find(f) else Seq(f))
       case None => Nil
     }
 }
