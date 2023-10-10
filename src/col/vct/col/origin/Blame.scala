@@ -208,7 +208,7 @@ case class ContextEverywhereFailedInPre(failure: ContractFailure, node: Invoking
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 
-sealed trait CallableFailure extends ConstructorFailure
+sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "postFailed"

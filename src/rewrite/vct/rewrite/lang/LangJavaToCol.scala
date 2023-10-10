@@ -338,14 +338,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
           cls match {
             case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
-              val inputConstructorRefs: Seq[Ref[Post, Procedure[Post]]] =
-                cls.decls.collect({ case c: JavaConstructor[Pre] => c }).map(javaConstructor.ref(_))
-              val syntheticConstructorRefs: Seq[Ref[Post, Procedure[Post]]] =
-                javaDefaultConstructor.get(cls) match {
-                  case Some(constructor) => Seq(javaConstructor.ref[Post, Procedure[Post]](constructor))
-                  case None => Seq()
-                }
-              rw.bip.generateComponent(cls, inputConstructorRefs ++ syntheticConstructorRefs)
+              rw.bip.generateComponent(cls)
             case _ =>
           }
         }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))

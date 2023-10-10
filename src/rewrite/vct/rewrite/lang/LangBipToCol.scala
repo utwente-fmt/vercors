@@ -215,7 +215,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     dataOut((currentClass(), data.name)) = javaMethodSuccOutgoingData(method)
   }
 
-  def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
+  def generateComponent(cls: JavaClass[Pre]): Unit = {
     val jad.BipComponent(name, initialState) = jad.BipComponent.get(cls).get
     val allPorts = jad.BipPort.getAll(cls)
 
@@ -228,7 +228,6 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     components(name) = rw.classDeclarations.declare(
       new BipComponent(
         rw.java.namespace.top.pkg.get.names :+ cls.name,
-        constructors,
         rw.dispatch(invariant),
         getJavaBipStatePredicate(initialState))(cls.o))
 
