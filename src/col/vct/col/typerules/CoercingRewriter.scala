@@ -1673,7 +1673,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case namespace: JavaNamespace[Pre] =>
         namespace
       case clazz: JavaClass[Pre] =>
-        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)
+        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)(clazz.blame)
       case interface: JavaInterface[Pre] =>
         interface
       case interface: JavaAnnotationInterface[Pre] =>
@@ -1748,7 +1748,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
       case seqProg: VeyMontSeqProg[Pre] => seqProg
       case thread: VeyMontThread[Pre] => thread
-      case bc: BipConstructor[Pre] => new BipConstructor(bc.parameters, bc.body)(bc.blame)
+      case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, bc.constructors, res(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>

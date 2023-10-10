@@ -216,6 +216,12 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     declsDefault.foreach {
       case cons: JavaConstructor[Pre] =>
+        val results = currentJavaClass.top.modifiers.collect {
+          case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) =>
+            rw.bip.rewriteConstructor(cons, annotation, component)
+        }
+        if (results.nonEmpty) return
+
         logger.debug(s"Constructor for ${cons.o.context}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)

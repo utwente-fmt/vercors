@@ -36,6 +36,11 @@ case object LangBipToCol {
     override def text: String = m.o.messageInContext("This data method should be marked pure with `@Pure`")
   }
 
+  case class ImproperConstructor(c: JavaConstructor[_], msg: String) extends UserError {
+    override def code: String = "bipImproperConstructor"
+    override def text: String = c.o.messageInContext(msg)
+  }
+
   case class BipIncomingDataInconsistentType(data: BipData[_], param: JavaParam[_]) extends UserError {
     override def code: String = "bipInconsistentDataType"
     override def text: String = Origin.messagesInContext(Seq(
@@ -71,6 +76,14 @@ case object LangBipToCol {
     override def context: String = data.o.context
     override def inlineContext: String = data.o.inlineContext
     override def shortPosition: String = data.o.shortPosition
+  }
+
+  case class BipConstructorOrigin(cls: JavaClass[_], c: JavaConstructor[_]) extends Origin {
+    override def preferredName: String = s"${cls.o.preferredName}_constructor"
+
+    override def context: String = c.o.context
+    override def inlineContext: String = c.o.inlineContext
+    override def shortPosition: String = c.o.shortPosition
   }
 }
 
@@ -159,6 +172,23 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def local(local: JavaLocal[Pre], decl: JavaParam[Pre]): Expr[Post] = {
     val data @ jad.BipData(_) = jad.BipData.get(decl).get
     BipLocalIncomingData(javaParamSucc.ref[Post, BipIncomingData[Post]](decl))(local.o)
+  }
+
+  def rewriteConstructor(constructor: JavaConstructor[Pre], annotation: JavaAnnotation[Pre], data: jad.BipComponent[Pre]): Unit = {
+    if (constructor.contract.nonEmpty) {
+      throw ImproperConstructor(constructor, "Non-trivial contract is not allowed on JavaBIP component constructors")
+    }
+
+    logger.debug(s"JavaBIP component constructor for ${constructor.o.context}")
+    implicit val o: Origin = constructor.o
+    rw.labelDecls.scope {
+      rw.classDeclarations.declare(
+        new BipConstructor(
+          args = rw.variables.collect { constructor.parameters.map(rw.dispatch) }._1,
+          body = rw.dispatch(constructor.body),
+        )(constructor.blame)(BipConstructorOrigin(rw.java.currentJavaClass.top.asInstanceOf, constructor))
+      )
+    }
   }
 
   def rewriteGuard(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], guard: jad.BipGuard[Pre]): Unit = {
