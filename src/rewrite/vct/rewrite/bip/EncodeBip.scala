@@ -166,7 +166,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
   var program: Program[Pre] = null
 
-  var replaceThis: ScopedStack[(ThisObject[Pre], Expr[Post])] = ScopedStack()
+  var currentThis: ScopedStack[Expr[Post]] = ScopedStack()
 
   val currentComponent: ScopedStack[BipComponent[Pre]] = ScopedStack()
   val rewritingBipTransitionBody: ScopedStack[BipTransition[Pre]] = ScopedStack()
@@ -189,9 +189,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   lazy val componentToClass: Map[BipComponent[Pre], Class[Pre]] = classes.collect {
     case ClassBipComponent(cls, component) => (component, cls)
   }.toMap
-  lazy val procedureToClassComponent: Map[Procedure[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
-    case ClassBipComponent(cls, component) => component.constructors.map { case Ref(constructor) =>
-      (constructor, (cls, component))
+  lazy val constructorToClassComponent: Map[BipConstructor[Pre], (Class[Pre], BipComponent[Pre])] = classes.collect {
+    case ClassBipComponent(cls, component) => cls.collect {
+      case constructor: BipConstructor[Pre] => (constructor, (cls, component))
     }
   }.flatten.toMap
   lazy val portToComponent: Map[BipPort[Pre], BipComponent[Pre]] = components.flatMap { component =>
@@ -201,18 +201,18 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   def classOf(c: BipComponent[Pre]): Class[Pre] = componentToClass(c)
   def classOf(p: BipPort[Pre]): Class[Pre] = componentToClass(portToComponent(p))
   def classOf(g: BipGuard[Pre]): Class[Pre] = guardToClass(g)
-  def classOf(p: Procedure[Pre]): Class[Pre] = procedureToClassComponent(p)._1
+  def classOf(p: BipConstructor[Pre]): Class[Pre] = constructorToClassComponent(p)._1
   def classOf(t: BipTransition[Pre]): Class[Pre] = transitionToClassComponent(t)._1
   def classOf(d: BipData[Pre]): Class[Pre] = dataToClassComponent(d)._1
-  def componentOf(p: Procedure[Pre]): BipComponent[Pre] = procedureToClassComponent(p)._2
+  def componentOf(p: BipConstructor[Pre]): BipComponent[Pre] = constructorToClassComponent(p)._2
   def componentOf(t: BipTransition[Pre]): BipComponent[Pre] = transitionToClassComponent(t)._2
   def componentOf(d: BipData[Pre]): BipComponent[Pre] = dataToClassComponent(d)._2
-  def isComponentConstructor(p: Procedure[Pre]): Boolean = procedureToClassComponent.contains(p)
 
   val guardSucc: SuccessionMap[BipGuard[Pre], InstanceMethod[Post]] = SuccessionMap()
   val transitionSucc: SuccessionMap[BipTransition[Pre], InstanceMethod[Post]] = SuccessionMap()
   val outgoingDataSucc: SuccessionMap[BipOutgoingData[Pre], InstanceMethod[Post]] = SuccessionMap()
   val synchronizationSucc: SuccessionMap[BipTransitionSynchronization[Pre], Procedure[Post]] = SuccessionMap()
+  val constructorSucc: SuccessionMap[BipConstructor[Pre], Procedure[Post]] = SuccessionMap()
 
   // References to incoming datas can be translated in two ways:
   sealed trait IncomingDataContext
@@ -230,9 +230,9 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-    case thisObj: ThisObject[Pre] => replaceThis.topOption match {
-      case Some((otherThis, res)) if thisObj == otherThis => res
-      case Some(_) | None => thisObj.rewrite()
+    case t @ ThisObject(_) => currentThis.topOption match {
+      case Some(res) => res
+      case _ => t.rewrite()
     }
 
     case l @ BipLocalIncomingData(Ref(data)) => incomingDataContext.top match {
@@ -306,28 +306,49 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         rewriteDefault(cls)
       }
 
-    case proc: Procedure[Pre] if isComponentConstructor(proc) =>
-      val component = componentOf(proc)
+    case constructor: BipConstructor[Pre] =>
+      val component = componentOf(constructor)
       results.declare(component)
       implicit val o = DiagnosticOrigin
+      val t = TClass(succ[Class[Post]](classOf(constructor)))
       rewritingBipConstructorBody.having(component) {
         withResult { res: Result[Post] =>
-          val subst = (ThisObject[Pre](classOf(proc).ref)(DiagnosticOrigin), res)
-          val contract = proc.contract.rewrite(
-            ensures =
+          val ensures =
             // Establish component invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) {
+            SplitAccountedPredicate(UnitAccountedPredicate(currentThis.having(res) {
               dispatch(component.invariant)
             }),
             // Establish state invariant
-            SplitAccountedPredicate(UnitAccountedPredicate(replaceThis.having(subst) {
+            UnitAccountedPredicate(currentThis.having(res) {
               dispatch(component.initial.decl.expr)
-            }),
-            // Also include everything that was generated extra for the constructor
-            dispatch(proc.contract.ensures)))
+            }))
+
+          constructorSucc(constructor) = globalDeclarations.declare(
+            new Procedure[Post](
+              returnType = t,
+              args = variables.collect { constructor.args.map(dispatch) }._1,
+              outArgs = Nil, typeArgs = Nil,
+              body = {
+                val resVar = new Variable[Post](t)
+                val res = Local[Post](resVar.ref)
+                currentThis.having(res) {
+                  Some(Scope(Seq(resVar), Block(Seq(
+                    assignLocal(res, NewObject(ref)),
+                    fieldInit(res),
+                    sharedInit(res),
+                    dispatch(constructor.body),
+                    Return(res),
+                  ))))
+                }
+              }
+              ???,
+              ???,
+              ???
+            )(ConstructorPostconditionFailed(results, component, constructor))
           )
-          globalDeclarations.succeed(proc,
-            proc.rewrite(contract = contract, blame = ConstructorPostconditionFailed(results, component, proc)))
+//          globalDeclarations.succeed(proc,
+//            proc.rewrite(contract = contract,
+//              blame = ConstructorPostconditionFailed(results, component, proc)))
         }
       }
 
@@ -399,7 +420,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       val preconditionComponents: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
         val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
-        replaceThis.having(clsThisSubst) {
+        currentThis.having(clsThisSubst) {
           (varOf(transition) !== Null()) &**
             dispatch(componentOf(transition).invariant) &**
             dispatch(transition.source.decl.expr)
@@ -416,7 +437,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
 
       val preconditionGuards: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
         val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
-        replaceThis.having(clsThisSubst) {
+        currentThis.having(clsThisSubst) {
           incomingDataContext.having(RewriteToOutgoingDataContext(incomingDataTranslation)) {
             dispatch(transition.guard)
           }
@@ -447,7 +468,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
         val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
         incomingDataContext.having(RewriteToVariableContext(incomingDataToVariableContext)) {
-          val componentStateGuardExhale = Exhale(replaceThis.having(clsThisSubst) { foldStar(
+          val componentStateGuardExhale = Exhale(currentThis.having(clsThisSubst) { foldStar(
             Seq(dispatch(componentOf(transition).invariant), dispatch(transition.source.decl.expr)) :+
                 dispatch(transition.guard)
           )})(PanicBlame("Component invariant, state invariant, and transition guard should hold"))
@@ -469,7 +490,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
              We don't have to split up the component, state, guard, any further, because those are always implied
              by the precondition of the synchron.
            */
-          val preconditionExhale = Exhale(replaceThis.having(clsThisSubst) {
+          val preconditionExhale = Exhale(currentThis.having(clsThisSubst) {
                 dispatch(transition.requires)
             })(ExhalingTransitionPreconditionFailed(results, synchronization, transition))
 
@@ -486,7 +507,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       val inhales: Seq[Inhale[Post]] = synchronization.transitions.map { case Ref(transition) =>
         val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
-        Inhale(replaceThis.having(clsThisSubst) {
+        Inhale(currentThis.having(clsThisSubst) {
           dispatch(componentOf(transition).invariant) &**
             dispatch(transition.target.decl.expr) &**
             dispatch(transition.ensures)
@@ -502,7 +523,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
       val postcondition: Expr[Post] = foldStar(synchronization.transitions.map { case Ref(transition) =>
         val clsThisSubst = (ThisObject[Pre](classOf(transition).ref)(DiagnosticOrigin), varOf(transition))
 
-        replaceThis.having(clsThisSubst) {
+        currentThis.having(clsThisSubst) {
           dispatch(componentOf(transition).invariant) &**
           dispatch(transition.target.decl.expr)
         }

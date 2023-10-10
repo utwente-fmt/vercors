@@ -229,30 +229,36 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     declsDefault.foreach {
       case cons: JavaConstructor[Pre] =>
-        val results = currentJavaClass.top.modifiers.collect {
-          case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) =>
-            rw.bip.rewriteConstructor(cons, annotation, component)
-        }
-        if (results.nonEmpty) return
-
         logger.debug(s"Constructor for ${cons.o.context}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
+
+        // Encode java semantics of class initialization here; bip semantics might be encoded in a later phase.
+        def generateBody(body: Statement[Pre]): Statement[Post] = {
+          rw.currentThis.having(res) { Scope(Seq(resVar), Block(Seq(
+            assignLocal(res, NewObject(ref)),
+            fieldInit(res),
+            sharedInit(res),
+            rw.dispatch(body),
+            Return(res),
+          ))) }
+        }
+
+        val results = currentJavaClass.top.modifiers.collect {
+          case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) =>
+            rw.bip.rewriteConstructor(cons, annotation, component, generateBody)
+        }
+        if (results.nonEmpty) return
+
         rw.labelDecls.scope {
           javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
             new Procedure(
               returnType = t,
               args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
               outArgs = Nil, typeArgs = Nil,
-              body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
-                assignLocal(res, NewObject(ref)),
-                fieldInit(res),
-                sharedInit(res),
-                rw.dispatch(cons.body),
-                Return(res),
-              )))) },
+              body = Some(generateBody(cons.body)),
               contract = rw.currentThis.having(result) { cons.contract.rewrite(
                 ensures = SplitAccountedPredicate(
                   left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),

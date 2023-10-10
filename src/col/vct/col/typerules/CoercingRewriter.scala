@@ -1748,7 +1748,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
       case seqProg: VeyMontSeqProg[Pre] => seqProg
       case thread: VeyMontThread[Pre] => thread
-      case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body)(bc.blame)
+      case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>
