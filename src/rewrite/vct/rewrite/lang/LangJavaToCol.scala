@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, JavaConstructorPostconditionFailed, Origin, PanicBlame, PostBlameSplit, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, JavaConstructorPostconditionFailed, Origin, PanicBlame, PostBlameSplit, PostconditionFailed, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.rewrite.{Generation, Rewritten}
@@ -268,7 +268,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       case method: JavaMethod[Pre] =>
         // For each javabip annotation that we encounter, execute a rewrite
         val results = method.modifiers.collect {
-          case annotation @ JavaAnnotationEx(_, _, guard @ JavaAnnotationData.BipGuard(_)) =>
+          case annotation @ JavaAnnotationEx(_, _, guard: JavaAnnotationData.BipGuard[Pre]) =>
             rw.bip.rewriteGuard(method, annotation, guard)
           case annotation @ JavaAnnotationEx(_, _, transition : JavaAnnotationData.BipTransition[Pre]) =>
             rw.bip.rewriteTransition(method, annotation, transition)
