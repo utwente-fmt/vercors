@@ -175,12 +175,13 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def rewriteConstructor(constructor: JavaConstructor[Pre], annotation: JavaAnnotation[Pre], data: jad.BipComponent[Pre]): Unit = {
-    if (constructor.contract.nonEmpty) {
-      throw ImproperConstructor(constructor, "Non-trivial contract is not allowed on JavaBIP component constructors")
+    implicit val o: Origin = constructor.o
+    val contractWithoutRequires = constructor.contract.copy(requires = UnitAccountedPredicate(tt))()
+    if (contractWithoutRequires.nonEmpty) {
+      throw ImproperConstructor(constructor, "Only precondition is allowed on JavaBIP component constructors")
     }
 
     logger.debug(s"JavaBIP component constructor for ${constructor.o.context}")
-    implicit val o: Origin = constructor.o
     rw.labelDecls.scope {
       rw.classDeclarations.declare(
         new BipConstructor(

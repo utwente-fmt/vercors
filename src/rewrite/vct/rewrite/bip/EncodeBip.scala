@@ -50,25 +50,25 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], proc: Procedure[_]) extends Blame[CallableFailure] {
+  case class ConstructorPostconditionFailed(results: VerificationResults, component: BipComponent[_], constructor: BipConstructor[_]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
       case cf: ContractedFailure => cf match {
         case PostconditionFailed(Seq(FailLeft), failure, _) => // Failed establishing component invariant
           results.report(component, ComponentInvariantNotMaintained)
-          proc.blame.blame(BipComponentInvariantNotEstablished(failure, proc))
+          constructor.blame.blame(BipComponentInvariantNotEstablished(failure, constructor))
         case PostconditionFailed(Seq(FailRight, FailLeft), failure, _) => // Failed establishing state invariant
           results.report(component, StateInvariantNotMaintained)
-          proc.blame.blame(BipStateInvariantNotEstablished(failure, proc))
-        case PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
+          constructor.blame.blame(BipStateInvariantNotEstablished(failure, constructor))
+        case ctx@PostconditionFailed(FailRight +: FailRight +: path, failure, node) => // Failed postcondition
           results.report(component, PostconditionNotVerified)
-          proc.blame.blame(PostconditionFailed(path, failure, node))
+          PanicBlame("BIP constructor should not have non-trivial post-condition").blame(ctx)
         case PostconditionFailed(_, _, _) =>
           throw BlamePathError
-        case ctx: TerminationMeasureFailed => proc.blame.blame(ctx)
-        case ctx: ContextEverywhereFailedInPost => proc.blame.blame(ctx)
+        case ctx: TerminationMeasureFailed => PanicBlame("BIP constructor should not do termination checking").blame(ctx)
+        case ctx: ContextEverywhereFailedInPost => PanicBlame("BIP constructor should not have context everywhere clauses").blame(ctx)
       }
-      case ctx: SignalsFailed => proc.blame.blame(ctx)
-      case ctx: ExceptionNotInSignals => proc.blame.blame(ctx)
+      case ctx: SignalsFailed => PanicBlame("BIP constructor should not have signals").blame(ctx)
+      case ctx: ExceptionNotInSignals => PanicBlame("BIP constructor should not have signals").blame(ctx)
     }
   }
 

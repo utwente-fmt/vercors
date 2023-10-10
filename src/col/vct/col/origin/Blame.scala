@@ -208,7 +208,7 @@ case class ContextEverywhereFailedInPre(failure: ContractFailure, node: Invoking
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 
-sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
+sealed trait CallableFailure extends ConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
@@ -622,6 +622,12 @@ sealed trait JavaAnnotationFailure extends VerificationFailure
 sealed trait JavaConstructorFailure extends VerificationFailure
 sealed trait JavaImplicitConstructorFailure extends VerificationFailure
 
+case class JavaConstructorPostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends JavaConstructorFailure with WithContractFailure {
+  override def baseCode: String = "javaConstructorPostFailed"
+  override def descInContext: String = "The postcondition of this constructor may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
+}
+
 sealed trait BipConstructorFailure extends JavaConstructorFailure
 sealed trait BipTransitionFailure extends JavaAnnotationFailure
 
@@ -640,13 +646,13 @@ sealed trait BipTransitionContractFailure extends BipTransitionFailure with With
     ))
 }
 
-case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: Procedure[_]) extends BipConstructorFailure with WithContractFailure {
+case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: BipConstructor[_]) extends BipConstructorFailure with WithContractFailure {
   override def baseCode: String = "bipComponentInvariantNotEstablished"
   override def descInContext: String = "In this constructor the component invariant is not established, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant cannot be established in $node, since $failure"
 }
 
-case class BipStateInvariantNotEstablished(failure: ContractFailure, node: Procedure[_]) extends BipConstructorFailure with WithContractFailure {
+case class BipStateInvariantNotEstablished(failure: ContractFailure, node: BipConstructor[_]) extends BipConstructorFailure with WithContractFailure {
   override def baseCode: String = "bipStateInvariantNotEstablished"
   override def descInContext: String = "In this constructor the invariant of the state is not established, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The state invariant is not established in $node, since $failure"

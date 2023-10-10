@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, JavaConstructorPostconditionFailed, Origin, PanicBlame, PostBlameSplit, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.rewrite.{Generation, Rewritten}
@@ -12,6 +12,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
 import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.origin
 import vct.col.resolve.lang.{Java, JavaAnnotationData}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipTransition}
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -90,6 +91,18 @@ case object LangJavaToCol {
   case class NotSupportedInJavaLangStringClass(decl: ClassDeclaration[_]) extends UserError {
     override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
     override def text: String = "notSupportedInStringClass"
+  }
+
+  case class TransformCallableError(constructor: JavaConstructor[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case failure: ContractedFailure => failure match {
+        case PostconditionFailed(path, failure, node) => JavaConstructorPostconditionFailed(path, failure, node)
+        case TerminationMeasureFailed(applicable, apply, measure) => ??? // JavaConstructorTerminationMeasureFailed(applicable, apply, measure)
+        case ContextEverywhereFailedInPost(failure, node) => ???
+      }
+      case SignalsFailed(failure, node) => ???
+      case ExceptionNotInSignals(node) => ???
+    }
   }
 }
 
@@ -248,7 +261,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 signals = cons.contract.signals.map(rw.dispatch) ++
                   cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
               ) },
-            )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
+            )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."),
+                TransformCallableError(cons)))(JavaConstructorOrigin(cons))
           ))
         }
       case method: JavaMethod[Pre] =>
