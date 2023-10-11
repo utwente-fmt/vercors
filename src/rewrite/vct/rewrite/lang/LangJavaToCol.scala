@@ -224,7 +224,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val res = Local[Post](resVar.ref)
 
         val results = currentJavaClass.top.modifiers.collect {
-          case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) =>
+          case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) if !isStaticPart =>
             rw.bip.rewriteConstructor(cons, annotation, component, diz => Block[Post](Seq(fieldInit(diz), sharedInit(diz))))
         }
         if (results.isEmpty) { // We didn't execute the bip rewrite, so we do the normal one
