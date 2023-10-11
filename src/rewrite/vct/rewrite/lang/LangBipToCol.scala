@@ -3,7 +3,7 @@ package vct.col.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.lang.LangBipToCol._
-import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame, SourceNameOrigin}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipConstructorFailure, BipStateInvariantNotEstablished, Blame, DiagnosticOrigin, NontrivialUnsatisfiable, Origin, PanicBlame, SourceNameOrigin}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.resolve.lang.{JavaAnnotationData => jad}
@@ -78,12 +78,20 @@ case object LangBipToCol {
     override def shortPosition: String = data.o.shortPosition
   }
 
-  case class BipConstructorOrigin(cls: JavaClass[_], c: JavaConstructor[_]) extends Origin {
+  case class BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]) extends Origin {
     override def preferredName: String = s"${cls.o.preferredName}_constructor"
 
     override def context: String = c.o.context
     override def inlineContext: String = c.o.inlineContext
     override def shortPosition: String = c.o.shortPosition
+  }
+
+  case class UntangleBipConstructorFailure(constructor: JavaConstructor[_]) extends Blame[BipConstructorFailure] {
+    override def blame(error: BipConstructorFailure): Unit = error match {
+      case err: NontrivialUnsatisfiable => constructor.contract.blame.blame(err)
+      case err: BipComponentInvariantNotEstablished => constructor.blame.blame(err)
+      case err: BipStateInvariantNotEstablished => constructor.blame.blame(err)
+    }
   }
 }
 
@@ -192,7 +200,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
               generateInit(rw.currentThis.top),
               rw.dispatch(constructor.body))),
             requires = foldStar(rw.dispatch(constructor.contract.requires))
-          )(constructor.blame /* TODO: Account for extra postcondition */)(BipConstructorOrigin(rw.java.currentJavaClass.top.asInstanceOf, constructor))
+          )(UntangleBipConstructorFailure(constructor))(BipConstructorOrigin(rw.java.currentJavaClass.top, constructor))
         )
       }
     }

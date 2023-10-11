@@ -227,34 +227,31 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) =>
             rw.bip.rewriteConstructor(cons, annotation, component, diz => Block[Post](Seq(fieldInit(diz), sharedInit(diz))))
         }
-        if (results.nonEmpty) return
-
-        rw.labelDecls.scope {
-          javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
-            new Procedure(
-              returnType = t,
-              args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
-              outArgs = Nil, typeArgs = Nil,
-              body = Some(rw.currentThis.having(res) {
-                Scope(Seq(resVar), Block(Seq(
+        if (results.isEmpty) { // We didn't execute the bip rewrite, so we do the normal one
+          rw.labelDecls.scope {
+            javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
+              new Procedure(
+                returnType = t,
+                args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
+                outArgs = Nil, typeArgs = Nil,
+                body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
                   assignLocal(res, NewObject(ref)),
                   fieldInit(res),
                   sharedInit(res),
                   rw.dispatch(cons.body),
                   Return(res),
-                )))
-              }),
-              contract = rw.currentThis.having(result) { cons.contract.rewrite(
-                ensures = SplitAccountedPredicate(
-                  left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-                  right = rw.dispatch(cons.contract.ensures),
-                ),
-                signals = cons.contract.signals.map(rw.dispatch) ++
-                  cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-              ) },
-            )(PostBlameSplit.left[CallableFailure](PanicBlame("Constructor cannot return null value or value of wrong type."),
-                cons.blame))(JavaConstructorOrigin(cons))
-          ))
+                )))) },
+                contract = rw.currentThis.having(result) { cons.contract.rewrite(
+                  ensures = SplitAccountedPredicate(
+                    left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
+                    right = rw.dispatch(cons.contract.ensures),
+                  ),
+                  signals = cons.contract.signals.map(rw.dispatch) ++
+                    cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+                ) },
+              )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
+            ))
+          }
         }
       case method: JavaMethod[Pre] =>
         // For each javabip annotation that we encounter, execute a rewrite
