@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, JavaConstructorPostconditionFailed, Origin, PanicBlame, PostBlameSplit, PostconditionFailed, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, PostconditionFailed, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.rewrite.{Generation, Rewritten}
@@ -91,18 +91,6 @@ case object LangJavaToCol {
   case class NotSupportedInJavaLangStringClass(decl: ClassDeclaration[_]) extends UserError {
     override def code: String = decl.o.messageInContext("This declaration is not supported in the java.lang.String class")
     override def text: String = "notSupportedInStringClass"
-  }
-
-  case class TransformCallableError(constructor: JavaConstructor[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case failure: ContractedFailure => failure match {
-        case PostconditionFailed(path, failure, node) => JavaConstructorPostconditionFailed(path, failure, node)
-        case TerminationMeasureFailed(applicable, apply, measure) => ??? // JavaConstructorTerminationMeasureFailed(applicable, apply, measure)
-        case ContextEverywhereFailedInPost(failure, node) => ???
-      }
-      case SignalsFailed(failure, node) => ???
-      case ExceptionNotInSignals(node) => ???
-    }
   }
 }
 
@@ -235,20 +223,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
 
-        // Encode java semantics of class initialization here; bip semantics might be encoded in a later phase.
-        def generateBody(body: Statement[Pre]): Statement[Post] = {
-          rw.currentThis.having(res) { Scope(Seq(resVar), Block(Seq(
-            assignLocal(res, NewObject(ref)),
-            fieldInit(res),
-            sharedInit(res),
-            rw.dispatch(body),
-            Return(res),
-          ))) }
-        }
-
         val results = currentJavaClass.top.modifiers.collect {
           case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) =>
-            rw.bip.rewriteConstructor(cons, annotation, component, generateBody)
+            rw.bip.rewriteConstructor(cons, annotation, component, diz => Block[Post](Seq(fieldInit(diz), sharedInit(diz))))
         }
         if (results.nonEmpty) return
 
@@ -258,7 +235,15 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
               returnType = t,
               args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
               outArgs = Nil, typeArgs = Nil,
-              body = Some(generateBody(cons.body)),
+              body = Some(rw.currentThis.having(res) {
+                Scope(Seq(resVar), Block(Seq(
+                  assignLocal(res, NewObject(ref)),
+                  fieldInit(res),
+                  sharedInit(res),
+                  rw.dispatch(cons.body),
+                  Return(res),
+                )))
+              }),
               contract = rw.currentThis.having(result) { cons.contract.rewrite(
                 ensures = SplitAccountedPredicate(
                   left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
@@ -267,8 +252,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
                 signals = cons.contract.signals.map(rw.dispatch) ++
                   cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
               ) },
-            )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."),
-                TransformCallableError(cons)))(JavaConstructorOrigin(cons))
+            )(PostBlameSplit.left[CallableFailure](PanicBlame("Constructor cannot return null value or value of wrong type."),
+                cons.blame))(JavaConstructorOrigin(cons))
           ))
         }
       case method: JavaMethod[Pre] =>

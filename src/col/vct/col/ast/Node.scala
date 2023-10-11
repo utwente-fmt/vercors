@@ -1134,7 +1134,7 @@ final class BipTransition[G](val signature: BipTransitionSignature[G],
 final class BipGuard[G](val data: Seq[Ref[G, BipIncomingData[G]]], val body: Statement[G], val pure: Boolean)(val blame: Blame[BipGuardPreconditionUnsatisfiable])(implicit val o: Origin) extends ClassDeclaration[G] with BipGuardImpl[G]
 final case class BipGuardInvocation[G](obj: Expr[G], guard: Ref[G, BipGuard[G]])(implicit val o: Origin) extends Expr[G] with BipGuardInvocationImpl[G]
 final class BipComponent[G](val fqn: Seq[String], val invariant: Expr[G], val initial: Ref[G, BipStatePredicate[G]])(implicit val o: Origin) extends ClassDeclaration[G] with BipComponentImpl[G]
-final class BipConstructor[G](val args: Seq[Variable[G]], val body: Statement[G], val contract: ApplicableContract[G])(val blame: Blame[BipConstructorFailure])(implicit val o: Origin) extends ClassDeclaration[G]
+final class BipConstructor[G](val args: Seq[Variable[G]], val body: Statement[G], val requires: Expr[G])(val blame: Blame[BipConstructorFailure])(implicit val o: Origin) extends ClassDeclaration[G] with BipConstructorImpl[G]
 
 final class BipPort[G](val t: BipPortType[G])(implicit val o: Origin) extends ClassDeclaration[G] with BipPortImpl[G]
 sealed trait BipPortType[G] extends NodeFamily[G]

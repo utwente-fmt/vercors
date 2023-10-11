@@ -174,7 +174,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     BipLocalIncomingData(javaParamSucc.ref[Post, BipIncomingData[Post]](decl))(local.o)
   }
 
-  def rewriteConstructor(constructor: JavaConstructor[Pre], annotation: JavaAnnotation[Pre], data: jad.BipComponent[Pre], generateBody: Statement[Pre] => Statement[Post]): Unit = {
+  def rewriteConstructor(constructor: JavaConstructor[Pre], annotation: JavaAnnotation[Pre], data: jad.BipComponent[Pre], generateInit: Expr[Post] => Statement[Post]): Unit = {
     implicit val o: Origin = constructor.o
     val contractWithoutRequires = constructor.contract.copy(requires = UnitAccountedPredicate[Pre](tt))(
       blame = constructor.contract.blame)(o = constructor.o)
@@ -183,17 +183,18 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
 
     logger.debug(s"JavaBIP component constructor for ${constructor.o.context}")
-    rw.labelDecls.scope {
-      rw.classDeclarations.declare(withResult((result: Result[Post]]) =>
-        val t = TClass(rw.java.javaInstanceClassSuccessor.ref(rw.java.currentJavaClass.top))
-        new BipConstructor(
-          args = rw.variables.collect { constructor.parameters.map(rw.dispatch) }._1,
-          body = generateBody(constructor.body),
-          contract = rw.currentThis.having(result) { constructor.contract.rewrite(
-            ensures = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t)))
-          ) }
-        )(constructor.blame /* TODO: Account for extra postcondition */)(BipConstructorOrigin(rw.java.currentJavaClass.top.asInstanceOf, constructor))
-      ))
+    rw.currentThis.having(ThisObject(rw.java.javaInstanceClassSuccessor.ref(rw.java.currentJavaClass.top))) {
+      rw.labelDecls.scope {
+        rw.classDeclarations.declare(
+          new BipConstructor(
+            args = rw.variables.collect { constructor.parameters.map(rw.dispatch) }._1,
+            body = Block(Seq(
+              generateInit(rw.currentThis.top),
+              rw.dispatch(constructor.body))),
+            requires = foldStar(rw.dispatch(constructor.contract.requires))
+          )(constructor.blame /* TODO: Account for extra postcondition */)(BipConstructorOrigin(rw.java.currentJavaClass.top.asInstanceOf, constructor))
+        )
+      }
     }
   }
 

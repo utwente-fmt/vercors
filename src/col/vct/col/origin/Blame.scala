@@ -208,7 +208,7 @@ case class ContextEverywhereFailedInPre(failure: ContractFailure, node: Invoking
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 
-sealed trait CallableFailure extends ConstructorFailure
+sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
@@ -594,7 +594,7 @@ case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
   override def inlineDescWithSource(source: String): String = s"The scale in `$source` may be negative."
 }
 
-case class NontrivialUnsatisfiable(node: ApplicableContract[_]) extends NodeVerificationFailure {
+case class NontrivialUnsatisfiable(node: ApplicableContract[_]) extends NodeVerificationFailure with BipConstructorFailure {
   override def code: String = "unsatisfiable"
   override def descInContext: String = "The precondition of this contract may be unsatisfiable. If this is intentional, replace it with `requires false`."
   override def inlineDescWithSource(source: String): String =
@@ -621,12 +621,6 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
 sealed trait JavaAnnotationFailure extends VerificationFailure
 sealed trait JavaConstructorFailure extends VerificationFailure
 sealed trait JavaImplicitConstructorFailure extends VerificationFailure
-
-case class JavaConstructorPostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends JavaConstructorFailure with WithContractFailure {
-  override def baseCode: String = "javaConstructorPostFailed"
-  override def descInContext: String = "The postcondition of this constructor may not hold, since"
-  override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
-}
 
 sealed trait BipConstructorFailure extends JavaConstructorFailure
 sealed trait BipTransitionFailure extends JavaAnnotationFailure
