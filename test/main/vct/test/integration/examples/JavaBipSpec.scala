@@ -17,6 +17,9 @@ class JavaBipSpec extends JavaBipSpecHelper {
     "concepts/javabip/casinoBroken/Casino.java",
     "concepts/javabip/casinoBroken/Operator.java",
   )
+  /*
+    concepts/javabip/casinoBroken/Main.java concepts/javabip/casinoBroken/Constants.java concepts/javabip/casinoBroken/Player.java concepts/javabip/casinoBroken/Casino.java concepts/javabip/casinoBroken/Operator.java
+  * */
 
   passingTest("concepts/javabip/casinoAdjusted/casinoAdjusted.json",
     "concepts/javabip/casinoAdjusted/Main.java",
