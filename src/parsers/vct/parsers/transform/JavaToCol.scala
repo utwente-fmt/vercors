@@ -138,7 +138,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit pair: ElementValuePairContext): Option[(String, Expr[G])] = pair match {
     case ElementValuePair0(name, _, ElementValue0(expr)) =>
-      logger.warn(s"Annotation array initializer at ${OriginProvider(pair).getShortPosition.get.shortPosition} is discarded")
+      logger.warn(s"Annotation array initializer at ${OriginProvider(pair).getShortPositionOrElse()} is discarded")
       None
     case ElementValuePair0(name, _, ElementValue1(expr)) => Some((convert(name), convert(expr)))
     case x => ??(x)

@@ -64,7 +64,7 @@ case object InlineApplicables extends RewriterBuilder {
   private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin = Origin(
     Seq(
       PreferredName(definition.getPreferredNameOrElse()),
-      ShortPosition(usages.head.o.getShortPosition.get.shortPosition),
+      ShortPosition(usages.head.o.getShortPositionOrElse()),
       Context(usages.map(_.o.getContext.get.context).mkString(
           start = " Inlined from:\n" + Origin.HR,
           sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
@@ -72,8 +72,8 @@ case object InlineApplicables extends RewriterBuilder {
         ) + Origin.HR +
           " In definition:\n" + Origin.HR +
           definition.getContext.get.context),
-      InlineContext(s"${definition.getInlineContext.get.inlineContext} [inlined from] " +
-        s"${usages.head.o.getInlineContext.get.inlineContext}")
+      InlineContext(s"${definition.getInlineContextOrElse()} [inlined from] " +
+        s"${usages.head.o.getInlineContextOrElse()}")
     )
   )
 

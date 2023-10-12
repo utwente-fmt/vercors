@@ -142,6 +142,10 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
+  def getInlineContextOrElse(ctx: String = "[unkonwn inline context]"): String = {
+    getInlineContext.getOrElse(InlineContext(ctx)).inlineContext
+  }
+
   def getInlineBipContext: Option[InlineBipContext] = {
     originContents.flatMap {
       case InlineBipContext(any) => Seq(InlineBipContext(any))
@@ -170,6 +174,10 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case Seq(ShortPosition(any)) => Some(ShortPosition(any))
       case _ => None
     }
+  }
+
+  def getShortPositionOrElse(shortPos: String = "[unknown position]"): String = {
+    getShortPosition.getOrElse(ShortPosition(shortPos)).shortPosition
   }
 
   def getStartEndLines: Option[StartEndLines] = {

@@ -186,7 +186,7 @@ case class Silicon(
         report.e match {
           case Right(e) =>
             val o = e.o
-            logger.info(s"${o.getShortPosition.get.shortPosition}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+            logger.info(s"${o.getShortPositionOrElse()}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
           case Left(n) =>
             logger.info(s"$n: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
         }
