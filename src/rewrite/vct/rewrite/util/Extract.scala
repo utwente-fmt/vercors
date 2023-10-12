@@ -13,12 +13,14 @@ import scala.collection.mutable
  * Substitute fresh variables for values that are free under a node (or nodes)
  */
 case object Extract {
-  case class ExtractOrigin(name: String) extends Origin {
-    override def preferredName: String = name
-    override def shortPosition: String = "generated"
-    override def context: String = "[At extracted expression]"
-    override def inlineContext: String = "[Extracted expression]"
-  }
+  private def ExtractOrigin(name: String): Origin = Origin(
+    Seq(
+      PreferredName(name),
+      ShortPosition("generated"),
+      Context("[At extracted expression]"),
+      InlineContext("[Extracted expression]"),
+    )
+  )
 
   /**
    * Note: expressions must be free of assignments to locals (not necessarily all side effects), and type variables.

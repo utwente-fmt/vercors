@@ -3,7 +3,7 @@ package vct.col.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{AssertFailed, Blame, FoldFailed, Origin, UnfoldFailed}
+import vct.col.origin.{AssertFailed, Blame, Context, FoldFailed, InlineContext, Origin, PreferredName, ShortPosition, UnfoldFailed}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
@@ -61,27 +61,30 @@ case object InlineApplicables extends RewriterBuilder {
     }
   }
 
-  case class InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]) extends Origin {
-    override def preferredName: String = definition.preferredName
-    override def shortPosition: String = usages.head.o.shortPosition
-    override def context: String =
-      usages.map(_.o.context).mkString(
-        start = " Inlined from:\n" + Origin.HR,
-        sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
-        end = "",
-      ) + Origin.HR +
-        " In definition:\n" + Origin.HR +
-        definition.context
+  private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin = Origin(
+    Seq(
+      PreferredName(definition.getPreferredNameOrElse()),
+      ShortPosition(usages.head.o.getShortPositionOrElse()),
+      Context(usages.map(_.o.getContext.getOrElse(Context("[unknown context]")).context).mkString(
+          start = " Inlined from:\n" + Origin.HR,
+          sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
+          end = "",
+        ) + Origin.HR +
+          " In definition:\n" + Origin.HR +
+          definition.getContext.getOrElse(Context("[unknown context]")).context),
+      InlineContext(s"${definition.getInlineContextOrElse()} [inlined from] " +
+        s"${usages.head.o.getInlineContextOrElse()}")
+    )
+  )
 
-    override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
-  }
-
-  case object InlineLetThisOrigin extends Origin {
-    override def preferredName: String = "self"
-    override def context: String = "[At let binding for `this`]"
-    override def inlineContext: String = "[Let binding for `this`]"
-    override def shortPosition: String = "generated"
-  }
+  private def InlineLetThisOrigin(): Origin = Origin(
+    Seq(
+      PreferredName("self"),
+      Context("[At let binding for `this`]"),
+      InlineContext("[Let binding for `this`"),
+      ShortPosition("generated")
+    )
+  )
 
   case class InlineFoldAssertFailed(fold: Fold[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =

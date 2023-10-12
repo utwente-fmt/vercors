@@ -51,7 +51,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteParam(cppParam: CPPParam[Pre]): Unit = {
     cppParam.drop()
-    val varO = InterpretedOriginVariable(CPP.getDeclaratorInfo(cppParam.declarator).name, cppParam.o)
+    val varO = cppParam.o.replacePrefName(CPP.getDeclaratorInfo(cppParam.declarator).name)
 
     val v = new Variable[Post](cppParam.specifiers.collectFirst
       { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get)(varO)
@@ -76,7 +76,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         (func.contract, Map.empty)
     }
 
-    val namedO = InterpretedOriginVariable(CPP.getDeclaratorInfo(func.declarator).name, func.o)
+    val namedO = func.o.replacePrefName(CPP.getDeclaratorInfo(func.declarator).name)
     val proc =
       cppCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
@@ -145,7 +145,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val init = decl.decl.inits.head
 
     val info = CPP.getDeclaratorInfo(init.decl)
-    val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+    val varO: Origin = init.o.replacePrefName(info.name)
     t match {
       case cta @ CPPTArray(Some(size), t) =>
         if (init.init.isDefined) throw WrongCPPType(decl)

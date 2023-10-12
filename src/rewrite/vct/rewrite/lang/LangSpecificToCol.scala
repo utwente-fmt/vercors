@@ -17,12 +17,14 @@ case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
-  case object ThisVar extends Origin {
-    override def preferredName: String = "this"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to store the this value for constructors]"
-    override def inlineContext: String = "this"
-  }
+  def ThisVar(): Origin = Origin(
+    Seq(
+      PreferredName("this"),
+      ShortPosition("generated"),
+      Context("[At node generated to store this value for constructors]"),
+      InlineContext("this"),
+    )
+  )
 
   case class NotAValue(value: Expr[_]) extends UserError {
     override def code: String = "notAValue"

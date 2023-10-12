@@ -28,13 +28,14 @@ case class UntupledQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
         bindingValue.having(Map(bindings.head -> ff)) { expand(bindings.tail, builder, joiner, initBindings) },
         bindingValue.having(Map(bindings.head -> tt)) { expand(bindings.tail, builder, joiner, initBindings) },
       )
-
       case TTuple(preTs) =>
         val ts = preTs.map(dispatch)
-        val vs = ts.zipWithIndex.map { case (t, i) => new Variable[Post](t)(bindings.head.o match {
-          case TupledQuantifiers.CollectedBindingsOrigin(vs, _) => vs(i).o
+        val vs = ts.zipWithIndex.map { case (t, i) => new Variable[Post](t)(bindings.head.o.originContents.collectFirst{
+          case TupledQuantifiers.CollectedBindingsOrigin(vs) => vs(i).o
           case _ => o
-        }) }
+          }.get
+        )
+        }
         val value = LiteralTuple[Post](ts, vs.map(_.get))
         bindingValue.having(Map(bindings.head -> value)) { expand(bindings.tail, builder, joiner, initBindings ++ vs) }
 

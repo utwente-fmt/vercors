@@ -1,6 +1,5 @@
 package vct.col.ast
 
-
 import hre.data.BitString
 import vct.col.ast.`type`._
 import vct.col.ast.`type`.typeclass._
