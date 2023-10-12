@@ -187,15 +187,19 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
- | 'communicate' participant direction participant ';' # communicate
+ | 'communicate' access direction access ';' # pvlCommunicate
  ;
 
-participant: identifier communicateRange? '.' identifier ;
-communicateRange: '[' identifier ':' expr '..' expr ']' ;
 direction
  : '<-'
  | '->'
  ;
+
+access: subject '.' identifier;
+subject:
+ : identifier
+ | identifier '[' expr ']'
+ | identifier '[' identifier ':' expr '..' expr ']';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

@@ -354,6 +354,10 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
     case PvlLabel(_, label, _) => Label(new LabelDecl()(SourceNameOrigin(convert(label), origin(stat))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
+    case PvlCommunicate0(receiver, Direction0("<-"), sender) =>
+      PVLCommunicate(convert(sender), convert(receiver))
+    case PvlCommunicate0(sender, Direction1("->"), receiver) =>
+      PVLCommunicate(convert(sender), convert(receiver))
   }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =
@@ -375,6 +379,16 @@ case class PVLToCol[G](override val originProvider: OriginProvider, override val
         case "--" => PostAssignExpression[G](target, target - const(1))(blame(stat))
       })
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
+  }
+
+  def convert(implicit acc: AccessContext): PVLCommunicateAccess[G] = acc match {
+    case Access0(subject, _, field) => PVLCommunicateAccess(convert(acc), field)
+  }
+
+  def convert(implicit subject: SubjectContext): PVLCommunicateAccess[G] = subject match {
+    case Subject0(name) => PVLThreadName(name)
+    case Subject1(family, _, expr, _) => PVLIndexedFamilyName(family, expr)
+    case Subject2(family, _, binder, _, start, _, end, _) => PVLFamilyRange(family, binder, start, end)
   }
 
   def convert(implicit region: ParRegionContext): ParRegion[G] = region match {

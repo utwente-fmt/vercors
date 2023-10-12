@@ -445,6 +445,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
   override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: PVLCommunicator[Pre]): PVLCommunicator[Pre] = node
+  def postCoerce(node: PVLCommunicator[Pre]): PVLCommunicator[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLCommunicator[Pre]): PVLCommunicator[Post] = postCoerce(coerce(preCoerce(node)))
+
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
@@ -2099,4 +2103,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
+
+  def coerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
+  def coerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
 }
