@@ -68,12 +68,8 @@ case object LangBipToCol {
     }
   }
 
-  case class BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]) extends Origin {
-    override def preferredName: String = s"${cls.o.preferredName}_constructor"
-
-    override def context: String = c.o.context
-    override def inlineContext: String = c.o.inlineContext
-    override def shortPosition: String = c.o.shortPosition
+  private def BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]): Origin = {
+    c.o.replacePrefName(s"${cls.o.getPreferredNameOrElse("[unknown]")}_constructor")
   }
 
   case class UntangleBipConstructorFailure(constructor: JavaConstructor[_]) extends Blame[BipConstructorFailure] {
@@ -180,7 +176,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       throw ImproperConstructor(constructor, "Only precondition is allowed on JavaBIP component constructors")
     }
 
-    logger.debug(s"JavaBIP component constructor for ${constructor.o.context}")
+    logger.debug(s"JavaBIP component constructor for ${constructor.o.getInlineContextOrElse("[unknown context]")}")
     rw.currentThis.having(ThisObject(rw.java.javaInstanceClassSuccessor.ref(rw.java.currentJavaClass.top))) {
       rw.labelDecls.scope {
         rw.classDeclarations.declare(

@@ -2,21 +2,19 @@ package vct.col.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, Context, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, PostconditionFailed, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
+import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData}
+import vct.col.resolve.lang.{Java, JavaAnnotationData}
+import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import RewriteHelpers._
-import vct.col.ast.lang.JavaAnnotationEx
-import vct.col.origin
-import vct.col.resolve.lang.{Java, JavaAnnotationData}
-import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipTransition}
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
