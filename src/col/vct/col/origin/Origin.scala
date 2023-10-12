@@ -24,6 +24,9 @@ case object Origin {
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }
 
+/***
+ * This trait is used to box information about Origins in a structured manner.
+ */
 trait OriginContent
 
 case class PreferredName(preferredName: String) extends OriginContent
@@ -38,6 +41,10 @@ case class OriginCols(cols: Option[(Int, Int)]) extends OriginContent
 case class OriginFilename(filename: String) extends OriginContent
 case class InlineBipContext(bipContext: String) extends OriginContent
 
+/**
+ * A sequence of OriginContents. This sequence can be mutated (add, remove, replace) for convenience.
+* @param originContents The known origin contents at the time of Origin creation. Can be empty for a new Origin.
+ */
 case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
 
   def addPrefName(name: String): Origin = {
@@ -491,6 +498,7 @@ case object RedirectOrigin {
   }.get
 
 }
+
 
 
 
