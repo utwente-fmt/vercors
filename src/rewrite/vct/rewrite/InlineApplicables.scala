@@ -65,13 +65,13 @@ case object InlineApplicables extends RewriterBuilder {
     Seq(
       PreferredName(definition.getPreferredNameOrElse()),
       ShortPosition(usages.head.o.getShortPositionOrElse()),
-      Context(usages.map(_.o.getContext.get.context).mkString(
+      Context(usages.map(_.o.getContext.getOrElse(Context("[unknown context]")).context).mkString(
           start = " Inlined from:\n" + Origin.HR,
           sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
           end = "",
         ) + Origin.HR +
           " In definition:\n" + Origin.HR +
-          definition.getContext.get.context),
+          definition.getContext.getOrElse(Context("[unknown context]")).context),
       InlineContext(s"${definition.getInlineContextOrElse()} [inlined from] " +
         s"${usages.head.o.getInlineContextOrElse()}")
     )

@@ -190,7 +190,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     declsDefault.foreach {
       case cons: JavaConstructor[Pre] =>
-        logger.debug(s"Constructor for ${cons.o.getContext.get.context}")
+        logger.debug(s"Constructor for ${cons.o.getContext.getOrElse(Context("[unknown context]")).context}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar())

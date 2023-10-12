@@ -29,7 +29,7 @@ case object SilverToCol {
           val (start, end) = (pos.start, pos.end.getOrElse(pos.start))
           UserInputOrigin(
             RWFile(pos.file.toFile), start.line - 1, end.line - 1, Some((start.column - 1, end.column - 1))
-          ).getContext.get.context
+          ).getContext.getOrElse(Context("[unknown context]")).context
         case other => s"[Unknown silver position kind: $other]"
       }),
       InlineContext(InputOrigin.compressInlineText(node.toString)),
