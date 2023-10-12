@@ -60,3 +60,8 @@ case class OverlappingJavaImports[G](ns: JavaNamespace[G], kind: String, importe
   override def code: String = "overlappingJavaImports"
   override def text: String = ns.o.messageInContext(s"The $kind name $importedName is provided by multiple imports in this namespace")
 }
+
+case class WrongThisPosition[G](diz: AmbiguousThis[G]) extends ResolutionError {
+  override def code: String = "wrongThisPosition"
+  override def text: String = diz.o.messageInContext("The `this` keyword does not refer to anything in this position.")
+}

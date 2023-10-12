@@ -19,12 +19,6 @@ import vct.result.VerificationError.UserError
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
 
 case object Resolve {
-  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
-    override def code: String = "badBipAnnotation"
-
-    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
-  }
-
   trait SpecExprParser {
     // If parsing fails, throw/terminate
     def parse[G](input: String, o: Origin): Expr[G]
@@ -49,6 +43,11 @@ case object Resolve {
         case _ => None
       }
     case _ => None
+  }
+
+  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
+    override def code: String = "badBipAnnotation"
+    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
   }
 
   case class UnexpectedComplicatedExpression(e: Expr[_]) extends UserError {
@@ -523,8 +522,7 @@ case object ResolveReferences extends LazyLogging {
     case res@AmbiguousResult() =>
       res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))
     case diz@AmbiguousThis() =>
-      // PB: now obsolete?
-      diz.ref = Some(ctx.currentThis.get)
+      diz.ref = Some(ctx.currentThis.getOrElse(throw WrongThisPosition(diz)))
 
     case proc: ModelProcess[G] =>
       proc.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
