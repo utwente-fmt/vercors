@@ -5,7 +5,7 @@ import hre.io.RWFile
 import hre.util.FuncTools
 import vct.col.ast.lang.JavaAnnotationEx
 import vct.col.ast.`type`.TFloats
-import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
+import vct.col.ast.{ADTFunction, ApplicableContract, AxiomaticDataType, BipPortType, Block, CType, EmptyProcess, Expr, JavaAnnotation, JavaAnnotationInterface, JavaClass, JavaClassDeclaration, JavaClassOrInterface, JavaConstructor, JavaFields, JavaFinal, JavaImport, JavaInterface, JavaMethod, JavaModifier, JavaName, JavaNamedType, JavaNamespace, JavaParam, JavaStatic, JavaTClass, JavaType, JavaVariableDeclaration, LiteralBag, LiteralMap, LiteralSeq, LiteralSet, Node, Null, OptNone, PVLType, TAny, TAnyClass, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TEnum, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TProverType, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type, UnitAccountedPredicate, Variable, Void}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveTypes.JavaClassPathEntry
@@ -23,6 +23,7 @@ import java.lang.reflect.{Modifier, Parameter}
 import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 case object Java extends LazyLogging {
   case class UnexpectedJreDefinition(expectedKind: String, fullyQualifiedName: Seq[String]) extends UserError {
@@ -44,6 +45,13 @@ case object Java extends LazyLogging {
   def JAVA_LANG_CLASS: Seq[String] = JAVA_LANG :+ "Class"
   def JAVA_LANG_STRING: Seq[String] = JAVA_LANG :+ "String"
   def JAVA_LANG: Seq[String] = Seq("java", "lang")
+
+  implicit class ModifiersHelpers[G](modifiers: Seq[JavaModifier[G]]) {
+    def all[T <: JavaModifier[G]](implicit tag: ClassTag[T]): Seq[T] = modifiers.collect { case t: T => t }
+    def first[T <: JavaModifier[G]](implicit tag: ClassTag[T]): Option[T] = modifiers.collectFirst { case t: T => t }
+    def is[T <: JavaModifier[G]](implicit tag: ClassTag[T]): Boolean = first[T].nonEmpty
+    def isNot[T <: JavaModifier[G]](implicit tag: ClassTag[T]): Boolean = first[T].isEmpty
+  }
 
   def findLoadedJavaTypeName[G](potentialFQName: Seq[String], ctx: TypeResolutionContext[G]): Option[JavaTypeNameTarget[G]] = {
     (ctx.stack.lastOption.getOrElse(Seq()) ++ ctx.externallyLoadedElements.flatMap(Referrable.from)).foreach {
@@ -277,9 +285,26 @@ case object Java extends LazyLogging {
       }
   }
 
-  def findJavaName[G](name: String, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
+  def allowedFromStaticContext[G](target: JavaNameTarget[G]): Boolean = target match {
+    case RefAxiomaticDataType(_) => true
+    case RefClass(_) => true // PB: except maybe in non-static inner classes?
+    case RefEnum(_) => true
+    case RefEnumConstant(_, _) => true
+    case RefJavaClass(decl) => true
+    case RefUnloadedJavaNamespace(names) => true
+
+    case RefJavaField(decls, _) => decls.modifiers.is[JavaStatic[G]]
+    case RefModelField(_) => false
+    case RefJavaBipGuard(_) => false
+
+    case RefVariable(_) => true
+    case RefJavaLocalDeclaration(_, _) => true
+    case RefJavaParam(_) => true
+  }
+
+  def findJavaName[G](name: String, fromStaticContext: Boolean, ctx: TypeResolutionContext[G]): Option[JavaNameTarget[G]] = {
     ctx.stack.flatten.collectFirst {
-      case target: JavaNameTarget[G] if target.name == name => target
+      case target: JavaNameTarget[G] if target.name == name && (!fromStaticContext || allowedFromStaticContext(target)) => target
     }.orElse(ctx.namespace.flatMap(ns => {
       // PB: I optionified this, but not entirely sure what the intention is here.
       def classOrEnum(target: JavaTypeNameTarget[G]): Option[JavaNameTarget[G]] = target match {
@@ -311,7 +336,7 @@ case object Java extends LazyLogging {
             .getOrElse(RefUnloadedJavaNamespace(pkg :+ name)))
         case RefJavaClass(decl) =>
           decl.decls.flatMap(Referrable.from).collectFirst {
-            case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.contains(JavaStatic[G]()) => ref
+            case ref @ RefJavaField(decls, idx) if ref.name == name && ref.decls.modifiers.is[JavaStatic[G]] => ref
           }
         case RefEnum(enum) =>
           enum.getConstant(name)
@@ -321,18 +346,18 @@ case object Java extends LazyLogging {
         case ref @ RefModelField(_) if ref.name == name => ref
       }
       case JavaTClass(Ref(cls), _) => cls.decls.flatMap(Referrable.from).collectFirst {
-        case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.contains(JavaStatic[G]()) => ref
+        case ref @ RefJavaField(_, _) if ref.name == name && !ref.decls.modifiers.is[JavaStatic[G]] => ref
       }
       case _ => None
     }) : Option[JavaDerefTarget[G]]).orElse[JavaDerefTarget[G]](Spec.builtinField(obj, name, blame))
 
-  def findMethodInClass[G](cls: JavaClassOrInterface[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
+  def findMethodInClass[G](cls: JavaClassOrInterface[G], fromStaticContext: Boolean, method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] =
     cls.decls.flatMap(Referrable.from).collectFirst {
-      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) => ref
-      case ref: RefJavaAnnotationMethod[G] if ref.name == method && args.length == 0 => ref
-      case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) && (!fromStaticContext || ref.decl.modifiers.is[JavaStatic[G]]) => ref
+      case ref: RefJavaAnnotationMethod[G] if ref.name == method && args.isEmpty && !fromStaticContext => ref
+      case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) && !fromStaticContext => ref
+      case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) && !fromStaticContext => ref
+      case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) && !fromStaticContext => ref
     }
 
   @tailrec
@@ -342,9 +367,9 @@ case object Java extends LazyLogging {
         case ref: RefModelAction[G] if ref.name == method => ref
         case ref: RefModelProcess[G] if ref.name == method => ref
       }
-      case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, method, args)
+      case JavaTClass(Ref(cls), Nil) => findMethodInClass(cls, fromStaticContext = false, method, args)
       case TUnion(ts) => findMethodOnType(ctx, Types.leastCommonSuperType(ts), method, args)
-      case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G @unchecked])) => findMethodInClass[G](cls, method, args)
+      case TNotAValue(RefJavaClass(cls: JavaClassOrInterface[G @unchecked])) => findMethodInClass[G](cls, fromStaticContext = true, method, args)
       case TNotAValue(RefAxiomaticDataType(adt: AxiomaticDataType[G @unchecked])) => adt.decls.flatMap(Referrable.from).collectFirst {
         case ref: RefADTFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       }
@@ -354,12 +379,15 @@ case object Java extends LazyLogging {
   def findMethod[G](ctx: ReferenceResolutionContext[G], obj: Expr[G], method: String, args: Seq[Expr[G]], blame: Blame[BuiltinError]): Option[JavaInvocationTarget[G]] =
     findMethodOnType(ctx, obj.t, method, args).orElse(Spec.builtinInstanceMethod(obj, method, blame))
 
+  def matchesStatic(ctx: ReferenceResolutionContext[_], modifiers: Seq[JavaModifier[_]]): Boolean =
+    !ctx.inStaticJavaContext || modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty
+
   def findMethod[G](ctx: ReferenceResolutionContext[G], method: String, args: Seq[Expr[G]]): Option[JavaInvocationTarget[G]] = {
     val selectMatchingSignature: PartialFunction[Referrable[G], JavaInvocationTarget[G]] = {
-      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) => ref
-      case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
-      case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
+      case ref: RefJavaMethod[G] if ref.name == method && Util.compatJavaParams(args, ref.decl.parameters) && matchesStatic(ctx, ref.decl.modifiers) => ref
+      case ref: RefInstanceFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) && !ctx.inStaticJavaContext => ref
+      case ref: RefInstanceMethod[G] if ref.name == method && Util.compat(args, ref.decl.args) && !ctx.inStaticJavaContext => ref
+      case ref: RefInstancePredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) && !ctx.inStaticJavaContext => ref
       case ref: RefFunction[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefProcedure[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref
       case ref: RefPredicate[G] if ref.name == method && Util.compat(args, ref.decl.args) => ref

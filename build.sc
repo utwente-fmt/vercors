@@ -42,8 +42,29 @@ object util {
       T.dest / "classpath"
     }
 
+    def strictOptionsFile = T.source {
+      settings.root / ".compile-strict"
+    }
+
+    def strictOptions: T[Boolean] = T {
+      os.exists(strictOptionsFile().path)
+    }
+
     override def javacOptions = T {
-      Seq("--release", "17")
+      val shared = Seq(
+        "--release", "17",
+        "-deprecation",
+      )
+
+      if(strictOptions()) {
+        Seq(
+          "-Werror",
+        ) ++ shared
+      } else {
+        Seq (
+          // nothing here yet
+        ) ++ shared
+      }
     }
 
     def windowsClassPathArgumentFile = T {
@@ -87,6 +108,23 @@ object util {
 
   trait ScalaModule extends BaseScalaModule with JavaModule {
     def scalaVersion = "2.13.5"
+
+    override def scalacOptions = T {
+      val shared = Seq(
+        "-deprecation",
+      )
+
+      if (strictOptions()) {
+        Seq(
+          "-Ypatmat-exhaust-depth", "off",
+          "-Werror",
+        ) ++ shared
+      } else {
+        Seq(
+          "-Ypatmat-exhaust-depth", "40",
+        ) ++ shared
+      }
+    }
   }
 
   trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
@@ -376,7 +414,7 @@ object viper extends ScalaModule {
 
   object silver extends ScalaModule {
     override def scalaVersion = "2.13.10"
-    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = silverGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
@@ -408,13 +446,13 @@ object viper extends ScalaModule {
 
     object common extends ScalaModule {
       override def scalaVersion = "2.13.10"
-      override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+      override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
       override def sources = T.sources { silicon.repo.repo() / "common" / "src" / "main" / "scala" }
       override def moduleDeps = Seq(silver)
     }
 
     override def scalaVersion = "2.13.10"
-    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = siliconGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
@@ -430,7 +468,7 @@ object viper extends ScalaModule {
 
   object carbon extends ScalaModule {
     override def scalaVersion = "2.13.10"
-    override def scalacOptions = T { Seq("-Xno-patmat-analysis") }
+    override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = carbonGit
     override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log
@@ -643,6 +681,11 @@ object vercors extends Module {
     object test extends Tests
 
     object buildInfo extends BuildInfo with ScalaModule {
+      def gitBranch() = T.command { os.proc("git", "rev-parse", "--abbrev", "HEAD").call().out.text() }
+      def gitCommit() = T.command { os.proc("git", "rev-parse", "HEAD").call().out.text() }
+      def gitShortCommit() = T.command { os.proc("git", "rev-parse", "--short=8", "HEAD").call().out.text() }
+      def gitHasChanges() = T.command { os.proc("git", "diff-index", "--name-only", "HEAD").call().out.text().nonEmpty }
+
       def buildInfoPackageName = "vct.main"
       override def buildInfoMembers = T {
         Seq(
@@ -650,10 +693,10 @@ object vercors extends Module {
           BuildInfo.Value("version", "2.0.0"),
           BuildInfo.Value("scalaVersion", scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
-          BuildInfo.Value("currentBranch", "unknown branch"),
-          BuildInfo.Value("currentCommit", "unknown commit"),
-          BuildInfo.Value("currentShortCommit", "unknown commit"),
-          BuildInfo.Value("gitHasChanges", ""),
+          BuildInfo.Value("currentBranch", gitBranch()()),
+          BuildInfo.Value("currentCommit", gitCommit()()),
+          BuildInfo.Value("currentShortCommit", gitShortCommit()()),
+          BuildInfo.Value("gitHasChanges", gitHasChanges()().toString),
           BuildInfo.Value("silverCommit", viper.silver.repo.commitish()),
           BuildInfo.Value("siliconCommit", viper.silicon.repo.commitish()),
           BuildInfo.Value("carbonCommit", viper.carbon.repo.commitish()),

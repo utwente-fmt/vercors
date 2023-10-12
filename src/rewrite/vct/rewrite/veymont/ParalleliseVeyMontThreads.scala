@@ -7,7 +7,7 @@ import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 import vct.rewrite.veymont.ParalleliseVeyMontThreads.{ChannelFieldOrigin, ParalliseVeyMontThreadsError, RunMethodOrigin, ThreadClassOrigin, getChannelClassName, getThreadClassName, getVarName}
 
 import java.lang
@@ -128,6 +128,8 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
       case other => rewriteDefault(other)
     }
 
+    // PB: from what I understand this restores a constructor from a generated procedure, so this should be refactored
+    // once we make constructors first class.
     def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] =
       new JavaConstructor[Post](Seq(JavaPublic[Post]()(p.o)),
         rewritingConstr.top._2.cls.decl.o.preferredName,
@@ -139,6 +141,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
             case b: Block[Pre] => dispatch(Block(b.statements.tail.dropRight(1))(p.o))
             case other => dispatch(other)
           }
+          case Some(_) => throw Unreachable("The body of a procedure always starts with a Scope.")
           case None => Block(Seq.empty)(p.o)
         },
         p.contract.rewrite(ensures = UnitAccountedPredicate[Post](BooleanValue(true)(p.o))(p.o)))(null)(p.o)
@@ -342,13 +345,11 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def updateThreadRefInDeref(node: Expr[Pre], thread: VeyMontThread[Pre], d: Deref[Pre]) = {
     d.obj match {
-      case t: DerefVeyMontThread[Pre] =>
-        if (t.ref.decl == thread) {
-          d.rewrite(
-            obj = getThisVeyMontDeref(thread, d.o, threadBuildingBlocks.top.threadField)
-          )
-        }
-        else rewriteDefault(node)
+      case t: DerefVeyMontThread[Pre] if t.ref.decl == thread =>
+        d.rewrite(
+          obj = getThisVeyMontDeref(thread, d.o, threadBuildingBlocks.top.threadField)
+        )
+      case _ => rewriteDefault(node)
     }
   }
 

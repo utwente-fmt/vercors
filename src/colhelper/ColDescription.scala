@@ -2,7 +2,7 @@ import ColDefs._
 
 import java.io.File
 import java.nio.file.Files
-import scala.collection.mutable
+import scala.collection.immutable.ListMap
 import scala.collection.mutable.ArrayBuffer
 import scala.meta._
 
@@ -66,7 +66,7 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
 
 class ColDescription {
   val defs: ArrayBuffer[ClassDef] = ArrayBuffer()
-  val bases: mutable.ListMap[String, List[String]] = mutable.ListMap()
+  var bases: ListMap[String, List[String]] = ListMap()
   val families: ArrayBuffer[String] = ArrayBuffer()
 
   def supports(baseType: String)(cls: String): Boolean = {
@@ -193,12 +193,12 @@ class ColDescription {
    */
   def collectBases(stat: Stat): Unit = stat match {
     case Defn.Class(_, name, _, _, Template(_, inits, _, _)) =>
-      bases(name.value) = inits.collect {
+      bases += name.value -> inits.collect {
         case Init(Type.Name(name), _, _) => name
         case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }
     case Defn.Trait(_, name, _, _, Template(_, inits, _, _)) =>
-      bases(name.value) = inits.collect {
+      bases += name.value -> inits.collect {
         case Init(Type.Name(name), _, _) => name
         case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }

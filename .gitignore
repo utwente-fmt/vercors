@@ -19,6 +19,7 @@ tmp.*
 vct-tool.jar
 .bsp/
 null/
+.compile-strict
 
 # Mac specific OS files
 .DS_Store
