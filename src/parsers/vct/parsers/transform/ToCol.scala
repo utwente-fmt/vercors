@@ -13,7 +13,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: BlameProvider, val errors: Seq[(Token, Token, ExpectedError)]) {
+abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider, val errors: Seq[(Token, Token, ExpectedError)]) {
   class ContractCollector[G1]() {
     val modifies: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
     val accessible: mutable.ArrayBuffer[(ParserRuleContext, String)] = mutable.ArrayBuffer()
@@ -92,7 +92,28 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
     def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
   }
 
-  implicit def origin(implicit node: ParserRuleContext): Origin = originProvider(node)
+  /**
+   * Used to convert ParserRuleContext nodes into origin implicitly
+   * @param node the node we want the origin of
+   * @return a constructed Origin based on the (implicitly) given node
+   */
+  implicit def origin(implicit node: ParserRuleContext): Origin = {
+    Origin(baseOrigin.originContents ++ ctxToOrigin(node.start, node.stop).originContents)
+  }
+
+  /**
+   * Helper function used to deduce a node's position in the origin, used by the implicit origin method
+   */
+  def ctxToOrigin(start: Token, stop: Token): Origin = {
+    val startLineIdx = start.getLine - 1
+    val startColIdx = start.getCharPositionInLine
+    val endLineIdx = stop.getLine - 1
+    val endColIdx = stop.getCharPositionInLine + stop.getStopIndex - stop.getStartIndex + 1
+    positionToOrigin(startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
+  }
+
+  def positionToOrigin(startLineIdx: Int, endLineIdx: Int, cols: Some[(Int, Int)]) : Origin =
+    Origin(Seq(StartEndLines(startLineIdx, endLineIdx))).addOriginCols(cols)
 
   def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
     errors.foldLeft(blameProvider(node)) {
@@ -131,7 +152,7 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
   }
 
   def fail(tree: ParserRuleContext, message: String): Nothing = {
-    throw ParseError(originProvider(tree), message)
+    throw ParseError(OriginProvider(tree), message)
   }
 
   /**
@@ -141,4 +162,6 @@ abstract class ToCol[G](val originProvider: OriginProvider, val blameProvider: B
   def ??(tree: ParserRuleContext): Nothing = {
     fail(tree, f"This construct (${tree.getClass.getSimpleName}) is syntactically valid, but not supported by VerCors.")
   }
+
+
 }

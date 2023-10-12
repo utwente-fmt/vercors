@@ -2,7 +2,7 @@ package vct.col.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{BlameCollector, LLVMOrigin, Origin, InvocationFailure}
+import vct.col.origin.{BlameCollector, Origin, InvocationFailure}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.origin.RedirectOrigin.StringReadable
 import vct.col.ref.{LazyRef, Ref}

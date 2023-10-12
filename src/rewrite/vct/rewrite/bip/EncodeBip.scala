@@ -106,26 +106,17 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     override def text: String = "Oh no unexpected bip stuff"
   }
 
-  case class DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]) extends Origin {
-    override def preferredName: String = wire.o.preferredName + "_result"
-    override def context: String = wire.o.context
-    override def inlineContext: String = wire.o.inlineContext
-    override def shortPosition: String = wire.o.shortPosition
+  private def DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]): Origin = {
+    wire.o.replacePrefName(wire.o.getPreferredNameOrElse() + "_result")
   }
 
-  case class BipSynchronizationOrigin(s: BipTransitionSynchronization[_]) extends Origin {
-    override def preferredName: String = "synchron___" +
-      s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_")
-    override def context: String = s.o.context
-    override def inlineContext: String = s.o.inlineContext
-    override def shortPosition: String = s.o.shortPosition
+  private def BipSynchronizationOrigin(s: BipTransitionSynchronization[_]): Origin = {
+    s.o.replacePrefName("synchron___" +
+      s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_"))
   }
 
-  case class SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]) extends Origin {
-    override def preferredName: String = c.fqn.mkString(".")
-    override def context: String = s.o.context
-    override def inlineContext: String = s.o.inlineContext
-    override def shortPosition: String = s.o.shortPosition
+  private def SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]): Origin = {
+    s.o.replacePrefName(c.fqn.mkString("."))
   }
 
   case class ExhalingTransitionPreconditionFailed(results: BIP.VerificationResults, s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
@@ -135,11 +126,9 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     }
   }
 
-  case class ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]) extends Origin {
-    override def preferredName: String = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${t.o.preferredName}_${t.signature.asciiSignature}"
-    override def context: String = t.o.context
-    override def inlineContext: String = t.o.inlineContext
-    override def shortPosition: String = t.o.shortPosition
+  private def ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]): Origin = {
+    t.o.replacePrefName(s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
+      t.o.getPreferredNameOrElse()}_${t.signature.asciiSignature}")
   }
 }
 

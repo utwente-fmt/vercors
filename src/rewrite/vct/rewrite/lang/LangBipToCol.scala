@@ -3,7 +3,8 @@ package vct.col.lang
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.lang.LangBipToCol._
-import vct.col.origin.{BipComponentInvariantNotEstablished, BipConstructorFailure, BipStateInvariantNotEstablished, Blame, DiagnosticOrigin, NontrivialUnsatisfiable, Origin, PanicBlame, SourceNameOrigin}
+import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipConstructorFailure, BipStateInvariantNotEstablished, Blame, DiagnosticOrigin, NontrivialUnsatisfiable, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.resolve.lang.{JavaAnnotationData => jad}
@@ -49,41 +50,26 @@ case object LangBipToCol {
     ))
   }
 
-  case class BipPortOrigin(ns: JavaNamespace[_], cls: JavaClass[_], port: jad.BipPort[_]) extends Origin {
-    override def preferredName: String = {
-      val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
+  private def BipPortOrigin(ns: JavaNamespace[_], cls: JavaClass[_], port: jad.BipPort[_]): Origin = {
+    port.o.replacePrefName {
+      val fqn = (ns.name.map (Seq (_) ).getOrElse (Seq () ) :+ cls.name).mkString (".")
       s"($fqn,${port.name})"
     }
-
-    override def context: String = port.o.context
-    override def inlineContext: String = port.o.inlineContext
-    override def shortPosition: String = port.o.shortPosition
   }
 
-  case class BipDataWireOrigin(cls0: JavaClass[_], port0: String, cls1: JavaClass[_], port1: String, o: Origin) extends Origin {
-    override def preferredName: String = s"(${cls0.name},$port0)->(${cls1.name},$port1)"
-    override def context: String = o.context
-    override def inlineContext: String = o.inlineContext
-    override def shortPosition: String = o.shortPosition
+  private def BipDataWireOrigin(cls0: JavaClass[_], port0: String, cls1: JavaClass[_], port1: String, o: Origin): Origin = {
+    o.replacePrefName(s"(${cls0.name},$port0)->(${cls1.name},$port1)")
   }
 
-  case class BipDataOrigin(ns: JavaNamespace[_], cls: JavaClass[_], data: jad.BipData[_]) extends Origin {
-    override def preferredName: String = {
+  private def BipDataOrigin(ns: JavaNamespace[_], cls: JavaClass[_], data: jad.BipData[_]): Origin = {
+    data.o.replacePrefName {
       val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
       s"($fqn,${data.name})"
     }
-
-    override def context: String = data.o.context
-    override def inlineContext: String = data.o.inlineContext
-    override def shortPosition: String = data.o.shortPosition
   }
 
-  case class BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]) extends Origin {
-    override def preferredName: String = s"${cls.o.preferredName}_constructor"
-
-    override def context: String = c.o.context
-    override def inlineContext: String = c.o.inlineContext
-    override def shortPosition: String = c.o.shortPosition
+  private def BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]): Origin = {
+    c.o.replacePrefName(s"${cls.o.getPreferredNameOrElse("[unknown]")}_constructor")
   }
 
   case class UntangleBipConstructorFailure(constructor: JavaConstructor[_]) extends Blame[BipConstructorFailure] {
@@ -164,7 +150,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.dispatch).getOrElse(tt),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(annotation.blame)(SourceNameOrigin(m.name, m.o))
+      rw.dispatch(m.body.get))(annotation.blame)(m.o.addPrefName(m.name))
 
     javaMethodSuccTransition((m, transition)) = rw.classDeclarations.declare(trans)
   }
@@ -190,7 +176,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       throw ImproperConstructor(constructor, "Only precondition is allowed on JavaBIP component constructors")
     }
 
-    logger.debug(s"JavaBIP component constructor for ${constructor.o.context}")
+    logger.debug(s"JavaBIP component constructor for ${constructor.o.getInlineContextOrElse("[unknown context]")}")
     rw.currentThis.having(ThisObject(rw.java.javaInstanceClassSuccessor.ref(rw.java.currentJavaClass.top))) {
       rw.labelDecls.scope {
         rw.classDeclarations.declare(
@@ -213,7 +199,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       method.parameters.map(rewriteParameter),
       rw.dispatch(method.body.get),
       true
-    )(annotation.blame)(SourceNameOrigin(method.name, method.o)))
+    )(annotation.blame)(method.o.addPrefName(method.name)))
   }
 
   def rewriteOutgoingData(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], data: jad.BipData[Pre]): Unit = {
@@ -249,7 +235,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create bip state predicates
     jad.BipStatePredicate.getAll(cls).foreach { case bspData @ jad.BipStatePredicate(name, expr) =>
       val bspNode = rw.classDeclarations.declare(
-        new BipStatePredicate[Post](rw.dispatch(expr))(SourceNameOrigin(name, bspData.o)))
+        new BipStatePredicate[Post](rw.dispatch(expr))(bspData.o.addPrefName(name)))
       statePredicates(bspData) = bspNode
     }
 

@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{AbstractApplicable, Blame, Origin, PanicBlame, UnsafeDontCare, VerificationFailure}
+import vct.col.origin.{AbstractApplicable, Blame, Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition, UnsafeDontCare, VerificationFailure}
 import vct.col.ref.Ref
 import vct.col.rewrite.Explode.{AssumeFunction, UnknownDeclaration, VerifiedElsewhereBlame}
 import vct.col.util.AstBuildHelpers._
@@ -20,12 +20,14 @@ case object Explode extends RewriterBuilderArg[Boolean] {
     override def text: String = s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}"
   }
 
-  case object ExplodeOrigin extends Origin {
-    override def preferredName: String = "unknown"
-    override def context: String = "At: [node generated to split out verification]"
-    override def inlineContext: String = "[Node generated to split out verification]"
-    override def shortPosition: String = "generated"
-  }
+  private def ExplodeOrigin: Origin = Origin(
+    Seq(
+      PreferredName("unknown"),
+      Context("At: [node generated to split out verification]"),
+      InlineContext("[Node generated to split out verification]"),
+      ShortPosition("generated"),
+    )
+  )
 
   case object VerifiedElsewhereBlame extends Blame[VerificationFailure] {
     override def blame(error: VerificationFailure): Unit = {
@@ -33,12 +35,7 @@ case object Explode extends RewriterBuilderArg[Boolean] {
     }
   }
 
-  case class AssumeFunction(inner: Origin) extends Origin {
-    override def preferredName: String = "assume" + inner.preferredName.capitalize
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
-  }
+  private def AssumeFunction(inner: Origin): Origin = inner.replacePrefName("assume" + inner.getPreferredNameOrElse().capitalize)
 }
 
 case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {

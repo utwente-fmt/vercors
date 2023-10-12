@@ -13,18 +13,12 @@ case object EncodeBipPermissions extends RewriterBuilder {
   override def key: String = "encodeBipPermissions"
   override def desc: String = "encodes implicit permission management of BIP models"
 
-  case class GeneratedBipPermissionsOrigin(component: BipComponent[_]) extends Origin {
-    override def preferredName: String = component.o.preferredName
-    override def context: String = component.o.context
-    override def inlineContext: String = component.o.inlineContext
-    override def shortPosition: String = component.o.shortPosition
+  private def GeneratedBipPermissionsOrigin(component: BipComponent[_]): Origin = {
+    component.o
   }
 
-  case class GeneratedBipFieldPermissionOrigin(component: BipComponent[_], field: InstanceField[_]) extends Origin {
-    override def preferredName: String = s"bipPerm${field.o.preferredName.capitalize}"
-    override def context: String = field.o.context
-    override def inlineContext: String = field.o.inlineContext
-    override def shortPosition: String = field.o.shortPosition
+  private def GeneratedBipFieldPermissionOrigin(component: BipComponent[_], field: InstanceField[_]): Origin = {
+    field.o.replacePrefName(s"bipPerm${field.o.getPreferredNameOrElse().capitalize}")
   }
 }
 
