@@ -223,7 +223,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case t @ ThisObject(_) => currentThis.topOption match {
       case Some(res) => res
-      case _ => t.rewrite()
+      case None => t.rewrite()
     }
 
     case l @ BipLocalIncomingData(Ref(data)) => incomingDataContext.top match {
