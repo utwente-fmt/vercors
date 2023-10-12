@@ -71,15 +71,15 @@ sealed trait Referrable[G] {
     case RefLlvmGlobal(decl) => Referrable.originName(decl)
     case RefLlvmSpecFunction(decl) => Referrable.originName(decl)
     case RefBipComponent(decl) => Referrable.originName(decl)
-    case RefBipGlue(decl) => ???
+    case RefBipGlue(decl) => ""
     case RefBipGuard(decl) => Referrable.originName(decl)
     case RefBipIncomingData(decl) => Referrable.originName(decl)
     case RefBipOutgoingData(decl) => Referrable.originName(decl)
     case RefBipPort(decl) => Referrable.originName(decl)
-    case RefBipPortSynchronization(decl) => ???
+    case RefBipPortSynchronization(decl) => ""
     case RefBipStatePredicate(decl) => Referrable.originName(decl)
     case RefBipTransition(decl) => Referrable.originName(decl)
-    case RefBipTransitionSynchronization(decl) => ???
+    case RefBipTransitionSynchronization(decl) => ""
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
