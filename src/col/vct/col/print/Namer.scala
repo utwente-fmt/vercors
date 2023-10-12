@@ -79,7 +79,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       return
     }
 
-    var (baseName, index) = unpackName(decl.o.getPreferredName.get.preferredName)
+    var (baseName, index) = unpackName(decl.o.getPreferredNameOrElse())
 
     while(keys.exists(key => names.contains((key, baseName, index)))) {
       index += 1

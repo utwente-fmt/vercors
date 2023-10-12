@@ -35,7 +35,7 @@ case object Explode extends RewriterBuilderArg[Boolean] {
     }
   }
 
-  private def AssumeFunction(inner: Origin): Origin = inner.replacePrefName("assume" + inner.getPreferredName.get.preferredName.capitalize)
+  private def AssumeFunction(inner: Origin): Origin = inner.replacePrefName("assume" + inner.getPreferredNameOrElse().capitalize)
 }
 
 case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {

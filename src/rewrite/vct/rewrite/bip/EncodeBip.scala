@@ -108,7 +108,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   }
 
   private def DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]): Origin = {
-    wire.o.replacePrefName(wire.o.getPreferredName.get.preferredName + "_result")
+    wire.o.replacePrefName(wire.o.getPreferredNameOrElse() + "_result")
   }
 
   private def BipSynchronizationOrigin(s: BipTransitionSynchronization[_]): Origin = {
@@ -129,7 +129,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
 
   private def ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]): Origin = {
     t.o.replacePrefName(s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
-      t.o.getPreferredName.get.preferredName}_${t.signature.asciiSignature}")
+      t.o.getPreferredNameOrElse()}_${t.signature.asciiSignature}")
   }
 }
 

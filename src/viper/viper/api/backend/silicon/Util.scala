@@ -1,7 +1,7 @@
 package viper.api.backend.silicon
 
 import hre.progress.ProgressRender
-import vct.col.origin.Origin
+import vct.col.origin.{InlineContext, Origin}
 import viper.api.transform.NodeInfo
 import viper.silver.ast.{Infoed, Node}
 
@@ -17,7 +17,8 @@ case object Util {
 
     o match {
       case None => ProgressRender(message)
-      case Some(o) if short => ProgressRender(s"$message `${o.getInlineContext.get.inlineContext}`")
+      case Some(o) if short =>
+        ProgressRender(s"$message `${o.getInlineContext.getOrElse(InlineContext("unknown")).inlineContext}`")
       case Some(o) if !short =>
         val lines = o.messageInContext(message).split("\n")
         ProgressRender(lines, lines.size - 2)

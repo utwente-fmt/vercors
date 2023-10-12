@@ -34,11 +34,11 @@ case object EncodeIntrinsicLock extends RewriterBuilder {
       not.blame.blame(NotifyFailed(not, error.failure))
   }
 
-  private def LockInvariantOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_inv_" + cls.o.getPreferredName.get.preferredName)
+  private def LockInvariantOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_inv_" + cls.o.getPreferredNameOrElse())
 
-  private def HeldTokenOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_held_" + cls.o.getPreferredName.get.preferredName)
+  private def HeldTokenOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_held_" + cls.o.getPreferredNameOrElse())
 
-  private def CommittedOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_committed_" + cls.o.getPreferredName.get.preferredName)
+  private def CommittedOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_committed_" + cls.o.getPreferredNameOrElse())
 
   case class LockLockObjectNull(lock: Lock[_]) extends Blame[InstanceInvocationFailure] {
     override def blame(error: InstanceInvocationFailure): Unit = error match {

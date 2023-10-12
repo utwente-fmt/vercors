@@ -713,7 +713,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           }
           // We found a replacement!
           // Make the variable & declaration
-          val newName = vars.map(_.o.getPreferredName.get.preferredName).mkString("_")
+          val newName = vars.map(_.o.getPreferredNameOrElse()).mkString("_")
           val xNew = new Variable[Post](TInt())(BinderOrigin(newName))
           quantifierData.mainRewriter.variables.declare(xNew)
 

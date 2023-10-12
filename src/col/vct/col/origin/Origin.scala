@@ -103,7 +103,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case ReadableOrigin(any1) => Seq(ReadableOrigin(any1))
       case _ => Nil
     } match {
-      case Seq(ReadableOrigin(any1)) => Option(ReadableOrigin(any1))
+      case Seq(ReadableOrigin(any1)) => Some(ReadableOrigin(any1))
       case _ => None
     }
   }
@@ -113,19 +113,23 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case Context(any) => Seq(Context(any))
       case _ => Nil
     } match {
-      case Seq(Context(any)) => Option(Context(any))
+      case Seq(Context(any)) => Some(Context(any))
       case _ => None
     }
   }
 
-  def getPreferredName: Option[PreferredName] = {
+  def getPreferredName: Option[String] = {
     originContents.flatMap {
       case PreferredName(any) => Seq(PreferredName(any))
       case _ => Nil
     } match {
-      case Seq(PreferredName(any)) => Option(PreferredName(any))
+      case Seq(PreferredName(any)) => Some(any)
       case _ => None
     }
+  }
+
+  def getPreferredNameOrElse(name: String = "unknown"): String = {
+    getPreferredName.getOrElse(name)
   }
 
   def getInlineContext: Option[InlineContext] = {
@@ -133,7 +137,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case InlineContext(any) => Seq(InlineContext(any))
       case _ => Nil
     } match {
-      case Seq(InlineContext(any)) => Option(InlineContext(any))
+      case Seq(InlineContext(any)) => Some(InlineContext(any))
       case _ => None
     }
   }
@@ -143,7 +147,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case InlineBipContext(any) => Seq(InlineBipContext(any))
       case _ => Nil
     } match {
-      case Seq(InlineBipContext(any)) => Option(InlineBipContext(any))
+      case Seq(InlineBipContext(any)) => Some(InlineBipContext(any))
       case _ => None
     }
   }
@@ -153,7 +157,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case OriginFilename(any) => Seq(OriginFilename(any))
       case _ => Nil
     } match {
-      case Seq(OriginFilename(any)) => Option(OriginFilename(any))
+      case Seq(OriginFilename(any)) => Some(OriginFilename(any))
       case _ => None
     }
   }
@@ -163,7 +167,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case ShortPosition(any) => Seq(ShortPosition(any))
       case _ => Nil
     } match {
-      case Seq(ShortPosition(any)) => Option(ShortPosition(any))
+      case Seq(ShortPosition(any)) => Some(ShortPosition(any))
       case _ => None
     }
   }
@@ -173,7 +177,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case StartEndLines(any) => Seq(StartEndLines(any))
       case _ => Nil
     } match {
-      case Seq(StartEndLines(any)) => Option(StartEndLines(any))
+      case Seq(StartEndLines(any)) => Some(StartEndLines(any))
       case _ => None
     }
   }
@@ -183,21 +187,18 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       case OriginCols(any) => Seq(OriginCols(any))
       case _ => Nil
     } match {
-      case Seq(OriginCols(any)) => Option(OriginCols(any))
+      case Seq(OriginCols(any)) => Some(OriginCols(any))
       case _ => None
     }
   }
 
   def messageInContext(message: String): String = {
-      originContents.flatMap{
-        case Context(innerMessage) => innerMessage match {
-          case "" => message
-          case context =>
-            BOLD_HR + context.strip() + "\n" + HR + message + "\n" + BOLD_HR
-        }
-        case other => Nil
-      }.mkString
+    val contextMessage = getContext match {
+      case Some(value) => value.context.strip()
+      case None => "[unknown context]"
     }
+    BOLD_HR + contextMessage + "\n" + HR + message + "\n" + BOLD_HR
+  }
 
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)

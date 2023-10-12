@@ -21,7 +21,7 @@ case object GivenYieldsToArgs extends RewriterBuilder {
 
   private def YieldDummy(forArg: Variable[_]): Origin = Origin(
     Seq(
-      PreferredName("dummy_" + forArg.o.getPreferredName.get.preferredName),
+      PreferredName("dummy_" + forArg.o.getPreferredNameOrElse()),
       ShortPosition("generated"),
       Context("[At dummy variable for an unused out parameter]"),
       InlineContext("[Dummy variable for an unused out parameter]"),

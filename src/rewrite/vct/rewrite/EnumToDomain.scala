@@ -15,11 +15,11 @@ case object EnumToDomain extends RewriterBuilder {
   override def key: String = "enumToDomain"
   override def desc: String = "Encodes COL enum as a domain"
 
-  def EqOrigin(inner: Origin): Origin = inner.replacePrefName(s"${inner.getPreferredName.get.preferredName}_eq")
+  def EqOrigin(inner: Origin): Origin = inner.replacePrefName(s"${inner.getPreferredNameOrElse()}_eq")
 
-  def EqOptOrigin(inner: Origin): Origin = inner.replacePrefName(s"${inner.getPreferredName.get.preferredName}_eqOpt")
+  def EqOptOrigin(inner: Origin): Origin = inner.replacePrefName(s"${inner.getPreferredNameOrElse()}_eqOpt")
 
-  def ToIntOrigin(inner: Origin): Origin = inner.replacePrefName(s"${inner.getPreferredName.get.preferredName}_toInt")
+  def ToIntOrigin(inner: Origin): Origin = inner.replacePrefName(s"${inner.getPreferredNameOrElse()}_toInt")
 }
 
 case class EnumToDomain[Pre <: Generation]() extends CoercingRewriter[Pre] {

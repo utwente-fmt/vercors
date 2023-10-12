@@ -12,7 +12,7 @@ case object FinalizeArguments extends RewriterBuilder {
   override def key: String = "finalize"
   override def desc: String = "Make it so the formal parameters of methods are not assigned to."
 
-  private def FormalParameterOrigin(inner: Origin): Origin = inner.replacePrefName("formal" + inner.getPreferredName.get.preferredName.capitalize)
+  private def FormalParameterOrigin(inner: Origin): Origin = inner.replacePrefName("formal" + inner.getPreferredNameOrElse().capitalize)
 }
 
 case class FinalizeArguments[Pre <: Generation]() extends Rewriter[Pre] {

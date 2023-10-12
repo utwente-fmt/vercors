@@ -15,7 +15,7 @@ case object TupledQuantifiers extends RewriterBuilder {
   case class CollectedBindingsOrigin(vs: Seq[Variable[_]]) extends OriginContent
 
   def vsToString(vs: Seq[Variable[_]]): String = {
-    vs.map(_.o.getPreferredName.get.preferredName).mkString("_")
+    vs.map(_.o.getPreferredNameOrElse()).mkString("_")
   }
 }
 

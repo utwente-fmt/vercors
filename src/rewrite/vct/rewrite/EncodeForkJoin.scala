@@ -20,13 +20,13 @@ object EncodeForkJoin extends RewriterBuilder {
   override def key: String = "forkJoin"
   override def desc: String = "Encode fork and join statements with the contract of the run method it refers to."
 
-  private def IdleToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredName.get.preferredName + "Idle")
+  private def IdleToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredNameOrElse() + "Idle")
 
-  private def RunningToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredName.get.preferredName + "Running")
+  private def RunningToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredNameOrElse() + "Running")
 
-  private def ForkMethod(cls: Class[_]): Origin = cls.o.replacePrefName("fork" + cls.o.getPreferredName.get.preferredName)
+  private def ForkMethod(cls: Class[_]): Origin = cls.o.replacePrefName("fork" + cls.o.getPreferredNameOrElse())
 
-  private def JoinMethod(cls: Class[_]): Origin = cls.o.replacePrefName("join" + cls.o.getPreferredName.get.preferredName)
+  private def JoinMethod(cls: Class[_]): Origin = cls.o.replacePrefName("join" + cls.o.getPreferredNameOrElse())
 
   case class ForkInstanceInvocation(fork: Fork[_]) extends Blame[InstanceInvocationFailure] {
     override def blame(error: InstanceInvocationFailure): Unit = error match {

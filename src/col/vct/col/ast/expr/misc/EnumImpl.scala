@@ -6,7 +6,7 @@ import vct.col.resolve.ctx.RefEnumConstant
 
 trait EnumImpl[G] { this: Enum[G] =>
   def getConstant(name: String): Option[RefEnumConstant[G]] = constants.collectFirst {
-    case c if c.o.getPreferredName.get.preferredName == name => RefEnumConstant(Some(this), c)
+    case c if c.o.getPreferredNameOrElse() == name => RefEnumConstant(Some(this), c)
   }
 
   override def layout(implicit ctx: Ctx): Doc =

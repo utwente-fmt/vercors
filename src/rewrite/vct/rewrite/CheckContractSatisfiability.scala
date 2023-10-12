@@ -16,14 +16,11 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
     "Prove that contracts are not internally contradictory (i.e. unsatisfiable) for methods and other contract bearers, " +
       "except for the contract `false`."
 
-  private def CheckSatOrigin(inner: Origin, n: Option[String]): Origin = Origin(
-    Seq(
-      PreferredName("check_sat_" + n.getOrElse(inner.getPreferredName.get.preferredName)),
-      Context(inner.getContext.get.context),
-      InlineContext(inner.getInlineContext.get.inlineContext),
-      ShortPosition(inner.getShortPosition.get.shortPosition),
-    )
-  )
+  private def CheckSatOrigin(inner: Origin, n: Option[String]): Origin = {
+    inner.replacePrefName("check_sat_" + n.getOrElse(inner.getPreferredNameOrElse()))
+  }
+
+
   case class AssertPassedNontrivialUnsatisfiable(contract: ApplicableContract[_]) extends Blame[ExpectedErrorFailure] {
     override def blame(error: ExpectedErrorFailure): Unit = error match {
       case _: ExpectedErrorTrippedTwice =>
@@ -92,7 +89,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
   val name: ScopedStack[String] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    name.having(decl.o.getPreferredName.get.preferredName) {
+    name.having(decl.o.getPreferredNameOrElse()) {
       super.dispatch(decl)
     }
 

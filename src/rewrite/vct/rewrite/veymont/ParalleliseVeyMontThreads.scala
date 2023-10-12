@@ -24,9 +24,9 @@ object ParalleliseVeyMontThreads extends RewriterBuilderArg[JavaClass[_]] {
     channelType.toString.capitalize + channelClassName
 
   def getThreadClassName(thread: VeyMontThread[_]) : String =
-    thread.o.getPreferredName.get.preferredName.capitalize + threadClassName
+    thread.o.getPreferredNameOrElse().capitalize + threadClassName
 
-  def getVarName(v: Variable[_]) = v.o.getPreferredName.get.preferredName
+  def getVarName(v: Variable[_]) = v.o.getPreferredNameOrElse()
 
   case class ParalliseVeyMontThreadsError(node : Node[_], msg: String) extends UserError {
     override def code: String = "ParalleliseVeyMontThreadsError"
@@ -112,7 +112,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
     def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] =
       new JavaConstructor[Post](Seq(JavaPublic[Post]()(p.o)),
-        rewritingConstr.top._2.cls.decl.o.getPreferredName.get.preferredName,
+        rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse(),
         p.args.map(createJavaParam),
         variables.dispatch(p.typeArgs),
         Seq.empty,
@@ -179,14 +179,14 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def createThreadClassConstructor(thread: VeyMontThread[Pre], threadField: InstanceField[Post]): JavaConstructor[Post] = {
     val threadConstrArgBlocks = thread.args.map{
-      case l: Local[Pre] => (l.ref.decl.o.getPreferredName.get.preferredName,dispatch(l.t))
+      case l: Local[Pre] => (l.ref.decl.o.getPreferredNameOrElse(),dispatch(l.t))
       case other => throw ParalliseVeyMontThreadsError(other,"This node is expected to be an argument of seq_prog, and have type Local")
     }
     val threadConstrArgs: Seq[JavaParam[Post]] =
       threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a, t)(ThreadClassOrigin(thread)) }
     val passedArgs = threadConstrArgs.map(a => JavaLocal[Post](a.name)(null)(ThreadClassOrigin(thread)))
     val threadTypeName = thread.threadType match { //TODO: replace by using givenClassSucc
-      case tc: TClass[Pre] => tc.cls.decl.o.getPreferredName.get.preferredName
+      case tc: TClass[Pre] => tc.cls.decl.o.getPreferredNameOrElse()
       case _ => throw ParalliseVeyMontThreadsError(thread.threadType,"This type is expected to be a class")
     }
     val threadConstrBody = {
@@ -281,8 +281,8 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
 
   private def getChannelNamesAndTypes(s: Statement[Pre]): Seq[ChannelInfo[Pre]] = {
     s.collect { case e@VeyMontCommExpression(recv, sender, chanType, assign) =>
-      new ChannelInfo(e,chanType, recv.decl.o.getPreferredName.get.preferredName
-        + sender.decl.o.getPreferredName.get.preferredName + "Channel")
+      new ChannelInfo(e,chanType, recv.decl.o.getPreferredNameOrElse()
+        + sender.decl.o.getPreferredNameOrElse() + "Channel")
     }
   }
 

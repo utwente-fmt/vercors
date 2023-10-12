@@ -20,7 +20,7 @@ case object EncodeBreakReturn extends RewriterBuilder {
 
   private def PostLabeledStatementOrigin(label: LabelDecl[_]): Origin = Origin(
     Seq(
-      PreferredName("break_" + label.o.getPreferredName.get.preferredName),
+      PreferredName("break_" + label.o.getPreferredNameOrElse()),
       ShortPosition("generated"),
       Context("[At node generated to jump past a statement]"),
       InlineContext("[After] " + label.o.getInlineContext.get.inlineContext),

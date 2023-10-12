@@ -147,12 +147,12 @@ case object Referrable {
   })
 
   def originName(decl: Declaration[_]): String = decl.o.getPreferredName match {
-    case Some(PreferredName(name)) => name
+    case Some(name) => name
     case _ => throw NameLost(decl.o)
   }
 
   def originNameOrEmpty(decl: Declaration[_]): String = decl.o.getPreferredName match {
-    case Some(PreferredName(name)) => name
+    case Some(name) => name
     case _ => ""
   }
 }
