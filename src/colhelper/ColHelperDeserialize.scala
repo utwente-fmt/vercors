@@ -82,6 +82,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
         case ser.OriginContent.V.Context(ser.Context(str, _)) => Context(str)
         case ser.OriginContent.V.InlineContext(ser.InlineContext(str, _)) => InlineContext(str)
         case ser.OriginContent.V.ShortPosition(ser.ShortPosition(str, _)) => ShortPosition(str)
+        case ser.OriginContent.V.Empty => ???
       }
 
       def deserializeProgram[G](program: ser.Program, fileName:String="<unknown>"): Program[G] =

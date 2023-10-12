@@ -77,7 +77,7 @@ case object InlineApplicables extends RewriterBuilder {
     )
   )
 
-  private def InlineLetThisOrigin(): Origin = Origin(
+  private def InlineLetThisOrigin: Origin = Origin(
     Seq(
       PreferredName("self"),
       Context("[At let binding for `this`]"),
