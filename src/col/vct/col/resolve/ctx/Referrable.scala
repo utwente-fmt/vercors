@@ -80,6 +80,7 @@ sealed trait Referrable[G] {
     case RefBipStatePredicate(decl) => Referrable.originName(decl)
     case RefBipTransition(decl) => Referrable.originName(decl)
     case RefBipTransitionSynchronization(decl) => ""
+    case RefBipConstructor(decl) => Referrable.originName(decl)
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
@@ -170,6 +171,7 @@ case object Referrable {
     case decl: BipStatePredicate[G] => RefBipStatePredicate(decl)
     case decl: BipTransition[G] => RefBipTransition(decl)
     case decl: BipTransitionSynchronization[G] => RefBipTransitionSynchronization(decl)
+    case decl: BipConstructor[G] => RefBipConstructor(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o match {
@@ -291,6 +293,7 @@ case class RefBipPortSynchronization[G](decl: BipPortSynchronization[G]) extends
 case class RefBipStatePredicate[G](decl: BipStatePredicate[G]) extends Referrable[G]
 case class RefBipTransition[G](decl: BipTransition[G]) extends Referrable[G]
 case class RefBipTransitionSynchronization[G](decl: BipTransitionSynchronization[G]) extends Referrable[G]
+case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
