@@ -187,6 +187,14 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
+ | 'communicate' participant direction participant ';' # communicate
+ ;
+
+participant: identifier communicateRange? '.' identifier ;
+communicateRange: '[' identifier ':' expr '..' expr ']' ;
+direction
+ : '<-'
+ | '->'
  ;
 
 elseBlock: 'else' statement;
