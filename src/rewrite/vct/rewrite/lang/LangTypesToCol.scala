@@ -1,7 +1,7 @@
 package vct.col.rewrite.lang
 
 import vct.col.ast.RewriteHelpers._
-import vct.col.ast._
+import vct.col.ast.{TModel, _}
 import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
@@ -36,29 +36,29 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       Some(refs.map(porcelainRefSucc[RefDecl]).map(_.get))
     else None
 
+  def specType(target: SpecTypeNameTarget[Pre], args: Seq[Type[Pre]]): Type[Post] = target match {
+    case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
+    case RefModel(decl) => TModel[Post](succ(decl))
+    case RefEnum(enum) => TEnum[Post](succ(enum))
+    case RefProverType(typ) => TProverType[Post](succ(typ))
+    case RefVariable(decl) => TVar[Post](succ(decl))
+  }
+
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
     t match {
       case t @ JavaNamedType(_) =>
         t.ref.get match {
-          case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
-          case RefModel(decl) => TModel[Post](succ(decl))
+          case spec: SpecTypeNameTarget[Pre] => specType(spec, Nil)
           case RefJavaClass(decl) =>
             assert(t.names.init.map(_._2).forall((x: Option[Seq[Type[Pre]]]) => x.isEmpty))
             val x = JavaTClass[Post](succ(decl), t.names.last._2.getOrElse(Nil).map(dispatch))
             x
-          case RefVariable(v) => TVar[Post](succ(v))
-          case RefEnum(enum) => TEnum[Post](succ(enum))
-          case RefProverType(typ) => TProverType[Post](succ(typ))
         }
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {
-          case RefAxiomaticDataType(decl) => TAxiomatic(succ(decl), typeArgs.map(dispatch))
-          case RefModel(decl) => TModel(succ(decl))
-          case RefVariable(decl) => TVar(succ(decl))
+          case spec: SpecTypeNameTarget[Pre] => specType(spec, typeArgs)
           case RefClass(decl) => TClass(succ(decl))
-          case RefEnum(decl) => TEnum(succ(decl))
-          case RefProverType(typ) => TProverType[Post](succ(typ))
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))

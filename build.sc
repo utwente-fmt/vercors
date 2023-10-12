@@ -112,6 +112,7 @@ object util {
     override def scalacOptions = T {
       val shared = Seq(
         "-deprecation",
+        "-feature",
       )
 
       if (strictOptions()) {

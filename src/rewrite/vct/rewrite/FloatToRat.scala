@@ -26,13 +26,13 @@ case object FloatToRat extends RewriterBuilder {
 }
 
 case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
-  def name(t: Type[_]) = t match {
+  def name(t: TFloat[_]) = t match {
     case t if t == PVL.float64 => "f64"
     case t if t == PVL.float32 => "f32"
     case TFloat(e, m) => s"f${e}_$m"
   }
 
-  def makeCast(from: Type[Pre], to: Type[Pre]): Function[Post] = {
+  def makeCast(from: TFloat[Pre], to: TFloat[Pre]): Function[Post] = {
     globalDeclarations.declare(function[Post](
       args = Seq(new Variable(dispatch(from))(DiagnosticOrigin)),
       returnType = dispatch(to),
@@ -47,7 +47,10 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       if (e.t == t) {
         dispatch(e)
       } else {
-        val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t, t))
+        // PB: just casting to float is a bit dubious here, but at least:
+        // - e is type-checked to be coercible to TFloats.max
+        // - t is "supposed" to be a floaty type I guess
+        val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t.asInstanceOf[TFloat[Pre]], t.asInstanceOf[TFloat[Pre]]))
         implicit val o: Origin = expr.o
         FunctionInvocation(f.ref[Function[Post]], Seq(dispatch(e)), Nil, Nil, Nil)(PanicBlame("Can always call cast on float"))
       }

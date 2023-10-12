@@ -25,6 +25,8 @@ case class CheckProcessAlgebra[Pre <: Generation]() extends Rewriter[Pre] with L
         PanicBlame("Generated methods for models do not have context_everywhere clauses.").blame(ctx)
       case _: SignalsFailed | _: ExceptionNotInSignals =>
         PanicBlame("Generated methods for models do not throw exceptions.").blame(error)
+      case _: TerminationMeasureFailed =>
+        PanicBlame("Generated methods for models do not have termination measures (yet).").blame(error)
     }
   }
 
