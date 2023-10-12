@@ -23,7 +23,7 @@ case object EncodeBreakReturn extends RewriterBuilder {
       PreferredName("break_" + label.o.getPreferredNameOrElse()),
       ShortPosition("generated"),
       Context("[At node generated to jump past a statement]"),
-      InlineContext("[After] " + label.o.getInlineContext.get.inlineContext),
+      InlineContext("[After] " + label.o.getInlineContext.getOrElse(InlineContext("[unknown label inline context")).inlineContext),
       )
     )
 

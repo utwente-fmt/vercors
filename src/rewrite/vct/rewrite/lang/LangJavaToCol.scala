@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Context, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.rewrite.{Generation, Rewritten}
@@ -20,12 +20,12 @@ import scala.collection.mutable
 case object LangJavaToCol {
   private def JavaFieldOrigin(fields: JavaFields[_], idx: Int): Origin = {
     fields.decls(idx).o.replacePrefName(fields.decls(idx).name)
-      .replaceContext(fields.o.getContext.get.context)
+      .replaceContext(fields.o.getContext.getOrElse(Context("[unknown context]")).context)
   }
 
   private def JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int): Origin = {
     locals.decls(idx).o.replacePrefName(locals.decls(idx).name)
-      .replaceContext(locals.o.getContext.get.context)
+      .replaceContext(locals.o.getContext.getOrElse(Context("[unknown context]")).context)
   }
 
   private def JavaConstructorOrigin(cons: JavaConstructor[_]): Origin = {
