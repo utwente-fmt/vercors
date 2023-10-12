@@ -15,9 +15,10 @@ import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class LLVMContractToCol[G](override val blameProvider: BlameProvider,
+case class LLVMContractToCol[G](override val baseOrigin: Origin,
+                                override val blameProvider: BlameProvider,
                                 override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(blameProvider, errors) {
+  extends ToCol(baseOrigin, blameProvider, errors) {
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
     LlvmLocal(name)(blame(ctx))(origin(ctx))

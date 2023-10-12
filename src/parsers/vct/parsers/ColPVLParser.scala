@@ -21,7 +21,7 @@ case class ColPVLParser(override val origin: Origin,
         (errors, tree)
       }
 
-      val decls = PVLToCol[G](blameProvider, errors).convert(tree)
+      val decls = PVLToCol[G](origin, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>

@@ -6,7 +6,7 @@ import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, Global
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast._
 import vct.col.check.CheckError
-import vct.col.origin.{FileSpanningOrigin, Origin, OriginFilename}
+import vct.col.origin.{FileSpanningOrigin, Origin, OriginFilename, ReadableOrigin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
 import vct.col.rewrite.bip.IsolateBipGlue
@@ -15,7 +15,7 @@ import vct.importer.JavaLibraryLoader
 import vct.main.stages.Resolution.InputResolutionError
 import vct.options.Options
 import vct.options.types.ClassPathEntry
-import vct.parsers.transform.{BlameProvider, ReadableOriginProvider, RedirectOriginProvider}
+import vct.parsers.transform.BlameProvider
 import vct.parsers.{ColJavaParser, ColLLVMParser, FileNotFound, ParseResult}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
@@ -72,20 +72,20 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
 
 case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.SpecContractParser {
   override def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G] = {
-    val originProvider = ReadableOriginProvider(input.o.getFilename match {
+    val originProvider = Origin(Seq(ReadableOrigin(input.o.getFilename match {
       case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
       case _ => StringReadable(input.value)
-    })
+    })))
     val charStream = CharStreams.fromString(input.value)
     ColLLVMParser(originProvider, blameProvider)
       .parseFunctionContract[G](charStream)._1
   }
 
   override def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G] = {
-    val originProvider = ReadableOriginProvider(input.o.getFilename match {
+    val originProvider = Origin(Seq(ReadableOrigin(input.o.getFilename match {
       case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
       case _ => StringReadable(input.value)
-    })
+    })))
     val charStream = CharStreams.fromString(input.value)
     ColLLVMParser(originProvider, blameProvider)
       .parseGlobal(charStream)._1

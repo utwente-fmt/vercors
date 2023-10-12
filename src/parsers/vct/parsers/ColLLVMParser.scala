@@ -55,7 +55,7 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
       val tree = parser.valEmbedContract()
       (errors, tree)
     }
-    val contract = LLVMContractToCol[G](blameProvider, errors).convert(tree)
+    val contract = LLVMContractToCol[G](origin, blameProvider, errors).convert(tree)
     (contract, errors.map(_._3))
   }
 
@@ -71,7 +71,7 @@ case class ColLLVMParser(override val origin: Origin, override val blameProvider
       val tree = parser.valGlobalDeclaration()
       (errors, tree)
     }
-    val global = LLVMContractToCol[G](blameProvider, errors).convert(tree)
+    val global = LLVMContractToCol[G](origin, blameProvider, errors).convert(tree)
     (global, errors.map(_._3))
   }
 }

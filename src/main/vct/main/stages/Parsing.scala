@@ -2,11 +2,12 @@ package vct.main.stages
 
 import hre.io.Readable
 import hre.stages.Stage
+import vct.col.origin.{Origin, ReadableOrigin}
 import vct.col.rewrite.Generation
 import vct.main.stages.Parsing.{Language, UnknownFileExtension}
 import vct.options.Options
 import vct.parsers._
-import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
+import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 import viper.api.transform.ColSilverParser
@@ -80,7 +81,7 @@ case class Parsing[G <: Generation]
         .orElse(Language.fromFilename(readable.fileName))
         .getOrElse(throw UnknownFileExtension(readable.fileName))
 
-      val origin = ReadableOriginProvider(readable)
+      val origin = Origin(Seq(ReadableOrigin(readable)))
 
       val parser = language match {
         case Language.C => ColCParser(origin, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)

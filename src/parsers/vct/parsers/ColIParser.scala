@@ -19,7 +19,7 @@ case class ColIParser(override val origin: Origin, override val blameProvider: B
         (errors, tree)
       }
 
-      val decls = CToCol[G](blameProvider, errors).convert(tree)
+      val decls = CToCol[G](origin, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>

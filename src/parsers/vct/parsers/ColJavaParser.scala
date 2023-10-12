@@ -29,7 +29,7 @@ case class ColJavaParser(override val origin: Origin,
         (errors, tree)
       }
 
-      val decls = JavaToCol[G](blameProvider, errors).convert(tree)
+      val decls = JavaToCol[G](origin, blameProvider, errors).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>
@@ -50,7 +50,7 @@ case class ColJavaParser(override val origin: Origin,
       val tree = noErrorsOrThrow(origin, parser, lexer) {
         parser.expr()
       }
-      val decls = JavaToCol[G](blameProvider, errors).convert(tree)
+      val decls = JavaToCol[G](origin, blameProvider, errors).convert(tree)
       (decls, errors.map(_._3))
     } catch {
       case m: MatchError =>

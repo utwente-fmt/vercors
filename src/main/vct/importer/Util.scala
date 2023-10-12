@@ -2,11 +2,11 @@ package vct.importer
 
 import hre.io.Readable
 import vct.col.ast.{JavaClass, JavaNamespace, Program}
-import vct.col.origin.{Blame, ReadableOrigin, VerificationFailure}
+import vct.col.origin.{Blame, Origin, ReadableOrigin, VerificationFailure}
 import vct.col.rewrite.Disambiguate
 import vct.main.stages.Resolution
 import vct.parsers.{ColJavaParser, ColPVLParser}
-import vct.parsers.transform.{ConstantBlameProvider, ReadableOriginProvider}
+import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError.UserError
 
 case object Util {
@@ -22,7 +22,7 @@ case object Util {
   }
 
   def loadPVLLibraryFile[G](readable: Readable): Program[G] = {
-    val res = ColPVLParser(ReadableOriginProvider(readable), ConstantBlameProvider(LibraryFileBlame)).parse(readable)
+    val res = ColPVLParser(Origin(Seq(ReadableOrigin(readable))), ConstantBlameProvider(LibraryFileBlame)).parse(readable)
     val context = Resolution(ConstantBlameProvider(LibraryFileBlame)).run(res)
     val unambiguousProgram: Program[_] = Disambiguate().dispatch(context.tasks.head.program)
     unambiguousProgram.asInstanceOf[Program[G]]
@@ -35,7 +35,7 @@ case object Util {
   }
 
   def loadJavaClass[G](readable: Readable): JavaClass[G] =
-    ColJavaParser(ReadableOriginProvider(readable), ConstantBlameProvider(LibraryFileBlame)).parse(readable).decls match {
+    ColJavaParser(Origin(Seq(ReadableOrigin(readable))), ConstantBlameProvider(LibraryFileBlame)).parse(readable).decls match {
       case Seq(javaNamespace: JavaNamespace[G]) => javaNamespace.declarations match {
         case Seq(javaClass: JavaClass[G]) => javaClass
         case seq => throw JavaLoadError("Expected to load exactly one Java class but found " + seq.size)

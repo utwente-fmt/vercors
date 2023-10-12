@@ -18,8 +18,10 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class JavaToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](blameProvider, errors) with LazyLogging {
+case class JavaToCol[G](override val baseOrigin: Origin,
+                        override val blameProvider: BlameProvider,
+                        override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol[G](baseOrigin, blameProvider, errors) with LazyLogging {
   def convert(implicit unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(pkg, imports, decls, _) =>
       Seq(new JavaNamespace(pkg.map(convert(_)), imports.map(convert(_)), decls.flatMap(convert(_))))

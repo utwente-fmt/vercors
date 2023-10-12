@@ -16,8 +16,9 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class CToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(blameProvider, errors) {
+case class CToCol[G](override val baseOrigin: Origin,
+                     override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol(baseOrigin, blameProvider, errors) {
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(translationUnit, _) =>
       translationUnit.toSeq.map(convert(_))

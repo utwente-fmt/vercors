@@ -17,8 +17,10 @@ import scala.annotation.nowarn
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class PVLToCol[G](override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol[G](blameProvider, errors) {
+case class PVLToCol[G](override val baseOrigin: Origin,
+                       override val blameProvider: BlameProvider,
+                       override val errors: Seq[(Token, Token, ExpectedError)])
+  extends ToCol[G](baseOrigin, blameProvider, errors) {
   def convert(implicit program: ProgramContext): Seq[GlobalDeclaration[G]] = program match {
     case Program0(decls, _, _) => decls.flatMap(convert(_))
   }
