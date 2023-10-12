@@ -549,10 +549,10 @@ case object JavaAnnotationData {
   final case class BipData[G](name: String)(implicit val o: Origin) extends JavaAnnotationData[G]
 
   case object BipGuard {
-    def get[G](m: JavaMethod[G]): Option[BipGuard[G]] =
+    def get[G](m: JavaMethod[G]): Option[JavaAnnotation[G]] =
       m.modifiers
-        .collect { case ja @ JavaAnnotation(_, _) if ja.data.isDefined => ja.data.get }
-        .collectFirst { case b: BipGuard[G] => b }
+        .collect { case ja @ JavaAnnotation(_, _) => (ja, ja.data) }
+        .collectFirst { case (ja, Some(_: BipGuard[G])) => ja }
 
     def getName[G](method: JavaMethod[G]): Option[Expr[G]] =
       method.modifiers.collectFirst {

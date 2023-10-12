@@ -4,14 +4,16 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, DerefPerm, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, SourceNameOrigin, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, PostconditionFailed, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import RewriteHelpers._
-import vct.col.resolve.lang.Java
+import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.origin
+import vct.col.resolve.lang.{Java, JavaAnnotationData}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipTransition}
 import vct.result.VerificationError.{Unreachable, UserError}
 
@@ -220,38 +222,49 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar)
         val res = Local[Post](resVar.ref)
-        rw.labelDecls.scope {
-          javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
-            new Procedure(
-              returnType = t,
-              args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
-              outArgs = Nil, typeArgs = Nil,
-              body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
-                assignLocal(res, NewObject(ref)),
-                fieldInit(res),
-                sharedInit(res),
-                rw.dispatch(cons.body),
-                Return(res),
-              )))) },
-              contract = rw.currentThis.having(result) { cons.contract.rewrite(
-                ensures = SplitAccountedPredicate(
-                  left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
-                  right = rw.dispatch(cons.contract.ensures),
-                ),
-                signals = cons.contract.signals.map(rw.dispatch) ++
-                  cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
-              ) },
-            )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
-          ))
+
+        val results = currentJavaClass.top.modifiers.collect {
+          case annotation@JavaAnnotationEx(_, _, component@JavaAnnotationData.BipComponent(_, _)) if !isStaticPart =>
+            rw.bip.rewriteConstructor(cons, annotation, component, diz => Block[Post](Seq(fieldInit(diz), sharedInit(diz))))
+        }
+        if (results.isEmpty) { // We didn't execute the bip rewrite, so we do the normal one
+          rw.labelDecls.scope {
+            javaConstructor(cons) = rw.globalDeclarations.declare(withResult((result: Result[Post]) =>
+              new Procedure(
+                returnType = t,
+                args = rw.variables.collect { cons.parameters.map(rw.dispatch) }._1,
+                outArgs = Nil, typeArgs = Nil,
+                body = rw.currentThis.having(res) { Some(Scope(Seq(resVar), Block(Seq(
+                  assignLocal(res, NewObject(ref)),
+                  fieldInit(res),
+                  sharedInit(res),
+                  rw.dispatch(cons.body),
+                  Return(res),
+                )))) },
+                contract = rw.currentThis.having(result) { cons.contract.rewrite(
+                  ensures = SplitAccountedPredicate(
+                    left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
+                    right = rw.dispatch(cons.contract.ensures),
+                  ),
+                  signals = cons.contract.signals.map(rw.dispatch) ++
+                    cons.signals.map(t => SignalsClause(new Variable(rw.dispatch(t)), tt)),
+                ) },
+              )(PostBlameSplit.left(PanicBlame("Constructor cannot return null value or value of wrong type."), cons.blame))(JavaConstructorOrigin(cons))
+            ))
+          }
         }
       case method: JavaMethod[Pre] =>
-        if (BipTransition.get(method).nonEmpty) {
-          rw.bip.rewriteTransition(method)
-        } else if (BipGuard.get(method).isDefined) {
-          rw.bip.rewriteGuard(method)
-        } else if (BipData.get(method).isDefined) {
-          rw.bip.rewriteOutgoingData(method)
-        } else {
+        // For each javabip annotation that we encounter, execute a rewrite
+        val results = method.modifiers.collect {
+          case annotation @ JavaAnnotationEx(_, _, guard: JavaAnnotationData.BipGuard[Pre]) =>
+            rw.bip.rewriteGuard(method, annotation, guard)
+          case annotation @ JavaAnnotationEx(_, _, transition : JavaAnnotationData.BipTransition[Pre]) =>
+            rw.bip.rewriteTransition(method, annotation, transition)
+          case annotation @ JavaAnnotationEx(_, _, data: JavaAnnotationData.BipData[Pre]) =>
+            rw.bip.rewriteOutgoingData(method, annotation, data)
+        }
+        // If no rewrites were triggered, it must be a regular java method, so execute the default rewrite
+        if (results.isEmpty) {
           rw.dispatch(method)
         }
 
@@ -327,14 +340,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           makeJavaClass(cls.name, instDecls, javaInstanceClassSuccessor.ref(cls), isStaticPart = false)
           cls match {
             case cls: JavaClass[Pre] if BipComponent.get(cls).isDefined =>
-              val inputConstructorRefs: Seq[Ref[Post, Procedure[Post]]] =
-                cls.decls.collect({ case c: JavaConstructor[Pre] => c }).map(javaConstructor.ref(_))
-              val syntheticConstructorRefs: Seq[Ref[Post, Procedure[Post]]] =
-                javaDefaultConstructor.get(cls) match {
-                  case Some(constructor) => Seq(javaConstructor.ref[Post, Procedure[Post]](constructor))
-                  case None => Seq()
-                }
-              rw.bip.generateComponent(cls, inputConstructorRefs ++ syntheticConstructorRefs)
+              rw.bip.generateComponent(cls)
             case _ =>
           }
         }._1, supports, rw.dispatch(lockInvariant))(JavaInstanceClassOrigin(cls))

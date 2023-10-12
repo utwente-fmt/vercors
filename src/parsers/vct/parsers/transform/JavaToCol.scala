@@ -39,7 +39,7 @@ case class JavaToCol[G](override val originProvider: OriginProvider, override va
         Seq(new JavaClass(convert(name), mods.map(convert(_)), args.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
           ext.map(convert(_)).getOrElse(Java.JAVA_LANG_OBJECT),
-          imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_))))
+          imp.map(convert(_)).getOrElse(Nil), decls.flatMap(convert(_)))(blame(decl)))
       })
     case TypeDeclaration1(mods, EnumDeclaration0(_, name, None, _, Some(constants), _, None | Some(EnumBodyDeclarations0(_, Seq())), _)) =>
       mods.map(convert(_)).foreach {
