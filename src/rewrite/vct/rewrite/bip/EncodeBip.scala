@@ -323,7 +323,7 @@ case class EncodeBip[Pre <: Generation](results: VerificationResults) extends Re
             },
             contract(requires = UnitAccountedPredicate(dispatch(constructor.requires)),
               blame = constructor.blame)
-          )(PanicBlame("Unexpected error, failing precondition on JavaBIP constructor should not happen"))
+          )(PanicBlame("Unexpected error, failing precondition on JavaBIP constructor should not happen"))(constructor.o)
         )
       }
 
