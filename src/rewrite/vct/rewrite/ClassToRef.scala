@@ -274,6 +274,9 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
       case function: InstanceFunction[Pre] => Result[Post](functionSucc.ref(function))(e.o)
       case procedure: Procedure[Pre] => Result[Post](succ(procedure))(e.o)
       case method: InstanceMethod[Pre] => Result[Post](methodSucc.ref(method))(e.o)
+      case function: InstanceOperatorFunction[Pre] => throw ExcludedByPassOrder("Instance operator functions are already compiled away", Some(function))
+      case method: InstanceOperatorMethod[Pre] => throw ExcludedByPassOrder("Instance operator methods are already compiled away", Some(method))
+      case function: LlvmSpecFunction[Pre] => throw ExcludedByPassOrder("Llvm spec functions are already compiled away", Some(function))
     }
     case _ => rewriteDefault(e)
   }

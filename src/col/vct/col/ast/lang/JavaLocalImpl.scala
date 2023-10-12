@@ -10,7 +10,7 @@ trait JavaLocalImpl[G] { this: JavaLocal[G] =>
   override lazy val t: Type[G] = ref.get match {
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case ref: RefEnum[G] => Types.notAValue(ref)
-    case RefEnumConstant(Some(enum), _) => TEnum(enum.ref[Enum[G]])
+    case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
     case RefVariable(decl) => decl.t
     case ref: RefUnloadedJavaNamespace[G] => Types.notAValue(ref)
     case ref: RefJavaClass[G] => Types.notAValue(ref)
@@ -19,6 +19,7 @@ trait JavaLocalImpl[G] { this: JavaLocal[G] =>
     case RefJavaParam(decl) => decl.t
     case RefJavaBipGuard(_) => TBool()
     case RefModelField(field) => field.t
+    case ref: RefClass[G] => Types.notAValue(ref)
   }
 
   override def layout(implicit ctx: Ctx): Doc = Text(name)

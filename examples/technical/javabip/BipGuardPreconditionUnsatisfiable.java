@@ -20,11 +20,11 @@ public class GuardIsUsed {
     }
 
     @Pure
-    @Guard(name = GEQ_Y)
     /*[/expect bipGuardPreconditionUnsatisfiable]*/
+    @Guard(name = GEQ_Y)
+    /*[/end]*/
     public boolean geqZero() {
         return true;
     }
-    /*[/end]*/
 }
 /*[/end]*/

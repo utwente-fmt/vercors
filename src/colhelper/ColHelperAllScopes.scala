@@ -4,6 +4,13 @@ case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
   def make(): List[(String, List[Stat])] = List("AllScopes" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag
+    import vct.result.VerificationError.SystemError
+
+    case object AllScopes {
+      case class InconsistentSuccessionTypes(left: Declaration[_], right: Declaration[_]) extends SystemError {
+        override def text: String = "The declaration kinds of these declarations do not match"
+      }
+    }
 
     case class AllScopes[Pre, Post]() {
       class AllFrozenScopes extends SuccessorsProvider[Pre, Post] {
@@ -38,7 +45,7 @@ case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
       def anySucceedOnly[T <: Declaration[Post]](pre1: Declaration[Pre], post1: T)(implicit tag: ClassTag[T]): T =
         ${ColHelperUtil.NonemptyMatch("decl succeed kind cases", q"(pre1, post1)", ColDefs.DECLARATION_KINDS.map(decl =>
           Case(p"(pre: ${Type.Name(decl)}[Pre], post: ${Type.Name(decl)}[Post])", None, q"${ColDefs.scopes(decl)}.succeedOnly(pre, post); post1")
-        ).toList)}
+        ).toList :+ Case(p"(pre, post)", None, q"throw AllScopes.InconsistentSuccessionTypes(pre, post)"))}
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         val ${Pat.Var(ColDefs.scopes(decl))}: Scopes[Pre, Post, ${Type.Name(decl)}[Pre], ${Type.Name(decl)}[Post]] = Scopes()

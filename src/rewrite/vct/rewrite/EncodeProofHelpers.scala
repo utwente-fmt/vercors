@@ -51,6 +51,7 @@ case object EncodeProofHelpers extends RewriterBuilderArg[Boolean] {
         proof.blame.blame(FramedProofPreFailed(failure, proof))
       case LoopInvariantNotMaintained(failure, _) =>
         proof.blame.blame(FramedProofPostFailed(failure, proof))
+      case LoopTerminationMeasureFailed(_) => PanicBlame("There is no termination measure here").blame(error)
     }
   }
 }

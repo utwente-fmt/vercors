@@ -191,6 +191,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
       case CoerceUnboundInt(_) => e
+      case CoerceCArrayPointer(_) => e
+      case CoerceCPPArrayPointer(_) => e
+      case CoerceNullEnum(_) => e
 
       case CoerceIntRat() => e
       case CoerceRatZFrac() => e
@@ -215,6 +218,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: FieldFlag[Pre] => node
     case node: IterVariable[Pre] => node
     case node: CDeclarator[Pre] => node
+    case node: CDeclaration[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node
@@ -1507,11 +1511,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case WritePerm() =>
         WritePerm()
       case Z3ArrayConst(domain, codomain, value) => Z3ArrayConst(domain, codomain, coerce(value, codomain))
-      case Z3ArrayMap(ref, Nil) => Z3ArrayMap(ref, Nil)
       case Z3ArrayMap(ref, arg +: args) =>
         val (_, TSmtlibArray(keyType, _)) = smtarr(arg)
         val ts = ref.ref.decl.args.map(_.t).map(TSmtlibArray(keyType, _))
         Z3ArrayMap(ref, (arg +: args).zip(ts).map { case (e, t) => coerce(e, t) })
+      case Z3ArrayMap(ref, _) => Z3ArrayMap(ref, Nil)
       case Z3ArrayOfFunction(ref) => Z3ArrayOfFunction(ref)
       case Z3BvNand(left, right) => bitvec2(left, right, Z3BvNand(_, _))
       case Z3BvNor(left, right) => bitvec2(left, right, Z3BvNor(_, _))
@@ -1669,7 +1673,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case namespace: JavaNamespace[Pre] =>
         namespace
       case clazz: JavaClass[Pre] =>
-        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)
+        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)(clazz.blame)
       case interface: JavaInterface[Pre] =>
         interface
       case interface: JavaAnnotationInterface[Pre] =>
@@ -1744,8 +1748,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
       case seqProg: VeyMontSeqProg[Pre] => seqProg
       case thread: VeyMontThread[Pre] => thread
+      case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
-        new BipComponent(bc.fqn, bc.constructors, res(bc.invariant), bc.initial)
+        new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>
         new BipStatePredicate(bool(bsp.expr))
       case trans: BipTransition[Pre] =>
@@ -2054,6 +2059,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case annotation @ JavaAnnotation(name, args) => JavaAnnotation(name, args)(annotation.blame)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
+      case JavaBipAnnotation() => JavaBipAnnotation()
     }
   }
 

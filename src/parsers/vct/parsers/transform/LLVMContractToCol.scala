@@ -9,6 +9,7 @@ import vct.col.ast._
 import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
+import vct.parsers.ParseError
 
 import scala.annotation.nowarn
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
@@ -144,6 +145,7 @@ case class LLVMContractToCol[G](override val baseOrigin: Origin,
           case LLVMSpecParserPatterns.Or(_) => BitOr(left, right)
           case Xor(_) => BitXor(left, right)
         }
+        case other => throw ParseError(left.o, s"Expected an integer or boolean expression here, but got `$other`")
       }
     }
   }

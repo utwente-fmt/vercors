@@ -19,7 +19,7 @@ case object Util {
       case None => ProgressRender(message)
       case Some(o) if short =>
         ProgressRender(s"$message `${o.getInlineContext.getOrElse(InlineContext("unknown")).inlineContext}`")
-      case Some(o) if !short =>
+      case Some(o) =>
         val lines = o.messageInContext(message).split("\n")
         ProgressRender(lines, lines.size - 2)
     }

@@ -1,0 +1,38 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: VerCors
+message: >-
+  To cite VerCors, please cite the article from the
+  preferred-citation.
+type: software
+authors:
+  - given-names: Huisman
+    family-names: Marieke
+preferred-citation:
+  authors:
+    - family-names: Blom
+      given-names: Stefan
+    - family-names: Darabi
+      given-names: Saeed
+    - family-names: Huisman
+      given-names: Marieke
+    - family-names: Oortwijn
+      given-names: Wytse
+  title: "The VerCors Tool Set: Verification of Parallel and Concurrent Software"
+  type: "conference-paper"
+  doi: "10.1007/978-3-319-66845-1_7"
+  year: 2017
+  conference:
+    name: "Integrated Formal Methods 2017"
+  editors:
+    - family-names: Polikarpova
+      given-names: Nadia
+    - family-names: Schneider
+      given-names: Steve
+  publisher:
+    name: "Springer International Publishing"
+    address: "Cham"
+  isbn: "978-3-319-66845-1"
+  pages: "102--110"

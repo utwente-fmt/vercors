@@ -36,7 +36,7 @@ case object Util {
 
   def loadJavaClass[G](readable: Readable): JavaClass[G] =
     ColJavaParser(Origin(Seq(ReadableOrigin(readable))), ConstantBlameProvider(LibraryFileBlame)).parse(readable).decls match {
-      case Seq(javaNamespace: JavaNamespace[G]) => javaNamespace.declarations match {
+      case Seq(javaNamespace: JavaNamespace[G @unchecked]) => javaNamespace.declarations match {
         case Seq(javaClass: JavaClass[G]) => javaClass
         case seq => throw JavaLoadError("Expected to load exactly one Java class but found " + seq.size)
       }

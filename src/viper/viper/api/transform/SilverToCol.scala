@@ -263,6 +263,9 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
 
     case silver.Package(wand, proofScript) => ??(s)
     case silver.Apply(exp) => ??(s)
+    case silver.Quasihavoc(_, _) => ??(s)
+    case silver.Quasihavocall(_, _, _) => ??(s)
+
     case stmt: silver.ExtensionStmt => ??(stmt)
   }
 
@@ -368,6 +371,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
       case silver.Or(left, right) => col.Or(f(left), f(right))
       case silver.PermAdd(left, right) => col.Plus(f(left), f(right))
       case silver.PermDiv(left, right) => col.Div(f(left), f(right))(blame(e))
+      case silver.PermPermDiv(left, right) => col.Div(f(left), f(right))(blame(e))
       case silver.PermGeCmp(left, right) => col.GreaterEq(f(left), f(right))
       case silver.PermGtCmp(left, right) => col.Greater(f(left), f(right))
       case silver.PermLeCmp(left, right) => col.LessEq(f(left), f(right))

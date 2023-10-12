@@ -63,7 +63,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         ApplicableContract(
           UnitAccountedPredicate(tt),
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
-            case field: InstanceField[Pre] =>
+            case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty =>
               fieldPerm[Post](result, rw.succ(field), WritePerm())
           }) &* (if (checkRunnable) IdleToken(result) else tt)), tt, Nil, Nil, Nil, None,
         )(TrueSatisfiable)
@@ -81,6 +81,8 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case RefClass(decl) => throw NotAValue(local)
       case RefField(decl) => Deref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
       case RefVeyMontThread(decl) => DerefVeyMontThread[Post](rw.succ(decl))
+      case RefEnum(decl) => throw NotAValue(local)
+      case RefEnumConstant(enum, constant) => EnumUse(rw.succ(enum.get), rw.succ(constant))
     }
   }
 

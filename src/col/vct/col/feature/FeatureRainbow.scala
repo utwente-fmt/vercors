@@ -389,7 +389,6 @@ class FeatureRainbow[G] {
     case node: ParBlockDecl[G] => ParallelRegion
     case node: ParInvariantDecl[G] => ParallelRegion
     case node: IterVariable[G] => ParallelRegion
-    case node: ParSequential[G] => ParallelRegion
 
     case node: Permutation[G] => PermutationOperator
 

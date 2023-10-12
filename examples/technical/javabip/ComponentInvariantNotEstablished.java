@@ -9,7 +9,7 @@ public class ComponentInvariantNotEstablished {
     public static final String INIT = "initialState";
     public static final String NAME = "oneComponentOneTransition";
 
-    OneComponentOneTransition() { }
+    ComponentInvariantNotEstablished() { }
 
     private int x;
 }

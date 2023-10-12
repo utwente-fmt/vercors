@@ -88,6 +88,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
           else throw VeyMontStructCheckError(st, "A method call on a thread object may only refer to same thread in its arguments!")
         case _ => throw VeyMontStructCheckError(st, "This kind of method call is not allowed in seq_program")
       }
+      case _ => throw VeyMontStructCheckError(st, "This is not a method call")
     }
   }
 }

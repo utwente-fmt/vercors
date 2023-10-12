@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.lang.LangBipToCol._
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{BipComponentInvariantNotEstablished, BipConstructorFailure, BipStateInvariantNotEstablished, Blame, DiagnosticOrigin, NontrivialUnsatisfiable, Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{ImplicitDefaultJavaBipStatePredicate, JavaBipStatePredicateTarget, RefJavaBipGuard, RefJavaBipStatePredicate}
 import vct.col.resolve.lang.{JavaAnnotationData => jad}
@@ -36,6 +37,11 @@ case object LangBipToCol {
     override def text: String = m.o.messageInContext("This data method should be marked pure with `@Pure`")
   }
 
+  case class ImproperConstructor(c: JavaConstructor[_], msg: String) extends UserError {
+    override def code: String = "bipImproperConstructor"
+    override def text: String = c.o.messageInContext(msg)
+  }
+
   case class BipIncomingDataInconsistentType(data: BipData[_], param: JavaParam[_]) extends UserError {
     override def code: String = "bipInconsistentDataType"
     override def text: String = Origin.messagesInContext(Seq(
@@ -59,6 +65,22 @@ case object LangBipToCol {
     data.o.replacePrefName {
       val fqn = (ns.name.map(Seq(_)).getOrElse(Seq()) :+ cls.name).mkString(".")
       s"($fqn,${data.name})"
+    }
+  }
+
+  case class BipConstructorOrigin(cls: JavaClassOrInterface[_], c: JavaConstructor[_]) extends Origin {
+    override def preferredName: String = s"${cls.o.preferredName}_constructor"
+
+    override def context: String = c.o.context
+    override def inlineContext: String = c.o.inlineContext
+    override def shortPosition: String = c.o.shortPosition
+  }
+
+  case class UntangleBipConstructorFailure(constructor: JavaConstructor[_]) extends Blame[BipConstructorFailure] {
+    override def blame(error: BipConstructorFailure): Unit = error match {
+      case err: NontrivialUnsatisfiable => constructor.contract.blame.blame(err)
+      case err: BipComponentInvariantNotEstablished => constructor.blame.blame(err)
+      case err: BipStateInvariantNotEstablished => constructor.blame.blame(err)
     }
   }
 }
@@ -111,9 +133,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     data.ref
   }
 
-  def rewriteTransition(m: JavaMethod[Pre]): Unit = jad.BipTransition.get(m).foreach(rewriteTransition(m, _))
-
-  def rewriteTransition(m: JavaMethod[Pre], transition: jad.BipTransition[Pre]): Unit = {
+  def rewriteTransition(m: JavaMethod[Pre], annotation: JavaAnnotation[Pre], transition: jad.BipTransition[Pre]): Unit = {
     val jad.BipTransition(portName, source, target, guardText, guard, requires, ensures) = transition
 
     if (m.returnType != TVoid[Pre]()) { throw WrongTransitionReturnType(m) }
@@ -134,7 +154,7 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       guard.map(rw.dispatch).getOrElse(tt),
       rw.dispatch(requires),
       rw.dispatch(ensures),
-      rw.dispatch(m.body.get))(m.blame)(m.o.addPrefName(m.name))
+      rw.dispatch(m.body.get))(annotation.blame)(m.o.addPrefName(m.name))
 
     javaMethodSuccTransition((m, transition)) = rw.classDeclarations.declare(trans)
   }
@@ -152,34 +172,55 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     BipLocalIncomingData(javaParamSucc.ref[Post, BipIncomingData[Post]](decl))(local.o)
   }
 
-  def rewriteGuard(m: JavaMethod[Pre]): Unit = {
-    val jad.BipGuard(_) = jad.BipGuard.get(m).get
-
-    if (m.returnType != TBool[Pre]()) { throw LangBipToCol.WrongGuardReturnType(m) }
-
-    javaMethodSuccGuard(m) = rw.classDeclarations.declare(new BipGuard[Post](
-      m.parameters.map(rewriteParameter),
-      rw.dispatch(m.body.get),
-      true
-    )(m.blame)(m.o.addPrefName(m.name)))
-  }
-
-  def rewriteOutgoingData(m: JavaMethod[Pre]): Unit = {
-    val data @ jad.BipData(name) = jad.BipData.get(m).get
-    if (!jad.BipPure.isPure(m)) {
-      throw ImpureData(m);
+  def rewriteConstructor(constructor: JavaConstructor[Pre], annotation: JavaAnnotation[Pre], data: jad.BipComponent[Pre], generateInit: Expr[Post] => Statement[Post]): Unit = {
+    implicit val o: Origin = constructor.o
+    val contractWithoutRequires = constructor.contract.copy(requires = UnitAccountedPredicate[Pre](tt))(
+      blame = constructor.contract.blame)(o = constructor.o)
+    if (contractWithoutRequires.nonEmpty) {
+      throw ImproperConstructor(constructor, "Only precondition is allowed on JavaBIP component constructors")
     }
 
-    javaMethodSuccOutgoingData(m) = rw.classDeclarations.declare(
-      new BipOutgoingData(
-        rw.dispatch(m.returnType),
-        rw.dispatch(m.body.get),
-        jad.BipPure.isPure(m)
-      )(m.blame)(BipDataOrigin(rw.java.namespace.top, currentClass(), data)))
-    dataOut((currentClass(), name)) = javaMethodSuccOutgoingData(m)
+    logger.debug(s"JavaBIP component constructor for ${constructor.o.context}")
+    rw.currentThis.having(ThisObject(rw.java.javaInstanceClassSuccessor.ref(rw.java.currentJavaClass.top))) {
+      rw.labelDecls.scope {
+        rw.classDeclarations.declare(
+          new BipConstructor(
+            args = rw.variables.collect { constructor.parameters.map(rw.dispatch) }._1,
+            body = Block(Seq(
+              generateInit(rw.currentThis.top),
+              rw.dispatch(constructor.body))),
+            requires = foldStar(rw.dispatch(constructor.contract.requires))
+          )(UntangleBipConstructorFailure(constructor))(BipConstructorOrigin(rw.java.currentJavaClass.top, constructor))
+        )
+      }
+    }
   }
 
-  def generateComponent(cls: JavaClass[Pre], constructors: Seq[Ref[Post, Procedure[Post]]]): Unit = {
+  def rewriteGuard(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], guard: jad.BipGuard[Pre]): Unit = {
+    if (method.returnType != TBool[Pre]()) { throw LangBipToCol.WrongGuardReturnType(method) }
+
+    javaMethodSuccGuard(method) = rw.classDeclarations.declare(new BipGuard[Post](
+      method.parameters.map(rewriteParameter),
+      rw.dispatch(method.body.get),
+      true
+    )(annotation.blame)(method.o.addPrefName(method.name)))
+  }
+
+  def rewriteOutgoingData(method: JavaMethod[Pre], annotation: JavaAnnotation[Pre], data: jad.BipData[Pre]): Unit = {
+    if (!jad.BipPure.isPure(method)) {
+      throw ImpureData(method);
+    }
+
+    javaMethodSuccOutgoingData(method) = rw.classDeclarations.declare(
+      new BipOutgoingData(
+        rw.dispatch(method.returnType),
+        rw.dispatch(method.body.get),
+        jad.BipPure.isPure(method)
+      )(annotation.blame)(BipDataOrigin(rw.java.namespace.top, currentClass(), data)))
+    dataOut((currentClass(), data.name)) = javaMethodSuccOutgoingData(method)
+  }
+
+  def generateComponent(cls: JavaClass[Pre]): Unit = {
     val jad.BipComponent(name, initialState) = jad.BipComponent.get(cls).get
     val allPorts = jad.BipPort.getAll(cls)
 
@@ -192,7 +233,6 @@ case class LangBipToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     components(name) = rw.classDeclarations.declare(
       new BipComponent(
         rw.java.namespace.top.pkg.get.names :+ cls.name,
-        constructors,
         rw.dispatch(invariant),
         getJavaBipStatePredicate(initialState))(cls.o))
 

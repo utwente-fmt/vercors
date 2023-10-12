@@ -19,12 +19,6 @@ import vct.result.VerificationError.UserError
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
 
 case object Resolve {
-  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
-    override def code: String = "badBipAnnotation"
-
-    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
-  }
-
   trait SpecExprParser {
     // If parsing fails, throw/terminate
     def parse[G](input: String, o: Origin): Expr[G]
@@ -49,6 +43,11 @@ case object Resolve {
         case _ => None
       }
     case _ => None
+  }
+
+  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
+    override def code: String = "badBipAnnotation"
+    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
   }
 
   case class UnexpectedComplicatedExpression(e: Expr[_]) extends UserError {
@@ -149,7 +148,7 @@ case object ResolveTypes {
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
-      Java.findJavaName(local.name, ctx) match {
+      Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(
         _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
         _ // Statically imported, or regular previously imported typename
@@ -278,14 +277,15 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
-    case app: ContractApplicable[G] => ctx
-      .copy(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
-      .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
+      .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
     case fields: JavaFields[G] => ctx
       .copy(currentInitializerType=Some(fields.t))
+      .copy(inStaticJavaContext=fields.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
+    case init: JavaSharedInitialization[G] => ctx
+      .copy(inStaticJavaContext=init.isStatic)
     case locals: JavaLocalDeclaration[G] => ctx
       .copy(currentInitializerType=Some(locals.t))
     case decl: JavaVariableDeclaration[G] => ctx
@@ -344,6 +344,9 @@ case object ResolveReferences extends LazyLogging {
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
       .declare(locals ++ scanScope(body, inGPUKernel))
+    case app: ContractApplicable[G] => ctx
+      .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
+      .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case app: Applicable[G] => ctx
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case declarator: Declarator[G] => ctx
@@ -361,10 +364,10 @@ case object ResolveReferences extends LazyLogging {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
       } else { None }
       local.ref = Some(start.orElse(
-        Java.findJavaName(name, ctx.asTypeResolutionContext)
+        Java.findJavaName(name, fromStaticContext = ctx.inStaticJavaContext, ctx.asTypeResolutionContext)
           .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
             case Some(target: JavaNameTarget[G]) => Some(target)
-            case None => None
+            case Some(_) | None => None
           }))
           .getOrElse(
             if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
@@ -519,8 +522,7 @@ case object ResolveReferences extends LazyLogging {
     case res@AmbiguousResult() =>
       res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))
     case diz@AmbiguousThis() =>
-      // PB: now obsolete?
-      diz.ref = Some(ctx.currentThis.get)
+      diz.ref = Some(ctx.currentThis.getOrElse(throw WrongThisPosition(diz)))
 
     case proc: ModelProcess[G] =>
       proc.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
@@ -632,6 +634,7 @@ case object ResolveReferences extends LazyLogging {
           }
         case RefLlvmSpecFunction(_) =>
           Some(Spec.findLocal(local.name, ctx).getOrElse(throw NoSuchNameError("local", local.name, local)).ref)
+        case _ => None
       }
     case inv: LlvmAmbiguousFunctionInvocation[G] =>
       inv.ref = LLVM.findCallable(inv.name, ctx) match {

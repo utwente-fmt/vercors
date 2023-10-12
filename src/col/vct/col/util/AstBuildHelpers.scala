@@ -104,16 +104,20 @@ object AstBuildHelpers {
   implicit class ContractApplicableBuildHelpers[Pre, Post](contracted: ContractApplicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
     def rewrite(args: => Seq[Variable[Post]] = rewriter.variables.dispatch(contracted.args),
                 returnType: => Type[Post] = rewriter.dispatch(contracted.returnType),
-                contract: => ApplicableContract[Post] = rewriter.dispatch(contracted.contract),
                 typeArgs: => Seq[Variable[Post]] = rewriter.variables.dispatch(contracted.typeArgs),
+                contract: => ApplicableContract[Post] = rewriter.dispatch(contracted.contract),
                 inline: => Boolean = contracted.inline,
                ): ContractApplicable[Post] = contracted match {
       case function: Function[Pre] =>
-        new RewriteFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+        new RewriteFunction(function).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
       case function: InstanceFunction[Pre] =>
-        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
+      case function: InstanceOperatorFunction[Pre] =>
+        new RewriteInstanceOperatorFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract)
+      case function: LlvmSpecFunction[Pre] =>
+        new RewriteLlvmSpecFunction(function).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
       case method: AbstractMethod[Pre] =>
-        new MethodBuildHelpers(method).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+        new MethodBuildHelpers(method).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
     }
   }
 
@@ -152,7 +156,9 @@ object AstBuildHelpers {
       case function: InstanceFunction[Pre] =>
         new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
       case function: InstanceOperatorFunction[Pre] =>
-        new RewriteInstanceOperatorFunction(function).rewrite(returnType = returnType, operator = rewriter.dispatch(function.operator), args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
+        new RewriteInstanceOperatorFunction(function).rewrite(returnType = returnType, args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
+      case function: LlvmSpecFunction[Pre] =>
+        new RewriteLlvmSpecFunction(function).rewrite(returnType = returnType, args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
     }
   }
 
@@ -174,6 +180,8 @@ object AstBuildHelpers {
         new RewriteADTFunctionInvocation(inv).rewrite(args = args)
       case inv: ProverFunctionInvocation[Pre] =>
         new RewriteProverFunctionInvocation(inv).rewrite(args = args)
+      case inv: LlvmFunctionInvocation[Pre] =>
+        new RewriteLlvmFunctionInvocation(inv).rewrite(args = args)
       case apply: ApplyAnyPredicate[Pre] =>
         new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)
       case inv: Invocation[Pre] =>
