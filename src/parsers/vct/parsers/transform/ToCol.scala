@@ -92,10 +92,18 @@ abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider
     def nodes: Seq[ParserRuleContext] = Seq(pure, inline, threadLocal, static, bipAnnotation).flatten
   }
 
+  /**
+   * Used to convert ParserRuleContext nodes into origin implicitly
+   * @param node the node we want the origin of
+   * @return a constructed Origin based on the (implicitly) given node
+   */
   implicit def origin(implicit node: ParserRuleContext): Origin = {
     Origin(baseOrigin.originContents ++ ctxToOrigin(node.start, node.stop).originContents)
   }
 
+  /**
+   * Helper function used to deduce a node's position in the origin, used by the implicit origin method
+   */
   def ctxToOrigin(start: Token, stop: Token): Origin = {
     val startLineIdx = start.getLine - 1
     val startColIdx = start.getCharPositionInLine
