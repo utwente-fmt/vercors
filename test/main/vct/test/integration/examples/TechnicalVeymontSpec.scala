@@ -3,7 +3,7 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeymontSpec extends VercorsSpec {
-  vercors should verify using silicon in "example using communicate" pvl
+  vercors should error withCode "communicateNotSupported" in "example using communicate" pvl
   """
      class Storage {
         int x;
@@ -20,7 +20,7 @@ class TechnicalVeymontSpec extends VercorsSpec {
      }
   """
 
-  vercors should verify using silicon in "parameterized sends not yet supported " pvl
+  vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
   """
     seq_program Example() {
       thread alice[10] = Storage();

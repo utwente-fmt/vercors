@@ -10,11 +10,13 @@ import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefProverFunction, RefVariable, RefVeyMontThread}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
-import vct.result.VerificationError.SystemError
+import vct.result.VerificationError.{SystemError, UserError}
+import LangPVLToCol.CommunicateNotSupported
 
 case object LangPVLToCol {
-  case object CommunicateNotSupported extends SystemError {
+  case object CommunicateNotSupported extends UserError {
     override def text: String = "The `communicate` statement is not yet supported"
+    override def code: String = "communicateNotSupported"
   }
 }
 
@@ -166,6 +168,6 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def communicate(comm: PVLCommunicate[Pre]): VeyMontCommExpression[Post] = {
-    throw LangPVLToCol.CommunicateNotSupported
+    throw CommunicateNotSupported
   }
 }
