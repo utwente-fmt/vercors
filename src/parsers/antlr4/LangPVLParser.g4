@@ -187,7 +187,7 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
- | 'communicate' access direction access ';' # pvlCommunicate
+ | 'communicate' access direction access ';' # pvlCommunicateStatement
  ;
 
 direction
@@ -196,7 +196,7 @@ direction
  ;
 
 access: subject '.' identifier;
-subject:
+subject
  : identifier
  | identifier '[' expr ']'
  | identifier '[' identifier ':' expr '..' expr ']';
