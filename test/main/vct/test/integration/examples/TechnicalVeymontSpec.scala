@@ -20,12 +20,14 @@ class TechnicalVeymontSpec extends VercorsSpec {
      }
   """
 
-  vercors should error withCode "unsupported" in "parameterized sends not yet supported " pvl
-    """
-   seq_program Example() {
+  vercors should verify using silicon in "parameterized sends not yet supported " pvl
+  """
+    seq_program Example() {
+      thread alice[10] = Storage();
+      thread bob[10] = Storage();
       run {
-        communicate alice[i: 0 .. 10].x <- bob[i: 0 .. 10].y;
+        communicate alice[i: 0 .. 9].x <- bob[i + 1].y;
       }
-   }
-"""
+    }
+  """
 }
