@@ -385,8 +385,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     implicit val o: Origin = local.o
 
     local.ref.get match {
-      case RefAxiomaticDataType(decl) => throw NotAValue(local)
-      case RefVariable(decl) => Local(rw.succ(decl))
+      case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
       case RefJavaParam(decl) if BipData.get(decl).isDefined => rw.bip.local(local, decl)
       case RefJavaParam(decl) => Local(javaParamSuccessor.ref(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
@@ -402,12 +401,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           Deref[Post](rw.currentThis.top, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
         }
       case RefJavaBipGuard(_) => rw.bip.local(local)
-      case RefModelField(field) =>
-        ModelDeref[Post](rw.currentThis.top, rw.succ(field))(local.blame)
       case RefJavaLocalDeclaration(decls, idx) =>
         Local(javaLocalsSuccessor.ref((decls, idx)))
-      case RefEnumConstant(Some(enum), constant) =>
-        EnumUse(rw.succ(enum), rw.succ(constant))
     }
   }
 
@@ -415,10 +410,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     implicit val o: Origin = deref.o
 
     deref.ref.get match {
-      case RefAxiomaticDataType(decl) => throw NotAValue(deref)
-      case RefModel(decl) => throw NotAValue(deref)
+      case spec: SpecDerefTarget[Pre] => rw.specDeref(deref.obj, spec, deref, deref.blame)
+      case _: SpecTypeNameTarget[Pre] => throw NotAValue(deref)
       case RefJavaClass(decl) => throw NotAValue(deref)
-      case RefModelField(decl) => ModelDeref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
       case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
       case RefJavaField(decls, idx) =>
         if (decls.modifiers.contains(JavaStatic[Pre]())) {
@@ -429,12 +423,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         } else {
           Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
         }
-      case RefEnumConstant(_, constant) => deref.obj.t match {
-        case TNotAValue(RefEnum(enum: Enum[Pre])) =>
-          EnumUse(rw.succ(enum), rw.succ(constant))
-      }
-      case BuiltinField(f) => rw.dispatch(f(deref.obj))
-      case RefVariable(v) => ???
     }
   }
 
@@ -442,32 +430,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     val JavaInvocation(obj, typeParams, _, args, givenMap, yields) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
-      case RefFunction(decl) =>
-        FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefProcedure(decl) =>
-        ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefPredicate(decl) =>
-        PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefInstanceFunction(decl) =>
-        InstanceFunctionInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), typeParams.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefInstanceMethod(decl) =>
-        MethodInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefInstancePredicate(decl) =>
-        InstancePredicateApply[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefADTFunction(decl) =>
-        ADTFunctionInvocation[Post](None, rw.succ(decl), args.map(rw.dispatch))
-      case RefModelProcess(decl) =>
-        ProcessApply[Post](rw.succ(decl), args.map(rw.dispatch))
-      case RefModelAction(decl) =>
-        ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
+      case spec: SpecInvocationTarget[Pre] =>
+        rw.specInvocation(inv.obj, spec, inv.typeParams, args, givenMap, yields, inv, inv.blame)
       case RefJavaMethod(decl) =>
         if(decl.modifiers.contains(JavaStatic[Pre]())) {
           MethodInvocation[Post](
@@ -492,9 +456,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ref = rw.succ(decl),
           args = Nil, outArgs = Nil, Nil, Nil, Nil
         )(inv.blame)
-      case RefProverFunction(decl) => ProverFunctionInvocation(rw.succ(decl), args.map(rw.dispatch))
-      case BuiltinInstanceMethod(f) =>
-        rw.dispatch(f(obj.get)(args))
     }
   }
 

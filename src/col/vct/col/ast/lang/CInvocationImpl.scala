@@ -16,7 +16,6 @@ trait CInvocationImpl[G] { this: CInvocation[G] =>
     case RefModelAction(decl) => decl.returnType
     case RefCFunctionDefinition(decl) => C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
-    case RefLlvmSpecFunction(decl) => decl.returnType
     case RefProverFunction(decl) => decl.returnType
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType

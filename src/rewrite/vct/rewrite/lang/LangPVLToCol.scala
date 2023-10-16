@@ -8,7 +8,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefProverFunction, RefVariable, RefVeyMontThread}
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefProverFunction, RefVariable, RefVeyMontThread, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 
 case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -75,26 +75,17 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     implicit val o: Origin = local.o
 
     local.ref.get match {
-      case RefAxiomaticDataType(decl) => throw NotAValue(local)
-      case RefVariable(decl) => Local(rw.succ(decl))
-      case RefModelField(decl) => ModelDeref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
-      case RefClass(decl) => throw NotAValue(local)
+      case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
       case RefField(decl) => Deref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
       case RefVeyMontThread(decl) => DerefVeyMontThread[Post](rw.succ(decl))
-      case RefEnum(decl) => throw NotAValue(local)
-      case RefEnumConstant(enum, constant) => EnumUse(rw.succ(enum.get), rw.succ(constant))
     }
   }
 
   def deref(deref: PVLDeref[Pre]): Expr[Post] = {
     implicit val o: Origin = deref.o
     deref.ref.get match {
-      case RefModelField(decl) => ModelDeref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
-      case BuiltinField(f) => rw.dispatch(f(deref.obj))
+      case spec: SpecDerefTarget[Pre] => rw.specDeref(deref.obj, spec, deref, deref.blame)
       case RefField(decl) => Deref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
-      case RefEnumConstant(_, const) => deref.obj.t match {
-        case TNotAValue(RefEnum(enum)) => EnumUse(rw.succ(enum), rw.succ(const))
-      }
     }
   }
 
@@ -103,41 +94,9 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     implicit val o: Origin = inv.o
 
     inv.ref.get match {
-      case RefFunction(decl) =>
-        FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), typeArgs.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefProcedure(decl) =>
-        ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefPredicate(decl) =>
-        PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefInstanceFunction(decl) =>
-        InstanceFunctionInvocation[Post](
-          obj.map(rw.dispatch).getOrElse(rw.currentThis.top),
-          rw.succ(decl),
-          args.map(rw.dispatch),
-          typeArgs.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
-        )(inv.blame)
-      case RefInstanceMethod(decl) =>
-        MethodInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), Nil, typeArgs.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefInstancePredicate(decl) =>
-        InstancePredicateApply[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefADTFunction(decl) =>
-        ADTFunctionInvocation[Post](None, rw.succ(decl), args.map(rw.dispatch))
-      case RefModelProcess(decl) =>
-        ProcessApply[Post](rw.succ(decl), args.map(rw.dispatch))
-      case RefModelAction(decl) =>
-        ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
+      case spec: SpecInvocationTarget[Pre] =>
+        rw.specInvocation(inv.obj, spec, typeArgs, args, givenMap, yields, inv, inv.blame)
       case PVLBuiltinInstanceMethod(f) =>
-        rw.dispatch(f(obj.get)(args))
-      case RefProverFunction(decl) => ProverFunctionInvocation(rw.succ(decl), args.map(rw.dispatch))
-      case BuiltinInstanceMethod(f) =>
         rw.dispatch(f(obj.get)(args))
     }
   }

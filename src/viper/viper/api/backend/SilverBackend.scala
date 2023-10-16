@@ -109,7 +109,6 @@ trait SilverBackend extends Backend with LazyLogging {
         case Success => true
         case Failure(errors) =>
           logger.debug(errors.toString())
-          logger.whenDebugEnabled()
           errors.foreach(processError)
           false
       }

@@ -3,6 +3,8 @@ package vct.rewrite
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.result.VerificationError.UserError
+import vct.rewrite.SmtlibToProverTypes.NotRepresentable
 
 import scala.collection.mutable
 import scala.jdk.StreamConverters.IntStreamHasToScala
@@ -10,6 +12,11 @@ import scala.jdk.StreamConverters.IntStreamHasToScala
 case object SmtlibToProverTypes extends RewriterBuilder {
   override def key: String = "smtlib"
   override def desc: String = "Encode smtlib types and functions into their stringified counterpart"
+
+  case class NotRepresentable(t: Type[_]) extends UserError {
+    override def code: String = "notSmtRepresentable"
+    override def text: String = t.o.messageInContext("This type does not have a stable representation on the smt level yet.")
+  }
 }
 
 case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
@@ -31,6 +38,7 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
     case TSmtlibString() => "String"
     case TSmtlibRegLan() => "RegLan"
     case TSmtlibSeq(element) => s"(Seq ${smtTypeString(element)})"
+    case other => throw NotRepresentable(other)
   }
 
   val declaredType: mutable.Map[String, ProverType[Post]] = mutable.Map()

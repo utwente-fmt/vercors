@@ -6,8 +6,10 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.lang.LangBipToCol
 import vct.col.origin._
+import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
+import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 
@@ -41,6 +43,53 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
   val currentThis: ScopedStack[Expr[Post]] = ScopedStack()
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
+
+  def specLocal(target: SpecNameTarget[Pre], e: Expr[Pre], blame: Blame[DerefInsufficientPermission]): Expr[Post] = target match {
+    case RefAxiomaticDataType(_) => throw NotAValue(e)
+    case RefClass(_) => throw NotAValue(e)
+    case RefEnum(_) => throw NotAValue(e)
+    case RefEnumConstant(enum, decl) => EnumUse[Post](succ(enum.get), succ(decl))(e.o)
+    case RefVariable(decl) => Local[Post](succ(decl))(e.o)
+    case RefModelField(decl) => ModelDeref[Post](currentThis.top, succ(decl))(blame)(e.o)
+  }
+
+  def specDeref(obj: Expr[Pre], target: SpecDerefTarget[Pre], e: Expr[Pre], blame: Blame[DerefInsufficientPermission]): Expr[Post] = target match {
+    case RefEnumConstant(enum, decl) => EnumUse[Post](succ(enum.get), succ(decl))(e.o)
+    case RefModelField(decl) => ModelDeref[Post](dispatch(obj), succ(decl))(blame)(e.o)
+    case BuiltinField(f) => dispatch(f(obj))
+  }
+
+  def specInvocation(objPre: Option[Expr[Pre]],
+                     target: SpecInvocationTarget[Pre],
+                     typeArgs: Seq[Type[Pre]],
+                     args: Seq[Expr[Pre]],
+                     givenArgsPre: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])],
+                     yieldsPre: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])],
+                     e: Expr[Pre],
+                     blame: Blame[FrontendInvocationError]
+                    ): Expr[Post] = {
+    implicit val o: Origin = e.o
+    lazy val obj = objPre.map(dispatch).getOrElse(currentThis.top)
+    lazy val givenArgs = givenArgsPre.map { case (Ref(v), e) => (succ[Variable[Post]](v), dispatch(e)) }
+    lazy val yields = yieldsPre.map { case (e, Ref(v)) => (dispatch(e), succ[Variable[Post]](v)) }
+
+    target match {
+      case RefFunction(decl) => FunctionInvocation[Post](succ(decl), args.map(dispatch), typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefProcedure(decl) => ProcedureInvocation[Post](succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefPredicate(decl) => PredicateApply[Post](succ(decl), args.map(dispatch), WritePerm())
+      case RefADTFunction(decl) => ADTFunctionInvocation(None, succ(decl), args.map(dispatch))
+      case RefProverFunction(decl) => ProverFunctionInvocation(succ(decl), args.map(dispatch))
+
+      case RefInstanceFunction(decl) => InstanceFunctionInvocation[Post](obj, succ(decl), args.map(dispatch), typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefInstanceMethod(decl) => MethodInvocation[Post](obj, succ(decl), args.map(dispatch), Nil, typeArgs.map(dispatch), givenArgs, yields)(blame)
+      case RefInstancePredicate(decl) => InstancePredicateApply[Post](obj, succ(decl), args.map(dispatch), WritePerm())
+
+      case RefModelProcess(decl) => ProcessApply[Post](succ(decl), args.map(dispatch))
+      case RefModelAction(decl) => ActionApply[Post](succ(decl), args.map(dispatch))
+
+      case BuiltinInstanceMethod(f) => dispatch(f(objPre.get)(args))
+    }
+  }
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case model: Model[Pre] =>
@@ -94,7 +143,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case other => rewriteDefault(other)
   }
-
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case scope @ Scope(locals, body) =>

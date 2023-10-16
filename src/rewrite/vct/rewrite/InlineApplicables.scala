@@ -77,7 +77,7 @@ case object InlineApplicables extends RewriterBuilder {
     )
   )
 
-  private def InlineLetThisOrigin(): Origin = Origin(
+  private def InlineLetThisOrigin: Origin = Origin(
     Seq(
       PreferredName("self"),
       Context("[At let binding for `this`]"),
@@ -244,6 +244,14 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
           case InstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
             dispatch((obj + args).expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
           case InstancePredicateApply(_, Ref(pred), _, _) => ???
+          case CoalesceInstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
+            dispatch((obj + args).expr(
+              Implies(
+                Neq(obj.replacing, Null()),
+                pred.body.getOrElse(throw AbstractInlineable(apply, pred)),
+              )
+            ))
+          case CoalesceInstancePredicateApply(_, Ref(pred), _, _) => ???
         }
       }
 
