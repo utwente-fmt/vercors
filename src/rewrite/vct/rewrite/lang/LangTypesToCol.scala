@@ -37,7 +37,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
     else None
 
   def specType(target: SpecTypeNameTarget[Pre], args: Seq[Type[Pre]]): Type[Post] = target match {
-    case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
+    case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), args.map(dispatch))
     case RefModel(decl) => TModel[Post](succ(decl))
     case RefEnum(enum) => TEnum[Post](succ(enum))
     case RefProverType(typ) => TProverType[Post](succ(typ))
