@@ -4,6 +4,7 @@ import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
 import os._
 import mill._
 import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _}
+import scalafmt._
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import contrib.buildinfo.BuildInfo
 import mill.util.Jvm
@@ -345,7 +346,39 @@ object util {
     override def classPathFileElements = T { runClasspath().map(_.path.toString) }
   }
 
-  trait VercorsModule extends ScalaModule with VercorsJavaModule { outer =>
+  trait VercorsModule extends ScalaModule with ScalafmtModule with VercorsJavaModule { outer =>
+    def stagedFilesToFormat = T.sources {
+      val allFilesToFormat = filesToFormat(sources())
+
+      val changedFilesInIndex = vercors.changedFilesInIndex()()
+      val changedFilesInWorkdir = vercors.changedFilesInWorkdir()()
+
+      val initialFilesToFormat = allFilesToFormat.map(_.path).intersect(changedFilesInIndex)
+
+      val changedInBoth = initialFilesToFormat.intersect(changedFilesInWorkdir)
+
+      if(changedInBoth.nonEmpty) {
+        T.log.error("These paths will not be formatted, as they have unstaged changes:")
+        for(path <- changedInBoth)
+          T.log.error("- " + path.toString())
+      }
+
+      initialFilesToFormat.diff(changedFilesInWorkdir).map(PathRef(_))
+    }
+
+    def reformatStaged() = T.command {
+      val targets = stagedFilesToFormat()
+
+      ScalafmtWorkerModule
+        .worker()
+        .reformat(
+          targets,
+          scalafmtConfig().head,
+        )
+
+      os.proc("git", "add", targets.map(_.path)).call()
+    }
+
     trait Tests extends ScalaTests with TestModule.ScalaTest with VercorsJavaModule {
       def key = outer.key
       override def sourcesDir = T { settings.test / key }
@@ -480,6 +513,20 @@ object viper extends ScalaModule {
 }
 
 object vercors extends Module {
+  def changedFilesInIndex(): Command[Seq[Path]] = T.command {
+    os.proc("git", "diff-index", "--cached", "--name-only", "HEAD")
+      .call(cwd = settings.root)
+      .out.lines()
+      .map(settings.root / RelPath(_))
+  }
+
+  def changedFilesInWorkdir(): Command[Seq[Path]] = T.command {
+    os.proc("git", "diff-files", "--name-only")
+      .call(cwd = settings.root)
+      .out.lines()
+      .map(settings.root / RelPath(_))
+  }
+
   object meta extends VercorsModule {
     def key = "colhelper"
     def deps = Agg(
