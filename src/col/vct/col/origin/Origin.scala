@@ -115,6 +115,8 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
+
+  //try to infer the context if the startendlines already exist
   def getContext: Option[Context] = {
     originContents.flatMap {
       case Context(any) => Seq(Context(any))
