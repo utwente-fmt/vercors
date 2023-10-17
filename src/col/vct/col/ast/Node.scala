@@ -55,7 +55,6 @@ import vct.col.ast.family.javavar.JavaVariableDeclarationImpl
 import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
-import vct.col.ast.family.pvlcommunicate.{PVLCommunicateSubjectImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl, PVLThreadNameImpl}
 import vct.col.ast.family.signals._
 import vct.col.ast.lang._
 import vct.col.ast.lang.smt._
@@ -1212,17 +1211,17 @@ final case class PVLNew[G](t: Type[G], args: Seq[Expr[G]], givenMap: Seq[(Ref[G,
 sealed trait PVLClassDeclaration[G] extends ClassDeclaration[G] with PVLClassDeclarationImpl[G]
 final class PVLConstructor[G](val contract: ApplicableContract[G], val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends PVLClassDeclaration[G] with PVLConstructorImpl[G]
 
-sealed trait PVLCommunicateSubject[G] extends NodeFamily[G]  with PVLCommunicateSubjectImpl[G]
-case class PVLThreadName[G](name: String)(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLThreadNameImpl[G] {
+sealed trait PVLCommunicateSubject[G] extends NodeFamily[G]
+case class PVLThreadName[G](name: String)(implicit val o: Origin) extends PVLCommunicateSubject[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
-case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLIndexedFamilyNameImpl[G] {
+case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
-case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLFamilyRangeImpl[G] {
+case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
-case class PVLCommunicateAccess[G](subjectX: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
+case class PVLCommunicateAccess[G](subjectX: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] {
   var ref: Option[PVLDerefTarget[G]] = None
 }
 case class PVLCommunicate[G](sender: PVLCommunicateAccess[G], receiver: PVLCommunicateAccess[G])(implicit val o: Origin) extends Statement[G]
