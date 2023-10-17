@@ -113,7 +113,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
-    case eval@Eval(PreAssignExpression(CPPLocal(_, _), _)) => cpp.preAssignStatement(eval)
     case other => rewriteDefault(other)
   }
 
@@ -169,6 +168,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case local: CPPLocal[Pre] => cpp.local(Left(local))
     case local: CPPClassInstanceLocal[Pre] => cpp.local(Right(local))
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
+    case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
     case _: CPPLambdaDefinition[Pre] => ???
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)

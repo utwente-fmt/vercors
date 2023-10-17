@@ -273,8 +273,8 @@ assignmentOperator:
 	| OrAssign;
 
 expression:
-    assignmentExpression;
-//    |  expression Comma assignmentExpression; // Do not match as then 'given' with multiple vars goes here, whilst it should not
+  assignmentExpression
+  | expression Comma assignmentExpression;
 
 constantExpression: conditionalExpression;
 
@@ -639,7 +639,7 @@ parameterDeclarationList:
 	parameterDeclaration (Comma parameterDeclaration)*;
 
 parameterDeclaration:
-    declSpecifierSeq declarator
+  declSpecifierSeq declarator
 	| attributeSpecifierSeq? declSpecifierSeq (
 		(declarator | abstractDeclarator?) (
 			Assign initializerClause

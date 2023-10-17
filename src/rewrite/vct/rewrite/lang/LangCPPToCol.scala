@@ -40,11 +40,9 @@ case object LangCPPToCol {
     override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL event is not supported.")
   }
 
-  private case class SYCLEventWaitWrongType(inv: Expr[_]) extends VerificationFailure {
+  private case class SYCLEventWaitWrongType(inv: Expr[_]) extends UserError {
     override def code: String = "unexpectedSYCLEventWaitWrongType"
-    override def position: String = inv.o.shortPosition
-    override def desc: String = inv.o.messageInContext("The declarator for the invocation to sycl::event::wait() is not a SYCL event.")
-    override def inlineDesc: String = "The declarator for the invocation to sycl::event::wait() is not a SYCL event."
+    override def text: String = inv.o.messageInContext("The declarator for the invocation to sycl::event::wait() is not a SYCL event.")
   }
 
   private case class ContractForCommandGroup(contract: ApplicableContract[_]) extends UserError {
@@ -81,31 +79,22 @@ case object LangCPPToCol {
       "only takes one (nd_)item argument, which should match the first (nd_)range parameter of the parallel_for method.")
   }
 
-  private case class WrongKernelDimensionType(expr: Expr[_]) extends VerificationFailure {
+  private case class WrongKernelDimensionType(expr: Expr[_]) extends UserError {
     override def code: String = "wrongKernelDimensionType"
-    override def position: String = expr.o.shortPosition
-    override def desc: String = expr.o.messageInContext("Wrong type for the dimensions parameter of the kernel. " +
+    override def text: String = expr.o.messageInContext("Wrong type for the dimensions parameter of the kernel. " +
       "The dimensions parameter in a kernel declaration is supposed to be of type sycl::range<int> or sycl::nd_range<int>.")
-    override def inlineDesc: String = "Wrong type for the dimensions parameter, it is supposed to be of type " +
-      "sycl::range<int> or sycl::nd_range<int>."
   }
 
-  private case class NotKernelDimensions(expr: Expr[_]) extends VerificationFailure {
+  private case class NotKernelDimensions(expr: Expr[_]) extends UserError {
     override def code: String = "unexpectedNotKernelDimensions"
-    override def position: String = expr.o.shortPosition
-    override def desc: String = expr.o.messageInContext("The dimensions parameter of the kernel was not rewritten to a (nd_)range.")
-    override def inlineDesc: String = "The dimensions parameter of the kernel was not rewritten to a (nd_)range."
+    override def text: String = expr.o.messageInContext("The dimensions parameter of the kernel was not rewritten to a (nd_)range.")
   }
 
-  private case class ItemMethodInvocationBlame() extends Blame[InvocationFailure] {
-    private case class ItemMethodPreconditionFailed(node: InvokingNode[_]) extends UserError {
-      override def code: String = "syclItemMethodPreFailed"
-      override def text: String = node.o.messageInContext("The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item.")
-    }
-
+  private case class SYCLItemMethodInvocationBlame(inv: CPPInvocation[_]) extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit = error match {
-      case PreconditionFailed(_, _, node) => throw ItemMethodPreconditionFailed(node)
-      case ContextEverywhereFailedInPre(_, node) => throw ItemMethodPreconditionFailed(node)
+      case PreconditionFailed(_, _, node) => inv.blame.blame(SYCLItemMethodPreconditionFailed(node))
+      case ContextEverywhereFailedInPre(_, _) => PanicBlame("Item methods do not contain context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(error)
+      case SYCLItemMethodPreconditionFailed(_) => PanicBlame("Failing on a SYCLItemMethodPreconditionFailed error should not be possible here.").blame(error)
     }
   }
 
@@ -128,7 +117,7 @@ case object LangCPPToCol {
     override def shortPosition: String = "generated"
   }
 
-  case class KernelPreconditionNotEstablished(error: RunnablePreconditionNotEstablished) extends UserError {
+  private case class KernelPreconditionNotEstablished(error: RunnablePreconditionNotEstablished) extends UserError {
     override def code: String = "kernelForkPre"
     override def text: String =  (error.failure, error.failure.node.o) match {
       case (ContractFalse(_), o@RangeDimensionCheckOrigin(_)) => o.messageInContext("All range dimensions should be greater or equal to zero.")
@@ -143,7 +132,7 @@ case object LangCPPToCol {
   private case class KernelForkBlame(kernel: CPPLambdaDefinition[_]) extends Blame[ForkFailure] {
     override def blame(error: ForkFailure): Unit = error match {
       case ForkNull(node) => throw KernelForkNull(node)
-      case RunnableNotIdle(_) => throw BlameUnreachable("This kernel submission has been forked already. This should not happen.", error)
+      case RunnableNotIdle(_) => throw BlameUnreachable("This kernel submission has been forked already. This should not happen.", error) // EW TODO also turn into user error?
       case e@RunnablePreconditionNotEstablished(_, _) => throw KernelPreconditionNotEstablished(e)
     }
   }
@@ -159,11 +148,11 @@ case object LangCPPToCol {
   private case class KernelParFailure(kernel: CPPLambdaDefinition[_]) extends Blame[ParBlockFailure] {
     override def blame(error: ParBlockFailure): Unit = error match {
       case ParPredicateNotInjective(_, predicate) =>
-        kernel.blame.blame(KernelPredicateNotInjective(Right(kernel), predicate))
+        kernel.blame.blame(KernelLambdaFailure(KernelPredicateNotInjective(Right(kernel), predicate)))
       case ParPreconditionFailed(_, _) =>
         PanicBlame("Kernel parallel block precondition cannot fail, since an identical predicate is required before.").blame(error)
       case ParBlockPostconditionFailed(failure, _) =>
-        kernel.blame.blame(KernelPostconditionFailed(failure, Right(kernel)))
+        kernel.blame.blame(KernelLambdaFailure(KernelPostconditionFailed(failure, Right(kernel))))
       case ParBlockMayNotThrow(_) =>
         PanicBlame("Please don't throw exceptions from a gpgpu kernel, it's not polite.").blame(error)
     }
@@ -387,14 +376,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     }
   }
 
-  def preAssignStatement(eval: Eval[Pre]): Statement[Post] = {
-    implicit val o: Origin = eval.o
-    val preAssign = eval.expr.asInstanceOf[PreAssignExpression[Pre]]
-    preAssign.target match {
-      case target: CPPLocal[Pre] if target.t.isInstanceOf[CPPPrimitiveType[Pre]] &&
-        CPP.getBaseTypeFromSpecs(target.t.asInstanceOf[CPPPrimitiveType[Pre]].specifiers).isInstanceOf[SYCLTEvent[Pre]] =>
+  def preAssignExpr(preAssign: PreAssignExpression[Pre], target: CPPLocal[Pre]): Expr[Post] = {
+    target.t match {
+      case primitive: CPPPrimitiveType[Pre] if CPP.getBaseTypeFromSpecs(primitive.specifiers).isInstanceOf[SYCLTEvent[Pre]] =>
         throw ReassigningEventVars(preAssign)
-      case _ => Eval[Post](rw.rewriteDefault(preAssign))(eval.o)
+      case _ => rw.rewriteDefault(preAssign)
     }
   }
 
@@ -407,7 +393,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         cppNameSuccessor.get(classRef) match {
           case Some(v) =>
             Join(v.get)(KernelJoinBlame())
-          case _ => throw BlameUnreachable("The type of the caller is not a SYCL event.", SYCLEventWaitWrongType(inv.applicable))
+          case _ => throw SYCLEventWaitWrongType(inv.applicable)
         }
       case "sycl::queue::submit" => rewriteSYCLQueueSubmit(inv)._1
       case _ => rw.rewriteDefault(eval)
@@ -522,7 +508,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val (kernelParBlock, contractRequires, contractEnsures) = rangeType match {
       case SYCLTRange(_) => createBasicKernelBody(kernelDimensions, kernelDeclaration)
       case SYCLTNDRange(_) => createNDRangeKernelBody(kernelDimensions, kernelDeclaration)
-      case _ => throw BlameUnreachable("Type mismatch", WrongKernelDimensionType(kernelDimensions))
+      case _ => throw WrongKernelDimensionType(kernelDimensions)
     }
 
     // Create the pre- and postconditions for the method that will hold the generated kernel code
@@ -579,17 +565,17 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Register the kernel dimensions
     val range: Seq[Expr[Post]] = rw.dispatch(kernelDimensions) match {
       case SYCLRange(dims) => dims
-      case _ => throw BlameUnreachable("Not kernel dimensions", NotKernelDimensions(kernelDimensions))
+      case _ => throw NotKernelDimensions(kernelDimensions)
     }
 
     currentKernelType = Some(BasicKernel(range))
     currentDimensions(GlobalScope()) = range.indices.map(index => createRangeIterVar(GlobalScope(), index, range(index))(range(index).o))
 
-    implicit val o: Origin = kernelDeclaration.body.o
-
     // Get the pre- and postcondition
     val UnitAccountedPredicate(contractRequires: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.requires)
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
+
+    implicit val o: Origin = kernelDeclaration.o
 
     // Create the parblock representing the kernels
     val parBlock = ParBlock[Post](
@@ -597,7 +583,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       iters = currentDimensions(GlobalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
-      ensures = contractEnsures, // Do not add ensures contract here, is instead inhaled when calling event::wait()
+      ensures = contractEnsures,
       content = rw.dispatch(kernelDeclaration.body),
     )(KernelParFailure(kernelDeclaration))
 
@@ -608,7 +594,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Register the kernel dimensions
     val (globalRange, localRange): (Seq[Expr[Post]], Seq[Expr[Post]]) = rw.dispatch(kernelDimensions) match {
       case SYCLNDRange(globalSize: SYCLRange[Post], localRange: SYCLRange[Post]) => (globalSize.dimensions, localRange.dimensions)
-      case _ => throw BlameUnreachable("Not kernel dimensions", NotKernelDimensions(kernelDimensions))
+      case _ => throw NotKernelDimensions(kernelDimensions)
     }
 
     currentKernelType = Some(NDRangeKernel(globalRange, localRange))
@@ -616,11 +602,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     currentDimensions(GroupScope()) = globalRange.indices.map(index =>
       createRangeIterVar(GroupScope(), index, FloorDiv(globalRange(index), localRange(index))(KernelRangeDivByZero(kernelDimensions))(localRange(index).o))(kernelDimensions.o))
 
-    implicit val o: Origin = kernelDeclaration.body.o
-
     // Get the pre- and postcondition
     val UnitAccountedPredicate(contractRequires: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.requires)
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
+
+    implicit val o: Origin = kernelDeclaration.o
 
     // Create the parblock representing the work-groups
     val parBlock = ParBlock[Post](
@@ -662,7 +648,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   // Used for generation the contract for the method wrapping the parblocks
   // Code based on the quantify() method in ParBlockEncoder
-  def getKernelQuantifiedCondition(block: ParBlock[Post], condition: Expr[Post])(implicit o: Origin): Expr[Post] = {
+  private def getKernelQuantifiedCondition(block: ParBlock[Post], condition: Expr[Post])(implicit o: Origin): Expr[Post] = {
     val parEncoder = new ParBlockEncoder[Pre]()
     val rangesMap: mutable.Map[Variable[Post], (Expr[Post], Expr[Post])] = mutable.Map.empty
     block.iters.map(iterVar => rangesMap.put(iterVar.variable, (iterVar.from, iterVar.to)))
@@ -769,7 +755,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       procedureRef, inv.args.map(rw.dispatch), Nil, Nil,
       givenValue,
       Seq()
-    )(ItemMethodInvocationBlame())
+    )(SYCLItemMethodInvocationBlame(inv))
   }
 
   def result(ref: RefCPPFunctionDefinition[Pre])(implicit o: Origin): Expr[Post] =

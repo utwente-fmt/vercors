@@ -133,11 +133,10 @@ case object CPP {
       case RefCPPParam(decl) => Some(getBaseTypeFromSpecs(decl.specifiers))
       case _ => None
     }
-    // Remove the generic part ("<T>") from the found class' name and search for the class method
+    // If SYCL class, search for the class method in the namespace defined in the sycl.hpp header file
     maybeClassType match {
-      case Some(classType) =>
-        val newClassName = classType.toString.replaceFirst("<\\d>$", "")
-        findCPPName(newClassName + "::" + classLocalName, None, ctx)
+      case Some(t: SYCLTClass[G]) =>
+        findCPPName(t.namespacePath + "::" + classLocalName, None, ctx)
       case _ => Seq()
     }
   }
@@ -151,17 +150,6 @@ case object CPP {
     ctx.stack.flatten.collectFirst {
       case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
-
-  private def checkArgTypesForInvocation[G](params: Seq[Type[G]], args: Seq[Expr[G]]): Boolean = {
-    if (params.size != args.size) return false
-    !params.indices.exists(i => {
-      val argType = args(i).t match {
-        case value: CPPPrimitiveType[G] => getBaseTypeFromSpecs(value.specifiers)
-        case _ => args(i).t
-      }
-      params(i) != argType && !(params(i).isInstanceOf[TInt[G]] && argType.isInstanceOf[TBoundedInt[G]])
-    })
-  }
 
   private def getParamTypes[G](ref: CPPInvocationTarget[G]): Seq[Type[G]] = ref match {
     case globalDeclRef: RefCPPGlobalDeclaration[G] if globalDeclRef.decls.decl.inits.size == 1 =>
@@ -187,7 +175,7 @@ case object CPP {
         // Do not check arguments for BuiltinInstanceMethods as we do not know the argument types
         case (target: BuiltinInstanceMethod[G], _) => target
         // The previously found method is already the correct one
-        case (target: CPPInvocationTarget[G], _) if checkArgTypesForInvocation(getParamTypes(target), args) => target
+        case (target: CPPInvocationTarget[G], _) if Util.compatTypes(args, getParamTypes(target)) => target
         case (_, local@CPPLocal(name, genericArg)) =>
           // Currently linked method does not have correct params
           // So find all declarations with correct name and see if there is
@@ -213,7 +201,7 @@ case object CPP {
 
   private def findAlternativeInvocationTarget[G](applicable: Expr[G], args: Seq[Expr[G]], decls: Seq[CPPNameTarget[G]]): CPPInvocationTarget[G] = {
     decls.find(decl => decl match {
-      case value: CPPInvocationTarget[G] => checkArgTypesForInvocation(getParamTypes(value), args)
+      case value: CPPInvocationTarget[G] => Util.compatTypes(args, getParamTypes(value))
       case _ => false
     }).getOrElse(throw NotApplicable(applicable)).asInstanceOf[CPPInvocationTarget[G]]
   }
