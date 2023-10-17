@@ -2,7 +2,6 @@ package vct.test.integration.meta
 
 import org.scalatest.flatspec.AnyFlatSpec
 import vct.test.integration.examples._
-import vct.test.integration.features._
 import vct.test.integration.helper._
 
 class ExampleCoverage extends AnyFlatSpec {
@@ -35,7 +34,6 @@ class ExampleCoverage extends AnyFlatSpec {
       new PredicatesSpec(),
       new PublicationsSpec(),
       new RefuteSpec(),
-      new ResolutionSpec(),
       new SequencesSpec(),
       new SetsSpec(),
       new SilverDomainSpec(),

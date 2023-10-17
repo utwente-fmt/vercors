@@ -2,85 +2,59 @@ package vct.col.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
-import vct.col.origin.{AbstractApplicable, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DerefPerm, ExceptionNotInSignals, JavaArrayInitializerBlame, Origin, PanicBlame, PostBlameSplit, PostconditionFailed, SignalsFailed, SourceNameOrigin, TerminationMeasureFailed, TrueSatisfiable}
+import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData}
+import vct.col.resolve.lang.{Java, JavaAnnotationData}
+import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import RewriteHelpers._
-import vct.col.ast.lang.JavaAnnotationEx
-import vct.col.origin
-import vct.col.resolve.lang.{Java, JavaAnnotationData}
-import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipTransition}
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
 
 case object LangJavaToCol {
-  case class JavaFieldOrigin(fields: JavaFields[_], idx: Int) extends Origin {
-    override def preferredName: String = fields.decls(idx).name
-    override def shortPosition: String = fields.decls(idx).o.shortPosition
-    override def context: String = fields.o.context
-    override def inlineContext: String = fields.decls(idx).o.inlineContext
+  private def JavaFieldOrigin(fields: JavaFields[_], idx: Int): Origin = {
+    fields.decls(idx).o.replacePrefName(fields.decls(idx).name)
+      .replaceContext(fields.o.getContext.getOrElse(Context("[unknown context]")).context)
   }
 
-  case class JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int) extends Origin {
-    override def preferredName: String = locals.decls(idx).name
-    override def shortPosition: String = locals.decls(idx).o.shortPosition
-    override def context: String = locals.o.context
-    override def inlineContext: String = locals.decls(idx).o.inlineContext
+  private def JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int): Origin = {
+    locals.decls(idx).o.replacePrefName(locals.decls(idx).name)
+      .replaceContext(locals.o.getContext.getOrElse(Context("[unknown context]")).context)
   }
 
-  case class JavaConstructorOrigin(cons: JavaConstructor[_]) extends Origin {
-    override def preferredName: String = cons.name
-    override def shortPosition: String = cons.o.shortPosition
-    override def context: String = cons.o.context
-    override def inlineContext: String = cons.o.inlineContext
+  private def JavaConstructorOrigin(cons: JavaConstructor[_]): Origin = {
+    cons.o.replacePrefName(cons.name)
   }
 
-  case class JavaMethodOrigin(method: JavaMethod[_]) extends Origin {
-    override def preferredName: String = method.name
-    override def shortPosition: String = method.o.shortPosition
-    override def context: String = method.o.context
-    override def inlineContext: String = method.o.inlineContext
+  private def JavaMethodOrigin(method: JavaMethod[_]): Origin = {
+    method.o.replacePrefName(method.name)
   }
 
-  case class JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]) extends Origin {
-    override def preferredName: String = method.name
-    override def shortPosition: String = method.o.shortPosition
-    override def context: String = method.o.context
-    override def inlineContext: String = method.o.inlineContext
+  private def JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]): Origin = {
+    method.o.replacePrefName(method.name)
   }
 
-  case class JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
-    override def preferredName: String = cls.name
-    override def shortPosition: String = cls.o.shortPosition
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
+  private def JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]): Origin = {
+    cls.o.replacePrefName(cls.name)
   }
 
-  case class JavaStaticsClassOrigin(cls: JavaClassOrInterface[_]) extends Origin {
-    override def preferredName: String = cls.name + "Statics"
-    override def shortPosition: String = cls.o.shortPosition
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
+  private def JavaStaticsClassOrigin(cls: JavaClassOrInterface[_]): Origin = {
+    cls.o.replacePrefName(cls.name + "Statics")
   }
 
-  case class JavaStaticsClassSingletonOrigin(cls: JavaClassOrInterface[_]) extends Origin {
-    override def preferredName: String = cls.name + "StaticsSingleton"
-    override def shortPosition: String = cls.o.shortPosition
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
+  private def JavaStaticsClassSingletonOrigin(cls: JavaClassOrInterface[_]): Origin = {
+    cls.o.replacePrefName(cls.name + "StaticsSingleton")
   }
 
-  case class JavaInlineArrayInitializerOrigin(inner: Origin) extends Origin {
-    override def preferredName: String = "arrayInitializer"
-    override def shortPosition: String = inner.shortPosition
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
+  private def JavaInlineArrayInitializerOrigin(inner: Origin): Origin = {
+    inner.replacePrefName("arrayInitializer")
   }
 
   case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray[_]) extends UserError {
@@ -217,10 +191,10 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     declsDefault.foreach {
       case cons: JavaConstructor[Pre] =>
-        logger.debug(s"Constructor for ${cons.o.context}")
+        logger.debug(s"Constructor for ${cons.o.getContext.getOrElse(Context("[unknown context]")).context}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)
-        val resVar = new Variable[Post](t)(ThisVar)
+        val resVar = new Variable[Post](t)(ThisVar())
         val res = Local[Post](resVar.ref)
 
         val results = currentJavaClass.top.modifiers.collect {
@@ -309,7 +283,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       rw.bip.rewriteParameter(param)
     } else {
       javaParamSuccessor(param) =
-        rw.variables.declare(new Variable(rw.dispatch(param.t))(SourceNameOrigin(param.name, param.o)))
+        rw.variables.declare(new Variable(rw.dispatch(param.t))(param.o.replacePrefName(param.name)))
     }
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
@@ -411,8 +385,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     implicit val o: Origin = local.o
 
     local.ref.get match {
-      case RefAxiomaticDataType(decl) => throw NotAValue(local)
-      case RefVariable(decl) => Local(rw.succ(decl))
+      case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
       case RefJavaParam(decl) if BipData.get(decl).isDefined => rw.bip.local(local, decl)
       case RefJavaParam(decl) => Local(javaParamSuccessor.ref(decl))
       case RefUnloadedJavaNamespace(names) => throw NotAValue(local)
@@ -428,12 +401,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           Deref[Post](rw.currentThis.top, javaFieldsSuccessor.ref((decls, idx)))(local.blame)
         }
       case RefJavaBipGuard(_) => rw.bip.local(local)
-      case RefModelField(field) =>
-        ModelDeref[Post](rw.currentThis.top, rw.succ(field))(local.blame)
       case RefJavaLocalDeclaration(decls, idx) =>
         Local(javaLocalsSuccessor.ref((decls, idx)))
-      case RefEnumConstant(Some(enum), constant) =>
-        EnumUse(rw.succ(enum), rw.succ(constant))
     }
   }
 
@@ -441,10 +410,9 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     implicit val o: Origin = deref.o
 
     deref.ref.get match {
-      case RefAxiomaticDataType(decl) => throw NotAValue(deref)
-      case RefModel(decl) => throw NotAValue(deref)
+      case spec: SpecDerefTarget[Pre] => rw.specDeref(deref.obj, spec, deref, deref.blame)
+      case _: SpecTypeNameTarget[Pre] => throw NotAValue(deref)
       case RefJavaClass(decl) => throw NotAValue(deref)
-      case RefModelField(decl) => ModelDeref[Post](rw.dispatch(deref.obj), rw.succ(decl))(deref.blame)
       case RefUnloadedJavaNamespace(names) => throw NotAValue(deref)
       case RefJavaField(decls, idx) =>
         if (decls.modifiers.contains(JavaStatic[Pre]())) {
@@ -455,12 +423,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         } else {
           Deref[Post](rw.dispatch(deref.obj), javaFieldsSuccessor.ref((decls, idx)))(deref.blame)
         }
-      case RefEnumConstant(_, constant) => deref.obj.t match {
-        case TNotAValue(RefEnum(enum: Enum[Pre])) =>
-          EnumUse(rw.succ(enum), rw.succ(constant))
-      }
-      case BuiltinField(f) => rw.dispatch(f(deref.obj))
-      case RefVariable(v) => ???
     }
   }
 
@@ -468,32 +430,8 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
     val JavaInvocation(obj, typeParams, _, args, givenMap, yields) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
-      case RefFunction(decl) =>
-        FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefProcedure(decl) =>
-        ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefPredicate(decl) =>
-        PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefInstanceFunction(decl) =>
-        InstanceFunctionInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), typeParams.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefInstanceMethod(decl) =>
-        MethodInvocation[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefInstancePredicate(decl) =>
-        InstancePredicateApply[Post](obj.map(rw.dispatch).getOrElse(rw.currentThis.top), rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefADTFunction(decl) =>
-        ADTFunctionInvocation[Post](None, rw.succ(decl), args.map(rw.dispatch))
-      case RefModelProcess(decl) =>
-        ProcessApply[Post](rw.succ(decl), args.map(rw.dispatch))
-      case RefModelAction(decl) =>
-        ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
+      case spec: SpecInvocationTarget[Pre] =>
+        rw.specInvocation(inv.obj, spec, inv.typeParams, args, givenMap, yields, inv, inv.blame)
       case RefJavaMethod(decl) =>
         if(decl.modifiers.contains(JavaStatic[Pre]())) {
           MethodInvocation[Post](
@@ -518,9 +456,6 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           ref = rw.succ(decl),
           args = Nil, outArgs = Nil, Nil, Nil, Nil
         )(inv.blame)
-      case RefProverFunction(decl) => ProverFunctionInvocation(rw.succ(decl), args.map(rw.dispatch))
-      case BuiltinInstanceMethod(f) =>
-        rw.dispatch(f(obj.get)(args))
     }
   }
 

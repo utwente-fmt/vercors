@@ -184,6 +184,40 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       .build(),
   )
 
+  def originContents(): Seq[DescriptorProto] = Seq(
+    message("OriginContent")
+      .addOneofDecl(oneOf("v"))
+      .addAllField(
+        Seq(
+          field("requiredName").setTypeName("RequiredName"),
+          field("preferredName").setTypeName("PreferredName"),
+          field("formalName").setTypeName("FormalName"),
+          field("context").setTypeName("Context"),
+          field("inlineContext").setTypeName("InlineContext"),
+          field("shortPosition").setTypeName("ShortPosition"),
+        ).map(f => f.setOneofIndex(0).build()).asJava
+      ).build()
+    ,
+    message("RequiredName")
+      .addField(field("requiredName").setType(PType.TYPE_STRING))
+      .build(),
+    message("PreferredName")
+      .addField(field("preferredName").setType(PType.TYPE_STRING))
+      .build(),
+    message("FormalName")
+      .addField(field("formalName").setType(PType.TYPE_STRING))
+      .build(),
+    message("Context")
+      .addField(field("context").setType(PType.TYPE_STRING))
+      .build(),
+    message("InlineContext")
+      .addField(field("inlineContext").setType(PType.TYPE_STRING))
+      .build(),
+    message("ShortPosition")
+      .addField(field("shortPosition").setType(PType.TYPE_STRING))
+      .build(),
+  )
+
   def declarationKinds(): Seq[DescriptorProto] =
     DECLARATION_KINDS.filter(kind => !info.defs.exists(_.baseName == kind)).map(kind => {
       boxedTypeFamily(TName(kind)) = kind
@@ -201,9 +235,13 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       boxedTypeFamily(TName(family)) = family
       message(family)
         .addOneofDecl(oneOf("v"))
-        .addAllField(info.defs.filter(defn => info.supports(family)(defn.baseName)).map(defn =>
-          field(defn.baseName).setTypeName(Name(defn.baseName).ucamel).setOneofIndex(0).build()
-        ).asJava)
+        .addAllField(info.defs.filter(
+          defn => info.supports(family)(defn.baseName))
+            .map(
+              defn => field(defn.baseName)
+                .setTypeName(Name(defn.baseName).ucamel)
+                .setOneofIndex(0).build()
+            ).asJava)
         .build()
     })
 
@@ -215,7 +253,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       // Singleton declaration, e.g. Variable
       msg.addField(field("id").setType(PType.TYPE_INT64))
     }
-    msg.addField(field("origin").setType(PType.TYPE_STRING))
+    msg.addField(field("origin").setTypeName("OriginContent").setLabel(FieldDescriptorProto.Label.LABEL_REPEATED))
     msg
       .addAllField(defn.params.map(param =>
         field(param.name.value, Some(param.decltpe.get))
@@ -278,6 +316,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   def make(): Unit = {
     val descriptors =
       basicTypes() ++
+        originContents() ++
         declarationKinds() ++
         families() ++
         declarations() ++

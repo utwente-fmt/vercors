@@ -2,6 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, function}
 
@@ -9,11 +10,14 @@ case object ResolveExpressionSideChecks extends RewriterBuilder {
   override def key: String = "sideChecks"
   override def desc: String = "Encode with/then annotations that are only the evaluation of an otherwise pure expression."
 
-  case class EvalCheckFunction(preferredName: String = "unknown") extends Origin {
-    override def context: String = "At: [Function generated to check the evaluation of an expression is ok]"
-    override def inlineContext: String = "[Function generated to check the evaluation of an expression is ok]"
-    override def shortPosition: String = "generated"
-  }
+  private def EvalCheckFunction(preferredName: String = "unknown"): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      ShortPosition("generated"),
+      Context("At: [Function generated to check the evaluation of an expression is ok]"),
+      InlineContext("[Function generated to check the evaluation of an expression is ok]"),
+    )
+  )
 }
 
 case class ResolveExpressionSideChecks[Pre <: Generation]() extends Rewriter[Pre] {

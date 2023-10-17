@@ -18,7 +18,6 @@ trait PVLInvocationImpl[G] { this: PVLInvocation[G] =>
     case RefProverFunction(decl) => decl.returnType
     case PVLBuiltinInstanceMethod(f) => f(obj.get)(args).t
     case BuiltinInstanceMethod(f) => f(obj.get)(args).t
-    case RefLlvmSpecFunction(decl) => decl.returnType
   }
 
   override def layout(implicit ctx: Ctx): Doc =

@@ -5,6 +5,7 @@ import vct.col.ast.{BipComponent, BipTransition}
 import vct.result.VerificationError
 import vct.result.VerificationError.SystemError
 
+import scala.language.implicitConversions
 import scala.collection.{mutable => mut}
 
 case object BIP {

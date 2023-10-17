@@ -21,7 +21,6 @@ trait CStructAccessImpl[G] { this: CStructAccess[G] =>
     case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
     case ref: RefCudaVecDim[G] => TInt()
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
-    case RefLlvmSpecFunction(decl) => decl.returnType
     case RefProverFunction(decl) => decl.returnType
   }
 
