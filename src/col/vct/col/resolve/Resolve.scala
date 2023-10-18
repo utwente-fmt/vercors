@@ -277,7 +277,7 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
-    case seqProg: VeyMontSeqProg[G] => ctx
+    case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.methods)
       .declare(seqProg.threads)

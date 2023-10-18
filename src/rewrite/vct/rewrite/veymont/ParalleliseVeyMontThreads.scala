@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, Declaration, Deref, DerefVeyMontThread, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCommExpression, VeyMontCondition, SeqProg, VeyMontThread}
 import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
@@ -59,7 +59,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     decl match {
       case p: Procedure[Pre] => givenClassConstrSucc.update(p.returnType,p)
       case c : Class[Pre] => globalDeclarations.succeed(c, dispatchGivenClass(c))
-      case seqProg: VeyMontSeqProg[Pre] => dispatchThreads(seqProg)
+      case seqProg: SeqProg[Pre] => dispatchThreads(seqProg)
       case thread: VeyMontThread[Pre] => dispatchThread(thread)
       case other => rewriteDefault(other)
     }
@@ -73,7 +73,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     } else rewriteDefault(thread)
   }
 
-  private def dispatchThreads(seqProg: VeyMontSeqProg[Pre]): Unit = {
+  private def dispatchThreads(seqProg: SeqProg[Pre]): Unit = {
     val (channelClasses,indexedChannelInfo) = extractChannelInfo(seqProg)
     channelClasses.foreach{ case (t,c) =>
       globalDeclarations.declare(c)
@@ -152,7 +152,7 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
   }
 
-  private def extractChannelInfo(seqProg: VeyMontSeqProg[Pre]): (Map[Type[Pre], JavaClass[Post]], Seq[ChannelInfo[Pre]]) = {
+  private def extractChannelInfo(seqProg: SeqProg[Pre]): (Map[Type[Pre], JavaClass[Post]], Seq[ChannelInfo[Pre]]) = {
     val channelInfo = collectChannelsFromRun(seqProg) ++ collectChannelsFromMethods(seqProg)
     val indexedChannelInfo: Seq[ChannelInfo[Pre]] = channelInfo.groupBy(_.channelName).values.flatMap(chanInfoSeq =>
       if (chanInfoSeq.size <= 1) chanInfoSeq
@@ -263,13 +263,13 @@ case class ParalleliseVeyMontThreads[Pre <: Generation](channelClass: JavaClass[
     }
   }
 
-  private def collectChannelsFromRun(seqProg: VeyMontSeqProg[Pre]) =
+  private def collectChannelsFromRun(seqProg: SeqProg[Pre]) =
     seqProg.runMethod match {
       case r: RunMethod[Pre] => getChannelsFromBody(r.body, r)
       case other => throw ParalliseVeyMontThreadsError(other, "seq_program run method expected")
     }
 
-  private def collectChannelsFromMethods(seqProg: VeyMontSeqProg[Pre]) =
+  private def collectChannelsFromMethods(seqProg: SeqProg[Pre]) =
     seqProg.methods.flatMap {
       case m: InstanceMethod[Pre] => getChannelsFromBody(m.body, m)
       case other => throw ParalliseVeyMontThreadsError(other, "seq_program method expected")

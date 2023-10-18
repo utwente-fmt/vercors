@@ -1,7 +1,7 @@
 package vct.col.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{Assign, Declaration, Deref, DerefVeyMontThread, Expr, MethodInvocation, Node, ProcedureInvocation, RunMethod, Statement, VeyMontAssignExpression, VeyMontCommExpression, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.{Assign, Declaration, Deref, DerefVeyMontThread, Expr, MethodInvocation, Node, ProcedureInvocation, RunMethod, Statement, VeyMontAssignExpression, VeyMontCommExpression, SeqProg, VeyMontThread}
 import vct.col.ref.Ref
 import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{AddVeyMontAssignmentError, getDerefsFromExpr, getThreadDeref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -48,7 +48,7 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case dcl: VeyMontSeqProg[Pre] => inSeqProg.having(()) {
+      case dcl: SeqProg[Pre] => inSeqProg.having(()) {
         rewriteDefault(dcl)
       }
       case _ => rewriteDefault(decl)

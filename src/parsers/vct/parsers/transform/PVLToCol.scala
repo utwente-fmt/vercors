@@ -49,7 +49,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case SeqProgThread(_, threadId, _, threadType, _, args, _, _) => new VeyMontThread(convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(threadId)))
   }
 
-  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): VeyMontSeqProg[G] = cls match {
+  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): SeqProg[G] = cls match {
     case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
       val seqargs = args.map(convert(_)).getOrElse(Nil)
       val declseq: Seq[Declaration[G]] = decls.map(convert(_))
@@ -63,7 +63,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case v: VeyMontThread[G] => v
       }
       withContract(contract, contract => {
-        new VeyMontSeqProg(
+        new SeqProg(
           contract.consumeApplicableContract(blame(cls)),
           seqargs,
           threads,

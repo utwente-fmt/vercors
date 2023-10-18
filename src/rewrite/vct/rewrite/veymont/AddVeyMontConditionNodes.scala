@@ -2,7 +2,7 @@ package vct.col.rewrite.veymont
 
 
 import hre.util.ScopedStack
-import vct.col.ast.{And, Block, BooleanValue, Branch, Declaration, Expr, Loop, Node, Statement, VeyMontCondition, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.{And, Block, BooleanValue, Branch, Declaration, Expr, Loop, Node, Statement, VeyMontCondition, SeqProg, VeyMontThread}
 import vct.col.ref.Ref
 import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{getDerefsFromExpr, getThreadDeref}
 import vct.col.rewrite.veymont.AddVeyMontConditionNodes.AddVeyMontConditionError
@@ -29,7 +29,7 @@ case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case dcl: VeyMontSeqProg[Pre] =>
+      case dcl: SeqProg[Pre] =>
         inSeqProg.push(dcl.threads.size)
         try {
           rewriteDefault(dcl)
