@@ -29,7 +29,7 @@ class TechnicalVeymontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "???" in "non-existent field in communicate fails" pvl
+  vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
   """
   class Storage { int x; }
   seq_program Example() {
