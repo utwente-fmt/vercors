@@ -16,47 +16,54 @@ import scala.reflect.ClassTag
 
 case object EncodeBreakReturn extends RewriterBuilder {
   override def key: String = "breakReturn"
-  override def desc: String = "Encode break and return with goto or with exceptions."
+  override def desc: String =
+    "Encode break and return with goto or with exceptions."
 
   case class PostLabeledStatementOrigin(label: LabelDecl[_]) extends Origin {
     override def preferredName: String = "break_" + label.o.preferredName
     override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to jump past a statement]"
+    override def context: String =
+      "[At node generated to jump past a statement]"
     override def inlineContext: String = "[After] " + label.o.inlineContext
   }
 
   case object ReturnClass extends Origin {
     override def preferredName: String = "Return"
     override def shortPosition: String = "generated"
-    override def context: String = "[At class generated to encode return with an exception]"
+    override def context: String =
+      "[At class generated to encode return with an exception]"
     override def inlineContext: String = "[Return value exception class]"
   }
 
   case object ReturnField extends Origin {
     override def preferredName: String = "value"
     override def shortPosition: String = "generated"
-    override def context: String = "[At field generated to encode return with an exception]"
+    override def context: String =
+      "[At field generated to encode return with an exception]"
     override def inlineContext: String = "[Return value exception class field]"
   }
 
   case object ReturnTarget extends Origin {
     override def preferredName: String = "end"
     override def shortPosition: String = "generated"
-    override def context: String = "[At label generated for the end of the method]"
+    override def context: String =
+      "[At label generated for the end of the method]"
     override def inlineContext: String = "[End of method]"
   }
 
   case object ReturnVariable extends Origin {
     override def preferredName: String = "return"
     override def shortPosition: String = "generated"
-    override def context: String = "[At variable generated for the result of the method]"
+    override def context: String =
+      "[At variable generated for the result of the method]"
     override def inlineContext: String = "[Return value]"
   }
 
   case object BreakException extends Origin {
     override def preferredName: String = "Break"
     override def shortPosition: String = "generated"
-    override def context: String = "[At exception class generated to break on a label or loop]"
+    override def context: String =
+      "[At exception class generated to break on a label or loop]"
     override def inlineContext: String = "[Break exception class]"
   }
 }
@@ -71,11 +78,16 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => false
     }
 
-  case class BreakReturnToGoto(returnTarget: LabelDecl[Post], resultVariable: Local[Post]) extends Rewriter[Pre] {
+  case class BreakReturnToGoto(
+      returnTarget: LabelDecl[Post],
+      resultVariable: Local[Post],
+  ) extends Rewriter[Pre] {
     val breakLabels: mutable.Set[LabelDecl[Pre]] = mutable.Set()
-    val postLabeledStatement: SuccessionMap[LabelDecl[Pre], LabelDecl[Post]] = SuccessionMap()
+    val postLabeledStatement: SuccessionMap[LabelDecl[Pre], LabelDecl[Post]] =
+      SuccessionMap()
 
-    override val allScopes: AllScopes[Pre, Post] = EncodeBreakReturn.this.allScopes
+    override val allScopes: AllScopes[Pre, Post] =
+      EncodeBreakReturn.this.allScopes
 
     override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
@@ -84,21 +96,22 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
           val newBody = dispatch(stat)
 
           if (breakLabels.contains(decl)) {
-            postLabeledStatement(decl) = new LabelDecl()(PostLabeledStatementOrigin(decl))
+            postLabeledStatement(decl) =
+              new LabelDecl()(PostLabeledStatementOrigin(decl))
             Block(Seq(
               Label(labelDecls.dispatch(decl), Block(Nil)),
               newBody,
               Label(postLabeledStatement(decl), Block(Nil)),
             ))
           } else {
-            Block(Seq(
-              Label(labelDecls.dispatch(decl), Block(Nil)),
-              newBody,
-            ))
+            Block(Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody))
           }
 
         case Break(None) =>
-          throw ExcludedByPassOrder("Break statements without a label are made explicit by SpecifyImplicitLabels", Some(stat))
+          throw ExcludedByPassOrder(
+            "Break statements without a label are made explicit by SpecifyImplicitLabels",
+            Some(stat),
+          )
 
         case Break(Some(Ref(label))) =>
           breakLabels += label
@@ -115,10 +128,15 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  case class BreakReturnToException(returnClass: Class[Post], valueField: InstanceField[Post]) extends Rewriter[Pre] {
-    val breakLabelException: SuccessionMap[LabelDecl[Pre], Class[Post]] = SuccessionMap()
+  case class BreakReturnToException(
+      returnClass: Class[Post],
+      valueField: InstanceField[Post],
+  ) extends Rewriter[Pre] {
+    val breakLabelException: SuccessionMap[LabelDecl[Pre], Class[Post]] =
+      SuccessionMap()
 
-    override val allScopes: AllScopes[Pre, Post] = EncodeBreakReturn.this.allScopes
+    override val allScopes: AllScopes[Pre, Post] =
+      EncodeBreakReturn.this.allScopes
 
     override def dispatch(stat: Statement[Pre]): Statement[Post] = {
       implicit val o: Origin = stat.o
@@ -126,9 +144,11 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
         case Label(decl, stat) =>
           val newBody = dispatch(stat)
 
-          if(breakLabelException.contains(decl)) {
+          if (breakLabelException.contains(decl)) {
             TryCatchFinally(
-              body = Block(Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody)),
+              body = Block(
+                Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody)
+              ),
               after = Block(Nil),
               catches = Seq(CatchClause(
                 decl = new Variable(TClass(breakLabelException.ref(decl))),
@@ -136,68 +156,105 @@ case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {
               )),
             )
           } else {
-            Block(Seq(
-              Label(labelDecls.dispatch(decl), Block(Nil)),
-              newBody,
-            ))
+            Block(Seq(Label(labelDecls.dispatch(decl), Block(Nil)), newBody))
           }
 
         case Break(None) =>
-          throw ExcludedByPassOrder("Break statements without a label are made explicit by SpecifyImplicitLabels", Some(stat))
+          throw ExcludedByPassOrder(
+            "Break statements without a label are made explicit by SpecifyImplicitLabels",
+            Some(stat),
+          )
 
         case Break(Some(Ref(label))) =>
-          val cls = breakLabelException.getOrElseUpdate(label,
-            globalDeclarations.declare(new Class[Post](Nil, Nil, tt)(BreakException)))
+          val cls = breakLabelException.getOrElseUpdate(
+            label,
+            globalDeclarations
+              .declare(new Class[Post](Nil, Nil, tt)(BreakException)),
+          )
 
-          Throw(NewObject[Post](cls.ref))(PanicBlame("The result of NewObject is never null"))
+          Throw(NewObject[Post](cls.ref))(PanicBlame(
+            "The result of NewObject is never null"
+          ))
 
         case Return(result) =>
           val exc = new Variable[Post](TClass(returnClass.ref))
-          Scope(Seq(exc), Block(Seq(
-            assignLocal(exc.get, NewObject(returnClass.ref)),
-            assignField(exc.get, valueField.ref, dispatch(result), PanicBlame("Have write permission immediately after NewObject")),
-            Throw(exc.get)(PanicBlame("The result of NewObject is never null")),
-          )))
+          Scope(
+            Seq(exc),
+            Block(Seq(
+              assignLocal(exc.get, NewObject(returnClass.ref)),
+              assignField(
+                exc.get,
+                valueField.ref,
+                dispatch(result),
+                PanicBlame("Have write permission immediately after NewObject"),
+              ),
+              Throw(exc.get)(PanicBlame(
+                "The result of NewObject is never null"
+              )),
+            )),
+          )
 
         case other => rewriteDefault(other)
       }
     }
   }
 
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case method: AbstractMethod[Pre] =>
-      method.body match {
-        case None => rewriteDefault(method)
-        case Some(body) =>
-          allScopes.anyDeclare(allScopes.anySucceedOnly(method, method.rewrite(body = Some({
-            if (needBreakReturnExceptions(body)) {
-              implicit val o: Origin = body.o
-              val returnField = new InstanceField[Post](dispatch(method.returnType), Set.empty)(ReturnField)
-              val returnClass = new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
-              globalDeclarations.declare(returnClass)
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case method: AbstractMethod[Pre] =>
+        method.body match {
+          case None => rewriteDefault(method)
+          case Some(body) =>
+            allScopes.anyDeclare(allScopes.anySucceedOnly(
+              method,
+              method.rewrite(body = Some({
+                if (needBreakReturnExceptions(body)) {
+                  implicit val o: Origin = body.o
+                  val returnField =
+                    new InstanceField[Post](
+                      dispatch(method.returnType),
+                      Set.empty,
+                    )(ReturnField)
+                  val returnClass =
+                    new Class[Post](Seq(returnField), Nil, tt)(ReturnClass)
+                  globalDeclarations.declare(returnClass)
 
-              val caughtReturn = new Variable[Post](TClass(returnClass.ref))
+                  val caughtReturn = new Variable[Post](TClass(returnClass.ref))
 
-              TryCatchFinally(
-                body = BreakReturnToException(returnClass, returnField).dispatch(body),
-                catches = Seq(CatchClause(caughtReturn,
-                  Return(Deref[Post](caughtReturn.get, returnField.ref)(PanicBlame("Permission for the field of a return exception cannot be non-write, as the class is only instantiated at a return site, and caught immediately.")))
-                )),
-                after = Block(Nil)
-              )
-            } else {
-              val resultTarget = new LabelDecl[Post]()(ReturnTarget)
-              val resultVar = new Variable(dispatch(method.returnType))(ReturnVariable)
-              val newBody = BreakReturnToGoto(resultTarget, resultVar.get(ReturnVariable)).dispatch(body)
-              implicit val o: Origin = body.o
-              Scope(Seq(resultVar), Block(Seq(
-                newBody,
-                Label(resultTarget, Block(Nil)),
-                Return(resultVar.get),
-              )))
-            }
-          }))))
-      }
-    case other => rewriteDefault(other)
-  }
+                  TryCatchFinally(
+                    body = BreakReturnToException(returnClass, returnField)
+                      .dispatch(body),
+                    catches = Seq(CatchClause(
+                      caughtReturn,
+                      Return(Deref[Post](caughtReturn.get, returnField.ref)(
+                        PanicBlame(
+                          "Permission for the field of a return exception cannot be non-write, as the class is only instantiated at a return site, and caught immediately."
+                        )
+                      )),
+                    )),
+                    after = Block(Nil),
+                  )
+                } else {
+                  val resultTarget = new LabelDecl[Post]()(ReturnTarget)
+                  val resultVar =
+                    new Variable(dispatch(method.returnType))(ReturnVariable)
+                  val newBody = BreakReturnToGoto(
+                    resultTarget,
+                    resultVar.get(ReturnVariable),
+                  ).dispatch(body)
+                  implicit val o: Origin = body.o
+                  Scope(
+                    Seq(resultVar),
+                    Block(Seq(
+                      newBody,
+                      Label(resultTarget, Block(Nil)),
+                      Return(resultVar.get),
+                    )),
+                  )
+                }
+              })),
+            ))
+        }
+      case other => rewriteDefault(other)
+    }
 }

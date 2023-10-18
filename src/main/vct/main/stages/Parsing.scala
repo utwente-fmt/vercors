@@ -43,11 +43,15 @@ case object Parsing {
   }
 
   case class UnknownFileExtension(extension: String) extends UserError {
-    override def text: String = s"Unknown file extension: $extension. Try altering the extension of the file, or specify a language explicitly with --lang."
+    override def text: String =
+      s"Unknown file extension: $extension. Try altering the extension of the file, or specify a language explicitly with --lang."
     override def code: String = "unknownExt"
   }
 
-  def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Parsing[G] =
+  def ofOptions[G <: Generation](
+      options: Options,
+      blameProvider: BlameProvider,
+  ): Parsing[G] =
     Parsing(
       blameProvider = blameProvider,
       forceLanguage = options.language,
@@ -58,18 +62,17 @@ case object Parsing {
     )
 }
 
-case class Parsing[G <: Generation]
-(
-  blameProvider: BlameProvider,
-  forceLanguage: Option[Language] = None,
-  cc: Path = Resources.getCcPath,
-  cSystemInclude: Path = Resources.getCIncludePath,
-  cOtherIncludes: Seq[Path] = Nil,
-  cDefines: Map[String, String] = Map.empty,
-  ccpp: Path = Resources.getCPPcPath,
-  cppSystemInclude: Path = Resources.getCPPIncludePath,
-  cppOtherIncludes: Seq[Path] = Nil,
-  cppDefines: Map[String, String] = Map.empty,
+case class Parsing[G <: Generation](
+    blameProvider: BlameProvider,
+    forceLanguage: Option[Language] = None,
+    cc: Path = Resources.getCcPath,
+    cSystemInclude: Path = Resources.getCIncludePath,
+    cOtherIncludes: Seq[Path] = Nil,
+    cDefines: Map[String, String] = Map.empty,
+    ccpp: Path = Resources.getCPPcPath,
+    cppSystemInclude: Path = Resources.getCPPIncludePath,
+    cppOtherIncludes: Seq[Path] = Nil,
+    cppDefines: Map[String, String] = Map.empty,
 ) extends Stage[Seq[Readable], ParseResult[G]] {
   override def friendlyName: String = "Parsing"
   override def progressWeight: Int = 4
@@ -82,17 +85,41 @@ case class Parsing[G <: Generation]
 
       val originProvider = ReadableOriginProvider(readable)
 
-      val parser = language match {
-        case Language.C => ColCParser(originProvider, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
-        case Language.InterpretedC => ColIParser(originProvider, blameProvider)
-        case Language.CPP => ColCPPParser(originProvider, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
-        case Language.InterpretedCPP => ColIPPParser(originProvider, blameProvider)
-        case Language.Java => ColJavaParser(originProvider, blameProvider)
-        case Language.PVL => ColPVLParser(originProvider, blameProvider)
-        case Language.Silver => ColSilverParser(originProvider, blameProvider)
-        case Language.SystemC => new ColSystemCParser(originProvider, blameProvider, Resources.getSystemCConfig)
-        case Language.LLVM => ColLLVMParser(originProvider, blameProvider)
-      }
+      val parser =
+        language match {
+          case Language.C =>
+            ColCParser(
+              originProvider,
+              blameProvider,
+              cc,
+              cSystemInclude,
+              cOtherIncludes,
+              cDefines,
+            )
+          case Language.InterpretedC =>
+            ColIParser(originProvider, blameProvider)
+          case Language.CPP =>
+            ColCPPParser(
+              originProvider,
+              blameProvider,
+              ccpp,
+              cppSystemInclude,
+              cppOtherIncludes,
+              cppDefines,
+            )
+          case Language.InterpretedCPP =>
+            ColIPPParser(originProvider, blameProvider)
+          case Language.Java => ColJavaParser(originProvider, blameProvider)
+          case Language.PVL => ColPVLParser(originProvider, blameProvider)
+          case Language.Silver => ColSilverParser(originProvider, blameProvider)
+          case Language.SystemC =>
+            new ColSystemCParser(
+              originProvider,
+              blameProvider,
+              Resources.getSystemCConfig,
+            )
+          case Language.LLVM => ColLLVMParser(originProvider, blameProvider)
+        }
 
       parser.parse[G](readable)
     })

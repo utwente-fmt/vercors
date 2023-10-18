@@ -14,20 +14,30 @@ abstract class AbstractTask {
   def progressWeight: Option[Double] = None
   protected var progressDone: Double = 0.0
 
-  def progress: Double = synchronized {
-    val subtaksProgress = subTasks.map(t => t.progressWeight -> t.progress)
-    val knownWeightProgress = subtaksProgress.collect { case Some(weight) -> progress => weight * progress }.sum[Double]
-    val knownDone = progressDone + knownWeightProgress
-    val unknownWeightProgress = subtaksProgress.collect { case None -> progress => progress }.sortBy(-_)
-    val result = unknownWeightProgress.foldLeft(knownDone) {
-      case (progress, subtaskProgress) => progress + ((1.0 - progress) * 0.1 * subtaskProgress)
-    }
+  def progress: Double =
+    synchronized {
+      val subtaksProgress = subTasks.map(t => t.progressWeight -> t.progress)
+      val knownWeightProgress = subtaksProgress.collect {
+        case Some(weight) -> progress => weight * progress
+      }.sum[Double]
+      val knownDone = progressDone + knownWeightProgress
+      val unknownWeightProgress = subtaksProgress.collect {
+        case None -> progress => progress
+      }.sortBy(-_)
+      val result =
+        unknownWeightProgress.foldLeft(knownDone) {
+          case (progress, subtaskProgress) =>
+            progress + ((1.0 - progress) * 0.1 * subtaskProgress)
+        }
 
-    if(result > 1.0) {
-      println(s"Discarding ${result - 1.0} from $result at $profilingBreadcrumb")
-      1.0
-    } else result
-  }
+      if (result > 1.0) {
+        println(
+          s"Discarding ${result - 1.0} from $result at $profilingBreadcrumb"
+        )
+        1.0
+      } else
+        result
+    }
 
   private var ownerThread = -1L
   def getOwnerThread: Long = ownerThread
@@ -35,21 +45,23 @@ abstract class AbstractTask {
   def superTaskOrRoot: Option[AbstractTask]
 
   def profilingBreadcrumb: String
-  def profilingTrail: Seq[String] = profilingBreadcrumb +: superTaskOrRoot.toSeq.flatMap(_.profilingTrail)
+  def profilingTrail: Seq[String] =
+    profilingBreadcrumb +: superTaskOrRoot.toSeq.flatMap(_.profilingTrail)
 
   def renderHere: ProgressRender
   def renderHereShort: ProgressRender = renderHere
 
-  def poll(): ResourceUsage = synchronized {
-    if(Thread.currentThread().getId != ownerThread)
-      return TaskRegistry.ownUsage()
+  def poll(): ResourceUsage =
+    synchronized {
+      if (Thread.currentThread().getId != ownerThread)
+        return TaskRegistry.ownUsage()
 
-    val usage = TaskRegistry.ownUsage()
-    val delta = usage - startUsage.get - usageReported
-    TaskRegistry.reportUsage(delta, profilingTrail)
-    usageReported += delta
-    usage
-  }
+      val usage = TaskRegistry.ownUsage()
+      val delta = usage - startUsage.get - usageReported
+      TaskRegistry.reportUsage(delta, profilingTrail)
+      usageReported += delta
+      usage
+    }
 
   def start(): Unit = {
     ownerThread = Thread.currentThread().getId
@@ -79,7 +91,8 @@ abstract class AbstractTask {
         superTask.synchronized {
           superTask.subTasks -= this
           superTask.usageReported += usageReported
-          superTask.progressDone += progressWeight.getOrElse(0.1 * (1.0 - superTask.progressDone))
+          superTask.progressDone +=
+            progressWeight.getOrElse(0.1 * (1.0 - superTask.progressDone))
         }
     }
 
@@ -96,43 +109,48 @@ abstract class AbstractTask {
     end()
   }
 
-  private def renderProgressWith(depthForDetail: Int): ProgressRender = synchronized {
-    val here = if(depthForDetail <= 0) renderHere else renderHereShort
-    val sub = subTasks.toIndexedSeq
-
-    sub match {
-      case Nil =>
-        here
-      case Seq(sub) =>
-        val subRender = sub.renderProgressWith(depthForDetail - 1)
-        if(subRender.lines.size == 1)
-          here.postfix(ProgressRender.JOIN + subRender.lines.head)
-        else if(here.lines.size == 1 && subRender.primaryLineIndex == 0)
-          subRender.prefix(here.lines.head + ProgressRender.JOIN)
+  private def renderProgressWith(depthForDetail: Int): ProgressRender =
+    synchronized {
+      val here =
+        if (depthForDetail <= 0)
+          renderHere
         else
-          here.subRenders(Seq(f"[${sub.progress * 100}%.1f%%] " -> subRender))
-      case subs =>
-        here.subRenders(subs.map { sub =>
-          f"[${sub.progress * 100}%.1f%%] " -> sub.renderProgressWith(depthForDetail - 1)
-        })
+          renderHereShort
+      val sub = subTasks.toIndexedSeq
+
+      sub match {
+        case Nil => here
+        case Seq(sub) =>
+          val subRender = sub.renderProgressWith(depthForDetail - 1)
+          if (subRender.lines.size == 1)
+            here.postfix(ProgressRender.JOIN + subRender.lines.head)
+          else if (here.lines.size == 1 && subRender.primaryLineIndex == 0)
+            subRender.prefix(here.lines.head + ProgressRender.JOIN)
+          else
+            here.subRenders(Seq(f"[${sub.progress * 100}%.1f%%] " -> subRender))
+        case subs =>
+          here.subRenders(subs.map { sub =>
+            f"[${sub.progress * 100}%.1f%%] " ->
+              sub.renderProgressWith(depthForDetail - 1)
+          })
+      }
     }
-  }
 
   def render(maxWidth: Int, maxHeight: Int): Seq[String] = {
-    val progress = (0 until 10).to(LazyList).map(renderProgressWith).collectFirst {
-      case render if render.lines.size <= maxHeight => render
-    }.getOrElse(renderProgressWith(1000))
+    val progress = (0 until 10).to(LazyList).map(renderProgressWith)
+      .collectFirst { case render if render.lines.size <= maxHeight => render }
+      .getOrElse(renderProgressWith(1000))
 
-    progress.lines
-      .takeRight(maxHeight)
-      .map { line =>
-        if(line.length <= maxWidth) line
-        else {
-          val avail = maxWidth - ProgressRender.ELLIPSIS.length
-          val split = avail * 2 / 3
-          line.take(split) + ProgressRender.ELLIPSIS + line.takeRight(avail - split)
-        }
+    progress.lines.takeRight(maxHeight).map { line =>
+      if (line.length <= maxWidth)
+        line
+      else {
+        val avail = maxWidth - ProgressRender.ELLIPSIS.length
+        val split = avail * 2 / 3
+        line.take(split) + ProgressRender.ELLIPSIS +
+          line.takeRight(avail - split)
       }
+    }
   }
 
   def nonEmpty: Boolean = synchronized { subTasks.nonEmpty }
@@ -145,10 +163,9 @@ abstract class AbstractTask {
   }
 
   def frame1[I, O](f: I => O): I => O =
-    (i) => try {
-      start()
-      f(i)
-    } finally {
-      end()
-    }
+    (i) =>
+      try {
+        start()
+        f(i)
+      } finally { end() }
 }

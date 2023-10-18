@@ -12,8 +12,10 @@ trait ScopeImpl[G] {
 
   override def layout(implicit ctx: Ctx): Doc = layoutAsBlock
   override def blockElementsForLayout(implicit ctx: Ctx): Seq[Show] =
-    locals.map(local => ctx.syntax match {
-      case Ctx.Silver => Text("var") <+> local
-      case _ => local.show <> ";"
-    }) ++ body.blockElementsForLayout
+    locals.map(local =>
+      ctx.syntax match {
+        case Ctx.Silver => Text("var") <+> local
+        case _ => local.show <> ";"
+      }
+    ) ++ body.blockElementsForLayout
 }

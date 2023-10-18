@@ -3,7 +3,8 @@ package vct.col.ast.expr.op.bit
 import vct.col.ast.{BitShl, TInt, Type}
 import vct.col.print.{Ctx, Doc, Precedence}
 
-trait BitShlImpl[G] { this: BitShl[G] =>
+trait BitShlImpl[G] {
+  this: BitShl[G] =>
   override def t: Type[G] = TInt()
 
   override def precedence: Int = Precedence.SHIFT

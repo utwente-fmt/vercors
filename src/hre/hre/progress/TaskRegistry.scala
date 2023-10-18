@@ -8,7 +8,8 @@ import scala.collection.mutable.ArrayBuffer
 case object TaskRegistry {
   private var mainThreadId = -1L
   private var mainThreadRootTask: Option[RootTask] = None
-  val threadTaskStack: ThreadLocal[ArrayBuffer[AbstractTask]] = ThreadLocal.withInitial(() => ArrayBuffer())
+  val threadTaskStack: ThreadLocal[ArrayBuffer[AbstractTask]] = ThreadLocal
+    .withInitial(() => ArrayBuffer())
 
   def enabled: Boolean = mainThreadRootTask.isDefined
 
@@ -31,31 +32,32 @@ case object TaskRegistry {
   def isMainThread: Boolean = Thread.currentThread().getId == mainThreadId
   def getRootTask: RootTask = mainThreadRootTask.get
 
-  /**
-   * SAFETY: If called from a non-main thread, a task with an explicit superTask must be started first. This is for
-   * example the case when a thread is started as Progress.{foreach,map}(xs.par, _) { ... }: the superTask is
-   * establised in the thread setting up the parallel run.
-   */
-  def currentTaskInThread: AbstractTask =
-    threadTaskStack.get().last
+  /** SAFETY: If called from a non-main thread, a task with an explicit
+    * superTask must be started first. This is for example the case when a
+    * thread is started as Progress.{foreach,map}(xs.par, _) { ... }: the
+    * superTask is establised in the thread setting up the parallel run.
+    */
+  def currentTaskInThread: AbstractTask = threadTaskStack.get().last
 
   def push(task: AbstractTask): Unit =
-    if(enabled)
+    if (enabled)
       threadTaskStack.get() += task
 
   def pop(task: AbstractTask): Unit =
-    if(enabled)
-      if(Thread.currentThread().getId == task.getOwnerThread) {
+    if (enabled)
+      if (Thread.currentThread().getId == task.getOwnerThread) {
         assert(threadTaskStack.get().lastOption.contains(task))
         threadTaskStack.get() -= task
       }
 
   def ownUsage(): ResourceUsage =
-    if(enabled) {
-      if(isMainThread) ResourceUsage.getProcess
-      else ResourceUsage.getCallingThread
-    }
-    else ResourceUsage.zero
+    if (enabled) {
+      if (isMainThread)
+        ResourceUsage.getProcess
+      else
+        ResourceUsage.getCallingThread
+    } else
+      ResourceUsage.zero
 
   def reportUsage(usage: ResourceUsage, trail: Seq[String]): Unit =
     Profile.update(trail, usage, doUpdateChildUsage = isMainThread)

@@ -13,11 +13,15 @@ import vct.rewrite.veymont.ParalleliseVeyMontThreads
 
 object CodeGeneration {
 
-  private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
-    m.toSeq.map {
-      case (key, out) => (key, (program: Verification[_ <: Generation]) => out.write { writer =>
-        program.write(writer)(Ctx().namesIn(program))
-      })
+  private def writeOutFunctions(
+      m: Map[String, PathOrStd]
+  ): Seq[(String, Verification[_ <: Generation] => Unit)] =
+    m.toSeq.map { case (key, out) =>
+      (
+        key,
+        (program: Verification[_ <: Generation]) =>
+          out.write { writer => program.write(writer)(Ctx().namesIn(program)) },
+      )
     }
 
   def veymontGenerationOfOptions(options: Options): VeyMontGeneration =
@@ -31,25 +35,30 @@ object CodeGeneration {
     }
 }
 
-class CodeGeneration(val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
-                     val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
-                     val passes: Seq[RewriterBuilder]
-                       ) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] {
+class CodeGeneration(
+    val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
+    val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)],
+    val passes: Seq[RewriterBuilder],
+) extends Stage[Verification[_ <: Generation], Verification[_ <: Generation]] {
   override def friendlyName: String = "Generating VeyMont output"
 
   override def progressWeight: Int = 1
 
-  override def run(input: Verification[_ <: Generation]): Verification[_ <: Generation] = {
+  override def run(
+      input: Verification[_ <: Generation]
+  ): Verification[_ <: Generation] = {
     var result: Verification[_ <: Generation] = input
     Progress.foreach(passes, (pass: RewriterBuilder) => pass.key) { pass =>
-      onBeforePassKey.foreach {
-        case (key, action) => if (pass.key == key) action(result)
+      onBeforePassKey.foreach { case (key, action) =>
+        if (pass.key == key)
+          action(result)
       }
 
       result = pass().dispatch(result)
 
-      onAfterPassKey.foreach {
-        case (key, action) => if (pass.key == key) action(result)
+      onAfterPassKey.foreach { case (key, action) =>
+        if (pass.key == key)
+          action(result)
       }
 
       result = PrettifyBlocks().dispatch(result)
@@ -59,9 +68,16 @@ class CodeGeneration(val onBeforePassKey: Seq[(String, Verification[_ <: Generat
 
 }
 
-case class VeyMontGeneration(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                             override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
-                             channelClass: JavaClass[_])
-  extends CodeGeneration(onBeforePassKey, onAfterPassKey, Seq(
-    ParalleliseVeyMontThreads.withArg(channelClass),
-  ))
+case class VeyMontGeneration(
+    override val onBeforePassKey: Seq[
+      (String, Verification[_ <: Generation] => Unit)
+    ] = Nil,
+    override val onAfterPassKey: Seq[
+      (String, Verification[_ <: Generation] => Unit)
+    ] = Nil,
+    channelClass: JavaClass[_],
+) extends CodeGeneration(
+      onBeforePassKey,
+      onAfterPassKey,
+      Seq(ParalleliseVeyMontThreads.withArg(channelClass)),
+    )

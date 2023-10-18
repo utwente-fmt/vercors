@@ -13,8 +13,12 @@ import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 
 import java.io.{InputStreamReader, StringWriter}
 
-case class ColLLVMParser(override val originProvider: OriginProvider, override val blameProvider: BlameProvider) extends Parser(originProvider, blameProvider) with LazyLogging {
-  case class LLVMParseError(fileName: String, errorCode: Int, error: String) extends UserError {
+case class ColLLVMParser(
+    override val originProvider: OriginProvider,
+    override val blameProvider: BlameProvider,
+) extends Parser(originProvider, blameProvider) with LazyLogging {
+  case class LLVMParseError(fileName: String, errorCode: Int, error: String)
+      extends UserError {
     override def code: String = "LLVMParseError"
 
     override def text: String =
@@ -22,7 +26,9 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
   }
 
   override def parse[G](stream: CharStream): ParseResult[G] = {
-    throw Unreachable("LLVM IR files shouldn't be parsed from an ANTLR CharStream, use VCLLVM instead!")
+    throw Unreachable(
+      "LLVM IR files shouldn't be parsed from an ANTLR CharStream, use VCLLVM instead!"
+    )
   }
 
   override def parse[G](readable: Readable): ParseResult[G] = {
@@ -34,15 +40,21 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
       new InputStreamReader(process.getInputStream).transferTo(writer)
       new InputStreamReader(process.getErrorStream).transferTo(writer)
       writer.close()
-      throw LLVMParseError(readable.fileName, process.exitValue(), writer.toString)
+      throw LLVMParseError(
+        readable.fileName,
+        process.exitValue(),
+        writer.toString,
+      )
     }
     val protoProgram = Program.parseFrom(process.getInputStream)
-    val COLProgram = Deserialize.deserializeProgram[G](protoProgram, readable.fileName)
+    val COLProgram = Deserialize
+      .deserializeProgram[G](protoProgram, readable.fileName)
     ParseResult(COLProgram.declarations, Seq.empty)
   }
 
-  def parseFunctionContract[G](stream: CharStream):
-  (vct.col.ast.ApplicableContract[G], Seq[ExpectedError]) = {
+  def parseFunctionContract[G](
+      stream: CharStream
+  ): (vct.col.ast.ApplicableContract[G], Seq[ExpectedError]) = {
     val lexer = new LangLLVMSpecLexer(stream)
     val tokens = new CommonTokenStream(lexer)
     originProvider.setTokenStream(tokens)
@@ -50,16 +62,25 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
     // we're parsing a contract so set the parser to specLevel == 1
     parser.specLevel = 1
 
-    val (errors, tree) = noErrorsOrThrow(parser, lexer, originProvider) {
-      val errors = expectedErrors(tokens, LangLLVMSpecLexer.EXPECTED_ERROR_CHANNEL, LangLLVMSpecLexer.VAL_EXPECT_ERROR_OPEN, LangLLVMSpecLexer.VAL_EXPECT_ERROR_CLOSE)
-      val tree = parser.valEmbedContract()
-      (errors, tree)
-    }
-    val contract = LLVMContractToCol[G](originProvider, blameProvider, errors).convert(tree)
+    val (errors, tree) =
+      noErrorsOrThrow(parser, lexer, originProvider) {
+        val errors = expectedErrors(
+          tokens,
+          LangLLVMSpecLexer.EXPECTED_ERROR_CHANNEL,
+          LangLLVMSpecLexer.VAL_EXPECT_ERROR_OPEN,
+          LangLLVMSpecLexer.VAL_EXPECT_ERROR_CLOSE,
+        )
+        val tree = parser.valEmbedContract()
+        (errors, tree)
+      }
+    val contract = LLVMContractToCol[G](originProvider, blameProvider, errors)
+      .convert(tree)
     (contract, errors.map(_._3))
   }
 
-  def parseGlobal[G](stream: CharStream): (vct.col.ast.GlobalDeclaration[G], Seq[ExpectedError]) = {
+  def parseGlobal[G](
+      stream: CharStream
+  ): (vct.col.ast.GlobalDeclaration[G], Seq[ExpectedError]) = {
     val lexer = new LangLLVMSpecLexer(stream)
     val tokens = new CommonTokenStream(lexer)
     originProvider.setTokenStream(tokens)
@@ -67,12 +88,19 @@ case class ColLLVMParser(override val originProvider: OriginProvider, override v
     // we're parsing a contract so set the parser to specLevel == 1
     parser.specLevel = 1
 
-    val (errors, tree) = noErrorsOrThrow(parser, lexer, originProvider) {
-      val errors = expectedErrors(tokens, LangLLVMSpecLexer.EXPECTED_ERROR_CHANNEL, LangLLVMSpecLexer.VAL_EXPECT_ERROR_OPEN, LangLLVMSpecLexer.VAL_EXPECT_ERROR_CLOSE)
-      val tree = parser.valGlobalDeclaration()
-      (errors, tree)
-    }
-    val global = LLVMContractToCol[G](originProvider, blameProvider, errors).convert(tree)
+    val (errors, tree) =
+      noErrorsOrThrow(parser, lexer, originProvider) {
+        val errors = expectedErrors(
+          tokens,
+          LangLLVMSpecLexer.EXPECTED_ERROR_CHANNEL,
+          LangLLVMSpecLexer.VAL_EXPECT_ERROR_OPEN,
+          LangLLVMSpecLexer.VAL_EXPECT_ERROR_CLOSE,
+        )
+        val tree = parser.valGlobalDeclaration()
+        (errors, tree)
+      }
+    val global = LLVMContractToCol[G](originProvider, blameProvider, errors)
+      .convert(tree)
     (global, errors.map(_._3))
   }
 }

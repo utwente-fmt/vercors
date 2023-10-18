@@ -2,7 +2,11 @@ package vct.main.modes
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.origin.BlameCollector
-import vct.main.Main.{EXIT_CODE_ERROR, EXIT_CODE_SUCCESS, EXIT_CODE_VERIFICATION_FAILURE}
+import vct.main.Main.{
+  EXIT_CODE_ERROR,
+  EXIT_CODE_SUCCESS,
+  EXIT_CODE_VERIFICATION_FAILURE,
+}
 import vct.main.modes.Verify.logger
 import vct.main.stages.Stages
 import vct.options.Options
@@ -14,7 +18,8 @@ object VeyMont extends LazyLogging {
 
   def verifyWithOptions(options: Options, inputs: Seq[PathOrStd]) = {
     val collector = BlameCollector()
-    val stages = Stages.veymontTransformationOfOptions(options, ConstantBlameProvider(collector))
+    val stages = Stages
+      .veymontTransformationOfOptions(options, ConstantBlameProvider(collector))
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
       case Left(value) => logger.error(value.text)

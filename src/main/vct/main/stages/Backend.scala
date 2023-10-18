@@ -19,47 +19,66 @@ import scala.runtime.ScalaRunTime
 
 case object Backend {
 
-  def ofOptions(options: Options): Backend = options.backend match {
-    case types.Backend.Silicon =>
-      val printRawQuantifier = options.siliconPrintQuantifierStats match {
-        case Some(freq) => Seq(
-          "smt.qi.profile" -> "true",
-          "smt.qi.profile_freq" -> s"$freq"
+  def ofOptions(options: Options): Backend =
+    options.backend match {
+      case types.Backend.Silicon =>
+        val printRawQuantifier =
+          options.siliconPrintQuantifierStats match {
+            case Some(freq) =>
+              Seq("smt.qi.profile" -> "true", "smt.qi.profile_freq" -> s"$freq")
+            case None => Seq()
+          }
+        val z3LogFile =
+          options.devSiliconZ3LogFile match {
+            case Some(p) =>
+              Seq(
+                "trace" -> "true",
+                "proof" -> "true",
+                "trace-file-name" -> ("\"" + p.toString + "\""),
+              )
+            case None => Seq()
+          }
+        val numberOfParallelVerifiers =
+          if (
+            options.devSiliconZ3LogFile.isDefined ||
+            options.siliconPrintQuantifierStats.isDefined
+          ) { Some(1) }
+          else { options.devSiliconNumVerifiers }
+        SilverBackend(
+          Silicon(
+            z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
+            z3Path = options.z3Path,
+            numberOfParallelVerifiers = numberOfParallelVerifiers,
+            timeoutValue = options.devSiliconAssertTimeout,
+            proverLogFile = options.devViperProverLogFile,
+            printQuantifierStatistics =
+              options.siliconPrintQuantifierStats.isDefined,
+            reportOnNoProgress = options.devSiliconReportOnNoProgress,
+            traceBranchConditions = options.devSiliconTraceBranchConditions,
+            branchConditionReportInterval =
+              options.devSiliconBranchConditionReportInterval,
+            options = options.backendFlags,
+          ),
+          options.backendFile,
+          if (options.devCache)
+            Some(VerificationCache.getSiliconDirectory)
+          else
+            None,
         )
-        case None => Seq()
-      }
-      val z3LogFile = options.devSiliconZ3LogFile match {
-        case Some(p) => Seq(
-          "trace" -> "true",
-          "proof" -> "true",
-          "trace-file-name" -> ("\"" + p.toString + "\"")
-        )
-        case None => Seq()
-      }
-      val numberOfParallelVerifiers =
-        if (options.devSiliconZ3LogFile.isDefined || options.siliconPrintQuantifierStats.isDefined) { Some(1) }
-        else { options.devSiliconNumVerifiers }
-      SilverBackend(Silicon(
-        z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
-        z3Path = options.z3Path,
-        numberOfParallelVerifiers = numberOfParallelVerifiers,
-        timeoutValue = options.devSiliconAssertTimeout,
-        proverLogFile = options.devViperProverLogFile,
-        printQuantifierStatistics = options.siliconPrintQuantifierStats.isDefined,
-        reportOnNoProgress = options.devSiliconReportOnNoProgress,
-        traceBranchConditions = options.devSiliconTraceBranchConditions,
-        branchConditionReportInterval = options.devSiliconBranchConditionReportInterval,
-        options = options.backendFlags,
-      ), options.backendFile, if(options.devCache) Some(VerificationCache.getSiliconDirectory) else None)
 
-    case types.Backend.Carbon => SilverBackend(Carbon(
-      z3Path = options.z3Path,
-      boogiePath = options.boogiePath,
-      printFile = options.devViperProverLogFile,
-      proverLogFile = options.devCarbonBoogieLogFile,
-      options = options.backendFlags,
-    ), options.backendFile, Some(VerificationCache.getCarbonDirectory))
-  }
+      case types.Backend.Carbon =>
+        SilverBackend(
+          Carbon(
+            z3Path = options.z3Path,
+            boogiePath = options.boogiePath,
+            printFile = options.devViperProverLogFile,
+            proverLogFile = options.devCarbonBoogieLogFile,
+            options = options.backendFlags,
+          ),
+          options.backendFile,
+          Some(VerificationCache.getCarbonDirectory),
+        )
+    }
 }
 
 trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
@@ -68,7 +87,10 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
 
   def cacheDirectory: Option[Path]
 
-  def cachedDefinitelyVerifiesOrElseUpdate(colProgram: Program[_], update: => Boolean): Unit = {
+  def cachedDefinitelyVerifiesOrElseUpdate(
+      colProgram: Program[_],
+      update: => Boolean,
+  ): Unit = {
     val baseDir = cacheDirectory.getOrElse {
       // There is no cache directory: not allowed to skip the update
       update
@@ -84,13 +106,13 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
     val path = baseDir.resolve("%02x" format program.hashCode())
     val programFile = path.resolve("program.colpb").toFile
 
-    if(Files.exists(path)) {
+    if (Files.exists(path)) {
       // The result is potentially cached in programFile
       val f = new FileInputStream(programFile)
       val cachedProgram = vct.col.serialize.Program.parseFrom(f)
       f.close()
 
-      if(cachedProgram != program) {
+      if (cachedProgram != program) {
         // Unlikely: in case of a hash collision, just run the verification (permanently unlucky)
         update
       }
@@ -104,8 +126,14 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   }
 
   override def run(in: Verification[_ <: Generation]): Seq[ExpectedError] = {
-    Progress.foreach[(VerificationContext[_ <: Generation], Int)](in.tasks.zipWithIndex.par, t => s"Task ${t._2 + 1}") { case (task, idx) =>
-      cachedDefinitelyVerifiesOrElseUpdate(task.program, verify(task.program, idx))
+    Progress.foreach[(VerificationContext[_ <: Generation], Int)](
+      in.tasks.zipWithIndex.par,
+      t => s"Task ${t._2 + 1}",
+    ) { case (task, idx) =>
+      cachedDefinitelyVerifiesOrElseUpdate(
+        task.program,
+        verify(task.program, idx),
+      )
     }
 
     in.expectedErrors
@@ -114,7 +142,14 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   def verify(program: Program[_ <: Generation], idx: Int): Boolean
 }
 
-case class SilverBackend(backend: viper.SilverBackend, output: Option[Path] = None, cacheDirectory: Option[Path] = None) extends Backend {
+case class SilverBackend(
+    backend: viper.SilverBackend,
+    output: Option[Path] = None,
+    cacheDirectory: Option[Path] = None,
+) extends Backend {
   override def verify(program: Program[_ <: Generation], idx: Int): Boolean =
-    backend.submit(program, output.map(p => p.resolveSibling(p.getFileName.toString + s"-$idx.vpr")))
+    backend.submit(
+      program,
+      output.map(p => p.resolveSibling(p.getFileName.toString + s"-$idx.vpr")),
+    )
 }

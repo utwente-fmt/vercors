@@ -11,13 +11,17 @@ case object Profile {
   private var currentProfile: Option[Profile] = None
 
   def install(profile: Boolean): Unit =
-    if(profile) currentProfile = Some(Profile())
+    if (profile)
+      currentProfile = Some(Profile())
 
-  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit =
+  def update(
+      stack: Seq[String],
+      ownUsage: ResourceUsage,
+      doUpdateChildUsage: Boolean,
+  ): Unit =
     currentProfile.foreach(_.update(stack, ownUsage, doUpdateChildUsage))
 
-  def finish(): Unit =
-    currentProfile.foreach(_.finish())
+  def finish(): Unit = currentProfile.foreach(_.finish())
 }
 
 case class Profile() {
@@ -42,34 +46,38 @@ case class Profile() {
 
   private val samples = mutable.ArrayBuffer[Sample]()
 
-  def update(stack: Seq[String], ownUsage: ResourceUsage, doUpdateChildUsage: Boolean): Unit = synchronized {
-    val deltaChild = if (doUpdateChildUsage) {
-      val childUsage = ResourceUsage.getAggregateChildren
-      val deltaChild = childUsage - lastChildUsage
-      lastChildUsage = childUsage
-      deltaChild
-    } else {
-      ResourceUsage.zero
+  def update(
+      stack: Seq[String],
+      ownUsage: ResourceUsage,
+      doUpdateChildUsage: Boolean,
+  ): Unit =
+    synchronized {
+      val deltaChild =
+        if (doUpdateChildUsage) {
+          val childUsage = ResourceUsage.getAggregateChildren
+          val deltaChild = childUsage - lastChildUsage
+          lastChildUsage = childUsage
+          deltaChild
+        } else { ResourceUsage.zero }
+
+      val deltaAgg = deltaChild + ownUsage
+
+      val locations = stack.map(loc)
+
+      samples += Sample(
+        locationId = locations,
+        value = Seq(
+          deltaAgg.userTime + deltaAgg.systemTime,
+          deltaAgg.userTime,
+          deltaAgg.systemTime,
+          ownUsage.userTime,
+          ownUsage.systemTime,
+          deltaChild.userTime,
+          deltaChild.systemTime,
+          ownUsage.wallTime,
+        ),
+      )
     }
-
-    val deltaAgg = deltaChild + ownUsage
-
-    val locations = stack.map(loc)
-
-    samples += Sample(
-      locationId = locations,
-      value = Seq(
-        deltaAgg.userTime + deltaAgg.systemTime,
-        deltaAgg.userTime,
-        deltaAgg.systemTime,
-        ownUsage.userTime,
-        ownUsage.systemTime,
-        deltaChild.userTime,
-        deltaChild.systemTime,
-        ownUsage.wallTime,
-      ),
-    )
-  }
 
   def finish(): Unit = {
     val result = perftools.profiles.Profile(

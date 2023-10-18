@@ -11,10 +11,7 @@ sealed abstract class VerificationError extends RuntimeException {
   val contexts: ArrayBuffer[VerificationError.Context] = ArrayBuffer()
 
   def getContext[T](implicit tag: ClassTag[T]): Option[T] = {
-    contexts.collectFirst{
-      case x : T =>
-        x
-    }
+    contexts.collectFirst { case x: T => x }
   }
 }
 
@@ -33,10 +30,9 @@ object VerificationError {
   trait Context
 
   def context[T](ctx: Context)(f: => T): T = {
-    try {
-      f
-    } catch {
-      case e : VerificationError =>
+    try { f }
+    catch {
+      case e: VerificationError =>
         e.contexts += ctx
         throw e
     }

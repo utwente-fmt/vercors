@@ -12,7 +12,12 @@ trait InMemoryCachedReadable extends Readable {
     if (cache.isEmpty) {
       val scanner = new Scanner(getReaderImpl)
       scanner.useDelimiter("\\A")
-      cache = Some(if (scanner.hasNext()) scanner.next() else "")
+      cache = Some(
+        if (scanner.hasNext())
+          scanner.next()
+        else
+          ""
+      )
     }
 
   override protected def getReader: Reader = {
@@ -28,9 +33,7 @@ trait InMemoryCachedReadable extends Readable {
   protected var linesCache: Option[Seq[String]] = None
 
   override def readLines(): Seq[String] = {
-    if(linesCache.isEmpty) {
-      linesCache = Some(super.readLines())
-    }
+    if (linesCache.isEmpty) { linesCache = Some(super.readLines()) }
     linesCache.get
   }
 

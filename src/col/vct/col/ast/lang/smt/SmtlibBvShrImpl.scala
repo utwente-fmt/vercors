@@ -4,7 +4,8 @@ import vct.col.ast.SmtlibBvShr
 import vct.col.ast.Type
 import vct.col.print._
 
-trait SmtlibBvShrImpl[G] { this: SmtlibBvShr[G] =>
+trait SmtlibBvShrImpl[G] {
+  this: SmtlibBvShr[G] =>
   override def t: Type[G] = left.t
   // def layout(implicit ctx: Ctx): Doc = ???
 }

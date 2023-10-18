@@ -3,7 +3,8 @@ package vct.col.ast.expr.heap.alloc
 import vct.col.ast.{NewObject, TClass, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 
-trait NewObjectImpl[G] { this: NewObject[G] =>
+trait NewObjectImpl[G] {
+  this: NewObject[G] =>
   override def t: Type[G] = TClass(cls)
 
   override def precedence: Int = Precedence.POSTFIX

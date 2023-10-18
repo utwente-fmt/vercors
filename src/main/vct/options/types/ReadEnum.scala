@@ -8,6 +8,5 @@ trait ReadEnum[T] extends scopt.Read[T] {
   override def arity: Int = 1
   override def reads: String => T = options(_)
 
-  def valueName: String =
-    options.keys.mkString("{", "|", "}")
+  def valueName: String = options.keys.mkString("{", "|", "}")
 }

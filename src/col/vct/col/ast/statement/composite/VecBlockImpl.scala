@@ -4,7 +4,8 @@ import vct.col.ast.util.Declarator
 import vct.col.ast.{Declaration, VecBlock}
 import vct.col.print._
 
-trait VecBlockImpl[G] extends Declarator[G] { this: VecBlock[G] =>
+trait VecBlockImpl[G] extends Declarator[G] {
+  this: VecBlock[G] =>
   override def declarations: Seq[Declaration[G]] = iters.map(_.variable)
 
   override def layout(implicit ctx: Ctx): Doc =

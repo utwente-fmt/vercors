@@ -8,9 +8,10 @@ import vct.options.Options
 import vct.parsers.transform.ConstantBlameProvider
 
 case object Transform extends LazyLogging {
-  def runOptions(options: Options) : Int = {
+  def runOptions(options: Options): Int = {
     val collector = BlameCollector()
-    val stages = Stages.vesuvOfOptions(options, ConstantBlameProvider(collector))
+    val stages = Stages
+      .vesuvOfOptions(options, ConstantBlameProvider(collector))
     stages.run(options.inputs) match {
       case Left(_) => EXIT_CODE_ERROR
       case Right(()) =>

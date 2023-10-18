@@ -7,6 +7,5 @@ import scala.collection.mutable
 case object CachedExpRender {
   private val cache: mutable.WeakHashMap[Node, String] = mutable.WeakHashMap()
 
-  def apply(e: Node): String =
-    cache.getOrElseUpdate(e, e.toString())
+  def apply(e: Node): String = cache.getOrElseUpdate(e, e.toString())
 }

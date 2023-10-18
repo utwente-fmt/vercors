@@ -4,7 +4,8 @@ import vct.col.ast.{TBag, Type, UntypedLiteralBag}
 import vct.col.print._
 import vct.col.typerules.Types
 
-trait UntypedLiteralBagImpl[G] { this: UntypedLiteralBag[G] =>
+trait UntypedLiteralBagImpl[G] {
+  this: UntypedLiteralBag[G] =>
   lazy val elementType: Type[G] = Types.leastCommonSuperType(values.map(_.t))
   override def t: Type[G] = TBag(elementType)
 

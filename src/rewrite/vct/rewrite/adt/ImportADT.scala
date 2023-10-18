@@ -4,7 +4,49 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.RewriteProgram
 import vct.col.ast.`type`.TFloats
 import vct.col.ast.util.Declarator
-import vct.col.ast.{CPPType, CType, Declaration, GlobalDeclaration, JavaType, PVLType, Program, TAny, TArray, TAxiomatic, TBag, TBool, TBoundedInt, TChar, TClass, TEither, TFloat, TFraction, TInt, TMap, TMatrix, TModel, TNotAValue, TNothing, TNull, TOption, TPointer, TProcess, TRational, TRef, TResource, TSeq, TSet, TString, TTuple, TType, TUnion, TVar, TVoid, TZFraction, Type}
+import vct.col.ast.{
+  CPPType,
+  CType,
+  Declaration,
+  GlobalDeclaration,
+  JavaType,
+  PVLType,
+  Program,
+  TAny,
+  TArray,
+  TAxiomatic,
+  TBag,
+  TBool,
+  TBoundedInt,
+  TChar,
+  TClass,
+  TEither,
+  TFloat,
+  TFraction,
+  TInt,
+  TMap,
+  TMatrix,
+  TModel,
+  TNotAValue,
+  TNothing,
+  TNull,
+  TOption,
+  TPointer,
+  TProcess,
+  TRational,
+  TRef,
+  TResource,
+  TSeq,
+  TSet,
+  TString,
+  TTuple,
+  TType,
+  TUnion,
+  TVar,
+  TVoid,
+  TZFraction,
+  Type,
+}
 import vct.col.typerules.CoercingRewriter
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{Blame, SourceNameOrigin, UnsafeCoercion}
@@ -17,66 +59,75 @@ trait ImportADTImporter {
   def loadAdt[G](name: String): Program[G]
 }
 
-abstract class ImportADTBuilder(adt: String) extends RewriterBuilderArg[ImportADTImporter] {
+abstract class ImportADTBuilder(adt: String)
+    extends RewriterBuilderArg[ImportADTImporter] {
   override def key: String = "adt" + adt.capitalize
-  override def desc: String = s"Import types into vercors that are defined externally, usually via an axiomatic datatype. This pass imports $adt."
+  override def desc: String =
+    s"Import types into vercors that are defined externally, usually via an axiomatic datatype. This pass imports $adt."
 }
 
 case object ImportADT {
-  def typeText(t: Type[_]): String = t match {
-    case _: TNotAValue[_] => throw ExtraNode
-    case TVoid() => "void"
-    case TBool() => "bool"
-    case single: TFloat[_] if single == TFloats.ieee754_32bit => s"float32"
-    case double: TFloat[_] if double == TFloats.ieee754_32bit => s"float64"
-    case TFloat(exponent, mantissa) => s"float${exponent}m$mantissa"
-    case TChar() => "char"
-    case TString() => "string"
-    case TRef() => "ref"
-    case TArray(element) => "arr_" + typeText(element)
-    case TPointer(element) => "ptr_" + typeText(element)
-    case TProcess() => "proc"
-    case TModel(Ref(model)) => model.o.preferredName
-    case TAxiomatic(Ref(adt), args) => args match {
-      case Nil => adt.o.preferredName
-      case ts => adt.o.preferredName + "$" + ts.map(typeText).mkString("__") + "$"
+  def typeText(t: Type[_]): String =
+    t match {
+      case _: TNotAValue[_] => throw ExtraNode
+      case TVoid() => "void"
+      case TBool() => "bool"
+      case single: TFloat[_] if single == TFloats.ieee754_32bit => s"float32"
+      case double: TFloat[_] if double == TFloats.ieee754_32bit => s"float64"
+      case TFloat(exponent, mantissa) => s"float${exponent}m$mantissa"
+      case TChar() => "char"
+      case TString() => "string"
+      case TRef() => "ref"
+      case TArray(element) => "arr_" + typeText(element)
+      case TPointer(element) => "ptr_" + typeText(element)
+      case TProcess() => "proc"
+      case TModel(Ref(model)) => model.o.preferredName
+      case TAxiomatic(Ref(adt), args) =>
+        args match {
+          case Nil => adt.o.preferredName
+          case ts =>
+            adt.o.preferredName + "$" + ts.map(typeText).mkString("__") + "$"
+        }
+      case TOption(element) => "opt_" + typeText(element)
+      case TTuple(elements) =>
+        "tup$" + elements.map(typeText).mkString("__") + "$"
+      case TEither(left, right) =>
+        "either$" + typeText(left) + "__" + typeText(right) + "$"
+      case TSeq(element) => "seq_" + typeText(element)
+      case TSet(element) => "set_" + typeText(element)
+      case TBag(element) => "bag_" + typeText(element)
+      case TMatrix(element) => "mat_" + typeText(element)
+      case TType(t) => "typ_" + typeText(t)
+      case TAny() => "any"
+      case TNothing() => "nothing"
+      case TNull() => "null"
+      case TResource() => "res"
+      case TInt() => "int"
+      case TBoundedInt(gte, lt) => "int"
+      case TRational() => "rat"
+      case TFraction() => "fract"
+      case TZFraction() => "zfract"
+      case TMap(key, value) =>
+        "map$" + typeText(key) + "__" + typeText(value) + "$"
+      case TClass(Ref(cls)) => cls.o.preferredName
+      case TVar(Ref(v)) => v.o.preferredName
+      case TUnion(ts) => "union$" + ts.map(typeText).mkString("__") + "$"
+      case _: JavaType[_] => throw ExtraNode
+      case _: CType[_] => throw ExtraNode
+      case _: CPPType[_] => throw ExtraNode
+      case _: PVLType[_] => throw ExtraNode
     }
-    case TOption(element) => "opt_" + typeText(element)
-    case TTuple(elements) => "tup$" + elements.map(typeText).mkString("__") + "$"
-    case TEither(left, right) => "either$" + typeText(left) + "__" + typeText(right) + "$"
-    case TSeq(element) => "seq_" + typeText(element)
-    case TSet(element) => "set_" + typeText(element)
-    case TBag(element) => "bag_" + typeText(element)
-    case TMatrix(element) => "mat_" + typeText(element)
-    case TType(t) => "typ_" + typeText(t)
-    case TAny() => "any"
-    case TNothing() => "nothing"
-    case TNull() => "null"
-    case TResource() => "res"
-    case TInt() => "int"
-    case TBoundedInt(gte, lt) => "int"
-    case TRational() => "rat"
-    case TFraction() => "fract"
-    case TZFraction() => "zfract"
-    case TMap(key, value) => "map$" + typeText(key) + "__" + typeText(value) + "$"
-    case TClass(Ref(cls)) => cls.o.preferredName
-    case TVar(Ref(v)) => v.o.preferredName
-    case TUnion(ts) => "union$" + ts.map(typeText).mkString("__") + "$"
-    case _: JavaType[_] => throw ExtraNode
-    case _: CType[_] => throw ExtraNode
-    case _: CPPType[_] => throw ExtraNode
-    case _: PVLType[_] => throw ExtraNode
-  }
 }
 
-abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends CoercingRewriter[Pre] {
+abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter)
+    extends CoercingRewriter[Pre] {
   val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
-      program.rewrite(declarations = globalDeclarations.collect {
-        program.declarations.foreach(dispatch)
-      }._1)
+      program.rewrite(declarations =
+        globalDeclarations.collect { program.declarations.foreach(dispatch) }._1
+      )
     }
   }
 
@@ -86,12 +137,17 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends
     program.declarations.map(succProvider.computeSucc).map(_.get)
   }
 
-  protected def find[T](decls: Seq[Declaration[Post]], name: String)(implicit tag: ClassTag[T]): T =
+  protected def find[T](decls: Seq[Declaration[Post]], name: String)(implicit
+      tag: ClassTag[T]
+  ): T =
     decls.collectFirst {
-      case decl: T if decl.o.isInstanceOf[SourceNameOrigin] && decl.o.asInstanceOf[SourceNameOrigin].name == name =>
+      case decl: T
+          if decl.o.isInstanceOf[SourceNameOrigin] &&
+            decl.o.asInstanceOf[SourceNameOrigin].name == name =>
         decl
     }.get
 
-  protected def find[T](decls: Declarator[Post], name: String)(implicit tag: ClassTag[T]): T =
-    find(decls.declarations, name)(tag)
+  protected def find[T](decls: Declarator[Post], name: String)(implicit
+      tag: ClassTag[T]
+  ): T = find(decls.declarations, name)(tag)
 }

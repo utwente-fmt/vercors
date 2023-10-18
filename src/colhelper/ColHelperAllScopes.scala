@@ -1,7 +1,8 @@
 import scala.meta._
 
 case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
-  def make(): List[(String, List[Stat])] = List("AllScopes" -> q"""
+  def make(): List[(String, List[Stat])] =
+    List("AllScopes" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag
     import vct.result.VerificationError.SystemError
@@ -16,7 +17,9 @@ case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
       class AllFrozenScopes extends SuccessorsProvider[Pre, Post] {
         override def equals(obj: scala.Any): Boolean = obj match {
           case other: AllFrozenScopes =>
-            ${ColDefs.DECLARATION_KINDS.map(decl => q"${ColDefs.scopes(decl)} == other.${ColDefs.scopes(decl)}").reduce[Term] { case (l, r) => q"$l && $r" } }
+            ${ColDefs.DECLARATION_KINDS.map(decl =>
+        q"${ColDefs.scopes(decl)} == other.${ColDefs.scopes(decl)}"
+      ).reduce[Term] { case (l, r) => q"$l && $r" }}
           case _ => false
         }
 
@@ -38,14 +41,21 @@ case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
       def freeze: AllFrozenScopes = new AllFrozenScopes
 
       def anyDeclare[T <: Declaration[Post]](decl1: T): T =
-        ${ColHelperUtil.NonemptyMatch("decl declare kind cases", q"decl1", ColDefs.DECLARATION_KINDS.map(decl =>
-          Case(p"decl: ${Type.Name(decl)}[Post]", None, q"${ColDefs.scopes(decl)}.declare(decl); decl1")
-        ).toList)}
+        ${ColHelperUtil.NonemptyMatch(
+        "decl declare kind cases",
+        q"decl1",
+        ColDefs.DECLARATION_KINDS
+          .map(decl => Case(p"decl: ${Type.Name(decl)}[Post]", None, q"${ColDefs.scopes(decl)}.declare(decl); decl1")).toList,
+      )}
 
       def anySucceedOnly[T <: Declaration[Post]](pre1: Declaration[Pre], post1: T)(implicit tag: ClassTag[T]): T =
-        ${ColHelperUtil.NonemptyMatch("decl succeed kind cases", q"(pre1, post1)", ColDefs.DECLARATION_KINDS.map(decl =>
+        ${ColHelperUtil.NonemptyMatch(
+        "decl succeed kind cases",
+        q"(pre1, post1)",
+        ColDefs.DECLARATION_KINDS.map(decl =>
           Case(p"(pre: ${Type.Name(decl)}[Pre], post: ${Type.Name(decl)}[Post])", None, q"${ColDefs.scopes(decl)}.succeedOnly(pre, post); post1")
-        ).toList :+ Case(p"(pre, post)", None, q"throw AllScopes.InconsistentSuccessionTypes(pre, post)"))}
+        ).toList :+ Case(p"(pre, post)", None, q"throw AllScopes.InconsistentSuccessionTypes(pre, post)"),
+      )}
 
       ..${ColDefs.DECLARATION_KINDS.map(decl => q"""
         val ${Pat.Var(ColDefs.scopes(decl))}: Scopes[Pre, Post, ${Type.Name(decl)}[Pre], ${Type.Name(decl)}[Post]] = Scopes()

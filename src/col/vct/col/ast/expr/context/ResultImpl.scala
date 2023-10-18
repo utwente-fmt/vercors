@@ -5,16 +5,20 @@ import vct.col.ast.{Result, Type}
 import vct.col.check.{CheckContext, CheckError, ResultOutsidePostcondition}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 
-trait ResultImpl[G] extends NodeFamilyImpl[G] { this: Result[G] =>
+trait ResultImpl[G] extends NodeFamilyImpl[G] {
+  this: Result[G] =>
   override def t: Type[G] = applicable.decl.returnType
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
-    if(context.inPostCondition) super.check(context)
-    else Seq(ResultOutsidePostcondition(this))
+    if (context.inPostCondition)
+      super.check(context)
+    else
+      Seq(ResultOutsidePostcondition(this))
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
-    case Ctx.Silver => Text("result")
-    case _ => Text("\\result")
-  }
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Silver => Text("result")
+      case _ => Text("\\result")
+    }
 }

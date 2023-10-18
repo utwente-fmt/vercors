@@ -3,7 +3,8 @@ package vct.col.ast.expr.sideeffect
 import vct.col.ast.{Then, Type}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Show, Text}
 
-trait ThenImpl[G] { this: Then[G] =>
+trait ThenImpl[G] {
+  this: Then[G] =>
   override def t: Type[G] = value.t
 
   def layoutEffect(implicit ctx: Ctx): Doc =

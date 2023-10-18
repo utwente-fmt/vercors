@@ -6,7 +6,11 @@ import vct.col.ref
 
 import scala.reflect.ClassTag
 
-class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G], val eqMeasure: Option[Any] = None)(implicit tag: ClassTag[Decl]) extends Ref[G, Decl] {
+class LazyRef[G, Decl <: Declaration[G]](
+    lazyDecl: => Declaration[G],
+    val eqMeasure: Option[Any] = None,
+)(implicit tag: ClassTag[Decl])
+    extends Ref[G, Decl] {
   // Sometimes Nothing ends up in Decl, which is never useful, so we try to crash a bit earlier when that happens.
   require(tag != ClassTag.Nothing)
 
@@ -30,9 +34,11 @@ class LazyRef[G, Decl <: Declaration[G]](lazyDecl: => Declaration[G], val eqMeas
     }
   }
 
-  override def equals(obj: Any): Boolean = obj match {
-    case other: LazyRef[G, Decl] if eqMeasure.nonEmpty && other.eqMeasure.nonEmpty =>
-      eqMeasure.get == other.eqMeasure.get
-    case other => super.equals(other)
-  }
+  override def equals(obj: Any): Boolean =
+    obj match {
+      case other: LazyRef[G, Decl]
+          if eqMeasure.nonEmpty && other.eqMeasure.nonEmpty =>
+        eqMeasure.get == other.eqMeasure.get
+      case other => super.equals(other)
+    }
 }

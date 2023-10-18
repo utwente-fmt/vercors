@@ -12,5 +12,6 @@ case class RWFile(file: File) extends InMemoryCachedReadable with Writeable {
     invalidate()
     new FileWriter(file, StandardCharsets.UTF_8)
   }
-  override protected def getReaderImpl: Reader = new FileReader(file, StandardCharsets.UTF_8)
+  override protected def getReaderImpl: Reader =
+    new FileReader(file, StandardCharsets.UTF_8)
 }

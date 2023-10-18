@@ -1,7 +1,9 @@
 import scala.meta._
 
-case class ColHelperSuccessorsProvider(info: ColDescription) extends ColHelperMaker {
-  def make(): List[(String, List[Stat])] = List("SuccessorsProvider" -> q"""
+case class ColHelperSuccessorsProvider(info: ColDescription)
+    extends ColHelperMaker {
+  def make(): List[(String, List[Stat])] =
+    List("SuccessorsProvider" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag
     import vct.col.ref.LazyRef

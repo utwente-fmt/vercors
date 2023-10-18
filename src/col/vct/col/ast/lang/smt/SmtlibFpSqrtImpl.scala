@@ -4,7 +4,8 @@ import vct.col.ast.SmtlibFpSqrt
 import vct.col.ast.Type
 import vct.col.print._
 
-trait SmtlibFpSqrtImpl[G] { this: SmtlibFpSqrt[G] =>
+trait SmtlibFpSqrtImpl[G] {
+  this: SmtlibFpSqrt[G] =>
   override def t: Type[G] = arg.t
   // def layout(implicit ctx: Ctx): Doc = ???
 }

@@ -7,14 +7,17 @@ import vct.col.print.{Ctx, Doc}
 import vct.col.util.CurrentProgramCheckContext
 import vct.result.VerificationError
 
-trait ProgramImpl[G] extends Declarator[G] { this: Program[G] =>
+trait ProgramImpl[G] extends Declarator[G] {
+  this: Program[G] =>
   def check: Seq[CheckError] = checkTrans(CheckContext())
 
-  override def checkContextRecursor[T](context: CheckContext[G], f: (CheckContext[G], Node[G]) => T): Seq[T] =
+  override def checkContextRecursor[T](
+      context: CheckContext[G],
+      f: (CheckContext[G], Node[G]) => T,
+  ): Seq[T] =
     VerificationError.context(CurrentProgramCheckContext(this)) {
       super.checkContextRecursor(context, f)
     }
 
-  override def layout(implicit ctx: Ctx): Doc =
-    Doc.stack(declarations)
+  override def layout(implicit ctx: Ctx): Doc = Doc.stack(declarations)
 }

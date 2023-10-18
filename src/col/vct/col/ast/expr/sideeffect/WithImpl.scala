@@ -3,7 +3,8 @@ package vct.col.ast.expr.sideeffect
 import vct.col.ast.{Type, With}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Show, Text}
 
-trait WithImpl[G] { this: With[G] =>
+trait WithImpl[G] {
+  this: With[G] =>
   override def t: Type[G] = value.t
 
   def layoutEffect(implicit ctx: Ctx): Doc =

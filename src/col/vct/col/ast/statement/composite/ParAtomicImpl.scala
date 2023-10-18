@@ -4,10 +4,12 @@ import vct.col.ast.ParAtomic
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print.{Ctx, Doc, Group, Text}
 
-trait ParAtomicImpl[G] { this: ParAtomic[G] =>
+trait ParAtomicImpl[G] {
+  this: ParAtomic[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
     inv.flatMap(context.checkInScope(this, _))
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("atomic(") <> Doc.args(inv.map(ctx.name).map(Text)) <> ")") <+> content.layoutAsBlock
+    Group(Text("atomic(") <> Doc.args(inv.map(ctx.name).map(Text)) <> ")") <+>
+      content.layoutAsBlock
 }

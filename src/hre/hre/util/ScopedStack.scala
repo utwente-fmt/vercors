@@ -14,7 +14,8 @@ case object ScopedStack {
 }
 
 case class ScopedStack[T]() {
-  private val stacks: ThreadLocal[mutable.Stack[T]] = ThreadLocal.withInitial(() => mutable.Stack())
+  private val stacks: ThreadLocal[mutable.Stack[T]] = ThreadLocal
+    .withInitial(() => mutable.Stack())
 
   def stack: mutable.Stack[T] = stacks.get()
 
@@ -31,10 +32,7 @@ case class ScopedStack[T]() {
 
   def having[R](x: T)(f: => R): R = {
     stack.push(x)
-    try {
-      f
-    } finally {
-      stack.pop()
-    }
+    try { f }
+    finally { stack.pop() }
   }
 }

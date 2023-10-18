@@ -17,11 +17,11 @@ object Ctx {
 }
 
 case class Ctx(
-  syntax: Ctx.Syntax = Ctx.PVL,
-  width: Int = 120,
-  tabWidth: Int = 4,
-  names: Map[Declaration[_], String] = Map.empty,
-  inSpec: Boolean = false,
+    syntax: Ctx.Syntax = Ctx.PVL,
+    width: Int = 120,
+    tabWidth: Int = 4,
+    names: Map[Declaration[_], String] = Map.empty,
+    inSpec: Boolean = false,
 ) {
   def namesIn[G](node: Node[G]): Ctx =
     copy(names = {

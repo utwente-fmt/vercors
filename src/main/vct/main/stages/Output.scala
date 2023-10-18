@@ -11,15 +11,19 @@ import vct.parsers.ParseResult
 import java.nio.file.{Files, Path}
 
 case object Output {
-  def vesuvOfOptions(options: Options): Stages[ParseResult[_ <: Generation], Unit] =
-    FunctionStage((pr: ParseResult[_ <: Generation]) => Program(pr.decls)(DiagnosticOrigin)(DiagnosticOrigin))
-      .thenRun(Output(options.vesuvOutput, Ctx.PVL))
+  def vesuvOfOptions(
+      options: Options
+  ): Stages[ParseResult[_ <: Generation], Unit] =
+    FunctionStage((pr: ParseResult[_ <: Generation]) =>
+      Program(pr.decls)(DiagnosticOrigin)(DiagnosticOrigin)
+    ).thenRun(Output(options.vesuvOutput, Ctx.PVL))
 
   def veymontOfOptions(options: Options): Stage[Node[_ <: Generation], Unit] =
     Output(options.veymontOutput, Ctx.Java)
 }
 
-case class Output(out: Path, syntax: Ctx.Syntax) extends Stage[Node[_ <: Generation], Unit] {
+case class Output(out: Path, syntax: Ctx.Syntax)
+    extends Stage[Node[_ <: Generation], Unit] {
   override def friendlyName: String = "Saving Output"
 
   override def progressWeight: Int = 1
@@ -30,19 +34,21 @@ case class Output(out: Path, syntax: Ctx.Syntax) extends Stage[Node[_ <: Generat
     val namer = Namer[G](syntax)
     namer.name(in)
     val names = namer.finish
-    val ctx = Ctx(syntax = syntax, names = names.asInstanceOf[Map[Declaration[_], String]])
+    val ctx = Ctx(
+      syntax = syntax,
+      names = names.asInstanceOf[Map[Declaration[_], String]],
+    )
 
     // If possible (if a directory is given as output), print all classes to separate files
     if (in.isInstanceOf[Program[G]] && Files.isDirectory(out)) {
-      in.asInstanceOf[Program[G]].declarations.zipWithIndex.foreach { case (decl, i) =>
-        val name = names.getOrElse(decl, s"unknown$i")
-        val f = out.resolve(name + ".pvl")
-        hre.io.RWFile(f.toFile).write(w => decl.write(w)(ctx))
+      in.asInstanceOf[Program[G]].declarations.zipWithIndex.foreach {
+        case (decl, i) =>
+          val name = names.getOrElse(decl, s"unknown$i")
+          val f = out.resolve(name + ".pvl")
+          hre.io.RWFile(f.toFile).write(w => decl.write(w)(ctx))
       }
     }
     // Otherwise create one big program from the parse result and write it to the provided file directly
-    else {
-      hre.io.RWFile(out.toFile).write(w => in.write(w)(ctx))
-    }
+    else { hre.io.RWFile(out.toFile).write(w => in.write(w)(ctx)) }
   }
 }

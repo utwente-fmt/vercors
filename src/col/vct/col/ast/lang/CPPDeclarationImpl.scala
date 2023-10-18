@@ -3,7 +3,8 @@ package vct.col.ast.lang
 import vct.col.ast.CPPDeclaration
 import vct.col.print._
 
-trait CPPDeclarationImpl[G] { this: CPPDeclaration[G] =>
+trait CPPDeclarationImpl[G] {
+  this: CPPDeclaration[G] =>
   // PB: Please keep in sync with ApplicableContractImpl
   def layoutContract(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
@@ -17,10 +18,5 @@ trait CPPDeclarationImpl[G] { this: CPPDeclaration[G] =>
     ))
 
   override def layout(implicit ctx: Ctx): Doc =
-    Doc.stack(Seq(
-      layoutContract,
-      Group(
-        Doc.spread(specs) <>> Doc.args(inits)
-      ),
-    ))
+    Doc.stack(Seq(layoutContract, Group(Doc.spread(specs) <>> Doc.args(inits))))
 }

@@ -4,7 +4,8 @@ import vct.col.ast.util.Declarator
 import vct.col.ast.{Applicable, Declaration, Node, Type, Variable}
 import vct.col.check.CheckContext
 
-trait ApplicableImpl[G] extends Declarator[G] { this: Applicable[G] =>
+trait ApplicableImpl[G] extends Declarator[G] {
+  this: Applicable[G] =>
   def args: Seq[Variable[G]]
   def returnType: Type[G]
   def body: Option[Node[G]]

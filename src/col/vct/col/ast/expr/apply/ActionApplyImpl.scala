@@ -3,7 +3,8 @@ package vct.col.ast.expr.apply
 import vct.col.ast.{ActionApply, TProcess, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text, Group}
 
-trait ActionApplyImpl[G] { this: ActionApply[G] =>
+trait ActionApplyImpl[G] {
+  this: ActionApply[G] =>
   override def t: Type[G] = TProcess()
 
   override def precedence: Int = Precedence.POSTFIX
