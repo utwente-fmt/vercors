@@ -390,7 +390,8 @@ case object ResolveReferences extends LazyLogging {
       vars.foreach(v => v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf))))
     case local@SilverLocalAssign(ref, _) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-
+    case access@PVLCommunicateAccess(subject, field) =>
+      access.ref = Some(PVL.findDerefOfClass(subject.threadType.cls.decl, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@JavaDeref(obj, field) =>

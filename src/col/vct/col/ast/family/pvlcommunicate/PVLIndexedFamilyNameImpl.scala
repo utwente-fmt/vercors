@@ -1,7 +1,7 @@
 package vct.col.ast.family.pvlcommunicate
 
-import vct.col.ast.PVLIndexedFamilyName
+import vct.col.ast.{PVLIndexedFamilyName, TClass}
 
 trait PVLIndexedFamilyNameImpl[G] { this: PVLIndexedFamilyName[G] =>
-
+  override def threadType: TClass[G] = ???
 }
