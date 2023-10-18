@@ -164,6 +164,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
+    case communicate: PVLCommunicate[Pre] => pvl.communicate(communicate)
+
     case other => rewriteDefault(other)
   }
 
