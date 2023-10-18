@@ -40,6 +40,13 @@ class TechnicalVeymontSpec extends VercorsSpec {
   }
   """
 
+  vercors should error withCode "???" in "thread types should also be classlike" pvl
+  """
+  seq_program Example() {
+     int charlie = 3;
+  }
+  """
+
   vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
   """
     class Storage { int x; }

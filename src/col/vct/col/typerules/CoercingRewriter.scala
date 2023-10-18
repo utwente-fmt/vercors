@@ -1758,7 +1758,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case seqProg: SeqProg[Pre] => seqProg
-      case thread: VeyMontThread[Pre] => thread
+      case thread: VeyMontThread[Pre] => new VeyMontThread(cls(thread.threadType), thread.args)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
