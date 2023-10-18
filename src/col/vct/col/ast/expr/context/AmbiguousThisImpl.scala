@@ -14,6 +14,7 @@ trait AmbiguousThisImpl[G] { this: AmbiguousThis[G] =>
       case RefJavaClass(decl) => JavaTClass(decl.ref, Nil)
       case RefClass(decl) => TClass(decl.ref)
       case RefModel(decl) => TModel(decl.ref)
+      case RefSeqProg(decl) => TSeqProg(decl.ref)
     }
 
   override def precedence: Int = Precedence.ATOMIC
