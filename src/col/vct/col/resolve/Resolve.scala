@@ -277,6 +277,11 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
+    case seqProg: VeyMontSeqProg[G] => ctx
+      .copy(currentThis = Some(RefSeqProg(seqProg)))
+      .declare(seqProg.methods)
+      .declare(seqProg.threads)
+      .declare(seqProg.progArgs)
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
@@ -376,6 +381,8 @@ case object ResolveReferences extends LazyLogging {
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@PVLThreadName(name) =>
+      local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("VeyMont thread", name, local)))
     case local@TVar(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("type variable", name, local)))
     case funcOf@FunctionOf(v, vars) =>
