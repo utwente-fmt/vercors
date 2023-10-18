@@ -161,7 +161,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     val (free, pattern, substitute, ruleOrigin) = rule
 
     val debugFilter =
-      debugFilterRule.map(_ == ruleOrigin.preferredName).getOrElse(true) &&
+      debugFilterRule.map(_ == ruleOrigin.getPreferredNameOrElse()).getOrElse(true) &&
         debugFilterInputKind.map(_ == subject.getClass.getSimpleName).getOrElse(true) &&
         (debugIn.isEmpty || debugIn.exists(name => debugNameStack.exists(_ == name)))
 
@@ -169,7 +169,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     val typeInst = mutable.Map[Variable[Rule], Type[Pre]]()
     val bindingInst = mutable.Map[Variable[Rule], Variable[Pre]]()
 
-    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.preferredName}, since"
+    lazy val debugHeader: String = s"Expression `$subject` does not match rule ${ruleOrigin.getPreferredNameOrElse()}, since"
 
     def declareTypeInst(left: Variable[Rule], right: Type[Pre]): Boolean =
       typeInst.get(left) match {
@@ -280,7 +280,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
         logger.debug(s"Matches:          $pattern")
         if (inst.nonEmpty) {
           logger.debug("With bindings:")
-          inst.toSeq.sortBy { case (k, _) => k.o.preferredName }.foreach {
+          inst.toSeq.sortBy { case (k, _) => k.o.getPreferredNameOrElse() }.foreach {
             case (rule, (binding, over)) =>
               if (over.isEmpty)
                 logger.debug(s"  $rule = $binding")
@@ -370,7 +370,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    debugNameStack.having(decl.o.preferredName) {
+    debugNameStack.having(decl.o.getPreferredNameOrElse()) {
       rewriteDefault(decl)
     }
 

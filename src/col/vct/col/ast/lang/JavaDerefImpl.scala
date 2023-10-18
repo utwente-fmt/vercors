@@ -18,7 +18,6 @@ trait JavaDerefImpl[G] { this: JavaDeref[G] =>
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
     case BuiltinField(f) => f(obj).t
     case ref: RefEnum[G] => Types.notAValue(ref)
-    case RefJavaParam(decl) => decl.t
     case ref: RefProverType[G] => Types.notAValue(ref)
   }
 

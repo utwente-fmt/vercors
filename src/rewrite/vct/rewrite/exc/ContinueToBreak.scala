@@ -8,15 +8,7 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
 import scala.collection.mutable
 
-// We don't include the origin of the Continue statement here, because that doesn't make sense if there are
-// multiple continue statements referring to the same label. In that case, we only refer to label origin, as
-// that is what all continues have in common. This should be changed if it results in a bad user experience.
-case class ContinueToBreakOrigin(labelDeclOrigin: Origin) extends Origin {
-  override def preferredName: String = "continue" + labelDeclOrigin.preferredName.capitalize
-  override def shortPosition: String = "generated"
-  override def context: String = labelDeclOrigin.context
-  override def inlineContext: String = labelDeclOrigin.inlineContext
-}
+
 
 case object ContinueToBreak extends RewriterBuilder {
   override def key: String = "continueToBreak"
@@ -24,6 +16,14 @@ case object ContinueToBreak extends RewriterBuilder {
 }
 
 case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
+  // We don't include the origin of the Continue statement here, because that doesn't make sense if there are
+  // multiple continue statements referring to the same label. In that case, we only refer to label origin, as
+  // that is what all continues have in common. This should be changed if it results in a bad user experience.
+  def ContinueToBreakOrigin(labelDeclOrigin: Origin): Origin = {
+    labelDeclOrigin.replacePrefName("continue" + labelDeclOrigin.getPreferredNameOrElse().capitalize)
+      .replaceContext("generated")
+  }
+
   val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl[Pre], LabelDecl[Post]]()
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {

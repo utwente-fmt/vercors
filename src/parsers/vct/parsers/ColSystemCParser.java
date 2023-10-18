@@ -8,6 +8,7 @@ import hre.io.Readable;
 import org.antlr.v4.runtime.CharStream;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
+import vct.col.origin.Origin;
 import vct.parsers.transform.BlameProvider;
 import vct.parsers.transform.OriginProvider;
 import vct.parsers.transform.systemctocol.engine.Transformer;
@@ -22,8 +23,8 @@ public class ColSystemCParser extends Parser {
 
     private final String systemCConfig;
 
-    public ColSystemCParser(OriginProvider originProvider, BlameProvider blameProvider, Path systemCConfig) {
-        super(originProvider, blameProvider);
+    public ColSystemCParser(Origin origin, BlameProvider blameProvider, Path systemCConfig) {
+        super(origin, blameProvider);
         this.systemCConfig = systemCConfig.toString();
     }
 

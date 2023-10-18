@@ -1,7 +1,7 @@
 package vct.col.resolve.ctx
 
 import vct.col.ast._
-import vct.col.origin.SourceNameOrigin
+import vct.col.origin.{Origin, PreferredName}
 import vct.col.resolve.NameLost
 import vct.col.resolve.lang.{C, CPP}
 
@@ -81,6 +81,7 @@ sealed trait Referrable[G] {
     case RefBipTransition(decl) => Referrable.originName(decl)
     case RefBipTransitionSynchronization(decl) => ""
     case RefBipConstructor(decl) => Referrable.originName(decl)
+    case RefHeapVariable(decl) => Referrable.originName(decl)
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
@@ -172,15 +173,16 @@ case object Referrable {
     case decl: BipTransition[G] => RefBipTransition(decl)
     case decl: BipTransitionSynchronization[G] => RefBipTransitionSynchronization(decl)
     case decl: BipConstructor[G] => RefBipConstructor(decl)
+    case decl: HeapVariable[G] => RefHeapVariable(decl)
   })
 
-  def originName(decl: Declaration[_]): String = decl.o match {
-    case SourceNameOrigin(name, _) => name
+  def originName(decl: Declaration[_]): String = decl.o.getPreferredName match {
+    case Some(name) => name
     case _ => throw NameLost(decl.o)
   }
 
-  def originNameOrEmpty(decl: Declaration[_]): String = decl.o match {
-    case SourceNameOrigin(name, _) => name
+  def originNameOrEmpty(decl: Declaration[_]): String = decl.o.getPreferredName match {
+    case Some(name) => name
     case _ => ""
   }
 }
@@ -258,7 +260,7 @@ case class RefJavaField[G](decls: JavaFields[G], idx: Int) extends Referrable[G]
 case class RefJavaLocalDeclaration[G](decls: JavaLocalDeclaration[G], idx: Int) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaConstructor[G](decl: JavaConstructor[G]) extends Referrable[G] with JavaConstructorTarget[G]
 case class RefJavaMethod[G](decl: JavaMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
-case class RefJavaParam[G](decl: JavaParam[G]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
+case class RefJavaParam[G](decl: JavaParam[G]) extends Referrable[G] with JavaNameTarget[G]
 case class RefJavaAnnotationMethod[G](decl: JavaAnnotationMethod[G]) extends Referrable[G] with JavaInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceFunction[G](decl: InstanceFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
 case class RefInstanceMethod[G](decl: InstanceMethod[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
@@ -294,9 +296,10 @@ case class RefBipStatePredicate[G](decl: BipStatePredicate[G]) extends Referrabl
 case class RefBipTransition[G](decl: BipTransition[G]) extends Referrable[G]
 case class RefBipTransitionSynchronization[G](decl: BipTransitionSynchronization[G]) extends Referrable[G]
 case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
+case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 
-case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with SpecInvocationTarget[G] with ResultTarget[G]
-case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G] with ThisTarget[G]
+case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
+case class RefSeqProg[G](decl: VeyMontSeqProg[G]) extends Referrable[G]
 case class RefVeyMontThread[G](decl: VeyMontThread[G]) extends Referrable[G] with PVLNameTarget[G]
 case class RefProverType[G](decl: ProverType[G]) extends Referrable[G] with SpecTypeNameTarget[G]
 case class RefProverFunction[G](decl: ProverFunction[G]) extends Referrable[G] with SpecInvocationTarget[G]

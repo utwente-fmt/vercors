@@ -17,25 +17,11 @@ case object ParBlockEncoder extends RewriterBuilder {
 
   override def desc: String = "Translate parallel blocks into methods and generate checks for them."
 
-  case class LowEvalOrigin(v: IterVariable[_]) extends Origin {
-    override def preferredName: String = "lo_" + v.variable.o.preferredName
+  private def LowEvalOrigin(v: IterVariable[_]): Origin = v.variable.o.replacePrefName("lo_"
+    + v.variable.o.getPreferredNameOrElse())
 
-    override def context: String = v.variable.o.context
-
-    override def inlineContext: String = v.variable.o.inlineContext
-
-    override def shortPosition: String = v.variable.o.shortPosition
-  }
-
-  case class HighEvalOrigin(v: IterVariable[_]) extends Origin {
-    override def preferredName: String = v.variable.o.preferredName + "_hi"
-
-    override def context: String = v.variable.o.context
-
-    override def inlineContext: String = v.variable.o.inlineContext
-
-    override def shortPosition: String = v.variable.o.shortPosition
-  }
+  private def HighEvalOrigin(v: IterVariable[_]): Origin =
+    v.variable.o.replacePrefName(v.variable.o.getPreferredNameOrElse() + "_hi")
 
   case class ParBlockNotInjective(block: ParBlock[_], expr: Expr[_]) extends Blame[ReceiverNotInjective] {
     override def blame(error: ReceiverNotInjective): Unit =

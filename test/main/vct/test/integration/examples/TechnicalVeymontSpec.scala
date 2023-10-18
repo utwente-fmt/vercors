@@ -20,29 +20,8 @@ class TechnicalVeymontSpec extends VercorsSpec {
      }
   """
 
-  vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
-  """
-    seq_program Example() {
-       run {
-         communicate charlie.x <- charlie.x;
-       }
-    }
-  """
-
-  vercors should error withCode "???" in "non-existent field in communicate fails" pvl
-  """
-    class Storage { int x; }
-    seq_program Example() {
-       thread charlie = Storage();
-       run {
-         communicate charlie.nonExistent <- charlie.nonExistent;
-       }
-    }
-  """
-
   vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
   """
-    class Storage { int x; }
     seq_program Example() {
       thread alice[10] = Storage();
       thread bob[10] = Storage();

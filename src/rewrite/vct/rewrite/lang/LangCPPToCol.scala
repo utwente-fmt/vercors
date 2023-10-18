@@ -51,7 +51,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteParam(cppParam: CPPParam[Pre]): Unit = {
     cppParam.drop()
-    val varO = InterpretedOriginVariable(CPP.getDeclaratorInfo(cppParam.declarator).name, cppParam.o)
+    val varO = cppParam.o.replacePrefName(CPP.getDeclaratorInfo(cppParam.declarator).name)
 
     val v = new Variable[Post](cppParam.specifiers.collectFirst
       { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get)(varO)
@@ -76,7 +76,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         (func.contract, Map.empty)
     }
 
-    val namedO = InterpretedOriginVariable(CPP.getDeclaratorInfo(func.declarator).name, func.o)
+    val namedO = func.o.replacePrefName(CPP.getDeclaratorInfo(func.declarator).name)
     val proc =
       cppCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
@@ -145,7 +145,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val init = decl.decl.inits.head
 
     val info = CPP.getDeclaratorInfo(init.decl)
-    val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+    val varO: Origin = init.o.replacePrefName(info.name)
     t match {
       case cta @ CPPTArray(Some(size), t) =>
         if (init.init.isDefined) throw WrongCPPType(decl)
@@ -186,9 +186,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def local(local: CPPLocal[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
     local.ref.get match {
-      case RefAxiomaticDataType(_) => throw NotAValue(local)
-      case RefVariable(decl) => Local(rw.succ(decl))
-      case RefModelField(decl) => ModelDeref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
+      case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
+      case _: SpecInvocationTarget[Pre] => throw NotAValue(local)
       case ref: RefCPPParam[Pre] =>
         if (cppCurrentDefinitionParamSubstitutions.nonEmpty)
           Local(cppNameSuccessor.ref(RefCPPParam(cppCurrentDefinitionParamSubstitutions.top.getOrElse(ref.decl, ref.decl))))
@@ -208,32 +207,13 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val CPPInvocation(applicable, args, givenMap, yields) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
-      case RefFunction(decl) =>
-        FunctionInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil,
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefProcedure(decl) =>
-        ProcedureInvocation[Post](rw.succ(decl), args.map(rw.dispatch), Nil, Nil,
-          givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
-          yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case RefPredicate(decl) =>
-        PredicateApply[Post](rw.succ(decl), args.map(rw.dispatch), WritePerm())
-      case RefInstanceFunction(decl) => ???
-      case RefInstanceMethod(decl) => ???
-      case RefInstancePredicate(decl) => ???
-      case RefADTFunction(decl) =>
-        ADTFunctionInvocation[Post](None, rw.succ(decl), args.map(rw.dispatch))
-      case RefModelProcess(decl) =>
-        ProcessApply[Post](rw.succ(decl), args.map(rw.dispatch))
-      case RefModelAction(decl) =>
-        ActionApply[Post](rw.succ(decl), args.map(rw.dispatch))
-      case BuiltinInstanceMethod(f) => ???
+      case spec: SpecInvocationTarget[Pre] =>
+        rw.specInvocation(None, spec, Nil, args, givenMap, yields, inv, inv.blame)
       case ref: RefCPPFunctionDefinition[Pre] =>
         ProcedureInvocation[Post](cppFunctionSuccessor.ref(ref.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case e: RefCPPGlobalDeclaration[Pre] => globalInvocation(e, inv)
-      case RefProverFunction(decl) => ProverFunctionInvocation(rw.succ(decl), args.map(rw.dispatch))
     }
   }
 
