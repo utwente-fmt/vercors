@@ -1,16 +1,11 @@
 package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
-import hre.data.BitString
-import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
-import spray.json.{JsString, JsValue, JsonParser}
-import vct.col.ast.{Deserialize, Variable}
-import vct.col.origin.RedirectOrigin.StringReadable
+import vct.col.origin.Origin.{BOLD_HR, HR}
 
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable.ArrayBuffer
 
 case object Origin {
@@ -149,7 +144,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
-  def getInlineContextOrElse(ctx: String = "[unkonwn inline context]"): String = {
+  def getInlineContextOrElse(ctx: String = "[unknown inline context]"): String = {
     getInlineContext.getOrElse(InlineContext(ctx)).inlineContext
   }
 

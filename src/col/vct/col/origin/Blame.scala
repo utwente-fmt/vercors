@@ -209,7 +209,7 @@ case class ContextEverywhereFailedInPre(failure: ContractFailure, node: Invoking
 }
 case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends InvocationFailure {
   override def code: String = "syclItemMethodPreFailed"
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPositionOrElse()
   override def desc: String = node.o.messageInContext("The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item.")
   override def inlineDesc: String = "The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item."
 }

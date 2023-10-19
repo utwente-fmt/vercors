@@ -103,25 +103,29 @@ case object LangCPPToCol {
     override def text: String = node.o.messageInContext("This event variable might not be linked to a kernel submission to a queue.")
   }
 
-  private case class RangeDimensionCheckOrigin(iterVarOrRange: Expr[_]) extends Origin {
-    override def preferredName: String = "RangeDimensionCheck"
-    override def context: String = iterVarOrRange.o.context
-    override def inlineContext: String = context
-    override def shortPosition: String = "generated"
-  }
+ private class RangeDimensionCheckOrigin(iterVarOrRange: Expr[_]) extends Origin(
+   Seq(
+     PreferredName("RangeDimensionCheck"),
+     ShortPosition("generated"),
+     iterVarOrRange.o.getContext.getOrElse(Context("[unknown context]")),
+     iterVarOrRange.o.getInlineContext.getOrElse(InlineContext("[unknown inline context]")),
+   )
+  )
 
-  private case class NDRangeDimensionCheckOrigin(range: Expr[_], dimension: Option[Int] = None) extends Origin {
-    override def preferredName: String = "NDRangeDimensionCheck"
-    override def context: String = (if (dimension.isDefined) s" The dimensions at index ${dimension.get} in the global and local range of the nd_range constructor. \n" else "") + range.o.context
-    override def inlineContext: String = context
-    override def shortPosition: String = "generated"
-  }
+  private class NDRangeDimensionCheckOrigin(range: Expr[_], dimension: Option[Int] = None) extends Origin(
+    Seq(
+      PreferredName("NDRangeDimensionCheck"),
+      ShortPosition("generated"),
+      Context((if (dimension.isDefined) s"At the dimensions at index ${dimension.get} in the global and local range of the nd_range constructor. \n" else "") + range.o.getInlineContextOrElse()),
+      InlineContext((if (dimension.isDefined) s" The dimensions at index ${dimension.get} in the global and local range of the nd_range constructor. \n" else "") + range.o.getInlineContextOrElse()),
+    )
+  )
 
   private case class KernelPreconditionNotEstablished(error: RunnablePreconditionNotEstablished) extends UserError {
     override def code: String = "kernelForkPre"
     override def text: String =  (error.failure, error.failure.node.o) match {
-      case (ContractFalse(_), o@RangeDimensionCheckOrigin(_)) => o.messageInContext("All range dimensions should be greater or equal to zero.")
-      case (ContractFalse(_), o@NDRangeDimensionCheckOrigin(_, _)) => o.messageInContext(
+      case (ContractFalse(_), o: RangeDimensionCheckOrigin) => o.messageInContext("All range dimensions should be greater or equal to zero.")
+      case (ContractFalse(_), o: NDRangeDimensionCheckOrigin) => o.messageInContext(
         "Every global range dimension should be divisible by the local range dimension at the same index," +
         " and the local range dimension should be greater than 0 to avoid division by zero. " +
         "All global range dimensions should be greater or equal to zero.")
@@ -192,12 +196,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getRangeSizeChecks(range: Expr[Pre]): Expr[Post] = currentKernelType match {
     case Some(BasicKernel(globalRangeSizes)) =>
       foldStar(globalRangeSizes.map(expr => {
-        implicit val o: Origin = RangeDimensionCheckOrigin(expr)
+        implicit val o: Origin = new RangeDimensionCheckOrigin(expr)
         GreaterEq(expr, const(0))
-      }))(RangeDimensionCheckOrigin(range))
+      }))(new RangeDimensionCheckOrigin(range))
     case Some(NDRangeKernel(globalRangeSizes, localRangeSizes)) => foldStar(globalRangeSizes.indices.map(i =>
       {
-        implicit val o: Origin = NDRangeDimensionCheckOrigin(range, Some(i))
+        implicit val o: Origin = new NDRangeDimensionCheckOrigin(range, Some(i))
         And(
           And(
             Greater(localRangeSizes(i), const(0)),
@@ -209,7 +213,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           )
         )
       }
-    ))(NDRangeDimensionCheckOrigin(range))
+    ))(new NDRangeDimensionCheckOrigin(range))
   }
 
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
@@ -560,7 +564,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the parblock representing the kernels
     val parBlock = ParBlock[Post](
-      decl = new ParBlockDecl[Post]()(SourceNameOrigin("SYCL_BASIC_KERNEL", o)),
+      decl = new ParBlockDecl[Post]()(o.replacePrefName("SYCL_BASIC_KERNEL")),
       iters = currentDimensions(GlobalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
@@ -591,7 +595,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the parblock representing the work-groups
     val parBlock = ParBlock[Post](
-      decl = new ParBlockDecl[Post]()(SourceNameOrigin("SYCL_ND_RANGE_KERNEL", o)),
+      decl = new ParBlockDecl[Post]()(o.replacePrefName("SYCL_ND_RANGE_KERNEL")),
       iters = currentDimensions(GroupScope()) ++ currentDimensions(LocalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
@@ -623,7 +627,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   // Generate the IterVariables that are passed to the parblock as ranges
   private def createRangeIterVar(scope: KernelScopeLevel, dimension: Int, maxRange: Expr[Post])(implicit o: Origin): IterVariable[Post] = {
-    val variable = new Variable[Post](TInt())(SourceNameOrigin(s"${scope.idName}_${dimension}", o))
+    val variable = new Variable[Post](TInt())(o.replacePrefName(s"${scope.idName}_$dimension"))
     new IterVariable[Post](variable, IntegerValue(0), maxRange)
   }
 

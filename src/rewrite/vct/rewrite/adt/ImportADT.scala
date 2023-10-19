@@ -66,7 +66,6 @@ case object ImportADT {
     case TAnyClass() => "cls"
     case TEnum(Ref(enum)) => enum.o.getPreferredNameOrElse()
     case TProverType(Ref(t)) => t.o.getPreferredNameOrElse()
-    case TSYCLQueue() => "syclqueue"
     case TSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
     case TSmtlibArray(index, value) => "smtarr" + (index :+ value).map(typeText).mkString("$" , "__", "$")
     case TSmtlibBitVector(size) => s"bitvec$size"
