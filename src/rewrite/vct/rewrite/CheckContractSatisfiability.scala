@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.rewrite.CheckContractSatisfiability.{AssertPassedNontrivialUnsatisfiable, CheckSatOrigin, NotWellFormedIgnoreCheckSat}
 import vct.col.rewrite.util.Extract
-import vct.col.origin.{Blame, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, NontrivialUnsatisfiable, Origin, PanicBlame, UnsafeDontCare, VerificationFailure}
+import vct.col.origin.{Blame, Context, ExpectedError, ExpectedErrorFailure, ExpectedErrorNotTripped, ExpectedErrorTrippedTwice, FilterExpectedErrorBlame, InlineContext, NontrivialUnsatisfiable, Origin, PanicBlame, PreferredName, ShortPosition, UnsafeDontCare, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.{ff, foldStar, procedure, unfoldStar}
 
@@ -16,12 +16,10 @@ case object CheckContractSatisfiability extends RewriterBuilderArg[Boolean] {
     "Prove that contracts are not internally contradictory (i.e. unsatisfiable) for methods and other contract bearers, " +
       "except for the contract `false`."
 
-  case class CheckSatOrigin(inner: Origin, n: Option[String]) extends Origin {
-    override def preferredName: String = "check_sat_" + n.getOrElse(inner.preferredName)
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
+  private def CheckSatOrigin(inner: Origin, n: Option[String]): Origin = {
+    inner.replacePrefName("check_sat_" + n.getOrElse(inner.getPreferredNameOrElse()))
   }
+
 
   case class AssertPassedNontrivialUnsatisfiable(contract: ApplicableContract[_]) extends Blame[ExpectedErrorFailure] {
     override def blame(error: ExpectedErrorFailure): Unit = error match {
@@ -91,7 +89,7 @@ case class CheckContractSatisfiability[Pre <: Generation](doCheck: Boolean = tru
   val name: ScopedStack[String] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    name.having(decl.o.preferredName) {
+    name.having(decl.o.getPreferredNameOrElse()) {
       super.dispatch(decl)
     }
 

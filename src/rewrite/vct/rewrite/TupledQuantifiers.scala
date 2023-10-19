@@ -3,7 +3,8 @@ package vct.col.rewrite
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.Ref
-import vct.col.rewrite.TupledQuantifiers.CollectedBindingsOrigin
+import vct.col.rewrite.TupledQuantifiers.{CollectedBindingsOrigin, vsToString}
+import vct.col.origin.OriginContent
 
 import scala.collection.mutable
 
@@ -11,11 +12,10 @@ case object TupledQuantifiers extends RewriterBuilder {
   override def key: String = "tupledQuant"
   override def desc: String = "Collect the bindings of a quantifier into one binding: a tuple"
 
-  case class CollectedBindingsOrigin(vs: Seq[Variable[_]], inner: Origin) extends Origin {
-    override def preferredName: String = vs.map(_.o.preferredName).mkString("_")
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-    override def shortPosition: String = inner.shortPosition
+  case class CollectedBindingsOrigin(vs: Seq[Variable[_]]) extends OriginContent
+
+  def vsToString(vs: Seq[Variable[_]]): String = {
+    vs.map(_.o.getPreferredNameOrElse()).mkString("_")
   }
 }
 
@@ -23,7 +23,8 @@ case class TupledQuantifiers[Pre <: Generation]() extends Rewriter[Pre] {
   val tupledVar: mutable.Map[Variable[Pre], (Variable[Post], Int)] = mutable.Map()
 
   def collect(bindings: Seq[Variable[Pre]])(implicit o: Origin): Variable[Post] = {
-    val collectedBinding = new Variable[Post](TTuple(bindings.map(_.t).map(dispatch)))(CollectedBindingsOrigin(bindings, o))
+    val collectedBinding = new Variable[Post](TTuple(bindings.map(_.t).map(dispatch)))(Origin(
+      o.replacePrefName(vsToString(bindings)).originContents :+ CollectedBindingsOrigin(bindings)))
     for ((binding, i) <- bindings.zipWithIndex) {
       tupledVar(binding) = (collectedBinding, i)
     }

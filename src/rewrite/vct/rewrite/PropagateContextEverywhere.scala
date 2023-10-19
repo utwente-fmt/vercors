@@ -94,6 +94,9 @@ case class PropagateContextEverywhere[Pre <: Generation]() extends Rewriter[Pre]
           loop.rewrite(contract = LoopInvariant(freshInvariants() &* dispatch(invariant), decreases.map(dispatch))(inv.blame))
         case _: IterationContract[Pre] => throw ExtraNode
       }
+    case frame: FramedProof[Pre] =>
+      implicit val o: Origin = frame.o
+      frame.rewrite(pre = freshInvariants() &* dispatch(frame.pre), post = freshInvariants() &* dispatch(frame.post))
     case other => rewriteDefault(other)
   }
 

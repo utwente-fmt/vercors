@@ -4,7 +4,7 @@ import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import RewriteHelpers._
 import vct.col.rewrite.GivenYieldsToArgs.{MissingGivenArg, YieldDummy}
-import vct.col.origin.Origin
+import vct.col.origin.{Context, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -19,12 +19,14 @@ case object GivenYieldsToArgs extends RewriterBuilder {
       inv.o.messageInContext(s"This invocation is missing the 'given' parameter $missing")
   }
 
-  case class YieldDummy(forArg: Variable[_]) extends Origin {
-    override def preferredName: String = "dummy_" + forArg.o.preferredName
-    override def shortPosition: String = "generated"
-    override def context: String = "[At dummy variable for an unused out parameter]"
-    override def inlineContext: String = "[Dummy variable for an unused out parameter]"
-  }
+  private def YieldDummy(forArg: Variable[_]): Origin = Origin(
+    Seq(
+      PreferredName("dummy_" + forArg.o.getPreferredNameOrElse()),
+      ShortPosition("generated"),
+      Context("[At dummy variable for an unused out parameter]"),
+      InlineContext("[Dummy variable for an unused out parameter]"),
+    )
+  )
 }
 
 case class GivenYieldsToArgs[Pre <: Generation]() extends Rewriter[Pre] {

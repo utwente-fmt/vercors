@@ -236,15 +236,17 @@ object AstBuildHelpers {
     }
   }
 
-  private case class ConstOrigin(value: scala.Any) extends Origin {
-    override def preferredName: String = "unknown"
-    override def shortPosition: String = "generated"
-    override def context: String = s"[At generated constant `$value`]"
-    override def inlineContext: String = value.toString
-  }
+  private def constOrigin(value: scala.Any): Origin = Origin(
+    Seq(
+      PreferredName("unknown"),
+      ShortPosition("generated"),
+      Context(s"[At generated constant `$value`]"),
+      InlineContext(value.toString),
+    )
+  )
 
-  def tt[G]: BooleanValue[G] = BooleanValue(true)(ConstOrigin(true))
-  def ff[G]: BooleanValue[G] = BooleanValue(false)(ConstOrigin(false))
+  def tt[G]: BooleanValue[G] = BooleanValue(true)(constOrigin(true))
+  def ff[G]: BooleanValue[G] = BooleanValue(false)(constOrigin(false))
 
   def const[G](i: Int)(implicit o: Origin): IntegerValue[G] =
     IntegerValue(i)
@@ -254,8 +256,8 @@ object AstBuildHelpers {
 
   def contract[G]
               (blame: Blame[NontrivialUnsatisfiable],
-               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
+               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
@@ -278,8 +280,8 @@ object AstBuildHelpers {
                 returnType: Type[G] = TVoid[G](),
                 args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                 body: Option[Statement[G]] = None,
-                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
+                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
                 contextEverywhere: Expr[G] = tt[G],
                 signals: Seq[SignalsClause[G]] = Nil,
                 givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
@@ -296,12 +298,12 @@ object AstBuildHelpers {
                returnType: Type[G] = TVoid(),
                args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                body: Option[Expr[G]] = None,
-               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
+               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
-               decreases: Option[DecreasesClause[G]] = Some(DecreasesClauseNoRecursion[G]()(ConstOrigin("decreases"))),
+               decreases: Option[DecreasesClause[G]] = Some(DecreasesClauseNoRecursion[G]()(constOrigin("decreases"))),
                inline: Boolean = false)(implicit o: Origin): Function[G] =
     new Function(returnType, args, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
@@ -327,12 +329,14 @@ object AstBuildHelpers {
                        yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
     MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
-  case object GeneratedQuantifier extends Origin {
-    override def preferredName: String = "i"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated quantifier]"
-    override def inlineContext: String = "[Generated quantifier]"
-  }
+  private def GeneratedQuantifier: Origin = Origin(
+    Seq(
+      PreferredName("i"),
+      ShortPosition("generated"),
+      Context("[At generated quantifier]"),
+      InlineContext("[Generated quantifier]"),
+    )
+  )
 
   def starall[G]
              (blame: Blame[ReceiverNotInjective],
@@ -380,12 +384,14 @@ object AstBuildHelpers {
     )
   }
 
-  case object GeneratedLet extends Origin {
-    override def preferredName: String = "x"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated let]"
-    override def inlineContext: String = "[Generated let]"
-  }
+  private def GeneratedLet: Origin = Origin(
+    Seq(
+      PreferredName("x"),
+      ShortPosition("generated"),
+      Context("[At generated let]"),
+      InlineContext("[Generated let]"),
+    )
+  )
 
   def let[G](t: Type[G], x: Expr[G], body: Local[G] => Expr[G]): Let[G] = {
     implicit val o: Origin = GeneratedQuantifier

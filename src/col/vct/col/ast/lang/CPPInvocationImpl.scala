@@ -17,7 +17,6 @@ trait CPPInvocationImpl[G] { this: CPPInvocation[G] =>
     case RefCPPFunctionDefinition(decl) => CPP.typeOrReturnTypeFromDeclarator(decl.specs, decl.declarator)
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.typeOrReturnTypeFromDeclarator(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefCPPLambdaDefinition(_) => CPPTLambda()
-    case RefLlvmSpecFunction(decl) => decl.returnType
     case RefProverFunction(decl) => decl.returnType
     case RefInstanceMethod(decl) => decl.returnType
     case RefInstanceFunction(decl) => decl.returnType

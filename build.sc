@@ -112,6 +112,7 @@ object util {
     override def scalacOptions = T {
       val shared = Seq(
         "-deprecation",
+        "-feature",
       )
 
       if (strictOptions()) {
@@ -681,6 +682,11 @@ object vercors extends Module {
     object test extends Tests
 
     object buildInfo extends BuildInfo with ScalaModule {
+      def gitBranch() = T.command { os.proc("git", "rev-parse", "--abbrev", "HEAD").call().out.text() }
+      def gitCommit() = T.command { os.proc("git", "rev-parse", "HEAD").call().out.text() }
+      def gitShortCommit() = T.command { os.proc("git", "rev-parse", "--short=8", "HEAD").call().out.text() }
+      def gitHasChanges() = T.command { os.proc("git", "diff-index", "--name-only", "HEAD").call().out.text().nonEmpty }
+
       def buildInfoPackageName = "vct.main"
       override def buildInfoMembers = T {
         Seq(
@@ -688,10 +694,10 @@ object vercors extends Module {
           BuildInfo.Value("version", "2.0.0"),
           BuildInfo.Value("scalaVersion", scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
-          BuildInfo.Value("currentBranch", "unknown branch"),
-          BuildInfo.Value("currentCommit", "unknown commit"),
-          BuildInfo.Value("currentShortCommit", "unknown commit"),
-          BuildInfo.Value("gitHasChanges", ""),
+          BuildInfo.Value("currentBranch", gitBranch()()),
+          BuildInfo.Value("currentCommit", gitCommit()()),
+          BuildInfo.Value("currentShortCommit", gitShortCommit()()),
+          BuildInfo.Value("gitHasChanges", gitHasChanges()().toString),
           BuildInfo.Value("silverCommit", viper.silver.repo.commitish()),
           BuildInfo.Value("siliconCommit", viper.silicon.repo.commitish()),
           BuildInfo.Value("carbonCommit", viper.carbon.repo.commitish()),

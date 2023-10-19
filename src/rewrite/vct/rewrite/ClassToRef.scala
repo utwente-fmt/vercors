@@ -16,19 +16,23 @@ case object ClassToRef extends RewriterBuilder {
   override def key: String = "classToRef"
   override def desc: String = "Flatten classes into the Ref type, and encode the class type hierarchy operationally."
 
-  case object TypeOfOrigin extends Origin {
-    override def preferredName: String = "type"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At function type]"
-    override def inlineContext: String = "[Function type]"
-  }
+  private def TypeOfOrigin: Origin = Origin(
+    Seq(
+      PreferredName( "type"),
+      ShortPosition("generated"),
+      Context("[At function type]"),
+      InlineContext("[Function type]"),
+    )
+  )
 
-  case object InstanceOfOrigin extends Origin {
-    override def preferredName: String = "subtype"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At function subtype]"
-    override def inlineContext: String = "[Function subtype]"
-  }
+  private def InstanceOfOrigin: Origin = Origin(
+    Seq(
+      PreferredName( "subtype"),
+      ShortPosition("generated"),
+      Context("[At function subtype]"),
+      InlineContext("[Function subtype]"),
+    )
+  )
 
   case class InstanceNullPreconditionFailed(inner: Blame[InstanceNull], inv: InvokingNode[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =
@@ -39,12 +43,14 @@ case object ClassToRef extends RewriterBuilder {
 case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
   import vct.col.rewrite.ClassToRef._
 
-  case object This extends Origin {
-    override def preferredName: String = "this"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated parameter for 'this']"
-    override def inlineContext: String = "this"
-  }
+  private def This: Origin = Origin(
+    Seq(
+      PreferredName( "this"),
+      ShortPosition("generated"),
+      Context("[At generated parameter for 'this']"),
+      InlineContext("this"),
+    )
+  )
 
   val fieldSucc: SuccessionMap[Field[Pre], SilverField[Post]] = SuccessionMap()
   val methodSucc: SuccessionMap[InstanceMethod[Pre], Procedure[Post]] = SuccessionMap()

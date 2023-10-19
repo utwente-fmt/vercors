@@ -1,7 +1,7 @@
 package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{Origin, PanicBlame}
+import vct.col.origin.{Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition}
 import vct.col.rewrite.EncodeForPermWithValue.ForPermWithValueVar
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
@@ -10,11 +10,14 @@ case object EncodeForPermWithValue extends RewriterBuilder {
   override def key: String = "encodeForPermWithValue"
   override def desc: String = "Expand \\forperm_with_value over all declared fields"
 
-  case class ForPermWithValueVar(preferredName: String) extends Origin {
-    override def context: String = "At: [Node for ForPermWithValue]"
-    override def inlineContext: String = "[Node for ForPermWithValue]"
-    override def shortPosition: String = "generated"
-  }
+  private def ForPermWithValueVar(preferredName: String): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      Context("At: [Node for ForPermWithValue]"),
+      InlineContext("[Node for ForPermWithValue]"),
+      ShortPosition("generated"),
+    )
+  )
 }
 
 case class EncodeForPermWithValue[Pre <: Generation]() extends Rewriter[Pre] {
