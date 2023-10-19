@@ -13,7 +13,7 @@ import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, ParBlockEncoder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.Seq
 import scala.collection.mutable
@@ -38,11 +38,6 @@ case object LangCPPToCol {
   private case class ReassigningEventVars(ass: PreAssignExpression[_]) extends UserError {
     override def code: String = "unsupportedReassigningOfEventVars"
     override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL event is not supported.")
-  }
-
-  private case class SYCLEventWaitWrongType(inv: Expr[_]) extends UserError {
-    override def code: String = "unexpectedSYCLEventWaitWrongType"
-    override def text: String = inv.o.messageInContext("The declarator for the invocation to sycl::event::wait() is not a SYCL event.")
   }
 
   private case class ContractForCommandGroup(contract: ApplicableContract[_]) extends UserError {
@@ -77,17 +72,6 @@ case object LangCPPToCol {
     override def code: String = "incorrectParallelForLambdaArgument"
     override def text: String = o.messageInContext("The second parameter for the parallel_for method, which is a lambda method, " +
       "only takes one (nd_)item argument, which should match the first (nd_)range parameter of the parallel_for method.")
-  }
-
-  private case class WrongKernelDimensionType(expr: Expr[_]) extends UserError {
-    override def code: String = "wrongKernelDimensionType"
-    override def text: String = expr.o.messageInContext("Wrong type for the dimensions parameter of the kernel. " +
-      "The dimensions parameter in a kernel declaration is supposed to be of type sycl::range<int> or sycl::nd_range<int>.")
-  }
-
-  private case class NotKernelDimensions(expr: Expr[_]) extends UserError {
-    override def code: String = "unexpectedNotKernelDimensions"
-    override def text: String = expr.o.messageInContext("The dimensions parameter of the kernel was not rewritten to a (nd_)range.")
   }
 
   private case class SYCLItemMethodInvocationBlame(inv: CPPInvocation[_]) extends Blame[InvocationFailure] {
@@ -136,7 +120,7 @@ case object LangCPPToCol {
   private case class KernelForkBlame(kernel: CPPLambdaDefinition[_]) extends Blame[ForkFailure] {
     override def blame(error: ForkFailure): Unit = error match {
       case ForkNull(node) => throw KernelForkNull(node)
-      case RunnableNotIdle(_) => throw BlameUnreachable("This kernel submission has been forked already. This should not happen.", error) // EW TODO also turn into user error?
+      case RunnableNotIdle(_) => PanicBlame("This kernel submission has been forked already. This should not happen.").blame(error)
       case e@RunnablePreconditionNotEstablished(_, _) => throw KernelPreconditionNotEstablished(e)
     }
   }
@@ -397,7 +381,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         cppNameSuccessor.get(classRef) match {
           case Some(v) =>
             Join(v.get)(KernelJoinBlame())
-          case _ => throw SYCLEventWaitWrongType(inv.applicable)
+          case _ => throw Unreachable("The declarator for the invocation to sycl::event::wait() is not a SYCL event.")
         }
       case "sycl::queue::submit" => rewriteSYCLQueueSubmit(inv)._1
       case _ => rw.rewriteDefault(eval)
@@ -493,7 +477,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val (kernelParBlock, contractRequires, contractEnsures) = rangeType match {
       case SYCLTRange(_) => createBasicKernelBody(kernelDimensions, kernelDeclaration)
       case SYCLTNDRange(_) => createNDRangeKernelBody(kernelDimensions, kernelDeclaration)
-      case _ => throw WrongKernelDimensionType(kernelDimensions)
+      case _ => throw Unreachable("Wrong type for the dimensions parameter of the kernel. " +
+        "The dimensions parameter in a kernel declaration is supposed to be of type sycl::range<int> or sycl::nd_range<int>.")
     }
 
     // Create the pre- and postconditions for the method that will hold the generated kernel code
@@ -550,7 +535,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Register the kernel dimensions
     val range: Seq[Expr[Post]] = rw.dispatch(kernelDimensions) match {
       case SYCLRange(dims) => dims
-      case _ => throw NotKernelDimensions(kernelDimensions)
+      case _ => throw Unreachable("The dimensions parameter of the kernel was not rewritten to a range.")
     }
 
     currentKernelType = Some(BasicKernel(range))
@@ -579,7 +564,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Register the kernel dimensions
     val (globalRange, localRange): (Seq[Expr[Post]], Seq[Expr[Post]]) = rw.dispatch(kernelDimensions) match {
       case SYCLNDRange(globalSize: SYCLRange[Post], localRange: SYCLRange[Post]) => (globalSize.dimensions, localRange.dimensions)
-      case _ => throw NotKernelDimensions(kernelDimensions)
+      case _ => throw Unreachable("The dimensions parameter of the kernel was not rewritten to an nd_range.")
     }
 
     currentKernelType = Some(NDRangeKernel(globalRange, localRange))
