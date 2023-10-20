@@ -25,8 +25,7 @@ jobs:
         with:
           path: |
             out
-            !out/mill/**
-            !out/mill-build/mill/**
+            !out/mill-build/mill
             !out/mill-launcher
             !**/assembly.dest
             !**/assembly.json
@@ -36,6 +35,8 @@ jobs:
           restore-keys: |
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
       - name: Upload
