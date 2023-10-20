@@ -88,6 +88,7 @@ case object CheckContext {
 case class CheckContext[G]
 (
   scopes: Seq[CheckContext.ScopeFrame[G]] = Seq(),
+  undeclared: Seq[Seq[Declaration[G]]] = Nil,
   roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
@@ -109,11 +110,14 @@ case class CheckContext[G]
   def withPostcondition: CheckContext[G] =
     copy(inPostCondition = true)
 
+  def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
+    copy(undeclared = undeclared :+ decls)
+
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
-    scopes.exists(_.contains(ref.decl))
+    !undeclared.exists(_.contains(ref.decl)) && scopes.exists(_.contains(ref.decl))
 
   def inWriteScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
-    scopes.drop(roScopes).exists(_.contains(ref.decl))
+    !undeclared.exists(_.contains(ref.decl)) && scopes.drop(roScopes).exists(_.contains(ref.decl))
 
   def checkInScope[Decl <: Declaration[G]](use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
     if(inScope(ref)) Nil
