@@ -32,6 +32,8 @@ jobs:
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
           key: vercors-ci-ubuntu
+      - name: Start debug ssh session
+        uses: lhotari/action-upterm@v1
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
       - name: Upload
