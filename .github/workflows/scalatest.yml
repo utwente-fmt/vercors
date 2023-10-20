@@ -25,7 +25,8 @@ jobs:
         with:
           path: |
             out
-            !out/**/mill
+            !out/mill
+            !out/mill-build/mill
             !**/assembly.dest
             !**/assembly.json
             !**/upstreamAssembly.dest
