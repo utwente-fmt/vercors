@@ -66,7 +66,7 @@ case class ColCParser(override val origin: Origin,
         } finally {
           writer.close()
         }
-      }).start()
+      }, "[VerCors] clang stdout writer").start()
       process.waitFor()
 
       if(process.exitValue() != 0) {
