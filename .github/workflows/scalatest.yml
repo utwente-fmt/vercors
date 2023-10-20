@@ -31,8 +31,8 @@ jobs:
             !**/upstreamAssembly.json
           key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
           restore-keys: |
-            vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
-            vercors-ci-ubuntu
+            vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-
+            vercors-ci-ubuntu-
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
       - name: Upload
