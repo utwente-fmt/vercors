@@ -27,6 +27,7 @@ jobs:
             out
             !out/mill
             !out/mill-build/mill
+            !out/mill-launcher
             !**/assembly.dest
             !**/assembly.json
             !**/upstreamAssembly.dest
