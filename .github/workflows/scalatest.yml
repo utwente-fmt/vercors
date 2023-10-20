@@ -31,7 +31,7 @@ jobs:
             !**/assembly.json
             !**/upstreamAssembly.dest
             !**/upstreamAssembly.json
-          key: vercors-ci-ubuntu
+          key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
       - name: Start debug ssh session
         uses: lhotari/action-upterm@v1
       - name: Compile
