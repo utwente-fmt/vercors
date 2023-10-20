@@ -6,10 +6,10 @@
 namespace spaceA {
 
 	namespace spaceB {
-	  int b = 10;
+	  int b();
 	}
 
 	int getB() {
-	   return b;
+	   return b();
 	}
 }

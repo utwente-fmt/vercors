@@ -90,17 +90,17 @@ case object LangCToCol {
 
   case class KernelNotInjective(kernel: CGpgpuKernelSpecifier[_]) extends Blame[ReceiverNotInjective] {
     override def blame(error: ReceiverNotInjective): Unit =
-      kernel.blame.blame(KernelPredicateNotInjective(kernel, error.resource))
+      kernel.blame.blame(KernelPredicateNotInjective(Left(kernel), error.resource))
   }
 
   case class KernelParFailure(kernel: CGpgpuKernelSpecifier[_]) extends Blame[ParBlockFailure] {
     override def blame(error: ParBlockFailure): Unit = error match {
       case ParPredicateNotInjective(_, predicate) =>
-        kernel.blame.blame(KernelPredicateNotInjective(kernel, predicate))
+        kernel.blame.blame(KernelPredicateNotInjective(Left(kernel), predicate))
       case ParPreconditionFailed(_, _) =>
         PanicBlame("Kernel parallel block precondition cannot fail, since an identical predicate is required before.").blame(error)
       case ParBlockPostconditionFailed(failure, _) =>
-        kernel.blame.blame(KernelPostconditionFailed(failure, kernel))
+        kernel.blame.blame(KernelPostconditionFailed(failure, Left(kernel)))
       case ParBlockMayNotThrow(_) =>
         PanicBlame("Please don't throw exceptions from a gpgpu kernel, it's not polite.").blame(error)
     }
