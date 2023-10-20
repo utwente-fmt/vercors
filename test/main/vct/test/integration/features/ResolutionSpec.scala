@@ -38,4 +38,13 @@ class ResolutionSpec extends VercorsSpec {
       static void bar() {}
     }
   """
+
+  vercors should error withCode "noSuchName" in "example where yields variable is named in precondition" pvl """
+    yields int[] indegree;
+    requires indegree != null ** indegree.length > 0;
+    requires Perm(indegree[0], write) ** indegree[0] == 0;
+    boolean m() {
+      assert \old(indegree[0]) == 0;
+    }
+  """
 }
