@@ -31,7 +31,9 @@ object settings {
 
 object util {
   trait JavaModule extends BaseJavaModule {
-    override def forkArgs = Seq("-Xmx2G", "-Xss20m")
+    // https://github.com/viperproject/silicon/issues/748
+    // 32MB is enough stack space for silicon, a 100% marco guarantee
+    override def forkArgs = Seq("-Xmx2G", "-Xss32m")
 
     def classPathFileElements = T { runClasspath().map(_.path.toString) }
 
