@@ -28,8 +28,6 @@ jobs:
           restore-keys: |
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
       - name: Upload
@@ -43,9 +41,10 @@ jobs:
           find out -type d -name upstreamAssembly.dest -print -exec rm -rf {} +
           find out -type f -name assembly.json -print -exec rm -rf {} +
           find out -type d -name assembly.dest -print -exec rm -rf {} +
-          find out -type d -name mill -print -exec rm -rf {} +
-          find out -type d -name mill-launcher -print -exec rm -rf {} +
           find out -type d -name "mill-worker-*" -print -exec rm -rf {} +
+          rm -rf out/mill
+          rm -rf out/mill-build/mill
+          rm -rf out/mill-launcher
 
   ScalaTestWindowsBasic:
     needs: "Compile"
