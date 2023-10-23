@@ -1,15 +1,17 @@
 package vct.rewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast
-import vct.col.ast._
+import vct.col.ast.RewriteHelpers.RewriteProgram
+import vct.col.ast.{Forall, _}
 import vct.col.origin.Origin
 import vct.col.rewrite.ResolveScale.WrongScale
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.DeclarationBox
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.rewrite.EncodeResourceValues.{UnknownResourceValue, UnsupportedResourceValue}
-import vct.col.util.AstBuildHelpers.forall
+import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const, forall}
 
 import scala.collection.mutable
 
@@ -28,7 +30,7 @@ case object EncodeResourceValues extends RewriterBuilder {
   }
 }
 
-case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] {
+case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
   sealed trait ResourcePattern
 
   object ResourcePattern {
@@ -88,13 +90,14 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] {
   case class PatternBuilder(index: Int, toValue: Expr[Pre] => Expr[Post], fromValue: Expr[Pre] => Expr[Post])
 
   val patternBuilders: ScopedStack[Map[ResourcePattern, PatternBuilder]] = ScopedStack()
+  val valAdt: ScopedStack[AxiomaticDataType[Post]] = ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     implicit val o: Origin = program.o
 
     val patterns = program.collect {
       case ResourceValue(res) => ResourcePattern.scan(res)
-    }
+    }.toIndexedSeq
 
     if (patterns.isEmpty) {
       return patternBuilders.having(Map.empty) {
@@ -120,42 +123,75 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] {
       }
     }.toMap
 
-    val m = mutable.Map[ResourcePattern, PatternBuilder]()
+    program.rewrite(globalDeclarations.collect {
+      val adt = DeclarationBox[Post, AxiomaticDataType[Post]]()
+      val valType = TAxiomatic(adt.ref, Nil)
+      val kind = new ADTFunction[Post](Seq(new Variable(valType)), TInt())(o.replacePrefName("kind"))
 
-    val adt = DeclarationBox[Post, AxiomaticDataType[Post]]()
-    val valType = TAxiomatic(adt.ref, Nil)
-    val kind = new ADTFunction[Post](Seq(new Variable(valType)), TInt())
+      val m = mutable.Map[ResourcePattern, PatternBuilder]()
 
-    val decls = patterns.zipWithIndex.flatMap { case (pattern, index) =>
-      def freeTypesLoc(location: ResourcePattern.ResourcePatternLoc): Seq[Type[Post]] = location match {
-        case ResourcePattern.HeapVariableLocation(_) => Nil
-        case ResourcePattern.FieldLocation(f) => Seq(TClass(succ(fieldOwner(f))))
-        case ResourcePattern.ModelLocation(f) => Seq(TModel(succ(modelFieldOwner(f))))
-        case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
-        case ResourcePattern.ArrayLocation(t) => Seq(TArray(dispatch(t)), TInt())
-        case ResourcePattern.PointerLocation(t) => Seq(TPointer(dispatch(t)))
-        case ResourcePattern.PredicateLocation(ref) => ref.args.map(_.t).map(dispatch)
-        case ResourcePattern.InstancePredicateLocation(ref) => TClass[Post](succ(predicateOwner(ref))) +: ref.args.map(_.t).map(dispatch)
+      val decls = patterns.zipWithIndex.flatMap { case (pattern, index) =>
+        def freeTypesLoc(location: ResourcePattern.ResourcePatternLoc): Seq[Type[Post]] = location match {
+          case ResourcePattern.HeapVariableLocation(_) => Nil
+          case ResourcePattern.FieldLocation(f) => Seq(TClass(succ(fieldOwner(f))))
+          case ResourcePattern.ModelLocation(f) => Seq(TModel(succ(modelFieldOwner(f))))
+          case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
+          case ResourcePattern.ArrayLocation(t) => Seq(TArray(dispatch(t)), TInt())
+          case ResourcePattern.PointerLocation(t) => Seq(TPointer(dispatch(t)))
+          case ResourcePattern.PredicateLocation(ref) => ref.args.map(_.t).map(dispatch)
+          case ResourcePattern.InstancePredicateLocation(ref) => TClass[Post](succ(predicateOwner(ref))) +: ref.args.map(_.t).map(dispatch)
+        }
+
+        def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] = pattern match {
+          case ResourcePattern.Bool => Nil
+          case ResourcePattern.Perm(loc) => freeTypesLoc(loc) :+ TRational()
+          case ResourcePattern.Value(loc) => freeTypesLoc(loc)
+          case ResourcePattern.Predicate(p) => p.args.map(_.t).map(dispatch)
+          case ResourcePattern.InstancePredicate(p) => TClass[Post](succ(predicateOwner(p))) +: p.args.map(_.t).map(dispatch)
+          case ResourcePattern.Star(left, right) => freeTypes(left) ++ freeTypes(right)
+          case ResourcePattern.Implies(res) => freeTypes(res)
+          case ResourcePattern.Select(whenTrue, whenFalse) => freeTypes(whenTrue) ++ freeTypes(whenFalse)
+        }
+
+        val ts = freeTypes(pattern)
+
+        val buildFunc = new ADTFunction(ts.map(new Variable[Post](_)), valType)(o.replacePrefName(s"ResVal$index"))
+
+        val kindAxiom = {
+          val vars = ts.map(new Variable[Post](_)(o.replacePrefName("x")))
+          new ADTAxiom(Forall(
+            vars,
+            Nil,
+            ADTFunctionInvocation[Post](Some(adt.ref -> Nil), kind.ref, Seq(
+              ADTFunctionInvocation[Post](Some(adt.ref -> Nil), buildFunc.ref, vars.map(v => Local[Post](v.ref)))
+            )) === const(index)
+          ))
+        }
+
+        val getters = ts.zipWithIndex.map { case (t, typeIndex) =>
+          new ADTFunction[Post](Seq(new Variable(valType)(o.replacePrefName("val"))), t)(o.replacePrefName(s"ResVal${index}_get$typeIndex"))
+        }
+
+        val getterAxioms = ts.zipWithIndex.map { case (t, index) =>
+          val vars = ts.map(new Variable[Post](_)(o.replacePrefName("x")))
+          new ADTAxiom(Forall(
+            vars,
+            Nil,
+            ADTFunctionInvocation[Post](Some(adt.ref -> Nil), getters(index).ref, Seq(
+              ADTFunctionInvocation[Post](Some(adt.ref -> Nil), buildFunc.ref, vars.map(v => Local[Post](v.ref)))
+            )) === Local(vars(index).ref)
+
+          ))
+        }
+
+        buildFunc +: kindAxiom +: (getters ++ getterAxioms)
       }
 
-      def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] = pattern match {
-        case ResourcePattern.Bool => Nil
-        case ResourcePattern.Perm(loc) => freeTypesLoc(loc) :+ TRational()
-        case ResourcePattern.Value(loc) => freeTypesLoc(loc)
-        case ResourcePattern.Predicate(p) => p.args.map(_.t).map(dispatch)
-        case ResourcePattern.InstancePredicate(p) => TClass[Post](succ(predicateOwner(p))) +: p.args.map(_.t).map(dispatch)
-        case ResourcePattern.Star(left, right) => freeTypes(left) ++ freeTypes(right)
-        case ResourcePattern.Implies(res) => freeTypes(res)
-        case ResourcePattern.Select(whenTrue, whenFalse) => freeTypes(whenTrue) ++ freeTypes(whenFalse)
+      adt.fill(globalDeclarations.declare(new AxiomaticDataType[Post](kind +: decls, Nil)(o.replacePrefName("ResourceVal"))))
+
+      patternBuilders.having(m.toMap) {
+        program.declarations.foreach(dispatch)
       }
-
-      val ts = freeTypes(pattern)
-
-      Nil
-    }
-
-    patternBuilders.having(m.toMap) {
-      rewriteDefault(program)
-    }
+    }._1)
   }
 }
