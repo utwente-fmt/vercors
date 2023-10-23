@@ -1300,7 +1300,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit ts: ValTypeVarsContext): Seq[Variable[G]] = ts match {
     case ValTypeVars0(_, names, _) =>
-      convert(names).map(name => new Variable(TType(TAny()))(origin(ts).replacePrefName(name)))
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).replacePrefName(name)))
   }
 
   def convert(implicit decl: ValAdtDeclarationContext): ADTDeclaration[G] = decl match {
@@ -1329,7 +1329,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
       case "rational" => TRational()
       case "bool" => TBool()
       case "ref" => TRef()
-      case "any" => TAny()
+      case "any" => TAnyValue()
       case "nothing" => TNothing()
       case "string" => TString()
     }
