@@ -112,6 +112,8 @@ case object ResolveTypes {
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
     case Scope(locals, body) => ctx
       .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
+    case CPPScope(locals, body) => ctx
+      .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */ false)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -214,6 +216,7 @@ case object ResolveReferences extends LazyLogging {
 
   def scanScope[G](node: Node[G], inGPUKernel: Boolean): Seq[Declaration[G]] = node match {
     case _: Scope[G] => Nil
+    case _: CPPScope[G] => Nil
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
     case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
     => Seq(decl)
@@ -345,6 +348,8 @@ case object ResolveReferences extends LazyLogging {
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
       .declare(locals ++ scanScope(body, inGPUKernel))
+    case CPPScope(locals, body) => ctx
+      .declare(locals ++ scanScope(body, inGPUKernel))
     case app: ContractApplicable[G] => ctx
       .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
@@ -361,8 +366,8 @@ case object ResolveReferences extends LazyLogging {
     case local@CPPLocal(name, arg) =>
       local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
-      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.
-        getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
+      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, Seq(), ctx).headOption.
+        getOrElse(throw NoSuchNameError("class instance ref", classInstanceRefName, local)))
       local.classLocalRef = Some(CPP.findCPPClassLocalName(local.classInstanceRef.get, classLocalName, ctx).headOption.
         getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
     case local @ JavaLocal(name) =>

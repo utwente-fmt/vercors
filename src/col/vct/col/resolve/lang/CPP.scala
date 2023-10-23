@@ -81,13 +81,18 @@ case object CPP {
       case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
       case Seq(CPPSpecificationType(t@TFloat(_, _))) => t
       case Seq(CPPBool()) => TBool()
-      case Seq(SYCLClassDefName("event", None)) => SYCLTEvent()
-      case Seq(SYCLClassDefName("handler", None)) => SYCLTHandler()
-      case Seq(SYCLClassDefName("queue", None)) => SYCLTQueue()
-      case Seq(SYCLClassDefName("item", Some(dim))) => SYCLTItem(dim)
-      case Seq(SYCLClassDefName("nd_item", Some(dim))) => SYCLTNDItem(dim)
-      case Seq(SYCLClassDefName("range", Some(dim))) => SYCLTRange(dim)
-      case Seq(SYCLClassDefName("nd_range", Some(dim))) => SYCLTNDRange(dim)
+      case Seq(SYCLClassDefName("event", Seq())) => SYCLTEvent()
+      case Seq(SYCLClassDefName("handler", Seq())) => SYCLTHandler()
+      case Seq(SYCLClassDefName("queue", Seq())) => SYCLTQueue()
+      case Seq(SYCLClassDefName("item", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTItem(dim.intValue)
+      case Seq(SYCLClassDefName("nd_item", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTNDItem(dim.intValue)
+      case Seq(SYCLClassDefName("range", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTRange(dim.intValue)
+      case Seq(SYCLClassDefName("nd_range", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTNDRange(dim.intValue)
+      case Seq(SYCLClassDefName("buffer", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+        getBaseTypeFromSpecs(Seq(typ)) match {
+          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTBuffer(primitiveType, dim.intValue)
+          case _ => throw CPPTypeNotSupported(context)
+        }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
       case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ
@@ -113,14 +118,14 @@ case object CPP {
     }
   }
 
-  def findCPPName[G](name: String, genericArg: Option[Int], ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
+  def findCPPName[G](name: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]], ctx: ReferenceResolutionContext[G]): Seq[CPPNameTarget[G]] = {
     var targets = ctx.stack.flatten.collect {
       case target: CPPNameTarget[G] if target.name == name => target
     }
 
     if (targets.isEmpty && !name.endsWith("::constructor")) {
       // Not a known name, so search for constructor
-      targets = findCPPName(name + "::constructor", genericArg, ctx)
+      targets = findCPPName(name + "::constructor", genericArgs, ctx)
     }
     targets
   }
@@ -136,7 +141,7 @@ case object CPP {
     // If SYCL class, search for the class method in the namespace defined in the sycl.hpp header file
     maybeClassType match {
       case Some(t: SYCLTClass[G]) =>
-        findCPPName(t.namespacePath + "::" + classLocalName, None, ctx)
+        findCPPName(t.namespacePath + "::" + classLocalName, Seq(), ctx)
       case _ => Seq()
     }
   }
@@ -176,11 +181,11 @@ case object CPP {
         case (target: BuiltinInstanceMethod[G], _) => target
         // The previously found method is already the correct one
         case (target: CPPInvocationTarget[G], _) if Util.compatTypes(args, getParamTypes(target)) => target
-        case (_, local@CPPLocal(name, genericArg)) =>
+        case (_, local@CPPLocal(name, genericArgs)) =>
           // Currently linked method does not have correct params
           // So find all declarations with correct name and see if there is
           // an alternative whose parameters do match the arguments
-          val allDecls = findCPPName(name, genericArg, ctx)
+          val allDecls = findCPPName(name, genericArgs, ctx)
           val foundMatch: CPPInvocationTarget[G] = findAlternativeInvocationTarget(applicable, args, allDecls)
           local.ref = Some(foundMatch.asInstanceOf[CPPNameTarget[G]])
           t.decl = Some(foundMatch)

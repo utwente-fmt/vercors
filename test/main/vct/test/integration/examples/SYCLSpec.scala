@@ -14,4 +14,18 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "nonSYCLCodeInCommandGroup" example "concepts/sycl/kernels/NonSYCLCodeInCommandGroup.cpp"
   vercors should fail withCode "syclItemMethodPreFailed" using silicon example "concepts/sycl/kernels/TooHighKernelDimension.cpp"
   vercors should error withCode "kernelForkPre" example "concepts/sycl/kernels/ZeroNDRange.cpp"
+
+//  vercors should verify using silicon example "concepts/sycl/accessors/allAccessorTypes.cpp"
+//  vercors should verify using silicon example "concepts/sycl/accessors/getKernelResult.cpp"
+//  vercors should verify using silicon example "concepts/sycl/accessors/subscriptAccessors.cpp"
+//  vercors should verify using silicon example "concepts/sycl/accessors/writeToReadAccessor.cpp"
+//  vercors should verify using silicon example "concepts/sycl/accessors/writeToReadWriteAccessor.cpp"
+
+  vercors should verify using silicon example "concepts/sycl/buffers/allBufferTypes.cpp"
+//  vercors should verify using silicon example "concepts/sycl/buffers/readDataOutsideBuffer.cpp"
+  vercors should verify using silicon example "concepts/sycl/buffers/releaseFromBuffer.cpp"
+  vercors should error withCode "bufferCopyLoopInvariantFailure" example "concepts/sycl/buffers/tooBigBuffer.cpp"
+  vercors should verify using silicon example "concepts/sycl/buffers/tooSmallBuffer.cpp"
+  vercors should error withCode "bufferCopyLoopInvariantFailure" example "concepts/sycl/buffers/twoBuffersForSameData.cpp"
+  vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/writeDataOutsideBuffer.cpp"
 }

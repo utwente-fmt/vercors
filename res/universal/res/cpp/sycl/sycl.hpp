@@ -183,4 +183,30 @@ namespace sycl {
 		/*@ pure @*/ int get_global_linear_id();
   }
 
+  namespace buffer {
+    sycl::buffer<bool, 1> constructor(bool* hostData, sycl::range<1>& bufferRange);
+    sycl::buffer<bool, 2> constructor(bool* hostData, sycl::range<2>& bufferRange);
+    sycl::buffer<bool, 3> constructor(bool* hostData, sycl::range<3>& bufferRange);
+
+    sycl::buffer<int, 1> constructor(int* hostData, sycl::range<1>& bufferRange);
+    sycl::buffer<int, 2> constructor(int* hostData, sycl::range<2>& bufferRange);
+    sycl::buffer<int, 3> constructor(int* hostData, sycl::range<3>& bufferRange);
+
+    sycl::buffer<long, 1> constructor(long* hostData, sycl::range<1>& bufferRange);
+    sycl::buffer<long, 2> constructor(long* hostData, sycl::range<2>& bufferRange);
+    sycl::buffer<long, 3> constructor(long* hostData, sycl::range<3>& bufferRange);
+
+    sycl::buffer<double, 1> constructor(double* hostData, sycl::range<1>& bufferRange);
+    sycl::buffer<double, 2> constructor(double* hostData, sycl::range<2>& bufferRange);
+    sycl::buffer<double, 3> constructor(double* hostData, sycl::range<3>& bufferRange);
+
+    sycl::buffer<float, 1> constructor(float* hostData, sycl::range<1>& bufferRange);
+    sycl::buffer<float, 2> constructor(float* hostData, sycl::range<2>& bufferRange);
+    sycl::buffer<float, 3> constructor(float* hostData, sycl::range<3>& bufferRange);
+
+    sycl::buffer<char, 1> constructor(char* hostData, sycl::range<1>& bufferRange);
+    sycl::buffer<char, 2> constructor(char* hostData, sycl::range<2>& bufferRange);
+    sycl::buffer<char, 3> constructor(char* hostData, sycl::range<3>& bufferRange);
+  }
+
 }

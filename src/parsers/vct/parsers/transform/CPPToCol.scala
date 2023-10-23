@@ -93,8 +93,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit compoundStmnt: CompoundStatementContext): Statement[G] = compoundStmnt match {
-    case CompoundStatement0(_, None, _) => Scope(Nil, Block(Seq()))
-    case CompoundStatement0(_, Some(stmntSeq), _) => Scope(Nil, Block(convert(stmntSeq)))
+    case CompoundStatement0(_, None, _) => CPPScope(Nil, Block(Seq()))
+    case CompoundStatement0(_, Some(stmntSeq), _) => CPPScope(Nil, Block(convert(stmntSeq)))
   }
 
   def convert(implicit stmntSeq: StatementSeqContext): Seq[Statement[G]] = stmntSeq match {
@@ -178,12 +178,12 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support do-while loops, 'for(item : list) {}' and expression instead of declaration in a for-loop
   def convert(implicit iterStmnt: IterationStatementContext): Statement[G] = iterStmnt match {
     case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), convert(body)))
+      CPPScope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), convert(body)))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement2(contract1, _, _, ForInitStatement1(simpleDecl), cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), convert(body)))
+        CPPScope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), convert(body)))
       })
     case IterationStatement2(_, _, _, _, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement3(_, _, _, _, _, _, _, _, _) => ??(iterStmnt)
@@ -401,8 +401,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
     case PostfixExpression4(classVar, _, None, idExpr) =>
       convert(classVar) match {
-        case CPPLocal(className, None) => convert(idExpr) match {
-          case CPPTypedefName(name, None) => CPPClassInstanceLocal(className, name)(blame(expr))
+        case CPPLocal(className, Seq()) => convert(idExpr) match {
+          case CPPTypedefName(name, Seq()) => CPPClassInstanceLocal(className, name)(blame(expr))
           case _ => ??(expr)
         }
         case _ => ??(expr)
@@ -571,9 +571,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case SimpleTypeSpecifier0(None, typeName) => Seq(convert(typeName))
     case SimpleTypeSpecifier0(Some(nestedNameSpec), typeName) =>
       convert(typeName) match {
-        case CPPTypedefName(name, genericArg) => convert(nestedNameSpec).nestedName match {
-          case s"sycl::$rest" => Seq(SYCLClassDefName(rest + name, genericArg))
-          case other => Seq(CPPTypedefName(other + name, genericArg))
+        case CPPTypedefName(name, genericArgs) => convert(nestedNameSpec).nestedName match {
+          case s"sycl::$rest" => Seq(SYCLClassDefName(rest + name, genericArgs))
+          case other => Seq(CPPTypedefName(other + name, genericArgs))
         }
         case _ => ??(typeSpec)
       }
@@ -612,23 +612,23 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   def convert(implicit nestedNameSpec: NestedNameSpecifierContext): CPPTypedefName[G] = nestedNameSpec match {
     case NestedNameSpecifier0(theTypeName, sep) =>
       convert(theTypeName) match {
-        case name@CPPTypedefName(_, None) => name.appendName(sep)
+        case name@CPPTypedefName(_, Seq()) => name.appendName(sep)
         case _ => ??(theTypeName)
       }
     case NestedNameSpecifier1(namespaceName, sep) => convert(namespaceName).appendName(sep)
     case NestedNameSpecifier2(_, _) => ??(nestedNameSpec)
-    case NestedNameSpecifier3(sep) => CPPTypedefName(sep, None)
+    case NestedNameSpecifier3(sep) => CPPTypedefName(sep, Seq())
     case NestedNameSpecifier4(inner, id, sep) =>
       convert(inner) match {
-        case name@CPPTypedefName(_, None) => name.appendName(convert(id)).appendName(sep)
+        case name@CPPTypedefName(_, Seq()) => name.appendName(convert(id)).appendName(sep)
         case _ => ??(inner)
       }
     case NestedNameSpecifier5(_, _, _, _) => ??(nestedNameSpec)
   }
 
   def convert(implicit namespaceName: NamespaceNameContext): CPPTypedefName[G] = namespaceName match {
-    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(convert(id), None)
-    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(convert(id), None)
+    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(convert(id), Seq())
+    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(convert(id), Seq())
   }
 
   // Do not support enum-names and typedef-names
@@ -641,7 +641,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   // Do not support template-names
   def convert(implicit className: ClassNameContext): CPPTypedefName[G] = className match {
-    case ClassName0(name) => CPPTypedefName(convert(name), None)
+    case ClassName0(name) => CPPTypedefName(convert(name), Seq())
     case ClassName1(_) => ??(className)
   }
 
@@ -650,24 +650,44 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case _: TemplateId1Context => ??(templateId)
   }
 
-  // Do not support argument-list with more than one argument
   def convert(implicit simpleTemplateId: SimpleTemplateIdContext): CPPTypeSpecifier[G] = simpleTemplateId match {
-    case SimpleTemplateId0(name, _, arg, _) => CPPTypedefName(convert(name), Some(convert(arg)))
-    case SimpleTemplateId1(_, _, _, _) => ??(simpleTemplateId)
+    case SimpleTemplateId0(name, _, arg, _) => CPPTypedefName(convert(name), Seq(convert(arg)))
+    case SimpleTemplateId1(name, _, Some(args), _) => CPPTypedefName(convert(name), convert(args))
+    case SimpleTemplateId1(name, _, None, _) => CPPTypedefName(convert(name), Seq())
+  }
+
+  def convert(implicit templateArgumentList: TemplateArgumentListContext): Seq[CPPExprOrTypeSpecifier[G]] = templateArgumentList match {
+    case TemplateArgumentList0(arg, None, _, argList) => Seq(convert(arg)) ++ convert(argList)
+    case TemplateArgumentList0(_, _, _, _) => ??(templateArgumentList)
+    case TemplateArgumentList1(arg, None) => Seq(convert(arg))
+    case TemplateArgumentList1(_, _) => ??(templateArgumentList)
   }
 
   // Only support constantExpression
-  def convert(implicit templateArgument: TemplateArgumentContext): Int = templateArgument match {
-    case TemplateArgument0(_) => ??(templateArgument)
-    case TemplateArgument1(constantExpr) => convert(constantExpr) match {
-      case IntegerValue(value) => value.intValue
-      case _ => ??(constantExpr)
+  def convert(implicit templateArgument: TemplateArgumentContext): CPPExprOrTypeSpecifier[G] = templateArgument match {
+    case TemplateArgument0(theTypeId) => convert(theTypeId) match {
+      // Only support one typeSpec
+      case Seq(typeSpec) => CPPExprOrTypeSpecifier(None, Some(typeSpec))
+      case _ => ??(templateArgument)
     }
+    case TemplateArgument1(constantExpr) => CPPExprOrTypeSpecifier(Some(convert(constantExpr)), None)
     case TemplateArgument2(_) => ??(templateArgument)
   }
 
   def convert(implicit templateName: TemplateNameContext): String = templateName match {
     case TemplateName0(identifier) => convert(identifier)
+  }
+
+  // Do not support abstractDeclarator
+  def convert(implicit theTypeId: TheTypeIdContext): Seq[CPPTypeSpecifier[G]] = theTypeId match {
+    case TheTypeId0(typeSpecSeq, None) => convert(typeSpecSeq)
+    case TheTypeId0(_, _) => ??(theTypeId)
+  }
+
+  // Do not support attributeSpecifierSeq
+  def convert(implicit typeSpecSeq: TypeSpecifierSeqContext): Seq[CPPTypeSpecifier[G]] = typeSpecSeq match {
+    case TypeSpecifierSeq0(typeSpecs, None) => typeSpecs.flatMap(convert(_))
+    case TypeSpecifierSeq0(_, _) => ??(typeSpecSeq)
   }
 
   // Do not support trailing return types
@@ -757,7 +777,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support if spread operator '...' is used
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
     case Declaratorid0(None, idExpr) => convert(idExpr) match {
-      case CPPTypedefName(name, None) => CPPName(name)
+      case CPPTypedefName(name, Seq()) => CPPName(name)
       case _ => ??(declaratorId)
     }
     case Declaratorid0(_, _) => ??(declaratorId)
@@ -766,7 +786,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support operatorFunctionId, conversionFunctionId, literalOperatorId, and things starting with a tilde
   def convert(implicit unqualifiedId: UnqualifiedIdContext): CPPTypeSpecifier[G] = unqualifiedId match {
     case UnqualifiedId0(templateId) => convert(templateId)
-    case UnqualifiedId1(clangppId) => CPPTypedefName(convert(clangppId), None)
+    case UnqualifiedId1(clangppId) => CPPTypedefName(convert(clangppId), Seq())
     case UnqualifiedId2(_) => ??(unqualifiedId)
     case UnqualifiedId3(_) => ??(unqualifiedId)
     case UnqualifiedId4(_) => ??(unqualifiedId)
@@ -775,9 +795,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support template
   def convert(implicit qualifiedId: QualifiedIdContext): CPPTypeSpecifier[G] = qualifiedId match {
     case QualifiedId0(nestedNameSpec, None, id) => convert(id) match {
-      case CPPTypedefName(name, genericArg) => convert(nestedNameSpec).nestedName match {
-        case s"sycl::$rest" => SYCLClassDefName(rest + name, genericArg)
-        case other => CPPTypedefName(other + name, genericArg)
+      case CPPTypedefName(name, genericArgs) => convert(nestedNameSpec).nestedName match {
+        case s"sycl::$rest" => SYCLClassDefName(rest + name, genericArgs)
+        case other => CPPTypedefName(other + name, genericArgs)
       }
       case _ => ??(qualifiedId)
     }
@@ -833,7 +853,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CPPLocal(name, None)(blame(ctx))(origin(ctx))
+    CPPLocal(name, Seq())(blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)

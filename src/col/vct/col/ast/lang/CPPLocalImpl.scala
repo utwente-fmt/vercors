@@ -32,5 +32,5 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
   }
 
   override def layout(implicit ctx: Ctx): Doc = Group(Text(name) <>
-    (if (genericArg.isDefined) (Text("<") <> Text(genericArg.get.toString) <> Text(">")) else Text("")))
+    (if (genericArgs.nonEmpty) (Text("<") <> Text(genericArgs.mkString(", ")) <> Text(">")) else Text("")))
 }
