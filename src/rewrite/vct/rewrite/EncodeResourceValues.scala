@@ -149,7 +149,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
         }
 
         def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] = pattern match {
-          case ResourcePattern.Bool => Nil
+          case ResourcePattern.Bool => Seq(TBool())
           case ResourcePattern.Perm(loc) => freeTypesLoc(loc) :+ TRational()
           case ResourcePattern.Value(loc) => freeTypesLoc(loc)
           case ResourcePattern.Predicate(p) => p.args.map(_.t).map(dispatch)
