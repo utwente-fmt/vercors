@@ -8,7 +8,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefProverFunction, RefVariable, RefVeyMontThread, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget}
+import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPredicate, RefProcedure, RefProverFunction, RefVariable, RefEndpoint, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.result.VerificationError.{SystemError, UserError}
 import LangPVLToCol.CommunicateNotSupported
@@ -86,7 +86,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     local.ref.get match {
       case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
       case RefField(decl) => Deref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
-      case RefVeyMontThread(decl) => DerefVeyMontThread[Post](rw.succ(decl))
+      /* TODO: I don't like the "Deref" word here, as no field is being dereferenced... It should be more like "Local"?
+            Or: integrate actualy dereferencing into this node, since that is the only use case anyway
+            So: EndpointDeref. Like ModelDeref
+      */
+      case RefEndpoint(decl) => DerefEndpoint[Post](rw.succ(decl))
     }
   }
 

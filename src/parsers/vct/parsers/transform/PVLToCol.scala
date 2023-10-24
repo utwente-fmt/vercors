@@ -46,7 +46,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit decl: SeqProgDeclContext): Declaration[G] = decl match {
     case SeqProgMethod(methods) => convert(methods)
     case SeqProgRunMethod(runMethod) => convert(runMethod).head
-    case SeqProgThread(_, threadId, _, threadType, _, args, _, _) => new VeyMontThread(convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(threadId)))
+    case PvlEndpoint(_, threadId, _, threadType, _, args, _, _) => new PVLEndpoint(convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(threadId)))
   }
 
   def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): SeqProg[G] = cls match {
@@ -60,7 +60,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case m: InstanceMethod[G] => m
       }
       val threads = declseq.collect {
-        case v: VeyMontThread[G] => v
+        case v: PVLEndpoint[G] => v
       }
       withContract(contract, contract => {
         new SeqProg(

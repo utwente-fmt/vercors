@@ -76,7 +76,7 @@ case object ImportADT {
     case TSmtlibSeq(t) => "smtseq$" + typeText(t) + "$"
     case TSmtlibString() => "smtstr"
     case TVeyMontChannel(t) => "veymontchan$" + t + "$"
-    case TVeyMontThread(Ref(thread)) => thread.o.getPreferredNameOrElse()
+    case TEndpoint(Ref(thread)) => thread.o.getPreferredNameOrElse()
     case _: JavaType[_] => throw ExtraNode
     case _: CType[_] => throw ExtraNode
     case _: CPPType[_] => throw ExtraNode

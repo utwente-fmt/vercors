@@ -63,7 +63,7 @@ sealed trait Referrable[G] {
     case RefModelProcess(decl) => Referrable.originName(decl)
     case RefModelAction(decl) => Referrable.originName(decl)
     case RefSeqProg(decl) => Referrable.originName(decl)
-    case RefVeyMontThread(decl) => Referrable.originName(decl)
+    case RefEndpoint(decl) => Referrable.originName(decl)
     case RefProverType(decl) => Referrable.originName(decl)
     case RefProverFunction(decl) => Referrable.originName(decl)
     case RefJavaBipGuard(decl) => Referrable.originName(decl)
@@ -155,7 +155,7 @@ case object Referrable {
     case decl: JavaLocalDeclaration[G] => return decl.decls.indices.map(RefJavaLocalDeclaration(decl, _))
     case decl: PVLConstructor[G] => RefPVLConstructor(decl)
     case decl: SeqProg[G] => RefSeqProg(decl)
-    case decl: VeyMontThread[G] => RefVeyMontThread(decl)
+    case decl: Endpoint[G] => RefEndpoint(decl)
     case decl: LlvmFunctionDefinition[G] => RefLlvmFunctionDefinition(decl)
     case decl: LlvmGlobal[G] => RefLlvmGlobal(decl)
     case decl: LlvmSpecFunction[G] => RefLlvmSpecFunction(decl)
@@ -300,7 +300,7 @@ case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: SeqProg[G]) extends Referrable[G] with ThisTarget[G]
-case class RefVeyMontThread[G](decl: VeyMontThread[G]) extends Referrable[G] with PVLNameTarget[G]
+case class RefEndpoint[G](decl: Endpoint[G]) extends Referrable[G] with PVLNameTarget[G]
 case class RefProverType[G](decl: ProverType[G]) extends Referrable[G] with SpecTypeNameTarget[G]
 case class RefProverFunction[G](decl: ProverFunction[G]) extends Referrable[G] with SpecInvocationTarget[G]
 

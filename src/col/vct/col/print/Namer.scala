@@ -107,7 +107,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case decl: CPPLocalDeclaration[G] => nameKeyed(nearestVariableScope, decl)
       case decl: CPPParam[G] => nameKeyed(nearestCallable, decl)
       case decl: JavaLocalDeclaration[G] => nameKeyed(nearestCallable, decl)
-      case decl: VeyMontThread[G] => nameKeyed(nearest { case _: SeqProg[G] => () }, decl)
+      case decl: Endpoint[G] => nameKeyed(nearest { case _: SeqProg[G] => () }, decl)
       case decl: JavaParam[G] => nameKeyed(nearestCallable, decl)
       case _ =>
     }

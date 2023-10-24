@@ -2,7 +2,7 @@ package vct.col.rewrite.veymont
 
 
 import hre.util.ScopedStack
-import vct.col.ast.{And, Block, BooleanValue, Branch, Declaration, Expr, Loop, Node, Statement, VeyMontCondition, SeqProg, VeyMontThread}
+import vct.col.ast.{And, Block, BooleanValue, Branch, Declaration, Expr, Loop, Node, Statement, VeyMontCondition, SeqProg, Endpoint}
 import vct.col.ref.Ref
 import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{getDerefsFromExpr, getThreadDeref}
 import vct.col.rewrite.veymont.AddVeyMontConditionNodes.AddVeyMontConditionError
@@ -71,7 +71,7 @@ case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
       dispatch(l.body))(l.o)
   }
 
-  private def checkConditionAndGetConditionMap(e: Expr[Pre]): Map[Ref[Post, VeyMontThread[Post]], Expr[Post]] = {
+  private def checkConditionAndGetConditionMap(e: Expr[Pre]): Map[Ref[Post, Endpoint[Post]], Expr[Post]] = {
     if (isTrue(e))
       Map.empty
     else {
@@ -83,9 +83,9 @@ case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
     }
   }
 
-  private def getConditionMap(condEls: List[Expr[Pre]], e : Expr[Pre]): Map[Ref[Post, VeyMontThread[Post]], Expr[Post]] = {
+  private def getConditionMap(condEls: List[Expr[Pre]], e : Expr[Pre]): Map[Ref[Post, Endpoint[Post]], Expr[Post]] = {
     val derefs = condEls.map(el => (getDerefsFromExpr(el), el))
-    derefs.foldRight(Map.empty[Ref[Post, VeyMontThread[Post]], Expr[Post]]) { case ((d, el), m) =>
+    derefs.foldRight(Map.empty[Ref[Post, Endpoint[Post]], Expr[Post]]) { case ((d, el), m) =>
       if (d.size != 1)
         throw AddVeyMontConditionError(e, "Conditions of if/while need to reference each thread exactly once!")
       else {
