@@ -5,12 +5,12 @@ import hre.util.ScopedStack
 import vct.col.ast
 import vct.col.ast.RewriteHelpers.RewriteProgram
 import vct.col.ast.{Forall, _}
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, PanicBlame}
 import vct.col.rewrite.ResolveScale.WrongScale
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.DeclarationBox
 import vct.result.VerificationError.{SystemError, UserError}
-import vct.rewrite.EncodeResourceValues.{UnknownResourceValue, UnsupportedResourceValue}
+import vct.rewrite.EncodeResourceValues.{UnknownResourceValue, UnsupportedResourceValue, WrongResourcePattern}
 import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const, forall}
 
 import scala.collection.mutable
@@ -27,6 +27,10 @@ case object EncodeResourceValues extends RewriterBuilder {
 
   case class UnknownResourceValue(node: Expr[_]) extends SystemError {
     override def text: String = node.o.messageInContext("Unknown resource kind")
+  }
+
+  case class WrongResourcePattern(node: Node[_]) extends SystemError {
+    override def text: String = node.o.messageInContext("Wrong resource pattern encoding")
   }
 }
 
@@ -87,10 +91,12 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
     }
   }
 
-  case class PatternBuilder(index: Int, toValue: Expr[Pre] => Expr[Post], fromValue: Expr[Pre] => Expr[Post])
+  case class PatternBuilder(index: Int, toValue: Expr[Pre] => Expr[Post], fromValue: Expr[Post] => Expr[Post])
 
   val patternBuilders: ScopedStack[Map[ResourcePattern, PatternBuilder]] = ScopedStack()
   val valAdt: ScopedStack[AxiomaticDataType[Post]] = ScopedStack()
+  val kindFunc: ScopedStack[ADTFunction[Post]] = ScopedStack()
+  val arbitraryResourceValue: ScopedStack[Predicate[Post]] = ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     implicit val o: Origin = program.o
@@ -126,7 +132,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
     program.rewrite(globalDeclarations.collect {
       val adt = DeclarationBox[Post, AxiomaticDataType[Post]]()
       val valType = TAxiomatic(adt.ref, Nil)
-      val kind = new ADTFunction[Post](Seq(new Variable(valType)), TInt())(o.replacePrefName("kind"))
+      val kind = new ADTFunction[Post](Seq(new Variable(valType)(o.replacePrefName("val"))), TInt())(o.replacePrefName("kind"))
 
       val m = mutable.Map[ResourcePattern, PatternBuilder]()
 
@@ -155,7 +161,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
 
         val ts = freeTypes(pattern)
 
-        val buildFunc = new ADTFunction(ts.map(new Variable[Post](_)), valType)(o.replacePrefName(s"ResVal$index"))
+        val buildFunc = new ADTFunction(ts.map(new Variable[Post](_)(o.replacePrefName("x"))), valType)(o.replacePrefName(s"ResVal$index"))
 
         val kindAxiom = {
           val vars = ts.map(new Variable[Post](_)(o.replacePrefName("x")))
@@ -184,14 +190,131 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
           ))
         }
 
+        def makeLoc(loc: Location[Pre], pat: ResourcePattern.ResourcePatternLoc): Seq[Expr[Post]] = (pat, loc) match {
+          case ResourcePattern.HeapVariableLocation(_) -> HeapVariableLocation(_) =>
+            Nil
+          case ResourcePattern.FieldLocation(_) -> FieldLocation(obj, _) =>
+            Seq(dispatch(obj))
+          case ResourcePattern.ModelLocation(_) -> ModelLocation(model, _) =>
+            Seq(dispatch(model))
+          case ResourcePattern.SilverFieldLocation(_) -> SilverFieldLocation(ref, _) =>
+            Seq(dispatch(ref))
+          case ResourcePattern.ArrayLocation(_) -> ArrayLocation(arr, idx) =>
+            Seq(dispatch(arr), dispatch(idx))
+          case ResourcePattern.PointerLocation(_) -> PointerLocation(ptr) =>
+            Seq(dispatch(ptr))
+          case ResourcePattern.PredicateLocation(_) -> PredicateLocation(_, args) =>
+            args.map(dispatch)
+          case ResourcePattern.InstancePredicateLocation(_) -> InstancePredicateLocation(_, obj, args) =>
+            dispatch(obj) +: args.map(dispatch)
+        }
+
+        def make(e: Expr[Pre], pat: ResourcePattern): Seq[Expr[Post]] = (pat, e) match {
+          case ResourcePattern.Bool -> e =>
+            Seq(dispatch(e))
+          case ResourcePattern.Perm(locPat) -> Perm(loc, perm) =>
+            makeLoc(loc, locPat) :+ dispatch(perm)
+          case ResourcePattern.Value(locPat) -> Value(loc) =>
+            makeLoc(loc, locPat)
+          case ResourcePattern.Predicate(_) -> PredicateApply(_, args, perm) =>
+            args.map(dispatch) :+ dispatch(perm)
+          case ResourcePattern.InstancePredicate(p) -> InstancePredicateApply(obj, _, args, perm) =>
+            Seq(dispatch(obj)) ++ args.map(dispatch) ++ Seq(dispatch(perm))
+          case ResourcePattern.Star(leftPat, rightPat) -> Star(left, right) =>
+            make(left, leftPat) ++ make(right, rightPat)
+          case ResourcePattern.Implies(pat) -> Implies(cond, res) =>
+            dispatch(cond) +: make(res, pat)
+          case ResourcePattern.Select(whenTruePat, whenFalsePat) -> Select(cond, whenTrue, whenFalse) =>
+            Seq(dispatch(cond)) ++ make(whenTrue, whenTruePat) ++ make(whenFalse, whenFalsePat)
+          case pat -> e =>
+            throw WrongResourcePattern(e)
+        }
+
+        def toResourceLoc(getters: Seq[Expr[Post]], pat: ResourcePattern.ResourcePatternLoc)(implicit o: Origin): Location[Post] = pat match {
+          case ResourcePattern.HeapVariableLocation(ref) => HeapVariableLocation(succ(ref))
+          case ResourcePattern.FieldLocation(ref) => FieldLocation(getters.head, succ(ref))
+          case ResourcePattern.ModelLocation(ref) => ModelLocation(getters.head, succ(ref))
+          case ResourcePattern.SilverFieldLocation(ref) => SilverFieldLocation(getters.head, succ(ref))
+          case ResourcePattern.ArrayLocation(t) => ArrayLocation(getters(0), getters(1))(PanicBlame("Design flaw: the structure should include wf somehow"))
+          case ResourcePattern.PointerLocation(t) => PointerLocation(getters.head)(PanicBlame("Design flaw: the structure should include wf somehow"))
+          case ResourcePattern.PredicateLocation(ref) => PredicateLocation(succ(ref), getters)
+          case ResourcePattern.InstancePredicateLocation(ref) => InstancePredicateLocation(succ(ref), getters.head, getters.tail)
+        }
+
+        def toResource(getters: Seq[Expr[Post]], pat: ResourcePattern)(implicit o: Origin): Expr[Post] = pat match {
+          case ResourcePattern.Bool => getters.head
+          case ResourcePattern.Perm(loc) => Perm(toResourceLoc(getters.init, loc), getters.last)
+          case ResourcePattern.Value(loc) => Value(toResourceLoc(getters, loc))
+          case ResourcePattern.Predicate(p) => PredicateApply(succ(p), getters.init, getters.last)
+          case ResourcePattern.InstancePredicate(p) => InstancePredicateApply(getters.head, succ(p), getters.tail.init, getters.last)
+          case ResourcePattern.Star(left, right) =>
+            val split = freeTypes(left).size // indicative of a Really Good Abstraction
+            Star(toResource(getters.take(split), left), toResource(getters.drop(split), right))
+          case ResourcePattern.Implies(res) =>
+            Implies(getters.head, toResource(getters.tail, res))
+          case ResourcePattern.Select(whenTrue, whenFalse) =>
+            val whenTrueCount = freeTypes(whenTrue).size
+            Select(
+              getters.head,
+              toResource(getters.tail.take(whenTrueCount), whenTrue),
+              toResource(getters.tail.drop(whenTrueCount), whenFalse),
+            )
+        }
+
+        m(pattern) = PatternBuilder(
+          index = index,
+          toValue = e => ADTFunctionInvocation[Post](Some(adt.ref -> Nil), buildFunc.ref, make(e, pattern)),
+          fromValue = e => toResource(getters.map(getter => ADTFunctionInvocation(Some(adt.ref -> Nil), getter.ref, Seq(e))), pattern)
+        )
+
         buildFunc +: kindAxiom +: (getters ++ getterAxioms)
       }
 
       adt.fill(globalDeclarations.declare(new AxiomaticDataType[Post](kind +: decls, Nil)(o.replacePrefName("ResourceVal"))))
 
+      val arbitraryValue = new Predicate(Seq(new Variable(valType)(o.replacePrefName("val"))), None)(o.replacePrefName("arbitraryResourceValue"))
+      globalDeclarations.declare(arbitraryValue)
+
       patternBuilders.having(m.toMap) {
-        program.declarations.foreach(dispatch)
+        valAdt.having(adt.get) {
+          arbitraryResourceValue.having(arbitraryValue) {
+            kindFunc.having(kind) {
+              program.declarations.foreach(dispatch)
+            }
+          }
+        }
       }
     }._1)
+  }
+
+  override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
+    case ResourceValue(res) =>
+      patternBuilders.top(ResourcePattern.scan(res)).toValue(res)
+
+    case ResourceOfResourceValue(resourceValue) =>
+      implicit val o: Origin = e.o
+      val binding = new Variable[Post](TAxiomatic(valAdt.top.ref, Nil))(e.o.replacePrefName("v"))
+      val v = Local[Post](binding.ref)
+
+      val alts: Seq[(Expr[Post], Expr[Post])] = patternBuilders.top.values.map { builder =>
+        val cond = ADTFunctionInvocation[Post](Some(valAdt.top.ref -> Nil), kindFunc.top.ref, Seq(v)) === const(builder.index)
+        val res = builder.fromValue(v)
+        cond -> res
+      }.toSeq
+
+      val otherwise = PredicateApply[Post](arbitraryResourceValue.top.ref, Seq(v), WritePerm())
+
+      val select = alts.foldRight[Expr[Post]](otherwise) {
+        case (cond -> res, otherwise) => Select(cond, res, otherwise)
+      }
+
+      Let(binding, dispatch(resourceValue), select)
+
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(t: Type[Pre]): Type[Post] = t match {
+    case TResourceVal() => TAxiomatic(valAdt.top.ref, Nil)
+    case other => rewriteDefault(other)
   }
 }
