@@ -1222,7 +1222,7 @@ case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val 
 case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLFamilyRangeImpl[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
-case class PVLCommunicateAccess[G](subjectX: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
+case class PVLCommunicateAccess[G](subject: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
   var ref: Option[PVLDerefTarget[G]] = None
 }
 case class PVLCommunicate[G](sender: PVLCommunicateAccess[G], receiver: PVLCommunicateAccess[G])(implicit val o: Origin) extends Statement[G] with PVLCommunicateImpl[G]

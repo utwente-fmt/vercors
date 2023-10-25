@@ -388,7 +388,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit subject: SubjectContext): PVLCommunicateSubject[G] = subject match {
-    case Subject0(name) => PVLThreadName(convert(name))
+    case Subject0(name) => PVLEndpointName(convert(name))
     case Subject1(family, _, expr, _) => ??(subject)
     case Subject2(family, _, binder, _, start, _, end, _) => ??(subject)
   }
