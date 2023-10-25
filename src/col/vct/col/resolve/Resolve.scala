@@ -279,9 +279,12 @@ case object ResolveReferences extends LazyLogging {
       .declare(cls.declarations)
     case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
-      .declare(seqProg.methods)
+      .declare(seqProg.decls)
       .declare(seqProg.threads)
-      .declare(seqProg.progArgs)
+      .declare(seqProg.args)
+    case seqProg: PVLSeqProg[G] => ctx
+      .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
+      .declare(seqProg.declarations)
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)

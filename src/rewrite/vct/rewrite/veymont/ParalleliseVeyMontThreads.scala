@@ -81,7 +81,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     seqProg.threads.foreach(thread => {
       val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.t)), Set.empty)(thread.o)
       val channelFields = getChannelFields(thread, indexedChannelInfo, channelClasses)
-      threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.runMethod, seqProg.methods, channelFields, channelClasses, thread, threadField)) {
+      threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.run, seqProg.decls, channelFields, channelClasses, thread, threadField)) {
         dispatch(thread)
       }
     })
@@ -265,13 +265,13 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
   }
 
   private def collectChannelsFromRun(seqProg: SeqProg[Pre]) =
-    seqProg.runMethod match {
+    seqProg.run match {
       case r: RunMethod[Pre] => getChannelsFromBody(r.body, r)
       case other => throw ParalliseEndpointsError(other, "seq_program run method expected")
     }
 
   private def collectChannelsFromMethods(seqProg: SeqProg[Pre]) =
-    seqProg.methods.flatMap {
+    seqProg.decls.flatMap {
       case m: InstanceMethod[Pre] => getChannelsFromBody(m.body, m)
       case other => throw ParalliseEndpointsError(other, "seq_program method expected")
     }

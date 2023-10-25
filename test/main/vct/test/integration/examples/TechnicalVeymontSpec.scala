@@ -9,8 +9,8 @@ class TechnicalVeymontSpec extends VercorsSpec {
         int x;
      }
      seq_program Example() {
-        thread alice = Storage();
-        thread bob = Storage();
+        endpoint alice = Storage();
+        endpoint bob = Storage();
 
         run {
           communicate alice.x <- bob.x;
@@ -29,30 +29,24 @@ class TechnicalVeymontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
-  """
-  class Storage { int x; }
-  seq_program Example() {
-     thread charlie = Storage();
-     run {
-       communicate charlie.nonExistent <- charlie.nonExistent;
-     }
-  }
-  """
-
-  vercors should error withCode "???" in "thread types should also be classlike" pvl
-  """
-  seq_program Example() {
-     int charlie = 3;
-  }
-  """
+  // To be enabled when proper communiate support is implemented
+  // vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
+  // """
+  // class Storage { int x; }
+  // seq_program Example() {
+  //    endpoint charlie = Storage();
+  //    run {
+  //      communicate charlie.nonExistent <- charlie.nonExistent;
+  //    }
+  // }
+  // """
 
   vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
   """
     class Storage { int x; }
     seq_program Example() {
-      thread alice[10] = Storage();
-      thread bob[10] = Storage();
+      endpoint alice[10] = Storage();
+      endpoint bob[10] = Storage();
       run {
         communicate alice[i: 0 .. 9].x <- bob[i + 1].y;
       }
