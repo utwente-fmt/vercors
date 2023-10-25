@@ -116,14 +116,13 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
   }
 
 
-  //try to infer the context if the startendlines already exist
   def getContext: Option[Context] = {
     originContents.flatMap {
       case Context(any) => Seq(Context(any))
       case _ => Nil
     } match {
       case Seq(Context(any)) => Some(Context(any))
-      case _ =>
+      case _ => // if there is no context, try to infer it
         Some(Context(InputOrigin.contextLines(
           getReadable.getOrElse(return None).readable,
           getStartEndLines.getOrElse(return None).startEndLineIdx._1,
