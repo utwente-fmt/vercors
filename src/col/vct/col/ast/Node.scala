@@ -108,10 +108,12 @@ final case class TMatrix[G](element: Type[G])(implicit val o: Origin = Diagnosti
 sealed trait PrimitiveType[G] extends Type[G] with PrimitiveTypeImpl[G]
 final case class TAny[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TAnyImpl[G]
 final case class TNothing[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TNothingImpl[G]
+final case class TAnyValue[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TAnyValueImpl[G]
 final case class TVoid[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TVoidImpl[G]
 final case class TNull[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TNullImpl[G]
 final case class TBool[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TBoolImpl[G]
 final case class TResource[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TResourceImpl[G]
+final case class TResourceVal[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TResourceValImpl[G]
 final case class TChar[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TCharImpl[G]
 final case class TString[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TStringImpl[G]
 final case class TRef[G]()(implicit val o: Origin = DiagnosticOrigin) extends PrimitiveType[G] with TRefImpl[G]
@@ -335,11 +337,14 @@ final case class CoercionSequence[G](coercions: Seq[Coercion[G]])(implicit val o
 
 final case class CoerceNothingSomething[G](target: Type[G])(implicit val o: Origin) extends Coercion[G] with NothingSomethingImpl[G]
 final case class CoerceSomethingAny[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with SomethingAnyImpl[G]
+final case class CoerceSomethingAnyValue[G](source: Type[G])(implicit val o: Origin) extends Coercion[G] with SomethingAnyValueImpl[G]
 
 final case class CoerceJoinUnion[G](inner: Seq[Coercion[G]], source: Seq[Type[G]], target: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceJoinUnionImpl[G]
 final case class CoerceSelectUnion[G](inner: Coercion[G], source: Type[G], targetAlts: Seq[Type[G]], index: Int)(implicit val o: Origin) extends Coercion[G] with CoerceSelectUnionImpl[G]
 
 final case class CoerceBoolResource[G]()(implicit val o: Origin) extends Coercion[G] with CoerceBoolResourceImpl[G]
+final case class CoerceResourceResourceVal[G]()(implicit val o: Origin) extends Coercion[G] with CoerceResourceResourceValImpl[G]
+final case class CoerceResourceValResource[G]()(implicit val o: Origin) extends Coercion[G] with CoerceResourceValResourceImpl[G]
 
 final case class CoerceNullRef[G]()(implicit val o: Origin) extends Coercion[G] with CoerceNullRefImpl[G]
 final case class CoerceNullArray[G](arrayElementType: Type[G])(implicit val o: Origin) extends Coercion[G] with CoerceNullArrayImpl[G]
@@ -573,6 +578,9 @@ final case class ValidMatrix[G](mat: Expr[G], w: Expr[G], h: Expr[G])(implicit v
 
 final case class PermPointer[G](p: Expr[G], len: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermPointerImpl[G]
 final case class PermPointerIndex[G](p: Expr[G], idx: Expr[G], perm: Expr[G])(implicit val o: Origin) extends Expr[G] with PermPointerIndexImpl[G]
+
+final case class ResourceOfResourceValue[G](res: Expr[G])(implicit val o: Origin) extends Expr[G] with ResourceOfResourceValueImpl[G]
+final case class ResourceValue[G](res: Expr[G])(implicit val o: Origin) extends Expr[G] with ResourceValueImpl[G]
 
 sealed trait Comparison[G] extends BinExpr[G] with ComparisonImpl[G]
 final case class Eq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Comparison[G] with EqImpl[G]

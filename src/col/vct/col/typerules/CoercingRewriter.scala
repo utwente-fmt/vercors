@@ -69,6 +69,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
+      case CoerceSomethingAnyValue(_) => e
       case CoerceMapOption(inner, _, target) =>
         Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
@@ -167,6 +168,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ???
 
       case CoerceBoolResource() => e
+      case CoerceResourceResourceVal() => e
+      case CoerceResourceValResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
@@ -1266,6 +1269,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ReadPerm()
       case RemoveAt(xs, i) =>
         RemoveAt(seq(xs)._1, int(i))
+      case ResourceOfResourceValue(r) =>
+        ResourceOfResourceValue(coerce(r, TResourceVal()))
+      case ResourceValue(r) =>
+        ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
       case s @ Scale(scale, r) =>
@@ -1556,11 +1563,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Z3SeqLen(arg) => Z3SeqLen(z3seq(arg)._1)
       case Z3SeqMap(f, seq) =>
         val (cf, arrt) = smtarr(f)
-        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAny()), arrt.value))
+        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAnyValue()), arrt.value))
         Z3SeqMap(cf, coerce(seq, TSmtlibSeq(arrt.index.head)))
       case Z3SeqMapI(f, offset, seq) =>
         val (cf, arrt) = smtarr(f)
-        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAny()), arrt.value))
+        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAnyValue()), arrt.value))
         Z3SeqMapI(cf, int(offset), coerce(seq, TSmtlibSeq(arrt.index(1))))
       case Z3SeqNth(seq, offset) => Z3SeqNth(z3seq(seq)._1, int(offset))
       case Z3SeqPrefixOf(pre, subseq) => Z3SeqPrefixOf(z3seq(pre)._1, z3seq(subseq)._1)

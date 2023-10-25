@@ -49,7 +49,8 @@ case object ImportADT {
     case TBag(element) => "bag_" + typeText(element)
     case TMatrix(element) => "mat_" + typeText(element)
     case TType(t) => "typ_" + typeText(t)
-    case TAny() => "any"
+    case TAny() => "top"
+    case TAnyValue() => "any"
     case TNothing() => "nothing"
     case TNull() => "null"
     case TResource() => "res"
