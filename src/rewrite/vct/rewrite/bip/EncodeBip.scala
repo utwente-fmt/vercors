@@ -99,11 +99,11 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   }
 
   case class OverwritingBipResultError() extends SystemError {
-    override def text: String = "Oh no overwriting bip stuff"
+    override def text: String = messageContext("Oh no overwriting bip stuff")
   }
 
   case class UnexpectedBipResultError() extends SystemError {
-    override def text: String = "Oh no unexpected bip stuff"
+    override def text: String = messageContext("Oh no unexpected bip stuff")
   }
 
   private def DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]): Origin = {

@@ -128,9 +128,11 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     Group(show).toStringWithContext
   }
 
-
-  def messageInContext(node: Node[_], message: String): String = {
+  def bareMessageInContext(node: Node[_], message: String): String = {
     implicit val ctx: Ctx = Ctx().namesIn(this)
-    BOLD_HR + this.show.highlight(node).strip() + "\n" + HR + message + "\n" + BOLD_HR
+    this.show.highlight(node).strip() + "\n" + HR + message + "\n"
   }
+
+  def messageInContext(node: Node[_], message: String): String =
+    BOLD_HR + bareMessageInContext(node, message) + BOLD_HR
 }

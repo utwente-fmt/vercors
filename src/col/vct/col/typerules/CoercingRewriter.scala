@@ -18,12 +18,14 @@ case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre
 case object CoercingRewriter {
   sealed trait CoercionError extends SystemError {
     override def text: String =
-      "Internal type error: CoercionErrors must not bubble. " + (this match {
-        case IncoercibleDummy => "(No alternative matched, see stack trace)"
-        case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
-        case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
-        case IncoercibleExplanation(e, message) => s"At `$e`: $message"
-      })
+      messageContext(
+        "Internal type error: CoercionErrors must not bubble. " + (this match {
+          case IncoercibleDummy => "(No alternative matched, see stack trace)"
+          case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
+          case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
+          case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+        })
+      )
   }
 
   case object IncoercibleDummy extends CoercionError

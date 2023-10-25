@@ -18,21 +18,21 @@ import scala.util.Try
 object Scopes {
   case class WrongDeclarationCount(kind: ClassTag[_], count: Int) extends SystemError {
     override def text: String =
-      s"Expected exactly one declaration of kind ${kind.runtimeClass.getSimpleName}, but got $count."
+      messageContext(s"Expected exactly one declaration of kind ${kind.runtimeClass.getSimpleName}, but got $count.")
   }
 
   case class NoScope(kind: ClassTag[_]) extends SystemError {
     override def text: String =
-      s"There is no scope to place a declaration of kind ${kind.runtimeClass.getSimpleName} in."
+      messageContext(s"There is no scope to place a declaration of kind ${kind.runtimeClass.getSimpleName} in.")
   }
 
   case class DuplicateSuccessor(pre: Declaration[_], firstPost: Declaration[_], secondPost: Declaration[_]) extends SystemError {
     override def text: String =
-      Origin.messagesInContext(Seq(
-        firstPost.o -> "This declaration already succeeds ...",
-        pre.o -> "... this declaration, but is additionally succeeded by ...",
-        secondPost.o -> "... this declaration.",
-      ))
+      Seq(
+        firstPost.toString + "\n" + Origin.HR + "This declaration already succeeds ...\n",
+        CurrentProgramContext.bareNodeContext(this, pre, "... this declaration, but is additionally succeeded by ...") + "\n",
+        secondPost.toString + "\n" + Origin.HR + "... this declaration.\n",
+      ).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
   }
 
   case class NoSuccessor(pre: Declaration[_]) extends SystemError {

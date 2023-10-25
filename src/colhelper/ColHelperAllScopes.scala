@@ -4,11 +4,20 @@ case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
   def make(): List[(String, List[Stat])] = List("AllScopes" -> q"""
     import vct.col.util.Scopes
     import scala.reflect.ClassTag
+    import scala.util.Try
     import vct.result.VerificationError.SystemError
 
     case object AllScopes {
       case class InconsistentSuccessionTypes(left: Declaration[_], right: Declaration[_]) extends SystemError {
-        override def text: String = "The declaration kinds of these declarations do not match"
+        override def text: String = {
+          val leftMessage = context[vct.col.util.CurrentRewriteProgramContext].map {
+            ctx => left.bareMessageInContext(ctx.program, "The kind of this declaration does not match ...")
+          } getOrElse left.o.bareMessageInContext("The kind of this declaration does not match ...")
+
+          val rightMessage = right.toString + Origin.HR + "... the kind of this declaration, so it may not be succeeded by this declaration."
+
+          Origin.BOLD_HR + leftMessage + Origin.HR + rightMessage + Origin.BOLD_HR
+        }
       }
     }
 
