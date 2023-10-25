@@ -120,8 +120,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
     case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
     case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
-    case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
+    case decl: CPPGlobalDeclaration[Pre] =>
+      cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
+    case pred: Predicate[Pre] => {
+      cpp.storePredicate(pred)
+      rewriteDefault(pred)
+    }
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
     case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)

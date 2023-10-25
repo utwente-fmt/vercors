@@ -22,10 +22,10 @@ class SYCLSpec extends VercorsSpec {
 //  vercors should verify using silicon example "concepts/sycl/accessors/writeToReadWriteAccessor.cpp"
 
   vercors should verify using silicon example "concepts/sycl/buffers/allBufferTypes.cpp"
-//  vercors should verify using silicon example "concepts/sycl/buffers/readDataOutsideBuffer.cpp"
+  vercors should fail withCode "ptrPerm" using silicon example "concepts/sycl/buffers/readDataInBufferScope.cpp"
   vercors should verify using silicon example "concepts/sycl/buffers/releaseFromBuffer.cpp"
-  vercors should error withCode "bufferCopyLoopInvariantFailure" example "concepts/sycl/buffers/tooBigBuffer.cpp"
+  vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/tooBigBuffer.cpp"
   vercors should verify using silicon example "concepts/sycl/buffers/tooSmallBuffer.cpp"
-  vercors should error withCode "bufferCopyLoopInvariantFailure" example "concepts/sycl/buffers/twoBuffersForSameData.cpp"
-  vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/writeDataOutsideBuffer.cpp"
+  vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/twoBuffersForSameData.cpp"
+  vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/writeDataInBufferScope.cpp"
 }

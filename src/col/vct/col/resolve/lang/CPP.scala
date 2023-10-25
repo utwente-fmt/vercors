@@ -93,6 +93,11 @@ case object CPP {
           case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTBuffer(primitiveType, dim.intValue)
           case _ => throw CPPTypeNotSupported(context)
         }
+      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+        getBaseTypeFromSpecs(Seq(typ)) match {
+          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTAccessor(primitiveType, dim.intValue)
+          case _ => throw CPPTypeNotSupported(context)
+        }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
       case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ
@@ -156,7 +161,7 @@ case object CPP {
       case target: RefCPPFunctionDefinition[G] if target.name == nameFromDeclarator(declarator) => target
     }
 
-  private def getParamTypes[G](ref: CPPInvocationTarget[G]): Seq[Type[G]] = ref match {
+  def getParamTypes[G](ref: CPPInvocationTarget[G]): Seq[Type[G]] = ref match {
     case globalDeclRef: RefCPPGlobalDeclaration[G] if globalDeclRef.decls.decl.inits.size == 1 =>
       paramsFromDeclarator(globalDeclRef.decls.decl.inits.head.decl).map(param => getBaseTypeFromSpecs(param.specifiers))
     case functionDeclRef: RefCPPFunctionDefinition[G] =>

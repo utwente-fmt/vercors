@@ -7,6 +7,7 @@ import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.resolve.lang.CPP
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
 import vct.col.{ast => col}
@@ -1149,7 +1150,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit arg: ValArgContext): Variable[G] = arg match {
-    case ValArg0(t, id) => new Variable(convert(t))(origin(arg).replacePrefName(convert(id)))
+    case ValArg0(paramDecl) => {
+      val param = convert(paramDecl)
+      new Variable(CPP.typeOrReturnTypeFromDeclarator(param.specifiers, param.declarator))(origin(arg).replacePrefName(CPP.nameFromDeclarator(param.declarator)))
+    }
   }
 
   def convert(implicit args: ValArgListContext): Seq[Variable[G]] = args match {
