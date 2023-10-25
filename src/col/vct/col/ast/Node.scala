@@ -130,6 +130,7 @@ sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TModelImpl[G]
 final case class TClass[G](cls: Ref[G, Class[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TClassImpl[G]
 final case class TSeqProg[G](cls: Ref[G, SeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TSeqProgImpl[G]
+final case class TPVLSeqProg[G](cls: Ref[G, PVLSeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
 final case class TEndpoint[G](cls: Ref[G, Endpoint[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TEndpointImpl[G]
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
@@ -1210,7 +1211,9 @@ final case class PVLNew[G](t: Type[G], args: Seq[Expr[G]], givenMap: Seq[(Ref[G,
 
 sealed trait PVLClassDeclaration[G] extends ClassDeclaration[G] with PVLClassDeclarationImpl[G]
 final class PVLConstructor[G](val contract: ApplicableContract[G], val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends PVLClassDeclaration[G] with PVLConstructorImpl[G]
-final class PVLEndpoint[G](val t: Type[G], val args: Seq[Expr[G]])(implicit val o: Origin) extends ClassDeclaration[G]
+final class PVLEndpoint[G](val name: String, val t: Type[G], val args: Seq[Expr[G]])(implicit val o: Origin) extends ClassDeclaration[G]
+
+final class PVLSeqProg[G](val name: String, val declarations: Seq[ClassDeclaration[G]], val contract: ApplicableContract[G], val args: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with PVLSeqProgImpl[G] with Declarator[G]
 
 sealed trait PVLCommunicateSubject[G] extends NodeFamily[G] with PVLCommunicateSubjectImpl[G]
 case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLEndpointNameImpl[G] {

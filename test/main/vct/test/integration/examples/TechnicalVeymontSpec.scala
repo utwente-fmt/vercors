@@ -52,4 +52,19 @@ class TechnicalVeymontSpec extends VercorsSpec {
       }
     }
   """
+
+  vercors should error withCode "noRunMethod" in "run method should always be present" pvl
+  """
+  seq_program Example() { }
+  """.stripMargin
+
+  vercors should error withCode "forbiddenEndpointType" in "endpoints can only have class types" pvl
+  """
+  seq_program Example() {
+    endpoint alice = int();
+    run {
+
+    }
+  }
+  """.stripMargin
 }

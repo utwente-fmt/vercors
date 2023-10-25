@@ -68,6 +68,7 @@ case object ImportADT {
     case TProverType(Ref(t)) => t.o.getPreferredNameOrElse()
     case TSYCLQueue() => "syclqueue"
     case TSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
+    case TPVLSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
     case TSmtlibArray(index, value) => "smtarr" + (index :+ value).map(typeText).mkString("$" , "__", "$")
     case TSmtlibBitVector(size) => s"bitvec$size"
     case TSmtlibFloatingPoint(e, m) => s"fp_${e}_$m"
