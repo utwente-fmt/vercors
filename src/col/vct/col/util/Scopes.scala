@@ -13,6 +13,7 @@ import vct.result.VerificationError.SystemError
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object Scopes {
   case class WrongDeclarationCount(kind: ClassTag[_], count: Int) extends SystemError {
@@ -36,25 +37,18 @@ object Scopes {
 
   case class NoSuccessor(pre: Declaration[_]) extends SystemError {
     override def text: String = {
-      (
-        getContext[CurrentProgramCheckContext],
-        getContext[CurrentCheckNodeContext],
-        getContext[CurrentProgramRewriteContext],
-        getContext[ConstructingSuccessorOfContext],
-      ) match {
-        case (
-          Some(CurrentProgramCheckContext(useProgram)),
-          Some(CurrentCheckNodeContext(useNode)),
-          Some(CurrentProgramRewriteContext(predProgram)),
-          Some(ConstructingSuccessorOfContext(predDecl)),
-        ) =>
-          Doc.messagesInContext(Seq(
-            (predProgram, predDecl, "A reference to the successor of this declaration was made, ..."),
-            (useProgram, useNode, "... but it has no successor in this position.")
-          ))
-        case _ => pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
+      Try {
+        val useProgram = getContext[CurrentCheckProgramContext].program
+        val useNode = getContext[CurrentCheckNodeContext].node
+        val predProgram = getContext[CurrentRewriteProgramContext].program
+        val predDecl = getContext[ConstructingSuccessorOfContext].decl
+        Doc.messagesInContext(Seq(
+          (predProgram, predDecl, "A reference to the successor of this declaration was made, ..."),
+          (useProgram, useNode, "... but it has no successor in this position.")
+        ))
+      } getOrElse {
+        pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
       }
-
     }
   }
 }

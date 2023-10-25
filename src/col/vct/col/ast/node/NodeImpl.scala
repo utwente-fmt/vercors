@@ -52,7 +52,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     if(childrenErrors.nonEmpty) {
       childrenErrors
     } else {
-      VerificationError.context(CurrentCheckNodeContext(this)) {
+      VerificationError.withContext(CurrentCheckNodeContext(this)) {
         check(context)
       }
     }
