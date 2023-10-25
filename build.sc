@@ -132,6 +132,17 @@ object util {
 
   trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
     def scalaPBVersion = "0.11.11"
+
+    override def scalaPBClasspath: T[mill.api.Loose.Agg[PathRef]] = T {
+      mill.scalalib.Lib.resolveDependencies(
+        Seq(
+          coursier.LocalRepositories.ivy2Local,
+          coursier.MavenRepository("https://repo1.maven.org/maven2")
+        ),
+        Seq(ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}")
+          .map(Lib.depToBoundDep(_, "2.13.1"))
+      ).map(_.map(_.withRevalidateOnce))
+    }
   }
 
   trait SeparatePackedResourcesModule extends JavaModule {

@@ -26,8 +26,8 @@ case class ResolveExpressionSideChecks[Pre <: Generation]() extends Rewriter[Pre
   lazy val withEval: Function[Post] = {
     implicit val o: Origin = EvalCheckFunction()
 
-    val t = new Variable[Post](TType(TAny()))(EvalCheckFunction("T"))
-    val checkValue = new Variable[Post](TAny())(EvalCheckFunction("checkedValue"))
+    val t = new Variable[Post](TType(TAnyValue()))(EvalCheckFunction("T"))
+    val checkValue = new Variable[Post](TAnyValue())(EvalCheckFunction("checkedValue"))
     val value = new Variable[Post](TVar(t.ref))(EvalCheckFunction("value"))
 
     globalDeclarations.declare(function[Post](
@@ -43,9 +43,9 @@ case class ResolveExpressionSideChecks[Pre <: Generation]() extends Rewriter[Pre
   lazy val thenEval: Function[Post] = {
     implicit val o: Origin = EvalCheckFunction()
 
-    val t = new Variable[Post](TType(TAny()))(EvalCheckFunction("T"))
+    val t = new Variable[Post](TType(TAnyValue()))(EvalCheckFunction("T"))
     val value = new Variable[Post](TVar(t.ref))(EvalCheckFunction("value"))
-    val checkValue = new Variable[Post](TAny())(EvalCheckFunction("checkedValue"))
+    val checkValue = new Variable[Post](TAnyValue())(EvalCheckFunction("checkedValue"))
 
     globalDeclarations.declare(function[Post](
       blame = PanicBlame("theneval ensures nothing"),

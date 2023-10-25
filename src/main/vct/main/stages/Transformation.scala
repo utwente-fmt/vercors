@@ -22,7 +22,7 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.HeapVariableToRef
+import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
 
 object Transformation {
@@ -211,6 +211,8 @@ case class SilverTransformation
     InlineApplicables,
     PureMethodsToFunctions,
     RefuteToInvertedAssert,
+    ExplicitResourceValues,
+    EncodeResourceValues,
 
     // Encode parallel blocks
     EncodeSendRecv,

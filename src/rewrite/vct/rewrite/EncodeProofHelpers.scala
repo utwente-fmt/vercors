@@ -64,7 +64,7 @@ case class EncodeProofHelpers[Pre <: Generation](inferHeapContextIntoFrame: Bool
       implicit val o: Origin = stat.o
 
       val beforeLabel = new LabelDecl[Post]()(Before)
-      val locValue = new Variable[Post](TAny())(BeforeVar("x"))
+      val locValue = new Variable[Post](TAnyValue())(BeforeVar("x"))
       val allLocationsSame =
         ForPermWithValue(locValue, locValue.get === Old(locValue.get, Some(beforeLabel.ref))(PanicBlame("loop body reached after label before it")))
       val allLocationsSameOnInhale =
