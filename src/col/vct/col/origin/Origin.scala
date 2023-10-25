@@ -208,13 +208,17 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
-  def messageInContext(message: String): String = {
+  def bareMessageInContext(message: String): String = {
     val contextMessage = getContext match {
       case Some(value) => value.context.strip()
       case None => "[unknown context]"
     }
-    BOLD_HR + contextMessage + "\n" + HR + message + "\n" + BOLD_HR
+
+    contextMessage + "\n" + HR + message + "\n"
   }
+
+  def messageInContext(message: String): String =
+    BOLD_HR + bareMessageInContext(message) + BOLD_HR
 
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)

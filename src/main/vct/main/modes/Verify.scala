@@ -2,7 +2,7 @@ package vct.main.modes
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
-import hre.io.Readable
+import hre.io.{CollectString, Readable}
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.col.rewrite.bip.BIP
@@ -72,8 +72,11 @@ case object Verify extends LazyLogging {
     }
 
     verifyWithOptions(options, options.inputs) match {
-      case Left(err) =>
+      case Left(err: VerificationError.UserError) =>
         logger.error(err.text)
+        EXIT_CODE_ERROR
+      case Left(err: VerificationError.SystemError) =>
+        logger.error(CollectString(s => err.printStackTrace(s)))
         EXIT_CODE_ERROR
       case Right((Nil, report)) =>
         logger.info("Verification completed successfully.")

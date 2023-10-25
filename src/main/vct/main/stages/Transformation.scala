@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{SimplificationRule, Verification}
+import vct.col.ast.{SimplificationRule, Verification, Program}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -26,9 +26,11 @@ import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableTo
 import vct.rewrite.lang.ReplaceSYCLTypes
 
 object Transformation {
-  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
     override def text: String =
-      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
+      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map {
+        case (program, err) => err.message(program.messageInContext)
+      }.mkString("\n")
   }
 
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
@@ -120,7 +122,7 @@ class Transformation
 
         result = pass().dispatch(result)
 
-        result.check match {
+        result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
           case Nil => // ok
           case errors => throw TransformationCheckError(pass, errors)
         }

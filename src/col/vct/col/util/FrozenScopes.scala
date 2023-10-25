@@ -22,7 +22,7 @@ class FrozenScopes[Pre, Post, PreDecl <: Declaration[Pre], PostDecl <: Declarati
   override def computeSucc(decl: PreDecl): Option[PostDecl] = scopes.collectFirst { case m if m.contains(decl) => m(decl) }
 
   override def succ[RefDecl <: Declaration[Post]](decl: PreDecl)(implicit tag: ClassTag[RefDecl]): Ref[Post, RefDecl] =
-    VerificationError.context(ConstructingSuccessorOfContext(decl)) {
+    VerificationError.withContext(ConstructingSuccessorOfContext(decl)) {
       TimeTravel.cause { causeIdx =>
         new LazyRef(computeSucc(decl).getOrElse(TimeTravel.badEffect(causeIdx, throw Scopes.NoSuccessor(decl))), Some(EqualityMeasure(this, decl)))
       }
