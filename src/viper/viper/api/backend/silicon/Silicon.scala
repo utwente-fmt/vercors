@@ -69,7 +69,7 @@ case class Silicon(
       l.setAdditive(false) // Prevent bubbling up
       l.addAppender(la)
 
-      intermediatePrinterTimer = new Timer()
+      intermediatePrinterTimer = new Timer("[VerCors] Silicon quantifier report timer")
       intermediatePrinterTimer.schedule(new TimerTask {
         override def run(): Unit = shortQuantifierReport()
       }, 5000, 5000)
@@ -199,6 +199,7 @@ case class Silicon(
 
   override def stopVerifier(verifier: Verifier): Unit = {
     verifier.stop()
+    SiliconLogListener.logs.foreach(_.done())
     // SymbExLogger.reset()
 
     if (printQuantifierStatistics) {

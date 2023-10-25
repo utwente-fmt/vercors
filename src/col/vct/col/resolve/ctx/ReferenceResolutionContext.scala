@@ -34,6 +34,14 @@ case class ReferenceResolutionContext[G]
   def declare(decls: Seq[Declaration[G]]): ReferenceResolutionContext[G] =
     copy(stack = decls.flatMap(Referrable.from) +: stack)
 
+  def withCheckContext(ctx: CheckContext[G]): ReferenceResolutionContext[G] = {
+    val filter = ctx.undeclared.flatten.flatMap(Referrable.from).toSet
+    copy(
+      checkContext = ctx,
+      stack = stack.map(_.filter(!filter.contains(_)))
+    )
+  }
+
   /* State predicates names are saved as expr's here because at the time this method is called, fields are not yet resolved.
      E.g. if in the code it says "@Guard(name = INIT)", where INIT is some static field, in the ast INIT is a LocalVariable.
      It is only after recursively visiting this annotation that INIT is resolved to a static field. So we save the expr

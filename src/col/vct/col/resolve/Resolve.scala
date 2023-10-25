@@ -196,14 +196,14 @@ case object ResolveReferences extends LazyLogging {
 
     val childErrors = node match {
       case l @ Let(binding, value, main) =>
-        val innerCtx = enterContext(node, ctx, inGPU).copy(checkContext = l.enterCheckContext(ctx.checkContext))
+        val innerCtx = enterContext(node, ctx, inGPU).withCheckContext(l.enterCheckContext(ctx.checkContext))
         resolve(binding, innerCtx) ++
         resolve(value, ctx) ++
         resolve(main, innerCtx)
       case _ =>
         val innerCtx = enterContext(node, ctx, inGPU)
         node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
-          resolve(node, innerCtx.copy(checkContext = ctx), inGPU)
+          resolve(node, innerCtx.withCheckContext(ctx), inGPU)
         }).flatten
     }
 
