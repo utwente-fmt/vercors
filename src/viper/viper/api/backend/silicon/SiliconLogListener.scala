@@ -52,7 +52,7 @@ class SiliconMemberLogListener(log: SiliconLogListener, member: Member, pcs: Pat
   var branchConditions: List[BranchCondition] = List()
   var branchUpdates: Int = 0
 
-  var timer = new Timer()
+  var timer = new Timer("[VerCors] Silicon stuck report timer")
   var currentTimerTask: Option[TimerTask] = None
 
   def siliconProgress(): Unit = {

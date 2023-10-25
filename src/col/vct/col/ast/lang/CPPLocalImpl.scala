@@ -1,14 +1,14 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CPPLocal, CPPPrimitiveType, TEnum, Type}
-import vct.col.print.{Ctx, Doc, Text}
+import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.typerules.Types
 
 trait CPPLocalImpl[G] { this: CPPLocal[G] =>
   override lazy val t: Type[G] = ref.get match {
-    case ref: RefCPPParam[G] => CPP.typeOrReturnTypeFromDeclaration(ref.decl.specifiers, ref.decl.declarator)
+    case ref: RefCPPParam[G] => CPP.typeOrReturnTypeFromDeclarator(ref.decl.specifiers, ref.decl.declarator)
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case RefVariable(decl) => decl.t
     case ref: RefCPPFunctionDefinition[G] => Types.notAValue(ref)
@@ -31,5 +31,6 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
   }
 
-  override def layout(implicit ctx: Ctx): Doc = Text(name)
+  override def layout(implicit ctx: Ctx): Doc = Group(Text(name) <>
+    (if (genericArg.isDefined) (Text("<") <> Text(genericArg.get.toString) <> Text(">")) else Text("")))
 }

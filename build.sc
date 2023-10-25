@@ -31,7 +31,9 @@ object settings {
 
 object util {
   trait JavaModule extends BaseJavaModule {
-    override def forkArgs = Seq("-Xmx2G", "-Xss20m")
+    // https://github.com/viperproject/silicon/issues/748
+    // 32MB is enough stack space for silicon, a 100% marco guarantee
+    override def forkArgs = Seq("-Xmx2G", "-Xss32m")
 
     def classPathFileElements = T { runClasspath().map(_.path.toString) }
 
@@ -130,6 +132,17 @@ object util {
 
   trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
     def scalaPBVersion = "0.11.11"
+
+    override def scalaPBClasspath: T[mill.api.Loose.Agg[PathRef]] = T {
+      mill.scalalib.Lib.resolveDependencies(
+        Seq(
+          coursier.LocalRepositories.ivy2Local,
+          coursier.MavenRepository("https://repo1.maven.org/maven2")
+        ),
+        Seq(ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}")
+          .map(Lib.depToBoundDep(_, "2.13.1"))
+      ).map(_.map(_.withRevalidateOnce))
+    }
   }
 
   trait SeparatePackedResourcesModule extends JavaModule {
@@ -368,6 +381,7 @@ object util {
       os.proc("git", "config", "advice.detachedHead", "false").call(cwd = T.dest)
       os.proc("git", "checkout", "FETCH_HEAD").call(cwd = T.dest)
       os.walk(T.dest).foreach(_.toIO.setWritable(true))
+      os.remove.all(T.dest / ".git")
       T.dest
     }
   }
@@ -401,11 +415,21 @@ object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
     def commitish = T { "ae4a12399cd0b42bedabf01be2cda93700244bd6" }
+    def filteredRepo = T {
+      val workspace = repo()
+      os.remove.all(workspace / "src" / "test")
+      workspace
+    }
   }
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
     def commitish = T { "a60324dd46923b861bae7b4a40f807227d693fc3" }
+    def filteredRepo = T {
+      val workspace = repo()
+      os.remove.all(workspace / "src" / "test")
+      workspace
+    }
   }
 
   object carbonGit extends GitModule {
@@ -417,7 +441,7 @@ object viper extends ScalaModule {
     override def scalaVersion = "2.13.10"
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = silverGit
-    override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
+    override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
       ivy"org.scala-lang:scala-reflect:2.13.10",
       ivy"org.scalatest::scalatest:3.1.2",
@@ -448,20 +472,20 @@ object viper extends ScalaModule {
     object common extends ScalaModule {
       override def scalaVersion = "2.13.10"
       override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
-      override def sources = T.sources { silicon.repo.repo() / "common" / "src" / "main" / "scala" }
+      override def sources = T.sources { silicon.repo.filteredRepo() / "common" / "src" / "main" / "scala" }
       override def moduleDeps = Seq(silver)
     }
 
     override def scalaVersion = "2.13.10"
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = siliconGit
-    override def sources = T.sources { repo.repo() / "src" / "main" / "scala" }
+    override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
     override def ivyDeps = settings.deps.log ++ Agg(
       ivy"org.apache.commons:commons-pool2:2.9.0",
       ivy"io.spray::spray-json:1.3.6",
     )
     override def resources = T.sources {
-      repo.repo() / "src" / "main" / "resources"
+      repo.filteredRepo() / "src" / "main" / "resources"
     }
     override def unmanagedClasspath = Agg(external.z3.classPath())
     override def moduleDeps = Seq(silver, common, buildInfo)

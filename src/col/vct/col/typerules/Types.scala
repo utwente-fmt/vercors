@@ -47,7 +47,7 @@ object Types {
     case (TMap(leftK, leftV), TMap(rightK, rightV)) =>
       // Map is not covariant in the key, so if the keys are inequal the best we can do is Any
       if(leftK == rightK) TMap(leftK, leastCommonSuperType(leftV, rightV))
-      else TAny()
+      else TAnyValue()
     case (TType(left), TType(right)) =>
       TType(leastCommonSuperType(left, right))
 
@@ -83,6 +83,10 @@ object Types {
     case (left, right) if TRational().superTypeOf(left) && TRational().superTypeOf(right) =>
       TRational()
 
-    case (_, _) => TAny()
+    case (left, right) if TAnyValue().superTypeOf(left) && TAnyValue().superTypeOf(right) =>
+      TAnyValue()
+
+    case (_, _) =>
+      TAny()
   }
 }

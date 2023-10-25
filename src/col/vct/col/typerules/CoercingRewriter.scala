@@ -18,12 +18,14 @@ case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre
 case object CoercingRewriter {
   sealed trait CoercionError extends SystemError {
     override def text: String =
-      "Internal type error: CoercionErrors must not bubble. " + (this match {
-        case IncoercibleDummy => "(No alternative matched, see stack trace)"
-        case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
-        case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
-        case IncoercibleExplanation(e, message) => s"At `$e`: $message"
-      })
+      messageContext(
+        "Internal type error: CoercionErrors must not bubble. " + (this match {
+          case IncoercibleDummy => "(No alternative matched, see stack trace)"
+          case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
+          case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
+          case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+        })
+      )
   }
 
   case object IncoercibleDummy extends CoercionError
@@ -67,6 +69,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
+      case CoerceSomethingAnyValue(_) => e
       case CoerceMapOption(inner, _, target) =>
         Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
@@ -165,6 +168,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ???
 
       case CoerceBoolResource() => e
+      case CoerceResourceResourceVal() => e
+      case CoerceResourceValResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
@@ -226,7 +231,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: CPPDeclarator[Pre] => node
     case node: CPPDeclarationSpecifier[Pre] => node
     case node: CPPDeclaration[Pre] => node
-    case node: CPPPointer[Pre] => node
+    case node: CPPAddressing[Pre] => node
     case node: CPPInit[Pre] => node
     case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
@@ -375,9 +380,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
   override final def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: CPPPointer[Pre]): CPPPointer[Pre] = node
-  def postCoerce(node: CPPPointer[Pre]): CPPPointer[Post] = rewriteDefault(node)
-  override final def dispatch(node: CPPPointer[Pre]): CPPPointer[Post] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = node
+  def postCoerce(node: CPPAddressing[Pre]): CPPAddressing[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPAddressing[Pre]): CPPAddressing[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
   def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
@@ -918,9 +923,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case CPPClassInstanceLocal(_, _) => e
+      case defn@CPPLambdaDefinition(contract, declarator, body) =>
+        CPPLambdaDefinition(contract, declarator, body)(defn.blame)
+      case CPPLambdaRef() => e
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
-      case CPPLocal(name) => e
+      case CPPLocal(_, _) => e
+      case SYCLRange(dims) => SYCLRange(dims)
+      case SYCLNDRange(globalRange, localRange) => SYCLNDRange(globalRange, localRange)
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
@@ -1258,6 +1269,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ReadPerm()
       case RemoveAt(xs, i) =>
         RemoveAt(seq(xs)._1, int(i))
+      case ResourceOfResourceValue(r) =>
+        ResourceOfResourceValue(coerce(r, TResourceVal()))
+      case ResourceValue(r) =>
+        ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
       case s @ Scale(scale, r) =>
@@ -1548,11 +1563,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Z3SeqLen(arg) => Z3SeqLen(z3seq(arg)._1)
       case Z3SeqMap(f, seq) =>
         val (cf, arrt) = smtarr(f)
-        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAny()), arrt.value))
+        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAnyValue()), arrt.value))
         Z3SeqMap(cf, coerce(seq, TSmtlibSeq(arrt.index.head)))
       case Z3SeqMapI(f, offset, seq) =>
         val (cf, arrt) = smtarr(f)
-        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAny()), arrt.value))
+        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAnyValue()), arrt.value))
         Z3SeqMapI(cf, int(offset), coerce(seq, TSmtlibSeq(arrt.index(1))))
       case Z3SeqNth(seq, offset) => Z3SeqNth(z3seq(seq)._1, int(offset))
       case Z3SeqPrefixOf(pre, subseq) => Z3SeqPrefixOf(z3seq(pre)._1, z3seq(subseq)._1)
@@ -1677,8 +1692,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         declaration
       case definition: CPPFunctionDefinition[Pre] =>
         definition
-      case namespace: CPPNamespaceDefinition[Pre] =>
-        namespace
       case declaration: CPPGlobalDeclaration[Pre] =>
         declaration
       case namespace: JavaNamespace[Pre] =>
@@ -1995,12 +2008,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = {
     implicit val o: Origin = node.o
     node match {
-      case CPPPointerDeclarator(pointers, inner) =>
-        CPPPointerDeclarator(pointers, inner)
+      case CPPAddressingDeclarator(pointers, inner) =>
+        CPPAddressingDeclarator(pointers, inner)
       case array @ CPPArrayDeclarator(inner, size) =>
         CPPArrayDeclarator(inner, size.map(int))(array.blame)
       case CPPTypedFunctionDeclarator(params, varargs, inner) =>
         CPPTypedFunctionDeclarator(params, varargs, inner)
+      case CPPLambdaDeclarator(params) =>
+        CPPLambdaDeclarator(params)
       case CPPName(name) =>
         CPPName(name)
     }
@@ -2019,9 +2034,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CPPSigned() => CPPSigned()
       case CPPUnsigned() => CPPUnsigned()
       case CPPBool() => CPPBool()
-      case CPPTypedefName(name) => CPPTypedefName(name)
+      case CPPTypedefName(name, arg) => CPPTypedefName(name, arg)
       case CPPSpecificationType(t) => CPPSpecificationType(t)
-      case SYCLQueue() => SYCLQueue()
+      case SYCLClassDefName(name, arg) => SYCLClassDefName(name, arg)
     }
   }
 
@@ -2031,10 +2046,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     CPPDeclaration(contract, specs, init)
   }
 
-  def coerce(node: CPPPointer[Pre]): CPPPointer[Pre] = {
+  def coerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = {
     implicit val o: Origin = node.o
-    val CPPPointer() = node
-    CPPPointer()
+    node match {
+      case CPPPointer() => CPPPointer()
+      case CPPReference() => CPPReference()
+    }
   }
 
   def coerce(node: CPPInit[Pre]): CPPInit[Pre] = {

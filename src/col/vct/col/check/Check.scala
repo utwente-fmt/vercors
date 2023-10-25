@@ -16,50 +16,47 @@ case object Check {
 }
 
 sealed trait CheckError {
-  override def toString: String = this match {
+  def message(context: (Node[_], String) => String): String = (this match {
     case TypeError(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
-      expr.o.messageInContext(s"This expression is not a value.")
+      Seq(context(expr, s"This expression is not a value."))
     case TypeErrorText(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
-      expr.o.messageInContext(s"This expression is not a value.")
+      Seq(context(expr, s"This expression is not a value."))
     case TypeError(expr, expectedType) =>
-      expr.o.messageInContext(s"Expected the type of this expression to be `$expectedType`, but got ${expr.t}.")
+      Seq(context(expr, s"Expected the type of this expression to be `$expectedType`, but got ${expr.t}."))
     case TypeErrorText(expr, expectedType) =>
-      expr.o.messageInContext(s"Expected the type of this expression to be $expectedType, but got ${expr.t}.")
+      Seq(context(expr, s"Expected the type of this expression to be $expectedType, but got ${expr.t}."))
     case TypeErrorExplanation(expr, message) =>
-      expr.o.messageInContext(message)
+      Seq(context(expr, message))
     case GenericTypeError(t, expectedType) =>
-      t.o.messageInContext(s"This type variable refers to a name that is not actually a type.")
+      Seq(context(t, s"This type variable refers to a name that is not actually a type."))
     case OutOfScopeError(use, ref) =>
-      Origin.messagesInContext(Seq(
-        (use.o, "This usage is out of scope,"),
-        (ref.decl.o, "since it is declared here.")
-      ))
+      Seq(context(use, "This usage is out of scope,"), context(ref.decl, "since it is declared here."))
     case OutOfWriteScopeError(reason, use, ref) =>
-      Origin.messagesInContext(Seq(
-        (use.o, "This may not be rewritten to, since ..."),
-        (reason.o, "declarations outside this node must not be altered, and ..."),
-        (ref.decl.o, "... it is declared here.")
-      ))
+      Seq(
+        context(use, "This may not be rewritten to, since ..."),
+        context(reason, "declarations outside this node must not be altered, and ..."),
+        context(ref.decl, "... it is declared here."),
+      )
     case DoesNotDefine(declarator, declaration, use) =>
-      Origin.messagesInContext(Seq(
-        (use.o, "This uses a declaration, which is declared"),
-        (declaration.o, "here, but it was expected to be declared"),
-        (declarator.o, "in this declarator."),
-      ))
+      Seq(
+        context(use, "This uses a declaration, which is declared"),
+        context(declaration, "here, but it was expected to be declared"),
+        context(declarator.asInstanceOf[Node[_]], "in this declarator."),
+      )
     // TODO PB: these are kind of obsolete? maybe?
     case IncomparableTypes(left, right) =>
       ???
     case TupleTypeCount(tup) =>
       ???
     case NotAPredicateApplication(res) =>
-      res.o.messageInContext("This expression is not a (scaled) predicate application")
+      Seq(context(res, "This expression is not a (scaled) predicate application"))
     case AbstractPredicate(res) =>
-      res.o.messageInContext("This predicate is abstract, and hence cannot be meaningfully folded or unfolded")
+      Seq(context(res, "This predicate is abstract, and hence cannot be meaningfully folded or unfolded"))
     case RedundantCatchClause(clause) =>
-      clause.o.messageInContext("This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block.")
+      Seq(context(clause, "This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block."))
     case ResultOutsidePostcondition(res) =>
-      res.o.messageInContext("\\result may only occur in the postcondition.")
-  }
+      Seq(context(res, "\\result may only occur in the postcondition."))
+  }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
 }
 case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
 case class TypeErrorText(expr: Expr[_], expectedType: String) extends CheckError
@@ -88,6 +85,7 @@ case object CheckContext {
 case class CheckContext[G]
 (
   scopes: Seq[CheckContext.ScopeFrame[G]] = Seq(),
+  undeclared: Seq[Seq[Declaration[G]]] = Nil,
   roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
@@ -109,11 +107,14 @@ case class CheckContext[G]
   def withPostcondition: CheckContext[G] =
     copy(inPostCondition = true)
 
+  def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
+    copy(undeclared = undeclared :+ decls)
+
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
-    scopes.exists(_.contains(ref.decl))
+    !undeclared.exists(_.contains(ref.decl)) && scopes.exists(_.contains(ref.decl))
 
   def inWriteScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
-    scopes.drop(roScopes).exists(_.contains(ref.decl))
+    !undeclared.exists(_.contains(ref.decl)) && scopes.drop(roScopes).exists(_.contains(ref.decl))
 
   def checkInScope[Decl <: Declaration[G]](use: Node[G], ref: Ref[G, Decl]): Seq[CheckError] =
     if(inScope(ref)) Nil

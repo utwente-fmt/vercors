@@ -77,7 +77,7 @@ case object Main extends LazyLogging {
 
     Progress.install(options.progress, options.profile)
 
-    Runtime.getRuntime.addShutdownHook(new Thread() {
+    Runtime.getRuntime.addShutdownHook(new Thread("[VerCors] Shutdown hook to abort progress on exit") {
       override def run(): Unit = Progress.abort()
     })
 
@@ -101,6 +101,16 @@ case object Main extends LazyLogging {
       }
     } finally {
       Progress.finish()
+
+      val thisThread = Thread.currentThread()
+      Thread.getAllStackTraces.keySet()
+        .stream()
+        .filter(_ != thisThread)
+        .filter(!_.isDaemon)
+        .forEach { thread =>
+          logger.warn(s"Non-daemon thread ${thread.getThreadGroup.getName}.${thread.getName} (#${thread.getId}) is still running")
+          logger.warn("Due to this VerCors will not exit and sit idly until that thread is done. You may want to stop the program manually.")
+        }
     }
   }
 }

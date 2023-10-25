@@ -128,7 +128,7 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
-    case t@CPPTypedefName(nestedName) =>
+    case t@CPPTypedefName(nestedName, _) =>
       t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
         throw NoSuchNameError("class, struct, or namespace", nestedName, t)
       ))
@@ -194,14 +194,14 @@ case object ResolveReferences extends LazyLogging {
 
     val childErrors = node match {
       case l @ Let(binding, value, main) =>
-        val innerCtx = enterContext(node, ctx, inGPU).copy(checkContext = l.enterCheckContext(ctx.checkContext))
+        val innerCtx = enterContext(node, ctx, inGPU).withCheckContext(l.enterCheckContext(ctx.checkContext))
         resolve(binding, innerCtx) ++
         resolve(value, ctx) ++
         resolve(main, innerCtx)
       case _ =>
         val innerCtx = enterContext(node, ctx, inGPU)
         node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
-          resolve(node, innerCtx.copy(checkContext = ctx), inGPU)
+          resolve(node, innerCtx.withCheckContext(ctx), inGPU)
         }).flatten
     }
 
@@ -329,7 +329,6 @@ case object ResolveReferences extends LazyLogging {
       ctx
         .copy(currentResult = Some(RefCPPFunctionDefinition(func)))
         .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
-    case ns: CPPNamespaceDefinition[G] => ctx.declare(ns.declarations)
     case func: CPPGlobalDeclaration[G] =>
       if (func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
         throw MultipleForwardDeclarationContractError(func)
@@ -343,6 +342,8 @@ case object ResolveReferences extends LazyLogging {
             .declare(info.params.getOrElse(Nil))
             .copy(currentResult = info.params.map(_ => RefCPPGlobalDeclaration(func, idx)))
       }
+    case func: CPPLambdaDefinition[G] =>
+      ctx.declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
     case func: LlvmFunctionDefinition[G] => ctx
       .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
     case func: LlvmSpecFunction[G] => ctx
@@ -365,8 +366,13 @@ case object ResolveReferences extends LazyLogging {
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@CPPLocal(name) =>
-      local.ref = Some(CPP.findCPPName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@CPPLocal(name, arg) =>
+      local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
+      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.
+        getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
+      local.classLocalRef = Some(CPP.findCPPClassLocalName(local.classInstanceRef.get, classLocalName, ctx).headOption.
+        getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
@@ -420,8 +426,8 @@ case object ResolveReferences extends LazyLogging {
       inv.ref = Some(C.resolveInvocation(obj, ctx))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
-    case inv@CPPInvocation(obj, _, givenMap, yields) =>
-      inv.ref = Some(CPP.resolveInvocation(obj))
+    case inv@CPPInvocation(obj, args, givenMap, yields) =>
+      inv.ref = Some(CPP.resolveInvocation(obj, args, ctx))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv@GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>

@@ -1,16 +1,11 @@
 package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
-import hre.data.BitString
-import vct.col.origin.Origin.{BOLD_HR, HR}
 import hre.io.Readable
-import spray.json.{JsString, JsValue, JsonParser}
-import vct.col.ast.{Deserialize, Variable}
-import vct.col.origin.RedirectOrigin.StringReadable
+import vct.col.origin.Origin.{BOLD_HR, HR}
 
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
-import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable.ArrayBuffer
 
 case object Origin {
@@ -115,13 +110,19 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
+
   def getContext: Option[Context] = {
     originContents.flatMap {
       case Context(any) => Seq(Context(any))
       case _ => Nil
     } match {
       case Seq(Context(any)) => Some(Context(any))
-      case _ => None
+      case _ => // if there is no context, try to infer it
+        Some(Context(InputOrigin.contextLines(
+          getReadable.getOrElse(return None).readable,
+          getStartEndLines.getOrElse(return None).startEndLineIdx._1,
+          getStartEndLines.getOrElse(return None).startEndLineIdx._2,
+          getOriginCols.getOrElse(return None).cols)))
     }
   }
 
@@ -149,7 +150,7 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
-  def getInlineContextOrElse(ctx: String = "[unkonwn inline context]"): String = {
+  def getInlineContextOrElse(ctx: String = "[unknown inline context]"): String = {
     getInlineContext.getOrElse(InlineContext(ctx)).inlineContext
   }
 
@@ -207,13 +208,17 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
     }
   }
 
-  def messageInContext(message: String): String = {
+  def bareMessageInContext(message: String): String = {
     val contextMessage = getContext match {
       case Some(value) => value.context.strip()
       case None => "[unknown context]"
     }
-    BOLD_HR + contextMessage + "\n" + HR + message + "\n" + BOLD_HR
+
+    contextMessage + "\n" + HR + message + "\n"
   }
+
+  def messageInContext(message: String): String =
+    BOLD_HR + bareMessageInContext(message) + BOLD_HR
 
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)
