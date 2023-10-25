@@ -20,6 +20,8 @@ case object CoercionUtils {
       case (TResourceVal(), TResource()) => CoerceResourceValResource()
       case (TBool(), TResource()) => CoerceBoolResource()
 
+      case (_, TAnyValue()) => CoerceSomethingAnyValue(source)
+
       case (source @ TOption(innerSource), target @ TOption(innerTarget)) =>
         CoerceMapOption(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
       case (source @ TTuple(Seq(leftSource, rightSource)), target @ TTuple(Seq(leftTarget, rightTarget))) =>
