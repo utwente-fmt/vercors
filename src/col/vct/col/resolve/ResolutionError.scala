@@ -6,7 +6,7 @@ import vct.result.VerificationError.{SystemError, UserError}
 
 trait ResolutionError extends UserError
 
-case class MultipleForwardDeclarationContractError(declaration: CGlobalDeclaration[_]) extends ResolutionError {
+case class MultipleForwardDeclarationContractError(declaration: GlobalDeclaration[_]) extends ResolutionError {
   override def code: String = "multipleForwardDeclarationContract"
 
   override def text: String = declaration.o.messageInContext("Cannot simultaneously bind a contract to multiple global declarations.")
@@ -59,4 +59,9 @@ case class WrongArrayInitializer(initializer: JavaLiteralArray[_]) extends Resol
 case class OverlappingJavaImports[G](ns: JavaNamespace[G], kind: String, importedName: String) extends ResolutionError {
   override def code: String = "overlappingJavaImports"
   override def text: String = ns.o.messageInContext(s"The $kind name $importedName is provided by multiple imports in this namespace")
+}
+
+case class WrongThisPosition[G](diz: AmbiguousThis[G]) extends ResolutionError {
+  override def code: String = "wrongThisPosition"
+  override def text: String = diz.o.messageInContext("The `this` keyword does not refer to anything in this position.")
 }

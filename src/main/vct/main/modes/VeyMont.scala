@@ -14,7 +14,7 @@ object VeyMont extends LazyLogging {
 
   def verifyWithOptions(options: Options, inputs: Seq[PathOrStd]) = {
     val collector = BlameCollector()
-    val stages = Stages.veymontOfOptions(options, ConstantBlameProvider(collector))
+    val stages = Stages.veymontTransformationOfOptions(options, ConstantBlameProvider(collector))
     logger.debug("Stages: " ++ stages.flatNames.map(_._1).mkString(", "))
     stages.run(inputs) match {
       case Left(value) => logger.error(value.text)

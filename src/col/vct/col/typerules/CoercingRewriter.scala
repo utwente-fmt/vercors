@@ -18,24 +18,26 @@ case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre
 case object CoercingRewriter {
   sealed trait CoercionError extends SystemError {
     override def text: String =
-      "Internal type error: CoercionErrors must not bubble. " + (this match {
-        case IncoercibleDummy => "(No alternative matched, see stack trace)"
-        case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
-        case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
-        case IncoercibleExplanation(e, message) => s"At `$e`: $message"
-      })
+      messageContext(
+        "Internal type error: CoercionErrors must not bubble. " + (this match {
+          case IncoercibleDummy => "(No alternative matched, see stack trace)"
+          case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
+          case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
+          case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+        })
+      )
   }
 
   case object IncoercibleDummy extends CoercionError
+
   case class Incoercible(e: Expr[_], target: Type[_]) extends CoercionError
+
   case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
+
   case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
 
-  case class CoercionOrigin(of: Expr[_]) extends Origin {
-    override def preferredName: String = "unknown"
-    override def shortPosition: String = of.o.shortPosition
-    override def context: String = of.o.context
-    override def inlineContext: String = of.o.inlineContext
+  private def coercionOrigin(of: Expr[_]): Origin = {
+    of.o.replacePrefName("unknown")
   }
 }
 
@@ -67,6 +69,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
+      case CoerceSomethingAnyValue(_) => e
       case CoerceMapOption(inner, _, target) =>
         Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
@@ -165,6 +168,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ???
 
       case CoerceBoolResource() => e
+      case CoerceResourceResourceVal() => e
+      case CoerceResourceValResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
@@ -177,6 +182,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceJavaClassAnyClass(_) => e
       case CoerceCPrimitiveToCol(_, _) => e
       case CoerceColToCPrimitive(_, _) => e
+      case CoerceCPPPrimitiveToCol(_, _) => e
+      case CoerceColToCPPPrimitive(_, _) => e
       case CoerceNullRef() => e
       case CoerceNullArray(_) => e
       case CoerceNullClass(_) => e
@@ -189,6 +196,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
       case CoerceUnboundInt(_) => e
+      case CoerceCArrayPointer(_) => e
+      case CoerceCPPArrayPointer(_) => e
+      case CoerceNullEnum(_) => e
 
       case CoerceIntRat() => e
       case CoerceRatZFrac() => e
@@ -213,11 +223,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: FieldFlag[Pre] => node
     case node: IterVariable[Pre] => node
     case node: CDeclarator[Pre] => node
+    case node: CDeclaration[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node
     case node: CInit[Pre] => node
-    case node: CDeclaration[Pre] => node
+    case node: CPPDeclarator[Pre] => node
+    case node: CPPDeclarationSpecifier[Pre] => node
+    case node: CPPDeclaration[Pre] => node
+    case node: CPPAddressing[Pre] => node
+    case node: CPPInit[Pre] => node
     case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
@@ -236,6 +251,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: LlvmFunctionContract[Pre] => node
     case node: LlvmLoopContract[Pre] => node
     case node: ProverLanguage[Pre] => node
+    case node: SmtlibFunctionSymbol[Pre] => node
+    case node: PVLCommunicateAccess[Pre] => node
+    case node: PVLCommunicateSubject[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -350,6 +368,26 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = rewriteDefault(node)
   override final def dispatch(node: GpuMemoryFence[Pre]): GpuMemoryFence[Post] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = node
+  def postCoerce(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Pre] = node
+  def postCoerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Pre] = node
+  def postCoerce(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = node
+  def postCoerce(node: CPPAddressing[Pre]): CPPAddressing[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPAddressing[Pre]): CPPAddressing[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
+  def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPInit[Pre]): CPPInit[Post] = postCoerce(coerce(preCoerce(node)))
+
   def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
   def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
   override final def dispatch(node: JavaName[Pre]): JavaName[Post] = postCoerce(coerce(preCoerce(node)))
@@ -410,12 +448,23 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: ProverLanguage[Pre]): ProverLanguage[Post] = rewriteDefault(node)
   override final def dispatch(node: ProverLanguage[Pre]): ProverLanguage[Post] = postCoerce(coerce(preCoerce(node)))
 
+  def preCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
+  def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
+  override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
+  def postCoerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
+  def postCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
       case Some(coercion) => coercion
       case None => throw Incoercible(value, target)
-    })(CoercionOrigin(value))
+    })(coercionOrigin(value))
 
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =
     args.zip(app.args).map {
@@ -452,68 +501,100 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def cls(e: Expr[Pre]): Expr[Pre] = coerce(e, TAnyClass[Pre]())
   def option(e: Expr[Pre]): (Expr[Pre], TOption[Pre]) =
     CoercionUtils.getAnyOptionCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"option")
     }
   def tuple(e: Expr[Pre]): (Expr[Pre], TTuple[Pre]) =
     CoercionUtils.getAnyTupleCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"tuple")
     }
   def seq(e: Expr[Pre]): (Expr[Pre], TSeq[Pre]) =
     CoercionUtils.getAnySeqCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"sequence")
     }
   def set(e: Expr[Pre]): (Expr[Pre], TSet[Pre]) =
     CoercionUtils.getAnySetCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"set")
     }
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"bag")
     }
   def map(e: Expr[Pre]): (Expr[Pre], TMap[Pre]) =
     CoercionUtils.getAnyMapCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"map")
     }
   def sized(e: Expr[Pre]): (Expr[Pre], SizedType[Pre]) =
     CoercionUtils.getAnySizedCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"collection type")
     }
   def array(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyArrayCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"array")
     }
   def arrayMatrix(e: Expr[Pre]): (Expr[Pre], TArray[Pre]) =
     CoercionUtils.getAnyMatrixArrayCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"two-dimensional array")
     }
   def pointer(e: Expr[Pre]): (Expr[Pre], TPointer[Pre]) =
     CoercionUtils.getAnyPointerCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"pointer")
     }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"matrix")
     }
   def model(e: Expr[Pre]): (Expr[Pre], TModel[Pre]) =
     CoercionUtils.getAnyModelCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"model")
     }
   def either(e: Expr[Pre]): (Expr[Pre], TEither[Pre]) =
     CoercionUtils.getAnyEitherCoercion(e.t) match {
-      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(CoercionOrigin(e)), t)
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"either")
+    }
+  def bitvec(e: Expr[Pre]): (Expr[Pre], TSmtlibBitVector[Pre]) =
+    CoercionUtils.getAnyBitvecCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"(_ BitVec ?)")
+    }
+  def bitvec2[T](e1: Expr[Pre], e2: Expr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    val (e1c, t) = bitvec(e1)
+    val e2c = coerce(e2, t)
+    f(e1c, e2c)
+  }
+  def fp(e: Expr[Pre]): (Expr[Pre], TSmtlibFloatingPoint[Pre]) =
+    CoercionUtils.getAnySmtlibFloatCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"(_ FloatingPoint ? ?)")
+    }
+  def fp2[T](e1: Expr[Pre], e2: Expr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
+    val (e1c, t) = fp(e1)
+    val e2c = coerce(e2, t)
+    f(e1c, e2c)
+  }
+  def reglan(e: Expr[Pre]): Expr[Pre] = coerce(e, TSmtlibRegLan())
+  def smtstr(e: Expr[Pre]): Expr[Pre] = coerce(e, TSmtlibString())
+  def smtarr(e: Expr[Pre]): (Expr[Pre], TSmtlibArray[Pre]) =
+    CoercionUtils.getAnySmtlibArrayCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"(Array ? ?)")
+    }
+  def z3seq(e: Expr[Pre]): (Expr[Pre], TSmtlibSeq[Pre]) =
+    CoercionUtils.getAnySmtlibSeqCoercion(e.t) match {
+      case Some((coercion, t)) => (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"(Seq ?)")
     }
 
   def firstOkHelper[T](thing: Either[Seq[CoercionError], T], onError: => T): Either[Seq[CoercionError], T] =
@@ -842,6 +923,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
+      case CPPClassInstanceLocal(_, _) => e
+      case defn@CPPLambdaDefinition(contract, declarator, body) =>
+        CPPLambdaDefinition(contract, declarator, body)(defn.blame)
+      case CPPLambdaRef() => e
+      case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
+        CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case CPPLocal(_, _) => e
+      case SYCLRange(dims) => SYCLRange(dims)
+      case SYCLNDRange(globalRange, localRange) => SYCLNDRange(globalRange, localRange)
       case StringConcat(left, right) =>
         StringConcat(string(left), string(right))
       case acc @ CStructAccess(struct, field) =>
@@ -856,6 +946,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         //DerefVeyMontThread( TVeyMontThread[Pre](ref))
       case deref @ Deref(obj, ref) =>
         Deref(cls(obj), ref)(deref.blame)
+      case deref @ DerefHeapVariable(ref) =>
+        DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case deref @ DerefVeyMontThread(ref) => deref
@@ -1149,6 +1241,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
         ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+      case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
+        LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
+        LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields)(inv.blame)
       case ProcessApply(process, args) =>
         ProcessApply(process, coerceArgs(args, process.decl))
       case ProcessChoice(left, right) =>
@@ -1173,6 +1269,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ReadPerm()
       case RemoveAt(xs, i) =>
         RemoveAt(seq(xs)._1, int(i))
+      case ResourceOfResourceValue(r) =>
+        ResourceOfResourceValue(coerce(r, TResourceVal()))
+      case ResourceValue(r) =>
+        ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
       case s @ Scale(scale, r) =>
@@ -1243,6 +1343,105 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Size(sized(obj)._1)
       case Slice(xs, from, to) =>
         Slice(seq(xs)._1, int(from), int(to))
+      case SmtlibBitvecLiteral(data) => SmtlibBitvecLiteral(data)
+      case SmtlibBvAdd(left, right) => bitvec2(left, right, SmtlibBvAdd(_, _))
+      case SmtlibBvAnd(left, right) => bitvec2(left, right, SmtlibBvAnd(_, _))
+      case SmtlibBvMul(left, right) => bitvec2(left, right, SmtlibBvMul(_, _))
+      case SmtlibBvNeg(bv) => SmtlibBvNeg(bitvec(bv)._1)
+      case SmtlibBvNot(bv) => SmtlibBvNot(bitvec(bv)._1)
+      case SmtlibBvOr(left, right) => bitvec2(left, right, SmtlibBvOr(_, _))
+      case SmtlibBvShl(left, right) => bitvec2(left, right, SmtlibBvShl(_, _))
+      case SmtlibBvShr(left, right) => bitvec2(left, right, SmtlibBvShr(_, _))
+      case SmtlibBvUDiv(left, right) => bitvec2(left, right, SmtlibBvUDiv(_, _))
+      case SmtlibBvULt(left, right) => bitvec2(left, right, SmtlibBvULt(_, _))
+      case SmtlibBvURem(left, right) => bitvec2(left, right, SmtlibBvURem(_, _))
+      case SmtlibConcat(left, right) => bitvec2(left, right, SmtlibConcat(_, _))
+      case SmtlibExtract(inclusiveEndIndexFromRight, startIndexFromRight, bv) =>
+        SmtlibExtract(inclusiveEndIndexFromRight, startIndexFromRight, bitvec(bv)._1)
+      case SmtlibFp(sign, exponent, mantissa) =>
+        SmtlibFp(coerce(sign, TSmtlibBitVector(1)), bitvec(exponent)._1, bitvec(mantissa)._1)
+      case SmtlibFpAbs(arg) => SmtlibFpAbs(fp(arg)._1)
+      case SmtlibFpAdd(left, right) => fp2(left, right, SmtlibFpAdd(_, _))
+      case SmtlibFpCast(arg, exponentBits, mantissaAndSignBits) =>
+        SmtlibFpCast(fp(arg)._1, exponentBits, mantissaAndSignBits)
+      case SmtlibFpDiv(left, right) => fp2(left, right, SmtlibFpDiv(_, _))
+      case SmtlibFpEq(left, right) => fp2(left, right, SmtlibFpEq(_, _))
+      case SmtlibFpFma(left, right, addend) =>
+        val (leftc, t) = fp(left)
+        SmtlibFpFma(left, coerce(right, t), coerce(addend, t))
+      case SmtlibFpFromReal(arg, e, m) => SmtlibFpFromReal(rat(arg), e, m)
+      case SmtlibFpFromSInt(bv, e, m) => SmtlibFpFromSInt(bitvec(bv)._1, e, m)
+      case SmtlibFpFromUInt(bv, e, m) => SmtlibFpFromUInt(bitvec(bv)._1, e, m)
+      case SmtlibFpGeq(left, right) => fp2(left, right, SmtlibFpGeq(_, _))
+      case SmtlibFpGt(left, right) => fp2(left, right, SmtlibFpGt(_, _))
+      case SmtlibFpIsInfinite(arg) => SmtlibFpIsInfinite(fp(arg)._1)
+      case SmtlibFpIsNaN(arg) => SmtlibFpIsNaN(fp(arg)._1)
+      case SmtlibFpIsNegative(arg) => SmtlibFpIsNegative(fp(arg)._1)
+      case SmtlibFpIsNormal(arg) => SmtlibFpIsNormal(fp(arg)._1)
+      case SmtlibFpIsPositive(arg) => SmtlibFpIsPositive(fp(arg)._1)
+      case SmtlibFpIsSubnormal(arg) => SmtlibFpIsSubnormal(fp(arg)._1)
+      case SmtlibFpIsZero(arg) => SmtlibFpIsZero(fp(arg)._1)
+      case SmtlibFpLeq(left, right) => fp2(left, right, SmtlibFpLeq(_, _))
+      case SmtlibFpLt(left, right) => fp2(left, right, SmtlibFpLt(_, _))
+      case SmtlibFpMax(left, right) => fp2(left, right, SmtlibFpMax(_, _))
+      case SmtlibFpMin(left, right) => fp2(left, right, SmtlibFpMin(_, _))
+      case SmtlibFpMul(left, right) => fp2(left, right, SmtlibFpMul(_, _))
+      case SmtlibFpNeg(arg) => SmtlibFpNeg(fp(arg)._1)
+      case SmtlibFpRem(left, right) => fp2(left, right, SmtlibFpRem(_, _))
+      case SmtlibFpRoundToIntegral(arg) => SmtlibFpRoundToIntegral(fp(arg)._1)
+      case SmtlibFpSqrt(arg) => SmtlibFpSqrt(fp(arg)._1)
+      case SmtlibFpSub(left, right) => fp2(left, right, SmtlibFpSub(_, _))
+      case SmtlibFpToReal(arg) => SmtlibFpToReal(fp(arg)._1)
+      case SmtlibFpToSInt(arg, bits) => SmtlibFpToSInt(fp(arg)._1, bits)
+      case SmtlibFpToUInt(arg, bits) => SmtlibFpToUInt(fp(arg)._1, bits)
+      case SmtlibLiteralString(data) => SmtlibLiteralString(data)
+      case SmtlibReAll() => SmtlibReAll()
+      case SmtlibReAllChar() => SmtlibReAllChar()
+      case SmtlibReComp(arg) => SmtlibReComp(reglan(arg))
+      case SmtlibReConcat(left, right) => SmtlibReConcat(reglan(left), reglan(right))
+      case SmtlibReContains(re, str) => SmtlibReContains(reglan(re), smtstr(str))
+      case SmtlibReDiff(left, right) => SmtlibReDiff(reglan(left), reglan(right))
+      case SmtlibReFromStr(arg) => SmtlibReFromStr(smtstr(arg))
+      case SmtlibReInter(left, right) => SmtlibReInter(reglan(left), reglan(right))
+      case SmtlibReNone() => SmtlibReNone()
+      case SmtlibReOpt(arg) => SmtlibReOpt(reglan(arg))
+      case SmtlibRePlus(arg) => SmtlibRePlus(reglan(arg))
+      case SmtlibReRange(left, right) => SmtlibReRange(smtstr(left), smtstr(right))
+      case SmtlibReRepeat(count, arg) => SmtlibReRepeat(count, reglan(arg))
+      case SmtlibReRepeatRange(from, to, arg) => SmtlibReRepeatRange(from, to, reglan(arg))
+      case SmtlibReStar(arg) => SmtlibReStar(reglan(arg))
+      case SmtlibReUnion(left, right) => SmtlibReUnion(reglan(left), reglan(right))
+      case SmtlibRNA() => SmtlibRNA()
+      case SmtlibRNE() => SmtlibRNE()
+      case SmtlibRTN() => SmtlibRTN()
+      case SmtlibRTP() => SmtlibRTP()
+      case SmtlibRTZ() => SmtlibRTZ()
+      case SmtlibSelect(arr, i) =>
+        val (e, t) = smtarr(arr)
+        SmtlibSelect(e, i.zip(t.index).map { case (e, t) => coerce(e, t) })
+      case SmtlibStore(arr, i, x) =>
+        val (e, t) = smtarr(arr)
+        SmtlibStore(e, i.zip(t.index).map { case (e, t) => coerce(e, t) }, coerce(x, t.value))
+      case SmtlibStrAt(str, i) => SmtlibStrAt(smtstr(str), int(i))
+      case SmtlibStrConcat(left, right) => SmtlibStrConcat(smtstr(left), smtstr(right))
+      case SmtlibStrContains(left, right) => SmtlibStrContains(smtstr(left), smtstr(right))
+      case SmtlibStrFromCode(arg) => SmtlibStrFromCode(int(arg))
+      case SmtlibStrFromInt(arg) => SmtlibStrFromInt(int(arg))
+      case SmtlibStrIndexOf(haystack, needle, fromIndex) => SmtlibStrIndexOf(smtstr(haystack), smtstr(needle), int(fromIndex))
+      case SmtlibStrIsDigit(arg) => SmtlibStrIsDigit(smtstr(arg))
+      case SmtlibStrLen(arg) => SmtlibStrLen(smtstr(arg))
+      case SmtlibStrLeq(left, right) => SmtlibStrLeq(smtstr(left), smtstr(right))
+      case SmtlibStrLt(left, right) => SmtlibStrLt(smtstr(left), smtstr(right))
+      case SmtlibStrPrefixOf(left, right) => SmtlibStrPrefixOf(smtstr(left), smtstr(right))
+      case SmtlibStrReplace(haystack, needle, replacement) => SmtlibStrReplace(smtstr(haystack), smtstr(needle), smtstr(replacement))
+      case SmtlibStrReplaceAll(haystack, needle, replacement) => SmtlibStrReplaceAll(smtstr(haystack), smtstr(needle), smtstr(replacement))
+      case SmtlibStrReplaceRe(haystack, re, replacement) => SmtlibStrReplaceRe(smtstr(haystack), reglan(re), smtstr(replacement))
+      case SmtlibStrReplaceReAll(haystack, re, replacement) => SmtlibStrReplaceReAll(smtstr(haystack), reglan(re), smtstr(replacement))
+      case SmtlibStrSuffixOf(left, right) => SmtlibStrSuffixOf(smtstr(left), smtstr(right))
+      case SmtlibStrToCode(arg) => SmtlibStrToCode(smtstr(arg))
+      case SmtlibStrToInt(arg) => SmtlibStrToInt(smtstr(arg))
+      case SmtlibSubstr(str, i, n) => SmtlibSubstr(smtstr(str), int(i), int(n))
+      case SmtlibToFp(bv, e, m) => SmtlibToFp(coerce(bv, TSmtlibBitVector(e + m)), e, m)
       case Star(left, right) =>
         Star(res(left), res(right))
       case starall @ Starall(bindings, triggers, body) =>
@@ -1336,9 +1535,50 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         With(pre, value)
       case WritePerm() =>
         WritePerm()
+      case Z3ArrayConst(domain, codomain, value) => Z3ArrayConst(domain, codomain, coerce(value, codomain))
+      case Z3ArrayMap(ref, arg +: args) =>
+        val (_, TSmtlibArray(keyType, _)) = smtarr(arg)
+        val ts = ref.ref.decl.args.map(_.t).map(TSmtlibArray(keyType, _))
+        Z3ArrayMap(ref, (arg +: args).zip(ts).map { case (e, t) => coerce(e, t) })
+      case Z3ArrayMap(ref, _) => Z3ArrayMap(ref, Nil)
+      case Z3ArrayOfFunction(ref) => Z3ArrayOfFunction(ref)
+      case Z3BvNand(left, right) => bitvec2(left, right, Z3BvNand(_, _))
+      case Z3BvNor(left, right) => bitvec2(left, right, Z3BvNor(_, _))
+      case Z3BvSMod(left, right) => bitvec2(left, right, Z3BvSMod(_, _))
+      case Z3BvSRem(left, right) => bitvec2(left, right, Z3BvSRem(_, _))
+      case Z3BvSShr(left, right) => bitvec2(left, right, Z3BvSShr(_, _))
+      case Z3BvSub(left, right) => bitvec2(left, right, Z3BvSub(_, _))
+      case Z3BvXnor(left, right) => bitvec2(left, right, Z3BvXnor(_, _))
+      case Z3SeqAt(seq, offset) => Z3SeqAt(z3seq(seq)._1, int(offset))
+      case Z3SeqConcat(left, right) => Z3SeqConcat(z3seq(left)._1, z3seq(right)._1)
+      case Z3SeqContains(seq, subseq) => Z3SeqContains(z3seq(seq)._1, z3seq(subseq)._1)
+      case Z3SeqEmpty(elementType) => Z3SeqEmpty(elementType)
+      case Z3SeqExtract(seq, offset, len) => Z3SeqExtract(z3seq(seq)._1, int(offset), int(len))
+      case Z3SeqFoldl(f, base, seq) =>
+        val (cseq, seqt) = z3seq(seq)
+        Z3SeqFoldl(coerce(f, TSmtlibArray(Seq(base.t, seqt.element), base.t)), base, cseq)
+      case Z3SeqFoldlI(f, offset, base, seq) =>
+        val (cseq, seqt) = z3seq(seq)
+        Z3SeqFoldlI(coerce(f, TSmtlibArray(Seq(TInt(), base.t, seqt.element), base.t)), int(offset), base, cseq)
+      case Z3SeqLen(arg) => Z3SeqLen(z3seq(arg)._1)
+      case Z3SeqMap(f, seq) =>
+        val (cf, arrt) = smtarr(f)
+        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAnyValue()), arrt.value))
+        Z3SeqMap(cf, coerce(seq, TSmtlibSeq(arrt.index.head)))
+      case Z3SeqMapI(f, offset, seq) =>
+        val (cf, arrt) = smtarr(f)
+        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAnyValue()), arrt.value))
+        Z3SeqMapI(cf, int(offset), coerce(seq, TSmtlibSeq(arrt.index(1))))
+      case Z3SeqNth(seq, offset) => Z3SeqNth(z3seq(seq)._1, int(offset))
+      case Z3SeqPrefixOf(pre, subseq) => Z3SeqPrefixOf(z3seq(pre)._1, z3seq(subseq)._1)
+      case Z3SeqReplace(haystack, needle, replacement) => Z3SeqReplace(z3seq(haystack)._1, z3seq(needle)._1, z3seq(replacement)._1)
+      case Z3SeqSuffixOf(post, seq) => Z3SeqSuffixOf(z3seq(post)._1, z3seq(seq)._1)
+      case Z3SeqUnit(arg) => Z3SeqUnit(arg)
+      case Z3TransitiveClosure(ref, args) => Z3TransitiveClosure(ref, coerceArgs(args, ref.ref.decl))
       case VeyMontCondition(c) => VeyMontCondition(c)
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
+      case LlvmLocal(name) => e
     }
   }
 
@@ -1361,6 +1601,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CGoto(label) => CGoto(label)
       case c @ Commit(obj) => Commit(cls(obj))(c.blame)
       case Continue(label) => Continue(label)
+      case CPPDeclarationStatement(decl) => CPPDeclarationStatement(decl)
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
@@ -1391,6 +1632,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case bar @ ParBarrier(block, invs, requires, ensures, content) => ParBarrier(block, invs, res(requires), res(ensures), content)(bar.blame)
       case p @ ParInvariant(decl, inv, content) => ParInvariant(decl, res(inv), content)(p.blame)
       case ParStatement(impl) => ParStatement(impl)
+      case RangedFor(iter, contract, body) => RangedFor(iter, contract, body)
       case Recv(ref) => Recv(ref)
       case r @ Refute(assn) => Refute(res(assn))(r.blame)
       case Return(result) => Return(result) // TODO coerce return, make AmbiguousReturn?
@@ -1412,7 +1654,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
-      case VeyMontCommExpression(r,s,a) => VeyMontCommExpression(r,s,a)
+      case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
+      case PVLCommunicate(s, r) => PVLCommunicate(s, r)
     }
   }
 
@@ -1421,6 +1664,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     decl match {
       case unit: CTranslationUnit[Pre] =>
         new CTranslationUnit(unit.declarations)
+      case unit: CPPTranslationUnit[Pre] =>
+        new CPPTranslationUnit(unit.declarations)
+      case variable: HeapVariable[Pre] =>
+        new HeapVariable(variable.t)
       case rule: SimplificationRule[Pre] =>
         new SimplificationRule[Pre](bool(rule.axiom))
       case dataType: AxiomaticDataType[Pre] =>
@@ -1443,10 +1690,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         definition
       case declaration: CGlobalDeclaration[Pre] =>
         declaration
+      case definition: CPPFunctionDefinition[Pre] =>
+        definition
+      case declaration: CPPGlobalDeclaration[Pre] =>
+        declaration
       case namespace: JavaNamespace[Pre] =>
         namespace
       case clazz: JavaClass[Pre] =>
-        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)
+        new JavaClass[Pre](clazz.name, clazz.modifiers, clazz.typeParams, res(clazz.intrinsicLockInvariant), clazz.ext, clazz.imp, clazz.decls)(clazz.blame)
       case interface: JavaInterface[Pre] =>
         interface
       case interface: JavaAnnotationInterface[Pre] =>
@@ -1509,6 +1760,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         param
       case decl: CLocalDeclaration[Pre] =>
         decl
+      case param: CPPParam[Pre] =>
+        param
+      case decl: CPPLocalDeclaration[Pre] =>
+        decl
       case declaration: JavaLocalDeclaration[Pre] =>
         new JavaLocalDeclaration[Pre](declaration.modifiers, declaration.t, declaration.decls.map {
           case JavaVariableDeclaration(name, dims, None) => JavaVariableDeclaration(name, dims, None)
@@ -1517,8 +1772,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         })
       case seqProg: VeyMontSeqProg[Pre] => seqProg
       case thread: VeyMontThread[Pre] => thread
+      case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
-        new BipComponent(bc.fqn, bc.constructors, res(bc.invariant), bc.initial)
+        new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
       case bsp: BipStatePredicate[Pre] =>
         new BipStatePredicate(bool(bsp.expr))
       case trans: BipTransition[Pre] =>
@@ -1539,7 +1795,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case definition: LlvmFunctionDefinition[Pre] => definition
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
-    }
+      case function: LlvmSpecFunction[Pre] =>
+        new LlvmSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
+      case glob: LlvmGlobal[Pre] => glob
+      }
   }
 
   def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {
@@ -1570,37 +1829,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     Program(decl)(node.blame)
   }
 
-  def coerce(node: Type[Pre]): Type[Pre] = {
-    implicit val o: Origin = node.o
-    node match {
-      case value: TNotAValue[_] =>
-        value
-      case TUnion(types) =>
-        TUnion(types)
-      case TArray(element) =>
-        TArray(element)
-      case TPointer(element) =>
-        TPointer(element)
-      case TType(t) =>
-        TType(t)
-      case TVar(ref) =>
-        TVar(ref)
-      case compositeType: CompositeType[_] =>
-        compositeType
-      case primitiveType: PrimitiveType[_] =>
-        primitiveType
-      case declaredType: DeclaredType[_] =>
-        declaredType
-      case cType: CType[_] =>
-        cType
-      case javaType: JavaType[_] =>
-        javaType
-      case lType: PVLType[_] =>
-        lType
-      case silverType: SilverType[_] =>
-        silverType
-    }
-  }
+  // PB: types may very well contain expressions eventually, but for now they don't.
+  def coerce(node: Type[Pre]): Type[Pre] =
+    node
 
   def coerce(node: LoopContract[Pre]): LoopContract[Pre] = {
     implicit val o: Origin = node.o
@@ -1669,6 +1900,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: Location[Pre]): Location[Pre] = {
     implicit val o: Origin = node.o
     node match {
+      case HeapVariableLocation(ref) =>
+        HeapVariableLocation(ref)
       case FieldLocation(obj, field) =>
         FieldLocation(cls(obj), field)
       case ModelLocation(obj, field) =>
@@ -1770,6 +2003,61 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     }
   }
 
+  def coerce(node: CPPDeclarator[Pre]): CPPDeclarator[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPPAddressingDeclarator(pointers, inner) =>
+        CPPAddressingDeclarator(pointers, inner)
+      case array @ CPPArrayDeclarator(inner, size) =>
+        CPPArrayDeclarator(inner, size.map(int))(array.blame)
+      case CPPTypedFunctionDeclarator(params, varargs, inner) =>
+        CPPTypedFunctionDeclarator(params, varargs, inner)
+      case CPPLambdaDeclarator(params) =>
+        CPPLambdaDeclarator(params)
+      case CPPName(name) =>
+        CPPName(name)
+    }
+  }
+
+  def coerce(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPPPure() => CPPPure()
+      case CPPInline() => CPPInline()
+      case CPPVoid() => CPPVoid()
+      case CPPChar() => CPPChar()
+      case CPPShort() => CPPShort()
+      case CPPInt() => CPPInt()
+      case CPPLong() => CPPLong()
+      case CPPSigned() => CPPSigned()
+      case CPPUnsigned() => CPPUnsigned()
+      case CPPBool() => CPPBool()
+      case CPPTypedefName(name, arg) => CPPTypedefName(name, arg)
+      case CPPSpecificationType(t) => CPPSpecificationType(t)
+      case SYCLClassDefName(name, arg) => SYCLClassDefName(name, arg)
+    }
+  }
+
+  def coerce(node: CPPDeclaration[Pre]): CPPDeclaration[Pre] = {
+    implicit val o: Origin = node.o
+    val CPPDeclaration(contract, specs, init) = node
+    CPPDeclaration(contract, specs, init)
+  }
+
+  def coerce(node: CPPAddressing[Pre]): CPPAddressing[Pre] = {
+    implicit val o: Origin = node.o
+    node match {
+      case CPPPointer() => CPPPointer()
+      case CPPReference() => CPPReference()
+    }
+  }
+
+  def coerce(node: CPPInit[Pre]): CPPInit[Pre] = {
+    implicit val o: Origin = node.o
+    val CPPInit(decl, init) = node
+    CPPInit(decl, init)
+  }
+
   def coerce(node: JavaName[Pre]): JavaName[Pre] = {
     implicit val o: Origin = node.o
     val JavaName(names) = node
@@ -1799,6 +2087,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case annotation @ JavaAnnotation(name, args) => JavaAnnotation(name, args)(annotation.blame)
       case JavaPure() => JavaPure()
       case JavaInline() => JavaInline()
+      case JavaBipAnnotation() => JavaBipAnnotation()
     }
   }
 
@@ -1837,4 +2126,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: LlvmLoopContract[Pre]): LlvmLoopContract[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
+  def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
+
+  def coerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
+  def coerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
 }

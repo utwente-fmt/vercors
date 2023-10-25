@@ -1,4 +1,3 @@
-import scala.collection.mutable
 import scala.meta._
 
 /**
@@ -18,6 +17,9 @@ object ColDefs {
     q"import vct.col.ref.Ref",
     q"import vct.col.resolve.ctx.Referrable",
     q"import vct.col.origin.ExpectedError",
+    q"import vct.result.VerificationError",
+    q"import vct.col.util.CurrentRewriteNodeContext",
+    q"import hre.data.BitString",
   )
 
   /**
@@ -36,22 +38,24 @@ object ColDefs {
     "ParInvariantDecl",
     "CLocalDeclaration",
     "CParam",
+    "CPPLocalDeclaration",
+    "CPPParam",
     "JavaLocalDeclaration",
     "VeyMontThread",
     "JavaParam",
   )
 
   def scopes(kind: String): Term.Name =
-    Term.Name(kind.charAt(0).toLower + kind.substring(1) + "s")
+    Term.Name(kind.charAt(0).toLower.toString + kind.substring(1) + "s")
 
-  val DECLARATION_NAMESPACE: mutable.ListMap[String, Seq[String]] = mutable.ListMap(
+  val DECLARATION_NAMESPACE: Map[String, Seq[String]] = Map(
     "GlobalDeclaration" -> Seq("Program"),
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
     "ModelDeclaration" -> Seq("Program"),
     "EnumConstant" -> Seq("Program"),
     "Variable" -> Seq(
-      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", // Explicit declarations
+      "ParBlock", "VecBlock", "CatchClause", "Scope", "SignalsClause", "RangedForLoop", // Explicit declarations
       "AxiomaticDataType", "JavaClass", "JavaInterface", // Type arguments
       "Predicate", "InstancePredicate", // Arguments
       "ModelProcess", "ModelAction", "ADTFunction",
@@ -69,8 +73,10 @@ object ColDefs {
       "InstanceFunction", "InstanceMethod",
       "JavaConstructor", "JavaMethod",
       "CFunctionDefinition",
+      "CPPFunctionDefinition",
       "PVLConstructor",
-      "LlvmFunctionDefinition"
+      "LlvmFunctionDefinition",
+      "LlvmSpecFunction"
       // Potentially ParBlocks and other execution contexts (lambdas?) should be a scope too.
     ),
     "SendDecl" -> Seq("ParBlock", "Loop"),
@@ -82,6 +88,13 @@ object ColDefs {
     ),
     "CParam" -> Seq(
       "CGlobalDeclaration", "CFunctionDefinition",
+    ),
+    "CPPLocalDeclaration" -> Seq(
+      "CPPGlobalDeclaration", "CPPFunctionDefinition",
+      "Scope",
+    ),
+    "CPPParam" -> Seq(
+      "CPPGlobalDeclaration", "CPPFunctionDefinition",
     ),
     "JavaLocalDeclaration" -> Seq(
       "JavaConstructor", "JavaMethod",

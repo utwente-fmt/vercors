@@ -17,6 +17,7 @@ VAL_TRUE: 'true';
 VAL_FALSE: 'false';
 VAL_SIZEOF: EOF EOF;
 VAL_PACKAGE: 'package';
+CONS: '::';
 
 Placeholder : EOF EOF ;
 

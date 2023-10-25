@@ -13,7 +13,7 @@ class ExpectedError(val errorCode: String, val errorRegion: Origin, val blame: B
   def trip(failure: VerificationFailure): Unit =
     tripped match {
       case None =>
-        logger.debug(s"Swallowing error code $errorCode at ${errorRegion.shortPosition}")
+        logger.debug(s"Swallowing error code $errorCode at ${errorRegion.getShortPositionOrElse()}")
         tripped = Some(failure)
       case Some(leftFailure) =>
         blame.blame(ExpectedErrorTrippedTwice(this, leftFailure, failure))

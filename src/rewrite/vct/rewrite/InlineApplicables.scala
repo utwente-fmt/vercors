@@ -3,7 +3,7 @@ package vct.col.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{AssertFailed, Blame, FoldFailed, Origin, UnfoldFailed}
+import vct.col.origin.{AssertFailed, Blame, Context, FoldFailed, InlineContext, Origin, PreferredName, ShortPosition, UnfoldFailed}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
@@ -48,33 +48,43 @@ case object InlineApplicables extends RewriterBuilder {
   }
 
   case class ReplaceReturn[G](newStatement: Expr[G] => Statement[G]) extends NonLatchingRewriter[G, G] {
-    case object IdentitySuccessor extends SuccessorsProviderTrafo(allScopes.freeze) {
-      override def preTransform[I <: Declaration[G], O <: Declaration[G]](pre: I): Option[O] =
-        Some(pre.asInstanceOf[O])
+    case class SuccOrIdentity() extends SuccessorsProviderTrafo[G, G](allScopes.freeze) {
+      override def postTransform[T <: Declaration[G]](pre: Declaration[G], post: Option[T]): Option[T] =
+        Some(post.getOrElse(pre.asInstanceOf[T]))
     }
 
-    override def succProvider: SuccessorsProvider[G, G] = IdentitySuccessor
+    override def succProvider: SuccessorsProvider[G, G] = SuccOrIdentity()
 
     override def dispatch(stat: Statement[G]): Statement[G] = stat match {
-      case Return(e) => newStatement(e)
+      case Return(e) => newStatement(dispatch(e))
       case other => rewriteDefault(other)
     }
   }
 
-  case class InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]) extends Origin {
-    override def preferredName: String = definition.preferredName
-    override def shortPosition: String = usages.head.o.shortPosition
-    override def context: String =
-      usages.map(_.o.context).mkString(
-        start = " Inlined from:\n" + Origin.HR,
-        sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
-        end = "",
-      ) + Origin.HR +
-        " In definition:\n" + Origin.HR +
-        definition.context
+  private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin = Origin(
+    Seq(
+      PreferredName(definition.getPreferredNameOrElse()),
+      ShortPosition(usages.head.o.getShortPositionOrElse()),
+      Context(usages.map(_.o.getContext.getOrElse(Context("[unknown context]")).context).mkString(
+          start = " Inlined from:\n" + Origin.HR,
+          sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
+          end = "",
+        ) + Origin.HR +
+          " In definition:\n" + Origin.HR +
+          definition.getContext.getOrElse(Context("[unknown context]")).context),
+      InlineContext(s"${definition.getInlineContextOrElse()} [inlined from] " +
+        s"${usages.head.o.getInlineContextOrElse()}")
+    )
+  )
 
-    override def inlineContext: String = s"${definition.inlineContext} [inlined from] ${usages.head.o.inlineContext}"
-  }
+  private def InlineLetThisOrigin: Origin = Origin(
+    Seq(
+      PreferredName("self"),
+      Context("[At let binding for `this`]"),
+      InlineContext("[Let binding for `this`"),
+      ShortPosition("generated")
+    )
+  )
 
   case class InlineFoldAssertFailed(fold: Fold[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
@@ -96,7 +106,8 @@ case object InlineApplicables extends RewriterBuilder {
     def +(other: Replacement[Pre]): Replacements[Pre] = Replacements(replacements :+ other)
 
     def expr(e: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
-      val replaced = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap).dispatch(e)
+      val sub = Substitute[Pre](replacements.map(r => r.replacing -> r.withVariable.get).toMap)
+      val replaced = sub.labelDecls.scope { sub.dispatch(e) }
       replacements.foldRight(replaced) {
         case (replacement, e) => Let(replacement.withVariable, replacement.binding, e)
       }
@@ -105,12 +116,15 @@ case object InlineApplicables extends RewriterBuilder {
     def captureReturn(t: Type[Pre], body: Statement[Pre])(implicit o: Origin): Expr[Pre] = {
       val done = Label[Pre](new LabelDecl(), Block(Nil))
       val result = new Variable[Pre](t)
-      val newBody = ReplaceReturn((e: Expr[Pre]) => Block(Seq(assignLocal(result.get, e), Goto[Pre](done.decl.ref)))).dispatch(body)
+      val sub = ReplaceReturn((e: Expr[Pre]) => Block(Seq(assignLocal(result.get, e), Goto[Pre](done.decl.ref))))
+      val newBody = sub.labelDecls.scope { sub.dispatch(body) }
       ScopedExpr(Seq(result), With(Block(Seq(newBody, done)), result.get))
     }
 
     def stat(t: Type[Pre], s: Statement[Pre], outReplacements: Replacements[Pre])(implicit o: Origin): Expr[Pre] = {
-      val replaced = Substitute[Pre]((this + outReplacements).replacements.map(r => r.replacing -> r.withVariable.get).toMap).dispatch(s)
+      val sub = Substitute[Pre]((this + outReplacements).replacements.map(r => r.replacing -> r.withVariable.get).toMap)
+      // labelDecls is the only scope peeled off by taking the body of the to-be-inlined applicable.
+      val replaced = sub.labelDecls.scope { sub.dispatch(s) }
       val capture = captureReturn(t, replaced)
       ScopedExpr((this + outReplacements).replacements.map(_.withVariable),
         With(Block(
@@ -140,7 +154,6 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
     program.declarations.collect { case cls: Class[Pre] => cls }.foreach { cls =>
       cls.declarations.foreach(classOwner(_) = cls)
     }
-
     rewriteDefault(program)
   }
 
@@ -192,45 +205,53 @@ case class InlineApplicables[Pre <: Generation]() extends Rewriter[Pre] with Laz
         lazy val obj = {
           val instanceApply = apply.asInstanceOf[InstanceApply[Pre]]
           val cls = classOwner(instanceApply.ref.decl)
-          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)
+          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(InlineLetThisOrigin)
         }
 
         lazy val args =
           Replacements(for((arg, v) <- apply.args.zip(apply.ref.decl.args))
-            yield Replacement(v.get, arg))
+            yield Replacement(v.get, arg)(v.o))
 
         lazy val givenArgs =
           Replacements(for((Ref(v), arg) <- apply.asInstanceOf[InvokingNode[Pre]].givenMap)
-            yield Replacement(v.get, arg))
+            yield Replacement(v.get, arg)(v.o))
 
         lazy val outArgs = {
           val inv = apply.asInstanceOf[AnyMethodInvocation[Pre]]
           Replacements(for((out, v) <- inv.outArgs.zip(inv.ref.decl.outArgs))
-            yield Replacement(v.get, out))
+            yield Replacement(v.get, out)(v.o))
         }
 
         lazy val yields =
           Replacements(for((out, Ref(v)) <- apply.asInstanceOf[InvokingNode[Pre]].yields)
-            yield Replacement(v.get, out))
+            yield Replacement(v.get, out)(v.o))
 
         val replacements = apply.ref.decl.args.map(_.get).zip(apply.args).toMap[Expr[Pre], Expr[Pre]]
-        // TODO: consider type arguments and out-arguments and given and yields (oof)
+        // TODO: consider type arguments
         apply match {
           case PredicateApply(Ref(pred), _, WritePerm()) => // TODO inline predicates with non-write perm
             dispatch(args.expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
           case PredicateApply(Ref(pred), _, _) => ???
           case ProcedureInvocation(Ref(proc), _, _, typeArgs, _, _) =>
             dispatch((args + givenArgs).stat(apply.t, proc.body.getOrElse(throw AbstractInlineable(apply, proc)), outArgs + yields))
-          case FunctionInvocation(Ref(func), _, typeArgs, _, yields) =>
+          case FunctionInvocation(Ref(func), _, typeArgs, _, _) =>
             dispatch((args + givenArgs).expr(func.body.getOrElse(throw AbstractInlineable(apply, func))))
 
           case MethodInvocation(_, Ref(method), _, _, typeArgs, _, _) =>
             dispatch((obj + args + givenArgs).stat(apply.t, method.body.getOrElse(throw AbstractInlineable(apply, method)), outArgs + yields))
-          case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, yields) =>
+          case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, _) =>
             dispatch((obj + args + givenArgs).expr(func.body.getOrElse(throw AbstractInlineable(apply, func))))
           case InstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
             dispatch((obj + args).expr(pred.body.getOrElse(throw AbstractInlineable(apply, pred))))
           case InstancePredicateApply(_, Ref(pred), _, _) => ???
+          case CoalesceInstancePredicateApply(_, Ref(pred), _, WritePerm()) =>
+            dispatch((obj + args).expr(
+              Implies(
+                Neq(obj.replacing, Null()),
+                pred.body.getOrElse(throw AbstractInlineable(apply, pred)),
+              )
+            ))
+          case CoalesceInstancePredicateApply(_, Ref(pred), _, _) => ???
         }
       }
 

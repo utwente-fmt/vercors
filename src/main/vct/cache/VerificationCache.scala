@@ -11,7 +11,7 @@ case object VerificationCache extends LazyLogging {
   def getSiliconDirectory: Path = getViperDirectory(BuildInfo.siliconCommit).resolve("silicon").resolve("verified")
 
   private def getViperDirectory(backendCommit: String): Path = {
-    val variate = BuildInfo.gitHasChanges == "false"
+    val variate = BuildInfo.gitHasChanges != "false"
 
     if(variate) {
       logger.warn("Caching is enabled, but results will be discarded, since there were uncommitted changes at compilation time.")

@@ -5,5 +5,5 @@ import vct.col.print.{Ctx, Doc, Group}
 
 trait JavaLocalDeclarationImpl[G] { this: JavaLocalDeclaration[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Doc.lspread(modifiers) <> t <+> Doc.args(decls))
+    Group(Doc.rspread(modifiers) <> t <+> Doc.args(decls))
 }

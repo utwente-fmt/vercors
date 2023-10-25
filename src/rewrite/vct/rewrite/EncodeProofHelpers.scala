@@ -5,36 +5,45 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 
-case object EncodeProofHelpers extends RewriterBuilder {
+case object EncodeProofHelpers extends RewriterBuilderArg[Boolean] {
   override def key: String = "proofHelpers"
   override def desc: String = "Encode statements framed with FramedProof, and indeterminate integers."
 
-  case object Once extends Origin {
-    override def preferredName: String = "once"
-    override def context: String = "[At node generated to execute a while loop once]"
-    override def inlineContext: String = "Node generated to execute a while loop once"
-    override def shortPosition: String = "generated"
-  }
+  private def Once: Origin = Origin(
+    Seq(
+      PreferredName("once"),
+      Context("[At node generated to execute a while loop once]"),
+      InlineContext("Node generated to execute a while loop once"),
+      ShortPosition("generated"),
+    )
+  )
 
-  case object Indet extends Origin {
-    override def preferredName: String = "indet"
-    override def context: String = "[At node generated to contain an indeterminate integer]"
-    override def inlineContext: String = "Node generated to contain an indeterminate integer"
-    override def shortPosition: String = "generated"
-  }
+  private def Indet: Origin = Origin(
+    Seq(
+      PreferredName("indet"),
+      Context("[At node generated to contain an indeterminate integer]"),
+      InlineContext("Node generated to contain an indeterminate integer"),
+      ShortPosition("generated"),
+    )
+  )
 
-  case object Before extends Origin {
-    override def preferredName: String = "beforeFrame"
-    override def context: String = "[At node generated to indicate the point before a proof frame]"
-    override def inlineContext: String = "Node generated to indicate the point before a proof frame"
-    override def shortPosition: String = "generated"
-  }
+  private def Before: Origin = Origin(
+    Seq(
+      PreferredName("beforeFrame"),
+      Context("[At node generated to indicate the point before a proof frame]"),
+      InlineContext("Node generated to indicate the point before a proof frame"),
+      ShortPosition("generated"),
+    )
+  )
 
-  case class BeforeVar(preferredName: String) extends Origin {
-    override def context: String = "[At variable generated for forperm]"
-    override def inlineContext: String = "Variable generated for forperm"
-    override def shortPosition: String = "generated"
-  }
+  private def BeforeVar(preferredName: String): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      Context("[At variable generated for forperm]"),
+      InlineContext("Variable generated for forperm"),
+      ShortPosition("generated"),
+    )
+  )
 
   case class FramedProofLoopInvariantFailed(proof: FramedProof[_]) extends Blame[LoopInvariantFailure] {
     override def blame(error: LoopInvariantFailure): Unit = error match {
@@ -42,11 +51,12 @@ case object EncodeProofHelpers extends RewriterBuilder {
         proof.blame.blame(FramedProofPreFailed(failure, proof))
       case LoopInvariantNotMaintained(failure, _) =>
         proof.blame.blame(FramedProofPostFailed(failure, proof))
+      case LoopTerminationMeasureFailed(_) => PanicBlame("There is no termination measure here").blame(error)
     }
   }
 }
 
-case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
+case class EncodeProofHelpers[Pre <: Generation](inferHeapContextIntoFrame: Boolean = true) extends Rewriter[Pre] {
   import vct.col.rewrite.EncodeProofHelpers._
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
@@ -54,10 +64,11 @@ case class EncodeProofHelpers[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = stat.o
 
       val beforeLabel = new LabelDecl[Post]()(Before)
-      val locValue = new Variable[Post](TAny())(BeforeVar("x"))
+      val locValue = new Variable[Post](TAnyValue())(BeforeVar("x"))
       val allLocationsSame =
         ForPermWithValue(locValue, locValue.get === Old(locValue.get, Some(beforeLabel.ref))(PanicBlame("loop body reached after label before it")))
-      val allLocationsSameOnInhale = PolarityDependent(allLocationsSame, tt)
+      val allLocationsSameOnInhale =
+        if(inferHeapContextIntoFrame) PolarityDependent(allLocationsSame, tt) else tt[Post]
 
       val once = new Variable[Post](TBool())(Once)
       val loop = Loop(

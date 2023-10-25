@@ -2,7 +2,8 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.rewrite.ResolveScale.{CheckScale, ScaleNegativePreconditionFailed, WrongScale}
-import vct.col.origin.{Blame, NoContext, Origin, PanicBlame, PreconditionFailed, ScaleNegative}
+import vct.col.origin.{Blame, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ScaleNegative}
+import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -18,11 +19,14 @@ case object ResolveScale extends RewriterBuilder {
       scale.o.messageInContext("This kind of expression cannot be scaled.")
   }
 
-  case class CheckScale(preferredName: String = "") extends Origin {
-    override def shortPosition: String = "generated"
-    override def context: String = "[At function generated to check that scale values are non-negative]"
-    override def inlineContext: String = "[Function generated to check that scale values are non-negative]"
-  }
+  private def CheckScale(preferredName: String = ""): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      ShortPosition("generated"),
+      Context("[At function generated to check that scale values are non-negative]"),
+      InlineContext("[Function generated to check that scale values are non-negative]"),
+    )
+  )
 
   case class ScaleNegativePreconditionFailed(scale: Scale[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit =

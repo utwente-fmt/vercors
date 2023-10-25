@@ -58,10 +58,11 @@ case object Stages {
       .thenRun(ExpectedErrors.ofOptions(options))
   }
 
-  def veymontOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
+  def veymontTransformationOfOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
       .thenRun(Resolution.ofOptions(options, blameProvider))
-      .thenRun(Transformation.veymontOfOptions(options))
+      .thenRun(Transformation.veymontTransformationOfOptions(options))
+      .thenRun(CodeGeneration.veymontGenerationOfOptions(options))
       .thenRun(Output.veymontOfOptions(options))
   }
 

@@ -2,14 +2,14 @@ package vct.main.stages
 
 import hre.io.Readable
 import hre.stages.Stage
+import vct.col.origin.{Origin, ReadableOrigin}
 import vct.col.rewrite.Generation
 import vct.main.stages.Parsing.{Language, UnknownFileExtension}
 import vct.options.Options
-import vct.parsers.transform.{BlameProvider, ReadableOriginProvider}
 import vct.parsers._
+import vct.parsers.transform.BlameProvider
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
-import viper.api
 import viper.api.transform.ColSilverParser
 
 import java.nio.file.Path
@@ -21,7 +21,9 @@ case object Parsing {
     def fromFilename(filename: String): Option[Language] =
       filename.split('.').last match {
         case "cl" | "c" | "cu" => Some(C)
+        case "cpp" => Some(CPP)
         case "i" => Some(InterpretedC)
+        case "ipp" => Some(InterpretedCPP)
         case "java" => Some(Java)
         case "pvl" => Some(PVL)
         case "sil" | "vpr" => Some(Silver)
@@ -32,6 +34,8 @@ case object Parsing {
 
     case object C extends Language
     case object InterpretedC extends Language
+    case object CPP extends Language
+    case object InterpretedCPP extends Language
     case object Java extends Language
     case object PVL extends Language
     case object Silver extends Language
@@ -63,6 +67,10 @@ case class Parsing[G <: Generation]
   cSystemInclude: Path = Resources.getCIncludePath,
   cOtherIncludes: Seq[Path] = Nil,
   cDefines: Map[String, String] = Map.empty,
+  ccpp: Path = Resources.getCPPcPath,
+  cppSystemInclude: Path = Resources.getCPPIncludePath,
+  cppOtherIncludes: Seq[Path] = Nil,
+  cppDefines: Map[String, String] = Map.empty,
 ) extends Stage[Seq[Readable], ParseResult[G]] {
   override def friendlyName: String = "Parsing"
   override def progressWeight: Int = 4
@@ -73,16 +81,18 @@ case class Parsing[G <: Generation]
         .orElse(Language.fromFilename(readable.fileName))
         .getOrElse(throw UnknownFileExtension(readable.fileName))
 
-      val originProvider = ReadableOriginProvider(readable)
+      val origin = Origin(Seq(ReadableOrigin(readable)))
 
       val parser = language match {
-        case Language.C => ColCParser(originProvider, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
-        case Language.InterpretedC => ColIParser(originProvider, blameProvider)
-        case Language.Java => ColJavaParser(originProvider, blameProvider)
-        case Language.PVL => ColPVLParser(originProvider, blameProvider)
-        case Language.Silver => ColSilverParser(originProvider, blameProvider)
-        case Language.SystemC => new ColSystemCParser(originProvider, blameProvider, Resources.getSystemCConfig)
-        case Language.LLVM => ColLLVMParser(originProvider, blameProvider)
+        case Language.C => ColCParser(origin, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
+        case Language.InterpretedC => ColIParser(origin, blameProvider)
+        case Language.CPP => ColCPPParser(origin, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
+        case Language.InterpretedCPP => ColIPPParser(origin, blameProvider)
+        case Language.Java => ColJavaParser(origin, blameProvider)
+        case Language.PVL => ColPVLParser(origin, blameProvider)
+        case Language.Silver => ColSilverParser(origin, blameProvider)
+        case Language.SystemC => new ColSystemCParser(origin, blameProvider, Resources.getSystemCConfig)
+        case Language.LLVM => ColLLVMParser(origin, blameProvider)
       }
 
       parser.parse[G](readable)

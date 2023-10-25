@@ -5,6 +5,5 @@ import vct.col.print._
 
 trait BlockImpl[G] { this: Block[G] =>
   override def layout(implicit ctx: Ctx): Doc = layoutAsBlock
-  override def blockElementsForLayout(implicit ctx: Ctx): Seq[Show] =
-    statements.flatMap(_.blockElementsForLayout)
+  override def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc = NodeDoc(this, Doc.fold(statements.map(_.foldBlock(f)))(f))
 }

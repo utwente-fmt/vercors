@@ -2,7 +2,6 @@ package vct.col.print
 
 import vct.col.ast.{Declaration, Node}
 import vct.col.ref.Ref
-import vct.col.resolve.ctx.Referrable
 
 import scala.util.Try
 
@@ -12,6 +11,7 @@ object Ctx {
   case object Silver extends Syntax
   case object Java extends Syntax
   case object C extends Syntax
+  case object CPP extends Syntax
   case object Cuda extends Syntax
   case object OpenCL extends Syntax
 }
@@ -31,7 +31,7 @@ case class Ctx(
     })
 
   def name(decl: Declaration[_]): String =
-    names.getOrElse(decl, s"${decl.o.preferredName}_${decl.hashCode()}")
+    names.getOrElse(decl, s"${decl.o.getPreferredNameOrElse()}_${decl.hashCode()}")
 
   def name(ref: Ref[_, _ <: Declaration[_]]): String =
     name(Try(ref.decl).getOrElse(return "?brokenref?"))

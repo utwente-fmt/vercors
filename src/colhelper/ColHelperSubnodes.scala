@@ -25,7 +25,9 @@ case class ColHelperSubnodes(info: ColDescription) extends ColHelperMaker {
         }
       case Type.Apply(Type.Name(typ), List(Type.Name("G"))) if info.supports("NodeFamily")(typ) || info.supports("Declaration")(typ) =>
         Some(node => q"Seq($node)")
-      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("BigDecimal") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Apply(Type.Name("Ref"), _) | Type.Name("ExpectedError") =>
+      case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("BigDecimal") |
+           Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Apply(Type.Name("Ref"), _) |
+           Type.Name("ExpectedError") | Type.Name("BitString") =>
         None
       case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
         val f1 = subnodePatternByType(t1).getOrElse((elem: Term) => q"Nil")

@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CLocal, CPrimitiveType, CTCudaVec, Type}
+import vct.col.ast.{CLocal, CPrimitiveType, CTCudaVec, TEnum, Type}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.C
@@ -27,6 +27,9 @@ trait CLocalImpl[G] { this: CLocal[G] =>
     case RefModelField(field) => field.t
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
     case _: RefCudaVec[G] => CTCudaVec()
+    case cls: RefClass[G] => Types.notAValue(cls)
+    case enum: RefEnum[G] => Types.notAValue(enum)
+    case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
   }
 
   override def layout(implicit ctx: Ctx): Doc = Text(name)

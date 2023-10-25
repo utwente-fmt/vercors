@@ -41,6 +41,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       case proto.TBigInt => q"BigInt(new java.math.BigInteger($term.data.toByteArray()))"
       case proto.TBigDecimal => q"BigDecimal(${deserializeTerm(q"$term.unscaledValue", proto.TBigInt, null)}, $term.scale)"
       case proto.TString => term
+      case proto.TBitString => q"new BitString($term.data.toByteArray(), $term.skipAtLastByte)"
       case proto.TOption(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
       case proto.TSeq(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))})"
       case proto.TSet(t) => q"$term.map[${lastTypeArg(scalaTyp)}](e => ${deserializeTerm(q"e", t, lastTypeArg(scalaTyp))}).toSet"
@@ -64,7 +65,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
 
   def makeNodeDeserialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
-      ${defn.make(defn.params.map(deserializeParam(defn)), q"Deserialize.Origin(node.origin)", q"Deserialize.Origin(node.origin)")}
+      ${defn.make(defn.params.map(deserializeParam(defn)), q"Origin(node.origin.map(Deserialize.deserialize))", q"Origin(node.origin.map(Deserialize.deserialize))")}
   """)
 
   def makeDeserialize(): List[Stat] = q"""
@@ -74,18 +75,21 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import scala.reflect.ClassTag
 
     object Deserialize {
-      case class Origin(stringOrigin:String="{}") extends vct.col.origin.Origin {
-        override def preferredName: String = "unknown"
-        override def context: String = "At: [deserialized node]"
-        override def inlineContext: String = "[Deserialized node]"
-        override def shortPosition: String = "serialized"
+      def deserialize(originContent: ser.OriginContent): OriginContent = originContent.v match {
+        case ser.OriginContent.V.RequiredName(ser.RequiredName(str, _)) => RequiredName(str)
+        case ser.OriginContent.V.PreferredName(ser.PreferredName(str, _)) => PreferredName(str)
+        case ser.OriginContent.V.FormalName(ser.FormalName(str, _)) => FormalName(str)
+        case ser.OriginContent.V.Context(ser.Context(str, _)) => Context(str)
+        case ser.OriginContent.V.InlineContext(ser.InlineContext(str, _)) => InlineContext(str)
+        case ser.OriginContent.V.ShortPosition(ser.ShortPosition(str, _)) => ShortPosition(str)
+        case ser.OriginContent.V.Empty => ???
       }
 
-      def deserialize[G](program: ser.Program): Program[G] =
-        Deserialize[G](mutable.Map()).deserializeProgram(program)
+      def deserializeProgram[G](program: ser.Program, fileName:String="<unknown>"): Program[G] =
+        Deserialize[G](mutable.Map(), fileName).deserializeProgram(program)
 
-      def deserialize[G](verification: ser.Verification): Verification[G] =
-        Deserialize[G](mutable.Map()).deserializeVerification(verification)
+      def deserializeVerification[G](verification: ser.Verification, fileName:String="<unknown>"): Verification[G] =
+        Deserialize[G](mutable.Map(), fileName).deserializeVerification(verification)
 
       trait DeserializeFunc[S, N[_] <: Node[_]] {
         def deserialize[G](s: Deserialize[G], n: S): N[G]
@@ -95,7 +99,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
       ..${info.families.flatMap(makeFamilyDispatchLut(_, decl = false)).toList}
     }
 
-    case class Deserialize[G](decls: mutable.Map[Long, Declaration[G]]) {
+    case class Deserialize[G](decls: mutable.Map[Long, Declaration[G]], fileName:String) {
       def ref[T <: Declaration[G]](id: Long)(implicit tag: ClassTag[T]): Ref[G, T] =
         new LazyRef[G, T](decls(id))
 

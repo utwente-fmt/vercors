@@ -76,6 +76,8 @@ NOTIFY: 'notify';
 FORK: 'fork';
 JOIN: 'join';
 
+COMMUNICATE: 'communicate';
+
 THIS: 'this';
 NULL: 'null';
 TRUE: 'true';

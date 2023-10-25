@@ -9,6 +9,7 @@ case object ExampleFiles {
     "examples/archive/",
     "examples/technical/veymont-check/",
     "examples/technical/veymont-seq-progs/",
+    "examples/concepts/resourceValues",
   ).map(_.replaceAll("/", File.separator))
 
   val IGNORE_EXTS: Seq[String] = Seq(
@@ -42,7 +43,7 @@ case object ExampleFiles {
 
   def find(directory: File): Seq[File] =
     Option(directory.listFiles()) match {
-      case Some(files) => files.filterNot(f => EXCLUSIONS.exists(_(f))).sortBy(_.getName).flatMap(f => if(f.isDirectory) find(f) else Seq(f))
+      case Some(files) => files.toSeq.filterNot(f => EXCLUSIONS.exists(_(f))).sortBy(_.getName).flatMap(f => if(f.isDirectory) find(f) else Seq(f))
       case None => Nil
     }
 }

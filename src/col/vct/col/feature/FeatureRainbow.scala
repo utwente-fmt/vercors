@@ -112,6 +112,8 @@ class FeatureRainbow[G] {
     case node: CoerceClassAnyClass[G] => Coercions
     case node: CoerceColToCPrimitive[G] => Coercions
     case node: CoerceCPrimitiveToCol[G] => Coercions
+    case node: CoerceColToCPPPrimitive[G] => Coercions
+    case node: CoerceCPPPrimitiveToCol[G] => Coercions
     case node: CoerceFloatRat[G] => Coercions
     case node: CoerceFracZFrac[G] => Coercions
     case node: CoerceIdentity[G] => Coercions
@@ -138,7 +140,7 @@ class FeatureRainbow[G] {
     case node: CoerceNullRef[G] => Coercions
     case node: CoerceRatZFrac[G] => Coercions
     case node: CoerceSelectUnion[G] => Coercions
-    case node: CoerceSomethingAny[G] => Coercions
+    case node: CoerceSomethingAnyValue[G] => Coercions
     case node: CoerceSupports[G] => Coercions
     case node: CoerceUnboundInt[G] => Coercions
     case node: CoerceWidenBound[G] => Coercions
@@ -208,6 +210,39 @@ class FeatureRainbow[G] {
     case node: OpenCLKernel[G] => CSpecific
     case node: SharedMemSize[G] => CSpecific
 
+    case node: CPPAddressingDeclarator[G] => CPPSpecific
+    case node: CPPArrayDeclarator[G] => CPPSpecific
+    case node: CPPBool[G] => CPPSpecific
+    case node: CPPDeclaration[G] => CPPSpecific
+    case node: CPPFunctionDefinition[G] => CPPSpecific
+    case node: CPPGlobalDeclaration[G] => CPPSpecific
+    case node: CPPInit[G] => CPPSpecific
+    case node: CPPInline[G] => CPPSpecific
+    case node: CPPInt[G] => CPPSpecific
+    case node: CPPInvocation[G] => CPPSpecific
+    case node: CPPLambdaDeclarator[G] => CPPSpecific
+    case node: CPPLambdaDefinition[G] => CPPSpecific
+    case node: CPPLocal[G] => CPPSpecific
+    case node: CPPLocalDeclaration[G] => CPPSpecific
+    case node: CPPLong[G] => CPPSpecific
+    case node: CPPName[G] => CPPSpecific
+    case node: CPPParam[G] => CPPSpecific
+    case node: CPPPrimitiveType[G] => CPPSpecific
+    case node: CPPPure[G] => CPPSpecific
+    case node: CPPShort[G] => CPPSpecific
+    case node: CPPSigned[G] => CPPSpecific
+    case node: CPPSpecificationType[G] => CPPSpecific
+    case node: CPPTLambda[G] => CPPSpecific
+    case node: CPPTranslationUnit[G] => CPPSpecific
+    case node: CPPTypedefName[G] => CPPSpecific
+    case node: CPPTypedFunctionDeclarator[G] => CPPSpecific
+    case node: CPPUnsigned[G] => CPPSpecific
+    case node: CPPVoid[G] => CPPSpecific
+
+    case node: SYCLClassDefName[G] => CPPSpecific
+    case node: SYCLTClass[G] => CPPSpecific
+    case node: SYCLClassObject[G] => CPPSpecific
+
     case node: CurrentThreadId[G] => CurrentThread
 
     case node: UntypedLiteralSeq[G] => DynamicallyTypedCollection
@@ -223,6 +258,7 @@ class FeatureRainbow[G] {
     case node: SignalsClause[G] => Exceptions
 
     case node: TAny[G] => ExoticTypes
+    case node: TAnyValue[G] => ExoticTypes
     case node: TNothing[G] => ExoticTypes
     case node: TUnion[G] => ExoticTypes
     case node: TBoundedInt[G] => ExoticTypes
@@ -361,7 +397,6 @@ class FeatureRainbow[G] {
     case node: ParBlockDecl[G] => ParallelRegion
     case node: ParInvariantDecl[G] => ParallelRegion
     case node: IterVariable[G] => ParallelRegion
-    case node: ParSequential[G] => ParallelRegion
 
     case node: Permutation[G] => PermutationOperator
 
@@ -643,6 +678,9 @@ class FeatureRainbow[G] {
     case node: CGoto[G] => return Seq(CSpecific, Gotos)
     case node: CPointer[G] => return Seq(CSpecific, Pointers)
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
+    case node: CPPChar[G] => return Seq(CPPSpecific, TextTypes)
+    case node: CPPDeclarationStatement[G] => return Seq(CPPSpecific, UnscopedDeclaration)
+    case node: CPPAddressing[G] => return Seq(CPPSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
 

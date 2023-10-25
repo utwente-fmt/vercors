@@ -22,9 +22,9 @@ case class DataRecordTask(superTask: AbstractTask, record: DataRecord) extends T
     case r: FunctionRecord => s"${r.value.name}"
     case r: PredicateRecord => s"${r.value.name}"
     case r: MethodRecord => s"${r.value.name}"
-    case r: ExecuteRecord => s"${r.value.toString().replaceAll("[\n ]+", " ")}"
-    case r: ConsumeRecord => s"Exhale ${r.value.toString().replaceAll("[\n ]+", " ")}"
-    case r: ProduceRecord => s"Inhale ${r.value.toString().replaceAll("[\n ]+", " ")}"
+    case r: ExecuteRecord => s"${CachedExpRender(r.value).replaceAll("[\n ]+", " ")}"
+    case r: ConsumeRecord => s"Exhale ${CachedExpRender(r.value).replaceAll("[\n ]+", " ")}"
+    case r: ProduceRecord => s"Inhale ${CachedExpRender(r.value).replaceAll("[\n ]+", " ")}"
     case r: CommentRecord => s"/*${r.comment}*/"
   }
 

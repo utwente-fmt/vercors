@@ -10,9 +10,14 @@ trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] { this: ApplicableCont
     this match {
       // Redundant match so this doesn't compile if we add a field to ApplicableContract
       case ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases) =>
-        f(context, requires) +: f(context.withPostcondition, ensures) +: f(context, contextEverywhere) +:
-          (signals.map(f(context, _)) ++ givenArgs.map(f(context, _)) ++ yieldsArgs.map(f(context, _)) ++
-          decreases.toSeq.map(f(context, _)))
+        f(context.withUndeclared(yieldsArgs), requires) +:
+          f(context.withPostcondition, ensures) +:
+          f(context.withUndeclared(yieldsArgs), contextEverywhere) +: (
+            signals.map(f(context, _)) ++
+              givenArgs.map(f(context, _)) ++
+              yieldsArgs.map(f(context, _)) ++
+              decreases.toSeq.map(f(context.withUndeclared(yieldsArgs), _))
+          )
     }
 
   def isEmpty: Boolean = this match {

@@ -2,7 +2,7 @@ import ColDefs._
 
 import java.io.File
 import java.nio.file.Files
-import scala.collection.mutable
+import scala.collection.immutable.ListMap
 import scala.collection.mutable.ArrayBuffer
 import scala.meta._
 
@@ -66,7 +66,7 @@ case class ClassDef(names: Seq[String], params: List[Term.Param], blameType: Opt
 
 class ColDescription {
   val defs: ArrayBuffer[ClassDef] = ArrayBuffer()
-  val bases: mutable.ListMap[String, List[String]] = mutable.ListMap()
+  var bases: ListMap[String, List[String]] = ListMap()
   val families: ArrayBuffer[String] = ArrayBuffer()
 
   def supports(baseType: String)(cls: String): Boolean = {
@@ -133,7 +133,8 @@ class ColDescription {
         q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.succ[${Type.Name(tDecl)}[Post]]($term.decl))"
       else
         q"rewriter.porcelainRefSucc[$decl[Post]]($term).getOrElse(rewriter.anySucc[${Type.Name(tDecl)}[Post]]($term.decl))"
-    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("BigDecimal") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
+    case Type.Name("Int") | Type.Name("String") | Type.Name("Boolean") | Type.Name("BigInt") | Type.Name("BigDecimal") |
+         Type.Name("BitString") | Type.Apply(Type.Name("Referrable"), List(Type.Name("G"))) | Type.Name("ExpectedError") =>
       term
     case Type.Apply(Type.Name("Either"), List(t1, t2)) =>
       q"$term.left.map(l => ${rewriteDefault(q"l", t1)}).map(r => ${rewriteDefault(q"r", t2)})"
@@ -167,11 +168,15 @@ class ColDescription {
         case List(Term.Param(List(scala.meta.Mod.Implicit(), scala.meta.Mod.ValParam()), Name("o"), Some(scala.meta.Type.Name("Origin")), _)) =>
           if(parameterLists.size == 2) {
             defs += ClassDef(path :+ name.value, parameterLists.head, blameType=None, mods)
-          } else {
+          } else if(parameterLists.size == 3) {
             parameterLists(1) match {
               case List(Term.Param(List(Mod.ValParam()), Name("blame"), Some(t@Type.Apply(_, _)), _)) =>
                 defs += ClassDef(path :+ name.value, parameterLists.head, Some(t), mods)
+              case _ =>
+                ColHelperUtil.fail("The second (of three) parameter lists must only contain the blame parameter", node=Some(stat))
             }
+          } else {
+            ColHelperUtil.fail("Class must have two or three parameter lists", node=Some(stat))
           }
         case _ =>
       }
@@ -188,12 +193,12 @@ class ColDescription {
    */
   def collectBases(stat: Stat): Unit = stat match {
     case Defn.Class(_, name, _, _, Template(_, inits, _, _)) =>
-      bases(name.value) = inits.collect {
+      bases += name.value -> inits.collect {
         case Init(Type.Name(name), _, _) => name
         case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }
     case Defn.Trait(_, name, _, _, Template(_, inits, _, _)) =>
-      bases(name.value) = inits.collect {
+      bases += name.value -> inits.collect {
         case Init(Type.Name(name), _, _) => name
         case Init(Type.Apply(Type.Name(name), _), _, _) => name
       }

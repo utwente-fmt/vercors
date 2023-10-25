@@ -21,6 +21,7 @@ STAR: '*';
 PIPE: '|';
 PLUS: '+';
 COLON: ':';
+CONS: '::';
 VAL_INLINE: 'inline';
 VAL_ASSERT: 'assert';
 VAL_TRUE: 'true';
@@ -173,7 +174,6 @@ READ: 'read';
 EMPTY: 'empty';
 
 COALESCE: '?.';
-CONS: '::';
 FRAC_DIV: '\\';
 SEP_CONJ: '**';
 IMPLIES: '==>';

@@ -4,11 +4,12 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{SimplificationRule, Verification}
+import vct.col.ast.{SimplificationRule, Verification, Program}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
 import vct.col.print.Ctx
+import vct.col.rewrite._
 import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
@@ -23,6 +24,8 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
+import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
+import vct.rewrite.lang.ReplaceSYCLTypes
 
 object Transformation {
   trait Log {
@@ -30,9 +33,11 @@ object Transformation {
     def finish(): Unit
   }
 
-  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
+  case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
     override def text: String =
-      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map(_.toString).mkString("\n")
+      s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map {
+        case (program, err) => err.message(program.messageInContext)
+      }.mkString("\n")
   }
 
   private def writeOutFunctions(m: Map[String, PathOrStd]): Seq[(String, Verification[_ <: Generation] => Unit)] =
@@ -66,12 +71,13 @@ object Transformation {
           simplifyBeforeRelations = options.simplifyPaths.map(simplifierFor(_, options)),
           simplifyAfterRelations = options.simplifyPathsAfterRelations.map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          inferHeapContextIntoFrame = options.inferHeapContextIntoFrame,
           bipResults = bipResults,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
         )
     }
 
-  def veymontOfOptions(options: Options): Transformation =
+  def veymontTransformationOfOptions(options: Options): Transformation =
     options.backend match {
       case Backend.Silicon | Backend.Carbon =>
         VeyMontTransformation(
@@ -135,7 +141,7 @@ class Transformation
             case (key, action) => if (pass.key == key) action(result)
           }
 
-          result.check match {
+          result.tasks.map(_.program).flatMap(program => program.check.map(program -> _)) match {
             case Nil => // ok
             case errors => throw TransformationCheckError(pass, errors)
           }
@@ -180,11 +186,14 @@ case class SilverTransformation
   override val log: Option[Transformation.Log] = None,
   simplifyBeforeRelations: Seq[RewriterBuilder] = Options().simplifyPaths.map(Transformation.simplifierFor(_, Options())),
   simplifyAfterRelations: Seq[RewriterBuilder] = Options().simplifyPathsAfterRelations.map(Transformation.simplifierFor(_, Options())),
+  inferHeapContextIntoFrame: Boolean = true,
   bipResults: BIP.VerificationResults,
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    DeserializeLLVMOrigin,
+    // Replace leftover SYCL types
+    ReplaceSYCLTypes,
+
     ComputeBipGlue,
     InstantiateBipSynchronizations,
     EncodeBipPermissions,
@@ -199,6 +208,7 @@ case class SilverTransformation
     // Normalize AST
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
+    EncodeRangedFor,
 
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,
@@ -222,6 +232,8 @@ case class SilverTransformation
     InlineApplicables,
     PureMethodsToFunctions,
     RefuteToInvertedAssert,
+    ExplicitResourceValues,
+    EncodeResourceValues,
 
     // Encode parallel blocks
     EncodeSendRecv,
@@ -244,7 +256,7 @@ case class SilverTransformation
     UntupledQuantifiers,
 
     // Encode proof helpers
-    EncodeProofHelpers,
+    EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
 
     // Make final fields constant functions. Explicitly before ResolveExpressionSideEffects, because that pass will
     // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
@@ -258,6 +270,7 @@ case class SilverTransformation
     ResolveScale,
     // No more classes
     ClassToRef,
+    HeapVariableToRef,
 
     CheckContractSatisfiability.withArg(checkSat),
 
@@ -311,6 +324,8 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     AddVeyMontAssignmentNodes,
     AddVeyMontConditionNodes,
-    StructureCheck
+    StructureCheck,
   ))
+
+
 

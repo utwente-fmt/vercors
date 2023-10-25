@@ -1,8 +1,8 @@
 package vct.col.origin
 
 import com.typesafe.scalalogging.LazyLogging
-import vct.result.VerificationError
 import vct.col.ast._
+import vct.result.VerificationError
 import vct.result.VerificationError.SystemError
 
 sealed trait ContractFailure {
@@ -15,17 +15,17 @@ sealed trait ContractFailure {
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def code: String = "false"
   override def descCompletion: String = "this expression may be false"
-  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be false"
+  override def inlineDescCompletion: String = s"`${node.o.getInlineContextOrElse()}` may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def code: String = "perm"
   override def descCompletion: String = "there might not be enough permission to exhale this amount"
-  override def inlineDescCompletion: String = s"there might be insufficient permission for `${node.o.inlineContext}`"
+  override def inlineDescCompletion: String = s"there might be insufficient permission for `${node.o.getInlineContextOrElse()}`"
 }
 case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def code: String = "negativePermValue"
   override def descCompletion: String = "the amount of permission in this permission predicate may be negative"
-  override def inlineDescCompletion: String = s"`${node.o.inlineContext}` may be a negative permission amount"
+  override def inlineDescCompletion: String = s"`${node.o.getInlineContextOrElse()}` may be a negative permission amount"
 }
 
 trait VerificationFailure {
@@ -76,9 +76,9 @@ trait NodeVerificationFailure extends VerificationFailure {
   def descInContext: String
   def inlineDescWithSource(source: String): String
 
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPositionOrElse()
   override def desc: String = node.o.messageInContext(descInContext + errUrl)
-  override def inlineDesc: String = inlineDescWithSource(node.o.inlineContext)
+  override def inlineDesc: String = inlineDescWithSource(node.o.getInlineContextOrElse())
 }
 
 trait WithContractFailure extends VerificationFailure {
@@ -89,7 +89,7 @@ trait WithContractFailure extends VerificationFailure {
   def descInContext: String
   def inlineDescWithSource(node: String, failure: String): String
 
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPositionOrElse()
 
   override def code: String = s"$baseCode:${failure.code}"
 
@@ -100,7 +100,7 @@ trait WithContractFailure extends VerificationFailure {
     ))
 
   override def inlineDesc: String =
-    inlineDescWithSource(node.o.inlineContext, failure.inlineDescCompletion)
+    inlineDescWithSource(node.o.getInlineContextOrElse(), failure.inlineDescCompletion)
 }
 
 sealed trait ExpectedErrorFailure extends VerificationFailure {
@@ -109,14 +109,14 @@ sealed trait ExpectedErrorFailure extends VerificationFailure {
 
 case class ExpectedErrorTrippedTwice(err: ExpectedError, left: VerificationFailure, right: VerificationFailure) extends ExpectedErrorFailure {
   override def code: String = "trippedTwice"
-  override def position: String = err.errorRegion.shortPosition
+  override def position: String = err.errorRegion.getShortPositionOrElse()
   override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` occurred multiple times." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` occurred multiple times."
 }
 
 case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFailure {
   override def code: String = "notTripped"
-  override def position: String = err.errorRegion.shortPosition
+  override def position: String = err.errorRegion.getShortPositionOrElse()
   override def desc: String = err.errorRegion.messageInContext(s"The expected error with code `${err.errorCode}` was not encountered." + errUrl)
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
@@ -207,8 +207,14 @@ case class ContextEverywhereFailedInPre(failure: ContractFailure, node: Invoking
   override def descInContext: String = "Context may not hold in precondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
+case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends InvocationFailure {
+  override def code: String = "syclItemMethodPreFailed"
+  override def position: String = node.o.getShortPositionOrElse()
+  override def desc: String = node.o.messageInContext("The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item.")
+  override def inlineDesc: String = "The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item."
+}
 
-sealed trait CallableFailure extends ConstructorFailure
+sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
@@ -217,14 +223,14 @@ case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractF
 }
 case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
-  override def position: String = measure.o.shortPosition
+  override def position: String = measure.o.getShortPositionOrElse()
   override def desc: String = Origin.messagesInContext(Seq(
     applicable.o -> "Applicable may not terminate, since ...",
     apply.o -> "... from this invocation ...",
     measure.o -> "... this measure may not be bounded, or may not decrease.",
   ))
   override def inlineDesc: String =
-    s"`${apply.o.inlineContext}` may not terminate, since `${measure.o.inlineContext}` is not decreased or not bounded"
+    s"`${apply.o.getInlineContextOrElse()}` may not terminate, since `${measure.o.getInlineContextOrElse()}` is not decreased or not bounded"
 }
 case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
@@ -241,6 +247,12 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
+case class KernelLambdaFailure(kernelFailure: KernelFailure) extends CallableFailure {
+  override def code: String = "lambda" + kernelFailure.code.capitalize
+  override def position: String = kernelFailure.position
+  override def desc: String = kernelFailure.desc
+  override def inlineDesc: String = kernelFailure.inlineDesc
+}
 sealed trait LoopInvariantFailure extends VerificationFailure
 case class LoopInvariantNotEstablished(failure: ContractFailure, node: LoopInvariant[_]) extends LoopInvariantFailure with WithContractFailure {
   override def baseCode: String = "invariantNotEstablished"
@@ -254,9 +266,9 @@ case class LoopInvariantNotMaintained(failure: ContractFailure, node: LoopInvari
 }
 case class LoopTerminationMeasureFailed(node: DecreasesClause[_]) extends LoopInvariantFailure with NodeVerificationFailure {
   override def code: String = "loopDecreasesFailed"
-  override def position: String = node.o.shortPosition
+  override def position: String = node.o.getShortPositionOrElse()
   override def descInContext: String = "Loop may not terminate, since this measure may not be bounded, or may not decrease."
-  override def inlineDescWithSource(source: String): String = s"Loop may not terminate, since `${node.o.inlineContext}` may be unbounded or nondecreasing"
+  override def inlineDescWithSource(source: String): String = s"Loop may not terminate, since `${node.o.getInlineContextOrElse()}` may be unbounded or nondecreasing"
 }
 case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
@@ -264,9 +276,9 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_]) exten
     quantifier.o -> "This quantifier causes the resources in its body to be quantified, ...",
     resource.o   -> "... but this resource may not be unique with regards to the quantified variables.",
   ))
-  override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.inlineContext}` may not be unique with regards to the quantified variables."
+  override def inlineDesc: String = s"The location of the permission predicate in `${resource.o.getInlineContextOrElse()}` may not be unique with regards to the quantified variables."
 
-  override def position: String = resource.o.shortPosition
+  override def position: String = resource.o.getShortPositionOrElse()
 }
 case class DivByZero(node: DividingExpr[_]) extends NodeVerificationFailure {
   override def code: String = "divByZero"
@@ -349,23 +361,32 @@ case class RunnableNotRunning(node: Join[_]) extends JoinFailure with NodeVerifi
 }
 
 sealed trait KernelFailure extends VerificationFailure
-case class KernelPostconditionFailed(failure: ContractFailure, node: CGpgpuKernelSpecifier[_]) extends KernelFailure with WithContractFailure {
+case class KernelPostconditionFailed(failure: ContractFailure, eitherNode: Either[CGpgpuKernelSpecifier[_], CPPLambdaDefinition[_]]) extends KernelFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "The postcondition of this kernel may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The postcondition of `$node` may not hold, since $failure."
+  override def node: Node[_] = eitherNode match {
+    case Left(cgpuKernelSpec) => cgpuKernelSpec
+    case Right(cppLambdaDef) => cppLambdaDef
+  }
 }
-case class KernelPredicateNotInjective(kernel: CGpgpuKernelSpecifier[_], predicate: Expr[_]) extends KernelFailure {
+case class KernelPredicateNotInjective(kernel: Either[CGpgpuKernelSpecifier[_], CPPLambdaDefinition[_]], predicate: Expr[_]) extends KernelFailure {
   override def code: String = "kernelNotInjective"
-  override def position: String = predicate.o.shortPosition
+  override def position: String = predicate.o.getShortPositionOrElse()
 
-  override def desc: String =
+  override def desc: String = {
+    val kernelOrigin = kernel match {
+      case Left(cgpuKernelSpec) => cgpuKernelSpec.o
+      case Right(cppLambdaDef) => cppLambdaDef.o
+    }
     Origin.messagesInContext(Seq(
-      (kernel.o, "This kernel causes the formulas in its body to be quantified over all threads, ..."),
+      (kernelOrigin, "This kernel causes the formulas in its body to be quantified over all threads, ..."),
       (predicate.o, "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." + errUrl),
     ))
+  }
 
   override def inlineDesc: String =
-    s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
+    s"`${predicate.o.getInlineContextOrElse()}` does not have a unique location for every thread, and it could not be simplified away."
 }
 
 sealed trait KernelBarrierFailure extends VerificationFailure
@@ -420,7 +441,7 @@ case class ParBarrierInvariantBroken(failure: ContractFailure, node: ParBarrier[
 sealed trait ParBlockFailure extends VerificationFailure
 case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) extends ParBlockFailure {
   override def code: String = "parNotInjective"
-  override def position: String = predicate.o.shortPosition
+  override def position: String = predicate.o.getShortPositionOrElse()
   override def desc: String =
     Origin.messagesInContext(Seq(
       (block.o, "This parallel block causes the formulas in its body to be quantified over all threads, ..."),
@@ -428,7 +449,7 @@ case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_]) exte
     ))
 
   override def inlineDesc: String =
-    s"`${predicate.o.inlineContext}` does not have a unique location for every thread, and it could not be simplified away."
+    s"`${predicate.o.getInlineContextOrElse()}` does not have a unique location for every thread, and it could not be simplified away."
 }
 
 sealed trait ParBlockContractFailure extends ParBlockFailure
@@ -594,7 +615,7 @@ case class ScaleNegative(node: Scale[_]) extends NodeVerificationFailure {
   override def inlineDescWithSource(source: String): String = s"The scale in `$source` may be negative."
 }
 
-case class NontrivialUnsatisfiable(node: ApplicableContract[_]) extends NodeVerificationFailure {
+case class NontrivialUnsatisfiable(node: ApplicableContract[_]) extends NodeVerificationFailure with BipConstructorFailure {
   override def code: String = "unsatisfiable"
   override def descInContext: String = "The precondition of this contract may be unsatisfiable. If this is intentional, replace it with `requires false`."
   override def inlineDescWithSource(source: String): String =
@@ -619,9 +640,11 @@ case class CoerceZFracFracFailed(node: Expr[_]) extends UnsafeCoercion {
 }
 
 sealed trait JavaAnnotationFailure extends VerificationFailure
+sealed trait JavaConstructorFailure extends VerificationFailure
+sealed trait JavaImplicitConstructorFailure extends VerificationFailure
 
-sealed trait BipConstructorFailure extends CallableFailure
-sealed trait BipTransitionFailure extends CallableFailure
+sealed trait BipConstructorFailure extends JavaConstructorFailure
+sealed trait BipTransitionFailure extends JavaAnnotationFailure
 
 sealed trait BipTransitionContractFailure extends BipTransitionFailure with WithContractFailure {
   def transition: BipTransition[_]
@@ -638,13 +661,13 @@ sealed trait BipTransitionContractFailure extends BipTransitionFailure with With
     ))
 }
 
-case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: Procedure[_]) extends BipConstructorFailure with WithContractFailure {
+case class BipComponentInvariantNotEstablished(failure: ContractFailure, node: BipConstructor[_]) extends BipConstructorFailure with WithContractFailure {
   override def baseCode: String = "bipComponentInvariantNotEstablished"
   override def descInContext: String = "In this constructor the component invariant is not established, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The component invariant cannot be established in $node, since $failure"
 }
 
-case class BipStateInvariantNotEstablished(failure: ContractFailure, node: Procedure[_]) extends BipConstructorFailure with WithContractFailure {
+case class BipStateInvariantNotEstablished(failure: ContractFailure, node: BipConstructor[_]) extends BipConstructorFailure with WithContractFailure {
   override def baseCode: String = "bipStateInvariantNotEstablished"
   override def descInContext: String = "In this constructor the invariant of the state is not established, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"The state invariant is not established in $node, since $failure"
@@ -675,15 +698,14 @@ case class BipTransitionPreconditionUnsatisfiable(node: BipTransition[_]) extend
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for transition `$source`"
 }
 
-case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) extends BipTransitionFailure with NodeVerificationFailure {
+case class BipOutgoingDataPreconditionUnsatisfiable(node: BipOutgoingData[_]) extends JavaAnnotationFailure with NodeVerificationFailure {
   override def code: String = "bipOutgoingDataPreconditionUnsatisfiable"
   override def descInContext: String = "The precondition of this outgoing data is unsatisfiable"
 
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for outgoing data `$source`"
 }
 
-sealed trait BipGuardFailure extends CallableFailure
-case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends BipGuardFailure with NodeVerificationFailure {
+case class BipGuardPreconditionUnsatisfiable(node: BipGuard[_]) extends JavaAnnotationFailure with NodeVerificationFailure {
   override def code: String = "bipGuardPreconditionUnsatisfiable"
   override def descInContext: String = "The precondition of this guard (consisting of only the component invariant) is unsatisfiable"
   override def inlineDescWithSource(source: String): String = s"Precondition unsatisfiable for guard `$source`"
@@ -828,5 +850,6 @@ case class NoContext(inner: Blame[PreconditionFailed]) extends Blame[InvocationF
   override def blame(error: InvocationFailure): Unit = error match {
     case pre: PreconditionFailed => inner.blame(pre)
     case ctx: ContextEverywhereFailedInPre => PanicBlame("Function or method does not list any context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(ctx)
+    case syclItemMethodPre: SYCLItemMethodPreconditionFailed => PanicBlame("Function or method is not a SYCL item or nd_item instance method, so cannot fail on a sycl item or nd_item instance method precondition.").blame(syclItemMethodPre)
   }
 }

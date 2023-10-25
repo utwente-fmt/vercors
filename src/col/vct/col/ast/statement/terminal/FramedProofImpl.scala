@@ -13,7 +13,7 @@ trait FramedProofImpl[G] { this: FramedProof[G] =>
     ))
 
   def layoutWithSpec(implicit ctx: Ctx): Doc =
-    Doc.spec(Show.lazily(frameHeader(_))) <+/> Doc.stack(body.blockElementsForLayout) <+/> Doc.inlineSpec(Text("}"))
+    Doc.spec(Show.lazily(frameHeader(_))) <+/> body.foldBlock(_ <+/> _) <+/> Doc.inlineSpec(Text("}"))
 
   def layoutNative(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(

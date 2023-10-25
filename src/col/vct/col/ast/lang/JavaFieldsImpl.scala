@@ -7,5 +7,5 @@ trait JavaFieldsImpl[G] { this: JavaFields[G] =>
   override def isStatic = modifiers.contains(JavaStatic[G]())
 
   override def layout(implicit ctx: Ctx): Doc =
-    Doc.lspread(modifiers) <> t <+> Doc.spread(decls) <> ";"
+    Doc.rspread(modifiers) <> t <+> Doc.spread(decls) <> ";"
 }

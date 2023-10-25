@@ -6,6 +6,7 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.util.Comparison
 import vct.col.origin.Origin
+import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
@@ -19,12 +20,14 @@ case object SimplifyQuantifiedRelations extends RewriterBuilder {
 }
 
 case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
-  case object SimplifyQuantifiedRelationsOrigin extends Origin {
-    override def preferredName: String = "unknown"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated expression for the simplification of quantified integer relations]"
-    override def inlineContext: String = "[Simplified expression]"
-  }
+  object SimplifyQuantifiedRelationsOrigin extends Origin(
+    Seq(
+      PreferredName("unknown"),
+      ShortPosition("generated"),
+      Context("[At generated expression for the simplification of quantified integer relations]"),
+      InlineContext("[Simplified expression]"),
+    )
+  )
 
   private implicit val o: Origin = SimplifyQuantifiedRelationsOrigin
   private def one: IntegerValue[Pre] = IntegerValue(1)

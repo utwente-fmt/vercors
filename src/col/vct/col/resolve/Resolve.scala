@@ -1,6 +1,7 @@
 package vct.col.resolve
 
 import com.typesafe.scalalogging.LazyLogging
+import hre.data.BitString
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.util.Declarator
@@ -9,22 +10,24 @@ import vct.col.origin._
 import vct.col.resolve.ResolveReferences.scanScope
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
-import vct.col.resolve.lang.{C, Java, PVL, Spec}
-import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecExprParser, getLit, isBip}
+import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
+import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
 import vct.result.VerificationError.UserError
 
+import scala.collection.immutable.{AbstractSeq, LinearSeq}
+
 case object Resolve {
-  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
-    override def code: String = "badBipAnnotation"
-
-    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
-  }
-
   trait SpecExprParser {
     // If parsing fails, throw/terminate
     def parse[G](input: String, o: Origin): Expr[G]
+  }
+
+  trait SpecContractParser {
+    def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G]
+
+    def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G]
   }
 
   def extractLiteral(e: Expr[_]): Option[String] = e match {
@@ -40,6 +43,11 @@ case object Resolve {
         case _ => None
       }
     case _ => None
+  }
+
+  case class MalformedBipAnnotation(n: Node[_], err: String) extends UserError {
+    override def code: String = "badBipAnnotation"
+    override def text: String = n.o.messageInContext(s"Malformed JavaBIP annotation: $err")
   }
 
   case class UnexpectedComplicatedExpression(e: Expr[_]) extends UserError {
@@ -120,6 +128,10 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
+    case t@CPPTypedefName(nestedName, _) =>
+      t.ref = Some(CPP.findCPPTypeName(nestedName, ctx).getOrElse(
+        throw NoSuchNameError("class, struct, or namespace", nestedName, t)
+      ))
     case t @ PVLNamedType(name, typeArgs) =>
       t.ref = Some(PVL.findTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("class", name, t)))
@@ -136,7 +148,7 @@ case object ResolveTypes {
       // PB: needs to be in ResolveTypes if we want to support method inheritance at some point.
       cls.supports.foreach(_.tryResolve(name => Spec.findClass(name, ctx).getOrElse(throw NoSuchNameError("class", name, cls))))
     case local: JavaLocal[G] =>
-      Java.findJavaName(local.name, ctx) match {
+      Java.findJavaName(local.name, fromStaticContext = false, ctx) match {
         case Some(
         _: RefVariable[G] | _: RefJavaField[G] | _: RefJavaLocalDeclaration[G] | // Regular names
         _ // Statically imported, or regular previously imported typename
@@ -170,8 +182,8 @@ case object ResolveTypes {
 }
 
 case object ResolveReferences extends LazyLogging {
-  def resolve[G](program: Program[G], jp: SpecExprParser): Seq[CheckError] = {
-    resolve(program, ReferenceResolutionContext[G](jp))
+  def resolve[G](program: Program[G], jp: SpecExprParser, lsp: SpecContractParser): Seq[CheckError] = {
+    resolve(program, ReferenceResolutionContext[G](jp, lsp))
   }
 
   def resolve[G](node: Node[G], ctx: ReferenceResolutionContext[G], inGPUKernel: Boolean=false): Seq[CheckError] = {
@@ -180,11 +192,18 @@ case object ResolveReferences extends LazyLogging {
       case _ => false
     })
 
-    val innerCtx = enterContext(node, ctx, inGPU)
-
-    val childErrors = node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
-      resolve(node, innerCtx.copy(checkContext = ctx), inGPU)
-    }).flatten
+    val childErrors = node match {
+      case l @ Let(binding, value, main) =>
+        val innerCtx = enterContext(node, ctx, inGPU).withCheckContext(l.enterCheckContext(ctx.checkContext))
+        resolve(binding, innerCtx) ++
+        resolve(value, ctx) ++
+        resolve(main, innerCtx)
+      case _ =>
+        val innerCtx = enterContext(node, ctx, inGPU)
+        node.checkContextRecursor(ctx.checkContext, { (ctx, node) =>
+          resolve(node, innerCtx.withCheckContext(ctx), inGPU)
+        }).flatten
+    }
 
     if(childErrors.nonEmpty) childErrors
     else {
@@ -198,6 +217,7 @@ case object ResolveReferences extends LazyLogging {
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
     case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
     => Seq(decl)
+    case CPPDeclarationStatement(decl) => Seq(decl)
     case JavaLocalDeclarationStatement(decl) => Seq(decl)
     case LocalDecl(v) => Seq(v)
     case other => other.subnodes.flatMap(scanScope(_, inGPUKernel))
@@ -257,14 +277,15 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
-    case app: ContractApplicable[G] => ctx
-      .copy(currentResult=Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
-      .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
+      .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
       .declare(method.declarations ++ method.body.map(scanLabels).getOrElse(Nil))
     case fields: JavaFields[G] => ctx
       .copy(currentInitializerType=Some(fields.t))
+      .copy(inStaticJavaContext=fields.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
+    case init: JavaSharedInitialization[G] => ctx
+      .copy(inStaticJavaContext=init.isStatic)
     case locals: JavaLocalDeclaration[G] => ctx
       .copy(currentInitializerType=Some(locals.t))
     case decl: JavaVariableDeclaration[G] => ctx
@@ -287,14 +308,46 @@ case object ResolveReferences extends LazyLogging {
       if(func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
         throw MultipleForwardDeclarationContractError(func)
       }
+      func.decl.inits.zipWithIndex.foldLeft(
+        ctx.declare(func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
+      ) {
+        case (ctx, (init, idx)) =>
+          val info = C.getDeclaratorInfo(init.decl)
+          ctx
+            .declare(info.params.getOrElse(Nil))
+            .copy(currentResult=info.params.map(_ => RefCGlobalDeclaration(func, idx)))
+      }
+    case func: CPPFunctionDefinition[G] =>
       ctx
-        .declare(C.paramsFromDeclarator(func.decl.inits.head.decl) ++ func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
-        .copy(currentResult=C.getDeclaratorInfo(func.decl.inits.head.decl)
-          .params.map(_ => RefCGlobalDeclaration(func, initIdx = 0)))
+        .copy(currentResult = Some(RefCPPFunctionDefinition(func)))
+        .declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
+    case func: CPPGlobalDeclaration[G] =>
+      if (func.decl.contract.nonEmpty && func.decl.inits.size > 1) {
+        throw MultipleForwardDeclarationContractError(func)
+      }
+      func.decl.inits.zipWithIndex.foldLeft(
+        ctx.declare(func.decl.contract.givenArgs ++ func.decl.contract.yieldsArgs)
+      ) {
+        case (ctx, (init, idx)) =>
+          val info = CPP.getDeclaratorInfo(init.decl)
+          ctx
+            .declare(info.params.getOrElse(Nil))
+            .copy(currentResult = info.params.map(_ => RefCPPGlobalDeclaration(func, idx)))
+      }
+    case func: CPPLambdaDefinition[G] =>
+      ctx.declare(CPP.paramsFromDeclarator(func.declarator) ++ scanLabels(func.body) ++ func.contract.givenArgs ++ func.contract.yieldsArgs)
+    case func: LlvmFunctionDefinition[G] => ctx
+      .copy(currentResult = Some(RefLlvmFunctionDefinition(func)))
+    case func: LlvmSpecFunction[G] => ctx
+      .copy(currentResult = Some(RefLlvmSpecFunction(func)))
+      .declare(func.args)
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
       .declare(locals ++ scanScope(body, inGPUKernel))
+    case app: ContractApplicable[G] => ctx
+      .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))
+      .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case app: Applicable[G] => ctx
       .declare(app.declarations ++ app.body.map(scanLabels).getOrElse(Nil))
     case declarator: Declarator[G] => ctx
@@ -305,15 +358,22 @@ case object ResolveReferences extends LazyLogging {
   def resolveFlatly[G](node: Node[G], ctx: ReferenceResolutionContext[G]): Unit = node match {
     case local@CLocal(name) =>
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@CPPLocal(name, arg) =>
+      local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
+      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.
+        getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
+      local.classLocalRef = Some(CPP.findCPPClassLocalName(local.classInstanceRef.get, classLocalName, ctx).headOption.
+        getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
       } else { None }
       local.ref = Some(start.orElse(
-        Java.findJavaName(name, ctx.asTypeResolutionContext)
+        Java.findJavaName(name, fromStaticContext = ctx.inStaticJavaContext, ctx.asTypeResolutionContext)
           .orElse(Java.findJavaTypeName(Seq(name), ctx.asTypeResolutionContext) match {
             case Some(target: JavaNameTarget[G]) => Some(target)
-            case None => None
+            case Some(_) | None => None
           }))
           .getOrElse(
             if (ctx.topLevelJavaDeref.isEmpty) throw NoSuchNameError("local", name, local)
@@ -353,6 +413,10 @@ case object ResolveReferences extends LazyLogging {
 
     case inv@CInvocation(obj, _, givenMap, yields) =>
       inv.ref = Some(C.resolveInvocation(obj, ctx))
+      Spec.resolveGiven(givenMap, inv.ref.get, inv)
+      Spec.resolveYields(ctx, yields, inv.ref.get, inv)
+    case inv@CPPInvocation(obj, args, givenMap, yields) =>
+      inv.ref = Some(CPP.resolveInvocation(obj, args, ctx))
       Spec.resolveGiven(givenMap, inv.ref.get, inv)
       Spec.resolveYields(ctx, yields, inv.ref.get, inv)
     case inv@GpgpuCudaKernelInvocation(name, blocks, threads, args, givenMap, yields) =>
@@ -442,6 +506,11 @@ case object ResolveReferences extends LazyLogging {
     case decl: CInit[G] =>
       decl.ref = C.findDefinition(decl.decl, ctx)
 
+    case defn: CPPFunctionDefinition[G] =>
+      defn.ref = CPP.findForwardDeclaration(defn.declarator, ctx)
+    case decl: CPPInit[G] =>
+      decl.ref = CPP.findDefinition(decl.decl, ctx)
+
     case goto@CGoto(name) =>
       goto.ref = Some(Spec.findLabel(name, ctx).getOrElse(throw NoSuchNameError("label", name, goto)))
     case goto@Goto(lbl) =>
@@ -459,8 +528,7 @@ case object ResolveReferences extends LazyLogging {
     case res@AmbiguousResult() =>
       res.ref = Some(ctx.currentResult.getOrElse(throw ResultOutsideMethod(res)))
     case diz@AmbiguousThis() =>
-      // PB: now obsolete?
-      diz.ref = Some(ctx.currentThis.get)
+      diz.ref = Some(ctx.currentThis.getOrElse(throw WrongThisPosition(diz)))
 
     case proc: ModelProcess[G] =>
       proc.modifies.foreach(_.tryResolve(name => Spec.findModelField(name, ctx)
@@ -559,6 +627,30 @@ case object ResolveReferences extends LazyLogging {
     case portName @ JavaBipGlueName(JavaTClass(Ref(cls: JavaClass[G]), Nil), name) =>
       portName.data = Some((cls, getLit(name)))
 
+    case contract: LlvmFunctionContract[G] =>
+      val applicableContract = ctx.llvmSpecParser.parse(contract, contract.o)
+      contract.data = Some(applicableContract)
+      resolve(applicableContract, ctx)
+    case local: LlvmLocal[G] =>
+      local.ref = ctx.currentResult.get match {
+        case RefLlvmFunctionDefinition(decl) =>
+          decl.contract.variableRefs.find(ref => ref._1 == local.name) match {
+            case Some(ref) => Some(ref._2)
+            case None => throw NoSuchNameError("local", local.name, local)
+          }
+        case RefLlvmSpecFunction(_) =>
+          Some(Spec.findLocal(local.name, ctx).getOrElse(throw NoSuchNameError("local", local.name, local)).ref)
+        case _ => None
+      }
+    case inv: LlvmAmbiguousFunctionInvocation[G] =>
+      inv.ref = LLVM.findCallable(inv.name, ctx) match {
+        case Some(callable) => Some(callable.ref)
+        case None => throw NoSuchNameError("function", inv.name, inv)
+      }
+    case glob: LlvmGlobal[G] =>
+      val decl = ctx.llvmSpecParser.parse(glob, glob.o)
+      glob.data = Some(decl)
+      resolve(decl, ctx)
     case _ =>
   }
 }

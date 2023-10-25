@@ -20,40 +20,20 @@ object EncodeForkJoin extends RewriterBuilder {
   override def key: String = "forkJoin"
   override def desc: String = "Encode fork and join statements with the contract of the run method it refers to."
 
-  case class IdleToken(cls: Class[_]) extends Origin {
-    override def preferredName: String = cls.o.preferredName + "Idle"
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def IdleToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredNameOrElse() + "Idle")
 
-  case class RunningToken(cls: Class[_]) extends Origin {
-    override def preferredName: String = cls.o.preferredName + "Running"
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def RunningToken(cls: Class[_]): Origin = cls.o.replacePrefName(cls.o.getPreferredNameOrElse() + "Running")
 
-  case class ForkMethod(cls: Class[_]) extends Origin {
-    override def preferredName: String = "fork" + cls.o.preferredName
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def ForkMethod(cls: Class[_]): Origin = cls.o.replacePrefName("fork" + cls.o.getPreferredNameOrElse())
 
-  case class JoinMethod(cls: Class[_]) extends Origin {
-    override def preferredName: String = "join" + cls.o.preferredName
-    override def context: String = cls.o.context
-    override def inlineContext: String = cls.o.inlineContext
-    override def shortPosition: String = cls.o.shortPosition
-  }
+  private def JoinMethod(cls: Class[_]): Origin = cls.o.replacePrefName("join" + cls.o.getPreferredNameOrElse())
 
   case class ForkInstanceInvocation(fork: Fork[_]) extends Blame[InstanceInvocationFailure] {
     override def blame(error: InstanceInvocationFailure): Unit = error match {
       case InstanceNull(_) => fork.blame.blame(ForkNull(fork))
-      case PreconditionFailed(Nil, _, _) => throw BlamePathError
       case PreconditionFailed(FailLeft +: _, _, _) => fork.blame.blame(RunnableNotIdle(fork))
       case PreconditionFailed(FailRight +: _, failure, _) => fork.blame.blame(RunnablePreconditionNotEstablished(fork, failure))
+      case PreconditionFailed(_, _, _) => throw BlamePathError
       case ContextEverywhereFailedInPre(_, _) => PanicBlame("fork method does not have c_e").blame(error)
     }
   }

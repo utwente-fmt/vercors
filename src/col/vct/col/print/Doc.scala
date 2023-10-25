@@ -1,6 +1,9 @@
 package vct.col.print
 
 import vct.col.ast.Node
+import vct.col.origin.InputOrigin.LINE_NUMBER_WIDTH
+import vct.col.origin.Origin
+import vct.col.origin.Origin.{BOLD_HR, HR}
 
 import java.lang
 import scala.annotation.tailrec
@@ -64,6 +67,14 @@ case object Doc {
       if (d.nonEmpty) Text("/*@") <+/> d <+/> "@*/"
       else Empty
     }
+
+  def messagesInContext(messages: Seq[(Node[_], Node[_], String)]): String = {
+    messages.zipWithIndex.map {
+      case ((outerNode, highlight, message), idx) =>
+        implicit val ctx: Ctx = Ctx().namesIn(outerNode)
+        outerNode.show.highlight(highlight) + "\n" + HR + s"[${idx + 1}/${messages.size}] $message\n"
+    }.mkString(BOLD_HR, HR, BOLD_HR)
+  }
 }
 
 /**
@@ -115,10 +126,23 @@ sealed trait Doc extends Show {
     def write(a: Appendable): Unit = this match {
       case EText(text) => a.append(text)
       case ELine(indent) => a.append("\n").append(" ".repeat(indent))
+      case EStart(_) =>
+      case EEnd(_) =>
     }
   }
   case class EText(text: String) extends Elem
   case class ELine(indent: Int) extends Elem
+  case class EStart(node: Node[_]) extends Elem
+  case class EEnd(node: Node[_]) extends Elem
+
+
+  def lazyListLen(list: LazyList[Elem]): Int = list match {
+    case LazyList() => 0
+    case EText(text) #:: tail => text.length + lazyListLen(tail)
+    case EStart(_) #:: tail => lazyListLen(tail)
+    case EEnd(_) #:: tail => lazyListLen(tail)
+    case ELine(indent) #:: tail => 1 + indent + lazyListLen(tail)
+  }
 
   @tailrec
   private def fits(spent: Int, elems: LazyList[Elem])(implicit ctx: Ctx): Boolean = elems match {
@@ -126,31 +150,33 @@ sealed trait Doc extends Show {
     case LazyList() => true
     case EText(t) #:: elems => fits(spent + t.length, elems)
     case ELine(_) #:: _ => true
+    case EStart(_) #:: tail => fits(spent, tail)
+    case EEnd(_) #:: tail => fits(spent, tail)
   }
 
   private def better(spent: Int, x: LazyList[Elem], y: LazyList[Elem])(implicit ctx: Ctx): LazyList[Elem] =
     if(fits(spent, x)) x else y
 
-  private def be(spent: Int, docs: Seq[(Int, Boolean, Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
+  private def be(spent: Int, docs: Seq[(Int, Boolean, Seq[Node[_]], Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
     case Nil => LazyList.empty
-    case (_, _, Empty) +: docs => be(spent, docs)
-    case (i, f, NodeDoc(_, x)) +: docs => be(spent, (i, f, x) +: docs)
-    case (i, f, Cons(x, y)) +: docs => be(spent, (i, f, x) +: (i, f, y) +: docs)
-    case (i, f, Nest(x)) +: docs => be(spent, (i+ctx.tabWidth, f, x) +: docs)
-    case (_, _, Text(t)) +: docs => EText(t) #:: be(spent + t.length, docs)
-    case (i, false, Line | NonWsLine) +: docs => ELine(i) #:: be(i, docs)
-    case (_, true, Line) +: docs => EText(" ") #:: be(spent + 1, docs)
-    case (_, true, NonWsLine) +: docs => be(spent, docs)
-    case (i, true, Group(x)) +: docs => be(spent, (i, true, x) +: docs)
-    case (i, false, Group(x)) +: docs => better(
+    case (_, _, nes, Empty) +: docs => nes.map(EEnd).to(LazyList) #::: be(spent, docs)
+    case (i, f, nes, NodeDoc(node, x)) +: docs => EStart(node) #:: be(spent, (i, f, nes :+ node, x) +: docs)
+    case (i, f, nes, Cons(x, y)) +: docs => be(spent, (i, f, Nil, x) +: (i, f, nes, y) +: docs)
+    case (i, f, nes, Nest(x)) +: docs => be(spent, (i+ctx.tabWidth, f, nes, x) +: docs)
+    case (_, _, nes, Text(t)) +: docs => EText(t) #:: nes.map(EEnd).to(LazyList) #::: be(spent + t.length, docs)
+    case (i, false, nes, Line | NonWsLine) +: docs => ELine(i) #:: nes.map(EEnd).to(LazyList) #::: be(i, docs)
+    case (_, true, nes, Line) +: docs => EText(" ") #:: nes.map(EEnd).to(LazyList) #::: be(spent + 1, docs)
+    case (_, true, nes, NonWsLine) +: docs => nes.map(EEnd).to(LazyList) #::: be(spent, docs)
+    case (i, true, nes, Group(x)) +: docs => be(spent, (i, true, nes, x) +: docs)
+    case (i, false, nes, Group(x)) +: docs => better(
       spent,
-      be(spent, (i, true, x) +: docs),
-      be(spent, (i, false, x) +: docs),
+      be(spent, (i, true, nes, x) +: docs),
+      be(spent, (i, false, nes, x) +: docs),
     )
   }
 
   def pretty(implicit ctx: Ctx): LazyList[Elem] =
-    be(0, Seq((0, false, this)))
+    be(0, Seq((0, false, Nil, this)))
 
   def nonEmpty: Boolean = this match {
     case Empty => false
@@ -161,6 +187,68 @@ sealed trait Doc extends Show {
     case Nest(doc) => doc.nonEmpty
     case Group(doc) => doc.nonEmpty
     case NodeDoc(_, doc) => doc.nonEmpty
+  }
+
+  def splitOn[A](list: LazyList[A])(predicate: A => Boolean): LazyList[LazyList[A]] = {
+    def loop(l: LazyList[A], acc: LazyList[A]): LazyList[LazyList[A]] = l match {
+      case LazyList() => LazyList(acc)
+      case h #:: t if predicate(h) => acc #:: loop(t, LazyList(h))
+      case h #:: t => loop(t, acc :+ h)
+    }
+    loop(list, LazyList())
+  }
+
+  def lines(implicit ctx: Ctx): LazyList[LazyList[Elem]] =
+    splitOn(pretty(ctx)) {
+      case ELine(_) => true
+      case _ => false
+    }.map(_.map {
+      case ELine(i) => EText(" ".repeat(i))
+      case other => other
+    })
+
+
+
+  def highlight(node: Node[_])(implicit ctx: Ctx): String = {
+    val lineNumber = (line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d ", line)
+
+    val sb = new lang.StringBuilder()
+    val (prefix, rest)= lines.zipWithIndex.span(!_._1.contains(EStart(node)))
+    val (highlightInit, rest1) = rest.span(!_._1.contains(EEnd(node)))
+    if (rest1.isEmpty) {
+      sb.append("⋱\n")
+      node.show(ctx.namesIn(node)).lines.foreach { line =>
+        sb.append("  ")
+        line.foreach(_.write(sb))
+      }
+      sb.append("\n⋰")
+      return sb.toString
+    }
+    val highlight = highlightInit :+ rest1.head
+    val suffix = rest1.tail
+    prefix.takeRight(2).foreach { lineWithIndex =>
+      sb.append(lineNumber(lineWithIndex._2 + 1))
+      lineWithIndex._1.foreach(_.write(sb))
+      sb.append("\n")
+    }
+    val indicatorStart = lazyListLen(highlight.map(_._1).head.takeWhile(_ != EStart(node)))
+    val indicatorEnd = lazyListLen(highlight.map(_._1).head.takeWhile(_ != EEnd(node)))
+    sb.append(" ".repeat(indicatorStart + LINE_NUMBER_WIDTH)).append("[").append("-".repeat(indicatorEnd-indicatorStart))
+    highlight.foreach { lineWithIndex =>
+      sb.append("\n")
+      sb.append(lineNumber(lineWithIndex._2 + 1))
+      lineWithIndex._1.foreach(_.write(sb))
+    }
+    val endIndicatorStart = if (highlight.size == 1) indicatorStart else 0
+    val endIndicatorEnd = lazyListLen(highlight.map(_._1).last.takeWhile(_ != EEnd(node)))
+    sb.append("\n")
+    sb.append(" ".repeat(endIndicatorStart + LINE_NUMBER_WIDTH + 1)).append("-".repeat(endIndicatorEnd - endIndicatorStart)).append("]")
+    suffix.take(2).foreach { lineWithIndex =>
+      sb.append("\n")
+      sb.append(lineNumber(lineWithIndex._2 + 1))
+      lineWithIndex._1.foreach(_.write(sb))
+    }
+    sb.toString
   }
 }
 

@@ -5,6 +5,7 @@ import vct.col.ast.{ArraySubscript, _}
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.rewrite.util.Comparison
 import vct.col.origin.{ArrayInsufficientPermission, Origin, PanicBlame, PointerBounds}
+import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -35,25 +36,23 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
 
 case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
 
-  case object SimplifyNestedQuantifiersOrigin extends Origin {
-    override def preferredName: String = "unknown"
+  object SimplifyNestedQuantifiersOrigin extends Origin(
+    Seq(
+      PreferredName("unknown"),
+      ShortPosition("generated"),
+      Context("[At generated expression for the simplification of nested quantifiers]"),
+      InlineContext("[Simplified expression]"),
+    )
+  )
 
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At generated expression for the simplification of nested quantifiers]"
-
-    override def inlineContext: String = "[Simplified expression]"
-  }
-
-  case class BinderOrigin(name: String) extends Origin {
-    override def preferredName: String = name
-
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At generated expression for the simplification of nested quantifiers]"
-
-    override def inlineContext: String = "[Simplified expression]"
-  }
+  private def BinderOrigin(name: String): Origin = Origin(
+    Seq(
+      PreferredName(name),
+      ShortPosition("generated"),
+      Context("[At generated expression for the simplification of nested quantifiers]"),
+      InlineContext("[Simplified expression]"),
+    )
+  )
 
   private implicit val o: Origin = SimplifyNestedQuantifiersOrigin
 
@@ -714,7 +713,7 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] 
           }
           // We found a replacement!
           // Make the variable & declaration
-          val newName = vars.map(_.o.preferredName).mkString("_")
+          val newName = vars.map(_.o.getPreferredNameOrElse()).mkString("_")
           val xNew = new Variable[Post](TInt())(BinderOrigin(newName))
           quantifierData.mainRewriter.variables.declare(xNew)
 

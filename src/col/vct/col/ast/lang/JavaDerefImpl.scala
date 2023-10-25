@@ -15,10 +15,10 @@ trait JavaDerefImpl[G] { this: JavaDeref[G] =>
     case ref: RefModel[G] => Types.notAValue(ref)
     case RefVariable(v) => v.t
     case RefJavaField(decls, idx) => FuncTools.repeat[Type[G]](TArray(_), decls.decls(idx).moreDims, decls.t)
-    case RefEnumConstant(_, decl) => obj.t match {
-      case TNotAValue(RefEnum(enum: Enum[G])) => TEnum(enum.ref[Enum[G]])
-    }
+    case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
     case BuiltinField(f) => f(obj).t
+    case ref: RefEnum[G] => Types.notAValue(ref)
+    case ref: RefProverType[G] => Types.notAValue(ref)
   }
 
   override def precedence: Int = Precedence.POSTFIX

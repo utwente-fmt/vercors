@@ -15,7 +15,7 @@ case class ColHelperRewriteHelpers(info: ColDescription) extends ColHelperMaker 
 
       def rewrite(..${cls.params.map(rewriteHelperParam) ++
         cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"rewriter.dispatch(subject.blame)"))) :+
-        Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = {
+        Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = VerificationError.withContext(CurrentRewriteNodeContext(subject)) {
         ${ColDefs.DECLARATION_NAMESPACE.foldLeft(
           cls.make(cls.params.map(p => Term.Name(p.name.value)), q"blame", q"o")
         ){

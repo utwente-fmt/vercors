@@ -1,13 +1,13 @@
 package vct.col.rewrite.lang
 
-import vct.col.ast._
-import vct.col.origin.Origin
-import vct.col.resolve.ctx.{RefAxiomaticDataType, RefClass, RefEnum, RefJavaClass, RefModel, RefVariable, SpecTypeNameTarget, RefProverType}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.ast.RewriteHelpers._
-import vct.col.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
+import vct.col.ast.{TModel, _}
+import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
-import vct.col.resolve.lang.C
+import vct.col.resolve.ctx._
+import vct.col.resolve.lang.{C, CPP}
+import vct.col.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
 
 import scala.reflect.ClassTag
@@ -36,32 +36,34 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       Some(refs.map(porcelainRefSucc[RefDecl]).map(_.get))
     else None
 
+  def specType(target: SpecTypeNameTarget[Pre], args: Seq[Type[Pre]]): Type[Post] = target match {
+    case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), args.map(dispatch))
+    case RefModel(decl) => TModel[Post](succ(decl))
+    case RefEnum(enum) => TEnum[Post](succ(enum))
+    case RefProverType(typ) => TProverType[Post](succ(typ))
+    case RefVariable(decl) => TVar[Post](succ(decl))
+  }
+
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
     t match {
       case t @ JavaNamedType(_) =>
         t.ref.get match {
-          case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
-          case RefModel(decl) => TModel[Post](succ(decl))
+          case spec: SpecTypeNameTarget[Pre] => specType(spec, Nil)
           case RefJavaClass(decl) =>
             assert(t.names.init.map(_._2).forall((x: Option[Seq[Type[Pre]]]) => x.isEmpty))
             val x = JavaTClass[Post](succ(decl), t.names.last._2.getOrElse(Nil).map(dispatch))
             x
-          case RefVariable(v) => TVar[Post](succ(v))
-          case RefEnum(enum) => TEnum[Post](succ(enum))
-          case RefProverType(typ) => TProverType[Post](succ(typ))
         }
       case t @ PVLNamedType(_, typeArgs) =>
         t.ref.get match {
-          case RefAxiomaticDataType(decl) => TAxiomatic(succ(decl), typeArgs.map(dispatch))
-          case RefModel(decl) => TModel(succ(decl))
-          case RefVariable(decl) => TVar(succ(decl))
+          case spec: SpecTypeNameTarget[Pre] => specType(spec, typeArgs)
           case RefClass(decl) => TClass(succ(decl))
-          case RefEnum(decl) => TEnum(succ(decl))
-          case RefProverType(typ) => TProverType[Post](succ(typ))
         }
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))
+      case t@CPPPrimitiveType(specs) =>
+        dispatch(CPP.getBaseTypeFromSpecs(specs, context = Some(t)))
       case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
         if(partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
           throw IncompleteTypeArgs(t)
@@ -89,6 +91,29 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
         )
       case None =>
         CName[Post](info.name)
+    }
+
+    (newSpecifiers, newDeclarator)
+  }
+
+  def normalizeCPPDeclaration(specifiers: Seq[CPPDeclarationSpecifier[Pre]],
+                            declarator: CPPDeclarator[Pre],
+                            context: Option[Node[Pre]] = None)
+                           (implicit o: Origin): (Seq[CPPDeclarationSpecifier[Post]], CPPDeclarator[Post]) = {
+    val info = CPP.getDeclaratorInfo(declarator, context.getOrElse(false).isInstanceOf[CPPParam[Pre]])
+    val baseType = CPP.getBaseTypeFromSpecs(specifiers, context)
+    val otherSpecifiers = specifiers.filter(!_.isInstanceOf[CPPTypeSpecifier[Pre]]).map(dispatch)
+    val newSpecifiers = CPPSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +: otherSpecifiers
+    val newDeclarator = info.params match {
+      case Some(params) =>
+        // PB TODO: varargs is discarded here.
+        CPPTypedFunctionDeclarator[Post](
+          cPPParams.dispatch(params),
+          varargs = false,
+          CPPName(info.name)
+        )
+      case None =>
+        CPPName[Post](info.name)
     }
 
     (newSpecifiers, newDeclarator)
@@ -128,6 +153,39 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o: Origin = declaration.o
       val (specs, decl) = normalizeCDeclaration(declaration.specs, declaration.declarator, context = Some(declaration))
       globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
+    case param: CPPParam[Pre] =>
+      val (specs, decl) = normalizeCPPDeclaration(param.specifiers, param.declarator, context = Some(param))(param.o)
+      cPPParams.declare(new CPPParam(specs, decl)(param.o))
+    case declaration: CPPLocalDeclaration[Pre] =>
+      declaration.decl.inits.foreach(init => {
+        implicit val o: Origin = init.o
+        val (specs, decl) = normalizeCPPDeclaration(declaration.decl.specs, init.decl, context = Some(declaration))
+        cPPLocalDeclarations.declare(declaration.rewrite(
+          decl = declaration.decl.rewrite(
+            specs = specs,
+            inits = Seq(
+              CPPInit(decl, init.init.map(dispatch)),
+            ),
+          ),
+        ))
+      })
+    case declaration: CPPGlobalDeclaration[Pre] =>
+      declaration.decl.inits.foreach(init => {
+        implicit val o: Origin = init.o
+        val (specs, decl) = normalizeCPPDeclaration(declaration.decl.specs, init.decl, context = Some(declaration))
+        globalDeclarations.declare(declaration.rewrite(
+          decl = declaration.decl.rewrite(
+            specs = specs,
+            inits = Seq(
+              CPPInit(decl, init.init.map(dispatch)),
+            ),
+          ),
+        ))
+      })
+    case declaration: CPPFunctionDefinition[Pre] =>
+      implicit val o: Origin = declaration.o
+      val (specs, decl) = normalizeCPPDeclaration(declaration.specs, declaration.declarator, context = Some(declaration))
+      globalDeclarations.declare(declaration.rewrite(specs = specs, declarator = decl))
     case cls: JavaClass[Pre] =>
       rewriteDefault(cls)
     case other => rewriteDefault(other)
@@ -137,6 +195,9 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
     case CDeclarationStatement(local) =>
       val (locals, _) = cLocalDeclarations.collect { dispatch(local) }
       Block(locals.map(CDeclarationStatement(_)(stat.o)))(stat.o)
+    case CPPDeclarationStatement(local) =>
+      val (locals, _) = cPPLocalDeclarations.collect { dispatch(local) }
+      Block(locals.map(CPPDeclarationStatement(_)(stat.o)))(stat.o)
 
     case other => rewriteDefault(other)
   }

@@ -28,7 +28,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
 
   sealed trait Typ {
     def isPrimitive: Boolean = this match {
-      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString => true
+      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString | TBitString => true
       case TName(_) => true
       case TOption(t) if t.isMarkable => true
       case TSeq(t) if t.isMarkable => true
@@ -37,7 +37,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     }
 
     def isMarkable: Boolean = this match {
-      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString => true
+      case TBool | TRef() | TInt | TBigInt | TBigDecimal | TString | TBitString => true
       case TName(_) => true
       case _ => false
     }
@@ -49,6 +49,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       case TBigInt => "BigInt"
       case TBigDecimal => "BigDecimal"
       case TString => "String"
+      case TBitString => "BitString"
       case TName(name) => name
       case TOption(t) => "Opt" + t.toString
       case TSeq(t) => "Seq" + t.toString
@@ -62,6 +63,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   case object TBigInt extends Typ
   case object TBigDecimal extends Typ
   case object TString extends Typ
+  case object TBitString extends Typ
   case class TRef()(val scalaArg: SType) extends Typ
   case class TName(name: String) extends Typ
   case class TOption(t: Typ)(val scalaArg: SType) extends Typ
@@ -83,6 +85,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     case SType.Apply(SType.Name("Ref"), List(SType.Name("G"), decl)) => TRef()(decl)
     case SType.Name("Int") => TInt
     case SType.Name("String") => TString
+    case SType.Name("BitString") => TBitString
     case SType.Name("Boolean") => TBool
     case SType.Name("BigInt") => TBigInt
     case SType.Name("BigDecimal") => TBigDecimal
@@ -136,6 +139,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       case TBigInt => builder.setTypeName("BigInt")
       case TBigDecimal => builder.setTypeName("BigDecimal")
       case TString => builder.setType(PType.TYPE_STRING)
+      case TBitString => builder.setTypeName("BitString")
       case TName(name) => builder.setTypeName(name)
       case TOption(t) => builder.setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL); setType(builder, t)
       case TSeq(t) => builder.setLabel(FieldDescriptorProto.Label.LABEL_REPEATED); setType(builder, t)
@@ -169,10 +173,48 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       .addField(field("scale").setType(PType.TYPE_INT32))
       .addField(field("unscaledValue").setTypeName("BigInt"))
       .build(),
+    message("BitString")
+      .addField(field("data").setType(PType.TYPE_BYTES))
+      .addField(field("skipAtLastByte").setType(PType.TYPE_INT32))
+      .build(),
     message("Ref")
       .addField(field("index").setType(PType.TYPE_INT64))
       .build(),
     message("ExpectedErrors")
+      .build(),
+  )
+
+  def originContents(): Seq[DescriptorProto] = Seq(
+    message("OriginContent")
+      .addOneofDecl(oneOf("v"))
+      .addAllField(
+        Seq(
+          field("requiredName").setTypeName("RequiredName"),
+          field("preferredName").setTypeName("PreferredName"),
+          field("formalName").setTypeName("FormalName"),
+          field("context").setTypeName("Context"),
+          field("inlineContext").setTypeName("InlineContext"),
+          field("shortPosition").setTypeName("ShortPosition"),
+        ).map(f => f.setOneofIndex(0).build()).asJava
+      ).build()
+    ,
+    message("RequiredName")
+      .addField(field("requiredName").setType(PType.TYPE_STRING))
+      .build(),
+    message("PreferredName")
+      .addField(field("preferredName").setType(PType.TYPE_STRING))
+      .build(),
+    message("FormalName")
+      .addField(field("formalName").setType(PType.TYPE_STRING))
+      .build(),
+    message("Context")
+      .addField(field("context").setType(PType.TYPE_STRING))
+      .build(),
+    message("InlineContext")
+      .addField(field("inlineContext").setType(PType.TYPE_STRING))
+      .build(),
+    message("ShortPosition")
+      .addField(field("shortPosition").setType(PType.TYPE_STRING))
       .build(),
   )
 
@@ -193,9 +235,13 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       boxedTypeFamily(TName(family)) = family
       message(family)
         .addOneofDecl(oneOf("v"))
-        .addAllField(info.defs.filter(defn => info.supports(family)(defn.baseName)).map(defn =>
-          field(defn.baseName).setTypeName(Name(defn.baseName).ucamel).setOneofIndex(0).build()
-        ).asJava)
+        .addAllField(info.defs.filter(
+          defn => info.supports(family)(defn.baseName))
+            .map(
+              defn => field(defn.baseName)
+                .setTypeName(Name(defn.baseName).ucamel)
+                .setOneofIndex(0).build()
+            ).asJava)
         .build()
     })
 
@@ -207,7 +253,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
       // Singleton declaration, e.g. Variable
       msg.addField(field("id").setType(PType.TYPE_INT64))
     }
-    msg.addField(field("origin").setType(PType.TYPE_STRING))
+    msg.addField(field("origin").setTypeName("OriginContent").setLabel(FieldDescriptorProto.Label.LABEL_REPEATED))
     msg
       .addAllField(defn.params.map(param =>
         field(param.name.value, Some(param.decltpe.get))
@@ -270,6 +316,7 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
   def make(): Unit = {
     val descriptors =
       basicTypes() ++
+        originContents() ++
         declarationKinds() ++
         families() ++
         declarations() ++

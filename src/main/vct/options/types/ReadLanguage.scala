@@ -7,6 +7,8 @@ case object ReadLanguage extends ReadEnum[Language] {
     "java" -> Language.Java,
     "c" -> Language.C,
     "i" -> Language.InterpretedC,
+    "cpp" -> Language.CPP,
+    "ipp" -> Language.InterpretedCPP,
     "pvl" -> Language.PVL,
     "silver" -> Language.Silver,
     "systemc" -> Language.SystemC,

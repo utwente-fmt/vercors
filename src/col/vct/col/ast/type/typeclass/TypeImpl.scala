@@ -19,6 +19,7 @@ trait TypeImpl[G] { this: Type[G] =>
   def asPointer: Option[TPointer[G]] = CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] = CoercionUtils.getAnyArrayCoercion(this).map(_._2)
   def asCArray: Option[CTArray[G]] = CoercionUtils.getAnyCArrayCoercion(this).map(_._2)
+  def asCPPArray: Option[CPPTArray[G]] = CoercionUtils.getAnyCPPArrayCoercion(this).map(_._2)
   def asOption: Option[TOption[G]] = CoercionUtils.getAnyOptionCoercion(this).map(_._2)
   def asMap: Option[TMap[G]] = CoercionUtils.getAnyMapCoercion(this).map(_._2)
   def asTuple: Option[TTuple[G]] = CoercionUtils.getAnyTupleCoercion(this).map(_._2)
@@ -26,6 +27,10 @@ trait TypeImpl[G] { this: Type[G] =>
   def asModel: Option[TModel[G]] = CoercionUtils.getAnyModelCoercion(this).map(_._2)
   def asClass: Option[TClass[G]] = CoercionUtils.getAnyClassCoercion(this).map(_._2)
   def asEither: Option[TEither[G]] = CoercionUtils.getAnyEitherCoercion(this).map(_._2)
+  def asBitvec: Option[TSmtlibBitVector[G]] = CoercionUtils.getAnyBitvecCoercion(this).map(_._2)
+  def asSmtlibFloat: Option[TSmtlibFloatingPoint[G]] = CoercionUtils.getAnySmtlibFloatCoercion(this).map(_._2)
+  def asSmtlibArray: Option[TSmtlibArray[G]] = CoercionUtils.getAnySmtlibArrayCoercion(this).map(_._2)
+  def asSmtlibSeq: Option[TSmtlibSeq[G]] = CoercionUtils.getAnySmtlibSeqCoercion(this).map(_._2)
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {

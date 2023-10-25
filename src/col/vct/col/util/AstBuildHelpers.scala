@@ -104,16 +104,20 @@ object AstBuildHelpers {
   implicit class ContractApplicableBuildHelpers[Pre, Post](contracted: ContractApplicable[Pre])(implicit rewriter: AbstractRewriter[Pre, Post]) {
     def rewrite(args: => Seq[Variable[Post]] = rewriter.variables.dispatch(contracted.args),
                 returnType: => Type[Post] = rewriter.dispatch(contracted.returnType),
-                contract: => ApplicableContract[Post] = rewriter.dispatch(contracted.contract),
                 typeArgs: => Seq[Variable[Post]] = rewriter.variables.dispatch(contracted.typeArgs),
+                contract: => ApplicableContract[Post] = rewriter.dispatch(contracted.contract),
                 inline: => Boolean = contracted.inline,
                ): ContractApplicable[Post] = contracted match {
       case function: Function[Pre] =>
-        new RewriteFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+        new RewriteFunction(function).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
       case function: InstanceFunction[Pre] =>
-        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+        new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
+      case function: InstanceOperatorFunction[Pre] =>
+        new RewriteInstanceOperatorFunction(function).rewrite(args = args, returnType = returnType, inline = inline, contract = contract)
+      case function: LlvmSpecFunction[Pre] =>
+        new RewriteLlvmSpecFunction(function).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
       case method: AbstractMethod[Pre] =>
-        new MethodBuildHelpers(method).rewrite(args = args, returnType = returnType, inline = inline, contract = contract, typeArgs = typeArgs)
+        new MethodBuildHelpers(method).rewrite(args = args, returnType = returnType, typeArgs = typeArgs, inline = inline, contract = contract)
     }
   }
 
@@ -152,7 +156,9 @@ object AstBuildHelpers {
       case function: InstanceFunction[Pre] =>
         new RewriteInstanceFunction(function).rewrite(args = args, returnType = returnType, body = body, inline = inline, threadLocal = threadLocal, contract = contract, typeArgs = typeArgs, blame = blame)
       case function: InstanceOperatorFunction[Pre] =>
-        new RewriteInstanceOperatorFunction(function).rewrite(returnType = returnType, operator = rewriter.dispatch(function.operator), args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
+        new RewriteInstanceOperatorFunction(function).rewrite(returnType = returnType, args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
+      case function: LlvmSpecFunction[Pre] =>
+        new RewriteLlvmSpecFunction(function).rewrite(returnType = returnType, args = args, body = body, contract = contract, inline = inline, threadLocal = threadLocal, blame = blame)
     }
   }
 
@@ -174,6 +180,8 @@ object AstBuildHelpers {
         new RewriteADTFunctionInvocation(inv).rewrite(args = args)
       case inv: ProverFunctionInvocation[Pre] =>
         new RewriteProverFunctionInvocation(inv).rewrite(args = args)
+      case inv: LlvmFunctionInvocation[Pre] =>
+        new RewriteLlvmFunctionInvocation(inv).rewrite(args = args)
       case apply: ApplyAnyPredicate[Pre] =>
         new ApplyAnyPredicateBuildHelpers(apply).rewrite(args = args)
       case inv: Invocation[Pre] =>
@@ -228,15 +236,17 @@ object AstBuildHelpers {
     }
   }
 
-  private case class ConstOrigin(value: scala.Any) extends Origin {
-    override def preferredName: String = "unknown"
-    override def shortPosition: String = "generated"
-    override def context: String = s"[At generated constant `$value`]"
-    override def inlineContext: String = value.toString
-  }
+  private def constOrigin(value: scala.Any): Origin = Origin(
+    Seq(
+      PreferredName("unknown"),
+      ShortPosition("generated"),
+      Context(s"[At generated constant `$value`]"),
+      InlineContext(value.toString),
+    )
+  )
 
-  def tt[G]: BooleanValue[G] = BooleanValue(true)(ConstOrigin(true))
-  def ff[G]: BooleanValue[G] = BooleanValue(false)(ConstOrigin(false))
+  def tt[G]: BooleanValue[G] = BooleanValue(true)(constOrigin(true))
+  def ff[G]: BooleanValue[G] = BooleanValue(false)(constOrigin(false))
 
   def const[G](i: Int)(implicit o: Origin): IntegerValue[G] =
     IntegerValue(i)
@@ -246,8 +256,8 @@ object AstBuildHelpers {
 
   def contract[G]
               (blame: Blame[NontrivialUnsatisfiable],
-               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
+               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
@@ -270,8 +280,8 @@ object AstBuildHelpers {
                 returnType: Type[G] = TVoid[G](),
                 args: Seq[Variable[G]] = Nil, outArgs: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                 body: Option[Statement[G]] = None,
-                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
+                ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
                 contextEverywhere: Expr[G] = tt[G],
                 signals: Seq[SignalsClause[G]] = Nil,
                 givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
@@ -288,12 +298,12 @@ object AstBuildHelpers {
                returnType: Type[G] = TVoid(),
                args: Seq[Variable[G]] = Nil, typeArgs: Seq[Variable[G]] = Nil,
                body: Option[Expr[G]] = None,
-               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
-               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(ConstOrigin(true)),
+               requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
+               ensures: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),
                contextEverywhere: Expr[G] = tt[G],
                signals: Seq[SignalsClause[G]] = Nil,
                givenArgs: Seq[Variable[G]] = Nil, yieldsArgs: Seq[Variable[G]] = Nil,
-               decreases: Option[DecreasesClause[G]] = Some(DecreasesClauseNoRecursion[G]()(ConstOrigin("decreases"))),
+               decreases: Option[DecreasesClause[G]] = Some(DecreasesClauseNoRecursion[G]()(constOrigin("decreases"))),
                inline: Boolean = false)(implicit o: Origin): Function[G] =
     new Function(returnType, args, typeArgs, body,
       ApplicableContract(requires, ensures, contextEverywhere, signals, givenArgs, yieldsArgs, decreases)(contractBlame),
@@ -319,12 +329,14 @@ object AstBuildHelpers {
                        yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
     MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
-  case object GeneratedQuantifier extends Origin {
-    override def preferredName: String = "i"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated quantifier]"
-    override def inlineContext: String = "[Generated quantifier]"
-  }
+  private def GeneratedQuantifier: Origin = Origin(
+    Seq(
+      PreferredName("i"),
+      ShortPosition("generated"),
+      Context("[At generated quantifier]"),
+      InlineContext("[Generated quantifier]"),
+    )
+  )
 
   def starall[G]
              (blame: Blame[ReceiverNotInjective],
@@ -372,12 +384,14 @@ object AstBuildHelpers {
     )
   }
 
-  case object GeneratedLet extends Origin {
-    override def preferredName: String = "x"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated let]"
-    override def inlineContext: String = "[Generated let]"
-  }
+  private def GeneratedLet: Origin = Origin(
+    Seq(
+      PreferredName("x"),
+      ShortPosition("generated"),
+      Context("[At generated let]"),
+      InlineContext("[Generated let]"),
+    )
+  )
 
   def let[G](t: Type[G], x: Expr[G], body: Local[G] => Expr[G]): Let[G] = {
     implicit val o: Origin = GeneratedQuantifier

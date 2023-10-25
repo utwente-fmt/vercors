@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.Origin
+import vct.col.origin.{Context, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -12,12 +12,14 @@ case object EncodeCurrentThread extends RewriterBuilder {
   override def key: String = "currentThread"
   override def desc: String = "Translate \\current_thread into an explicit argument to all thread-local contexts."
 
-  case object CurrentThreadIdOrigin extends Origin {
-    override def preferredName: String = "tid"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At generated variable for the current thread ID]"
-    override def inlineContext: String = "\\current_thread"
-  }
+  private def CurrentThreadIdOrigin: Origin = Origin(
+    Seq(
+      PreferredName("tid"),
+      ShortPosition("generated"),
+      Context("[At generated variable for the current thread ID]"),
+      InlineContext("\\current_thread"),
+    )
+  )
 
   abstract class MisplacedCurrentThreadReference extends UserError {
     override def code: String = "curThreadScope"
@@ -46,6 +48,7 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
     // PB: although a pure method will become a function, it should really be possible to mark a pure method as thread
     // local.
     case m: AbstractMethod[Pre] => !m.pure
+    case m: LlvmFunctionDefinition[Pre] => !m.pure
 
     case _: ADTFunction[Pre] => false
     case _: ProverFunction[Pre] => false

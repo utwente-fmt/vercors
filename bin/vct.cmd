@@ -5,7 +5,7 @@ set BIN=%~dp0
 set ROOT=%BIN%..
 
 pushd %ROOT%
-call mill vercors.runScript
+call mill vercors.main.runScript
 popd
 
-"%ROOT%\out\vercors\runScript.dest\vercors" %*
+"%ROOT%\out\vercors\main\runScript.dest\vercors" %*

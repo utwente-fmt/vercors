@@ -1,20 +1,23 @@
 package hre.debug
 
 import hre.util.ScopedStack
+import vct.result.VerificationError
 import vct.result.VerificationError.SystemError
 
 /**
  * Thread-local counter that can associate errors with counted causes.
  */
 object TimeTravel {
-  case class RepeatUntilCause(causeIndex: Long, exception: Throwable) extends RuntimeException
+  case class RepeatUntilCause(causeIndex: Long, exception: VerificationError) extends SystemError {
+    override def text: String = exception.text
+  }
 
-  case class CauseWithBadEffect(effect: Throwable) extends SystemError {
-    override def text: String = s"This trace causes an error later on: ${effect.getMessage}"
+  case class CauseWithBadEffect(effect: VerificationError) extends SystemError {
+    override def text: String = s"This trace causes an error later on: \n${effect.getMessage}"
   }
 
   private val causeIndex: ThreadLocal[Long] = ThreadLocal.withInitial(() => 0L)
-  private val repeatingUntil: ScopedStack[(Long, Throwable)] = ScopedStack()
+  private val repeatingUntil: ScopedStack[(Long, VerificationError)] = ScopedStack()
 
   private def nextIndex(): Long = {
     val index = causeIndex.get()
@@ -27,9 +30,16 @@ object TimeTravel {
     try {
       f
     } catch {
-      case RepeatUntilCause(idx, t) if idx >= start =>
+      case r @ RepeatUntilCause(idx, t) if idx >= start =>
+        t.contexts ++= r.contexts
         causeIndex.set(start)
-        repeatingUntil.having((idx, t)) { f }
+        try {
+          repeatingUntil.having((idx, t)) { f }
+        } catch {
+          case c @ CauseWithBadEffect(effect) =>
+            effect.contexts ++= c.contexts
+            throw c
+        }
     }
   }
 
@@ -46,6 +56,6 @@ object TimeTravel {
     try {
       f
     } catch {
-      case t: Throwable => throw RepeatUntilCause(idx, t)
+      case t: VerificationError => throw RepeatUntilCause(idx, t)
     }
 }

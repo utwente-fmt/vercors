@@ -182,11 +182,24 @@ statement
  | 'atomic' '(' identifierList ')' block # pvlAtomic
  | contract 'while' '(' expr ')' statement # pvlWhile
  | contract 'for' '(' forStatementList? ';' expr? ';' forStatementList? ')' statement # pvlFor
+ | contract 'for' '(' iter ')' statement # pvlRangedFor
  | block # pvlBlock
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
+ | 'communicate' access direction access ';' # pvlCommunicateStatement
  ;
+
+direction
+ : '<-'
+ | '->'
+ ;
+
+access: subject '.' identifier;
+subject
+ : identifier
+ | identifier '[' expr ']'
+ | identifier '[' identifier ':' expr '..' expr ']';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;

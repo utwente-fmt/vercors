@@ -4,19 +4,21 @@ import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{FramedArrIndex, Origin, TriggerPatternBlame}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.result.VerificationError.UserError
 
 case object QuantifySubscriptAny extends RewriterBuilder {
   override def key: String = "any"
   override def desc: String = "Quantify expressions that are automatically quantified with *."
 
-  case object GeneratedQuantifierOrigin extends Origin {
-    override def preferredName: String = "i"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated for auto-quantified expressions containing `*`]"
-    override def inlineContext: String = "[* index]"
-  }
+  object GeneratedQuantifierOrigin extends Origin(
+    Seq(
+      PreferredName("i"),
+      ShortPosition("generated"),
+      Context("[At node generated for auto-quantified expressions containing `*`]"),
+      InlineContext("[* index]"),
+    )
+  )
 
   case class InvalidAnyPosition(any: Any[_]) extends UserError {
     override def code: String = "any"

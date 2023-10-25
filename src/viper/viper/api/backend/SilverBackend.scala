@@ -99,24 +99,25 @@ trait SilverBackend extends Backend with LazyLogging {
 
     val (verifier, plugins) = createVerifier(NopViperReporter, nodeFromUniqueId)
 
-    val transformedProgram = plugins.beforeVerify(silverProgram) match {
-      case Some(program) => program
-      case None => throw PluginErrors(plugins.errors)
-    }
-
-    val backendVerifies =
-      plugins.mapVerificationResult(transformedProgram, verifier.verify(transformedProgram)) match {
-        case Success => true
-        case Failure(errors) =>
-          logger.debug(errors.toString())
-          logger.whenDebugEnabled()
-          errors.foreach(processError)
-          false
+    try {
+      val transformedProgram = plugins.beforeVerify(silverProgram) match {
+        case Some(program) => program
+        case None => throw PluginErrors(plugins.errors)
       }
 
-    stopVerifier(verifier)
+      val backendVerifies =
+        plugins.mapVerificationResult(transformedProgram, verifier.verify(transformedProgram)) match {
+          case Success => true
+          case Failure(errors) =>
+            logger.debug(errors.toString())
+            errors.foreach(processError)
+            false
+        }
 
-    backendVerifies
+      backendVerifies
+    } finally {
+      stopVerifier(verifier)
+    }
   }
 
   def processError(error: AbstractError): Unit = error match {

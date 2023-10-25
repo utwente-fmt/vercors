@@ -26,65 +26,59 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
     override def blame(error: AssertFailed): Unit = pack.blame.blame(PackageThrows(pack))
   }
 
-  case object ExcVar extends Origin {
-    override def preferredName: String = "exc"
+  private def ExcVar: Origin = Origin(
+    Seq(
+      PreferredName("exc"),
+      ShortPosition("generated"),
+      Context("[At variable generated to contain thrown exception]"),
+      InlineContext("[Current exception]"),
+    )
+  )
 
-    override def shortPosition: String = "generated"
+  private def CurrentlyHandling: Origin = Origin(
+    Seq(
+      PreferredName("currently_handling_exc"),
+      ShortPosition("generated"),
+      Context("[At variable generated to remember exception currently being handled]"),
+      InlineContext("[Exception currently being handled]"),
+    )
+  )
 
-    override def context: String = "[At variable generated to contain thrown exception]"
+  private def ReturnPoint: Origin = Origin(
+    Seq(
+      PreferredName("bubble"),
+      ShortPosition("generated"),
+      Context("[At label generated to bubble an exception]"),
+      InlineContext("[Exception bubble label]"),
+    )
+  )
 
-    override def inlineContext: String = "[Current exception]"
-  }
+  private def CatchLabel: Origin = Origin(
+    Seq(
+      PreferredName("catches"),
+      ShortPosition("generated"),
+      Context("[At label generated for catch blocks]"),
+      InlineContext("[Catch label]"),
+    )
+  )
 
-  case object CurrentlyHandling extends Origin {
-    override def preferredName: String = "currently_handling_exc"
+  private def FinallyLabel: Origin = Origin(
+    Seq(
+      PreferredName("finally"),
+      ShortPosition("generated"),
+      Context("[At label generated for finally]"),
+      InlineContext("[Finally label]"),
+    )
+  )
 
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At variable generated to remember exception currently being handled]"
-
-    override def inlineContext: String = "[Exception currently being handled]"
-  }
-
-  case object ReturnPoint extends Origin {
-    override def preferredName: String = "bubble"
-
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At label generated to bubble an exception]"
-
-    override def inlineContext: String = "[Exception bubble label]"
-  }
-
-  case object CatchLabel extends Origin {
-    override def preferredName: String = "catches"
-
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At label generated for catch blocks]"
-
-    override def inlineContext: String = "[Catch label]"
-  }
-
-  case object FinallyLabel extends Origin {
-    override def preferredName: String = "finally"
-
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At label generated for finally]"
-
-    override def inlineContext: String = "[Finally label]"
-  }
-
-  case object ExcBeforeLoop extends Origin {
-    override def preferredName: String = "excBeforeLoop"
-
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At variable generated to contain exc before loop]"
-
-    override def inlineContext: String = "[Exception before loop]"
-  }
+  private def ExcBeforeLoop: Origin = Origin(
+    Seq(
+      PreferredName("excBeforeLoop"),
+      ShortPosition("generated"),
+      Context("[At variable generated to contain exc before loop]"),
+      InlineContext("[Exception before loop]"),
+    )
+  )
 
   case class SignalsClosedPostconditionFailed(method: AbstractMethod[_]) extends Blame[PostconditionFailed] {
     override def blame(error: PostconditionFailed): Unit =

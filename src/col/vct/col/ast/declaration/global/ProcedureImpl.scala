@@ -35,7 +35,7 @@ trait ProcedureImpl[G] { this: Procedure[G] =>
 
   override def layout(implicit ctx: Ctx): Doc = ctx.syntax match {
     case Ctx.Silver => layoutSilver
-    case Ctx.C | Ctx.Cuda | Ctx.OpenCL => layoutC
+    case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP => layoutC
     case Ctx.PVL | Ctx.Java => Doc.spec(Show.lazily(layoutSpec(_)))
   }
 }

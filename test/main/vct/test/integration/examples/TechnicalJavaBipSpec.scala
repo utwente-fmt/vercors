@@ -37,7 +37,7 @@ class TechnicalJavaBipSpec extends JavaBipSpecHelper {
     "technical/javabip/TransitionPostconditionFailed.java",
   )
 
-  vercors should verify using silicon example "technical/javabip/BipGuardUnsatisfiablePrecondition.java"
+  vercors should verify using silicon example "technical/javabip/BipGuardPreconditionUnsatisfiable.java"
   vercors should verify using silicon example "technical/javabip/BipGuardUsed.java"
   vercors should verify using silicon example "technical/javabip/BipGuardDataUsed.java"
 }
