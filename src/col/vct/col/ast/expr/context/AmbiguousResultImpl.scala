@@ -16,9 +16,9 @@ trait AmbiguousResultImpl[G] extends NodeFamilyImpl[G] { this: AmbiguousResult[G
     case RefCGlobalDeclaration(decls, initIdx) =>
       C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefCPPFunctionDefinition(decl) =>
-      CPP.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
+      CPP.typeOrReturnTypeFromDeclarator(decl.specs, decl.declarator)
     case RefCPPGlobalDeclaration(decls, initIdx) =>
-      CPP.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
+      CPP.typeOrReturnTypeFromDeclarator(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case RefFunction(decl) => decl.returnType
     case RefProcedure(decl) => decl.returnType
     case RefJavaMethod(decl) => decl.returnType

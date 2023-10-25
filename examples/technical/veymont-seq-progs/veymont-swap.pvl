@@ -29,7 +29,7 @@ seq_program SeqProgram(int x, int y) {
   }
   
   //void bar(int a) {}
-
+  requires x >= 0;
   run {
     if(s1.v == 5 && s2.v == 6) {
     	s1.temp = s1.num();
@@ -54,6 +54,7 @@ seq_program SeqProgram(int x, int y) {
     s1.inc();
     s1.bla(s1.temp);
     // s1.bla(s2.temp);
+    communicate s1.v => s2.temp;
     s1.v = s2.temp;
     s2.v = s1.temp;
     assert s1.v == \old(s2.v);

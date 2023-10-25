@@ -23,15 +23,11 @@ jobs:
       - name: Cache dependencies and compilation
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.cache/coursier
-            ~/.mill/ammonite
-            out
-            !**/assembly.dest
-            !**/assembly.json
-            !**/upstreamAssembly.dest
-            !**/upstreamAssembly.json
-          key: vercors-ci-ubuntu
+          path: out
+          key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
+          restore-keys: |
+            vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
+            vercors-ci-ubuntu
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly
       - name: Upload
@@ -39,6 +35,16 @@ jobs:
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
+      - name: Delete Uncached Files
+        run: |
+          find out -type f -name upstreamAssembly.json -print -exec rm -rf {} +
+          find out -type d -name upstreamAssembly.dest -print -exec rm -rf {} +
+          find out -type f -name assembly.json -print -exec rm -rf {} +
+          find out -type d -name assembly.dest -print -exec rm -rf {} +
+          find out -type d -name "mill-worker-*" -print -exec rm -rf {} +
+          rm -rf out/mill
+          rm -rf out/mill-build/mill
+          rm -rf out/mill-launcher
 
   ScalaTestWindowsBasic:
     needs: "Compile"
@@ -70,7 +76,7 @@ jobs:
       - name: ls
         run: ls
       - name: Run scalatest
-        run: java -Xss20m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
+        run: java -Xss32m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -98,7 +104,7 @@ jobs:
       - name: ls
         run: ls
       - name: Run scalatest
-        run: java -Xss20m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
+        run: java -Xss32m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3
@@ -129,7 +135,7 @@ jobs:
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: java -Xss20m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
+        run: java -Xss32m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
         uses: actions/upload-artifact@v3

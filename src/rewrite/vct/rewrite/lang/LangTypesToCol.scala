@@ -63,7 +63,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case t @ CPrimitiveType(specs) =>
         dispatch(C.getPrimitiveType(specs, context = Some(t)))
       case t@CPPPrimitiveType(specs) =>
-        dispatch(CPP.getPrimitiveType(specs, context = Some(t)))
+        dispatch(CPP.getBaseTypeFromSpecs(specs, context = Some(t)))
       case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
         if(partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
           throw IncompleteTypeArgs(t)
@@ -100,8 +100,8 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
                             declarator: CPPDeclarator[Pre],
                             context: Option[Node[Pre]] = None)
                            (implicit o: Origin): (Seq[CPPDeclarationSpecifier[Post]], CPPDeclarator[Post]) = {
-    val info = CPP.getDeclaratorInfo(declarator)
-    val baseType = CPP.getPrimitiveType(specifiers, context)
+    val info = CPP.getDeclaratorInfo(declarator, context.getOrElse(false).isInstanceOf[CPPParam[Pre]])
+    val baseType = CPP.getBaseTypeFromSpecs(specifiers, context)
     val otherSpecifiers = specifiers.filter(!_.isInstanceOf[CPPTypeSpecifier[Pre]]).map(dispatch)
     val newSpecifiers = CPPSpecificationType[Post](dispatch(info.typeOrReturnType(baseType))) +: otherSpecifiers
     val newDeclarator = info.params match {

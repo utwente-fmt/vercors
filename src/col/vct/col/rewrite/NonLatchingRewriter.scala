@@ -42,7 +42,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
 
   override def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
   override def dispatch(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(node)
-  override def dispatch(node: CPPPointer[Pre]): CPPPointer[Post] = rewriteDefault(node)
+  override def dispatch(node: CPPAddressing[Pre]): CPPAddressing[Post] = rewriteDefault(node)
   override def dispatch(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
   override def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
 
@@ -64,4 +64,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
 
   override def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
   override def dispatch(node: LlvmLoopContract[Pre]): LlvmLoopContract[Post] = rewriteDefault(node)
+
+  override def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
+  override def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
 }

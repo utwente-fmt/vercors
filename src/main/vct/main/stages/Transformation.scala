@@ -9,12 +9,12 @@ import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
 import vct.col.print.Ctx
+import vct.col.rewrite._
 import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
 import vct.col.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
-import vct.col.rewrite._
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
@@ -23,6 +23,7 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.HeapVariableToRef
+import vct.rewrite.lang.ReplaceSYCLTypes
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[CheckError]) extends SystemError {
@@ -169,6 +170,9 @@ case class SilverTransformation
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    // Replace leftover SYCL types
+    ReplaceSYCLTypes,
+
     ComputeBipGlue,
     InstantiateBipSynchronizations,
     EncodeBipPermissions,

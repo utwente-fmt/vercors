@@ -18,6 +18,7 @@ case object Progress {
   def finish(): Unit = {
     blockLayoutUpdateTask.foreach(_.cancel())
     blockLayoutUpdateTimer.purge()
+    blockLayoutUpdateTimer.cancel()
     TaskRegistry.finish()
     Profile.finish()
   }
@@ -25,17 +26,15 @@ case object Progress {
   def abort(): Unit = {
     blockLayoutUpdateTask.foreach(_.cancel())
     blockLayoutUpdateTimer.purge()
+    blockLayoutUpdateTimer.cancel()
     TaskRegistry.abort()
     Profile.finish()
   }
 
-  private val blockLayoutUpdateTimer = new Timer()
+  private val blockLayoutUpdateTimer = new Timer("[VerCors] Block layout updates")
   private var blockLayoutUpdateTask: Option[TimerTask] = None
   private var blockLayoutUpdate = false
   private var newLayoutAfterTimeout = false
-
-  private val noProgressTimer = new Timer()
-  private var noProgressTask: Option[TimerTask] = None
 
   private def delayNextUpdate(longDelay: Boolean): Unit = {
     blockLayoutUpdate = true
