@@ -15,10 +15,26 @@ class TechnicalVeymontSpec extends VercorsSpec {
         run {
           communicate alice.x <- bob.x;
           communicate bob.x -> alice.x;
-          assert alice.x == bob.x;
+          // assert alice.x == bob.x; // To be enabled when endpoint field dereference is implemented
         }
      }
   """
+
+  // To be enabled when endpoint field dereference is implemented
+  // vercors should verify in "plain endpoint field dereference should be possible" pvl
+  // """
+  //    class Storage {
+  //       int x;
+  //    }
+  //    seq_program Example() {
+  //       endpoint alice = Storage();
+  //       endpoint bob = Storage();
+
+  //       run {
+  //         assert alice.x == bob.x;
+  //       }
+  //    }
+  // """
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
   """
