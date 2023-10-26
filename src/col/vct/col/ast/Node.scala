@@ -1242,19 +1242,21 @@ final case class PVLNew[G](t: Type[G], args: Seq[Expr[G]], givenMap: Seq[(Ref[G,
 
 sealed trait PVLClassDeclaration[G] extends ClassDeclaration[G] with PVLClassDeclarationImpl[G]
 final class PVLConstructor[G](val contract: ApplicableContract[G], val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends PVLClassDeclaration[G] with PVLConstructorImpl[G]
-final class PVLEndpoint[G](val name: String, val t: Type[G], val args: Seq[Expr[G]])(implicit val o: Origin) extends ClassDeclaration[G]
+final class PVLEndpoint[G](val name: String, val t: Type[G], val args: Seq[Expr[G]])(implicit val o: Origin) extends ClassDeclaration[G] {
+  var ref: Option[PVLConstructorTarget[G]] = None
+}
 
 final class PVLSeqProg[G](val name: String, val declarations: Seq[ClassDeclaration[G]], val contract: ApplicableContract[G], val args: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with PVLSeqProgImpl[G] with Declarator[G]
 
 sealed trait PVLCommunicateSubject[G] extends NodeFamily[G] with PVLCommunicateSubjectImpl[G]
 case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLEndpointNameImpl[G] {
-  var ref: Option[PVLNameTarget[G]] = None
+  var ref: Option[RefPVLEndpoint[G]] = None
 }
 case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLIndexedFamilyNameImpl[G] {
-  var ref: Option[PVLNameTarget[G]] = None
+  var ref: Option[RefPVLEndpoint[G]] = None
 }
 case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLFamilyRangeImpl[G] {
-  var ref: Option[PVLNameTarget[G]] = None
+  var ref: Option[RefPVLEndpoint[G]] = None
 }
 case class PVLCommunicateAccess[G](subject: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
   var ref: Option[PVLDerefTarget[G]] = None

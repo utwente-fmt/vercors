@@ -390,8 +390,6 @@ case object ResolveReferences extends LazyLogging {
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@PVLEndpointName(name) =>
-      local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("endpoint", name, local)))
     case local@TVar(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("type variable", name, local)))
     case funcOf@FunctionOf(v, vars) =>
@@ -399,8 +397,18 @@ case object ResolveReferences extends LazyLogging {
       vars.foreach(v => v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf))))
     case local@SilverLocalAssign(ref, _) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-    case access@PVLCommunicateAccess(subject, field) =>
-      access.ref = Some(null /* PVL.findDerefOfClass(subject.threadType.cls.decl, field).getOrElse(throw NoSuchNameError("field", field, access)) */)
+    case local@PVLEndpointName(name) => PVL.findName(name, ctx) match {
+      case Some(ref: RefPVLEndpoint[G]) => local.ref = Some(ref)
+      case Some(_) => throw ForbiddenEndpointNameType(local)
+      case None => throw NoSuchNameError("endpoint", name, local)
+    }
+    case access@PVLCommunicateAccess(subject, field) => subject.t match {
+      case TClass(Ref(cls)) =>
+        access.ref = Some(PVL.findDerefOfClass(cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
+      case _ => throw ForbiddenEndpointType(subject.ref.get.decl)
+    }
+    case endpoint: PVLEndpoint[G] =>
+      endpoint.ref = Some(PVL.findConstructor(endpoint.t, endpoint.args).getOrElse(throw ForbiddenEndpointType(endpoint)))
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@JavaDeref(obj, field) =>
