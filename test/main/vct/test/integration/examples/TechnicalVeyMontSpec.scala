@@ -20,20 +20,20 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   """
 
-  // To be enabled when endpoint field dereference is implemented
-  // vercors should verify in "plain endpoint field dereference should be possible" pvl
-  """
-     class Storage {
-        int x;
-     }
-     seq_program Example() {
-        endpoint alice = Storage();
+  // TODO: Enable when plain field dereference works
+  // vercors should verify using silicon in "plain endpoint field dereference should be possible" pvl
+  // """
+  //    class Storage {
+  //       int x;
+  //    }
+  //    seq_program Example() {
+  //       endpoint alice = Storage();
 
-        run {
-          assert alice.x == 0;
-        }
-     }
-  """
+  //       run {
+  //         assert alice.x == 0;
+  //       }
+  //    }
+  // """
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
   """
