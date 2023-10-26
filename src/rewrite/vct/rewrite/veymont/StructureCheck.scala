@@ -27,7 +27,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case dcl: VeyMontSeqProg[Pre] => inSeqProg.having(()) {
+      case dcl: SeqProg[Pre] => inSeqProg.having(()) {
         rewriteDefault(dcl)
       }
       case m: InstanceMethod[Pre] =>
@@ -45,7 +45,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(prog : Program[Pre]) : Program[Post] = {
     if(!prog.declarations.exists {
-      case dcl: VeyMontSeqProg[Pre] =>
+      case dcl: SeqProg[Pre] =>
         if(dcl.threads.isEmpty)
           throw VeyMontStructCheckError(dcl,"A seq_program needs to have at least 1 thread, but none was found!")
         else true
@@ -79,7 +79,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
         case ThisSeqProg(_) =>
           if (args.isEmpty) rewriteDefault(st)
           else throw VeyMontStructCheckError(st, "Calls to methods in seq_program cannot have any arguments!")
-        case DerefVeyMontThread(thread) =>
+        case DerefEndpoint(thread) =>
           val argderefs = args.flatMap(getDerefsFromExpr)
           val argthreads = argderefs.map(d => getThreadDeref(d,
             VeyMontStructCheckError(st, "A method call on a thread object may only refer to a thread in its arguments!")))

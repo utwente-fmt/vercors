@@ -1,7 +1,7 @@
 package vct.col.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{Assign, Declaration, Deref, DerefVeyMontThread, Expr, MethodInvocation, Node, ProcedureInvocation, RunMethod, Statement, VeyMontAssignExpression, VeyMontCommExpression, VeyMontSeqProg, VeyMontThread}
+import vct.col.ast.{Assign, Declaration, Deref, DerefEndpoint, Expr, MethodInvocation, Node, ProcedureInvocation, RunMethod, Statement, VeyMontAssignExpression, VeyMontCommExpression, SeqProg, Endpoint}
 import vct.col.ref.Ref
 import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{AddVeyMontAssignmentError, getDerefsFromExpr, getThreadDeref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -30,14 +30,14 @@ object AddVeyMontAssignmentNodes extends RewriterBuilder {
   }
 
   /**
-   * Utility function to get VeyMontThread from a Deref, and throw error err in case of other dereferences
+   * Utility function to get Endpoint from a Deref, and throw error err in case of other dereferences
    * @param deref to be matched
    * @param err to be thrown if match unsuccessful
    * @tparam Pre type of expression
    * @return list of threads that are dereferenced in the expression
    */
-  def getThreadDeref[Pre](deref: Deref[Pre], err: UserError) : VeyMontThread[Pre] = deref.obj match {
-    case DerefVeyMontThread(threadref) => threadref.decl
+  def getThreadDeref[Pre](deref: Deref[Pre], err: UserError) : Endpoint[Pre] = deref.obj match {
+    case DerefEndpoint(threadref) => threadref.decl
     case _ => throw err
   }
 
@@ -48,7 +48,7 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case dcl: VeyMontSeqProg[Pre] => inSeqProg.having(()) {
+      case dcl: SeqProg[Pre] => inSeqProg.having(()) {
         rewriteDefault(dcl)
       }
       case _ => rewriteDefault(decl)
@@ -64,9 +64,9 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
       case _ => rewriteDefault(st)
     }
 
-  def getAssignmentReceiver(target: Expr[Pre]): VeyMontThread[Pre] = target match {
+  def getAssignmentReceiver(target: Expr[Pre]): Endpoint[Pre] = target match {
     case Deref(obj, _) => obj match {
-      case DerefVeyMontThread(ref) =>  ref.decl//target is correct ref to thread
+      case DerefEndpoint(ref) =>  ref.decl //target is correct ref to thread
       case _ => throw AddVeyMontAssignmentError(target, "The target of this assignment must refer to a thread")
     }
     case _ => throw AddVeyMontAssignmentError(target, "The target of this assignment must be a dereference to a thread, e.g. someThread.someField")
@@ -81,19 +81,19 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
     !value.exists {
       case m: ProcedureInvocation[Pre] => throw AddVeyMontAssignmentError(m, "Cannot call non-thread method in assignment!")
       case m: MethodInvocation[Pre] => m.obj match {
-        case t: DerefVeyMontThread[Pre] => false
+        case t: DerefEndpoint[Pre] => false
         case m => throw AddVeyMontAssignmentError(m, "Cannot call non-thread method in assignment!")
       }
     }
   }
 
-  def createVeyMontAssignNode(receiver: VeyMontThread[Pre], a: Assign[Pre]): Statement[Post] = {
+  def createVeyMontAssignNode(receiver: Endpoint[Pre], a: Assign[Pre]): Statement[Post] = {
     val derefs = getDerefsFromExpr(a.value)
     if (derefs.isEmpty)
       new VeyMontAssignExpression[Post](succ(receiver), rewriteDefault(a))(a.o)
     else if (derefs.size == 1) {
       val thread = derefs.head.obj match {
-        case t: DerefVeyMontThread[Pre] => t
+        case t: DerefEndpoint[Pre] => t
         case _ => throw AddVeyMontAssignmentError(a.value, "The value of this assignment is expected to be a Deref of a thread!")
       }
       if(thread.ref.decl == receiver)
@@ -105,7 +105,7 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
     } else throw AddVeyMontAssignmentError(a.value, "The value of this assignment is not allowed to refer to multiple threads!")
   }
 
-  def getAssignmentSender(deref : Deref[Pre]): VeyMontThread[Pre] =
+  def getAssignmentSender(deref : Deref[Pre]): Endpoint[Pre] =
     getThreadDeref(deref,AddVeyMontAssignmentError (deref, "Object identifiers in the value of this assignment can only refer to a thread!") )
 
 }

@@ -950,7 +950,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
-      case deref @ DerefVeyMontThread(ref) => deref
+      case deref @ DerefEndpoint(_) => deref
       case div @ Div(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
@@ -1770,8 +1770,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
-      case seqProg: VeyMontSeqProg[Pre] => seqProg
-      case thread: VeyMontThread[Pre] => thread
+      case seqProg: SeqProg[Pre] => seqProg
+      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.args)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
@@ -1798,6 +1798,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case function: LlvmSpecFunction[Pre] =>
         new LlvmSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
       case glob: LlvmGlobal[Pre] => glob
+      case endpoint: PVLEndpoint[Pre] => endpoint
+      case seqProg: PVLSeqProg[Pre] => seqProg
       }
   }
 
