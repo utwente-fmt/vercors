@@ -76,3 +76,8 @@ case class ForbiddenEndpointType(endpoint: PVLEndpoint[_]) extends ResolutionErr
   override def text: String = endpoint.o.messageInContext(s"This endpoint is not of class type")
 }
 
+case class ConstructorNotFound(endpoint: PVLEndpoint[_]) extends ResolutionError {
+  override def code: String = "constructorNotFound"
+  override def text: String = endpoint.o.messageInContext(s"Could not find a constructor that matches the types of the arguments of this endpoint.")
+}
+

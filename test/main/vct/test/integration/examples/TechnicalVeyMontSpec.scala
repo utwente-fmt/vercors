@@ -22,19 +22,18 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   // To be enabled when endpoint field dereference is implemented
   // vercors should verify in "plain endpoint field dereference should be possible" pvl
-  // """
-  //    class Storage {
-  //       int x;
-  //    }
-  //    seq_program Example() {
-  //       endpoint alice = Storage();
-  //       endpoint bob = Storage();
+  """
+     class Storage {
+        int x;
+     }
+     seq_program Example() {
+        endpoint alice = Storage();
 
-  //       run {
-  //         assert alice.x == bob.x;
-  //       }
-  //    }
-  // """
+        run {
+          assert alice.x == 0;
+        }
+     }
+  """
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
   """
@@ -73,13 +72,10 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   seq_program Example() { }
   """
 
-  vercors should error withCode "forbiddenEndpointType" in "endpoints can only have class types" pvl
+  vercors should error withCode "parseError" in "endpoints can only have class types" pvl
   """
   seq_program Example() {
     endpoint alice = int();
-    run {
-
-    }
   }
   """
 }

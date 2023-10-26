@@ -14,7 +14,7 @@ import vct.col.resolve.lang.{C, CPP, Java, LLVM, PVL, Spec}
 import vct.col.resolve.Resolve.{MalformedBipAnnotation, SpecContractParser, SpecExprParser, getLit, isBip}
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData, BipGuard, BipInvariant, BipPort, BipPure, BipStatePredicate, BipTransition}
 import vct.col.rewrite.InitialGeneration
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
 
@@ -176,6 +176,12 @@ case object ResolveTypes {
           }
         case _ => // we did not find a package so we don't do anything
       }
+    case endpoint: PVLEndpoint[G] =>
+      endpoint.cls.tryResolve(name => PVL.findTypeName(name, ctx) match {
+        case Some(RefClass(cls: Class[G])) => cls
+        case Some(_) => throw ForbiddenEndpointType(endpoint)
+        case None => throw NoSuchNameError("class", name, endpoint)
+      })
 
     case _ =>
   }
@@ -402,13 +408,10 @@ case object ResolveReferences extends LazyLogging {
       case Some(_) => throw ForbiddenEndpointNameType(local)
       case None => throw NoSuchNameError("endpoint", name, local)
     }
-    case access@PVLCommunicateAccess(subject, field) => subject.t match {
-      case TClass(Ref(cls)) =>
-        access.ref = Some(PVL.findDerefOfClass(cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
-      case _ => throw ForbiddenEndpointType(subject.ref.get.decl)
-    }
+    case access@PVLCommunicateAccess(subject, field) =>
+        access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
-      endpoint.ref = Some(PVL.findConstructor(endpoint.t, endpoint.args).getOrElse(throw ForbiddenEndpointType(endpoint)))
+      endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@JavaDeref(obj, field) =>

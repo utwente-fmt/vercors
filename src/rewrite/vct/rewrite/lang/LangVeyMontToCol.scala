@@ -9,7 +9,7 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, ForbiddenEndpointType, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, NoRunMethod}
 
 case object LangVeyMontToCol {
   case object CommunicateNotSupported extends UserError {
@@ -21,13 +21,6 @@ case object LangVeyMontToCol {
     override def code: String = "noRunMethod"
     override def text: String = prog.o.messageInContext(
       s"This `seq_program` has no `run` method."
-    )
-  }
-
-  case class ForbiddenEndpointType(endpoint: PVLEndpoint[_]) extends UserError {
-    override def code: String = "forbiddenEndpointType"
-    override def text: String = endpoint.o.messageInContext(
-      s"This endpoint has type `${endpoint.t}`, but only a class type is allowed."
     )
   }
 }
@@ -43,14 +36,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
     throw CommunicateNotSupported
   }
 
-  def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit = endpoint.t match {
-    case TClass(Ref(cls)) =>
-      endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(
-        rw.succ[Class[Post]](cls),
-        endpoint.args.map(rw.dispatch)
-      )(endpoint.o))
-    case _ => throw ForbiddenEndpointType(endpoint)
-  }
+  def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
+    endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(
+      rw.succ[Class[Post]](endpoint.cls.decl),
+      endpoint.args.map(rw.dispatch)
+    )(endpoint.o))
 
   def rewriteSeqProg(prog: PVLSeqProg[Pre]): Unit = {
     implicit val o: Origin = prog.o

@@ -17,7 +17,7 @@ declClass
 declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
 
 seqProgDecl
- : 'endpoint' identifier '=' type '(' exprList? ')' ';' # pvlEndpoint
+ : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
  | runMethod # seqProgRunMethod
  | method # seqProgMethod
  ;
