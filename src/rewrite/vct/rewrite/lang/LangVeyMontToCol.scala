@@ -72,4 +72,6 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
       )
     }
   }
+
+//  def rewriteEndpointName
 }
