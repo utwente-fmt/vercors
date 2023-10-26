@@ -92,7 +92,7 @@ trait LoopImpl[G] { this: Loop[G] =>
           case (Some(acc), Some(more)) => Some(acc :+ more)
           case (_, _) => None
         }
-        .map(elems => NodeDoc(stat, Doc.fold(elems)(_ <> "," <+/> _)))
+        .map(elems => NodeDoc(Doc.fold(elems)(_ <> "," <+/> _))(stat))
   }
 
   def layoutControl(stat: Statement[G])(implicit ctx: Ctx): Doc =

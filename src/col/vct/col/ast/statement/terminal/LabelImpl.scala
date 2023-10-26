@@ -11,12 +11,12 @@ trait LabelImpl[G] { this: Label[G] =>
     case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP => f(layoutLabel, stat.foldBlock(f))
   }
 
-  def layoutLabel(implicit ctx: Ctx): Doc = NodeDoc(this, ctx.syntax match {
+  def layoutLabel(implicit ctx: Ctx): Doc = NodeDoc(ctx.syntax match {
     case Ctx.PVL => Text("label") <+> ctx.name(decl) <> ";"
     case Ctx.Silver => Text("label") <+> ctx.name(decl)
     case Ctx.Java => Text(ctx.name(decl)) <> ":"
     case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP => Text(ctx.name(decl)) <> ":"
-  })
+  })(this)
 
   override def layout(implicit ctx: Ctx): Doc = foldBlock(_ <+/> _)
 }

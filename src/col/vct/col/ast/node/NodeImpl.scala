@@ -112,7 +112,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     case other => Text(other.toString)
   }
 
-  final def show(implicit ctx: Ctx): Doc = NodeDoc(this, layout)
+  final def show(implicit ctx: Ctx): Doc = NodeDoc(layout)(this)
   protected[this] def layout(implicit ctx: Ctx): Doc = this match {
     case p: scala.Product =>
       Group(Text(s"??${this.getClass.getSimpleName}??(") <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")

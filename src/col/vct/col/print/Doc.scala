@@ -160,7 +160,7 @@ sealed trait Doc extends Show {
   private def be(spent: Int, docs: Seq[(Int, Boolean, Seq[Node[_]], Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
     case Nil => LazyList.empty
     case (_, _, nes, Empty) +: docs => nes.map(EEnd).to(LazyList) #::: be(spent, docs)
-    case (i, f, nes, NodeDoc(node, x)) +: docs => EStart(node) #:: be(spent, (i, f, nes :+ node, x) +: docs)
+    case (i, f, nes, doc @ NodeDoc(x)) +: docs => EStart(doc.node) #:: be(spent, (i, f, nes :+ doc.node, x) +: docs)
     case (i, f, nes, Cons(x, y)) +: docs => be(spent, (i, f, Nil, x) +: (i, f, nes, y) +: docs)
     case (i, f, nes, Nest(x)) +: docs => be(spent, (i+ctx.tabWidth, f, nes, x) +: docs)
     case (_, _, nes, Text(t)) +: docs => EText(t) #:: nes.map(EEnd).to(LazyList) #::: be(spent + t.length, docs)
@@ -186,7 +186,7 @@ sealed trait Doc extends Show {
     case Text(text) => text.nonEmpty
     case Nest(doc) => doc.nonEmpty
     case Group(doc) => doc.nonEmpty
-    case NodeDoc(_, doc) => doc.nonEmpty
+    case NodeDoc(doc) => doc.nonEmpty
   }
 
   def splitOn[A](list: LazyList[A])(predicate: A => Boolean): LazyList[LazyList[A]] = {
@@ -260,4 +260,4 @@ case class Text(text: String) extends Doc
 case class Nest(doc: Doc) extends Doc
 case class Group(doc: Doc) extends Doc
 
-case class NodeDoc(node: Node[_], doc: Doc) extends Doc
+case class NodeDoc(doc: Doc)(val node: Node[_]) extends Doc

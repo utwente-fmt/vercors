@@ -12,10 +12,10 @@ trait ScopeImpl[G] {
 
   override def layout(implicit ctx: Ctx): Doc = layoutAsBlock
   override def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc =
-    NodeDoc(this,
+    NodeDoc(
       Doc.fold(locals.map(local => ctx.syntax match {
         case Ctx.Silver => Text("var") <+> local
         case _ => local.show <> ";"
       }) :+ body.foldBlock(f))(f)
-    )
+    )(this)
 }
