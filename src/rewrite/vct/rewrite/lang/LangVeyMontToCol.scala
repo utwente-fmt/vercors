@@ -39,7 +39,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   val seqProgSucc: SuccessionMap[PVLSeqProg[Pre], SeqProg[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
 
-  def rewriteCommunicate(comm: PVLCommunicate[Pre]): VeyMontCommExpression[Post] = {
+  def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] = {
     throw CommunicateNotSupported
   }
 

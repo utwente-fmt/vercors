@@ -1,9 +1,9 @@
 package vct.col.ast.expr.heap.read
 
-import vct.col.ast.{DerefEndpoint, TClass, Type}
+import vct.col.ast.{EndpointUse, TClass, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 
-trait DerefEndpointImpl[G] { this: DerefEndpoint[G] =>
+trait EndpointUseImpl[G] { this: EndpointUse[G] =>
   // TODO: Shouldn't there be the field that is dereferenced be involved somehow...?
   override def t: Type[G] = ref.decl.t
 

@@ -950,7 +950,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
-      case deref @ DerefEndpoint(_) => deref
+      case deref @ EndpointUse(_) => deref
       case div @ Div(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
@@ -1654,7 +1654,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
-      case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
+      case Communicate(r,s,t,a) => Communicate(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
     }
   }
