@@ -67,4 +67,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
 
   override def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
   override def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
+  override def dispatch(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
+  override def dispatch(node: Access[Pre]): Access[Post] = rewriteDefault(node)
+  override def dispatch(node: Subject[Pre]): Subject[Post] = rewriteDefault(node)
 }

@@ -13,6 +13,8 @@ class UnresolvedRef[G, Decl <: Declaration[G]](val name: String)(implicit tag: C
 
   def resolve(decl: Declaration[G]): Unit = resolvedDecl = Some(decl)
 
+  def isResolved: Boolean = resolvedDecl.isDefined
+
   def decl: Decl = resolvedDecl match {
     case None =>
       throw NotResolved(this, tag)

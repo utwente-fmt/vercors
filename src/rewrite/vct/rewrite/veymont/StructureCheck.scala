@@ -58,7 +58,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
     if(inSeqProg.nonEmpty)
       st match {
-        case VeyMontCommExpression(_,_,_,_) => rewriteDefault(st)
+        case CommunicateX(_,_,_,_) => rewriteDefault(st)
         case VeyMontAssignExpression(_,_) => rewriteDefault (st)
         case Assign(_,_) => rewriteDefault (st)
         case Branch(_) => rewriteDefault(st)
@@ -79,7 +79,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
         case ThisSeqProg(_) =>
           if (args.isEmpty) rewriteDefault(st)
           else throw VeyMontStructCheckError(st, "Calls to methods in seq_program cannot have any arguments!")
-        case DerefEndpoint(thread) =>
+        case EndpointUse(thread) =>
           val argderefs = args.flatMap(getDerefsFromExpr)
           val argthreads = argderefs.map(d => getThreadDeref(d,
             VeyMontStructCheckError(st, "A method call on a thread object may only refer to a thread in its arguments!")))

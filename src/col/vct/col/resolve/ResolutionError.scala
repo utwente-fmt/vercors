@@ -65,3 +65,19 @@ case class WrongThisPosition[G](diz: AmbiguousThis[G]) extends ResolutionError {
   override def code: String = "wrongThisPosition"
   override def text: String = diz.o.messageInContext("The `this` keyword does not refer to anything in this position.")
 }
+
+case class ForbiddenEndpointNameType(endpoint: PVLEndpointName[_]) extends ResolutionError {
+  override def code: String = "forbiddenEndpointNameType"
+  override def text: String = endpoint.o.messageInContext(s"In this endpoint position, a name is referred that is not an endpoint")
+}
+
+case class ForbiddenEndpointType(endpoint: PVLEndpoint[_]) extends ResolutionError {
+  override def code: String = "forbiddenEndpointType"
+  override def text: String = endpoint.o.messageInContext(s"This endpoint is not of class type")
+}
+
+case class ConstructorNotFound(endpoint: PVLEndpoint[_]) extends ResolutionError {
+  override def code: String = "constructorNotFound"
+  override def text: String = endpoint.o.messageInContext(s"Could not find a constructor that matches the types of the arguments of this endpoint.")
+}
+

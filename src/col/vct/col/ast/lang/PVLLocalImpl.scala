@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{PVLLocal, TEnum, TNotAValue, Type}
+import vct.col.ast.{PVLLocal, TClass, TEnum, TNotAValue, Type}
 import vct.col.print.{Ctx, Doc, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
@@ -14,7 +14,7 @@ trait PVLLocalImpl[G] { this: PVLLocal[G] =>
     case ref: RefField[G] => ref.decl.t
     case ref: RefModelField[G] => ref.decl.t
     case ref: RefEndpoint[G] => ref.decl.t
-    case ref: RefPVLEndpoint[G] => ref.decl.t
+    case ref: RefPVLEndpoint[G] => TClass[G](ref.decl.cls.decl.ref)
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
   }
 

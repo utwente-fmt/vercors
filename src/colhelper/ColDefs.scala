@@ -100,7 +100,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
-    "Endpoint" -> Seq("VeyMontSeqProg"),
+    "Endpoint" -> Seq("SeqProg"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 

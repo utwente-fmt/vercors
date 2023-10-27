@@ -2,7 +2,7 @@ package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
 
-class TechnicalVeymontSpec extends VercorsSpec {
+class TechnicalVeyMontSpec extends VercorsSpec {
   vercors should error withCode "communicateNotSupported" in "example using communicate" pvl
   """
      class Storage {
@@ -20,21 +20,19 @@ class TechnicalVeymontSpec extends VercorsSpec {
      }
   """
 
-  // To be enabled when endpoint field dereference is implemented
-  // vercors should verify in "plain endpoint field dereference should be possible" pvl
-  // """
-  //    class Storage {
-  //       int x;
-  //    }
-  //    seq_program Example() {
-  //       endpoint alice = Storage();
-  //       endpoint bob = Storage();
+  vercors should error withCode "endpointUseNotSupported" in "plain endpoint field dereference should be possible" pvl
+  """
+     class Storage {
+        int x;
+     }
+     seq_program Example() {
+        endpoint alice = Storage();
 
-  //       run {
-  //         assert alice.x == bob.x;
-  //       }
-  //    }
-  // """
+        run {
+          assert alice.x == 0;
+        }
+     }
+  """
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
   """
@@ -45,17 +43,16 @@ class TechnicalVeymontSpec extends VercorsSpec {
   }
   """
 
-  // To be enabled when proper communiate support is implemented
-  // vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
-  // """
-  // class Storage { int x; }
-  // seq_program Example() {
-  //    endpoint charlie = Storage();
-  //    run {
-  //      communicate charlie.nonExistent <- charlie.nonExistent;
-  //    }
-  // }
-  // """
+  vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
+  """
+  class Storage { int x; }
+  seq_program Example() {
+     endpoint charlie = Storage();
+     run {
+       communicate charlie.nonExistent <- charlie.nonExistent;
+     }
+  }
+  """
 
   vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
   """
@@ -72,15 +69,12 @@ class TechnicalVeymontSpec extends VercorsSpec {
   vercors should error withCode "noRunMethod" in "run method should always be present" pvl
   """
   seq_program Example() { }
-  """.stripMargin
+  """
 
-  vercors should error withCode "forbiddenEndpointType" in "endpoints can only have class types" pvl
+  vercors should error withCode "parseError" in "endpoints can only have class types" pvl
   """
   seq_program Example() {
     endpoint alice = int();
-    run {
-
-    }
   }
-  """.stripMargin
+  """
 }
