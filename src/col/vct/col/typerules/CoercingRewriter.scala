@@ -254,6 +254,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: SmtlibFunctionSymbol[Pre] => node
     case node: PVLCommunicateAccess[Pre] => node
     case node: PVLCommunicateSubject[Pre] => node
+    case node: SeqRun[Pre] => node
+    case node: Access[Pre] => node
+    case node: Subject[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -459,6 +462,18 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
   def postCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
   override final def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Access[Pre]): Access[Pre] = node
+  def postCoerce(node: Access[Pre]): Access[Post] = rewriteDefault(node)
+  override final def dispatch(node: Access[Pre]): Access[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Subject[Pre]): Subject[Pre] = node
+  def postCoerce(node: Subject[Pre]): Subject[Post] = rewriteDefault(node)
+  override final def dispatch(node: Subject[Pre]): Subject[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: SeqRun[Pre]): SeqRun[Pre] = node
+  def postCoerce(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
+  override final def dispatch(node: SeqRun[Pre]): SeqRun[Post] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1654,8 +1669,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
-      case Communicate(r,s,t,a) => Communicate(r,s,t,a)
+      case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
+      case Communicate(r, s) => Communicate(r, s)
     }
   }
 
@@ -2132,4 +2148,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
   def coerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
+  def coerce(node: SeqRun[Pre]): SeqRun[Pre] = node
+  def coerce(node: Access[Pre]): Access[Pre] = node
+  def coerce(node: Subject[Pre]): Subject[Pre] = node
 }

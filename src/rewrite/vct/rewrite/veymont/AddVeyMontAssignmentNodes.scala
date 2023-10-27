@@ -1,7 +1,7 @@
 package vct.col.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{Assign, Declaration, Deref, EndpointUse, Expr, MethodInvocation, Node, ProcedureInvocation, RunMethod, Statement, VeyMontAssignExpression, Communicate, SeqProg, Endpoint}
+import vct.col.ast.{Assign, Declaration, Deref, EndpointUse, Expr, MethodInvocation, Node, ProcedureInvocation, RunMethod, Statement, VeyMontAssignExpression, CommunicateX, SeqProg, Endpoint}
 import vct.col.ref.Ref
 import vct.col.rewrite.veymont.AddVeyMontAssignmentNodes.{AddVeyMontAssignmentError, getDerefsFromExpr, getThreadDeref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -100,7 +100,7 @@ case class AddVeyMontAssignmentNodes[Pre <: Generation]() extends Rewriter[Pre] 
         new VeyMontAssignExpression[Post](succ(receiver),rewriteDefault(a))(a.o)
       else {
         val sender = getAssignmentSender(derefs.head)
-        new Communicate[Post](succ(receiver), succ(sender), dispatch(derefs.head.ref.decl.t), rewriteDefault(a))(a.o)
+        new CommunicateX[Post](succ(receiver), succ(sender), dispatch(derefs.head.ref.decl.t), rewriteDefault(a))(a.o)
       }
     } else throw AddVeyMontAssignmentError(a.value, "The value of this assignment is not allowed to refer to multiple threads!")
   }

@@ -58,7 +58,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(st : Statement[Pre]) : Statement[Post] = {
     if(inSeqProg.nonEmpty)
       st match {
-        case Communicate(_,_,_,_) => rewriteDefault(st)
+        case CommunicateX(_,_,_,_) => rewriteDefault(st)
         case VeyMontAssignExpression(_,_) => rewriteDefault (st)
         case Assign(_,_) => rewriteDefault (st)
         case Branch(_) => rewriteDefault(st)

@@ -5,11 +5,12 @@ import vct.col.ast._
 import vct.col.ast.RewriteHelpers._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
+import vct.col.resolve.ctx.RefPVLEndpoint
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, NoRunBody, NoRunMethod}
 
 case object LangVeyMontToCol {
   case object CommunicateNotSupported extends UserError {
@@ -21,6 +22,13 @@ case object LangVeyMontToCol {
     override def code: String = "noRunMethod"
     override def text: String = prog.o.messageInContext(
       s"This `seq_program` has no `run` method."
+    )
+  }
+
+  case class NoRunBody(prog: RunMethod[_]) extends UserError {
+    override def code: String = "noRunBody"
+    override def text: String = prog.o.messageInContext(
+      s"This `run` method needs a body, as it is part of a `seq_program`."
     )
   }
 }
@@ -55,12 +63,9 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
               case _ =>
             },
           )._1,
-          rw.classDeclarations.collect(
-            prog.declarations.foreach {
-              case run: RunMethod[Pre] => rw.classDeclarations.succeed(run, run.rewrite())
-              case _ =>
-            }
-          )._1.headOption.getOrElse(throw NoRunMethod(prog)),
+          prog.declarations.collectFirst {
+            case run: RunMethod[Pre] => rewriteRun(run)
+          }.getOrElse(throw NoRunMethod(prog)),
           rw.classDeclarations.collect(
             prog.declarations.foreach {
               case _: RunMethod[Pre] =>
@@ -73,5 +78,19 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
     }
   }
 
-//  def rewriteEndpointName
+  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
+    case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
+    case PVLIndexedFamilyName(family, index) => ???
+    case PVLFamilyRange(family, binder, start, end) => ???
+  }
+
+  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] =
+    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
+
+  def rewriteRun(run: RunMethod[Pre]): SeqRun[Post] = run.body match {
+    case Some(body) =>
+      run.drop()
+      SeqRun(rw.dispatch(body), rw.dispatch(run.contract))(run.blame)(run.o)
+    case None => throw NoRunBody(run)
+  }
 }

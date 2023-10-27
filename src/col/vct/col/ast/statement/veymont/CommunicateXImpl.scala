@@ -1,8 +1,8 @@
 package vct.col.ast.statement.veymont
 
-import vct.col.ast.Communicate
+import vct.col.ast.CommunicateX
 import vct.col.print.{Ctx, Doc}
 
-trait CommunicateImpl[G] { this: Communicate[G] =>
+trait CommunicateXImpl[G] { this: CommunicateX[G] =>
   override def layout(implicit ctx: Ctx): Doc = assign.show
 }

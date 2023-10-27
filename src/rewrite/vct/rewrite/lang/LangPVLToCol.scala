@@ -80,11 +80,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     local.ref.get match {
       case spec: SpecNameTarget[Pre] => rw.specLocal(spec, local, local.blame)
       case RefField(decl) => Deref[Post](rw.currentThis.top, rw.succ(decl))(local.blame)
-      /* TODO: I don't like the "Deref" word here, as no field is being dereferenced... It should be more like "Local"?
-            Or: integrate actualy dereferencing into this node, since that is the only use case anyway
-            So: EndpointDeref. Like ModelDeref
-      */
-      case RefPVLEndpoint(decl) => EndpointUse[Post](rw.succ(decl))
+      case endpoint: RefPVLEndpoint[Pre] => rw.veymont.rewriteEndpointUse(endpoint, local)
     }
   }
 
