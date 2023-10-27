@@ -77,6 +77,20 @@ case object Doc {
   }
 }
 
+sealed trait Elem {
+  def write(a: Appendable): Unit = this match {
+    case EText(text) => a.append(text)
+    case ELine(indent) => a.append("\n").append(" ".repeat(indent))
+    case EStart(_) =>
+    case EEnd(_) =>
+  }
+}
+
+case class EText(text: String) extends Elem
+case class ELine(indent: Int) extends Elem
+case class EStart(node: Node[_]) extends Elem
+case class EEnd(node: Node[_]) extends Elem
+
 /**
   * This is an implementation of A prettier printer by Philip Wadler, accessible here:
   * https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf
@@ -122,20 +136,6 @@ sealed trait Doc extends Show {
   def <>>(other: Show)(implicit ctx: Ctx): Doc = this <> Nest(Line <> other)
   def <>>(other: String)(implicit ctx: Ctx): Doc = this <>> Text(other)
 
-  sealed trait Elem {
-    def write(a: Appendable): Unit = this match {
-      case EText(text) => a.append(text)
-      case ELine(indent) => a.append("\n").append(" ".repeat(indent))
-      case EStart(_) =>
-      case EEnd(_) =>
-    }
-  }
-  case class EText(text: String) extends Elem
-  case class ELine(indent: Int) extends Elem
-  case class EStart(node: Node[_]) extends Elem
-  case class EEnd(node: Node[_]) extends Elem
-
-
   def lazyListLen(list: LazyList[Elem]): Int = list match {
     case LazyList() => 0
     case EText(text) #:: tail => text.length + lazyListLen(tail)
@@ -160,7 +160,7 @@ sealed trait Doc extends Show {
   private def be(spent: Int, docs: Seq[(Int, Boolean, Seq[Node[_]], Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
     case Nil => LazyList.empty
     case (_, _, nes, Empty) +: docs => nes.map(EEnd).to(LazyList) #::: be(spent, docs)
-    case (i, f, nes, doc @ NodeDoc(x)) +: docs => EStart(doc.node) #:: be(spent, (i, f, nes :+ doc.node, x) +: docs)
+    case (i, f, nes, doc @ NodeDoc(x)) +: docs => EStart(doc.node) #:: be(spent, (i, f, doc.node +: nes, x) +: docs)
     case (i, f, nes, Cons(x, y)) +: docs => be(spent, (i, f, Nil, x) +: (i, f, nes, y) +: docs)
     case (i, f, nes, Nest(x)) +: docs => be(spent, (i+ctx.tabWidth, f, nes, x) +: docs)
     case (_, _, nes, Text(t)) +: docs => EText(t) #:: nes.map(EEnd).to(LazyList) #::: be(spent + t.length, docs)
@@ -206,8 +206,6 @@ sealed trait Doc extends Show {
       case ELine(i) => EText(" ".repeat(i))
       case other => other
     })
-
-
 
   def highlight(node: Node[_])(implicit ctx: Ctx): String = {
     val lineNumber = (line: Int) => String.format("%" + f"$LINE_NUMBER_WIDTH" + "d ", line)
