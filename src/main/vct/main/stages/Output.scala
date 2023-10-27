@@ -11,6 +11,10 @@ import vct.parsers.ParseResult
 import java.nio.file.{Files, Path}
 
 case object Output {
+  def runtimeOfOptions(options: Options) = {
+    Output(options.runtimeOutput, Ctx.Java)
+  }
+
   def vesuvOfOptions(options: Options): Stages[ParseResult[_ <: Generation], Unit] =
     FunctionStage((pr: ParseResult[_ <: Generation]) => Program(pr.decls)(DiagnosticOrigin)(DiagnosticOrigin))
       .thenRun(Output(options.vesuvOutput, Ctx.PVL))

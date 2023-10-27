@@ -241,6 +241,19 @@ case object Options {
         .text("Set the location of the C preprocessor binary"),
 
       note(""),
+      note("Runtime Verification Mode"),
+      opt[Unit]("runtime")
+        .action((_, c) => c.copy(mode = Mode.RuntimeVerification))
+      .text("Use runtime verification to test the program")
+      .children(
+        opt[Path]("runtime-output").valueName("<path>")
+          .action((path, c) => c.copy(runtimeOutput = path)),
+        opt[Int]("runtime-timeout").valueName("<timeout>")
+          .action((timeout, c) => c.copy(runtimeTimeout = timeout))
+      ),
+
+
+      note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont")
         .action((_, c) => c.copy(mode = Mode.VeyMont))
@@ -385,6 +398,10 @@ case class Options
   devCarbonBoogieLogFile: Option[Path] = None,
 
   devViperProverLogFile: Option[Path] = None,
+
+  //Runtime verification options
+  runtimeOutput: Path = null,
+  runtimeTimeout: Int = 60,
 
   // VeyMont options
   veymontOutput: Path = null, // required

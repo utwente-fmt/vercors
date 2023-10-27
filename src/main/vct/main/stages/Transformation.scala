@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{SimplificationRule, Verification, Program}
+import vct.col.ast.{Program, SimplificationRule, Verification}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -24,8 +24,10 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
+import vct.rewrite.runtime.{AddFieldPermissions, CreateArrayPermissions, CreateFieldPermissions, CreateLocking, CreateLoopInvariants, CreatePredicates, CreateQuantifiers, RefactorGeneratedCode}
 
 object Transformation {
+
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
     override def text: String =
       s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map {
@@ -77,6 +79,13 @@ object Transformation {
           onAfterPassKey = writeOutFunctions(options.outputAfterPass),
         )
     }
+
+  def runtimeTransformationOfOptions(options: Options): Transformation =
+    RuntimeTransformation(
+      onBeforePassKey = writeOutFunctions(options.outputBeforePass),
+      onAfterPassKey = writeOutFunctions(options.outputAfterPass),
+    )
+
 }
 
 /**
@@ -309,3 +318,17 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
 
 
 
+case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
+                                 override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
+  extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    RefactorGeneratedCode,
+
+    CreateFieldPermissions,
+    CreateArrayPermissions,
+
+    CreateQuantifiers,
+
+    CreatePredicates,
+    CreateLocking,
+    CreateLoopInvariants
+  ))

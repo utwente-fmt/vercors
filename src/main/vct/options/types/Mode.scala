@@ -9,4 +9,5 @@ case object Mode {
   case object VeyMont extends Mode
   case object VeSUV extends Mode
   case object BatchTest extends Mode
+  case object RuntimeVerification extends Mode
 }
