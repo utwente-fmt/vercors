@@ -20,8 +20,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   """
 
-  // TODO: Enable when plain field dereference works
-  vercors should verify using silicon in "plain endpoint field dereference should be possible" pvl
+  vercors should error withCode "endpointUseNotSupported" in "plain endpoint field dereference should be possible" pvl
   """
      class Storage {
         int x;

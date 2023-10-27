@@ -10,12 +10,17 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, NoRunBody, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, EndpointUseNotSupported, NoRunBody, NoRunMethod}
 
 case object LangVeyMontToCol {
   case object CommunicateNotSupported extends UserError {
     override def code: String = "communicateNotSupported"
     override def text: String = "The `communicate` statement is not yet supported"
+  }
+
+  case object EndpointUseNotSupported extends UserError {
+    override def code: String = "endpointUseNotSupported"
+    override def text: String = "Referencing of endpoints is not yet supported"
   }
 
   case class NoRunMethod(prog: PVLSeqProg[_]) extends UserError {
@@ -84,8 +89,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
     case PVLFamilyRange(family, binder, start, end) => ???
   }
 
-  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] =
-    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
+  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] = {
+    throw EndpointUseNotSupported
+    // TODO: Enable when actual seq_program analysis is implemented
+//    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
+  }
 
   def rewriteRun(run: RunMethod[Pre]): SeqRun[Post] = run.body match {
     case Some(body) =>

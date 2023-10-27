@@ -30,21 +30,17 @@ object ParalleliseEndpoints extends RewriterBuilderArg[JavaClass[_]] {
 
   case class ParalleliseEndpointsError(node : Node[_], msg: String) extends UserError {
     override def code: String = "paralleliseEndpointsError"
-
     override def text: String = node.o.messageInContext(msg)
   }
 
-  private def ThreadClassOrigin(thread: Endpoint[_]): Origin = {
+  private def ThreadClassOrigin(thread: Endpoint[_]): Origin =
     thread.o.replacePrefName(getThreadClassName(thread))
-  }
 
-  private def ChannelFieldOrigin(channelName: String, assign: Statement[_]): Origin = {
+  private def ChannelFieldOrigin(channelName: String, assign: Statement[_]): Origin =
     assign.o.replacePrefName(channelName)
-  }
 
-  private def RunMethodOrigin(runMethod: RunMethod[_]): Origin = {
+  private def RunMethodOrigin(runMethod: SeqRun[_]): Origin =
     runMethod.o.replacePrefName("run")
-  }
 }
 
 case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
@@ -171,7 +167,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
 
   private def createThreadClass(thread: Endpoint[Pre], threadRes: ThreadBuildingBlocks[Pre], threadMethods: Seq[ClassDeclaration[Post]]): Unit = {
     val threadConstr = createThreadClassConstructor(thread,threadRes.threadField)
-    val threadRun = getThreadRunFromDecl(thread, threadRes.runMethod)
+    val threadRun = getThreadRunMethod(threadRes.runMethod)
     classDeclarations.scope {
       val threadClass = new Class[Post](
         (threadRes.threadField +: threadRes.channelFields.values.toSeq) ++ (threadConstr +: threadRun +: threadMethods), Seq(), BooleanValue(true)(thread.o))(ThreadClassOrigin(thread))
@@ -214,11 +210,6 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
   private def getThreadMethodFromDecl(thread: Endpoint[Pre])(decl: ClassDeclaration[Pre]): InstanceMethod[Post]  = decl match {
     case m: InstanceMethod[Pre] => getThreadMethod(m)
     case _ => throw ParalleliseEndpointsError(thread, "Methods of seq_program need to be of type InstanceMethod")
-  }
-
-  private def getThreadRunFromDecl(thread: Endpoint[Pre], decl: ClassDeclaration[Pre]): InstanceMethod[Post] = decl match {
-    case m: RunMethod[Pre] => getThreadRunMethod(m)
-    case _ => throw ParalleliseEndpointsError(thread, "RunMethod expected in seq_program")
   }
 
   private def getChannelFields(thread: Endpoint[Pre], channelInfo: Seq[ChannelInfo[Pre]], channelClasses: Map[Type[Pre],JavaClass[Post]]): Map[(CommunicateX[Pre],Origin),InstanceField[Post]] = {
@@ -288,11 +279,11 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
         dispatch(method.contract))(method.blame)(method.o)
   }
 
-  private def getThreadRunMethod(run: RunMethod[Pre]): InstanceMethod[Post] = {
+  private def getThreadRunMethod(run: SeqRun[Pre]): InstanceMethod[Post] = {
     new InstanceMethod[Post](
       TVoid[Post](),
       Seq.empty,Seq.empty,Seq.empty,
-      run.body.map(dispatch),
+      Some(dispatch(run.body)),
       dispatch(run.contract))(run.blame)(RunMethodOrigin(run))
   }
 
