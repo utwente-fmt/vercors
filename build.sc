@@ -442,6 +442,7 @@ object viper extends ScalaModule {
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = silverGit
     override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
+    override def resources = T.sources { repo.filteredRepo() / "src" / "main" / "resources" }
     override def ivyDeps = settings.deps.log ++ Agg(
       ivy"org.scala-lang:scala-reflect:2.13.10",
       ivy"org.scalatest::scalatest:3.1.2",
