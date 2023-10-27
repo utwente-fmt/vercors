@@ -277,6 +277,14 @@ case object ResolveReferences extends LazyLogging {
     case cls: Class[G] => ctx
       .copy(currentThis=Some(RefClass(cls)))
       .declare(cls.declarations)
+    case seqProg: SeqProg[G] => ctx
+      .copy(currentThis = Some(RefSeqProg(seqProg)))
+      .declare(seqProg.decls)
+      .declare(seqProg.threads)
+      .declare(seqProg.args)
+    case seqProg: PVLSeqProg[G] => ctx
+      .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
+      .declare(seqProg.declarations)
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
       .copy(inStaticJavaContext=method.modifiers.collectFirst { case _: JavaStatic[_] => () }.nonEmpty)
@@ -382,6 +390,8 @@ case object ResolveReferences extends LazyLogging {
       local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@Local(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
+    case local@PVLEndpointName(name) =>
+      local.ref = Some(PVL.findName(name, ctx).getOrElse(throw NoSuchNameError("endpoint", name, local)))
     case local@TVar(ref) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("type variable", name, local)))
     case funcOf@FunctionOf(v, vars) =>
@@ -389,7 +399,8 @@ case object ResolveReferences extends LazyLogging {
       vars.foreach(v => v.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, funcOf))))
     case local@SilverLocalAssign(ref, _) =>
       ref.tryResolve(name => Spec.findLocal(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
-
+    case access@PVLCommunicateAccess(subject, field) =>
+      access.ref = Some(null /* PVL.findDerefOfClass(subject.threadType.cls.decl, field).getOrElse(throw NoSuchNameError("field", field, access)) */)
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@JavaDeref(obj, field) =>

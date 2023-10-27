@@ -13,7 +13,8 @@ trait PVLLocalImpl[G] { this: PVLLocal[G] =>
     case ref: RefClass[G] => Types.notAValue(ref)
     case ref: RefField[G] => ref.decl.t
     case ref: RefModelField[G] => ref.decl.t
-    case ref: RefVeyMontThread[G] => ref.decl.threadType
+    case ref: RefEndpoint[G] => ref.decl.t
+    case ref: RefPVLEndpoint[G] => ref.decl.t
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
   }
 

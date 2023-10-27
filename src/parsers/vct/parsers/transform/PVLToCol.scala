@@ -43,32 +43,22 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(origin(identifierList).replacePrefName(convert(id))) +: convertConstants(tail)
   }
 
-  def convert(implicit decl: SeqProgDeclContext): Declaration[G] = decl match {
-    case SeqProgMethod(methods) => convert(methods)
+  def convert(implicit decl: SeqProgDeclContext): ClassDeclaration[G] = decl match {
+    case SeqProgMethod(method) => convert(method)
     case SeqProgRunMethod(runMethod) => convert(runMethod).head
-    case SeqProgThread(_, threadId, _, threadType, _, args, _, _) => new VeyMontThread(convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(threadId)))
+    case PvlEndpoint(_, name, _, threadType, _, args, _, _) =>
+      new PVLEndpoint(convert(name), convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(name)))
   }
 
-  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): VeyMontSeqProg[G] = cls match {
+  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): PVLSeqProg[G] = cls match {
     case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
-      val seqargs = args.map(convert(_)).getOrElse(Nil)
-      val declseq: Seq[Declaration[G]] = decls.map(convert(_))
-      val runMethod = declseq.collectFirst {
-        case x: RunMethod[G] => x
-      }.getOrElse(throw new RuntimeException("A seq_prog needs to have a run method, but none was found!"))
-      val methods = declseq.collect {
-        case m: InstanceMethod[G] => m
-      }
-      val threads = declseq.collect {
-        case v: VeyMontThread[G] => v
-      }
       withContract(contract, contract => {
-        new VeyMontSeqProg(
+        new PVLSeqProg(
+          convert(name),
+          decls.map(convert(_)),
           contract.consumeApplicableContract(blame(cls)),
-          seqargs,
-          threads,
-          runMethod,
-          methods)(origin(cls).replacePrefName(convert(name)))
+          args.map(convert(_)).getOrElse(Seq())
+        )(origin(cls).replacePrefName(convert(name)))
       })
   }
 
@@ -388,7 +378,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit subject: SubjectContext): PVLCommunicateSubject[G] = subject match {
-    case Subject0(name) => PVLThreadName(convert(name))
+    case Subject0(name) => PVLEndpointName(convert(name))(origin(subject).replacePrefName(convert(name)))
     case Subject1(family, _, expr, _) => ??(subject)
     case Subject2(family, _, binder, _, start, _, end, _) => ??(subject)
   }

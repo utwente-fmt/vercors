@@ -68,6 +68,7 @@ case object ImportADT {
     case TEnum(Ref(enum)) => enum.o.getPreferredNameOrElse()
     case TProverType(Ref(t)) => t.o.getPreferredNameOrElse()
     case TSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
+    case TPVLSeqProg(Ref(prog)) => prog.o.getPreferredNameOrElse()
     case TSmtlibArray(index, value) => "smtarr" + (index :+ value).map(typeText).mkString("$" , "__", "$")
     case TSmtlibBitVector(size) => s"bitvec$size"
     case TSmtlibFloatingPoint(e, m) => s"fp_${e}_$m"
@@ -76,7 +77,7 @@ case object ImportADT {
     case TSmtlibSeq(t) => "smtseq$" + typeText(t) + "$"
     case TSmtlibString() => "smtstr"
     case TVeyMontChannel(t) => "veymontchan$" + t + "$"
-    case TVeyMontThread(Ref(thread)) => thread.o.getPreferredNameOrElse()
+    case TEndpoint(Ref(thread)) => thread.o.getPreferredNameOrElse()
     case _: JavaType[_] => throw ExtraNode
     case _: CType[_] => throw ExtraNode
     case _: CPPType[_] => throw ExtraNode

@@ -13,13 +13,13 @@ case class ColHelperRewriteBuilders(info: ColDescription) extends ColHelperMaker
 
   def builderMakeArg(param: Term.Param): Term = {
     val term = Term.Name(param.name.value)
-    q"$term.getOrElse(${info.rewriteDefault(q"subject.$term", param.decltpe.get)})"
+    q"$term.getOrElse(${info.rewriteDefault(q"_subject.$term", param.decltpe.get)})"
   }
 
   def rewriteBuilder(cls: ClassDef): (String, List[Stat]) = cls.rewriteBuilderName.value -> List(q"""
-    class ${cls.rewriteBuilderName}[Pre, Post](subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
+    class ${cls.rewriteBuilderName}[Pre, Post](_subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post]) {
       def build(): ${cls.typ}[Post] = {
-        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(rewriter.dispatch(subject.blame))", q"o.getOrElse(rewriter.dispatch(subject.o))")}
+        ${cls.make(cls.params.map(builderMakeArg), q"blame.getOrElse(rewriter.dispatch(_subject.blame))", q"o.getOrElse(rewriter.dispatch(_subject.o))")}
       }
 
       var o: Option[Origin] = None
