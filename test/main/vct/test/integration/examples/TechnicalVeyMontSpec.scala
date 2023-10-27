@@ -15,7 +15,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         seq_run {
           communicate alice.x <- bob.x;
           communicate bob.x -> alice.x;
-          // assert alice.x == bob.x; // To be enabled when endpoint field dereference is implemented
+          assert alice.x == bob.x;
         }
      }
   """
