@@ -414,7 +414,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "ae4a12399cd0b42bedabf01be2cda93700244bd6" }
+    def commitish = T { "31c94df4f9792046618d9b4db52444ffe9c7c988" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -424,7 +424,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "a60324dd46923b861bae7b4a40f807227d693fc3" }
+    def commitish = T { "118f5a663ec3c4fab4c1d3008c7b5a07b9690a82" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -434,7 +434,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "ba130077713a427213a331a3dc1d92898b4bdf9e" }
+    def commitish = T { "d7ac8b000e1123a72cbdda0c7679ab88ca8a52d4" }
   }
 
   object silver extends ScalaModule {
@@ -442,6 +442,7 @@ object viper extends ScalaModule {
     override def scalacOptions = T { Seq("-Xno-patmat-analysis", "-nowarn") }
     def repo = silverGit
     override def sources = T.sources { repo.filteredRepo() / "src" / "main" / "scala" }
+    override def resources = T.sources { repo.filteredRepo() / "src" / "main" / "resources" }
     override def ivyDeps = settings.deps.log ++ Agg(
       ivy"org.scala-lang:scala-reflect:2.13.10",
       ivy"org.scalatest::scalatest:3.1.2",
