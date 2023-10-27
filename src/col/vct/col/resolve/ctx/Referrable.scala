@@ -85,6 +85,7 @@ sealed trait Referrable[G] {
     case RefHeapVariable(decl) => Referrable.originName(decl)
     case RefPVLEndpoint(decl) => decl.name
     case RefPVLSeqProg(decl) => decl.name
+    case RefPVLSeqRun(_) => ""
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
@@ -178,6 +179,7 @@ case object Referrable {
     case decl: HeapVariable[G] => RefHeapVariable(decl)
     case decl: PVLEndpoint[G] => RefPVLEndpoint(decl)
     case decl: PVLSeqProg[G] => RefPVLSeqProg(decl)
+    case decl: PVLSeqRun[G] => RefPVLSeqRun(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o.getPreferredName match {
@@ -305,6 +307,7 @@ case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
 case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 case class RefPVLEndpoint[G](decl: PVLEndpoint[G]) extends Referrable[G] with PVLNameTarget[G]
 case class RefPVLSeqProg[G](decl: PVLSeqProg[G]) extends Referrable[G] with ThisTarget[G]
+case class RefPVLSeqRun[G](decl: PVLSeqRun[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: SeqProg[G]) extends Referrable[G] with ThisTarget[G]

@@ -12,7 +12,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
         endpoint alice = Storage();
         endpoint bob = Storage();
 
-        run {
+        seq_run {
           communicate alice.x <- bob.x;
           communicate bob.x -> alice.x;
           // assert alice.x == bob.x; // To be enabled when endpoint field dereference is implemented
@@ -28,7 +28,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      seq_program Example() {
         endpoint alice = Storage();
 
-        run {
+        seq_run {
           assert alice.x == 0;
         }
      }
@@ -37,7 +37,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
   """
   seq_program Example() {
-     run {
+     seq_run {
        communicate charlie.x <- charlie.x;
      }
   }
@@ -48,7 +48,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   class Storage { int x; }
   seq_program Example() {
      endpoint charlie = Storage();
-     run {
+     seq_run {
        communicate charlie.nonExistent <- charlie.nonExistent;
      }
   }
@@ -60,7 +60,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     seq_program Example() {
       endpoint alice[10] = Storage();
       endpoint bob[10] = Storage();
-      run {
+      seq_run {
         communicate alice[i: 0 .. 9].x <- bob[i + 1].y;
       }
     }

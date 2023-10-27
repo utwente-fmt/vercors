@@ -69,11 +69,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
             },
           )._1,
           prog.declarations.collectFirst {
-            case run: RunMethod[Pre] => rewriteRun(run)
+            case run: PVLSeqRun[Pre] => rewriteRun(run)
           }.getOrElse(throw NoRunMethod(prog)),
           rw.classDeclarations.collect(
             prog.declarations.foreach {
-              case _: RunMethod[Pre] =>
+              case _: PVLSeqRun[Pre] =>
               case _: PVLEndpoint[Pre] =>
               case decl => rw.dispatch(decl)
             }
@@ -95,10 +95,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
 //    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
   }
 
-  def rewriteRun(run: RunMethod[Pre]): SeqRun[Post] = run.body match {
-    case Some(body) =>
+  def rewriteRun(run: PVLSeqRun[Pre]): SeqRun[Post]  = {
       run.drop()
-      SeqRun(rw.dispatch(body), rw.dispatch(run.contract))(run.blame)(run.o)
-    case None => throw NoRunBody(run)
+      SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 }
