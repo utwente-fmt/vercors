@@ -360,6 +360,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       PVLCommunicate(convert(sender), convert(receiver))
     case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
       PVLCommunicate(convert(sender), convert(receiver))
+    case PvlParAssign(endpoint, _, field, _, _, expr, _) =>
+      PVLParAssign(
+        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
+        new UnresolvedRef[G, InstanceField[G]](convert(field)),
+        convert(expr))
   }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =

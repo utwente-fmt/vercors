@@ -165,6 +165,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
+    case assign: PVLParAssign[Pre] => veymont.rewriteParAssign(assign)
 
     case other => rewriteDefault(other)
   }

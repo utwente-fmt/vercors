@@ -77,4 +77,16 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     endpoint alice = int();
   }
   """
+
+  vercors should error withCode "endpointUseNotSupported" in "Endpoint fields should be assignable" pvl
+  """
+  class Storage { int x; int y; }
+  seq_program Example() {
+    endpoint alice = Storage();
+
+    seq_run {
+      alice.x := alice.y;
+    }
+  }
+  """
 }

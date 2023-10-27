@@ -188,6 +188,7 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | 'communicate' access direction access ';' # pvlCommunicateStatement
+ | identifier '.' identifier ':' '=' expr ';' # pvlParAssign
  ;
 
 direction
