@@ -1053,7 +1053,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case dim: RefCudaVecDim[Pre] => getCuda(dim)
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
-        val CTStruct(struct_ref) = deref.struct.t
+        val CTStruct(struct_ref) = getBaseType(deref.struct.t)
         Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)))(deref.blame)
     }
   }
