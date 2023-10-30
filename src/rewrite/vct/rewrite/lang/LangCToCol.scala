@@ -275,8 +275,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => t
   }
 
+  def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean = (castType, getBaseType(exprType)) match {
+    case (tc, te) if tc == te => true
+    case (TInt(), TBoundedInt(_, _)) => true
+    case _ => false
+  }
+
   def cast(c: CCast[Pre]): Expr[Post] = c match {
-    case CCast(e, t) if getBaseType(e.t) == getBaseType(t) => rw.dispatch(c.expr)
+    case CCast(e, t) if castIsId(e.t, t) => rw.dispatch(c.expr)
     case CCast(e, t) if (isFloat(t) && isRatFloatOrInt(e.t)) || (isRatFloatOrInt(t) && isFloat(e.t)) =>
       // We can convert between rationals, integers and floats
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
