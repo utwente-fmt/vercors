@@ -1,6 +1,7 @@
 package vct.debug
 
 import vct.col.ast.{Node, Verification}
+import vct.col.origin.Origin
 import vct.col.print
 import vct.col.print.{Cons, Ctx, Doc, EEnd, ELine, EStart, EText, Elem, Empty, Group, Line, Nest, NodeDoc, NonWsLine, Text}
 import vct.main.stages.Transformation
@@ -10,7 +11,34 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object TransformationDiffChain {
+  import vct.col.ast
 
+  implicit val o: Origin = Origin(Nil)
+
+  private val zeroNode = ast.IntegerValue(0)
+  private val oneNode = ast.IntegerValue(1)
+  private val twoNode = ast.IntegerValue(2)
+  private val threeNode = ast.IntegerValue(3)
+  private val fourNode = ast.IntegerValue(4)
+
+  private val zero = NodeDoc(Text("0"))(zeroNode)
+  private val one = NodeDoc(Text("1"))(oneNode)
+  private val two = NodeDoc(Text("2"))(twoNode)
+  private val three = NodeDoc(Text("3"))(threeNode)
+  private val four = NodeDoc(Text("4"))(fourNode)
+
+  def main(args: Array[String]): Unit = {
+    val chain = new TransformationDiffChain(null)
+    println(chain.nodeSeqDistance(Seq(
+      zero,
+      two,
+      three,
+    ), Seq(
+      one,
+      two,
+      four,
+    )))
+  }
 }
 
 class TransformationDiffChain(out: PathOrStd) extends Transformation.Log {
@@ -47,6 +75,7 @@ class TransformationDiffChain(out: PathOrStd) extends Transformation.Log {
       for(j <- (0 to right.size).reverse) {
         (left.drop(i), right.drop(j)) match {
           case Nil -> Nil =>
+            distance(i)(j) = 0.0
           case Nil -> right =>
             action(i)(j) = Insert(right.head)
             distance(i)(j) = right.size
@@ -63,8 +92,8 @@ class TransformationDiffChain(out: PathOrStd) extends Transformation.Log {
             val insDistance = distance(i)(j+1)
 
             val resultSubstitute = docDistance(l.doc, r.doc) * substitutePenalty + subDistance
-            val resultDelete = deleteCost * delDistance
-            val resultInsert = insertCost * insDistance
+            val resultDelete = deleteCost + delDistance
+            val resultInsert = insertCost + insDistance
 
             val best = Seq(resultSubstitute, resultDelete, resultInsert).min
 
@@ -109,7 +138,12 @@ class TransformationDiffChain(out: PathOrStd) extends Transformation.Log {
 
   def getNodesDistance(left: Doc, right: Doc): (Double, Seq[Action]) =
     nodesDistance.getOrElseUpdate((DocRef(left), DocRef(right)), {
-      nodeSeqDistance(getNodeDocs(left), getNodeDocs(right))
+      val leftDocs = getNodeDocs(left)
+      val rightDocs = getNodeDocs(right)
+      if(leftDocs.isEmpty || rightDocs.isEmpty)
+        (if(left == right) 0.0 else 1.0, Nil)
+      else
+        nodeSeqDistance(leftDocs, rightDocs)
     })
 
   def docDistance(left: Doc, right: Doc): Double =
@@ -236,7 +270,7 @@ class TransformationDiffChain(out: PathOrStd) extends Transformation.Log {
           }
 
           if(lineText.length > 60)
-            lineText = lineText.take(58) + ".."
+            lineText = ".." + lineText.takeRight(58)
           else if(lineText.length < 60)
             lineText = lineText + " ".repeat(60 - lineText.length)
 
