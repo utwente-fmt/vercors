@@ -160,7 +160,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   val cNameSuccessor: SuccessionMap[CNameTarget[Pre], Variable[Post]] = SuccessionMap()
   val cGlobalNameSuccessor: SuccessionMap[CNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   val cStructSuccessor: SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] = SuccessionMap()
-  val cStructFieldsSuccessor: SuccessionMap[CStructMemberDeclarator[Pre], InstanceField[Post]] = SuccessionMap()
+  val cStructFieldsSuccessor: SuccessionMap[(CGlobalDeclaration[Pre], CStructMemberDeclarator[Pre]), InstanceField[Post]] = SuccessionMap()
   val cCurrentDefinitionParamSubstitutions: ScopedStack[Map[CParam[Pre], CParam[Pre]]] = ScopedStack()
 
   val cudaCurrentThreadIdx: ScopedStack[CudaVec] = ScopedStack()
@@ -766,13 +766,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case _ => throw WrongStructType(decl)
     }
     val newStruct = new Class[Post](rw.classDeclarations.collect {
-        decls.foreach { decl =>
-          val CStructMemberDeclarator(specs, Seq(x)) = decl
-          decl.drop()
+        decls.foreach { fieldDecl =>
+          val CStructMemberDeclarator(specs, Seq(x)) = fieldDecl
+          fieldDecl.drop()
           val t = specs.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
-          cStructFieldsSuccessor(decl) =
+          cStructFieldsSuccessor((decl, fieldDecl)) =
             new InstanceField(t = t, flags = Set[FieldFlag[Post]]())(CStructFieldOrigin(x))
-          rw.classDeclarations.declare(cStructFieldsSuccessor(decl))
+          rw.classDeclarations.declare(cStructFieldsSuccessor((decl, fieldDecl)))
         }
       }._1, Seq(), tt[Post])(CStructOrigin(sdecl))
 
@@ -1046,7 +1046,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case target: SpecInvocationTarget[Pre] => ???
       case dim: RefCudaVecDim[Pre] => getCuda(dim)
       case struct: RefCStruct[Pre] => ???
-      case struct: RefCStructField[Pre] => Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref(struct.decls))(deref.blame)
+      case struct: RefCStructField[Pre] =>
+        val CTStruct(struct_ref) = deref.struct.t
+        Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)))(deref.blame)
     }
   }
 
@@ -1060,7 +1062,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
         val b = PanicBlame("Can't get this blame right") // TODO: How to fix this???
-        Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref(struct.decls))(deref.o)
+        val structRef = deref.struct.t match {
+          case t@CPrimitiveType(specs) =>
+            val struct = specs.collectFirst { case CSpecificationType(CTPointer(CTStruct(ref))) => ref }
+            struct.getOrElse(throw WrongStructType(t))
+          case t => throw WrongStructType(t)
+        }
+        Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref((structRef.decl, struct.decls)))(deref.o)
     }
   }
 
