@@ -89,4 +89,32 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
   }
   """
+
+  vercors should error withCode "resolutionError" in "instance method in seq_prog must have a body" pvl
+  """
+  seq_program Example() {
+    void m();
+
+    seq_run { }
+  }
+  """
+
+  vercors should error withCode "resolutionError" in "instance method in seq_prog must have void return type" pvl
+    """
+    seq_program Example() {
+      int m() { }
+
+      seq_run { }
+    }
+    """
+
+  vercors should error withCode "resolutionError" in "seq_prog excludes certain statements" pvl
+    """
+    class C { }
+    seq_program Example(C c) {
+      seq_run {
+        lock c;
+      }
+    }
+    """
 }

@@ -56,6 +56,10 @@ sealed trait CheckError {
       Seq(context(clause, "This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block."))
     case ResultOutsidePostcondition(res) =>
       Seq(context(res, "\\result may only occur in the postcondition."))
+    case SeqProgStatement(s) => Seq(context(s, "This statement is not allowed in `seq_prog`."))
+    case SeqProgInstanceMethodArgs(m) => Seq(context(m, "An instance method in a `seq_prog` cannot have any arguments."))
+    case SeqProgInstanceMethodBody(m) => Seq(context(m, "An instance method in a `seq_prog` must have a body."))
+    case SeqProgInstanceMethodNonVoid(m) => Seq(context(m, "An instance method in a `seq_prog` must have return type `void`."))
   }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
 }
 case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
@@ -74,6 +78,7 @@ case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
 case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError
 case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError
 case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError
+case class SeqProgStatement(s: Statement[_]) extends CheckError
 
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
