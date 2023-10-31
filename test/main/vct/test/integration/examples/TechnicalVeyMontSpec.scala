@@ -20,7 +20,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   """
 
-  vercors should error withCode "endpointUseNotSupported" in "plain endpoint field dereference should be possible" pvl
+  vercors should fail withCode "perm" using silicon in "plain endpoint field dereference should be possible" pvl
   """
      class Storage {
         int x;
@@ -78,7 +78,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "endpointUseNotSupported" in "Endpoint fields should be assignable" pvl
+  vercors should error withCode "seqAssignNotSupported" in "Endpoint fields should be assignable" pvl
   """
   class Storage { int x; int y; }
   seq_program Example() {
@@ -127,8 +127,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  // Will become: resolutionError
-  vercors should error withCode "endpointUseNotSupported" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
+  vercors should error withCode "resolutionError" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
   """
   class C { C d; void foo(int x); int x; }
   seq_program Example(C c) {
@@ -140,8 +139,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  // Will become: resolutionError
-  vercors should error withCode "endpointUseNotSupported" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
+  vercors should error withCode "resolutionError" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
   """
   class C { C d; void foo(); }
   seq_program Example(C c) {

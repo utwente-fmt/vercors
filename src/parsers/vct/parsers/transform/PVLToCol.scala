@@ -361,7 +361,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
       PVLCommunicate(convert(sender), convert(receiver))
     case PvlParAssign(endpoint, _, field, _, _, expr, _) =>
-      PVLParAssign(
+      PVLSeqAssign(
         new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
         new UnresolvedRef[G, InstanceField[G]](convert(field)),
         convert(expr))

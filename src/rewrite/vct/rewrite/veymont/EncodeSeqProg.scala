@@ -2,13 +2,14 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{AbstractRewriter, Class, Communicate, Declaration, Endpoint, Procedure, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
+import vct.col.ast.{AbstractRewriter, Class, Communicate, Declaration, Endpoint, EndpointUse, Expr, Local, Procedure, SeqAssign, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
 import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import EncodeSeqProg.CommunicateNotSupported
+import EncodeSeqProg.{CommunicateNotSupported, SeqAssignNotSupported}
+import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
 
@@ -19,6 +20,11 @@ object EncodeSeqProg extends RewriterBuilder {
   case object CommunicateNotSupported extends UserError {
     override def code: String = "communicateNotSupported"
     override def text: String = "The `communicate` statement is not yet supported"
+  }
+
+  case object SeqAssignNotSupported extends UserError {
+    override def code: String = "seqAssignNotSupported"
+    override def text: String = "The `:=` statement is not yet supported"
   }
 }
 
@@ -63,6 +69,12 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case _: Communicate[Pre] => throw CommunicateNotSupported
+    case _: SeqAssign[Pre] => throw SeqAssignNotSupported
     case stat => rewriteDefault(stat)
+  }
+
+  override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+    case EndpointUse(Ref(endpoint)) => Local[Post](endpointToRunVar(endpoint).ref)(expr.o)
+    case expr => rewriteDefault(expr)
   }
 }

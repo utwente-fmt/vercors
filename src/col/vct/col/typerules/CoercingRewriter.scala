@@ -1672,8 +1672,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
       case Communicate(r, s) => Communicate(r, s)
-      case PVLParAssign(r, f, v) => PVLParAssign(r, f, v)
-      case ParAssign(r, f, v) => ParAssign(r, f, v)
+      case PVLSeqAssign(r, f, v) => PVLSeqAssign(r, f, v)
+      case SeqAssign(r, f, v) => SeqAssign(r, f, v)
     }
   }
 

@@ -81,17 +81,14 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
     }
   }
 
-  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] = {
-    throw EndpointUseNotSupported
-    // TODO: Enable when actual seq_program analysis is implemented
-//    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
-  }
+  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] =
+    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
 
   def rewriteRun(run: PVLSeqRun[Pre]): SeqRun[Post]  = {
       run.drop()
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteParAssign(assign: PVLParAssign[Pre]): ParAssign[Post] =
-    ParAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.o)
+  def rewriteParAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
+    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.o)
 }

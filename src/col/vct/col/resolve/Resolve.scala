@@ -413,7 +413,7 @@ case object ResolveReferences extends LazyLogging {
         access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
       endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
-    case parAssign: PVLParAssign[G] =>
+    case parAssign: PVLSeqAssign[G] =>
       parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
         case Some(RefPVLEndpoint(decl)) => decl
         case Some(_) => throw ForbiddenEndpointNameType(parAssign)

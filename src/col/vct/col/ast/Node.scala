@@ -1266,8 +1266,8 @@ final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origi
 case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(implicit val o: Origin) extends NodeFamily[G]
 final case class Communicate[G](receiver: Access[G], sender: Access[G])(implicit val o: Origin) extends Statement[G]
 
-final case class PVLParAssign[G](receiver: Ref[G, PVLEndpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G]
-final case class ParAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G]
+final case class PVLSeqAssign[G](receiver: Ref[G, PVLEndpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G]
+final case class SeqAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G]
 
 final case class VeyMontAssignExpression[G](thread: Ref[G, Endpoint[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
 
