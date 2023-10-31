@@ -151,4 +151,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
   }
   """
+
+  vercors should verify using silicon in "Empty seq_program must verify" pvl
+  """
+  seq_program C() {
+    seq_run {
+
+    }
+  }
+  """
 }

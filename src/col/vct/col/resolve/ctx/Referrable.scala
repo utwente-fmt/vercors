@@ -92,8 +92,8 @@ sealed trait Referrable[G] {
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
-    case ImplicitDefaultJavaConstructor() => ""
-    case ImplicitDefaultPVLConstructor() => ""
+    case ImplicitDefaultJavaConstructor(_) => ""
+    case ImplicitDefaultPVLConstructor(_) => ""
     case RefCudaThreadIdx() => "threadIdx"
     case RefCudaBlockDim() => "blockDim"
     case RefCudaBlockIdx() => "blockIdx"
@@ -320,8 +320,8 @@ case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) exten
 
 case class PVLBuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with PVLInvocationTarget[G]
 
-case class ImplicitDefaultJavaConstructor[G]() extends Referrable[G] with JavaConstructorTarget[G]
-case class ImplicitDefaultPVLConstructor[G]() extends Referrable[G] with PVLConstructorTarget[G]
+case class ImplicitDefaultJavaConstructor[G](cls: JavaClass[G]) extends Referrable[G] with JavaConstructorTarget[G]
+case class ImplicitDefaultPVLConstructor[G](cls: Class[G]) extends Referrable[G] with PVLConstructorTarget[G]
 
 case class ImplicitDefaultJavaBipStatePredicate[G](state: String) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 

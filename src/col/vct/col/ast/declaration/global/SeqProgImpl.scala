@@ -19,31 +19,4 @@ trait SeqProgImpl[G] extends Declarator[G] { this: SeqProg[G] =>
 
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     super.enterCheckContext(context).withSeqProg(this)
-
-  /*
-override def check(context: CheckContext[G]): Seq[CheckError] =
-    context.currentApplicable.get.body.get.transSubnodes.collectFirst {
-      case label: LabelDecl[G] if label == lbl.decl => label
-    } match {
-      case Some(_) => Seq()
-      case None => Seq(OutOfScopeError(this, lbl))
-    }
-  */
-
-  /*
-  - Allowed statements:
-    case CommunicateX(_,_,_,_) => rewriteDefault(st)
-    case VeyMontAssignExpression(_,_) => rewriteDefault (st)
-    case Assign(_,_) => rewriteDefault (st)
-    case Branch(_) => rewriteDefault(st)
-    case Loop(_,_,_,_,_) => rewriteDefault(st)
-    case Scope(_,_) => rewriteDefault(st)
-    case Block(_) => rewriteDefault(st)
-    case Eval(expr) => checkMethodCall(st, expr) - special requirements
-    case Assert(_) => rewriteDefault(st)
-   - Method calls of seqprog: Cannot have any arguments
-   - method calls on endpoint: argument can only deref that endpoint
-   */
-  override def check(context: CheckContext[G]): Seq[CheckError] = ???
-
 }

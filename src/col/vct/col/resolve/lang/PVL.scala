@@ -15,7 +15,7 @@ case object PVL {
         }
 
         args match {
-          case Nil => resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor()))
+          case Nil => resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor(cls)))
           case _ => resolvedCons
         }
       case TModel(Ref(model)) if args.isEmpty => Some(RefModel(model))
