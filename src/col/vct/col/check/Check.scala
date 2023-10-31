@@ -60,6 +60,8 @@ sealed trait CheckError {
     case SeqProgInstanceMethodArgs(m) => Seq(context(m, "An instance method in a `seq_prog` cannot have any arguments."))
     case SeqProgInstanceMethodBody(m) => Seq(context(m, "An instance method in a `seq_prog` must have a body."))
     case SeqProgInstanceMethodNonVoid(m) => Seq(context(m, "An instance method in a `seq_prog` must have return type `void`."))
+    case SeqProgInvocation(s) => Seq(context(s, "Only invocations on `this` and endpoints are allowed."))
+    case SeqProgInvocationReceiver(e) => Seq(context(e, "Referring to other endpoints within an invocation on a specific endpoint is not yet supported."))
   }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
 }
 case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
@@ -79,6 +81,8 @@ case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError
 case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError
 case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError
 case class SeqProgStatement(s: Statement[_]) extends CheckError
+case class SeqProgInvocation(s: Statement[_]) extends CheckError
+case class SeqProgInvocationReceiver(e: Expr[_]) extends CheckError
 
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
@@ -98,6 +102,7 @@ case class CheckContext[G]
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
   currentSeqProg: Option[SeqProg[G]] = None,
+  currentReceiverEndpoint: Option[Endpoint[G]] = None,
 ) {
   def withScope(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(scopes = scopes :+ CheckContext.ScopeFrame(decls, Nil))
@@ -121,6 +126,9 @@ case class CheckContext[G]
 
   def withSeqProg(prog: SeqProg[G]): CheckContext[G] =
     copy(currentSeqProg = Some(prog))
+
+  def withReceiverEndpoint(endpoint: Endpoint[G]): CheckContext[G] =
+    copy(currentReceiverEndpoint = Some(endpoint))
 
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     !undeclared.exists(_.contains(ref.decl)) && scopes.exists(_.contains(ref.decl))

@@ -90,7 +90,16 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "instance method in seq_prog must have a body" pvl
+  vercors should error withCode "resolutionError" in "instance method in seq_program cannot have arguments" pvl
+  """
+  seq_program Example() {
+    void m(int x) { }
+
+    seq_run { }
+  }
+  """
+
+  vercors should error withCode "resolutionError" in "instance method in seq_program must have a body" pvl
   """
   seq_program Example() {
     void m();
@@ -99,22 +108,44 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "instance method in seq_prog must have void return type" pvl
-    """
-    seq_program Example() {
-      int m() { }
+  vercors should error withCode "resolutionError" in "instance method in seq_program must have void return type" pvl
+  """
+  seq_program Example() {
+    int m() { }
 
-      seq_run { }
-    }
-    """
+    seq_run { }
+  }
+  """
 
   vercors should error withCode "resolutionError" in "seq_prog excludes certain statements" pvl
-    """
-    class C { }
-    seq_program Example(C c) {
-      seq_run {
-        lock c;
-      }
+  """
+  class C { }
+  seq_program Example(C c) {
+    seq_run {
+      lock c;
     }
-    """
+  }
+  """
+  vercors should error withCode "resolutionError" in "Dereferencing anything other than the receiving endpoint is not supported yet" pvl
+  """
+  class C { C d; void foo(); int x; }
+  seq_program Example(C c) {
+    endpoint c = C();
+    endpoint d = C();
+    seq_run {
+      c.foo(d.x);
+    }
+  }
+  """
+
+  vercors should error withCode "resolutionError" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
+  """
+  class C { C d; void foo(); }
+  seq_program Example(C c) {
+    endpoint c = C();
+    seq_run {
+      c.d.foo();
+    }
+  }
+  """
 }
