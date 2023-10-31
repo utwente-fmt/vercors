@@ -11,8 +11,8 @@ trait DerefImpl[G] extends ExprImpl[G] { this: Deref[G] =>
   override def check(context: CheckContext[G]): Seq[CheckError] =
     Check.inOrder(
       super.check(context),
-      obj.t.asClass.get.cls.decl.checkDefines(ref.decl, this) ++
-        currentEndpointCheck(context)
+      Check.inOrder(obj.t.asClass.get.cls.decl.checkDefines(ref.decl, this),
+        currentEndpointCheck(context))
     )
 
   override def precedence: Int = Precedence.POSTFIX

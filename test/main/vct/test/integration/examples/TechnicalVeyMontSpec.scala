@@ -126,9 +126,11 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
   }
   """
-  vercors should error withCode "resolutionError" in "Dereferencing anything other than the receiving endpoint is not supported yet" pvl
+
+  // Will become: resolutionError
+  vercors should error withCode "endpointUseNotSupported" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
   """
-  class C { C d; void foo(); int x; }
+  class C { C d; void foo(int x); int x; }
   seq_program Example(C c) {
     endpoint c = C();
     endpoint d = C();
@@ -138,7 +140,8 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
+  // Will become: resolutionError
+  vercors should error withCode "endpointUseNotSupported" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
   """
   class C { C d; void foo(); }
   seq_program Example(C c) {
