@@ -81,7 +81,7 @@ trait LoopImpl[G] { this: Loop[G] =>
     case Eval(e) => Some(e.show)
     case a: Assign[G] => Some(a.layoutAsExpr)
     case e: VeyMontAssignExpression[G] => simpleControlElements(e.assign)
-    case e: VeyMontCommExpression[G] => simpleControlElements(e.assign)
+    case e: CommunicateX[G] => simpleControlElements(e.assign)
     case LocalDecl(local) => Some(local.show)
     case JavaLocalDeclarationStatement(local) => Some(local.show)
 

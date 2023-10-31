@@ -46,8 +46,13 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit decl: SeqProgDeclContext): ClassDeclaration[G] = decl match {
     case SeqProgMethod(method) => convert(method)
     case SeqProgRunMethod(runMethod) => convert(runMethod).head
-    case PvlEndpoint(_, name, _, threadType, _, args, _, _) =>
-      new PVLEndpoint(convert(name), convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(name)))
+    case PvlEndpoint(_, name, _, ClassType0(endpointType, None), _, args, _, _) =>
+      new PVLEndpoint(
+        convert(name),
+        new UnresolvedRef[G, Class[G]](convert(endpointType)),
+        args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(name))
+      )
+    case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
 
   def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): PVLSeqProg[G] = cls match {

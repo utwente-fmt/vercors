@@ -7,8 +7,7 @@ import vct.col.origin.Origin
 import vct.col.print._
 
 trait SeqProgImpl[G] { this: SeqProg[G] =>
-  def members: Seq[Declaration[G]] = threads ++ Seq(run) ++ decls
-  override def declarations: Seq[Declaration[G]] = args ++ members
+  override def declarations: Seq[Declaration[G]] = args ++ threads ++ decls
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
