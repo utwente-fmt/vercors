@@ -10,14 +10,10 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, EndpointUseNotSupported, NoRunBody, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{EndpointUseNotSupported, NoRunMethod}
+import vct.rewrite.veymont.EncodeSeqProg.CommunicateNotSupported
 
 case object LangVeyMontToCol {
-  case object CommunicateNotSupported extends UserError {
-    override def code: String = "communicateNotSupported"
-    override def text: String = "The `communicate` statement is not yet supported"
-  }
-
   case object EndpointUseNotSupported extends UserError {
     override def code: String = "endpointUseNotSupported"
     override def text: String = "Referencing of endpoints is not yet supported"
@@ -29,13 +25,6 @@ case object LangVeyMontToCol {
       s"This `seq_program` has no `run` method."
     )
   }
-
-  case class NoRunBody(prog: RunMethod[_]) extends UserError {
-    override def code: String = "noRunBody"
-    override def text: String = prog.o.messageInContext(
-      s"This `run` method needs a body, as it is part of a `seq_program`."
-    )
-  }
 }
 
 case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -45,8 +34,16 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   val seqProgSucc: SuccessionMap[PVLSeqProg[Pre], SeqProg[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
 
-  def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] = {
-    throw CommunicateNotSupported
+  def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
+    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.o)
+
+  def rewriteAccess(access: PVLCommunicateAccess[Pre]): Access[Post] =
+    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.o)
+
+  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
+    case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
+    case PVLIndexedFamilyName(family, index) => ???
+    case PVLFamilyRange(family, binder, start, end) => ???
   }
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
@@ -82,12 +79,6 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
         )(prog.o)
       )
     }
-  }
-
-  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
-    case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
-    case PVLIndexedFamilyName(family, index) => ???
-    case PVLFamilyRange(family, binder, start, end) => ???
   }
 
   def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] = {

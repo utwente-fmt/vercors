@@ -32,7 +32,7 @@ case object PVL {
       case target: PVLNameTarget[G] if target.name == name => target
     }
 
-  def findDerefOfClass[G](decl: Class[G], name: String): Option[PVLDerefTarget[G]] =
+  def findDerefOfClass[G](decl: Class[G], name: String): Option[RefField[G]] =
     decl.declarations.flatMap(Referrable.from).collectFirst {
       case ref: RefField[G] if ref.name == name => ref
     }

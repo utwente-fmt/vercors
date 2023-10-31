@@ -1257,7 +1257,7 @@ case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end
   var ref: Option[RefPVLEndpoint[G]] = None
 }
 case class PVLCommunicateAccess[G](subject: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
-  var ref: Option[PVLDerefTarget[G]] = None
+  var ref: Option[RefField[G]] = None
 }
 case class PVLCommunicate[G](sender: PVLCommunicateAccess[G], receiver: PVLCommunicateAccess[G])(implicit val o: Origin) extends Statement[G] with PVLCommunicateImpl[G]
 
