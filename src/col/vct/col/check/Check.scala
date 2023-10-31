@@ -71,6 +71,9 @@ case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
 case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
+case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError
+case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError
+case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError
 
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
@@ -89,6 +92,7 @@ case class CheckContext[G]
   roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
+  currentSeqProg: Option[SeqProg[G]] = None,
 ) {
   def withScope(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(scopes = scopes :+ CheckContext.ScopeFrame(decls, Nil))
@@ -109,6 +113,9 @@ case class CheckContext[G]
 
   def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(undeclared = undeclared :+ decls)
+
+  def withSeqProg(prog: SeqProg[G]): CheckContext[G] =
+    copy(currentSeqProg = Some(prog))
 
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     !undeclared.exists(_.contains(ref.decl)) && scopes.exists(_.contains(ref.decl))
