@@ -1,17 +1,17 @@
-
+class C {
+}
 
 class Test {
 
-    private int i;
+    private C x;
 
-
-    public Test(){
-        this.i = 4;
+    public Test() {
+        x = new C();
     }
 
 
-    public void incr(){
-        this.i = this.i + 1;
+    public void incr() {
+
     }
 
 

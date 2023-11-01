@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.runtime.{AddFieldPermissions, CreateArrayPermissions, CreateFieldPermissions, CreateLocking, CreateLoopInvariants, CreatePredicates, CreateQuantifiers, RefactorGeneratedCode}
+import vct.rewrite.runtime.{CreateArrayPermissions, CreateFieldPermissions, CreateLocking, CreateLoopInvariants, CreatePredicates, CreateQuantifiers, RefactorGeneratedCode, RemoveSelfLoops}
 
 object Transformation {
 
@@ -321,8 +321,8 @@ case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Veri
 case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
+    RemoveSelfLoops,
     RefactorGeneratedCode,
-
     CreateFieldPermissions,
     CreateArrayPermissions,
 

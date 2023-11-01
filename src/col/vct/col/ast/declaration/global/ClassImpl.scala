@@ -2,13 +2,18 @@ package vct.col.ast.declaration.global
 
 import vct.col.ast.Class
 import vct.col.ast.util.Declarator
+import vct.col.origin.ReadableOrigin
 import vct.col.print._
+import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.tt
 import vct.result.VerificationError.Unreachable
 
-trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
+import scala.util.matching.Regex
+
+trait ClassImpl[G] extends Declarator[G] {
+  this: Class[G] =>
   protected def transSupportArrows(seen: Set[Class[G]]): Seq[(Class[G], Class[G])] =
-    if(seen.contains(this)) Nil
+    if (seen.contains(this)) Nil
     else supports.map(other => (this, other.decl)) ++
       supports.flatMap(other => other.decl.transSupportArrows(Set(this) ++ seen))
 
@@ -17,13 +22,55 @@ trait ClassImpl[G] extends Declarator[G] { this: Class[G] =>
   def layoutLockInvariant(implicit ctx: Ctx): Doc =
     Text("lock_invariant") <+> intrinsicLockInvariant <+/> Empty
 
-  override def layout(implicit ctx: Ctx): Doc =
-    (if(intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>
+  private def searchInClassDeclaration(regex: Regex): Doc = {
+    val readableOrigin: ReadableOrigin = this.o.getReadable.get
+    val start = this.o.getStartEndLines.get.startEndLineIdx._1
+    val classDeclaration = readableOrigin.readable.readLines()(start)
+    regex.findFirstMatchIn(classDeclaration) match {
+      case Some(matched) =>
+        Text(matched.toString())
+      case None => Empty
+    }
+  }
+
+  def classOrInterfaceDoc(): Doc =
+    searchInClassDeclaration(new Regex("(class|interface)"))
+
+  def implementsDoc(): Doc =
+    searchInClassDeclaration(new Regex("implements(\\s+[A-Z][A-Za-z]*,?)*"))
+
+  def extendsDoc(): Doc =
+    searchInClassDeclaration(new Regex("extends\\s+[A-Z][A-Za-z]*"))
+
+  def implementsRef(): Option[Seq[Ref[G, Class[G]]]] = {
+    this.implementsDoc() match {
+      case Text(s) =>
+        val names = s.replaceAll("implements\\s+", "").split(",\\s+")
+        Some(this.supports.filter(supp => names.contains(supp.decl.o.getPreferredNameOrElse())))
+      case _ => None
+    }
+  }
+
+  def extendsRef(): Option[Ref[G, Class[G]]] = {
+    this.extendsDoc() match {
+      case Text(s) =>
+        val name = s.replaceAll("extends\\s+","")
+        this.supports.find(supp => supp.decl.o.getPreferredNameOrElse().equals(name))
+      case _ => None
+    }
+  }
+
+
+  override def layout(implicit ctx: Ctx): Doc = {
+    val classOrInterface = classOrInterfaceDoc()
+    val extension = extendsDoc()
+    val implements = implementsDoc()
+
+    (if (intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>
       Group(
-        Text("class") <+> ctx.name(this) <>
-        (if(supports.isEmpty) Empty else Text(" implements") <+> Doc.args(supports.map(ctx.name).map(Text))) <+>
-        "{"
+        classOrInterface <+> ctx.name(this) <+> extension <+> implements <+> "{"
       ) <>>
       Doc.stack(declarations) <+/>
-    "}"
+      "}"
+  }
 }
