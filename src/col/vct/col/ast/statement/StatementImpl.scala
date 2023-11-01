@@ -12,7 +12,7 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] { this: Statement[G] =>
 
   def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc = show
 
-  override def check(context: CheckContext[G]): Seq[CheckError] = context.currentSeqProg match {
+  override def check(context: CheckContext[G]): Seq[CheckError] = super.check(context) ++ (context.currentSeqProg match {
     case None => Seq()
     case Some(_) => this match {
       case
@@ -29,5 +29,5 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] { this: Statement[G] =>
         _: Assert[G] => Seq()
       case _ => Seq(SeqProgStatement(this))
     }
-  }
+  })
 }
