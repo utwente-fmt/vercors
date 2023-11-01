@@ -1,6 +1,6 @@
 package vct.col.ast.statement.composite
 
-import vct.col.ast.Scope
+import vct.col.ast.{Node, Scope}
 import vct.col.check.CheckContext
 import vct.col.print._
 import vct.col.resolve.ResolveReferences
@@ -12,7 +12,7 @@ trait ScopeImpl[G] {
 
   override def layout(implicit ctx: Ctx): Doc = layoutAsBlock
   override def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc =
-    NodeDoc(
+    InfoDoc(
       Doc.fold(locals.map(local => ctx.syntax match {
         case Ctx.Silver => Text("var") <+> local
         case _ => local.show <> ";"

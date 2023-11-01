@@ -7,6 +7,7 @@ import vct.col.origin.Origin.{BOLD_HR, HR}
 
 import java.lang
 import scala.annotation.tailrec
+import scala.reflect.ClassTag
 
 object Show {
   def lazily(f: Ctx => Doc): Show = new Show {
@@ -88,8 +89,8 @@ sealed trait Elem {
 
 case class EText(text: String) extends Elem
 case class ELine(indent: Int) extends Elem
-case class EStart(node: Node[_]) extends Elem
-case class EEnd(node: Node[_]) extends Elem
+case class EStart(info: Any) extends Elem
+case class EEnd(info: Any) extends Elem
 
 /**
   * This is an implementation of A prettier printer by Philip Wadler, accessible here:
@@ -157,16 +158,16 @@ sealed trait Doc extends Show {
   private def better(spent: Int, x: LazyList[Elem], y: LazyList[Elem])(implicit ctx: Ctx): LazyList[Elem] =
     if(fits(spent, x)) x else y
 
-  private def be(spent: Int, docs: Seq[(Int, Boolean, Seq[Node[_]], Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
+  private def be(spent: Int, docs: Seq[(Int, Boolean, Seq[EEnd], Doc)])(implicit ctx: Ctx): LazyList[Elem] = docs match {
     case Nil => LazyList.empty
-    case (_, _, nes, Empty) +: docs => nes.map(EEnd).to(LazyList) #::: be(spent, docs)
-    case (i, f, nes, doc @ NodeDoc(x)) +: docs => EStart(doc.node) #:: be(spent, (i, f, doc.node +: nes, x) +: docs)
+    case (_, _, nes, Empty) +: docs => nes.to(LazyList) #::: be(spent, docs)
+    case (i, f, nes, doc @ InfoDoc(x)) +: docs => EStart(doc.info) #:: be(spent, (i, f, EEnd(doc.info) +: nes, x) +: docs)
     case (i, f, nes, Cons(x, y)) +: docs => be(spent, (i, f, Nil, x) +: (i, f, nes, y) +: docs)
     case (i, f, nes, Nest(x)) +: docs => be(spent, (i+ctx.tabWidth, f, nes, x) +: docs)
-    case (_, _, nes, Text(t)) +: docs => EText(t) #:: nes.map(EEnd).to(LazyList) #::: be(spent + t.length, docs)
-    case (i, false, nes, Line | NonWsLine) +: docs => ELine(i) #:: nes.map(EEnd).to(LazyList) #::: be(i, docs)
-    case (_, true, nes, Line) +: docs => EText(" ") #:: nes.map(EEnd).to(LazyList) #::: be(spent + 1, docs)
-    case (_, true, nes, NonWsLine) +: docs => nes.map(EEnd).to(LazyList) #::: be(spent, docs)
+    case (_, _, nes, Text(t)) +: docs => EText(t) #:: nes.to(LazyList) #::: be(spent + t.length, docs)
+    case (i, false, nes, Line | NonWsLine) +: docs => ELine(i) #:: nes.to(LazyList) #::: be(i, docs)
+    case (_, true, nes, Line) +: docs => EText(" ") #:: nes.to(LazyList) #::: be(spent + 1, docs)
+    case (_, true, nes, NonWsLine) +: docs => nes.to(LazyList) #::: be(spent, docs)
     case (i, true, nes, Group(x)) +: docs => be(spent, (i, true, nes, x) +: docs)
     case (i, false, nes, Group(x)) +: docs => better(
       spent,
@@ -186,7 +187,7 @@ sealed trait Doc extends Show {
     case Text(text) => text.nonEmpty
     case Nest(doc) => doc.nonEmpty
     case Group(doc) => doc.nonEmpty
-    case NodeDoc(doc) => doc.nonEmpty
+    case InfoDoc(doc) => doc.nonEmpty
   }
 
   def splitOn[A](list: LazyList[A])(predicate: A => Boolean): LazyList[LazyList[A]] = {
@@ -248,6 +249,21 @@ sealed trait Doc extends Show {
     }
     sb.toString
   }
+
+  def rewrite(f: (Doc => Doc) => PartialFunction[Doc, Doc]): Doc =
+    f(doc => doc.rewrite(f)).lift(this) match {
+      case Some(doc) => doc
+      case None => this match {
+        case Empty => Empty
+        case NonWsLine => NonWsLine
+        case Line => Line
+        case Cons(left, right) => Cons(left.rewrite(f), right.rewrite(f))
+        case Text(text) => Text(text)
+        case Nest(doc) => Nest(doc.rewrite(f))
+        case Group(doc) => Group(doc.rewrite(f))
+        case info @ InfoDoc(doc) => InfoDoc(doc.rewrite(f))(info.info)
+      }
+    }
 }
 
 case object Empty extends Doc
@@ -258,4 +274,4 @@ case class Text(text: String) extends Doc
 case class Nest(doc: Doc) extends Doc
 case class Group(doc: Doc) extends Doc
 
-case class NodeDoc(doc: Doc)(val node: Node[_]) extends Doc
+case class InfoDoc(doc: Doc)(val info: Any) extends Doc

@@ -1,7 +1,7 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.Label
-import vct.col.print.{Ctx, Doc, NodeDoc, Show, Text}
+import vct.col.ast.{Label, Node}
+import vct.col.print.{Ctx, Doc, InfoDoc, Show, Text}
 
 trait LabelImpl[G] { this: Label[G] =>
   override def foldBlock(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc = ctx.syntax match {
@@ -11,7 +11,7 @@ trait LabelImpl[G] { this: Label[G] =>
     case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP => f(layoutLabel, stat.foldBlock(f))
   }
 
-  def layoutLabel(implicit ctx: Ctx): Doc = NodeDoc(ctx.syntax match {
+  def layoutLabel(implicit ctx: Ctx): Doc = InfoDoc(ctx.syntax match {
     case Ctx.PVL => Text("label") <+> ctx.name(decl) <> ";"
     case Ctx.Silver => Text("label") <+> ctx.name(decl)
     case Ctx.Java => Text(ctx.name(decl)) <> ":"
