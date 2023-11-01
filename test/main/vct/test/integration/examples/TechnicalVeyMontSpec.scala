@@ -90,7 +90,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "instance method in seq_program cannot have arguments" pvl
+  vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in "instance method in seq_program cannot have arguments" pvl
   """
   seq_program Example() {
     void m(int x) { }
@@ -99,7 +99,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "instance method in seq_program must have a body" pvl
+  vercors should error withCode "resolutionError:seqProgInstanceMethodBody" in "instance method in seq_program must have a body" pvl
   """
   seq_program Example() {
     void m();
@@ -108,7 +108,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "instance method in seq_program must have void return type" pvl
+  vercors should error withCode "resolutionError:seqProgInstanceMethodNonVoid" in "instance method in seq_program must have void return type" pvl
   """
   seq_program Example() {
     int m() { }
@@ -117,7 +117,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "seq_prog excludes certain statements" pvl
+  vercors should error withCode "resolutionError:seqProgStatement" in "seq_prog excludes certain statements" pvl
   """
   class C { }
   seq_program Example(C c) {
@@ -127,7 +127,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
+  vercors should error withCode "resolutionError:seqProgInvocationReceiver" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
   """
   class C { C d; void foo(int x); int x; }
   seq_program Example(C c) {
@@ -139,7 +139,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
+  vercors should error withCode "resolutionError:seqProgInvocation" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
   """
   class C { C d; void foo(); }
   seq_program Example(C c) {

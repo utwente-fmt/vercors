@@ -77,12 +77,24 @@ case class NotAPredicateApplication(res: Expr[_]) extends CheckError
 case class AbstractPredicate(res: Expr[_]) extends CheckError
 case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
 case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
-case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError
-case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError
-case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError
-case class SeqProgStatement(s: Statement[_]) extends CheckError
-case class SeqProgInvocation(s: Statement[_]) extends CheckError
-case class SeqProgInvocationReceiver(e: Expr[_]) extends CheckError
+case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError {
+  val subcode = "seqProgInstanceMethodNonVoid"
+}
+case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError {
+  val subcode = "seqProgInstanceMethodArgs"
+}
+case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError {
+  val subcode = "seqProgInstanceMethodBody"
+}
+case class SeqProgStatement(s: Statement[_]) extends CheckError {
+  val subcode = "seqProgStatement"
+}
+case class SeqProgInvocation(s: Statement[_]) extends CheckError {
+  val subcode = "seqProgInvocation"
+}
+case class SeqProgInvocationReceiver(e: Expr[_]) extends CheckError {
+  val subcode = "seqProgInvocationReceiver"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
