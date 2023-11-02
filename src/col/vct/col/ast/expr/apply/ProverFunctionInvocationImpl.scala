@@ -7,10 +7,8 @@ trait ProverFunctionInvocationImpl[G] { this: ProverFunctionInvocation[G] =>
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     Group(
-      Group(
         Text(ctx.name(ref)) <>
-          "("
-      ) <> Doc.args(args) <> ")"
+          "(" <> Doc.args(args) <> ")"
     )
 
 }

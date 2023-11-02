@@ -173,6 +173,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
 
+    case Perm(a@AmbiguousLocation(expr), perm)
+      if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
+      c.getBaseType(expr.t) match {
+        case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
+      }
+
     case local: CPPLocal[Pre] => cpp.local(local)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
 

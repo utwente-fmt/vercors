@@ -8,7 +8,7 @@ import vct.col.ast.`type`.TFloats.ieee754_32bit
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin.{AbstractApplicable, ArraySizeError, AssignLocalOk, Blame, CallableFailure, FrontendInvocationError, InterpretedOriginVariable, KernelBarrierInconsistent, KernelBarrierInvariantBroken, KernelBarrierNotEstablished, KernelPostconditionFailed, KernelPredicateNotInjective, Origin, PanicBlame, ParBarrierFailure, ParBarrierInconsistent, ParBarrierInvariantBroken, ParBarrierMayNotThrow, ParBarrierNotEstablished, ParBlockContractFailure, ParBlockFailure, ParBlockMayNotThrow, ParBlockPostconditionFailed, ParPreconditionFailed, ParPredicateNotInjective, PointerInsufficientPermission, ReceiverNotInjective, TrueSatisfiable, VerificationFailure}
-import vct.col.ref.Ref
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, CNameTarget, CStructTarget, RefADTFunction, RefAxiomaticDataType, RefCFunctionDefinition, RefCGlobalDeclaration, RefCLocalDeclaration, RefCParam, RefCStruct, RefCStructField, RefCudaBlockDim, RefCudaBlockIdx, RefCudaGridDim, RefCudaThreadIdx, RefCudaVec, RefCudaVecDim, RefCudaVecX, RefCudaVecY, RefCudaVecZ, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModelAction, RefModelField, RefModelProcess, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecInvocationTarget}
 import vct.col.resolve.lang.C.nameFromDeclarator
@@ -145,8 +145,12 @@ case object LangCToCol {
 
   case class UnsupportedMalloc(c: Expr[_]) extends UserError {
     override def code: String = "unsupportedMalloc"
-
     override def text: String = c.o.messageInContext("Only 'malloc' of the format '(t *) malloc(x*typeof(t)' is supported.")
+  }
+
+  case class UnsupportedStructPerm(o: Origin) extends UserError {
+    override def code: String = "unsupportedStructPerm"
+    override def text: String = o.messageInContext("Shorthand for Permissions for structs not possible, since the struct has a cyclic reference")
   }
 }
 
@@ -1078,6 +1082,32 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     }
   }
 
+  // Allow a user to write `Perm(p, write)` instead of `Perm(p.x, write) ** Perm(p.y, write)` for `struct p {int x, y}`
+  def unwrapStructPerm(struct: AmbiguousLocation[Post], perm: Expr[Pre], structType: CTStruct[Pre], origin: Origin, visited: Seq[CTStruct[Pre]]= Seq()): Expr[Post] = {
+    if(visited.contains(structType)) throw UnsupportedStructPerm(origin) // We do not allow this notation for recursive structs
+    implicit val o: Origin = origin
+    val blame = PanicBlame("???")
+    val Seq(CStructDeclaration(_, fields)) = structType.ref.decl.decl.specs
+    val newPerm = rw.dispatch(perm)
+    val AmbiguousLocation(newExpr) = struct
+    val newFieldPerms = fields.map(member => {
+      val loc = AmbiguousLocation(
+        Deref[Post](
+          newExpr,
+          cStructFieldsSuccessor.ref((structType.ref.decl, member))
+        )(blame)
+      )(struct.blame)
+      member.specs.collectFirst {
+        case CSpecificationType(newStruct: CTStruct[Pre]) =>
+          // We recurse, since a field is another struct
+          Perm(loc, newPerm) &* unwrapStructPerm(loc, perm, newStruct, origin, structType +: visited)
+      }.getOrElse(Perm(loc, newPerm))
+    })
+
+    foldStar(newFieldPerms)
+  }
+
+
   def createStructCopy(a: Expr[Post], target: CGlobalDeclaration[Pre]): Expr[Post] = {
     implicit val o: Origin = a.o
     val targetClass: Class[Post] = cStructSuccessor(target)
@@ -1345,13 +1375,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val RefCGlobalDeclaration(decls, initIdx) = e
     implicit val o: Origin = inv.o
 
-    val arg = if(args.size == 1){
-      args.head match {
-        case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
-        case _ => None
-      }
-    } else None
-
     (e.name, args, givenMap, yields) match {
       case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
       case("free", Seq(xs), _, _) if isCPointer(xs.t) =>
@@ -1361,6 +1384,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         return ProcedureInvocation[Post](free.ref, Seq(newXs), Nil, Nil, Nil, Nil)(inv.blame)(inv.o)
       case _ => ()
     }
+
+    val arg = if (args.size == 1) {
+      args.head match {
+        case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
+        case _ => None
+      }
+    } else None
 
     (e.name, arg) match {
       case ("get_local_id", Some(i)) => getCudaLocalThread(i, o)
@@ -1385,9 +1415,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def structType(t: CTStruct[Pre]): Type[Post] = {
-    val target = t.ref.decl
-    implicit val o: Origin = t.o
-    val targetClass: Class[Post] = cStructSuccessor(target)
-    TClass[Post](targetClass.ref)
+    val targetClass = new LazyRef[Post, Class[Post]](cStructSuccessor(t.ref.decl))
+    TClass[Post](targetClass)(t.o)
   }
 }
