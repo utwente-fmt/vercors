@@ -185,6 +185,8 @@ valPrimaryPermission
  | '\\pointer_block_offset' '(' langExpr ')' # valPointerBlockOffset
  | '\\pointer_length' '(' langExpr ')' # valPointerLength
  | '\\polarity_dependent' '(' langExpr ',' langExpr ')' # valPolarityDependent
+ | '\\euclidean_div' '(' langExpr ',' langExpr ')' # valEuclideanDiv
+ | '\\euclidean_mod' '(' langExpr ',' langExpr ')' # valEuclideanMod
  ;
 
 valForall: '\\forall' | '\u2200';

@@ -150,6 +150,8 @@ POINTER_INDEX: '\\pointer_index';
 POINTER_BLOCK_LENGTH: '\\pointer_block_length';
 POINTER_BLOCK_OFFSET: '\\pointer_block_offset';
 POINTER_LENGTH: '\\pointer_length';
+EUCLIDIAN_DIV: '\\euclidean_div';
+EUCLIDIAN_MOD: '\\euclidean_mod';
 SHARED_MEM_SIZE: '\\shared_mem_size';
 VALUES: '\\values';
 VCMP: '\\vcmp';
