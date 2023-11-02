@@ -74,7 +74,7 @@ case object Stages {
 
   def runtimeVerificationWithOptions(options: Options, blameProvider: BlameProvider): Stages[Seq[Readable], Unit] = {
     Parsing.ofOptions(options, blameProvider)
-      .thenRun(Resolution.ofOptions(options, blameProvider))
+      .thenRun(Resolution.runtimeOfOptions(options, blameProvider))
       .thenRun(Transformation.runtimeTransformationOfOptions(options))
       .thenRun(Output.runtimeOfOptions(options))
   }
