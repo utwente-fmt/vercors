@@ -34,7 +34,7 @@ clangppIdentifier:
 // Expressions
 primaryExpression:
     valExpr
-	| literal+
+	| literal // EW: Changed to match only one literal to prevent parsing errors
 	| This
 	| LeftParen expression RightParen
 	| idExpression
@@ -45,12 +45,12 @@ annotatedPrimaryExpression: valEmbedWith? primaryExpression valEmbedThen?;
 idExpression: unqualifiedId | qualifiedId;
 
 unqualifiedId:
-	clangppIdentifier
+	templateId
+	| clangppIdentifier
 	| operatorFunctionId
 	| conversionFunctionId
 	| literalOperatorId
-	| Tilde (className | decltypeSpecifier)
-	| templateId;
+	| Tilde (className | decltypeSpecifier);
 
 qualifiedId: nestedNameSpecifier Template? unqualifiedId;
 
@@ -63,7 +63,7 @@ nestedNameSpecifier:
 	| nestedNameSpecifier Template? simpleTemplateId Doublecolon;
 
 lambdaExpression:
-	lambdaIntroducer lambdaDeclarator? compoundStatement;
+	valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement;
 
 lambdaIntroducer: LeftBracket lambdaCapture? RightBracket;
 
@@ -273,16 +273,16 @@ assignmentOperator:
 	| OrAssign;
 
 expression:
-    assignmentExpression
-    | expression Comma assignmentExpression;
+  assignmentExpression
+  | expression Comma assignmentExpression;
 
 constantExpression: conditionalExpression;
 
 // Statements
 statement:
-    attributeSpecifierSeq? statementTwo
-	| labeledStatement
-	| blockDeclaration;
+  attributeSpecifierSeq? statementTwo
+  | blockDeclaration
+	| labeledStatement;
 
 statementTwo:
     expressionStatement
@@ -446,16 +446,15 @@ simpleTypeSpecifier:
 	| Float
 	| simpleTypeLengthModifier? Double
 	| Void
-	| SYCLQueue // EW: Will be moved to own SYCL Parser later
 	| Auto
 	| {specLevel>0}? valType
 	| decltypeSpecifier;
 
 theTypeName:
-	className
+	simpleTemplateId
+	| className
 	| enumName
-	| typedefName
-	| simpleTemplateId;
+	| typedefName;
 
 decltypeSpecifier:
 	Decltype LeftParen (expression | Auto) RightParen;
@@ -640,7 +639,7 @@ parameterDeclarationList:
 	parameterDeclaration (Comma parameterDeclaration)*;
 
 parameterDeclaration:
-    declSpecifierSeq declarator
+  declSpecifierSeq declarator
 	| attributeSpecifierSeq? declSpecifierSeq (
 		(declarator | abstractDeclarator?) (
 			Assign initializerClause
@@ -794,7 +793,8 @@ typeParameter:
 	) ((Ellipsis? clangppIdentifier?) | (clangppIdentifier? Assign theTypeId));
 
 simpleTemplateId:
-	templateName Less templateArgumentList? Greater;
+	templateName Less templateArgument Greater
+	| templateName Less templateArgumentList? Greater;
 
 templateId:
 	simpleTemplateId

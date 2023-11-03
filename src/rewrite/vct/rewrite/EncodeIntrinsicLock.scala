@@ -34,26 +34,11 @@ case object EncodeIntrinsicLock extends RewriterBuilder {
       not.blame.blame(NotifyFailed(not, error.failure))
   }
 
-  case class LockInvariantOrigin(cls: Class[_]) extends Origin {
-    override def preferredName: String = "lock_inv_" + cls.o.preferredName
-    override def shortPosition: String = cls.intrinsicLockInvariant.o.shortPosition
-    override def context: String = cls.intrinsicLockInvariant.o.context
-    override def inlineContext: String = cls.intrinsicLockInvariant.o.inlineContext
-  }
+  private def LockInvariantOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_inv_" + cls.o.getPreferredNameOrElse())
 
-  case class HeldTokenOrigin(cls: Class[_]) extends Origin {
-    override def preferredName: String = "lock_held_" + cls.o.preferredName
-    override def shortPosition: String = cls.intrinsicLockInvariant.o.shortPosition
-    override def context: String = cls.intrinsicLockInvariant.o.context
-    override def inlineContext: String = cls.intrinsicLockInvariant.o.inlineContext
-  }
+  private def HeldTokenOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_held_" + cls.o.getPreferredNameOrElse())
 
-  case class CommittedOrigin(cls: Class[_]) extends Origin {
-    override def preferredName: String = "lock_committed_" + cls.o.preferredName
-    override def shortPosition: String = cls.intrinsicLockInvariant.o.shortPosition
-    override def context: String = cls.intrinsicLockInvariant.o.context
-    override def inlineContext: String = cls.intrinsicLockInvariant.o.inlineContext
-  }
+  private def CommittedOrigin(cls: Class[_]): Origin = cls.o.replacePrefName("lock_committed_" + cls.o.getPreferredNameOrElse())
 
   case class LockLockObjectNull(lock: Lock[_]) extends Blame[InstanceInvocationFailure] {
     override def blame(error: InstanceInvocationFailure): Unit = error match {
@@ -139,7 +124,7 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
 
         if(needsCommitted.contains(cls)) {
           implicit val o: Origin = CommittedOrigin(cls)
-          committed(cls) = classDeclarations.declare(new InstanceFunction(TBool(), Nil, Nil, None, contract(PanicBlame("empty contract")), false)(AbstractApplicable))
+          committed(cls) = classDeclarations.declare(new InstanceFunction(TBool(), Nil, Nil, None, contract(PanicBlame("empty contract"), decreases = Some(DecreasesClauseAssume[Post]())), false)(AbstractApplicable))
         }
 
         cls.declarations.foreach(dispatch)

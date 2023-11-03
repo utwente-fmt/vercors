@@ -223,7 +223,7 @@ public class MainTransformer<T> {
      *         associated with
      */
     private String create_instance_name(COLClass col_class) {
-        return col_class.get_generating_instance().getName() + "_" + col_system.get_col_class_translation(col_class).o().preferredName();
+        return col_class.get_generating_instance().getName() + "_" + col_system.get_col_class_translation(col_class).o().getPreferredNameOrElse("unknown");
     }
 
     /**

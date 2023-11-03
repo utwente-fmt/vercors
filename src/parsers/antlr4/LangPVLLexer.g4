@@ -55,6 +55,7 @@ INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
 RUN: 'run';
 THREAD: 'thread';
+ENDPOINT: 'endpoint';
 
 IF: 'if';
 ELSE: 'else';
@@ -75,6 +76,8 @@ WAIT: 'wait';
 NOTIFY: 'notify';
 FORK: 'fork';
 JOIN: 'join';
+
+COMMUNICATE: 'communicate';
 
 THIS: 'this';
 NULL: 'null';

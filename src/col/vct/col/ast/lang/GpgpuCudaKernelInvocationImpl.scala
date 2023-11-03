@@ -19,6 +19,7 @@ trait GpgpuCudaKernelInvocationImpl[G] { this: GpgpuCudaKernelInvocation[G] =>
     case RefCFunctionDefinition(decl) => C.typeOrReturnTypeFromDeclaration(decl.specs, decl.declarator)
     case RefCGlobalDeclaration(decls, initIdx) => C.typeOrReturnTypeFromDeclaration(decls.decl.specs, decls.decl.inits(initIdx).decl)
     case BuiltinInstanceMethod(f) => ???
+    case RefProverFunction(decl) => decl.returnType
   }
 
   override def layout(implicit ctx: Ctx): Doc =

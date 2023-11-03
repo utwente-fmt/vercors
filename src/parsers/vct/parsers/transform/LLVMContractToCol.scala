@@ -6,26 +6,27 @@ import vct.antlr4.generated.LLVMSpecParser._
 import vct.antlr4.generated.LLVMSpecParserPatterns
 import vct.antlr4.generated.LLVMSpecParserPatterns._
 import vct.col.ast._
-import vct.col.origin.{ExpectedError, Origin, SourceNameOrigin}
+import vct.col.origin.{ExpectedError, Origin}
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers.{ff, foldAnd, implies, tt}
+import vct.parsers.ParseError
 
 import scala.annotation.nowarn
 import scala.collection.immutable.{AbstractSeq, LinearSeq}
 import scala.collection.mutable
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
-case class LLVMContractToCol[G](override val originProvider: OriginProvider,
+case class LLVMContractToCol[G](override val baseOrigin: Origin,
                                 override val blameProvider: BlameProvider,
                                 override val errors: Seq[(Token, Token, ExpectedError)])
-  extends ToCol(originProvider, blameProvider, errors) {
+  extends ToCol(baseOrigin, blameProvider, errors) {
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
     LlvmLocal(name)(blame(ctx))(origin(ctx))
 
   def createVariable(ctx: ParserRuleContext, id: LangIdContext, t: LangTypeContext): Variable[G] = {
     val varId = convert(id)
-    val variable = new Variable(convert(t))(SourceNameOrigin(varId, origin(ctx)))
+    val variable = new Variable(convert(t))(origin(ctx).replacePrefName(varId))
     variable
   }
 
@@ -61,7 +62,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
     //case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
       val variable = createVariable(contract, id, t)
-      collector.signals += ((contract, SignalsClause(variable, convert(exp))(originProvider(contract))))
+      collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     //case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
     case ValContractClause12(_, Some(clause), _) => collector.decreases += ((contract, convert(clause)))
@@ -144,6 +145,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
           case LLVMSpecParserPatterns.Or(_) => BitOr(left, right)
           case Xor(_) => BitXor(left, right)
         }
+        case other => throw ParseError(left.o, s"Expected an integer or boolean expression here, but got `$other`")
       }
     }
   }
@@ -390,7 +392,7 @@ case class LLVMContractToCol[G](override val originProvider: OriginProvider,
       val modifierCollector = new ModifierCollector()
       modifiers.foreach(convert(_, modifierCollector))
 
-      val namedOrigin = SourceNameOrigin(convert(name), origin(decl))
+      val namedOrigin = origin(decl).replacePrefName(convert(name))
       new LlvmSpecFunction(
         convert(name),
         convert(t),

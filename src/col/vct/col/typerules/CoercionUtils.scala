@@ -15,7 +15,12 @@ case object CoercionUtils {
       case (TNothing(), _) => CoerceNothingSomething(target)
       case (_, TAny()) => CoerceSomethingAny(source)
 
+      case (TResource(), TAnyValue()) => CoercionSequence(Seq(CoerceResourceResourceVal(), CoerceSomethingAnyValue(TResourceVal())))
+      case (TResource(), TResourceVal()) => CoerceResourceResourceVal()
+      case (TResourceVal(), TResource()) => CoerceResourceValResource()
+      case (TBool(), TResource()) => CoerceBoolResource()
 
+      case (_, TAnyValue()) => CoerceSomethingAnyValue(source)
 
       case (source @ TOption(innerSource), target @ TOption(innerTarget)) =>
         CoerceMapOption(getCoercion(innerSource, innerTarget).getOrElse(return None), innerSource, innerTarget)
@@ -72,7 +77,6 @@ case object CoercionUtils {
             getCoercion(element, innerType).getOrElse(return None)
           ))
         }
-      case (TBool(), TResource()) => CoerceBoolResource()
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) => CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
       case (TZFraction(), TRational()) => CoerceZFracRat()
@@ -248,7 +252,7 @@ case object CoercionUtils {
     case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyPointerCoercion)
     case t: CPPTArray[G] => Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType)))
     case _: TNull[G] =>
-      val t = TPointer[G](TAny())
+      val t = TPointer[G](TAnyValue())
       Some((CoerceNullPointer(t), t))
     case _ => None
   }
@@ -270,7 +274,7 @@ case object CoercionUtils {
     case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyArrayCoercion)
     case t: TArray[G] => Some((CoerceIdentity(source), t))
     case _: TNull[G] =>
-      val t = TArray[G](TAny())
+      val t = TArray[G](TAnyValue())
       Some((CoerceNullArray(t), t))
     case _ => None
   }
@@ -281,7 +285,7 @@ case object CoercionUtils {
     case t @ TArray(TArray(_)) => Some((CoerceIdentity(source), t))
     case TArray(TNull()) => Some(???)
     case TNull() =>
-      val t = TArray[G](TArray[G](TAny()))
+      val t = TArray[G](TArray[G](TAnyValue()))
       Some((CoerceNullArray(t), t))
     case _ => None
   }

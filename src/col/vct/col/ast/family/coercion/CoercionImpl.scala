@@ -1,6 +1,6 @@
 package vct.col.ast.family.coercion
 
-import vct.col.ast.{CoerceBoolResource, CoerceBoundIntFrac, CoerceBoundIntZFrac, CoerceCPrimitiveToCol, CoerceCPPPrimitiveToCol, CoerceClassAnyClass, CoerceColToCPrimitive, CoerceColToCPPPrimitive, CoerceFloatRat, CoerceFracZFrac, CoerceIdentity, CoerceIncreasePrecision, CoerceIntRat, CoerceJavaClassAnyClass, CoerceJavaSupports, CoerceJoinUnion, CoerceMapBag, CoerceMapEither, CoerceMapMap, CoerceMapMatrix, CoerceMapOption, CoerceMapSeq, CoerceMapSet, CoerceMapTuple, CoerceMapType, CoerceNothingSomething, CoerceNullAnyClass, CoerceNullArray, CoerceNullClass, CoerceNullJavaClass, CoerceNullPointer, CoerceNullRef, CoerceRatZFrac, CoerceSelectUnion, CoerceSomethingAny, CoerceSupports, CoerceUnboundInt, CoerceWidenBound, CoerceZFracFrac, CoerceZFracRat, Coercion, CoercionSequence, Type}
+import vct.col.ast._
 
 trait CoercionImpl[G] { this: Coercion[G] =>
   def target: Type[G]
@@ -10,6 +10,7 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoercionSequence(coercions) => coercions.forall(_.isPromoting)
     case CoerceNothingSomething(_) => true
     case CoerceSomethingAny(_) => true
+    case CoerceSomethingAnyValue(_) => true
     case CoerceJoinUnion(inner, _, _) => inner.forall(_.isPromoting)
     case CoerceSelectUnion(inner, _, _, _) => inner.isPromoting
     case CoerceBoolResource() => true
@@ -19,6 +20,7 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceNullJavaClass(_) => true
     case CoerceNullAnyClass() => true
     case CoerceNullPointer(_) => true
+    case CoerceNullEnum(_) => true
     case CoerceFracZFrac() => true
     case CoerceZFracRat() => true
     case CoerceFloatRat(_) => true
@@ -36,6 +38,10 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceColToCPrimitive(_, _) => true
     case CoerceCPPPrimitiveToCol(_, _) => true
     case CoerceColToCPPPrimitive(_, _) => true
+    case CoerceCPPArrayPointer(_) => true
+    case CoerceCArrayPointer(_) => true
+    case CoerceResourceResourceVal() => true
+    case CoerceResourceValResource() => true
     case CoerceMapOption(inner, _, _) => inner.isPromoting
     case CoerceMapTuple(inner, _, _) => inner.forall(_.isPromoting)
     case CoerceMapEither(inner, _, _) => inner._1.isPromoting && inner._2.isPromoting
@@ -47,5 +53,6 @@ trait CoercionImpl[G] { this: Coercion[G] =>
     case CoerceMapType(inner, _, _) => inner.isPromoting
     case CoerceRatZFrac() => false
     case CoerceZFracFrac() => false
+    case CoerceBoundIntFloat(_, _) => false
   }
 }

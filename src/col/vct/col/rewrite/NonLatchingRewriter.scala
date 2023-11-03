@@ -1,14 +1,14 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.util.CurrentProgramRewriteContext
+import vct.col.util.CurrentRewriteProgramContext
 import vct.result.VerificationError
 
 class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(context: Verification[Pre]): Verification[Post] = rewriteDefault(context)
   override def dispatch(context: VerificationContext[Pre]): VerificationContext[Post] = rewriteDefault(context)
   override def dispatch(program: Program[Pre]): Program[Post] =
-    VerificationError.context(CurrentProgramRewriteContext(program)) {
+    VerificationError.withContext(CurrentRewriteProgramContext(program)) {
       rewriteDefault(program)
     }
 
@@ -42,7 +42,7 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
 
   override def dispatch(node: CPPDeclarator[Pre]): CPPDeclarator[Post] = rewriteDefault(node)
   override def dispatch(node: CPPDeclarationSpecifier[Pre]): CPPDeclarationSpecifier[Post] = rewriteDefault(node)
-  override def dispatch(node: CPPPointer[Pre]): CPPPointer[Post] = rewriteDefault(node)
+  override def dispatch(node: CPPAddressing[Pre]): CPPAddressing[Post] = rewriteDefault(node)
   override def dispatch(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
   override def dispatch(node: CPPDeclaration[Pre]): CPPDeclaration[Post] = rewriteDefault(node)
 
@@ -64,4 +64,10 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
 
   override def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
   override def dispatch(node: LlvmLoopContract[Pre]): LlvmLoopContract[Post] = rewriteDefault(node)
+
+  override def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
+  override def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
+  override def dispatch(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
+  override def dispatch(node: Access[Pre]): Access[Post] = rewriteDefault(node)
+  override def dispatch(node: Subject[Pre]): Subject[Post] = rewriteDefault(node)
 }

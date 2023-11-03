@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.FuncTools
 import vct.col.ast.{Expr, _}
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{AbstractApplicable, ArraySize, ArraySizeError, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, ContextEverywhereFailedInPre, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, InvocationFailure, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame, TrueSatisfiable, VerificationFailure}
+import vct.col.origin._
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.lang.LangCToCol.UnsupportedStructPerm
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -18,17 +18,23 @@ case object EncodeArrayValues extends RewriterBuilder {
   override def key: String = "arrayValues"
   override def desc: String = "Encode \\values and array creation into functions/methods."
 
-  case class ValuesFunctionOrigin(preferredName: String = "unknown") extends Origin {
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated for \\values]"
-    override def inlineContext: String = "[Node generated for \\values]"
-  }
+  private def ValuesFunctionOrigin(preferredName: String = "unknown"): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      ShortPosition("generated"),
+      Context("[At node generated for \\values]"),
+      InlineContext("[Node generated for \\values]"),
+    )
+  )
 
-  case class ArrayCreationOrigin(preferredName: String = "unknown") extends Origin {
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated for array creation]"
-    override def inlineContext: String = "[Node generated for array creation]"
-  }
+  private def ArrayCreationOrigin(preferredName: String = "unknown"): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      ShortPosition("generated"),
+      Context("[At node generated for array creation]"),
+      InlineContext("[Node generated for array creation]"),
+    )
+  )
 
   case class ArrayValuesPreconditionFailed(values: Values[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit = error.path match {

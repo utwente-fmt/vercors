@@ -2,7 +2,7 @@ package vct.test.integration.meta
 
 import org.scalatest.flatspec.AnyFlatSpec
 import vct.test.integration.examples._
-import vct.test.integration.helper.{ExampleFiles, VercorsSpec}
+import vct.test.integration.helper._
 
 class ExampleCoverage extends AnyFlatSpec {
   it should "cover all examples in the examples directory" in {
@@ -47,7 +47,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new TechnicalJavaSpec(),
       new TechnicalSpec(),
       new TechnicalStaticSpec(),
-      new TechnicalVeymontSpec(),
+      new TechnicalVeyMontSpec(),
       new TerminationSpec(),
       new TypeValuesSpec(),
       new VerifyThisSpec(),

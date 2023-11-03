@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 object ExpressionEqualityCheck {
   def apply[G](info: Option[AnnotationVariableInfo[G]] = None): ExpressionEqualityCheck[G] = new ExpressionEqualityCheck[G](info)
@@ -156,9 +157,9 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     case _ => isConstantInt(e).getOrElse(0) != 0
   }
 
-  def unfoldComm[B <: BinExpr[G]](e: Expr[G], base: B): Seq[Expr[G]] = {
+  def unfoldComm[B <: BinExpr[G]](e: Expr[G])(implicit tag: ClassTag[B]): Seq[Expr[G]] = {
     e match {
-      case e: B if e.getClass == base.getClass => unfoldComm[B](e.left, base) ++ unfoldComm[B](e.right, base)
+      case e: B /* checked */ => unfoldComm[B](e.left) ++ unfoldComm[B](e.right)
       case _ => Seq(e)
     }
   }
@@ -184,9 +185,9 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       (resLeft, resRight)
     }
 
-    def commAssoc[B <: BinExpr[G]](e1: B, e2: B): Boolean = {
-      val e1s = unfoldComm[B](e1, e1)
-      val e2s = unfoldComm[B](e2, e2)
+    def commAssoc[B <: BinExpr[G]](e1: B, e2: B)(implicit tag: ClassTag[B]): Boolean = {
+      val e1s = unfoldComm[B](e1)
+      val e2s = unfoldComm[B](e2)
 
       val (e1rest, e1Ints) = partitionOptionList(e1s, isConstantInt)
       val (e2rest, e2Ints) = partitionOptionList(e2s, isConstantInt)
@@ -228,8 +229,8 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     (lhs, rhs) match {
       // Unsure if we could check/pattern match on this easier
       // Commutative operators
-      case (lhs@Plus(_, _), rhs@Plus(_, _)) => commAssoc(lhs, rhs)
-      case (lhs@Mult(_, _), rhs@Mult(_, _)) => commAssoc(lhs, rhs)
+      case (lhs@Plus(_, _), rhs@Plus(_, _)) => commAssoc[Plus[G]](lhs, rhs)
+      case (lhs@Mult(_, _), rhs@Mult(_, _)) => commAssoc[Mult[G]](lhs, rhs)
       case (BitAnd(lhs1, lhs2), BitAnd(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (BitOr(lhs1, lhs2), BitOr(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
       case (BitXor(lhs1, lhs2), BitXor(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)

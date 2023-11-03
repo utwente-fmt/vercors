@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CStructAccess, TInt, TNotAValue, Type}
+import vct.col.ast.{CStructAccess, TEnum, TInt, TNotAValue, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
@@ -22,6 +22,8 @@ trait CStructAccessImpl[G] { this: CStructAccess[G] =>
     case ref: BuiltinField[G] => ref.f(struct).t
     case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
     case ref: RefCudaVecDim[G] => TInt()
+    case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
+    case RefProverFunction(decl) => decl.returnType
   }
 
   override def precedence: Int = Precedence.POSTFIX

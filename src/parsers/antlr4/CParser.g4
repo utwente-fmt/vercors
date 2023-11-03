@@ -6,7 +6,7 @@ import LangCParser, SpecParser;
     public int specLevel = 0;
 }
 
-langExpr: expression;
+langExpr: assignmentExpression;
 langId: clangIdentifier;
 langConstInt: Constant;
 langType: typeSpecifierWithPointerOrArray;

@@ -6,6 +6,7 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
+import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -18,19 +19,23 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
   override def key: String = "sideEffects"
   override def desc: String = "Discharge side effects from expression evaluation into its surrounding context."
 
-  case object SideEffectOrigin extends Origin {
-    override def preferredName: String = "flatten"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to collect side effects]"
-    override def inlineContext: String = "[Extracted expression]"
-  }
+  object SideEffectOrigin extends Origin(
+    Seq(
+      PreferredName("flatten"),
+      ShortPosition("generated"),
+      Context("[At node generated to collect side effects]"),
+      InlineContext("[Extracted expression]"),
+    )
+  )
 
-  case object ResultVar extends Origin {
-    override def preferredName: String = "res"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At node generated to contain the result of a method]"
-    override def inlineContext: String = "[Method return value]"
-  }
+  object ResultVar extends Origin(
+    Seq(
+      PreferredName("res"),
+      ShortPosition("generated"),
+      Context("[At node generated to contain the result of a method]"),
+      InlineContext("[Method return value]"),
+    )
+  )
 
   case class DisallowedSideEffect(effector: Expr[_]) extends UserError {
     override def code: String = "sideEffect"
@@ -44,12 +49,14 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
       proofExpression.o.messageInContext("Cannot evaluate this kind of expression here when combined with expressions that have a side effect.")
   }
 
-  case object BreakOrigin extends Origin {
-    override def preferredName: String = "condition_false"
-    override def shortPosition: String = "generated"
-    override def context: String = "[At label generated to jump to when the side-effectful condition is false]"
-    override def inlineContext: String = "[Label: condition false]"
-  }
+  object BreakOrigin extends Origin(
+    Seq(
+      PreferredName("condition_false"),
+      ShortPosition("generated"),
+      Context("[At label generated to jump to when the side-effectful condition is false]"),
+      InlineContext("[Label: condition false]"),
+    )
+  )
 }
 
 case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pre] {
@@ -319,6 +326,29 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case assn: SilverFieldAssign[Pre] => rewriteDefault(assn)
       case assn: SilverLocalAssign[Pre] => rewriteDefault(assn)
       case proof: FramedProof[Pre] => rewriteDefault(proof)
+      case extract: Extract[Pre] => rewriteDefault(extract)
+      case branch: IndetBranch[Pre] => rewriteDefault(branch)
+      case LlvmLoop(cond, contract, body) =>
+        evaluateOne(cond) match {
+          case (Nil, Nil, cond) =>
+            LlvmLoop(cond, dispatch(contract), dispatch(body))
+          case (variables, sideEffects, cond) =>
+            val break = new LabelDecl[Post]()(BreakOrigin)
+
+            Block(Seq(
+              LlvmLoop(tt, dispatch(contract), Block(Seq(
+                Scope(variables,
+                  Block(sideEffects :+ Branch(Seq(Not(cond) -> Goto(break.ref))))),
+                dispatch(body),
+              ))),
+              Label(break, Block(Nil)),
+            ))
+        }
+      case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
+      case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
+      case comm: CommunicateX[Pre] => rewriteDefault(comm)
+      case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
+      case comm: Communicate[Pre] => rewriteDefault(comm)
       case _: CStatement[Pre] => throw ExtraNode
       case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode

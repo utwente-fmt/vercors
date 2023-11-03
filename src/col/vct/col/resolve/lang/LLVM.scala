@@ -25,6 +25,7 @@ object LLVM {
             case Some(ref) => Some(ref._2.decl)
             case None => None
           }
+        case _ => None
       }
     }
   }

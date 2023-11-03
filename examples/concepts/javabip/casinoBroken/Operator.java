@@ -23,9 +23,9 @@ public class Operator {
     int amountToMove;
 
     //@ requires id != null;
+    //@ requires funds >= 0;
     Operator (Integer id, int funds) throws Exception {
         this.id = id;
-        if (funds < 0) throw new Exception("Cannot have negative funds");
         wallet = funds;
         amountToMove = 0;
         //@ ghost System.staticInvariant();

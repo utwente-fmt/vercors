@@ -1,4 +1,3 @@
-import scala.collection.mutable
 import scala.meta._
 
 /**
@@ -18,6 +17,8 @@ object ColDefs {
     q"import vct.col.ref.Ref",
     q"import vct.col.resolve.ctx.Referrable",
     q"import vct.col.origin.ExpectedError",
+    q"import vct.result.VerificationError",
+    q"import vct.col.util.CurrentRewriteNodeContext",
     q"import hre.data.BitString",
   )
 
@@ -41,14 +42,14 @@ object ColDefs {
     "CPPLocalDeclaration",
     "CPPParam",
     "JavaLocalDeclaration",
-    "VeyMontThread",
+    "Endpoint",
     "JavaParam",
   )
 
   def scopes(kind: String): Term.Name =
-    Term.Name(kind.charAt(0).toLower + kind.substring(1) + "s")
+    Term.Name(kind.charAt(0).toLower.toString + kind.substring(1) + "s")
 
-  val DECLARATION_NAMESPACE: mutable.ListMap[String, Seq[String]] = mutable.ListMap(
+  val DECLARATION_NAMESPACE: Map[String, Seq[String]] = Map(
     "GlobalDeclaration" -> Seq("Program"),
     "ClassDeclaration" -> Seq("Program"),
     "ADTDeclaration" -> Seq("Program"),
@@ -101,7 +102,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
-    "VeyMontThread" -> Seq("VeyMontSeqProg"),
+    "Endpoint" -> Seq("SeqProg"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 

@@ -2,12 +2,11 @@ package viper.api.transform
 
 import hre.util.ScopedStack
 import vct.col.ast.{PredicateLocation, SilverFieldLocation}
-import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
+import vct.col.origin.{AccountedDirection, FailLeft, FailRight, ShortPosition}
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.unfoldStar
 import vct.col.{ast => col}
 import vct.result.VerificationError.{SystemError, Unreachable}
-import viper.api.transform.ColToSilver.NotSupported
 import viper.silver.ast.TypeVar
 import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesTuple, DecreasesWildcard}
 import viper.silver.{ast => silver}
@@ -21,11 +20,6 @@ object ColToSilver {
     val cts = ColToSilver(program)
     val p = cts.transform()
     (p, cts.nodeFromUniqueId.toMap)
-  }
-
-  case class NotSupported(node: col.Node[_]) extends SystemError {
-    override def text: String =
-      node.o.messageInContext(s"This kind of node (${node.getClass.getSimpleName}) is not supported by silver directly. Is there a rewrite missing?")
   }
 }
 
@@ -43,6 +37,11 @@ case class ColToSilver(program: col.Program[_]) {
   val currentStarall: ScopedStack[col.Starall[_]] = ScopedStack()
   val currentUnfolding: ScopedStack[col.Unfolding[_]] = ScopedStack()
   val currentMapGet: ScopedStack[col.MapGet[_]] = ScopedStack()
+
+  case class NotSupported(node: col.Node[_]) extends SystemError {
+    override def text: String =
+      program.messageInContext(node, s"This kind of node (${node.getClass.getSimpleName}) is not supported by silver directly. Is there a rewrite missing?")
+  }
 
   def ??(node: col.Node[_]): Nothing =
     throw NotSupported(node)
@@ -93,7 +92,7 @@ case class ColToSilver(program: col.Program[_]) {
     if(names.contains(decl)) {
       ???
     } else {
-      var (name, index) = unpackName(decl.o.preferredName)
+      var (name, index) = unpackName(decl.o.getPreferredNameOrElse())
       name = sanitize(name)
       while(names.values.exists(_ == (name, index)) || silver.utility.Consistency.reservedNames.contains(packName(name, index))) {
         index += 1
@@ -143,7 +142,7 @@ case class ColToSilver(program: col.Program[_]) {
     uniquePosId += 1
     nodeFromUniqueId(uniquePosId) = node
     // Replace : with -, as the colon interferes with z3's quantifier statistics output, which uses a colon as a separator
-    silver.VirtualPosition(s"${node.o.shortPosition.replace(':', '-')};unique_id=$uniquePosId")
+    silver.VirtualPosition(s"${node.o.getShortPosition.getOrElse(ShortPosition("unknown")).shortPosition.replace(':', '-')};unique_id=$uniquePosId")
   }
 
   def transform(): silver.Program = {
@@ -253,7 +252,6 @@ case class ColToSilver(program: col.Program[_]) {
 
   def typ(t: col.Type[_]): silver.Type = t match {
     case col.TBool() => silver.Bool
-    case col.TSYCLQueue() => silver.Ref
     case col.TInt() => silver.Int
     case col.TRational() => silver.Perm
     case col.TRef() => silver.Ref
@@ -358,6 +356,7 @@ case class ColToSilver(program: col.Program[_]) {
         silver.FieldAccessPredicate(silver.FieldAccess(exp(obj), fields(field.decl))(pos=pos(loc), info=expInfo(e)), silver.WildcardPerm()())(pos=pos(e), info=expInfo(e))
       case col.PredicateLocation(predicate, args) =>
         silver.PredicateAccessPredicate(silver.PredicateAccess(args.map(exp), ref(predicate))(pos = pos(loc), NodeInfo(loc)), silver.WildcardPerm()())(pos = pos(e), expInfo(e))
+      case default => ??(default)
     }
     case col.Local(v) => silver.LocalVar(ref(v), typ(v.decl.t))(pos=pos(e), info=expInfo(e))
     case col.SilverDeref(obj, ref) => silver.FieldAccess(exp(obj), fields(ref.decl))(pos=pos(e), info=expInfo(e))

@@ -65,7 +65,7 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
 
   def makeNodeDeserialize(defn: ClassDef): List[Stat] = List(q"""
     def ${Term.Name("deserialize" + defn.baseName)}(node: ${serType(defn.baseName)}): ${defn.typ}[G] =
-      ${defn.make(defn.params.map(deserializeParam(defn)), q"LLVMOrigin(Deserialize.Origin(node.origin, fileName))", q"LLVMOrigin(Deserialize.Origin(node.origin, fileName))")}
+      ${defn.make(defn.params.map(deserializeParam(defn)), q"Origin(node.origin.map(Deserialize.deserialize))", q"Origin(node.origin.map(Deserialize.deserialize))")}
   """)
 
   def makeDeserialize(): List[Stat] = q"""
@@ -73,14 +73,16 @@ case class ColHelperDeserialize(info: ColDescription, proto: ColProto) extends C
     import vct.col.ref.LazyRef
     import scala.collection.mutable
     import scala.reflect.ClassTag
-    import vct.col.origin.LLVMOrigin
 
     object Deserialize {
-      case class Origin(stringOrigin:String="{}", fileName:String="<unknown>") extends vct.col.origin.Origin {
-        override def preferredName: String = "unknown"
-        override def context: String = "At: [deserialized node]"
-        override def inlineContext: String = "[Deserialized node]"
-        override def shortPosition: String = "serialized"
+      def deserialize(originContent: ser.OriginContent): OriginContent = originContent.v match {
+        case ser.OriginContent.V.RequiredName(ser.RequiredName(str, _)) => RequiredName(str)
+        case ser.OriginContent.V.PreferredName(ser.PreferredName(str, _)) => PreferredName(str)
+        case ser.OriginContent.V.FormalName(ser.FormalName(str, _)) => FormalName(str)
+        case ser.OriginContent.V.Context(ser.Context(str, _)) => Context(str)
+        case ser.OriginContent.V.InlineContext(ser.InlineContext(str, _)) => InlineContext(str)
+        case ser.OriginContent.V.ShortPosition(ser.ShortPosition(str, _)) => ShortPosition(str)
+        case ser.OriginContent.V.Empty => ???
       }
 
       def deserializeProgram[G](program: ser.Program, fileName:String="<unknown>"): Program[G] =

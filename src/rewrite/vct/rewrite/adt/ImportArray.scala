@@ -11,12 +11,14 @@ import vct.col.rewrite.Generation
 import scala.collection.mutable
 
 case object ImportArray extends ImportADTBuilder("array") {
-  case class ArrayField(t: Type[_]) extends Origin {
-    override def preferredName: String = typeText(t)
-    override def shortPosition: String = "generated"
-    override def context: String = s"[At field generated for array location of type $t]"
-    override def inlineContext: String = s"[Field generated for array location of type $t]"
-  }
+  private def ArrayField(t: Type[_]): Origin = Origin(
+    Seq(
+      PreferredName(typeText(t)),
+      ShortPosition("generated"),
+      Context(s"[At field generated for array location of type $t]"),
+      InlineContext(s"[Field generated for array location of type $t]"),
+    )
+  )
 
   case class ArrayNullOptNone(inner: Blame[ArrayNull], expr: Expr[_]) extends Blame[OptionNone] {
     override def blame(error: OptionNone): Unit =

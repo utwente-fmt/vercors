@@ -52,7 +52,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     if(childrenErrors.nonEmpty) {
       childrenErrors
     } else {
-      VerificationError.context(CurrentCheckNodeContext(this)) {
+      VerificationError.withContext(CurrentCheckNodeContext(this)) {
         check(context)
       }
     }
@@ -105,9 +105,9 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   private def debugLayout(x: scala.Any)(implicit ctx: Ctx): Doc = x match {
     case n: Node[_] => n.show
     case r: Ref[_, _] => Text("Ref(") <> ctx.name(r) <> ")"
-    case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
     case o: scala.Option[scala.Any] if o.isEmpty => Text("None")
     case o: scala.Option[scala.Any] => Text("Some(") <> debugLayout(o.get) <> ")"
+    case p: scala.Product => Group(Text(p.getClass.getSimpleName) <> "(" <> Doc.args(p.productIterator.map(debugLayout).toSeq) <> ")")
     case i: scala.Iterable[scala.Any] => Group(Text(i.getClass.getSimpleName) <> "(" <> Doc.args(i.map(debugLayout).toSeq) <> ")")
     case other => Text(other.toString)
   }
@@ -128,9 +128,11 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     Group(show).toStringWithContext
   }
 
-
-  def messageInContext(node: Node[_], message: String): String = {
+  def bareMessageInContext(node: Node[_], message: String): String = {
     implicit val ctx: Ctx = Ctx().namesIn(this)
-    BOLD_HR + this.show.highlight(node).strip() + "\n" + HR + message + "\n" + BOLD_HR
+    this.show.highlight(node).strip() + "\n" + HR + message + "\n"
   }
+
+  def messageInContext(node: Node[_], message: String): String =
+    BOLD_HR + bareMessageInContext(node, message) + BOLD_HR
 }

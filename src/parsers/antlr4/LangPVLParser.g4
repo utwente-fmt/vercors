@@ -17,7 +17,7 @@ declClass
 declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProgDecl* '}';
 
 seqProgDecl
- : 'thread' identifier '=' type '(' exprList? ')' ';' # seqProgThread
+ : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
  | runMethod # seqProgRunMethod
  | method # seqProgMethod
  ;
@@ -187,7 +187,19 @@ statement
  | 'goto' identifier ';' # pvlGoto
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
+ | 'communicate' access direction access ';' # pvlCommunicateStatement
  ;
+
+direction
+ : '<-'
+ | '->'
+ ;
+
+access: subject '.' identifier;
+subject
+ : identifier
+ | identifier '[' expr ']'
+ | identifier '[' identifier ':' expr '..' expr ']';
 
 elseBlock: 'else' statement;
 barrierTags: ';' identifierList;
