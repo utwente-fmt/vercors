@@ -7,6 +7,8 @@ import vct.col.origin.Origin.{BOLD_HR, HR}
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
+import scala.util.Try
 
 case object Origin {
   val BOLD_HR = "======================================\n"
@@ -19,17 +21,41 @@ case object Origin {
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }
 
+sealed trait Name
+object Name {
+  case class Required(name: String)
+  case class Preferred(parts: Seq[String])
+}
+
 /***
  * This trait is used to box information about Origins in a structured manner.
  */
-trait OriginContent
+trait OriginContent {
+  /**
+   * Indicates the preferred name or required name for this node. The parts of a preferred name can be joined as
+   * desired for the kind of declaration.
+   */
+  def name(tail: Origin): Option[Name] = None
 
-case class PreferredName(preferredName: String) extends OriginContent
+  /**
+   * The reason that this node exists, typeset in a user-friendly way. The contexts are stacked, so context (i)
+   * can say something about (i+1). For example: Seq("interpreted c source", "Interpreted from:", "c source"), or
+   * Seq("check_sat method for:", "pvl source"). For this method the messages can be multiline, but should not have
+   * a trailing or preceding newline.
+   */
+  def context(tail: Origin): Option[Seq[String]] = None
+
+  /**
+   * Should have the same shape as the context method, but instead provides a sequence of breadcrumbs, e.g.:
+   * Seq("check_sat", "void test() { }")
+   * The part must not contain newlines. Consumers of the inline context should make sure to shorten breadcrumbs and
+   * add an ellipsis where approriate, whereas the definition should not try to shorten the breadcrumb (within reason).
+   */
+  def inlineContext(tail: Origin): Option[Seq[String]] = None
+}
+
+case class PreferredName(preferredName: Seq[String]) extends OriginContent
 case class RequiredName(requiredName: String) extends OriginContent
-case class FormalName(formalName: String) extends OriginContent
-case class Context(context: String) extends OriginContent
-case class InlineContext(inlineContext: String) extends OriginContent
-case class ShortPosition(shortPosition: String) extends OriginContent
 case class ReadableOrigin(readable: Readable) extends OriginContent
 case class StartEndLines(startEndLineIdx: (Int, Int)) extends OriginContent
 case class OriginCols(cols: Option[(Int, Int)]) extends OriginContent
@@ -41,172 +67,109 @@ case class InlineBipContext(bipContext: String) extends OriginContent
 * @param originContents The known origin contents at the time of Origin creation. Can be empty for a new Origin.
  */
 case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
+  def find[T <: OriginContent](implicit tag: ClassTag[T]): Option[T] =
+    originContents.collectFirst {
+      case t: T => t
+    }
 
-  def addPrefName(name: String): Origin = {
-    Origin(originContents :+ PreferredName(name))
+  def get[T <: OriginContent](implicit tag: ClassTag[T]): T = find[T].get
+
+  def consume[T <: OriginContent](implicit tag: ClassTag[T]): Option[(T, Origin)] = {
+    val (left, right) = originContents.span(!_.isInstanceOf[T])
+    right.headOption.map(oc => (oc.asInstanceOf[T], Origin(left ++ right.tail)))
   }
 
-  def replacePrefName(name: String): Origin = {
+  def withContent(content: OriginContent): Origin =
+    Origin(content +: originContents)
+
+  def deleteContent[T <: OriginContent](implicit tag: ClassTag[T]): Origin =
     Origin(originContents.flatMap {
-      case PreferredName(_) => Nil
+      case _: T => Nil
       case other => Seq(other)
-    } :+ PreferredName(name))
-  }
+    })
 
-  def replaceContext(name: String): Origin = {
-    Origin(originContents.flatMap {
-      case Context(_) => Nil
-      case other => Seq(other)
-    } :+ Context(name))
-  }
+  def replaceContent[T <: OriginContent](content: T)(implicit tag: ClassTag[T]): Origin =
+    deleteContent[T].withContent(content)
 
-  def addFilename(filename: String): Origin = {
-    Origin(originContents :+ OriginFilename(filename))
-  }
+  def addPrefName(name: String): Origin =
+    withContent(PreferredName(name))
 
-  def addReqName(name: String): Origin = {
-    Origin(originContents :+ RequiredName(name))
-  }
+  def replacePrefName(name: String): Origin =
+    replaceContent[PreferredName](PreferredName(name))
 
-  def addFormalName(name: String): Origin = {
-    Origin(originContents :+ FormalName(name))
-  }
+  def replaceContext(name: String): Origin =
+    replaceContent[Context](Context(name))
 
-  def addContext(ctx: String): Origin = {
-    Origin(originContents :+ Context(ctx))
-  }
+  def addFilename(filename: String): Origin =
+    withContent(OriginFilename(filename))
 
-  def addShortPosition(shortP: String): Origin = {
-    Origin(originContents :+ ShortPosition(shortP))
-  }
+  def addReqName(name: String): Origin =
+    withContent(RequiredName(name))
 
-  def addInlineContext(inCtx: String): Origin = {
-    Origin(originContents :+ InlineContext(inCtx))
-  }
+  def addFormalName(name: String): Origin =
+    withContent(FormalName(name))
 
-  def addInlineBipContext(bipCtx: String): Origin = {
-    Origin(originContents :+ InlineBipContext(bipCtx))
-  }
+  def addContext(ctx: String): Origin =
+    withContent(Context(ctx))
 
-  def addReadableOrigin(readable: Readable): Origin = {
-    Origin(originContents :+ ReadableOrigin(readable))
-  }
+  def addShortPosition(shortP: String): Origin =
+    withContent(ShortPosition(shortP))
 
-  def addStartEndLines(startIdx: Int, endIdx: Int): Origin = {
-    Origin(originContents :+ StartEndLines(startIdx, endIdx))
-  }
+  def addInlineContext(inCtx: String): Origin =
+    withContent(InlineContext(inCtx))
 
-  def addOriginCols(cols: Option[(Int, Int)]): Origin = {
-    Origin(originContents :+ OriginCols(cols))
-  }
+  def addInlineBipContext(bipCtx: String): Origin =
+    withContent(InlineBipContext(bipCtx))
 
-  def getReadable: Option[ReadableOrigin] = {
-    originContents.flatMap {
-      case ReadableOrigin(any1) => Seq(ReadableOrigin(any1))
-      case _ => Nil
-    } match {
-      case Seq(ReadableOrigin(any1)) => Some(ReadableOrigin(any1))
-      case _ => None
-    }
-  }
+  def addReadableOrigin(readable: Readable): Origin =
+    withContent(ReadableOrigin(readable))
 
+  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
+    withContent(StartEndLines(startIdx, endIdx))
 
-  def getContext: Option[Context] = {
-    originContents.flatMap {
-      case Context(any) => Seq(Context(any))
-      case _ => Nil
-    } match {
-      case Seq(Context(any)) => Some(Context(any))
-      case _ => // if there is no context, try to infer it
-        Some(Context(InputOrigin.contextLines(
-          getReadable.getOrElse(return None).readable,
-          getStartEndLines.getOrElse(return None).startEndLineIdx._1,
-          getStartEndLines.getOrElse(return None).startEndLineIdx._2,
-          getOriginCols.getOrElse(return None).cols)))
-    }
-  }
+  def addOriginCols(cols: Option[(Int, Int)]): Origin =
+    withContent(OriginCols(cols))
 
-  def getPreferredName: Option[String] = {
-    originContents.flatMap {
-      case PreferredName(any) => Seq(PreferredName(any))
-      case _ => Nil
-    } match {
-      case Seq(PreferredName(any)) => Some(any)
-      case _ => None
-    }
-  }
+  def findReadable: Option[ReadableOrigin] = find[ReadableOrigin]
 
-  def getPreferredNameOrElse(name: String = "unknown"): String = {
+  def getContext: Option[Context] =
+    find[Context]
+      .orElse(Try {
+        Context(InputOrigin.contextLines(
+          get[ReadableOrigin].readable,
+          get[StartEndLines].startEndLineIdx._1,
+          get[StartEndLines].startEndLineIdx._2,
+          get[OriginCols].cols,
+        ))
+      }.toOption)
+
+  def getPreferredName: Option[String] = find[PreferredName].map(_.preferredName)
+
+  def getPreferredNameOrElse(name: String = "unknown"): String =
     getPreferredName.getOrElse(name)
-  }
 
-  def getInlineContext: Option[InlineContext] = {
-    originContents.flatMap {
-      case InlineContext(any) => Seq(InlineContext(any))
-      case _ => Nil
-    } match {
-      case Seq(InlineContext(any)) => Some(InlineContext(any))
-      case _ => None
-    }
-  }
+  def getInlineContext: Option[InlineContext] = find[InlineContext]
 
-  def getInlineContextOrElse(ctx: String = "[unknown inline context]"): String = {
+  def getInlineContextOrElse(ctx: String = "[unknown inline context]"): String =
     getInlineContext.getOrElse(InlineContext(ctx)).inlineContext
-  }
 
-  def getInlineBipContext: Option[InlineBipContext] = {
-    originContents.flatMap {
-      case InlineBipContext(any) => Seq(InlineBipContext(any))
-      case _ => Nil
-    } match {
-      case Seq(InlineBipContext(any)) => Some(InlineBipContext(any))
-      case _ => None
-    }
-  }
+  def getInlineBipContext: Option[InlineBipContext] =
+    find[InlineBipContext]
 
-  def getFilename: Option[OriginFilename] = {
-    originContents.flatMap {
-      case OriginFilename(any) => Seq(OriginFilename(any))
-      case _ => Nil
-    } match {
-      case Seq(OriginFilename(any)) => Some(OriginFilename(any))
-      case _ => None
-    }
-  }
+  def getFilename: Option[OriginFilename] =
+    find[OriginFilename]
 
-  def getShortPosition: Option[ShortPosition] = {
-    originContents.flatMap {
-      case ShortPosition(any) => Seq(ShortPosition(any))
-      case _ => Nil
-    } match {
-      case Seq(ShortPosition(any)) => Some(ShortPosition(any))
-      case _ => None
-    }
-  }
+  def getShortPosition: Option[ShortPosition] =
+    find[ShortPosition]
 
-  def getShortPositionOrElse(shortPos: String = "[unknown position]"): String = {
+  def getShortPositionOrElse(shortPos: String = "[unknown position]"): String =
     getShortPosition.getOrElse(ShortPosition(shortPos)).shortPosition
-  }
 
-  def getStartEndLines: Option[StartEndLines] = {
-    originContents.flatMap {
-      case StartEndLines(any) => Seq(StartEndLines(any))
-      case _ => Nil
-    } match {
-      case Seq(StartEndLines(any)) => Some(StartEndLines(any))
-      case _ => None
-    }
-  }
+  def getStartEndLines: Option[StartEndLines] =
+    find[StartEndLines]
 
-  def getOriginCols: Option[OriginCols] = {
-    originContents.flatMap {
-      case OriginCols(any) => Seq(OriginCols(any))
-      case _ => Nil
-    } match {
-      case Seq(OriginCols(any)) => Some(OriginCols(any))
-      case _ => None
-    }
-  }
+  def getOriginCols: Option[OriginCols] =
+    find[OriginCols]
 
   def bareMessageInContext(message: String): String = {
     val contextMessage = getContext match {
