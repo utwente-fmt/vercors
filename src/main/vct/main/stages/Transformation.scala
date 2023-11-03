@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.runtime.{CreateArrayPermissions, CreateFieldPermissions, CreateLocking, CreateLoopInvariants, CreatePredicates, CreateQuantifiers, RefactorGeneratedCode, RemoveSelfLoops}
+import vct.rewrite.runtime.{CreateArrayPermissions, CreateFieldPermissions, CreateLocking, CreateLoopInvariants, CreatePredicates, CreateQuantifiers, GenerateJava, RefactorGeneratedCode, RemoveSelfLoops}
 
 object Transformation {
 
@@ -330,5 +330,7 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
 
     CreatePredicates,
     CreateLocking,
-    CreateLoopInvariants
+    CreateLoopInvariants,
+
+//    GenerateJava
   ))

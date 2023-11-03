@@ -2,7 +2,7 @@ package vct.col.ast.declaration.global
 
 import vct.col.ast.Class
 import vct.col.ast.util.Declarator
-import vct.col.origin.ReadableOrigin
+import vct.col.origin.{ReadableOrigin, ShortPosition}
 import vct.col.print._
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers.tt
@@ -23,14 +23,20 @@ trait ClassImpl[G] extends Declarator[G] {
     Text("lock_invariant") <+> intrinsicLockInvariant <+/> Empty
 
   private def searchInClassDeclaration(regex: Regex): Doc = {
-    val readableOrigin: ReadableOrigin = this.o.getReadable.get
-    val start = this.o.getStartEndLines.get.startEndLineIdx._1
-    val classDeclaration = readableOrigin.readable.readLines()(start)
-    regex.findFirstMatchIn(classDeclaration) match {
-      case Some(matched) =>
-        Text(matched.toString())
+    val readableOrigin = this.o.getReadable
+    readableOrigin match {
+      case Some(ro: ReadableOrigin) => {
+        val start = this.o.getStartEndLines.get.startEndLineIdx._1
+        val classDeclaration = ro.readable.readLines()(start)
+        regex.findFirstMatchIn(classDeclaration) match {
+          case Some(matched) =>
+            Text(matched.toString())
+          case None => Empty
+        }
+      }
       case None => Empty
     }
+
   }
 
   def classOrInterfaceDoc(): Doc =
@@ -60,17 +66,25 @@ trait ClassImpl[G] extends Declarator[G] {
     }
   }
 
+  def fromLibrary(): Boolean = {
+    this.o.originContents.collectFirst{case sp: ShortPosition => sp}.nonEmpty
+  }
+
 
   override def layout(implicit ctx: Ctx): Doc = {
     val classOrInterface = classOrInterfaceDoc()
     val extension = extendsDoc()
     val implements = implementsDoc()
 
-    (if (intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>
-      Group(
-        classOrInterface <+> ctx.name(this) <+> extension <+> implements <+> "{"
-      ) <>>
-      Doc.stack(declarations) <+/>
-      "}"
+    if (fromLibrary()) {
+      Empty
+    } else {
+      (if (intrinsicLockInvariant == tt[G]) Empty else Doc.spec(Show.lazily(layoutLockInvariant(_)))) <>
+        Group(
+          classOrInterface <+> ctx.name(this) <+> extension <+> implements <+> "{"
+        ) <>>
+        Doc.stack(declarations) <+/>
+        "}"
+    }
   }
 }

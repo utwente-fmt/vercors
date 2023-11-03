@@ -3,9 +3,12 @@ package vct.rewrite.runtime.util
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteDeref}
 import vct.col.ast._
+import vct.col.print.Ctx
 import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
+
+import scala.util.Try
 
 case class CreateConstructor[Pre <: Generation](outer : Rewriter[Pre], val givenClassSucc: SuccessionMap[Type[Pre], Class[Rewritten[Pre]]]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
@@ -59,7 +62,7 @@ case class CreateConstructor[Pre <: Generation](outer : Rewriter[Pre], val given
           case other => rewriteDefault(other)
         }
       else rewriteDefault(d)
-    case other => rewriteDefault(other)
+    case other => super.dispatch(other)
   }
 
 }

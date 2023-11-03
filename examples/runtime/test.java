@@ -1,7 +1,8 @@
 class C {
+
 }
 
-class Test {
+class Test implements Runnable{
 
     private C x;
 
@@ -14,5 +15,7 @@ class Test {
 
     }
 
+    public void run() {
 
+    }
 }

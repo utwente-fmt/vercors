@@ -42,7 +42,10 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-      case p: Procedure[Pre] => givenClassConstrSucc.update(p.returnType, p)
+      case p: Procedure[Pre] => {
+        givenClassConstrSucc.update(p.returnType, p)
+        rewriteDefault(p)
+      }
       case c: Class[Pre] =>
         val classOrInterface = c.classOrInterfaceDoc()
         classOrInterface match {
