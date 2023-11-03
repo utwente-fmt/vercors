@@ -457,8 +457,16 @@ case class CToCol[G](override val originProvider: OriginProvider, override val b
 
   def convert(implicit typeName: TypeNameContext): Type[G] = typeName match {
     case TypeName0(specifiers, None) => CPrimitiveType(convert(specifiers))
-    case TypeName0(specifiers, Some(AbstractDeclarator0(Pointer0(_, None)))) => CTPointer(CPrimitiveType(convert(specifiers)))
+    case TypeName0(specifiers, Some(AbstractDeclarator0(pointer))) => convert(pointer, convert(specifiers))
     case TypeName0(_, _) => ??(typeName)
+  }
+
+  def convert(implicit pointer: PointerContext, specifiers: Seq[CDeclarationSpecifier[G]]): Type[G] = pointer match {
+    case Pointer0(_, None) => CTPointer(CPrimitiveType(specifiers))
+    case Pointer1(_, None, p) => CTPointer(convert(p, specifiers))
+    case Pointer2(_, None) => CTPointer(CTPointer(CPrimitiveType(specifiers)))
+    case Pointer3(_, None, p) => CTPointer(CTPointer(convert(p, specifiers)))
+    case _ =>  ??(pointer)
   }
 
   def convert(implicit specifiers: SpecifierQualifierListContext): Seq[CDeclarationSpecifier[G]] = specifiers match {

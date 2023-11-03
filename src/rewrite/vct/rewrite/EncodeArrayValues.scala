@@ -5,6 +5,7 @@ import vct.col.ast.{Expr, _}
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{AbstractApplicable, ArraySize, ArraySizeError, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, ContextEverywhereFailedInPre, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, InvocationFailure, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, TriggerPatternBlame, TrueSatisfiable, VerificationFailure}
 import vct.col.resolve.lang.Java
+import vct.col.rewrite.lang.LangCToCol.UnsupportedStructPerm
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.typerules.CoercionUtils
 import vct.col.util.AstBuildHelpers
@@ -69,7 +70,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
   val arrayCreationMethods: mutable.Map[(Type[Pre], Int, Int, Boolean), Procedure[Post]] = mutable.Map()
 
-  val pointerArrayCreationMethods: mutable.Map[(Type[Pre]), Procedure[Post]] = mutable.Map()
+  val pointerArrayCreationMethods: mutable.Map[Type[Pre], Procedure[Post]] = mutable.Map()
 
   def makeFunctionFor(arrayType: TArray[Pre]): Function[Post] = {
     implicit val o: Origin = ValuesFunctionOrigin()
@@ -180,25 +181,74 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     }))
   }
 
+  def unwrapStructPerm(struct: Expr[Post], structType: TClass[Post], origin: Origin, visited: Seq[TClass[Post]] = Seq()): Seq[Expr[Post]] = {
+    if (visited.contains(structType)) throw UnsupportedStructPerm(origin) // We do not allow this notation for recursive structs
+    implicit val o: Origin = origin
+    val blame = PanicBlame("Cannot Fail")
+
+    val fields = structType match {
+      case TClass(ref) => ref.decl.declarations.collect { case field: InstanceField[Post] => field }
+      case _ => Seq()
+    }
+    val newFieldPerms = fields.map(member => {
+      val loc = Deref[Post](struct, member.ref)(blame)
+      val locPerm = Perm(FieldLocation[Post](struct, member.ref), WritePerm())
+      member.t match {
+        case newStruct: TClass[Post] =>
+          // We recurse, since a field is another struct
+          locPerm +: unwrapStructPerm(loc, newStruct, origin, structType +: visited)
+        case _ => Seq(locPerm)
+      }
+    })
+
+    newFieldPerms.flatten
+  }
+
+  def typeIsRef(t: Type[_]): Boolean = t match {
+    case _ : TClass[_] => true
+    case _ : TPointer[_] => true
+    case _ => false
+  }
+
   def makePointerCreationMethodFor(elementType: Type[Pre]) = {
     implicit val o: Origin = ArrayCreationOrigin()
     // ar != null
     // ar.length == dim0
     // forall ar[i] :: Perm(ar[i], write)
     val sizeArg = new Variable[Post](TInt())(ArrayCreationOrigin("size"))
+    val zero =  const[Post](0)
 
     globalDeclarations.declare(withResult((result: Result[Post]) => {
       val blame = PanicBlame("Already checked")
-      val requires = GreaterEq(sizeArg.get, const[Post](0))
-      val binding = new Variable[Post](TInt())(ArrayCreationOrigin("i"))
-      val access = PointerAdd(result, binding.get)(blame)
+      val requires = sizeArg.get >= zero
+      val i = new Variable[Post](TInt())(ArrayCreationOrigin("i"))
+      val j = new Variable[Post](TInt())(ArrayCreationOrigin("j"))
+      val directAccess = PointerAdd(result, i.get)(blame)
+      val access = PointerSubscript(result, i.get)(blame)
+      val permFields = dispatch(elementType) match {
+        case t: TClass[Post] => unwrapStructPerm(access, t, o)
+        case _ => Seq()
+      }
+      val forallPermFields: Seq[Expr[Post]] = permFields.map(fieldPerm => {
+        val body = (zero <= i.get && i.get < sizeArg.get) ==> fieldPerm
+        Starall(Seq(i), Seq(Seq(directAccess)), body)(blame)
+      })
 
-      val body = (const[Post](0) <= binding.get && binding.get < sizeArg.get) ==> Perm(PointerLocation(access)(blame), WritePerm())
-      val forall = Starall(Seq(binding), Seq(Seq(access)), body)(blame)
-      val ensures = (result !== Null()) &*
+      val body = (zero <= i.get && i.get < sizeArg.get) ==> Perm(PointerLocation(directAccess)(blame), WritePerm())
+      val forall = Starall(Seq(i), Seq(Seq(directAccess)), body)(blame)
+      var ensures = (result !== Null()) &*
         (PointerBlockLength(result)(blame) === sizeArg.get) &*
-        (PointerBlockOffset(result)(blame) === const[Post](0)) &*
+        (PointerBlockOffset(result)(blame) === zero) &*
         forall
+      ensures = if (!typeIsRef(elementType)) ensures else {
+        val pre1 = zero <= i.get && i.get < sizeArg.get
+        val pre2 = zero <= j.get && j.get < sizeArg.get
+        val body = (pre1 && pre2 && (i.get !== j.get)) ==>
+          (PointerSubscript(result, i.get)(blame) !== PointerSubscript(result, j.get)(blame))
+        val unique = Forall(Seq(i, j), Seq(), body)
+        ensures &* unique
+      }
+      ensures = if (forallPermFields.isEmpty) ensures else ensures &* foldStar(forallPermFields)
 
       procedure(
         blame = AbstractApplicable,

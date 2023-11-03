@@ -290,13 +290,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case CCast(e, t) if (isFloat(t) && isRatFloatOrInt(e.t)) || (isRatFloatOrInt(t) && isFloat(e.t)) =>
       // We can convert between rationals, integers and floats
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
-    case CCast(CInvocation(CLocal("malloc"), Seq(SizeOf(t1)), Nil, Nil), CTPointer(t2))
-      if t1 == t2 => NewPointerArray(rw.dispatch(t1), const(1)(c.o))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
-    case CCast(CInvocation(CLocal("malloc"), Seq(AmbiguousMult(l, SizeOf(t1))), Nil, Nil), CTPointer(t2))
-      if t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(l))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
-    case CCast(CInvocation(CLocal("malloc"), Seq(AmbiguousMult(SizeOf(t1), r)), Nil, Nil), CTPointer(t2))
-      if t1 == t2 => NewPointerArray(rw.dispatch(t1), rw.dispatch(r))(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
-    case CCast(CInvocation(CLocal(name), _, _, _), _) if name == "malloc" => throw UnsupportedMalloc(c)
+    case CCast(CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil), CTPointer(t2)) =>
+      val (t1, size) = arg match {
+        case SizeOf(t1) => (t1, const[Post](1)(c.o))
+        case AmbiguousMult(l, SizeOf(t1)) => (t1, rw.dispatch(l))
+        case AmbiguousMult(SizeOf(t1), r) => (t1, rw.dispatch(r))
+        case _ => throw UnsupportedMalloc(c)
+      }
+      NewPointerArray(rw.dispatch(t1), size)(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+    case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) => throw UnsupportedMalloc(c)
     case _ => throw UnsupportedCast(c)
   }
 
@@ -1062,15 +1064,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val f = decls.decl.inits(idx)
 
     val args = C.getDeclaratorInfo(decls.decl.inits(idx).decl).params.get
-//    decls.decl.inits(initIdx).decl
 
     implicit val o: Origin = FreeFuncOrigin()
     rw.globalDeclarations.declare({
       val (vars, ptr) = rw.variables.collect {
         val Seq(v: CParam[Pre]) = args
-//        v.drop()
         val a_var = new Variable[Post](TPointer(t))(v.o)
-//        cNameSuccessor(RefCParam(v)) = a_var
         rw.variables.declare(a_var)
         Local[Post](a_var.ref)
       }
@@ -1277,7 +1276,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     (e.name, args, givenMap, yields) match {
       case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
-      case("free", Seq(xs), _, _) if isCPointer(xs.t) =>
+      case("__vercors_free", Seq(xs), _, _) if isCPointer(xs.t) =>
         val newXs = rw.dispatch(xs)
         val TPointer(t) = newXs.t
         val free = freeMethods.getOrElseUpdate(t, makeFree(t, e))
