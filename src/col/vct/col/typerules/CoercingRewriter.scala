@@ -1672,6 +1672,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
       case Communicate(r, s) => Communicate(r, s)
+      /*
+      case a @ Assign(target, value) =>
+        try { Assign(target, coerce(value, target.t))(a.blame) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
+      * */
       case PVLSeqAssign(r, f, v) => PVLSeqAssign(r, f, v)
       case SeqAssign(r, f, v) => SeqAssign(r, f, v)
     }
