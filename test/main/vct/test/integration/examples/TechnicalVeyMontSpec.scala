@@ -158,4 +158,15 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
   }
   """
+
+  vercors should error withCode "resolutionError:type" in "Assign must be well-typed" pvl
+  """
+  class C { int x; }
+  seq_program C() {
+    endpoint charlie = C();
+    seq_run {
+      charlie.x := true;
+    }
+  }
+  """
 }
