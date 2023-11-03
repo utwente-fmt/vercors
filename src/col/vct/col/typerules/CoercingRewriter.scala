@@ -24,6 +24,7 @@ case object CoercingRewriter {
           case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
           case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
           case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+          case WrongType(n, expectedType, actualType) => s"$n was expected to have type $expectedType, but turned out to have type $actualType"
         })
       )
   }
@@ -35,6 +36,8 @@ case object CoercingRewriter {
   case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
 
   case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
+
+  case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
 
   private def coercionOrigin(of: Expr[_]): Origin = {
     of.o.replacePrefName("unknown")
@@ -1670,8 +1673,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case PVLCommunicate(s, r) => PVLCommunicate(s, r)
-      case Communicate(r, s) => Communicate(r, s)
+      case PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case PVLCommunicate(s, r) => throw WrongType(s, r.fieldType, s.fieldType)
+      case Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case Communicate(r, s) => throw WrongType(s, r.field.decl.t, s.field.decl.t)
       case PVLSeqAssign(r, f, v) =>
         try { PVLSeqAssign(r, f, coerce(v, f.decl.t)) } catch {
           case err: Incoercible =>

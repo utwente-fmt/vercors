@@ -169,4 +169,17 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
   }
   """
+
+  vercors should error withCode "resolutionError:type" in "Communicating parties must agree on the type" pvl
+  """
+  class C { int c; }
+  class A { bool a; }
+  seq_program C() {
+    endpoint alice = A();
+    endpoint charlie = C();
+    seq_run {
+      communicate charlie.c <- alice.a;
+    }
+  }
+  """
 }
