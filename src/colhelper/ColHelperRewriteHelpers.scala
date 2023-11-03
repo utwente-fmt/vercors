@@ -7,15 +7,15 @@ case class ColHelperRewriteHelpers(info: ColDescription) extends ColHelperMaker 
     Term.Param(List(),
       param.name,
       Some(Type.ByName(ColHelperUtil.substituteTypeName("G", Type.Name("Post"))(param.decltpe.get))),
-      Some(info.rewriteDefault(Term.Select(q"subject", Term.Name(param.name.value)), param.decltpe.get)))
+      Some(info.rewriteDefault(Term.Select(q"_subject", Term.Name(param.name.value)), param.decltpe.get)))
 
   def makeRewriteHelperImpl(cls: ClassDef): (String, List[Stat]) = ("Rewrite" + cls.baseName + "Impl") -> List(q"""
     trait ${Type.Name("Rewrite" + cls.baseName + "Impl")}[Pre, Post] { this: RewriteHelpers.${cls.rewriteHelperName}[Pre, Post] =>
       def rewriteDefault(): ${cls.typ}[Post] = rewrite()
 
       def rewrite(..${cls.params.map(rewriteHelperParam) ++
-        cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"rewriter.dispatch(subject.blame)"))) :+
-        Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(subject.o)"))}): ${cls.typ}[Post] = {
+        cls.blameType.toSeq.map(t => Term.Param(Nil, q"blame", Some(t), Some(q"rewriter.dispatch(_subject.blame)"))) :+
+        Term.Param(List(), q"o", Some(t"Origin"), Some(q"rewriter.dispatch(_subject.o)"))}): ${cls.typ}[Post] = VerificationError.withContext(CurrentRewriteNodeContext(_subject)) {
         ${ColDefs.DECLARATION_NAMESPACE.foldLeft(
           cls.make(cls.params.map(p => Term.Name(p.name.value)), q"blame", q"o")
         ){
@@ -28,7 +28,7 @@ case class ColHelperRewriteHelpers(info: ColDescription) extends ColHelperMaker 
   """)
 
   def makeRewriteHelper(cls: ClassDef): Stat = q"""
-    implicit class ${cls.rewriteHelperName}[Pre, Post](val subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post])
+    implicit class ${cls.rewriteHelperName}[Pre, Post](val _subject: ${cls.typ}[Pre])(implicit val rewriter: AbstractRewriter[Pre, Post])
       extends ${Template(Nil, List(Init(t"${Type.Name("Rewrite" + cls.baseName + "Impl")}[Pre, Post]", Name.Anonymous(), Nil)), Self(Name.Anonymous(), None), Nil)}
   """
 

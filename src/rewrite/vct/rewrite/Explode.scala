@@ -16,8 +16,9 @@ case object Explode extends RewriterBuilderArg[Boolean] {
   override def key: String = "explode"
   override def desc: String = "Split out verifications over entities, by eliding unrelated declarations and abstracting relevant ones."
 
-  case class UnknownDeclaration(decl: Declaration[_]) extends SystemError {
-    override def text: String = s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}"
+  case class UnknownDeclaration(program: Program[_], decl: Declaration[_]) extends SystemError {
+    override def text: String =
+      program.messageInContext(decl, s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}")
   }
 
   private def ExplodeOrigin: Origin = Origin(
@@ -163,7 +164,7 @@ case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {
       case func: Function[Pre] => funcs += func
       case pred: Predicate[Pre] => preds += pred
       case proc: Procedure[Pre] => procs += proc
-      case other => throw UnknownDeclaration(other)
+      case other => throw UnknownDeclaration(program, other)
     }
 
     FocusedProgram(adts.toSeq, fields.toSeq, funcs.toSeq, preds.toSeq, preds.toSeq, procs.toSeq, procs.toSeq)

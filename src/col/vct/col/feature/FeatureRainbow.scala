@@ -140,7 +140,7 @@ class FeatureRainbow[G] {
     case node: CoerceNullRef[G] => Coercions
     case node: CoerceRatZFrac[G] => Coercions
     case node: CoerceSelectUnion[G] => Coercions
-    case node: CoerceSomethingAny[G] => Coercions
+    case node: CoerceSomethingAnyValue[G] => Coercions
     case node: CoerceSupports[G] => Coercions
     case node: CoerceUnboundInt[G] => Coercions
     case node: CoerceWidenBound[G] => Coercions
@@ -279,6 +279,7 @@ class FeatureRainbow[G] {
     case node: SignalsClause[G] => Exceptions
 
     case node: TAny[G] => ExoticTypes
+    case node: TAnyValue[G] => ExoticTypes
     case node: TNothing[G] => ExoticTypes
     case node: TUnion[G] => ExoticTypes
     case node: TBoundedInt[G] => ExoticTypes

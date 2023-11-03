@@ -8,12 +8,13 @@ import vct.col.origin.RedirectOrigin.StringReadable
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx.RefLlvmFunctionDefinition
 import vct.col.rewrite.lang.LangLLVMToCol.UnexpectedLlvmNode
-import vct.col.util.SuccessionMap
+import vct.col.util.{CurrentProgramContext, SuccessionMap}
 import vct.result.VerificationError.SystemError
 
 case object LangLLVMToCol {
   case class UnexpectedLlvmNode(node: Node[_]) extends SystemError {
-    override def text: String = node.o.messageInContext("VerCors assumes this node does not occur here in llvm input.")
+    override def text: String =
+      CurrentProgramContext.nodeContext(this, node, "VerCors assumes this node does not occur here in llvm input.")
   }
 }
 

@@ -12,6 +12,7 @@ import vct.col.resolve.lang.Java
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
+import vct.rewrite.lang.LangVeyMontToCol
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -38,6 +39,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
   val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
+  val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
 
@@ -97,11 +99,6 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
       currentThis.having(ThisModel[Post](succ(model))) {
         globalDeclarations.succeed(model, model.rewrite())
       }
-    case seqProg: VeyMontSeqProg[Pre] =>
-      implicit val o: Origin = seqProg.o
-      currentThis.having(ThisSeqProg[Post](succ(seqProg))) {
-        globalDeclarations.succeed(seqProg, seqProg.rewrite())
-      }
 
     case ns: JavaNamespace[Pre] => java.rewriteNamespace(ns)
     case cls: JavaClassOrInterface[Pre] => java.rewriteClass(cls)
@@ -145,6 +142,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case glue: JavaBipGlueContainer[Pre] => bip.rewriteGlue(glue)
 
+    case seqProg: PVLSeqProg[Pre] => veymont.rewriteSeqProg(seqProg)
+
     case other => rewriteDefault(other)
   }
 
@@ -171,7 +170,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
-    case communicate: PVLCommunicate[Pre] => pvl.communicate(communicate)
+    case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
+
     case other => rewriteDefault(other)
   }
 

@@ -346,7 +346,9 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         }
       case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
       case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
-      case expr: VeyMontCommExpression[Pre] => rewriteDefault(expr)
+      case comm: CommunicateX[Pre] => rewriteDefault(comm)
+      case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
+      case comm: Communicate[Pre] => rewriteDefault(comm)
       case _: CStatement[Pre] => throw ExtraNode
       case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode

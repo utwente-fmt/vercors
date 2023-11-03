@@ -18,12 +18,14 @@ case class NopCoercingRewriter[Pre <: Generation]() extends CoercingRewriter[Pre
 case object CoercingRewriter {
   sealed trait CoercionError extends SystemError {
     override def text: String =
-      "Internal type error: CoercionErrors must not bubble. " + (this match {
-        case IncoercibleDummy => "(No alternative matched, see stack trace)"
-        case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
-        case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
-        case IncoercibleExplanation(e, message) => s"At `$e`: $message"
-      })
+      messageContext(
+        "Internal type error: CoercionErrors must not bubble. " + (this match {
+          case IncoercibleDummy => "(No alternative matched, see stack trace)"
+          case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
+          case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
+          case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+        })
+      )
   }
 
   case object IncoercibleDummy extends CoercionError
@@ -67,6 +69,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoercionSequence(cs) => cs.foldLeft(e) { case (e, c) => applyCoercion(e, c) }
       case CoerceNothingSomething(_) => e
       case CoerceSomethingAny(_) => e
+      case CoerceSomethingAnyValue(_) => e
       case CoerceMapOption(inner, _, target) =>
         Select(OptEmpty(e), OptNoneTyped(dispatch(target)), OptSomeTyped(dispatch(target), applyCoercion(OptGet(e)(NeverNone), inner)))
       case CoerceMapEither((innerLeft, innerRight), _, _) =>
@@ -165,6 +168,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ???
 
       case CoerceBoolResource() => e
+      case CoerceResourceResourceVal() => e
+      case CoerceResourceValResource() => e
       case CoerceBoundIntFrac() => e
       case CoerceBoundIntZFrac(_) => e
       case CoerceBoundIntFloat(_, _) => e
@@ -250,6 +255,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: SmtlibFunctionSymbol[Pre] => node
     case node: PVLCommunicateAccess[Pre] => node
     case node: PVLCommunicateSubject[Pre] => node
+    case node: SeqRun[Pre] => node
+    case node: Access[Pre] => node
+    case node: Subject[Pre] => node
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -459,6 +467,18 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
   def postCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
   override final def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Access[Pre]): Access[Pre] = node
+  def postCoerce(node: Access[Pre]): Access[Post] = rewriteDefault(node)
+  override final def dispatch(node: Access[Pre]): Access[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: Subject[Pre]): Subject[Pre] = node
+  def postCoerce(node: Subject[Pre]): Subject[Post] = rewriteDefault(node)
+  override final def dispatch(node: Subject[Pre]): Subject[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: SeqRun[Pre]): SeqRun[Pre] = node
+  def postCoerce(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
+  override final def dispatch(node: SeqRun[Pre]): SeqRun[Post] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -952,7 +972,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         DerefHeapVariable(ref)(deref.blame)
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
-      case deref @ DerefVeyMontThread(ref) => deref
+      case deref @ EndpointUse(_) => deref
       case div @ Div(left, right) =>
         firstOk(e, s"Expected both operands to be rational.",
           // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
@@ -1271,6 +1291,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         ReadPerm()
       case RemoveAt(xs, i) =>
         RemoveAt(seq(xs)._1, int(i))
+      case ResourceOfResourceValue(r) =>
+        ResourceOfResourceValue(coerce(r, TResourceVal()))
+      case ResourceValue(r) =>
+        ResourceValue(res(r))
       case Result(ref) =>
         Result(ref)
       case s @ Scale(scale, r) =>
@@ -1561,11 +1585,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Z3SeqLen(arg) => Z3SeqLen(z3seq(arg)._1)
       case Z3SeqMap(f, seq) =>
         val (cf, arrt) = smtarr(f)
-        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAny()), arrt.value))
+        if(arrt.index.size != 1) coerce(f, TSmtlibArray(Seq(TAnyValue()), arrt.value))
         Z3SeqMap(cf, coerce(seq, TSmtlibSeq(arrt.index.head)))
       case Z3SeqMapI(f, offset, seq) =>
         val (cf, arrt) = smtarr(f)
-        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAny()), arrt.value))
+        if(arrt.index.size != 2) coerce(f, TSmtlibArray(Seq(TInt(), TAnyValue()), arrt.value))
         Z3SeqMapI(cf, int(offset), coerce(seq, TSmtlibSeq(arrt.index(1))))
       case Z3SeqNth(seq, offset) => Z3SeqNth(z3seq(seq)._1, int(offset))
       case Z3SeqPrefixOf(pre, subseq) => Z3SeqPrefixOf(z3seq(pre)._1, z3seq(subseq)._1)
@@ -1653,8 +1677,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandApply(assn) => WandApply(res(assn))(w.blame)
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
-      case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
+      case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
+      case Communicate(r, s) => Communicate(r, s)
     }
   }
 
@@ -1769,8 +1794,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           case JavaVariableDeclaration(name, dims, Some(v)) =>
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
-      case seqProg: VeyMontSeqProg[Pre] => seqProg
-      case thread: VeyMontThread[Pre] => thread
+      case seqProg: SeqProg[Pre] => seqProg
+      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.args)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
@@ -1797,6 +1822,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case function: LlvmSpecFunction[Pre] =>
         new LlvmSpecFunction[Pre](function.name, function.returnType, function.args, function.typeArgs, function.body.map(coerce(_, function.returnType)), function.contract, function.inline, function.threadLocal)(function.blame)
       case glob: LlvmGlobal[Pre] => glob
+      case endpoint: PVLEndpoint[Pre] => endpoint
+      case seqProg: PVLSeqProg[Pre] => seqProg
       }
   }
 
@@ -2135,4 +2162,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
 
   def coerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
   def coerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
+  def coerce(node: SeqRun[Pre]): SeqRun[Pre] = node
+  def coerce(node: Access[Pre]): Access[Pre] = node
+  def coerce(node: Subject[Pre]): Subject[Pre] = node
 }

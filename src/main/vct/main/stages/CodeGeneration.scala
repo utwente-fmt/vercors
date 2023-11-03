@@ -9,7 +9,7 @@ import vct.importer.Util
 import vct.main.stages.Transformation.writeOutFunctions
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
-import vct.rewrite.veymont.ParalleliseVeyMontThreads
+import vct.rewrite.veymont.ParalleliseEndpoints
 
 object CodeGeneration {
 
@@ -63,5 +63,5 @@ case class VeyMontGeneration(override val onBeforePassKey: Seq[(String, Verifica
                              override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                              channelClass: JavaClass[_])
   extends CodeGeneration(onBeforePassKey, onAfterPassKey, Seq(
-    ParalleliseVeyMontThreads.withArg(channelClass),
+    ParalleliseEndpoints.withArg(channelClass),
   ))

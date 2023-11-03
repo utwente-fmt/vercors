@@ -27,7 +27,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
   override def porcelainRefSucc[RefDecl <: Declaration[Rewritten[Pre]]](ref: Ref[Pre, _])(implicit tag: ClassTag[RefDecl]): Option[Ref[Rewritten[Pre], RefDecl]] =
     ref match {
       // Retain unresolved references to be resolved by LangSpecificToCol
-      case unresolved: UnresolvedRef[_, _] => Some(new UnresolvedRef[Post, RefDecl](unresolved.name))
+      case unresolved: UnresolvedRef[_, _] if !unresolved.isResolved => Some(new UnresolvedRef[Post, RefDecl](unresolved.name))
       case _ => None
     }
 

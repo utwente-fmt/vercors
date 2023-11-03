@@ -43,32 +43,27 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(origin(identifierList).replacePrefName(convert(id))) +: convertConstants(tail)
   }
 
-  def convert(implicit decl: SeqProgDeclContext): Declaration[G] = decl match {
-    case SeqProgMethod(methods) => convert(methods)
+  def convert(implicit decl: SeqProgDeclContext): ClassDeclaration[G] = decl match {
+    case SeqProgMethod(method) => convert(method)
     case SeqProgRunMethod(runMethod) => convert(runMethod).head
-    case SeqProgThread(_, threadId, _, threadType, _, args, _, _) => new VeyMontThread(convert(threadType), args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(threadId)))
+    case PvlEndpoint(_, name, _, ClassType0(endpointType, None), _, args, _, _) =>
+      new PVLEndpoint(
+        convert(name),
+        new UnresolvedRef[G, Class[G]](convert(endpointType)),
+        args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(name))
+      )
+    case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
 
-  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): VeyMontSeqProg[G] = cls match {
+  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): PVLSeqProg[G] = cls match {
     case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
-      val seqargs = args.map(convert(_)).getOrElse(Nil)
-      val declseq: Seq[Declaration[G]] = decls.map(convert(_))
-      val runMethod = declseq.collectFirst {
-        case x: RunMethod[G] => x
-      }.getOrElse(throw new RuntimeException("A seq_prog needs to have a run method, but none was found!"))
-      val methods = declseq.collect {
-        case m: InstanceMethod[G] => m
-      }
-      val threads = declseq.collect {
-        case v: VeyMontThread[G] => v
-      }
       withContract(contract, contract => {
-        new VeyMontSeqProg(
+        new PVLSeqProg(
+          convert(name),
+          decls.map(convert(_)),
           contract.consumeApplicableContract(blame(cls)),
-          seqargs,
-          threads,
-          runMethod,
-          methods)(origin(cls).replacePrefName(convert(name)))
+          args.map(convert(_)).getOrElse(Seq())
+        )(origin(cls).replacePrefName(convert(name)))
       })
   }
 
@@ -388,7 +383,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit subject: SubjectContext): PVLCommunicateSubject[G] = subject match {
-    case Subject0(name) => PVLThreadName(convert(name))
+    case Subject0(name) => PVLEndpointName(convert(name))(origin(subject).replacePrefName(convert(name)))
     case Subject1(family, _, expr, _) => ??(subject)
     case Subject2(family, _, binder, _, start, _, end, _) => ??(subject)
   }
@@ -969,7 +964,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit ts: ValTypeVarsContext): Seq[Variable[G]] = ts match {
     case ValTypeVars0(_, names, _) =>
-      convert(names).map(name => new Variable(TType(TAny()))(origin(ts).replacePrefName(name)))
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).replacePrefName(name)))
   }
 
   def convert(implicit decl: ValAdtDeclarationContext): ADTDeclaration[G] = decl match {
@@ -991,14 +986,14 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit t: ValTypeContext): Type[G] = t match {
     case ValPrimaryType(name) => name match {
-      case "resource" => TResource()
+      case "resource" => TResourceVal()
       case "process" => TProcess()
       case "frac" => TFraction()
       case "zfrac" => TZFraction()
       case "rational" => TRational()
       case "bool" => TBool()
       case "ref" => TRef()
-      case "any" => TAny()
+      case "any" => TAnyValue()
       case "nothing" => TNothing()
       case "string" => TString()
     }

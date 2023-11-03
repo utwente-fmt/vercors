@@ -24,9 +24,9 @@ import java.io.{FileNotFoundException, Reader}
 
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
-    override def code: String = "resolutionError"
+    override def code: String = s"resolutionError:${errors.map(_.subcode).mkString(",")}"
 
-    override def text: String = errors.map(_.toString).mkString("\n")
+    override def text: String = errors.map(_.message((node, message) => node.o.bareMessageInContext(message))).mkString("\n")
   }
 
   def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =

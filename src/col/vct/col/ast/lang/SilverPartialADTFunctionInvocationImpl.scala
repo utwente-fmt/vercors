@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{ADTFunction, AxiomaticDataType, SilverPartialADTFunctionInvocation, TAny, Type}
-import vct.col.print.{Ctx, Doc, Precedence, Text, Group}
+import vct.col.ast.{ADTFunction, AxiomaticDataType, SilverPartialADTFunctionInvocation, Type}
+import vct.col.print._
 import vct.col.ref.Ref
 
 trait SilverPartialADTFunctionInvocationImpl[G] { this: SilverPartialADTFunctionInvocation[G] =>

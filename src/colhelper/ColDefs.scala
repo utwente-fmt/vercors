@@ -17,6 +17,8 @@ object ColDefs {
     q"import vct.col.ref.Ref",
     q"import vct.col.resolve.ctx.Referrable",
     q"import vct.col.origin.ExpectedError",
+    q"import vct.result.VerificationError",
+    q"import vct.col.util.CurrentRewriteNodeContext",
     q"import hre.data.BitString",
   )
 
@@ -39,7 +41,7 @@ object ColDefs {
     "CPPLocalDeclaration",
     "CPPParam",
     "JavaLocalDeclaration",
-    "VeyMontThread",
+    "Endpoint",
     "JavaParam",
   )
 
@@ -98,7 +100,7 @@ object ColDefs {
       "JavaConstructor", "JavaMethod",
       "Scope",
     ),
-    "VeyMontThread" -> Seq("VeyMontSeqProg"),
+    "Endpoint" -> Seq("SeqProg"),
     "JavaParam" -> Seq("JavaMethod", "JavaAnnotationMethod", "JavaConstructor"),
   )
 

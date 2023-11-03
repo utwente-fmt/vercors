@@ -111,7 +111,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
     )(origin(domain))
 
   def transform(o: Origin)(tVar: silver.TypeVar): col.Variable[G] =
-    new col.Variable(col.TType(col.TAny()))(o.replacePrefName(tVar.name))
+    new col.Variable(col.TType(col.TAnyValue()))(o.replacePrefName(tVar.name))
 
   def transform(func: silver.DomainFunc): col.ADTFunction[G] =
     new col.ADTFunction(

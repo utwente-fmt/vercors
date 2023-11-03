@@ -55,6 +55,7 @@ INVARIANT: 'invariant';
 CONSTRUCTOR: 'constructor';
 RUN: 'run';
 THREAD: 'thread';
+ENDPOINT: 'endpoint';
 
 IF: 'if';
 ELSE: 'else';
