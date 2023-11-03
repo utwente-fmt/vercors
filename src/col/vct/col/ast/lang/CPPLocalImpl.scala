@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast.{CPPLocal, CPPPrimitiveType, SYCLTAccessMode, TEnum, Type}
-import vct.col.print.{Ctx, Doc, Group, Text}
+import vct.col.print.{Ctx, Doc, Group, Text, Empty}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.typerules.Types
@@ -33,5 +33,5 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
   }
 
   override def layout(implicit ctx: Ctx): Doc = Group(Text(name) <>
-    (if (genericArgs.nonEmpty) (Text("<") <> Text(genericArgs.mkString(", ")) <> Text(">")) else Text("")))
+    (if (genericArgs.nonEmpty) (Text("<") <> Doc.args(genericArgs) <> Text(">")) else Empty))
 }
