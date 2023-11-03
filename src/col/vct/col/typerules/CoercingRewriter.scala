@@ -35,7 +35,7 @@ case object CoercingRewriter {
 
   case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
 
-  case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
+  case class IncoercibleExplanation(blame: Node[_], message: String) extends CoercionError
 
   case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
 
@@ -1674,9 +1674,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
       case PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
-      case PVLCommunicate(s, r) => throw WrongType(s, r.fieldType, s.fieldType)
+      case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
       case Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
-      case Communicate(r, s) => throw WrongType(s, r.field.decl.t, s.field.decl.t)
+      case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
       case PVLSeqAssign(r, f, v) =>
         try { PVLSeqAssign(r, f, coerce(v, f.decl.t)) } catch {
           case err: Incoercible =>

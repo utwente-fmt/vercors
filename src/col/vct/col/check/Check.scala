@@ -73,7 +73,7 @@ case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError {
 case class TypeErrorText(expr: Expr[_], expectedType: String) extends CheckError {
   val subcode = "type"
 }
-case class TypeErrorExplanation(expr: Expr[_], message: String) extends CheckError {
+case class TypeErrorExplanation(expr: Node[_], message: String) extends CheckError {
   val subcode = "type"
 }
 case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckError {
