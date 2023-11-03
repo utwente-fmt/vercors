@@ -1,6 +1,6 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.RewriteHelpers.{RewriteClass, RewriteProgram}
+import vct.col.ast.RewriteHelpers.RewriteClass
 import vct.col.ast.{Class, ClassDeclaration, Declaration, GlobalDeclaration, Procedure, Program, TClass, Type}
 import vct.col.print.Text
 import vct.col.ref.Ref
@@ -47,7 +47,9 @@ case class RefactorGeneratedCode[Pre <: Generation]() extends Rewriter[Pre] {
         val classOrInterface = c.classOrInterfaceDoc()
         classOrInterface match {
           case Text("class") => globalDeclarations.succeed(c, dispatchGivenClass(c))
-          case _ => rewriteDefault(c)
+          case _ =>
+            println("Detected interface no creation of constructor")
+            rewriteDefault(c)
         }
       case _ => super.rewriteDefault(decl)
     }

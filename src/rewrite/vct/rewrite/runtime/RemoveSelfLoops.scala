@@ -15,7 +15,7 @@ object RemoveSelfLoops extends RewriterBuilder {
 
 case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
 
-  private def createClassSupports(c: Class[Pre]): Seq[Ref[Post, Class[Post]]] = {
+  def createClassSupports(c: Class[Pre]): Seq[Ref[Post, Class[Post]]] = {
     c.supports.filter(ref => ref.decl.o.getPreferredNameOrElse() != "Object").map(
       element => {
         rewriter.porcelainRefSucc[Class[Post]](element).getOrElse(rewriter.succ[Class[Post]](element.decl))
@@ -31,11 +31,12 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
+    println("Starting removing self loop")
     decl match {
       case p: Procedure[Pre] => {
         p.returnType match {
           case c: TClass[Pre] => c.cls.decl.o.getPreferredNameOrElse() match {
-            case "Object" => ()
+            case "Object" => println("removed self loop procedure Object")
             case _ => rewriteDefault(p)
           }
           case _ => rewriteDefault(p)
@@ -44,7 +45,7 @@ case class RemoveSelfLoops[Pre <: Generation]() extends Rewriter[Pre] {
       case c: Class[Pre] =>
         val preferredName = c.o.getPreferredNameOrElse()
         preferredName match {
-          case "Object" => ()
+          case "Object" => println("Removing unnecessary object class")
           case _ => globalDeclarations.succeed(c, dispatchGivenClass(c))
         }
       case _ => {

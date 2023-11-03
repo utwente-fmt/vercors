@@ -19,7 +19,6 @@ import vct.parsers.transform.BlameProvider
 import vct.parsers.{ColJavaParser, ColLLVMParser, FileNotFound, ParseResult}
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
-import vct.rewrite.runtime.resolution.FixResolution
 
 import java.io.{FileNotFoundException, Reader}
 
@@ -38,17 +37,6 @@ case object Resolution {
         case ClassPathEntry.SourcePackageRoot => ResolveTypes.JavaClassPathEntry.SourcePackageRoot
         case ClassPathEntry.SourcePath(root) => ResolveTypes.JavaClassPathEntry.Path(root)
       },
-    )
-
-  def runtimeOfOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =
-    Resolution(
-      blameProvider = blameProvider,
-      classPath = options.classPath.map {
-        case ClassPathEntry.DefaultJre => ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath)
-        case ClassPathEntry.SourcePackageRoot => ResolveTypes.JavaClassPathEntry.SourcePackageRoot
-        case ClassPathEntry.SourcePath(root) => ResolveTypes.JavaClassPathEntry.Path(root)
-      },
-      skipLangSpecificToCol = true
     )
 }
 
@@ -111,7 +99,6 @@ case class Resolution[G <: Generation]
     ResolveTypes.JavaClassPathEntry.Path(Resources.getJrePath),
     ResolveTypes.JavaClassPathEntry.SourcePackageRoot
   ),
-  skipLangSpecificToCol: Boolean = false
 ) extends Stage[ParseResult[G], Verification[_ <: Generation]] with LazyLogging {
   override def friendlyName: String = "Name Resolution"
 
@@ -129,17 +116,7 @@ case class Resolution[G <: Generation]
       case Nil => // ok
       case some => throw InputResolutionError(some)
     }
-
-    var resolvedProgram: Program[_<: Generation] = typedProgram
-
-    if (!skipLangSpecificToCol) {
-      resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
-
-    }else {
-      resolvedProgram = FixResolution().dispatch(resolvedProgram)
-    }
-
-
+    val resolvedProgram = LangSpecificToCol().dispatch(typedProgram)
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The

@@ -7,10 +7,10 @@ import vct.col.rewrite.{Generation, Rewriter, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
 
-case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenClassSucc: SuccessionMap[Type[Pre], Class[Rewritten[Pre]]]) extends Rewriter[Pre] {
+case class CreateConstructor[Pre <: Generation](outer : Rewriter[Pre], val givenClassSucc: SuccessionMap[Type[Pre], Class[Rewritten[Pre]]]) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
-  val rewritingConstr: ScopedStack[(Seq[Variable[Pre]], TClass[Pre])] = ScopedStack()
+  val rewritingConstr: ScopedStack[(Seq[Variable[Pre]],TClass[Pre])] = ScopedStack()
 
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
@@ -42,7 +42,6 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
   def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
     new JavaParam[Post](Seq.empty, v.o.getPreferredNameOrElse(), dispatch(v.t))(v.o)
 
-
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
     case l: Local[Pre] =>
       if (rewritingConstr.nonEmpty && rewritingConstr.top._1.contains(l.ref.decl))
@@ -56,23 +55,10 @@ case class CreateConstructor[Pre <: Generation](outer: Rewriter[Pre], val givenC
     case d: Deref[Pre] =>
       if (rewritingConstr.nonEmpty)
         d.obj match {
-          case _: Local[Pre] => {
-            val topStack = rewritingConstr.top._2
-            val newObject = ThisObject(givenClassSucc.ref[Post, Class[Post]](topStack))(d.o)
-            d.rewrite(obj = newObject)
-          }
+          case _: Local[Pre] => d.rewrite(obj = ThisObject(givenClassSucc.ref[Post, Class[Post]](rewritingConstr.top._2))(d.o))
           case other => rewriteDefault(other)
         }
       else rewriteDefault(d)
-    case p: PreAssignExpression[Pre] => {
-      p.value match {
-        case invocation: ProcedureInvocation[Pre] => {
-          val classType = invocation.ref.decl.returnType
-        }
-        case _ => rewriteDefault(p)
-      }
-      rewriteDefault(p)
-    }
     case other => rewriteDefault(other)
   }
 
