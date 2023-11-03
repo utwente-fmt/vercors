@@ -1,6 +1,6 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CPPLocal, CPPPrimitiveType, TEnum, Type}
+import vct.col.ast.{CPPLocal, CPPPrimitiveType, SYCLTAccessMode, TEnum, Type}
 import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
@@ -24,6 +24,7 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
         case Some(_) => Types.notAValue(ref) // Function declaration
         case None => declInfo.typeOrReturnType(CPPPrimitiveType(decls.decl.specs)) // Static declaration
       }
+    case _: RefSYCLAccessMode[G] => SYCLTAccessMode()
     case RefModelField(field) => field.t
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
     case cls: RefClass[G] => Types.notAValue(cls)

@@ -923,13 +923,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
-      case CPPClassInstanceLocal(_, _) => e
+      case cfa@CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName) => CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName)(cfa.blame)
       case defn@CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
       case CPPLambdaRef() => e
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CPPLocal(_, _) => e
+      case SYCLReadWriteAccess() => e
+      case SYCLReadOnlyAccess() => e
       case SYCLRange(dims) => SYCLRange(dims)
       case SYCLNDRange(globalRange, localRange) => SYCLNDRange(globalRange, localRange)
       case StringConcat(left, right) =>

@@ -30,6 +30,10 @@ namespace sycl {
     void parallel_for(sycl::nd_range<3> numWorkItems, VERCORS::LAMBDA lambda_method);
   }
 
+  namespace range {
+    int get(int dimension);
+  }
+
 	// See SYCL spec 3.11.1 for the linearization formulas
   //@ pure int linearize2(int id0, int id1, int r1) = id1 + (id0 * r1);
   //@ pure int linearize3(int id0, int id1, int id2, int r1, int r2) = id2 + (id1 * r2) + (id0 * r1 * r2);
@@ -184,326 +188,176 @@ namespace sycl {
   }
 
   namespace buffer {
-    /*@
-      ghost
-      requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
-      requires r0 >= 0 && r1 >= 0;
-      ensures \result == id1 + (id0 * r1);
-      ensures \result >= 0 && \result < r0 * r1;
-      pure int buffer_linearize2(int id0, int id1, int r0, int r1);
-
-      ghost
-      requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      ensures \result == id2 + (id1 * r2) + (id0 * r1 * r2);
-      ensures \result >= 0 && \result < r0 * r1 * r2;
-      pure int buffer_linearize3(int id0, int id1, int id2, int r0, int r1, int r2);
-    */
 
     sycl::buffer<bool, 1> constructor(bool* hostData, sycl::range<1>& bufferRange);
     sycl::buffer<bool, 2> constructor(bool* hostData, sycl::range<2>& bufferRange);
     sycl::buffer<bool, 3> constructor(bool* hostData, sycl::range<3>& bufferRange);
 
     /*@
-      resource exclusive_buffer_access(bool* hostData, int range) = \pointer(hostData, range, write);
+      resource exclusive_hostData_access(bool* hostData, int range) = \pointer(hostData, range, write);
 
       ghost
-      requires r0 >= 0;
-      context \pointer(hostData, r0, write);
-      ensures |\result| == r0;
-      ensures (\forall int i; i >= 0 && i < r0; {: \result[i] :} == hostData[i]);
-      seq<bool> copy_hostdata_to_buffer(bool* hostData, int r0);
+      requires size >= 0;
+      context \pointer(hostData, size, write);
+      ensures \array(\result, size) ** Perm(\result[*], write);
+      ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
+      VERCORS::ARRAY<bool, 1> copy_hostdata_to_buffer(bool* hostData, int size);
 
       ghost
-      requires r0 >= 0 && r1 >= 0;
-      context \pointer(hostData, r0 * r1, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1);
-      ensures (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: \result[i][j] :} == hostData[sycl::buffer::buffer_linearize2(i, j, r0, r1)]);
-      seq<seq<bool>> copy_hostdata_to_buffer(bool* hostData, int r0, int r1);
+      context \array(buffer, buffer.length) ** Perm(buffer[*], read);
+      context \pointer(hostData, buffer.length, write);
+      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      void copy_buffer_to_hostdata(bool* hostData, VERCORS::ARRAY<bool, 1> buffer);
 
-      ghost
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      context \pointer(hostData, r0 * r1 * r2, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1) && (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: |\result[i][j]| :} == r2);
-      ensures (\forall int i, int j, int k; i >= 0 && i < r0 && j >= 0 && j < r1 && k >= 0 && k < r2; {: \result[i][j][k] :} == hostData[sycl::buffer::buffer_linearize3(i, j, k, r0, r1, r2)]);
-      seq<seq<seq<bool>>> copy_hostdata_to_buffer(bool* hostData, int r0, int r1, int r2);
-
-      ghost
-      context \pointer(hostData, |buffer|, write);
-      ensures (\forall int i; i >= 0 && i < |buffer|; {: hostData[i] :} == buffer[i]);
-      void copy_buffer_to_hostdata(bool* hostData, seq<bool> buffer);
-
-      ghost
-      requires |buffer| > 0 ==> (\forall int i; i > 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]|);
-      context |buffer| > 0 ==> \pointer(hostData, (|buffer|) * |buffer[0]|, write);
-      ensures |buffer| > 0 ==> (\forall int i, int j; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]|; {: hostData[sycl::buffer::buffer_linearize2(i, j, |buffer|, |buffer[0]|)] :} == buffer[i][j]);
-      void copy_buffer_to_hostdata(bool* hostData, seq<seq<bool>> buffer);
-
-      ghost
-      requires |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i; i >= 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]| && (\forall int j; j >= 0 && j < |buffer[0]|; {: |buffer[i][j]| :} == |buffer[0][0]|));
-      context |buffer| > 0 && |buffer[0]| > 0 ==> \pointer(hostData, (|buffer|) * (|buffer[0]|) * |buffer[0][0]|, write);
-      ensures |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i, int j, int k; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]| && k >= 0 && k < |buffer[0][0]|;
-        {: hostData[sycl::buffer::buffer_linearize3(i, j, k, |buffer|, |buffer[0]|, |buffer[0][0]|)] :} == buffer[i][j][k]);
-      void copy_buffer_to_hostdata(bool* hostData, seq<seq<seq<bool>>> buffer);
     */
 
     sycl::buffer<int, 1> constructor(int* hostData, sycl::range<1>& bufferRange);
     sycl::buffer<int, 2> constructor(int* hostData, sycl::range<2>& bufferRange);
     sycl::buffer<int, 3> constructor(int* hostData, sycl::range<3>& bufferRange);
     /*@
-      resource exclusive_buffer_access(int* hostData, int range) = \pointer(hostData, range, write);
+      resource exclusive_hostData_access(int* hostData, int range) = \pointer(hostData, range, write);
 
       ghost
-      requires r0 >= 0;
-      context \pointer(hostData, r0, write);
-      ensures |\result| == r0;
-      ensures (\forall int i; i >= 0 && i < r0; {: \result[i] :} == hostData[i]);
-      seq<int> copy_hostdata_to_buffer(int* hostData, int r0);
+      requires size >= 0;
+      context \pointer(hostData, size, write);
+      ensures \array(\result, size) ** Perm(\result[*], write);
+      ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
+      VERCORS::ARRAY<int, 1> copy_hostdata_to_buffer(int* hostData, int size);
 
       ghost
-      requires r0 >= 0 && r1 >= 0;
-      context \pointer(hostData, r0 * r1, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1);
-      ensures (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: \result[i][j] :} == hostData[sycl::buffer::buffer_linearize2(i, j, r0, r1)]);
-      seq<seq<int>> copy_hostdata_to_buffer(int* hostData, int r0, int r1);
-
-      ghost
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      context \pointer(hostData, r0 * r1 * r2, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1) && (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: |\result[i][j]| :} == r2);
-      ensures (\forall int i, int j, int k; i >= 0 && i < r0 && j >= 0 && j < r1 && k >= 0 && k < r2; {: \result[i][j][k] :} == hostData[sycl::buffer::buffer_linearize3(i, j, k, r0, r1, r2)]);
-      seq<seq<seq<int>>> copy_hostdata_to_buffer(int* hostData, int r0, int r1, int r2);
-
-      ghost
-      context \pointer(hostData, |buffer|, write);
-      ensures (\forall int i; i >= 0 && i < |buffer|; {: hostData[i] :} == buffer[i]);
-      void copy_buffer_to_hostdata(int* hostData, seq<int> buffer);
-
-      ghost
-      requires |buffer| > 0 ==> (\forall int i; i > 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]|);
-      context |buffer| > 0 ==> \pointer(hostData, (|buffer|) * |buffer[0]|, write);
-      ensures |buffer| > 0 ==> (\forall int i, int j; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]|; {: hostData[sycl::buffer::buffer_linearize2(i, j, |buffer|, |buffer[0]|)] :} == buffer[i][j]);
-      void copy_buffer_to_hostdata(int* hostData, seq<seq<int>> buffer);
-
-      ghost
-      requires |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i; i >= 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]| && (\forall int j; j >= 0 && j < |buffer[0]|; {: |buffer[i][j]| :} == |buffer[0][0]|));
-      context |buffer| > 0 && |buffer[0]| > 0 ==> \pointer(hostData, (|buffer|) * (|buffer[0]|) * |buffer[0][0]|, write);
-      ensures |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i, int j, int k; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]| && k >= 0 && k < |buffer[0][0]|;
-        {: hostData[sycl::buffer::buffer_linearize3(i, j, k, |buffer|, |buffer[0]|, |buffer[0][0]|)] :} == buffer[i][j][k]);
-      void copy_buffer_to_hostdata(int* hostData, seq<seq<seq<int>>> buffer);
+      context \array(buffer, buffer.length) ** Perm(buffer[*], read);
+      context \pointer(hostData, buffer.length, write);
+      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      void copy_buffer_to_hostdata(int* hostData, VERCORS::ARRAY<int, 1> buffer);
     */
 
     sycl::buffer<long, 1> constructor(long* hostData, sycl::range<1>& bufferRange);
     sycl::buffer<long, 2> constructor(long* hostData, sycl::range<2>& bufferRange);
     sycl::buffer<long, 3> constructor(long* hostData, sycl::range<3>& bufferRange);
     /*@
-      resource exclusive_buffer_access(long* hostData, int range) = \pointer(hostData, range, write);
+      resource exclusive_hostData_access(long* hostData, int range) = \pointer(hostData, range, write);
 
       ghost
-      requires r0 >= 0;
-      context \pointer(hostData, r0, write);
-      ensures |\result| == r0;
-      ensures (\forall int i; i >= 0 && i < r0; {: \result[i] :} == hostData[i]);
-      seq<long> copy_hostdata_to_buffer(long* hostData, int r0);
+      requires size >= 0;
+      context \pointer(hostData, size, write);
+      ensures \array(\result, size) ** Perm(\result[*], write);
+      ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
+      VERCORS::ARRAY<long, 1> copy_hostdata_to_buffer(long* hostData, int size);
 
       ghost
-      requires r0 >= 0 && r1 >= 0;
-      context \pointer(hostData, r0 * r1, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1);
-      ensures (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: \result[i][j] :} == hostData[sycl::buffer::buffer_linearize2(i, j, r0, r1)]);
-      seq<seq<long>> copy_hostdata_to_buffer(long* hostData, int r0, int r1);
-
-      ghost
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      context \pointer(hostData, r0 * r1 * r2, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1) && (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: |\result[i][j]| :} == r2);
-      ensures (\forall int i, int j, int k; i >= 0 && i < r0 && j >= 0 && j < r1 && k >= 0 && k < r2; {: \result[i][j][k] :} == hostData[sycl::buffer::buffer_linearize3(i, j, k, r0, r1, r2)]);
-      seq<seq<seq<long>>> copy_hostdata_to_buffer(long* hostData, int r0, int r1, int r2);
-
-      ghost
-      context \pointer(hostData, |buffer|, write);
-      ensures (\forall int i; i >= 0 && i < |buffer|; {: hostData[i] :} == buffer[i]);
-      void copy_buffer_to_hostdata(long* hostData, seq<long> buffer);
-
-      ghost
-      requires |buffer| > 0 ==> (\forall int i; i > 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]|);
-      context |buffer| > 0 ==> \pointer(hostData, (|buffer|) * |buffer[0]|, write);
-      ensures |buffer| > 0 ==> (\forall int i, int j; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]|; {: hostData[sycl::buffer::buffer_linearize2(i, j, |buffer|, |buffer[0]|)] :} == buffer[i][j]);
-      void copy_buffer_to_hostdata(long* hostData, seq<seq<long>> buffer);
-
-      ghost
-      requires |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i; i >= 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]| && (\forall int j; j >= 0 && j < |buffer[0]|; {: |buffer[i][j]| :} == |buffer[0][0]|));
-      context |buffer| > 0 && |buffer[0]| > 0 ==> \pointer(hostData, (|buffer|) * (|buffer[0]|) * |buffer[0][0]|, write);
-      ensures |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i, int j, int k; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]| && k >= 0 && k < |buffer[0][0]|;
-        {: hostData[sycl::buffer::buffer_linearize3(i, j, k, |buffer|, |buffer[0]|, |buffer[0][0]|)] :} == buffer[i][j][k]);
-      void copy_buffer_to_hostdata(long* hostData, seq<seq<seq<long>>> buffer);
+      context \array(buffer, buffer.length) ** Perm(buffer[*], read);
+      context \pointer(hostData, buffer.length, write);
+      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      void copy_buffer_to_hostdata(long* hostData, VERCORS::ARRAY<long, 1> buffer);
     */
 
     sycl::buffer<double, 1> constructor(double* hostData, sycl::range<1>& bufferRange);
     sycl::buffer<double, 2> constructor(double* hostData, sycl::range<2>& bufferRange);
     sycl::buffer<double, 3> constructor(double* hostData, sycl::range<3>& bufferRange);
     /*@
-      resource exclusive_buffer_access(double* hostData, int range) = \pointer(hostData, range, write);
+      resource exclusive_hostData_access(double* hostData, int range) = \pointer(hostData, range, write);
 
       ghost
-      requires r0 >= 0;
-      context \pointer(hostData, r0, write);
-      ensures |\result| == r0;
-      ensures (\forall int i; i >= 0 && i < r0; {: \result[i] :} == hostData[i]);
-      seq<double> copy_hostdata_to_buffer(double* hostData, int r0);
+      requires size >= 0;
+      context \pointer(hostData, size, write);
+      ensures \array(\result, size) ** Perm(\result[*], write);
+      ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
+      VERCORS::ARRAY<double, 1> copy_hostdata_to_buffer(double* hostData, int size);
 
       ghost
-      requires r0 >= 0 && r1 >= 0;
-      context \pointer(hostData, r0 * r1, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1);
-      ensures (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: \result[i][j] :} == hostData[sycl::buffer::buffer_linearize2(i, j, r0, r1)]);
-      seq<seq<double>> copy_hostdata_to_buffer(double* hostData, int r0, int r1);
-
-      ghost
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      context \pointer(hostData, r0 * r1 * r2, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1) && (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: |\result[i][j]| :} == r2);
-      ensures (\forall int i, int j, int k; i >= 0 && i < r0 && j >= 0 && j < r1 && k >= 0 && k < r2; {: \result[i][j][k] :} == hostData[sycl::buffer::buffer_linearize3(i, j, k, r0, r1, r2)]);
-      seq<seq<seq<double>>> copy_hostdata_to_buffer(double* hostData, int r0, int r1, int r2);
-
-      ghost
-      context \pointer(hostData, |buffer|, write);
-      ensures (\forall int i; i >= 0 && i < |buffer|; {: hostData[i] :} == buffer[i]);
-      void copy_buffer_to_hostdata(double* hostData, seq<double> buffer);
-
-      ghost
-      requires |buffer| > 0 ==> (\forall int i; i > 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]|);
-      context |buffer| > 0 ==> \pointer(hostData, (|buffer|) * |buffer[0]|, write);
-      ensures |buffer| > 0 ==> (\forall int i, int j; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]|; {: hostData[sycl::buffer::buffer_linearize2(i, j, |buffer|, |buffer[0]|)] :} == buffer[i][j]);
-      void copy_buffer_to_hostdata(double* hostData, seq<seq<double>> buffer);
-
-      ghost
-      requires |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i; i >= 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]| && (\forall int j; j >= 0 && j < |buffer[0]|; {: |buffer[i][j]| :} == |buffer[0][0]|));
-      context |buffer| > 0 && |buffer[0]| > 0 ==> \pointer(hostData, (|buffer|) * (|buffer[0]|) * |buffer[0][0]|, write);
-      ensures |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i, int j, int k; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]| && k >= 0 && k < |buffer[0][0]|;
-        {: hostData[sycl::buffer::buffer_linearize3(i, j, k, |buffer|, |buffer[0]|, |buffer[0][0]|)] :} == buffer[i][j][k]);
-      void copy_buffer_to_hostdata(double* hostData, seq<seq<seq<double>>> buffer);
+      context \array(buffer, buffer.length) ** Perm(buffer[*], read);
+      context \pointer(hostData, buffer.length, write);
+      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      void copy_buffer_to_hostdata(double* hostData, VERCORS::ARRAY<double, 1> buffer);
     */
 
     sycl::buffer<float, 1> constructor(float* hostData, sycl::range<1>& bufferRange);
     sycl::buffer<float, 2> constructor(float* hostData, sycl::range<2>& bufferRange);
     sycl::buffer<float, 3> constructor(float* hostData, sycl::range<3>& bufferRange);
     /*@
-      resource exclusive_buffer_access(float* hostData, int range) = \pointer(hostData, range, write);
+      resource exclusive_hostData_access(float* hostData, int range) = \pointer(hostData, range, write);
 
       ghost
-      requires r0 >= 0;
-      context \pointer(hostData, r0, write);
-      ensures |\result| == r0;
-      ensures (\forall int i; i >= 0 && i < r0; {: \result[i] :} == hostData[i]);
-      seq<float> copy_hostdata_to_buffer(float* hostData, int r0);
+      requires size >= 0;
+      context \pointer(hostData, size, write);
+      ensures \array(\result, size) ** Perm(\result[*], write);
+      ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
+      VERCORS::ARRAY<float, 1> copy_hostdata_to_buffer(float* hostData, int size);
 
       ghost
-      requires r0 >= 0 && r1 >= 0;
-      context \pointer(hostData, r0 * r1, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1);
-      ensures (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: \result[i][j] :} == hostData[sycl::buffer::buffer_linearize2(i, j, r0, r1)]);
-      seq<seq<float>> copy_hostdata_to_buffer(float* hostData, int r0, int r1);
-
-      ghost
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      context \pointer(hostData, r0 * r1 * r2, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1) && (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: |\result[i][j]| :} == r2);
-      ensures (\forall int i, int j, int k; i >= 0 && i < r0 && j >= 0 && j < r1 && k >= 0 && k < r2; {: \result[i][j][k] :} == hostData[sycl::buffer::buffer_linearize3(i, j, k, r0, r1, r2)]);
-      seq<seq<seq<float>>> copy_hostdata_to_buffer(float* hostData, int r0, int r1, int r2);
-
-      ghost
-      context \pointer(hostData, |buffer|, write);
-      ensures (\forall int i; i >= 0 && i < |buffer|; {: hostData[i] :} == buffer[i]);
-      void copy_buffer_to_hostdata(float* hostData, seq<float> buffer);
-
-      ghost
-      requires |buffer| > 0 ==> (\forall int i; i > 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]|);
-      context |buffer| > 0 ==> \pointer(hostData, (|buffer|) * |buffer[0]|, write);
-      ensures |buffer| > 0 ==> (\forall int i, int j; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]|; {: hostData[sycl::buffer::buffer_linearize2(i, j, |buffer|, |buffer[0]|)] :} == buffer[i][j]);
-      void copy_buffer_to_hostdata(float* hostData, seq<seq<float>> buffer);
-
-      ghost
-      requires |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i; i >= 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]| && (\forall int j; j >= 0 && j < |buffer[0]|; {: |buffer[i][j]| :} == |buffer[0][0]|));
-      context |buffer| > 0 && |buffer[0]| > 0 ==> \pointer(hostData, (|buffer|) * (|buffer[0]|) * |buffer[0][0]|, write);
-      ensures |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i, int j, int k; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]| && k >= 0 && k < |buffer[0][0]|;
-        {: hostData[sycl::buffer::buffer_linearize3(i, j, k, |buffer|, |buffer[0]|, |buffer[0][0]|)] :} == buffer[i][j][k]);
-      void copy_buffer_to_hostdata(float* hostData, seq<seq<seq<float>>> buffer);
+      context \array(buffer, buffer.length) ** Perm(buffer[*], read);
+      context \pointer(hostData, buffer.length, write);
+      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      void copy_buffer_to_hostdata(float* hostData, VERCORS::ARRAY<float, 1> buffer);
     */
 
     sycl::buffer<char, 1> constructor(char* hostData, sycl::range<1>& bufferRange);
     sycl::buffer<char, 2> constructor(char* hostData, sycl::range<2>& bufferRange);
     sycl::buffer<char, 3> constructor(char* hostData, sycl::range<3>& bufferRange);
     /*@
-      resource exclusive_buffer_access(char* hostData, int range) = \pointer(hostData, range, write);
+      resource exclusive_hostData_access(char* hostData, int range) = \pointer(hostData, range, write);
 
       ghost
-      requires r0 >= 0;
-      context \pointer(hostData, r0, write);
-      ensures |\result| == r0;
-      ensures (\forall int i; i >= 0 && i < r0; {: \result[i] :} == hostData[i]);
-      seq<char> copy_hostdata_to_buffer(char* hostData, int r0);
+      requires size >= 0;
+      context \pointer(hostData, size, write);
+      ensures \array(\result, size) ** Perm(\result[*], write);
+      ensures (\forall int i; i >= 0 && i < size; {: \result[i] :} == hostData[i]);
+      VERCORS::ARRAY<char, 1> copy_hostdata_to_buffer(char* hostData, int size);
 
       ghost
-      requires r0 >= 0 && r1 >= 0;
-      context \pointer(hostData, r0 * r1, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1);
-      ensures (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: \result[i][j] :} == hostData[sycl::buffer::buffer_linearize2(i, j, r0, r1)]);
-      seq<seq<char>> copy_hostdata_to_buffer(char* hostData, int r0, int r1);
-
-      ghost
-      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
-      context \pointer(hostData, r0 * r1 * r2, write);
-      ensures |\result| == r0 && (\forall int i; i >= 0 && i < r0; {: |\result[i]| :} == r1) && (\forall int i, int j; i >= 0 && i < r0 && j >= 0 && j < r1; {: |\result[i][j]| :} == r2);
-      ensures (\forall int i, int j, int k; i >= 0 && i < r0 && j >= 0 && j < r1 && k >= 0 && k < r2; {: \result[i][j][k] :} == hostData[sycl::buffer::buffer_linearize3(i, j, k, r0, r1, r2)]);
-      seq<seq<seq<char>>> copy_hostdata_to_buffer(char* hostData, int r0, int r1, int r2);
-
-      ghost
-      context \pointer(hostData, |buffer|, write);
-      ensures (\forall int i; i >= 0 && i < |buffer|; {: hostData[i] :} == buffer[i]);
-      void copy_buffer_to_hostdata(char* hostData, seq<char> buffer);
-
-      ghost
-      requires |buffer| > 0 ==> (\forall int i; i > 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]|);
-      context |buffer| > 0 ==> \pointer(hostData, (|buffer|) * |buffer[0]|, write);
-      ensures |buffer| > 0 ==> (\forall int i, int j; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]|; {: hostData[sycl::buffer::buffer_linearize2(i, j, |buffer|, |buffer[0]|)] :} == buffer[i][j]);
-      void copy_buffer_to_hostdata(char* hostData, seq<seq<char>> buffer);
-
-      ghost
-      requires |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i; i >= 0 && i < |buffer|; {: |buffer[i]| :} == |buffer[0]| && (\forall int j; j >= 0 && j < |buffer[0]|; {: |buffer[i][j]| :} == |buffer[0][0]|));
-      context |buffer| > 0 && |buffer[0]| > 0 ==> \pointer(hostData, (|buffer|) * (|buffer[0]|) * |buffer[0][0]|, write);
-      ensures |buffer| > 0 && |buffer[0]| > 0 ==> (\forall int i, int j, int k; i >= 0 && i < |buffer| && j >= 0 && j < |buffer[0]| && k >= 0 && k < |buffer[0][0]|;
-        {: hostData[sycl::buffer::buffer_linearize3(i, j, k, |buffer|, |buffer[0]|, |buffer[0][0]|)] :} == buffer[i][j][k]);
-      void copy_buffer_to_hostdata(char* hostData, seq<seq<seq<char>>> buffer);
+      context \array(buffer, buffer.length) ** Perm(buffer[*], read);
+      context \pointer(hostData, buffer.length, write);
+      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      void copy_buffer_to_hostdata(char* hostData, VERCORS::ARRAY<char, 1> buffer);
     */
 
 
   }
   
-//  namespace accessor {
-//    sycl::accessor<bool, 1> constructor(sycl::buffer<bool, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<bool, 2> constructor(sycl::buffer<bool, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<bool, 3> constructor(sycl::buffer<bool, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//
-//    sycl::accessor<int, 1> constructor(sycl::buffer<int, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<int, 2> constructor(sycl::buffer<int, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<int, 3> constructor(sycl::buffer<int, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//
-//    sycl::accessor<long, 1> constructor(sycl::buffer<long, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<long, 2> constructor(sycl::buffer<long, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<long, 3> constructor(sycl::buffer<long, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//
-//    sycl::accessor<double, 1> constructor(sycl::buffer<double, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<double, 2> constructor(sycl::buffer<double, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<double, 3> constructor(sycl::buffer<double, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//
-//    sycl::accessor<float, 1> constructor(sycl::buffer<float, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<float, 2> constructor(sycl::buffer<float, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<float, 3> constructor(sycl::buffer<float, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//
-//    sycl::accessor<char, 1> constructor(sycl::buffer<char, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<char, 2> constructor(sycl::buffer<char, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//    sycl::accessor<char, 3> constructor(sycl::buffer<char, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::ACCESS_MODE);
-//  }
+  namespace accessor {
+    /*@
+      ghost
+      requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
+      requires r0 >= 0 && r1 >= 0;
+      ensures \result == id1 + (id0 * r1);
+      ensures \result >= 0 && \result < r0 * r1;
+      pure int linearize_2_indices(int id0, int id1, int r0, int r1);
+
+      ghost
+      requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
+      requires r0 >= 0 && r1 >= 0 && r2 >= 0;
+      ensures \result == id2 + (id1 * r2) + (id0 * r1 * r2);
+      ensures \result >= 0 && \result < r0 * r1 * r2;
+      pure int linearize_3_indices(int id0, int id1, int id2, int r0, int r1, int r2);
+    */
+
+    sycl::accessor<bool, 1> constructor(sycl::buffer<bool, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<bool, 2> constructor(sycl::buffer<bool, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<bool, 3> constructor(sycl::buffer<bool, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+
+    sycl::accessor<int, 1> constructor(sycl::buffer<int, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<int, 2> constructor(sycl::buffer<int, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<int, 3> constructor(sycl::buffer<int, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+
+    sycl::accessor<long, 1> constructor(sycl::buffer<long, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<long, 2> constructor(sycl::buffer<long, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<long, 3> constructor(sycl::buffer<long, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+
+    sycl::accessor<double, 1> constructor(sycl::buffer<double, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<double, 2> constructor(sycl::buffer<double, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<double, 3> constructor(sycl::buffer<double, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+
+    sycl::accessor<float, 1> constructor(sycl::buffer<float, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<float, 2> constructor(sycl::buffer<float, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<float, 3> constructor(sycl::buffer<float, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+
+    sycl::accessor<char, 1> constructor(sycl::buffer<char, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<char, 2> constructor(sycl::buffer<char, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+    sycl::accessor<char, 3> constructor(sycl::buffer<char, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
+
+    sycl::range<1> get_range();
+    sycl::range<2> get_range();
+    sycl::range<3> get_range();
+  }
 
 }

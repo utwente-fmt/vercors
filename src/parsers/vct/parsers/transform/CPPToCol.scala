@@ -400,14 +400,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case PostfixExpression3(target, _, args, _, given, yields) =>
       CPPInvocation(convert(target), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
-    case PostfixExpression4(classVar, _, None, idExpr) =>
-      convert(classVar) match {
-        case CPPLocal(className, Seq()) => convert(idExpr) match {
-          case CPPTypedefName(name, Seq()) => CPPClassInstanceLocal(className, name)(blame(expr))
-          case _ => ??(expr)
-        }
-        case _ => ??(expr)
-      }
+    case PostfixExpression4(classVar, _, None, idExpr) => convert(idExpr) match {
+      case CPPTypedefName(name, Seq()) => CPPClassMethodOrFieldAccess(convert(classVar), name)(blame(expr))
+      case _ => ??(expr)
+    }
     case PostfixExpression4(_, _, _, _) => ??(expr)
     case PostfixExpression5(_, _, _) => ??(expr)
     case PostfixExpression6(_, _, _, _) => ??(expr)

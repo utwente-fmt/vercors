@@ -5,7 +5,7 @@ import vct.col.print.{Ctx, Doc, Group, Text}
 
 trait SYCLTAccessorImpl[G] { this: SYCLTAccessor[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("sycl::buffer") <> "<" <> typ <> ", " <> Text(dimCount.toString) <> ">")
+    Group(Text("sycl::accessor") <> "<" <> typ <> ", " <> Text(dimCount.toString) <> ">")
 
   override val namespacePath = "sycl::accessor"
 }
