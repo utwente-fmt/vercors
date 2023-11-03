@@ -213,10 +213,8 @@ class FeatureRainbow[G] {
     case node: CPPAddressingDeclarator[G] => CPPSpecific
     case node: CPPArrayDeclarator[G] => CPPSpecific
     case node: CPPBool[G] => CPPSpecific
-    case node: CPPChar[G] => CPPSpecific
     case node: CPPClassMethodOrFieldAccess[G] => CPPSpecific
     case node: CPPDeclaration[G] => CPPSpecific
-    case node: CPPDeclarationStatement[G] => CPPSpecific
     case node: CPPExprOrTypeSpecifier[G] => CPPSpecific
     case node: CPPFunctionDefinition[G] => CPPSpecific
     case node: CPPGlobalDeclaration[G] => CPPSpecific
@@ -232,10 +230,8 @@ class FeatureRainbow[G] {
     case node: CPPLong[G] => CPPSpecific
     case node: CPPName[G] => CPPSpecific
     case node: CPPParam[G] => CPPSpecific
-    case node: CPPPointer[G] => CPPSpecific
     case node: CPPPrimitiveType[G] => CPPSpecific
     case node: CPPPure[G] => CPPSpecific
-    case node: CPPReference[G] => CPPSpecific
     case node: CPPScope[G] => CPPSpecific
     case node: CPPShort[G] => CPPSpecific
     case node: CPPSigned[G] => CPPSpecific
@@ -701,7 +697,8 @@ class FeatureRainbow[G] {
     case node: CPointerDeclarator[G] => return Seq(CSpecific, Pointers)
     case node: CPPChar[G] => return Seq(CPPSpecific, TextTypes)
     case node: CPPDeclarationStatement[G] => return Seq(CPPSpecific, UnscopedDeclaration)
-    case node: CPPAddressing[G] => return Seq(CPPSpecific, Pointers)
+    case node: CPPPointer[G] => return Seq(CPPSpecific, Pointers)
+    case node: CPPReference[G] => return Seq(CPPSpecific, Pointers)
     case node: Result[G] => return scanFlatly(node.applicable.decl)
     case node: SilverNewRef[G] => return Seq(Assignment, Resources)
 
