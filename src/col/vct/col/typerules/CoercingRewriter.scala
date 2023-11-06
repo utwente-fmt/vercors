@@ -1624,7 +1624,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case c @ Commit(obj) => Commit(cls(obj))(c.blame)
       case Continue(label) => Continue(label)
       case CPPDeclarationStatement(decl) => CPPDeclarationStatement(decl)
-      case CPPScope(locals, body) => CPPScope(locals, body)
+      case CPPLifetimeScope(body) => CPPLifetimeScope(body)
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)

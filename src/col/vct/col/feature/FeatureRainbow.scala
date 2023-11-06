@@ -225,6 +225,7 @@ class FeatureRainbow[G] {
     case node: CPPLambdaDeclarator[G] => CPPSpecific
     case node: CPPLambdaDefinition[G] => CPPSpecific
     case node: CPPLambdaRef[G] => CPPSpecific
+    case node: CPPLifetimeScope[G] => CPPSpecific
     case node: CPPLocalDeclaration[G] => CPPSpecific
     case node: CPPLocal[G] => CPPSpecific
     case node: CPPLong[G] => CPPSpecific
@@ -232,7 +233,6 @@ class FeatureRainbow[G] {
     case node: CPPParam[G] => CPPSpecific
     case node: CPPPrimitiveType[G] => CPPSpecific
     case node: CPPPure[G] => CPPSpecific
-    case node: CPPScope[G] => CPPSpecific
     case node: CPPShort[G] => CPPSpecific
     case node: CPPSigned[G] => CPPSpecific
     case node: CPPSpecificationType[G] => CPPSpecific

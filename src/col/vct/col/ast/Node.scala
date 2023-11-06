@@ -1015,7 +1015,7 @@ final class CPPFunctionDefinition[G](val contract: ApplicableContract[G], val sp
 
 sealed trait CPPStatement[G] extends Statement[G] with CPPStatementImpl[G]
 final case class CPPDeclarationStatement[G](decl: CPPLocalDeclaration[G])(implicit val o: Origin) extends CPPStatement[G] with CPPDeclarationStatementImpl[G]
-final case class CPPScope[G](locals: Seq[Variable[G]], body: Statement[G])(implicit val o: Origin) extends CPPStatement[G] with CPPScopeImpl[G]
+final case class CPPLifetimeScope[G](body: Statement[G])(implicit val o: Origin) extends CPPStatement[G] with CPPLifetimeScopeImpl[G]
 
 sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
 final case class CPPLocal[G](name: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPLocalImpl[G] {

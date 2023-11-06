@@ -164,7 +164,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
-    case scope: CPPScope[Pre] => cpp.rewriteScope(scope)
+    case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 

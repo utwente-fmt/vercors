@@ -112,8 +112,6 @@ case object ResolveTypes {
       ctxWithNs.copy(stack=(ns.declarations.flatMap(Referrable.from) ++ ns.imports.flatMap(scanImport(_, ctxWithNs))) +: ctx.stack)
     case Scope(locals, body) => ctx
       .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */false)).flatMap(Referrable.from)) +: ctx.stack)
-    case CPPScope(locals, body) => ctx
-      .copy(stack = ((locals ++ scanScope(body, /* inGPUkernel = */ false)).flatMap(Referrable.from)) +: ctx.stack)
     case decl: Declarator[G] =>
       ctx.copy(stack=decl.declarations.flatMap(Referrable.from) +: ctx.stack)
     case _ => ctx
@@ -222,7 +220,6 @@ case object ResolveReferences extends LazyLogging {
 
   def scanScope[G](node: Node[G], inGPUKernel: Boolean): Seq[Declaration[G]] = node match {
     case _: Scope[G] => Nil
-    case _: CPPScope[G] => Nil
     // Remove shared memory locations from the body level of a GPU kernel, we want to reason about them at the top level
     case CDeclarationStatement(decl) if !(inGPUKernel && decl.decl.specs.collectFirst{case GPULocal() => ()}.isDefined)
     => Seq(decl)
@@ -361,8 +358,6 @@ case object ResolveReferences extends LazyLogging {
     case par: ParStatement[G] => ctx
       .declare(scanBlocks(par.impl).map(_.decl))
     case Scope(locals, body) => ctx
-      .declare(locals ++ scanScope(body, inGPUKernel))
-    case CPPScope(locals, body) => ctx
       .declare(locals ++ scanScope(body, inGPUKernel))
     case app: ContractApplicable[G] => ctx
       .copy(currentResult = Some(Referrable.from(app).head.asInstanceOf[ResultTarget[G]] /* PB TODO: ew */))

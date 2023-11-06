@@ -175,7 +175,7 @@ case object LangCPPToCol {
     override def blame(error: FoldFailed): Unit = throw SYCLBufferConstructionFailed(inv)
   }
 
-  private case class SYCLBufferDestructionFailed(bufferDecl: Variable[_], scope: CPPScope[_]) extends UserError {
+  private case class SYCLBufferDestructionFailed(bufferDecl: Variable[_], scope: CPPLifetimeScope[_]) extends UserError {
     override def code: String = "syclBufferDestructionFailed"
     override def text: String = Origin.messagesInContext(Seq(
       bufferDecl.o -> "This buffer cannot be destroyed at the end of this scope, ...",
@@ -183,11 +183,11 @@ case object LangCPPToCol {
     ))
   }
 
-  private case class SYCLBufferDestructionInvocationBlame(bufferDecl: Variable[_], scope: CPPScope[_]) extends CPPInvocationBlame {
+  private case class SYCLBufferDestructionInvocationBlame(bufferDecl: Variable[_], scope: CPPLifetimeScope[_]) extends CPPInvocationBlame {
     override def preconditionFailed(node: InvokingNode[_]): Unit = throw SYCLBufferDestructionFailed(bufferDecl, scope)
   }
 
-  private case class SYCLBufferDestructionUnfoldFailedBlame(bufferDecl: Variable[_], scope: CPPScope[_]) extends Blame[UnfoldFailed] {
+  private case class SYCLBufferDestructionUnfoldFailedBlame(bufferDecl: Variable[_], scope: CPPLifetimeScope[_]) extends Blame[UnfoldFailed] {
     override def blame(error: UnfoldFailed): Unit = throw SYCLBufferDestructionFailed(bufferDecl, scope)
   }
 
@@ -666,7 +666,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Get the lambda describing the command group
     val commandGroup = invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]]
     val commandGroupBody: Statement[Pre] = commandGroup.body
-    val commandGroupBodyStatements: Seq[Statement[Pre]] = commandGroupBody.asInstanceOf[CPPScope[Pre]].body.asInstanceOf[Block[Pre]].statements
+    val commandGroupBodyStatements: Seq[Statement[Pre]] = commandGroupBody.asInstanceOf[Scope[Pre]].body.asInstanceOf[CPPLifetimeScope[Pre]].body.asInstanceOf[Block[Pre]].statements
 
     // Do not allow contracts for the command group
     if (commandGroup.contract.nonEmpty) throw SYCLContractForCommandGroupUnsupported(commandGroup.contract)
@@ -1162,7 +1162,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     (result, v)
   }
 
-  private def destroySYCLBuffer(buffer: SYCLBuffer[Post], scope: CPPScope[_]): Statement[Post] = {
+  private def destroySYCLBuffer(buffer: SYCLBuffer[Post], scope: CPPLifetimeScope[_]): Statement[Post] = {
     implicit val o: Origin = buffer.o
 
     // Call the method that copies the buffer contents to the hostData
@@ -1247,22 +1247,20 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     case _ => rw.rewriteDefault(sub)
   }
 
-  def rewriteScope(scope: CPPScope[Pre]): Statement[Post] = {
+  def rewriteLifetimeScope(scope: CPPLifetimeScope[Pre]): Statement[Post] = {
+    implicit val o: Origin = scope.o
+
     syclBufferSuccessor.push(mutable.Map.empty)
     syclRunningKernelsSuccessor.push(mutable.Map.empty)
 
-    val result: Scope[Post] = rw.dispatch(Scope[Pre](scope.locals, scope.body)(scope.o)).asInstanceOf[Scope[Post]]
-
-    implicit val o: Origin = scope.o
+    val rewrittenBody = rw.dispatch(scope.body)
 
     // Wait for SYCL kernels to finish executing
-    var additionalStatements: Seq[Statement[Post]] = syclRunningKernelsSuccessor.pop().map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
-
-
+    val kernelTerminations: Seq[Statement[Post]] = syclRunningKernelsSuccessor.pop().map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
     // Destroy all buffers and copy their data back to host
-    additionalStatements =  additionalStatements ++ syclBufferSuccessor.pop().map(tuple => destroySYCLBuffer(tuple._2, scope)).toSeq
+    val bufferDestructions: Seq[Statement[Post]] = syclBufferSuccessor.pop().map(tuple => destroySYCLBuffer(tuple._2, scope)).toSeq
 
-    Scope[Post](result.locals, Block[Post](result.body +: additionalStatements)(result.body.o))(scope.o)
+    Block[Post](rewrittenBody +: (kernelTerminations ++ bufferDestructions))
   }
 
   def deref(deref: CPPClassMethodOrFieldAccess[Pre]): Expr[Post] = {

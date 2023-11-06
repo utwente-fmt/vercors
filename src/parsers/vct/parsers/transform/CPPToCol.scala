@@ -94,8 +94,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit compoundStmnt: CompoundStatementContext): Statement[G] = compoundStmnt match {
-    case CompoundStatement0(_, None, _) => CPPScope(Nil, Block(Seq()))
-    case CompoundStatement0(_, Some(stmntSeq), _) => CPPScope(Nil, Block(convert(stmntSeq)))
+    case CompoundStatement0(_, None, _) => Scope(Nil, CPPLifetimeScope(Block(Seq())))
+    case CompoundStatement0(_, Some(stmntSeq), _) => Scope(Nil, CPPLifetimeScope(Block(convert(stmntSeq))))
   }
 
   def convert(implicit stmntSeq: StatementSeqContext): Seq[Statement[G]] = stmntSeq match {
@@ -179,12 +179,12 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support do-while loops, 'for(item : list) {}' and expression instead of declaration in a for-loop
   def convert(implicit iterStmnt: IterationStatementContext): Statement[G] = iterStmnt match {
     case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      CPPScope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), convert(body)))
+      Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement2(contract1, _, _, ForInitStatement1(simpleDecl), cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        CPPScope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), convert(body)))
+        Scope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
       })
     case IterationStatement2(_, _, _, _, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement3(_, _, _, _, _, _, _, _, _) => ??(iterStmnt)
