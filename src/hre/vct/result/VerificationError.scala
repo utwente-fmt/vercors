@@ -47,7 +47,7 @@ object VerificationError {
     initCause(cause)
 
     override def text: String =
-      messageContext("VerCors crashed near this position. Cause follows:")
+      messageContext("VerCors crashed near this position. Cause follows:" + cause.getStackTrace.mkString("\n"))
   }
 
   trait Context {
