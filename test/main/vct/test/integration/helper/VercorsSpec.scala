@@ -4,7 +4,9 @@ import ch.qos.logback.classic.{Level, Logger}
 import hre.io.Readable
 import org.scalactic.source
 import org.scalatest.Tag
-import org.scalatest.concurrent.TimeLimits.failAfter
+import org.scalatest.concurrent.TimeLimits.{cancelAfter, failAfter}
+import org.scalatest.events.TestCanceled
+import org.scalatest.exceptions.TestCanceledException
 import org.scalatest.time._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.slf4j.LoggerFactory
@@ -12,9 +14,9 @@ import org.slf4j.helpers.SubstituteLogger
 import vct.col.origin.VerificationFailure
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
-import vct.main.modes.Verify
-import vct.options.types
-import vct.options.types.{Backend, PathOrStd}
+import vct.main.modes.{RuntimeVerification, Verify}
+import vct.options.{Options, types}
+import vct.options.types.{Backend, Mode, PathOrStd}
 import vct.parsers.ParseError
 import vct.result.VerificationError
 import vct.result.VerificationError.{SystemError, UserError}
@@ -41,6 +43,14 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case Error(_) => "error"
     }
   }
+
+  sealed trait RuntimeType {
+    override def toString: String = this match {
+      case Runtime => "runtime"
+    }
+  }
+
+  case object Runtime extends RuntimeType
   case object Pass extends Verdict
   case object AnyFail extends Verdict
   case class Fail(code: String) extends Verdict
@@ -89,6 +99,40 @@ abstract class VercorsSpec extends AnyFlatSpec {
         })
       }
     }
+  }
+
+
+  private def registerRuntimeTest(verdict: VercorsSpec.this.Verdict, input: PathOrStd, time: Int, desc: String): Unit = {
+    val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with runtime".replaceAll("should", "shld")
+    val tags: Seq[Tag] = Seq(new Tag("exampleCaseRuntime"))
+    val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
+    val matrixTag = Tag(s"MATRIX[$matrixId]")
+
+    val options: Options = Options(mode = Mode.RuntimeVerification, inputs = Seq(input), runtimeOutput = Path.of("output.java"))
+    registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
+
+//      TODO build something that detects if a program terminated without errors
+      var testCanceled = false
+      try {
+        cancelAfter(Span(time, Seconds)) {
+          RuntimeVerification.runOptions(options)
+        }
+      }catch {
+        case tc: TestCanceledException => testCanceled = true
+      }
+
+      if (!testCanceled) {
+        fail("Program terminated")
+      }
+
+    }
+
+
+//    registerTest(fullDesc, (Tag("MATRIX") +: matrixTag +: tags): _*) {
+//      cancelAfter(Span(time, Seconds)) {
+//        RuntimeVerification.runOptions()
+//      }
+//    }
   }
 
   private def matchVerdict(verdict: Verdict, value: Either[VerificationError, (Seq[VerificationFailure], VerificationReport)]): Unit = {
@@ -172,6 +216,20 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
   class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
     def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend)
+    def using(runtime: RuntimeType) = new RuntimePhrase(verdict)
+  }
+
+
+  class RuntimePhrase(verdict: Verdict) {
+    def example(path: String)(implicit pos: source.Position): TimePhrase = {
+      new TimePhrase(verdict, PathOrStd.Path(Path.of(s"examples/$path")))
+    }
+  }
+
+  class TimePhrase(verdict: Verdict, input: PathOrStd) {
+    def in(time: Int): Unit = {
+      registerRuntimeTest(verdict, input, time, s"Runtime example ${input.fileName}")
+    }
   }
 
   class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend]) {
@@ -217,6 +275,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
   val verify: Verdict = Pass
   val fail: IncompleteVerdict = IncompleteVerdict(Fail)
   val error: ErrorVerdict.type = ErrorVerdict
+  val runtime: RuntimeType = Runtime
 
   val silicon: Seq[Backend] = Seq(types.Backend.Silicon)
   val carbon: Seq[Backend] = Seq(types.Backend.Carbon)

@@ -1,21 +1,5 @@
-class C {
-
-}
-
-class Test implements Runnable{
-
-    private C x;
-
+class Test{
     public Test() {
-        x = new C();
-    }
-
-
-    public void incr() {
-
-    }
-
-    public void run() {
 
     }
 }
