@@ -15,17 +15,17 @@ sealed trait ContractFailure {
 case class ContractFalse(node: Expr[_]) extends ContractFailure {
   override def code: String = "false"
   override def descCompletion: String = "this expression may be false"
-  override def inlineDescCompletion: String = s"`${node.o.getInlineContextOrElse()}` may be false"
+  override def inlineDescCompletion: String = s"${node.o.inlineContextText} may be false"
 }
 case class InsufficientPermissionToExhale(node: Expr[_]) extends ContractFailure {
   override def code: String = "perm"
   override def descCompletion: String = "there might not be enough permission to exhale this amount"
-  override def inlineDescCompletion: String = s"there might be insufficient permission for `${node.o.getInlineContextOrElse()}`"
+  override def inlineDescCompletion: String = s"there might be insufficient permission for ${node.o.inlineContextText}"
 }
 case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def code: String = "negativePermValue"
   override def descCompletion: String = "the amount of permission in this permission predicate may be negative"
-  override def inlineDescCompletion: String = s"`${node.o.getInlineContextOrElse()}` may be a negative permission amount"
+  override def inlineDescCompletion: String = s"${node.o.inlineContextText} may be a negative permission amount"
 }
 
 trait VerificationFailure {
@@ -78,7 +78,7 @@ trait NodeVerificationFailure extends VerificationFailure {
 
   override def position: String = node.o.getShortPositionOrElse()
   override def desc: String = node.o.messageInContext(descInContext + errUrl)
-  override def inlineDesc: String = inlineDescWithSource(node.o.getInlineContextOrElse())
+  override def inlineDesc: String = inlineDescWithSource(node.o.inlineContextText)
 }
 
 trait WithContractFailure extends VerificationFailure {
