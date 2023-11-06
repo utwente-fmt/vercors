@@ -95,19 +95,19 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       args = Seq(arr_var, from_var, to_var),
       requires =
         SplitAccountedPredicate(UnitAccountedPredicate(arr !== Null()),
-        SplitAccountedPredicate(UnitAccountedPredicate(const(0) <= from),
-        SplitAccountedPredicate(UnitAccountedPredicate(from <= to),
-        SplitAccountedPredicate(UnitAccountedPredicate(to <= Length(arr)(FramedArrLength)),
-        UnitAccountedPredicate(starall(IteratedArrayInjective, TInt(),
-          i => (from <= i && i < to) ==> Value(ArrayLocation(arr, i)(FramedArrIndex)),
-          i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
-        )))))),
+          SplitAccountedPredicate(UnitAccountedPredicate(const(0) <= from),
+            SplitAccountedPredicate(UnitAccountedPredicate(from <= to),
+              SplitAccountedPredicate(UnitAccountedPredicate(to <= Length(arr)(FramedArrLength)),
+                UnitAccountedPredicate(starall(IteratedArrayInjective, TInt(),
+                  i => (from <= i && i < to) ==> Value(ArrayLocation(arr, i)(FramedArrIndex)),
+                  i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame))),
+                )))))),
       ensures = UnitAccountedPredicate(
         (Size(result) === to - from) &&
-        forall(TInt(),
-          i => (const(0) <= i && i < to - from) ==> (SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex)),
-          i => Seq(Seq(SeqSubscript(result, i)(TriggerPatternBlame)))
-        ) &* forall(TInt(),
+          forall(TInt(),
+            i => (const(0) <= i && i < to - from) ==> (SeqSubscript(result, i)(FramedSeqIndex) === ArraySubscript(arr, i + from)(FramedArrIndex)),
+            i => Seq(Seq(SeqSubscript(result, i)(TriggerPatternBlame)))
+          ) &* forall(TInt(),
           i => (from <= i && i < to) ==> (ArraySubscript(arr, i)(FramedArrIndex) === SeqSubscript(result, i - from)(FramedSeqIndex)),
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
@@ -187,7 +187,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     }))
   }
 
-  def unwrapStructPerm(struct: Expr[Post], structType: TClass[Post], origin: Origin, visited: Seq[TClass[Post]] = Seq()): Seq[Expr[Post]] = {
+  def unwrapStructPerm(struct: Variable[Post] => Expr[Post], structType: TClass[Post], origin: Origin, makeStruct: MakeAnns, visited: Seq[TClass[Post]] = Seq()): Seq[Expr[Post]] = {
     if (visited.contains(structType)) throw UnsupportedStructPerm(origin) // We do not allow this notation for recursive structs
     implicit val o: Origin = origin
     val blame = PanicBlame("Cannot Fail")
@@ -197,17 +197,38 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => Seq()
     }
     val newFieldPerms = fields.map(member => {
-      val loc = Deref[Post](struct, member.ref)(blame)
-      val locPerm = Perm(FieldLocation[Post](struct, member.ref), WritePerm())
+      val loc = (i: Variable[Post]) => Deref[Post](struct(i), member.ref)(blame)
+      var anns = Seq(makeStruct.makePerm(i => FieldLocation[Post](struct(i), member.ref)))
+      anns = if(typeIsRef(member.t)) anns ++ Seq(makeStruct.makeUnique(loc)) else anns
       member.t match {
         case newStruct: TClass[Post] =>
           // We recurse, since a field is another struct
-          locPerm +: unwrapStructPerm(loc, newStruct, origin, structType +: visited)
-        case _ => Seq(locPerm)
+          anns ++ unwrapStructPerm(loc, newStruct, origin, makeStruct, structType +: visited)
+        case _ => anns
       }
     })
 
     newFieldPerms.flatten
+  }
+
+  case class MakeAnns(i: Variable[Post], j: Variable[Post], size: Expr[Post], trigger: Expr[Post], triggerUnique: Seq[Expr[Post]]){
+    def makePerm(location: Variable[Post] => Location[Post]): Expr[Post] = {
+      implicit val o: Origin = ArrayCreationOrigin()
+      val blame = PanicBlame("Already checked")
+      val zero =  const[Post](0)
+      val body = (zero <= i.get && i.get < size) ==> Perm(location(i), WritePerm[Post]())
+      Starall(Seq(i), Seq(Seq(trigger)), body)(blame)
+    }
+
+    def makeUnique(access: Variable[Post] => Expr[Post]): Expr[Post] = {
+      implicit val o: Origin = ArrayCreationOrigin()
+      val zero = const[Post](0)
+      val pre1 = zero <= i.get && i.get < size
+      val pre2 = zero <= j.get && j.get < size
+      val body = (pre1 && pre2 && (i.get !== j.get)) ==>
+        (access(i) !== access(j))
+      Forall(Seq(i, j), Seq(triggerUnique), body)
+    }
   }
 
   def typeIsRef(t: Type[_]): Boolean = t match {
@@ -221,6 +242,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     // ar != null
     // ar.length == dim0
     // forall ar[i] :: Perm(ar[i], write)
+    // (if type ar[i] is pointer or struct):
+    // forall i,j :: i!=j ==> ar[i] != ar[j]
     val sizeArg = new Variable[Post](TInt())(ArrayCreationOrigin("size"))
     val zero =  const[Post](0)
 
@@ -229,32 +252,25 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val requires = sizeArg.get >= zero
       val i = new Variable[Post](TInt())(ArrayCreationOrigin("i"))
       val j = new Variable[Post](TInt())(ArrayCreationOrigin("j"))
-      val directAccess = PointerAdd(result, i.get)(blame)
-      val access = PointerSubscript(result, i.get)(blame)
-      val permFields = dispatch(elementType) match {
-        case t: TClass[Post] => unwrapStructPerm(access, t, o)
-        case _ => Seq()
-      }
-      val forallPermFields: Seq[Expr[Post]] = permFields.map(fieldPerm => {
-        val body = (zero <= i.get && i.get < sizeArg.get) ==> fieldPerm
-        Starall(Seq(i), Seq(Seq(directAccess)), body)(blame)
-      })
+      val access = (i: Variable[Post]) => PointerSubscript(result, i.get)(blame)
 
-      val body = (zero <= i.get && i.get < sizeArg.get) ==> Perm(PointerLocation(directAccess)(blame), WritePerm())
-      val forall = Starall(Seq(i), Seq(Seq(directAccess)), body)(blame)
+      val makeStruct = MakeAnns(i, j, sizeArg.get, access(i), Seq(access(i), access(j)))
+
       var ensures = (result !== Null()) &*
         (PointerBlockLength(result)(blame) === sizeArg.get) &*
-        (PointerBlockOffset(result)(blame) === zero) &*
-        forall
+        (PointerBlockOffset(result)(blame) === zero)
+      // Pointer location needs pointer add, not pointer subscript
+      ensures = ensures &* makeStruct.makePerm(i => PointerLocation(PointerAdd(result, i.get)(blame))(blame))
       ensures = if (!typeIsRef(elementType)) ensures else {
-        val pre1 = zero <= i.get && i.get < sizeArg.get
-        val pre2 = zero <= j.get && j.get < sizeArg.get
-        val body = (pre1 && pre2 && (i.get !== j.get)) ==>
-          (PointerSubscript(result, i.get)(blame) !== PointerSubscript(result, j.get)(blame))
-        val unique = Forall(Seq(i, j), Seq(), body)
-        ensures &* unique
+        ensures &* makeStruct.makeUnique(access)
       }
-      ensures = if (forallPermFields.isEmpty) ensures else ensures &* foldStar(forallPermFields)
+
+      val permFields = dispatch(elementType) match {
+        case t: TClass[Post] => unwrapStructPerm(access, t, o, makeStruct)
+        case _ => Seq()
+      }
+
+      ensures = if (permFields.isEmpty) ensures else ensures &* foldStar(permFields)
 
       procedure(
         blame = AbstractApplicable,

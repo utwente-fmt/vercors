@@ -128,7 +128,6 @@ case object ResolveTypes {
       t.ref = Some(C.findCTypeName(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)
       ))
-      ))
     case t@CStructSpecifier(name) =>
       t.ref = Some(C.findCStruct(name, ctx).getOrElse(
         throw NoSuchNameError("struct", name, t)

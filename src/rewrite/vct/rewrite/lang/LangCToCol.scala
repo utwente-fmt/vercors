@@ -11,6 +11,7 @@ import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.lang.C
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.C.nameFromDeclarator
 import vct.col.resolve.lang.Java.logger
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.typerules.CoercionUtils.getCoercion
@@ -180,26 +181,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
 
-  case class CInlineArrayInitializerOrigin(inner: Origin) extends Origin {
-    override def preferredName: String = "arrayInitializer"
-    override def shortPosition: String = inner.shortPosition
-    override def context: String = inner.context
-    override def inlineContext: String = inner.inlineContext
-  }
+  private def FormalParameterOrigin(inner: Origin): Origin = inner.replacePrefName("formal" + inner.getPreferredNameOrElse().capitalize)
+  private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
+    sdecl.o.replacePrefName(sdecl.name.getOrElse("AnonymousStruct"))
 
-  case class CStructOrigin(sdecl: CStructDeclaration[_]) extends Origin {
-    override def preferredName: String = sdecl.name.getOrElse("AnonymousStruct")
-    override def shortPosition: String = sdecl.o.shortPosition
-    override def context: String = sdecl.o.context
-    override def inlineContext: String = sdecl.o.inlineContext
-  }
-
-  case class CStructFieldOrigin(cdecl: CDeclarator[_]) extends Origin {
-    override def preferredName: String = nameFromDeclarator(cdecl)
-    override def shortPosition: String = cdecl.o.shortPosition
-    override def context: String = cdecl.o.context
-    override def inlineContext: String = cdecl.o.inlineContext
-  }
+  private def CStructFieldOrigin(cdecl: CDeclarator[_]): Origin =
+    cdecl.o.replacePrefName(nameFromDeclarator(cdecl))
 
   private def CudaIndexVariableOrigin(dim: RefCudaVecDim[_]): Origin = Origin(
     Seq(
@@ -746,7 +733,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
-    val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+    val varO: Origin = init.o.replacePrefName(info.name)
     implicit val o: Origin = init.o
 
     decl.decl.specs match {
@@ -778,7 +765,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def rewriteStructDeclaration(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
-    val varO: Origin = InterpretedOriginVariable(info.name, init.o)
+    val varO: Origin = init.o.replacePrefName(info.name)
 
     val ref = decl.decl.specs match {
       case Seq(CSpecificationType(structSpec: CTStruct[Pre])) => structSpec.ref
@@ -1044,15 +1031,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => false
   }
 
-  case class FreeFuncOrigin(preferedName: String = "unknown") extends Origin {
-    override def preferredName: String = preferedName
+  private def FreeFuncOrigin(preferedName: String = "unknown"): Origin = Origin(
+    Seq(
+      PreferredName(preferedName),
+      ShortPosition("generated free function"),
+      Context("[At node generated for free function]"),
+      InlineContext(preferedName),
+    )
+  )
 
-    override def shortPosition: String = "generated free function"
-
-    override def context: String = "[At node generated for free function]"
-
-    override def inlineContext: String = "[At node generated for free function]"
-  }
 
   val freeMethods: mutable.Map[Type[Post], Procedure[Post]] = mutable.Map()
 
@@ -1108,18 +1095,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
-    // Create copy for any direct structure arguments
-    val newArgs = args.map( a =>
-      a.t match {
-        case CPrimitiveType(specs) if specs.collectFirst {case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
-          specs match {
-            case Seq(CSpecificationType(CTStruct(ref))) =>  createStructCopy(rw.dispatch(a), ref.decl)
-            case _ => throw WrongStructType(a)
-          }
-        case _ => rw.dispatch(a)
-      }
-    )
-
     if(givenMap.isEmpty && yields.isEmpty) {
       (applicable, args) match {
         case (CLocal("is_int"), Seq(x)) if isFloat(x.t) =>
@@ -1130,17 +1105,27 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       }
     }
 
+    // Create copy for any direct structure arguments
+    val newArgs = args.map(a =>
+      a.t match {
+        case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
+          specs match {
+            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl)
+            case _ => throw WrongStructType(a)
+          }
+        case _ => rw.dispatch(a)
+      }
+    )
+
     implicit val o: Origin = inv.o
     inv.ref.get match {
-        rw.specInvocation(None, spec, Nil, newArgs, givenMap, yields, inv, inv.blame)
       case spec: SpecInvocationTarget[Pre] =>
-        rw.specInvocation(None, spec, Nil, newArgs, givenMap, yields, inv, inv.blame)
+        rw.specInvocation(None, spec, Nil, args, givenMap, yields, inv, inv.blame)
       case ref: RefCFunctionDefinition[Pre] =>
         ProcedureInvocation[Post](cFunctionSuccessor.ref(ref.decl), newArgs, Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
       case e: RefCGlobalDeclaration[Pre] => globalInvocation(e, inv, newArgs)
-      case RefProverFunction(decl) => ProverFunctionInvocation(rw.succ(decl), newArgs)
     }
   }
 

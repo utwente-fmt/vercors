@@ -44,13 +44,14 @@ case class TDivMod[Pre <: Generation]() extends Rewriter[Pre] {
     FunctionInvocation[Post](tdiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
   }
 
-  case class TFunctionOrigin(operator: String, preferredName: String) extends Origin {
-    override def shortPosition: String = "generated"
-
-    override def context: String = "[At node generated for `" + operator + "` operator]"
-
-    override def inlineContext: String = "[At node generated for `" + operator + "` operator]"
-  }
+  def TFunctionOrigin(operator: String, preferredName: String): Origin = Origin(
+    Seq(
+      PreferredName(preferredName),
+      ShortPosition("generated"),
+      Context("[At node generated for `" + operator + "` operator]"),
+      InlineContext(preferredName),
+    )
+  )
 
   /* Make a truncated modulo function.
      It should be equivalent to

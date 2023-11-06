@@ -68,10 +68,13 @@ int avr_x(struct rect *r){
     return (r->p1.x + r->p2.x + r->p3.x)/3;
 }
 /*@
+ decreases assume;
+ //decreases n is broken atm https://github.com/viperproject/silicon/issues/768 for this example
+ //decreases n;
  requires n >= 0;
  requires inp != NULL && \pointer_length(inp) >= n;
  requires (\forall* int i; 0 <= i && i < n; Perm(&inp[i], 1\10));
- requires (\forall int i, int j; 0<=i && i<n && 0<=j && j<n; i != j ==> inp[i] != inp[j]);
+ requires (\forall int i, int j; 0<=i && i<n && 0<=j && j<n; i != j ==> {:inp[i]:} != {:inp[j]:});
  requires (\forall* int i; 0 <= i && i < n; Perm(inp[i].x, 1\10));
  ensures |\result| == n;
  ensures (\forall int i; 0 <= i && i < n; \result[i] == inp[i].x);
@@ -90,7 +93,7 @@ pure int sum_seq(seq<int> xs) = |xs| == 0 ? 0 : sum_seq(xs[.. (|xs|-1)]) + xs[ |
   context p != NULL ** Perm(p, 1\2) ** Perm(*p, 1\2);
   context p->ps != NULL && \pointer_length(p->ps) >= len;
   context (\forall* int i; 0<=i && i<len; Perm(&p->ps[i], 1\2));
-  context (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> p->ps[i] != p->ps[j]);
+  context (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> {:p->ps[i]:} != {:p->ps[j]:});
   context (\forall* int i; 0<=i && i<len; Perm(p->ps[i], 1\2));
   // No clue why, but it hangs if we try for bigger numbers
   ensures len == 3 ==> \result == sum_seq(inp_to_seq(p->ps, len))/len;
@@ -103,7 +106,7 @@ int avr_x_pol(struct polygon *p, int len){
       loop_invariant p != NULL ** Perm(p, 1\2) ** Perm(*p, 1\2);
       loop_invariant p->ps != NULL && \pointer_length(p->ps) >= len;
       loop_invariant (\forall* int i; 0<=i && i<len; Perm(&p->ps[i], 1\2));
-      loop_invariant (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> p->ps[i] != p->ps[j]);
+      loop_invariant (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> {:p->ps[i]:} != {:p->ps[j]:});
       loop_invariant (\forall* int i; 0<=i && i<len; Perm(p->ps[i], 1\2));
       loop_invariant (\forall int i; 0<=i && i<len; p->ps[i].x == xs[i]);
       loop_invariant sum == sum_seq(xs[..i]);

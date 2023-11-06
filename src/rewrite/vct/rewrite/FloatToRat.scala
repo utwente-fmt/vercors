@@ -35,21 +35,20 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
     case TFloat(e, m) => s"f${e}_$m"
   }
 
-
-  case object NonDetFloatOrigin extends Origin {
-    override def preferredName: String = "nonDetFloat"
-    override def shortPosition: String = "generated non-det float"
-
-    override def context: String = "[At node generated for float to rational conversion]"
-
-    override def inlineContext: String = "[At node generated for float to rational conversion]"
-  }
+  def NonDetFloatOrigin(): Origin = Origin(
+    Seq(
+      PreferredName("nonDetFloat"),
+      ShortPosition("generated non-det float"),
+      Context("[At node generated for float to rational conversion]"),
+      InlineContext("nonDetFloat"),
+    )
+  )
 
   val nonDetFloat: mutable.Map[Unit, Function[Post]] = mutable.Map()
 
   def getNonDetFloat(): Expr[Post] = {
     val nondetFunc = nonDetFloat.getOrElseUpdate((), makeNondetFloatFunc())
-    FunctionInvocation[Post](nondetFunc.ref, Seq(), Nil, Nil, Nil)(TrueSatisfiable)(NonDetFloatOrigin)
+    FunctionInvocation[Post](nondetFunc.ref, Seq(), Nil, Nil, Nil)(TrueSatisfiable)(NonDetFloatOrigin())
   }
 
   def makeNondetFloatFunc(): Function[Post] = {
@@ -57,7 +56,7 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       blame = AbstractApplicable,
       contractBlame = TrueSatisfiable,
       returnType = TRational(),
-    )(NonDetFloatOrigin))(NonDetFloatOrigin))
+    )(NonDetFloatOrigin()))(NonDetFloatOrigin()))
   }
 
   def makeCast(from: TFloat[Pre], to: TFloat[Pre]): Function[Post] = {
@@ -88,6 +87,7 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
         val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t.asInstanceOf[TFloat[Pre]], t.asInstanceOf[TFloat[Pre]]))
         implicit val o: Origin = expr.o
         FunctionInvocation(f.ref[Function[Post]], Seq(dispatch(e)), Nil, Nil, Nil)(PanicBlame("Can always call cast on float"))
+      }
     case f @ FloatValue(num, _) =>
       implicit val o: Origin = f.o
       var numerator = num
