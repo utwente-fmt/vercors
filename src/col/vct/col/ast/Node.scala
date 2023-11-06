@@ -1290,3 +1290,12 @@ final class SilverField[G](val t: Type[G])(implicit val o: Origin) extends Silve
 
 sealed trait SilverType[G] extends Type[G] with SilverTypeImpl[G]
 case class SilverPartialTAxiomatic[G](ref: Ref[G, AxiomaticDataType[G]], partialTypeArgs: Seq[(Ref[G, Variable[G]], Type[G])])(implicit val o: Origin = DiagnosticOrigin) extends SilverType[G] with SilverPartialTAxiomaticImpl[G]
+
+
+sealed trait CodeString[G] extends Declaration[G] with CodeStringImpl[G] {
+  val content: String
+}
+final case class CodeStringGlobal[G](content: String)(implicit val o: Origin) extends GlobalDeclaration[G]  with CodeString[G]
+final case class CodeStringClass[G](content: String)(implicit val o: Origin) extends ClassDeclaration[G] with CodeString[G]
+
+
