@@ -2,7 +2,8 @@ package vct.col.origin
 
 import com.typesafe.scalalogging.Logger
 import hre.io.{LiteralReadable, Readable}
-import vct.col.origin.Origin.{BOLD_HR, HR}
+import vct.result.HasContext
+import vct.result.Message.HR
 
 import java.io.{Reader, StringReader}
 import java.nio.file.Paths
@@ -12,14 +13,7 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 case object Origin {
-  val BOLD_HR = "======================================\n"
-  val HR      = "--------------------------------------\n"
 
-  def messagesInContext(messages: Seq[(Origin, String)]): String =
-    messages.zipWithIndex.map {
-      case ((origin, message), idx) =>
-        origin.getContext.getOrElse(Context("")).context.replaceAll("(^[\r\n]+)|([\r\n]+$)", "") + "\n" + HR+ s"[${idx+1}/${messages.size}] $message\n"
-    }.mkString(BOLD_HR, HR, BOLD_HR)
 }
 
 /***
@@ -76,6 +70,22 @@ case class RequiredName(requiredName: String) extends NameStrategy {
   override def name(tail: Origin): Option[Name] = Some(Name.Required(requiredName))
 }
 
+case class SourceName(name: String) extends NameStrategy {
+  def splitName: Seq[String] =
+    if(name.forall(c => !c.isLetter || c.isUpper)) name.split("[_]+").toIndexedSeq
+    else name.split("[_]+").flatMap(splitNameRec)
+
+  private def splitNameRec(str: String): Seq[String] =
+    if(str.isEmpty) Nil
+    else {
+      val (left, right) = str.tail.span(_.isLower)
+      (str.head + left) +: splitNameRec(right)
+    }
+
+  override def name(tail: Origin): Option[Name] =
+    Some(Name.Preferred(splitName))
+}
+
 /**
  * Content that provides a bit of context here. By default, this assembles further context from the remaining
  * origin. contextHere and inlineContextHere may optionally consume some more contents, otherwise they can just
@@ -84,6 +94,7 @@ case class RequiredName(requiredName: String) extends NameStrategy {
 trait Context1 extends OriginContent {
   protected def contextHere(tail: Origin): (String, Origin)
   protected def inlineContextHere(tail: Origin): (String, Origin)
+  protected def shortPositionHere(tail: Origin): (String, Origin)
 
   override def context(tail: Origin): Option[Seq[String]] = {
     val (head, tailAfterContext) = contextHere(tail)
@@ -95,11 +106,16 @@ trait Context1 extends OriginContent {
     Some(head +: tailAfterContext.inlineContext.getOrElse(Nil))
   }
 
+  override def shortPosition(tail: Origin): Option[String] = {
+    val (head, tailAfterPosition) = shortPositionHere(tail)
+    Some(tailAfterPosition.shortPosition.getOrElse(head))
+  }
 }
 
 case class LabelContext(label: String) extends Context1 {
   override protected def contextHere(tail: Origin): (String, Origin) = (s"At $label:", tail)
   override protected def inlineContextHere(tail: Origin): (String, Origin) = (label, tail)
+  override protected def shortPositionHere(tail: Origin): (String, Origin) = (label, tail)
 }
 
 trait Source extends Context1 {
@@ -107,9 +123,11 @@ trait Source extends Context1 {
   def inlinePositionContext(position: PositionRange): String
   protected def genericContext: String
   protected def genericInlineContext: String
+  def genericShortPosition: String
 
   override protected def contextHere(tail: Origin): (String, Origin) = (genericContext, tail)
   override protected def inlineContextHere(tail: Origin): (String, Origin) = (genericInlineContext, tail)
+  override protected def shortPositionHere(tail: Origin): (String, Origin) = (genericShortPosition, tail)
 }
 
 case class ReadableOrigin(readable: Readable) extends Source {
@@ -117,6 +135,7 @@ case class ReadableOrigin(readable: Readable) extends Source {
   def inlinePositionContext(position: PositionRange): String = InputOrigin.inlineContext(readable, position)
   override def genericContext: String = s"At ${readable.fileName}"
   override def genericInlineContext: String = s"${readable.fileName}"
+  override def genericShortPosition: String = s"${readable.fileName}"
 }
 
 case class OriginFilename(filename: String) extends Source {
@@ -124,6 +143,7 @@ case class OriginFilename(filename: String) extends Source {
   def inlinePositionContext(position: PositionRange): String = genericInlineContext
   override def genericContext: String = s"At $filename"
   override def genericInlineContext: String = s"$filename"
+  override def genericShortPosition: String = s"$filename"
 }
 
 case class InlineBipContext(bipContext: String) extends Source {
@@ -131,9 +151,18 @@ case class InlineBipContext(bipContext: String) extends Source {
   def inlinePositionContext(position: PositionRange): String = InputOrigin.inlineContext(LiteralReadable("literal", bipContext), position)
   override def genericContext: String = s"From literal"
   override def genericInlineContext: String = "literal"
+  override def genericShortPosition: String = "literal"
 }
 
 case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Option[(Int, Int)]) extends Context1 {
+  def onlyPositionText: String =
+    startEndColIdx match {
+      case Some((startColIdx, endColIdx)) =>
+        s":${startLineIdx+1}:${startColIdx+1}-:${endLineIdx+1}:${endColIdx+1}"
+      case None =>
+        s":${startLineIdx+1}-:${endLineIdx+1}"
+    }
+
   override protected def contextHere(tail: Origin): (String, Origin) =
     tail.spanFind[Source] match {
       case (_, Some((source, tail))) => (source.positionContext(this), tail)
@@ -145,13 +174,19 @@ case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Opt
       case (_, Some((source, tail))) => (source.inlinePositionContext(this), tail)
       case (_, None) => ("broken position", tail)
     }
+
+  override protected def shortPositionHere(tail: Origin): (String, Origin) =
+    tail.spanFind[Source] match {
+      case (_, Some((source, tail))) => (s"${source.genericShortPosition}$onlyPositionText", tail)
+      case (_, None) => ("broken position", tail)
+    }
 }
 
 /**
  * A sequence of OriginContents. This sequence can be mutated (add, remove, replace) for convenience.
 * @param originContents The known origin contents at the time of Origin creation. Can be empty for a new Origin.
  */
-case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] {
+case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] with HasContext {
   def tail: Origin = Origin(originContents.tail)
 
   def find[T <: OriginContent](implicit tag: ClassTag[T]): Option[T] =
@@ -185,11 +220,6 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
 
   def get[T <: OriginContent](implicit tag: ClassTag[T]): T = find[T].get
 
-  def consume[T <: OriginContent](implicit tag: ClassTag[T]): Option[(T, Origin)] = {
-    val (left, right) = originContents.span(!_.isInstanceOf[T])
-    right.headOption.map(oc => (oc.asInstanceOf[T], Origin(left ++ right.tail)))
-  }
-
   def withContent(content: OriginContent): Origin =
     Origin(content +: originContents)
 
@@ -210,10 +240,11 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
 //  def addOriginCols(cols: Option[(Int, Int)]): Origin =
 //    withContent(OriginCols(cols))
 
-  def getPreferredName: Option[String] = find[PreferredName].map(_.preferredName)
+  def getPreferredName: Option[Name] =
+    originContents.headOption.flatMap(_.name(tail).orElse(tail.getPreferredName))
 
-  def getPreferredNameOrElse(name: String = "unknown"): String =
-    getPreferredName.getOrElse(name)
+  def getPreferredNameOrElse(name: Seq[String] = Seq("unknown")): Name =
+    getPreferredName.getOrElse(Name.Preferred(name))
 
   def context: Option[Seq[String]] =
     // Use the first content to provide context (if it exists), else use the tail.
@@ -228,11 +259,11 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
   def inlineContextText: String =
     inlineContext.map(_.mkString(" > ")).getOrElse("[unknown context]")
 
-  def bareMessageInContext(message: String): String =
-    contextText + "\n" + HR + message
+  def shortPosition: Option[String] =
+    originContents.headOption.flatMap(_.shortPosition(tail).orElse(tail.shortPosition))
 
-  def messageInContext(message: String): String =
-    BOLD_HR + bareMessageInContext(message) + "\n" + BOLD_HR
+  def shortPositionText: String =
+    shortPosition.getOrElse("[unknown position]")
 
   override def blame(error: VerificationFailure): Unit = {
     Logger("vct").error(error.toString)
@@ -404,88 +435,11 @@ object InputOrigin {
 
 object DiagnosticOrigin extends Origin(Nil)
 
-// decided to include the readable in the origin itself, this is perhaps not necessary?
-object UserInputOrigin {
-  def apply(readable: Readable,
-            startLineIdx: Int, endLineIdx: Int,
-            cols: Option[(Int, Int)]): Origin = {
-
-    def startText: String = cols match {
-      case Some((startColIdx, _)) => f"${readable.fileName}:${startLineIdx + 1}:${startColIdx + 1}"
-      case None => f"${readable.fileName}:${startLineIdx + 1}"
-    }
-
-    def baseFilename: String = Paths.get(readable.fileName).getFileName.toString
-
-    def inlineContext: String = {
-      if (readable.isRereadable)
-        InputOrigin.inlineContext(readable, startLineIdx, endLineIdx, cols)
-      else
-        f"(non-rereadable source ${readable.fileName})"
-    }
-
-    def context: String = {
-      val atLine = f" At $startText:\n"
-
-      if (readable.isRereadable) {
-        atLine + Origin.HR + InputOrigin.contextLines(readable, startLineIdx, endLineIdx, cols)
-      } else {
-        atLine
-      }
-    }
-
-    def shortPosition: String = cols match {
-      case Some((startColIdx, _)) => f"$baseFilename:${startLineIdx + 1}:${startColIdx + 1}"
-      case None => f"$baseFilename:${startLineIdx + 1}"
-    }
-
-    Origin(Seq(ShortPosition(shortPosition), Context(context), InlineContext(inlineContext)))
-  }
-}
-
 case class BlameCollector() extends Blame[VerificationFailure] {
   val errs: ArrayBuffer[VerificationFailure] = ArrayBuffer()
 
   override def blame(error: VerificationFailure): Unit =
     errs += error
-}
-
-object InterpretedOrigin {
-  def apply(interpreted: Readable,
-            startLineIdx: Int, endLineIdx: Int,
-            cols: Option[(Int, Int)],
-            original: Origin): Origin = {
-
-    def startText: String = cols match {
-      case Some((startColIdx, _)) => f"${interpreted.fileName}:${startLineIdx + 1}:${startColIdx + 1}"
-      case None => f"${interpreted.fileName}:${startLineIdx + 1}"
-    }
-
-    def context: Seq[OriginContent] = {
-      val interpretedAtLine = f" Interpreted at $startText as:\n"
-
-      val interpretedText = if (interpreted.isRereadable) {
-        interpretedAtLine + Origin.HR + InputOrigin.contextLines(interpreted, startLineIdx, endLineIdx, cols)
-      } else {
-        interpretedAtLine
-      }
-
-      original.originContents.map {
-        case Context(message) => Context(message + Origin.HR + interpretedText)
-        case other => other
-      }
-    }
-
-    def inlineContext: String =
-      if (interpreted.isRereadable)
-        InputOrigin.inlineContext(interpreted, startLineIdx, endLineIdx, cols)
-      else
-        f"(non-rereadable source ${interpreted.fileName})"
-
-    Origin(context :+ InlineContext(inlineContext))
-  }
-
-
 }
 
 case object RedirectOrigin {
@@ -495,26 +449,6 @@ case object RedirectOrigin {
     override protected def getReader: Reader =
       new StringReader(data)
   }
-
-  def transposeOrigin(o: Origin, textualOrigin: String, startLine: Int, endLine: Int, cols: Option[(Int, Int)]): Origin
-  = o.originContents.collectFirst {
-    case ReadableOrigin(readable) =>
-      val startEndLine = o.getStartEndLines
-      val realStartLine = startEndLine.get.startEndLineIdx._1 + startLine
-      val realEndLine = startEndLine.get.startEndLineIdx._2 + endLine
-      val c: Option[(Int, Int)] = (o.getOriginCols.get.cols, cols) match {
-        case (Some((baseStartCol, _)), Some((innerStartCol, innerEndCol))) =>
-          // + 1 because need to account for starting quote that must be skipped
-          val realStart = (if (startLine == 0) baseStartCol + innerStartCol else innerStartCol) + 1
-          val realEnd = (if (endLine == 0) baseStartCol + innerEndCol else innerEndCol) + 1
-          Some((realStart, realEnd))
-        case (Some(baseCols), None) => if (startLine == 0) Some(baseCols) else None
-        case (None, cols) => cols
-      }
-      Origin(Seq(ReadableOrigin(readable), StartEndLines(realStartLine, realEndLine), OriginCols(c)))
-    case _ =>
-      InterpretedOrigin(StringReadable(textualOrigin), startLine, endLine, cols, o)
-  }.get
 
 }
 

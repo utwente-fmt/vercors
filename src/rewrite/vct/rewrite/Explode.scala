@@ -3,9 +3,9 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{AbstractApplicable, Blame, Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition, UnsafeDontCare, VerificationFailure}
+import vct.col.origin.{AbstractApplicable, Blame, Origin, PanicBlame, PreferredName, UnsafeDontCare, VerificationFailure}
 import vct.col.ref.Ref
-import vct.col.rewrite.Explode.{AssumeFunction, UnknownDeclaration, VerifiedElsewhereBlame}
+import vct.col.rewrite.Explode.{UnknownDeclaration, VerifiedElsewhereBlame}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.SystemError
 
@@ -18,25 +18,14 @@ case object Explode extends RewriterBuilderArg[Boolean] {
 
   case class UnknownDeclaration(program: Program[_], decl: Declaration[_]) extends SystemError {
     override def text: String =
-      program.messageInContext(decl, s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}")
+      program.highlight(decl).messageInContext(s"Unknown declaration kind at this point: ${decl.getClass.getSimpleName}")
   }
-
-  private def ExplodeOrigin: Origin = Origin(
-    Seq(
-      PreferredName("unknown"),
-      Context("At: [node generated to split out verification]"),
-      InlineContext("[Node generated to split out verification]"),
-      ShortPosition("generated"),
-    )
-  )
 
   case object VerifiedElsewhereBlame extends Blame[VerificationFailure] {
     override def blame(error: VerificationFailure): Unit = {
       // Do nothing: the error will already be reported elsewhere (or at worst nont-deterministically verified)
     }
   }
-
-  private def AssumeFunction(inner: Origin): Origin = inner.replacePrefName("assume" + inner.getPreferredNameOrElse().capitalize)
 }
 
 case class Explode[Pre <: Generation](enable: Boolean) extends Rewriter[Pre] {

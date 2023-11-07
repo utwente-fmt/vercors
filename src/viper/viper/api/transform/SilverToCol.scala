@@ -8,7 +8,7 @@ import vct.col.{ast => col}
 import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError.UserError
 import viper.api.transform.SilverToCol.{SilverNodeNotSupported, SilverPositionOrigin}
-import viper.silver.ast.{AbstractSourcePosition, NoPosition}
+import viper.silver.ast.{AbstractSourcePosition, FilePosition, HasIdentifier, HasLineColumn, IdentifierPosition, LineColumnPosition, NoPosition, SourcePosition, TranslatedPosition, VirtualPosition}
 import viper.silver.plugin.standard.termination.{DecreasesClause, DecreasesStar, DecreasesTuple, DecreasesWildcard}
 import viper.silver.verifier.AbstractError
 import viper.silver.{ast => silver}
@@ -16,25 +16,28 @@ import viper.silver.{ast => silver}
 import java.nio.file.{Path, Paths}
 
 case object SilverToCol {
-  private def SilverPositionOrigin(node: silver.Positioned): Origin = Origin(
-    Seq(
-      PreferredName("unknown"),
-      ShortPosition(node.pos match {
-        case pos: AbstractSourcePosition => s"${pos.start.line}:${pos.start.column}"
-        case _ => "unknown"
-      }),
-      Context(node.pos match {
-        case NoPosition => "[Unknown position from silver parse tree]"
-        case pos: AbstractSourcePosition =>
-          val (start, end) = (pos.start, pos.end.getOrElse(pos.start))
-          UserInputOrigin(
-            RWFile(pos.file.toFile), start.line - 1, end.line - 1, Some((start.column - 1, end.column - 1))
-          ).getContext.getOrElse(Context("[unknown context]")).context
-        case other => s"[Unknown silver position kind: $other]"
-      }),
-      InlineContext(InputOrigin.compressInlineText(node.toString)),
-    )
-  )
+  private def SilverPositionOrigin(node: silver.Positioned): Origin =
+    node.pos match {
+      case NoPosition => Origin(Nil)
+      case position: SourcePosition =>
+        val start = position.start
+        val end = position.end.getOrElse(start)
+        Origin(Seq(
+          PositionRange(start.line-1, end.line-1, Some((start.column-1, end.column-1))),
+          ReadableOrigin(RWFile(position.file.toFile)),
+        ))
+      case FilePosition(file, vline, col) =>
+        Origin(Seq(
+          PositionRange(vline, vline, Some((col, col))),
+          ReadableOrigin(RWFile(file.toFile)),
+        ))
+      case LineColumnPosition(line, column) =>
+        Origin(Seq(
+          PositionRange(line, line, Some((column, column)))
+        ))
+      case VirtualPosition(identifier) => Origin(Seq(Context(identifier)))
+      case _ => Origin(Nil)
+    }
 
   case class SilverNodeNotSupported(node: silver.Node) extends UserError {
     override def code: String = "silverNodeNotSupported"

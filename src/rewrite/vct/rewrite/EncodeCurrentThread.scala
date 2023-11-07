@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{Context, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.result.VerificationError.UserError
@@ -12,12 +12,10 @@ case object EncodeCurrentThread extends RewriterBuilder {
   override def key: String = "currentThread"
   override def desc: String = "Translate \\current_thread into an explicit argument to all thread-local contexts."
 
-  private def CurrentThreadIdOrigin: Origin = Origin(
+  private val currentThreadIdOrigin: Origin = Origin(
     Seq(
-      PreferredName("tid"),
-      ShortPosition("generated"),
-      Context("[At generated variable for the current thread ID]"),
-      InlineContext("\\current_thread"),
+      PreferredName(Seq("tid")),
+      LabelContext("\\current_thread"),
     )
   )
 
@@ -60,13 +58,13 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
     case app: RunMethod[Pre] =>
       implicit val o: Origin = app.o
       classDeclarations.succeed(app, app.rewrite(body = app.body.map { body =>
-        val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
+        val currentThreadVar = new Variable[Post](TInt())(currentThreadIdOrigin)
         Scope(Seq(currentThreadVar), currentThreadId.having(currentThreadVar.get) { dispatch(body) })
       }))
     case app: Applicable[Pre] =>
       if(wantsThreadLocal(app)) {
-        val currentThreadVar = new Variable[Post](TInt())(CurrentThreadIdOrigin)
-        currentThreadId.having(Local[Post](currentThreadVar.ref)(CurrentThreadIdOrigin)) {
+        val currentThreadVar = new Variable[Post](TInt())(currentThreadIdOrigin)
+        currentThreadId.having(Local[Post](currentThreadVar.ref)(currentThreadIdOrigin)) {
           allScopes.anySucceedOnly(app, allScopes.anyDeclare(app.rewrite(args = variables.collect {
             variables.declare(currentThreadVar)
             app.args.foreach(dispatch)

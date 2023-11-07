@@ -3,11 +3,12 @@ package vct.col.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{AssertFailed, Blame, Context, FoldFailed, InlineContext, Origin, PreferredName, ShortPosition, UnfoldFailed}
+import vct.col.origin.{AssertFailed, Blame, FoldFailed, Origin, PreferredName, UnfoldFailed}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
+import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
@@ -24,10 +25,11 @@ case object InlineApplicables extends RewriterBuilder {
       applications match {
         case Seq(app) => app.o.messageInContext("This application cannot be inlined, since the applicable refers to itself.")
         case first +: more =>
-          Origin.messagesInContext(
+          Message.messagesInContext(
             (first.o, "This application cannot be inlined, since it requires inlining ...") +:
               more.map(apply => (apply.o, "... this application, which requires inlining ...")) :+
               (first.o, "... this application: a cycle.")
+            : _*
           )
       }
   }
@@ -35,10 +37,10 @@ case object InlineApplicables extends RewriterBuilder {
   case class AbstractInlineable(use: Apply[_], inlineable: InlineableApplicable[_]) extends UserError {
     override def code: String = "abstractInlined"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         use.o -> "This application cannot be inlined, since ...",
         inlineable.o -> "... the definition is abstract.",
-      ))
+      )
   }
 
   case class WrongPredicateLocation(use: Location[_]) extends UserError {

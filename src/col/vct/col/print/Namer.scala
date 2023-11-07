@@ -79,7 +79,16 @@ case class Namer[G](syntax: Ctx.Syntax) {
       return
     }
 
-    var (baseName, index) = unpackName(decl.o.getPreferredNameOrElse())
+    val name = decl.o.getPreferredNameOrElse()
+    var (baseName, index) = unpackName(decl match {
+      case declaration: GlobalDeclaration[_] => declaration match {
+        case _: Applicable[_] => name.camel
+        case _ => name.ucamel
+      }
+      case constant: EnumConstant[_] => name.usnake
+      case decl: LabelDecl[_] => name.usnake
+      case _ => name.camel
+    })
 
     while(keys.exists(key => names.contains((key, baseName, index)))) {
       index += 1

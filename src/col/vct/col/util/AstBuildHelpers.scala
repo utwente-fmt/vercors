@@ -236,14 +236,7 @@ object AstBuildHelpers {
     }
   }
 
-  private def constOrigin(value: scala.Any): Origin = Origin(
-    Seq(
-      PreferredName("unknown"),
-      ShortPosition("generated"),
-      Context(s"[At generated constant `$value`]"),
-      InlineContext(value.toString),
-    )
-  )
+  private def constOrigin(value: scala.Any): Origin = Origin(Seq(LabelContext(s"constant ${value}")))
 
   def tt[G]: BooleanValue[G] = BooleanValue(true)(constOrigin(true))
   def ff[G]: BooleanValue[G] = BooleanValue(false)(constOrigin(false))
@@ -331,10 +324,8 @@ object AstBuildHelpers {
 
   private def GeneratedQuantifier: Origin = Origin(
     Seq(
-      PreferredName("i"),
-      ShortPosition("generated"),
-      Context("[At generated quantifier]"),
-      InlineContext("[Generated quantifier]"),
+      PreferredName(Seq("i")),
+      LabelContext("generated quantifier"),
     )
   )
 
@@ -386,10 +377,8 @@ object AstBuildHelpers {
 
   private def GeneratedLet: Origin = Origin(
     Seq(
-      PreferredName("x"),
-      ShortPosition("generated"),
-      Context("[At generated let]"),
-      InlineContext("[Generated let]"),
+      PreferredName(Seq("x")),
+      LabelContext("generated let"),
     )
   )
 

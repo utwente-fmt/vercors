@@ -1,7 +1,7 @@
 package vct.col.resolve.ctx
 
 import vct.col.ast._
-import vct.col.origin.{Origin, PreferredName}
+import vct.col.origin.{Origin, PreferredName, SourceName}
 import vct.col.resolve.NameLost
 import vct.col.resolve.lang.{C, CPP}
 
@@ -180,13 +180,13 @@ case object Referrable {
     case decl: PVLSeqProg[G] => RefPVLSeqProg(decl)
   })
 
-  def originName(decl: Declaration[_]): String = decl.o.getPreferredName match {
-    case Some(name) => name
+  def originName(decl: Declaration[_]): String = decl.o.find[SourceName] match {
+    case Some(SourceName(name)) => name
     case _ => throw NameLost(decl.o)
   }
 
-  def originNameOrEmpty(decl: Declaration[_]): String = decl.o.getPreferredName match {
-    case Some(name) => name
+  def originNameOrEmpty(decl: Declaration[_]): String = decl.o.find[SourceName] match {
+    case Some(SourceName(name)) => name
     case _ => ""
   }
 }

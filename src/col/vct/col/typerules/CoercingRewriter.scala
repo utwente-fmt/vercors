@@ -36,9 +36,7 @@ case object CoercingRewriter {
 
   case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
 
-  private def coercionOrigin(of: Expr[_]): Origin = {
-    of.o.replacePrefName("unknown")
-  }
+  private def coercionOrigin(of: Expr[_]): Origin = of.o.where(name = "unknown")
 }
 
 abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pre, Rewritten[Pre]] with LazyLogging {

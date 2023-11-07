@@ -132,7 +132,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
     program.rewrite(globalDeclarations.collect {
       val adt = DeclarationBox[Post, AxiomaticDataType[Post]]()
       val valType = TAxiomatic(adt.ref, Nil)
-      val kind = new ADTFunction[Post](Seq(new Variable(valType)(o.replacePrefName("val"))), TInt())(o.replacePrefName("kind"))
+      val kind = new ADTFunction[Post](Seq(new Variable(valType)(o.where(name = "val"))), TInt())(o.where(name = "kind"))
 
       val m = mutable.Map[ResourcePattern, PatternBuilder]()
 
@@ -161,10 +161,10 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
 
         val ts = freeTypes(pattern)
 
-        val buildFunc = new ADTFunction(ts.map(new Variable[Post](_)(o.replacePrefName("x"))), valType)(o.replacePrefName(s"ResVal$index"))
+        val buildFunc = new ADTFunction(ts.map(new Variable[Post](_)(o.where(name = "x"))), valType)(o.where(name = s"ResVal$index"))
 
         val kindAxiom = {
-          val vars = ts.map(new Variable[Post](_)(o.replacePrefName("x")))
+          val vars = ts.map(new Variable[Post](_)(o.where(name = "x")))
           new ADTAxiom(Forall(
             vars,
             Nil,
@@ -175,11 +175,11 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
         }
 
         val getters = ts.zipWithIndex.map { case (t, typeIndex) =>
-          new ADTFunction[Post](Seq(new Variable(valType)(o.replacePrefName("val"))), t)(o.replacePrefName(s"ResVal${index}_get$typeIndex"))
+          new ADTFunction[Post](Seq(new Variable(valType)(o.where(name = "val"))), t)(o.where(name = s"ResVal${index}_get$typeIndex"))
         }
 
         val getterAxioms = ts.zipWithIndex.map { case (t, index) =>
-          val vars = ts.map(new Variable[Post](_)(o.replacePrefName("x")))
+          val vars = ts.map(new Variable[Post](_)(o.where(name = "x")))
           new ADTAxiom(Forall(
             vars,
             Nil,
@@ -270,9 +270,9 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
         buildFunc +: kindAxiom +: (getters ++ getterAxioms)
       }
 
-      adt.fill(globalDeclarations.declare(new AxiomaticDataType[Post](kind +: decls, Nil)(o.replacePrefName("ResourceVal"))))
+      adt.fill(globalDeclarations.declare(new AxiomaticDataType[Post](kind +: decls, Nil)(o.where(name = "ResourceVal"))))
 
-      val arbitraryValue = new Predicate(Seq(new Variable(valType)(o.replacePrefName("val"))), None)(o.replacePrefName("arbitraryResourceValue"))
+      val arbitraryValue = new Predicate(Seq(new Variable(valType)(o.where(name = "val"))), None)(o.where(name = "arbitraryResourceValue"))
       globalDeclarations.declare(arbitraryValue)
 
       patternBuilders.having(m.toMap) {
@@ -293,7 +293,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
 
     case ResourceOfResourceValue(resourceValue) =>
       implicit val o: Origin = e.o
-      val binding = new Variable[Post](TAxiomatic(valAdt.top.ref, Nil))(e.o.replacePrefName("v"))
+      val binding = new Variable[Post](TAxiomatic(valAdt.top.ref, Nil))(e.o.where(name = "v"))
       val v = Local[Post](binding.ref)
 
       val alts: Seq[(Expr[Post], Expr[Post])] = patternBuilders.top.values.map { builder =>
