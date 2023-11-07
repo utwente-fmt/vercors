@@ -6,7 +6,7 @@ import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin.Origin
 import vct.col.print._
 
-trait SeqProgImpl[G] { this: SeqProg[G] =>
+trait SeqProgImpl[G] extends Declarator[G] { this: SeqProg[G] =>
   override def declarations: Seq[Declaration[G]] = args ++ threads ++ decls
 
   override def layout(implicit ctx: Ctx): Doc =
@@ -16,4 +16,7 @@ trait SeqProgImpl[G] { this: SeqProg[G] =>
         Doc.stack(threads ++ decls :+ run) <+/>
       "}"
     ))
+
+  override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
+    super.enterCheckContext(context).withSeqProg(this)
 }
