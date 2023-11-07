@@ -55,7 +55,7 @@ case class CreateBlocksMethods[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
 
-  def dispatchGivenMethod(im: InstanceMethod[Pre]): Unit = {
+  private def dispatchGivenMethod(im: InstanceMethod[Pre]): Unit = {
     im.body match {
       case Some(sc: Scope[Pre]) => {
         sc.body match {
@@ -69,16 +69,6 @@ case class CreateBlocksMethods[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => rewriteDefault(im)
     }
   }
-
-
-  def dispatchGivenClass(cls: Class[Pre]): Class[Post] = {
-    new RewriteClass[Pre, Post](cls).rewrite(
-      declarations = classDeclarations.collect {
-        cls.declarations.foreach(d => dispatch(d))
-      }._1
-    )
-  }
-
 
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
@@ -100,7 +90,6 @@ case class CreateBlocksMethods[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
-//      case cls: Class[Pre] => globalDeclarations.succeed(cls, dispatchGivenClass(cls))
       case im: InstanceMethod[Pre] => dispatchGivenMethod(im)
       case _ => rewriteDefault(decl)
     }
