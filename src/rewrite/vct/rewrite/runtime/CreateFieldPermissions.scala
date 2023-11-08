@@ -17,7 +17,7 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
   def createPermissionField(cls: Class[Pre], size: Int): ClassDeclaration[Post] = {
     val allNewHashMaps: Seq[String] = (1 to size).map(_ => CodeStringDefaults.newFieldConcurrentArray)
-    new CodeStringClass[Post](CodeStringDefaults.newFieldPermissions.format(allNewHashMaps.mkString(", ")))(cls.o)
+    new CodeStringClass[Post](CodeStringDefaults.newFieldPermissions(allNewHashMaps.mkString(", ")))(cls.o)
   }
 
   def dispatchClassDeclarations(cls: Class[Pre]): Seq[ClassDeclaration[Post]] = {

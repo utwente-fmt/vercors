@@ -1656,6 +1656,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
+      case CodeStringAssertStatement(c) => CodeStringAssertStatement(c)
     }
   }
 

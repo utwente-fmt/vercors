@@ -18,6 +18,8 @@ class Test{
         int a = sum();
 
         z = a + z;
+        x = z;
+        y++;
 
         return z;
     }
