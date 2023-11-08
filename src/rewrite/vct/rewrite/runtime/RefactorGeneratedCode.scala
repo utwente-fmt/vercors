@@ -3,7 +3,6 @@ package vct.rewrite.runtime
 import vct.col.ast.RewriteHelpers.RewriteClass
 import vct.col.ast.{Class, ClassDeclaration, Declaration, GlobalDeclaration, Procedure, Program, TClass, Type}
 import vct.col.print.Text
-import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.CreateConstructor
