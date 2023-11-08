@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assign, Block, Class, Communicate, Declaration, Endpoint, EndpointUse, Eval, Expr, Local, LocalDecl, Procedure, SeqAssign, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
+import vct.col.ast.{Assign, Scope, Block, Class, Communicate, Declaration, Endpoint, EndpointUse, Eval, Expr, Local, LocalDecl, Procedure, SeqAssign, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
 import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -44,9 +44,8 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
     case (None, Some(_)) => throw new RuntimeException()
   }
 
-  val runToProc: mut.Map[SeqRun[Pre], Procedure[Post]] = mut.LinkedHashMap()
-
-  val seqProgSucc: SuccessionMap[SeqProg[Pre], Procedure[Post]] = SuccessionMap()
+  val runSucc: mut.Map[SeqRun[Pre], Procedure[Post]] = mut.LinkedHashMap()
+  val progSucc: SuccessionMap[SeqProg[Pre], Procedure[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[(Mode, Endpoint[Pre]), Variable[Post]] = SuccessionMap()
   val variableSucc: SuccessionMap[(Mode, Variable[Pre]), Variable[Post]] = SuccessionMap()
 
@@ -57,7 +56,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
       // Then generate a procedure that initializes all the endpoints and calls the run procedure
       // First set up the succesor variables that will be encoding the seq_program argument and endpoints
-      implicit val o = DiagnosticOrigin
+      implicit val o = prog.o
       prog.endpoints.foreach(_.drop())
       for (endpoint <- currentProg.top.endpoints) {
         endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
@@ -70,40 +69,44 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
       }
 
-      seqProgSucc(prog) = globalDeclarations.declare(new Procedure(
+      // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
+      val endpointsInit = prog.endpoints.map { endpoint =>
+          Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
+          procedureInvocation[Post](
+            ref = succ(endpoint.constructor.decl),
+            args = endpoint.args.map(dispatch),
+            blame = PanicBlame("TODO: endpoint constructor failure blame")
+          )
+        )(PanicBlame("TODO: Constructor assign failure blame"))
+      }
+
+      // Invoke the run procedure with the seq_program arguments, as well as all the endpoints
+      val invokeRun = Eval(procedureInvocation[Post](
+        ref = runSucc(prog.run).ref,
+        args = prog.args.map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
+          prog.endpoints.map(endpoint => Local[Post](endpointSucc((mode, endpoint)).ref)),
+        blame = PanicBlame("TODO: run invocation failure blame")
+      ))
+
+      // Scope the endpoint vars and combine initialization and run method invocation
+      val body = Scope(
+        prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
+        Block(endpointsInit :+ invokeRun)
+      )
+
+      progSucc(prog) = globalDeclarations.declare(new Procedure(
         returnType = TVoid(), outArgs = Seq(), typeArgs = Seq(),
         args = prog.args.map(arg => variableSucc((mode, arg))),
         contract = dispatch(prog.contract),
-        body = Some(Block(
-          prog.endpoints.flatMap { endpoint =>
-            val v = endpointSucc((mode, endpoint))
-            Seq(
-              LocalDecl(v),
-              Assign(
-                Local[Post](v.ref),
-                procedureInvocation[Post](
-                  ref = succ(endpoint.constructor.decl),
-                  args = endpoint.args.map(dispatch),
-                  blame = PanicBlame("TODO: endpoint constructor failure blame")
-                )
-              )(PanicBlame("TODO: Constructor assign failure blame"))
-            )
-          }
-          :+
-          Eval(procedureInvocation[Post](
-            ref = runToProc(prog.run).ref,
-            args = prog.args.map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
-              prog.endpoints.map(endpoint => Local[Post](endpointSucc((mode, endpoint)).ref)),
-            blame = PanicBlame("TODO: run invocation failure blame")
-          ))
-        ))
+        body = Some(body)
       )(PanicBlame("TODO: callable failure blame")))
     }
+
     case _ => rewriteDefault(decl)
   }
 
   def rewriteRun(run: SeqRun[Pre]): Unit = {
-    implicit val o: Origin = DiagnosticOrigin
+    implicit val o: Origin = run.o.replacePrefName(currentProg.top.o.getPreferredNameOrElse() + "_run")
 
     currentRun.having(run) {
       for (endpoint <- currentProg.top.endpoints) {
@@ -114,7 +117,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
       }
 
-      runToProc(run) = globalDeclarations.declare(new Procedure(
+      runSucc(run) = globalDeclarations.declare(new Procedure(
         args = currentProg.top.args.map(arg => variableSucc((mode, arg))) ++
           currentProg.top.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
         contract = dispatch(run.contract),
@@ -132,7 +135,6 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
-    case (Top, EndpointUse(Ref(endpoint))) => throw new RuntimeException()
     case (mode, EndpointUse(Ref(endpoint))) =>
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.args.contains(v) =>
