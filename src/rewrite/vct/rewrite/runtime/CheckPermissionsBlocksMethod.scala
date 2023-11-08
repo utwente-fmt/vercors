@@ -1,7 +1,7 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{Block, Class, CodeStringAssertStatement, Declaration, Deref, Expr, InstanceField, InstanceMethod, MethodInvocation, PostAssignExpression, PreAssignExpression, Program, Scope, Statement, Type, Variable}
-import vct.col.ref.LazyRef
+import vct.col.ast.{Block, Class, CodeStringAssertStatement, ContractApplicable, Declaration, Deref, Expr, InstanceField, InstanceMethod, MethodInvocation, PostAssignExpression, PreAssignExpression, Program, Result, Scope, Statement, Type, Variable}
+import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.CodeStringDefaults.{assertCheckRead, assertCheckWrite}
@@ -140,6 +140,14 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
         dispatchTarget(postAssign.target)
         dispatchValue(postAssign.value)
         super.rewriteDefault(e)
+      }
+      case res: Result[Pre] => {
+        res.applicable.decl match {
+          case im: InstanceMethod[Pre] => {
+            Result[Post](givenMethodSucc.ref(im))(res.o)
+          }
+          case _ => rewriteDefault(res)
+        }
       }
       case d: Deref[Pre] => {
         d.ref match {
