@@ -3,7 +3,8 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec extends VercorsSpec {
-  vercors should error withCode "communicateNotSupported" in "example using communicate" pvl
+  // TODO: Should eventually become pass
+  vercors should error withCode "generatedPermMissing" in "example using communicate" pvl
   """
      class Storage {
         int x;

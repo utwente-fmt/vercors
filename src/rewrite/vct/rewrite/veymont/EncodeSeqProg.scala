@@ -2,13 +2,13 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Local, LocalDecl, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
-import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame}
+import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, Local, LocalDecl, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, Variable}
+import vct.col.origin.{Blame, DiagnosticOrigin, Origin, PanicBlame, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import EncodeSeqProg.{CommunicateNotSupported, SeqAssignNotSupported}
+import EncodeSeqProg.{CommunicateNotSupported, PermBlame, SeqAssignNotSupported}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -25,6 +25,15 @@ object EncodeSeqProg extends RewriterBuilder {
   case object SeqAssignNotSupported extends UserError {
     override def code: String = "seqAssignNotSupported"
     override def text: String = "The `:=` statement is not yet supported"
+  }
+
+  case class GeneratedPermMissing(node: Node[_]) extends UserError {
+    override def code: String = "generatedPermMissing"
+    override def text: String = node.o.messageInContext("VeyMont doesn't generate permissions yet, so this code causes a permission error")
+  }
+
+  case class PermBlame(node: Node[_]) extends Blame[VerificationFailure] {
+    override def blame(error: VerificationFailure): Unit = throw GeneratedPermMissing(node)
   }
 }
 
@@ -135,11 +144,23 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         Deref[Post](
           Local(endpointSucc((mode, endpoint)).ref),
           succ(field)
-        )(PanicBlame("Private field permission management is done by VeyMont")),
+        )(PermBlame(assign)),
         dispatch(e)
-      )(PanicBlame("Private field permission management is done by VeyMont"))
-    case _: Communicate[Pre] => throw CommunicateNotSupported
+      )(PermBlame(assign))
+    case comm@Communicate(receiver, sender) =>
+      implicit val o = comm.o
+      Assign[Post](
+        rewriteAccess(receiver),
+        rewriteAccess(sender)
+      )(PermBlame(comm))
     case stat => rewriteDefault(stat)
+  }
+
+  def rewriteAccess(access: Access[Pre]): Expr[Post] =
+    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(PermBlame(access))(access.o)
+
+  def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
+    case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] = (mode, expr) match {
