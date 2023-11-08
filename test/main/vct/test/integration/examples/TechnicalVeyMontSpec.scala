@@ -78,7 +78,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "seqAssignNotSupported" in "Endpoint fields should be assignable" pvl
+  vercors should fail withCode "perm" using silicon in "Endpoint fields should be assignable" pvl
   """
   class Storage { int x; int y; }
   seq_program Example() {
@@ -180,6 +180,44 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     seq_run {
       communicate charlie.c <- alice.a;
     }
+  }
+  """
+
+  vercors should fail withCode "perm" using silicon in "assignment should work" pvl
+  """
+  class Storage {
+     int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+
+     ensures alice.x == 0;
+     seq_run {
+
+       assert alice.x == 0;
+     }
+  }
+  """
+
+  // TODO: Eventually should be postconditionFailed if the assignment statement works succesfully
+  vercors should fail withCode "perm" using silicon in "assigning should change state" pvl
+  """
+  class Storage {
+     int x;
+
+     ensures Perm(x, write) ** x == v;
+     constructor(int v) {
+       x = v;
+     }
+  }
+  seq_program Example() {
+     endpoint alice = Storage(0);
+
+     requires alice.x == 0;
+     ensures alice.x == 0;
+     seq_run {
+       alice.x := 1;
+     }
   }
   """
 }

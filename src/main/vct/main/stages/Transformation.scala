@@ -176,8 +176,6 @@ case class SilverTransformation
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
 
-    EncodeSeqProg,
-
     ComputeBipGlue,
     InstantiateBipSynchronizations,
     EncodeBipPermissions,
@@ -193,6 +191,9 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,
+
+    // VeyMont sequential program encoding
+    EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,

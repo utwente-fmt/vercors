@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Assign, Scope, Block, Class, Communicate, Declaration, Endpoint, EndpointUse, Eval, Expr, Local, LocalDecl, Procedure, SeqAssign, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
+import vct.col.ast.{Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, Local, LocalDecl, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, TClass, TVoid, Variable}
 import vct.col.origin.{DiagnosticOrigin, Origin, PanicBlame}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -129,8 +129,16 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
+    case assign@SeqAssign(Ref(endpoint), Ref(field), e) =>
+      implicit val o = assign.o
+      Assign(
+        Deref[Post](
+          Local(endpointSucc((mode, endpoint)).ref),
+          succ(field)
+        )(PanicBlame("Private field permission management is done by VeyMont")),
+        dispatch(e)
+      )(PanicBlame("Private field permission management is done by VeyMont"))
     case _: Communicate[Pre] => throw CommunicateNotSupported
-    case _: SeqAssign[Pre] => throw SeqAssignNotSupported
     case stat => rewriteDefault(stat)
   }
 
