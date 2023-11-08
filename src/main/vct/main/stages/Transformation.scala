@@ -326,7 +326,6 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
 
     CreateFieldPermissions,
     CheckPermissionsBlocksMethod,
-//    CreateBlockPermissionChecks,
 //    CreatePrePostConditions,
 //
 //    CreateArrayPermissions,

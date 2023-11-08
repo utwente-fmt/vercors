@@ -10,9 +10,9 @@ import vct.rewrite.runtime.util.FieldNumber
 import scala.collection.mutable.HashMap
 
 object CheckPermissionsBlocksMethod extends RewriterBuilder {
-  override def key: String = "CreateBlocksMethods"
+  override def key: String = "CheckPermissionsBlocksMethod"
 
-  override def desc: String = "Creates internal blocks. In these blocks permissions need to be checked"
+  override def desc: String = "Creates internal method blocks. In these blocks permissions will be checked"
 }
 
 
