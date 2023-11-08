@@ -4,7 +4,7 @@ import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec extends VercorsSpec {
   // TODO: Should eventually become pass
-  vercors should error withCode "generatedPermMissing" in "example using communicate" pvl
+  vercors should verify using silicon in "example using communicate" pvl
   """
      class Storage {
         int x;
@@ -21,7 +21,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   """
 
-  vercors should fail withCode "perm" using silicon in "plain endpoint field dereference should be possible" pvl
+  vercors should fail withCode "assertFailed:false" using silicon in "plain endpoint field dereference should be possible" pvl
   """
      class Storage {
         int x;
@@ -79,7 +79,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should fail withCode "perm" using silicon in "Endpoint fields should be assignable" pvl
+  vercors should verify using silicon in "Endpoint fields should be assignable" pvl
   """
   class Storage { int x; int y; }
   seq_program Example() {
@@ -128,7 +128,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should error withCode "resolutionError:seqProgInvocationReceiver" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
+  vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
   """
   class C { C d; void foo(int x); int x; }
   seq_program Example(C c) {
@@ -184,24 +184,32 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should fail withCode "perm" using silicon in "assignment should work" pvl
+  /* TODO: In the new veymont, this test will probably be replaced by one that manually manages the
+           permissions for alice.x
+  */
+  vercors should verify using silicon in "assignment should work" pvl
   """
   class Storage {
-     int x;
+    int x;
+
+    ensures Perm(x, 1) ** x == 0;
+    constructor() {
+      x = 0;
+    }
   }
   seq_program Example() {
      endpoint alice = Storage();
 
+     requires alice.x == 0;
      ensures alice.x == 0;
      seq_run {
-
        assert alice.x == 0;
      }
   }
   """
 
   // TODO: Eventually should be postconditionFailed if the assignment statement works succesfully
-  vercors should fail withCode "perm" using silicon in "assigning should change state" pvl
+  vercors should error withCode "callableFailureNotSupported" in "assigning should change state" pvl
   """
   class Storage {
      int x;
@@ -218,6 +226,21 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      ensures alice.x == 0;
      seq_run {
        alice.x := 1;
+     }
+  }
+  """
+
+  vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Assignment statement only allows one endpoint in the assigned expression" pvl
+  """
+  class Storage {
+     int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       alice.x := bob.x;
      }
   }
   """

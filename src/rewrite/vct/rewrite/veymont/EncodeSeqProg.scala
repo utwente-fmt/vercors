@@ -3,19 +3,19 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, Local, LocalDecl, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, Variable}
-import vct.col.origin.{Blame, DiagnosticOrigin, Origin, PanicBlame, VerificationFailure}
+import vct.col.origin.{Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import EncodeSeqProg.{CommunicateNotSupported, PermBlame, SeqAssignNotSupported}
+import EncodeSeqProg.{CallableFailureNotSupportedBlame, CommunicateNotSupported, GeneratedPerm, SeqAssignNotSupported}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
 
 object EncodeSeqProg extends RewriterBuilder {
-  override def key: String = "EncodeSeqProg"
-  override def desc: String = "Encodes the semantics of a parallel VeyMont program"
+  override def key: String = "encodeSeqProg"
+  override def desc: String = "Encodes the semantics of a parallel VeyMont program."
 
   case object CommunicateNotSupported extends UserError {
     override def code: String = "communicateNotSupported"
@@ -27,17 +27,20 @@ object EncodeSeqProg extends RewriterBuilder {
     override def text: String = "The `:=` statement is not yet supported"
   }
 
-  case class GeneratedPermMissing(node: Node[_]) extends UserError {
-    override def code: String = "generatedPermMissing"
-    override def text: String = node.o.messageInContext("VeyMont doesn't generate permissions yet, so this code causes a permission error")
+  object GeneratedPerm extends PanicBlame("Permissions for these locations should be generated.")
+
+  case class CallableFailureNotSupported(n: Node[_]) extends UserError {
+    override def code: String = "callableFailureNotSupported"
+    override def text: String = n.o.messageInContext("Failures of type CallableFailure are not yet supported for this node")
   }
 
-  case class PermBlame(node: Node[_]) extends Blame[VerificationFailure] {
-    override def blame(error: VerificationFailure): Unit = throw GeneratedPermMissing(node)
+  case class CallableFailureNotSupportedBlame(node: Node[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = throw CallableFailureNotSupported(node)
   }
 }
 
 case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+
   val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
   val currentRun: ScopedStack[SeqRun[Pre]] = ScopedStack()
 
@@ -133,7 +136,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         body = Some(dispatch(run.body)),
         outArgs = Seq(), typeArgs = Seq(),
         returnType = TVoid(),
-      )(PanicBlame("TODO: inner run blame")))
+      )(CallableFailureNotSupportedBlame(run)))
     }
   }
 
@@ -144,20 +147,20 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         Deref[Post](
           Local(endpointSucc((mode, endpoint)).ref),
           succ(field)
-        )(PermBlame(assign)),
+        )(GeneratedPerm),
         dispatch(e)
-      )(PermBlame(assign))
+      )(GeneratedPerm)
     case comm@Communicate(receiver, sender) =>
       implicit val o = comm.o
       Assign[Post](
         rewriteAccess(receiver),
         rewriteAccess(sender)
-      )(PermBlame(comm))
+      )(GeneratedPerm)
     case stat => rewriteDefault(stat)
   }
 
   def rewriteAccess(access: Access[Pre]): Expr[Post] =
-    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(PermBlame(access))(access.o)
+    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(GeneratedPerm)(access.o)
 
   def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
     case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)
