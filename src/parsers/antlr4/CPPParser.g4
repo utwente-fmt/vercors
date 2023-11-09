@@ -7,13 +7,14 @@ import LangCPPParser, SpecParser;
 }
 
 langExpr: assignmentExpression;
-langId: clangppIdentifier;
+langId: clangppIdentifier; // clangppIdentifier declarator
 langConstInt: literal;
 langType: typeSpecifier;
 langStatement: statement;
 langStatic: EOF EOF;
 langGlobalDecl: declaration;
 langClassDecl: EOF EOF;
+valArg: parameterDeclaration;
 
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};

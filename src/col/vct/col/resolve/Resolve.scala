@@ -375,11 +375,6 @@ case object ResolveReferences extends LazyLogging {
       local.ref = Some(C.findCName(name, ctx).getOrElse(throw NoSuchNameError("local", name, local)))
     case local@CPPLocal(name, arg) =>
       local.ref = Some(CPP.findCPPName(name, arg, ctx).headOption.getOrElse(throw NoSuchNameError("local", name, local)))
-    case local@CPPClassInstanceLocal(classInstanceRefName, classLocalName) =>
-      local.classInstanceRef = Some(CPP.findCPPName(classInstanceRefName, None, ctx).headOption.
-        getOrElse(throw NoSuchNameError("class", classInstanceRefName, local)))
-      local.classLocalRef = Some(CPP.findCPPClassLocalName(local.classInstanceRef.get, classLocalName, ctx).headOption.
-        getOrElse(throw NoSuchNameError("class instance local", classInstanceRefName + "." + classLocalName, local)))
     case local @ JavaLocal(name) =>
       val start: Option[JavaNameTarget[G]] = if (ctx.javaBipGuardsEnabled) {
         Java.findJavaBipGuard(ctx, name).map(RefJavaBipGuard(_))
@@ -426,6 +421,8 @@ case object ResolveReferences extends LazyLogging {
       })
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
+    case deref@CPPClassMethodOrFieldAccess(obj, methodOrFieldName) =>
+      deref.ref = Some(CPP.findDeref(obj, methodOrFieldName, ctx, deref.blame).headOption.getOrElse(throw NoSuchNameError("field or instance method", methodOrFieldName, deref)))
     case deref@JavaDeref(obj, field) =>
       deref.ref = Some(Java.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
       if (ctx.topLevelJavaDeref.contains(deref) && (deref.ref match {

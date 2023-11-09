@@ -117,8 +117,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
     case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
     case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
-    case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
+    case decl: CPPGlobalDeclaration[Pre] =>
+      cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
+    case pred: Predicate[Pre] => {
+      cpp.storePredicate(pred)
+      rewriteDefault(pred)
+    }
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
     case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
@@ -159,6 +164,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
+    case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
@@ -219,11 +225,12 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
 
-    case local: CPPLocal[Pre] => cpp.local(Left(local))
-    case local: CPPClassInstanceLocal[Pre] => cpp.local(Right(local))
+    case local: CPPLocal[Pre] => cpp.local(local)
+    case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
     case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
     case _: CPPLambdaDefinition[Pre] => ???
+    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteAccessorSubscript(arrSub)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)

@@ -975,7 +975,7 @@ final case class CPPLong[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G
 final case class CPPSigned[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSignedImpl[G]
 final case class CPPUnsigned[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPUnsignedImpl[G]
 final case class CPPBool[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPBoolImpl[G]
-final case class CPPTypedefName[G](var nestedName: String, genericArg: Option[Int])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPTypedefNameImpl[G] {
+final case class CPPTypedefName[G](var nestedName: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPTypedefNameImpl[G] {
   var ref: Option[CPPTypeNameTarget[G]] = None
 }
 final case class CPPSpecificationType[G](t: Type[G])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSpecificationTypeImpl[G]
@@ -1011,14 +1011,14 @@ final class CPPFunctionDefinition[G](val contract: ApplicableContract[G], val sp
 
 sealed trait CPPStatement[G] extends Statement[G] with CPPStatementImpl[G]
 final case class CPPDeclarationStatement[G](decl: CPPLocalDeclaration[G])(implicit val o: Origin) extends CPPStatement[G] with CPPDeclarationStatementImpl[G]
+final case class CPPLifetimeScope[G](body: Statement[G])(implicit val o: Origin) extends CPPStatement[G] with CPPLifetimeScopeImpl[G]
 
 sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
-final case class CPPLocal[G](name: String, genericArg: Option[Int])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPLocalImpl[G] {
+final case class CPPLocal[G](name: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPLocalImpl[G] {
   var ref: Option[CPPNameTarget[G]] = None
 }
-final case class CPPClassInstanceLocal[G](classInstanceRefName: String, classLocalName: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPClassInstanceLocalImpl[G] {
-  var classInstanceRef: Option[CPPNameTarget[G]] = None
-  var classLocalRef: Option[CPPNameTarget[G]] = None
+final case class CPPClassMethodOrFieldAccess[G](classInstance: Expr[G], methodOrFieldName: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CPPExpr[G] with CPPClassMethodOrFieldAccessImpl[G] {
+  var ref: Option[CPPDerefTarget[G]] = None
 }
 final case class CPPLambdaRef[G]()(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaRefImpl[G]
 final case class CPPInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends CPPExpr[G] with CPPInvocationImpl[G] {
@@ -1031,8 +1031,9 @@ final case class CPPPrimitiveType[G](specifiers: Seq[CPPDeclarationSpecifier[G]]
 final case class CPPTArray[G](size: Option[Expr[G]], innerType: Type[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPTArrayImpl[G]
 final case class CPPTLambda[G]()(implicit val o: Origin) extends CPPType[G] with CPPTLambdaImpl[G]
 
+final case class CPPExprOrTypeSpecifier[G](expr: Option[Expr[G]], typeSpec: Option[CPPDeclarationSpecifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPPExprOrTypeSpecifierImpl[G]
 
-final case class SYCLClassDefName[G](name: String, genericArg: Option[Int])(implicit val o: Origin) extends CPPTypeSpecifier[G] with SYCLClassDefNameImpl[G]
+final case class SYCLClassDefName[G](name: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(implicit val o: Origin) extends CPPTypeSpecifier[G] with SYCLClassDefNameImpl[G]
 
 sealed trait SYCLTClass[G] extends Type[G] with SYCLTClassImpl[G]
 final case class SYCLTEvent[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTEventImpl[G]
@@ -1042,11 +1043,17 @@ final case class SYCLTItem[G](dimCount: Int)(implicit val o: Origin) extends SYC
 final case class SYCLTNDItem[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTNDItemImpl[G]
 final case class SYCLTRange[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTRangeImpl[G]
 final case class SYCLTNDRange[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTNDRangeImpl[G]
+final case class SYCLTBuffer[G](typ: Type[G], dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTBufferImpl[G]
+final case class SYCLTAccessor[G](typ: Type[G], dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessorImpl[G]
+final case class SYCLTAccessMode[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
 
 sealed trait SYCLClassObject[G] extends CPPExpr[G]
 final case class SYCLRange[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLRangeImpl[G]
 final case class SYCLNDRange[G](globalSize: Expr[G], localSize: Expr[G])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDRangeImpl[G]
 
+sealed trait SYCLAccessMode[G] extends SYCLClassObject[G] with SYCLAccessModeImpl[G]
+final case class SYCLReadWriteAccess[G]()(implicit val o: Origin) extends SYCLAccessMode[G] with SYCLReadWriteAccessImpl[G]
+final case class SYCLReadOnlyAccess[G]()(implicit val o: Origin) extends SYCLAccessMode[G] with SYCLReadOnlyAccessImpl[G]
 
 final case class JavaName[G](names: Seq[String])(implicit val o: Origin) extends NodeFamily[G] with JavaNameImpl[G] {
   var ref: Option[JavaTypeNameTarget[G]] = None
