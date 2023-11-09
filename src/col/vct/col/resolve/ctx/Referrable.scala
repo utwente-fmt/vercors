@@ -85,14 +85,15 @@ sealed trait Referrable[G] {
     case RefHeapVariable(decl) => Referrable.originName(decl)
     case RefPVLEndpoint(decl) => decl.name
     case RefPVLSeqProg(decl) => decl.name
+    case RefPVLSeqRun(_) => ""
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
-    case ImplicitDefaultJavaConstructor() => ""
-    case ImplicitDefaultPVLConstructor() => ""
+    case ImplicitDefaultJavaConstructor(_) => ""
+    case ImplicitDefaultPVLConstructor(_) => ""
     case RefCudaThreadIdx() => "threadIdx"
     case RefCudaBlockDim() => "blockDim"
     case RefCudaBlockIdx() => "blockIdx"
@@ -178,6 +179,7 @@ case object Referrable {
     case decl: HeapVariable[G] => RefHeapVariable(decl)
     case decl: PVLEndpoint[G] => RefPVLEndpoint(decl)
     case decl: PVLSeqProg[G] => RefPVLSeqProg(decl)
+    case decl: PVLSeqRun[G] => RefPVLSeqRun(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o.getPreferredName match {
@@ -307,6 +309,7 @@ case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
 case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 case class RefPVLEndpoint[G](decl: PVLEndpoint[G]) extends Referrable[G] with PVLNameTarget[G]
 case class RefPVLSeqProg[G](decl: PVLSeqProg[G]) extends Referrable[G] with ThisTarget[G]
+case class RefPVLSeqRun[G](decl: PVLSeqRun[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: SeqProg[G]) extends Referrable[G] with ThisTarget[G]
@@ -319,8 +322,8 @@ case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) exten
 
 case class PVLBuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with PVLInvocationTarget[G]
 
-case class ImplicitDefaultJavaConstructor[G]() extends Referrable[G] with JavaConstructorTarget[G]
-case class ImplicitDefaultPVLConstructor[G]() extends Referrable[G] with PVLConstructorTarget[G]
+case class ImplicitDefaultJavaConstructor[G](cls: JavaClass[G]) extends Referrable[G] with JavaConstructorTarget[G]
+case class ImplicitDefaultPVLConstructor[G](cls: Class[G]) extends Referrable[G] with PVLConstructorTarget[G]
 
 case class ImplicitDefaultJavaBipStatePredicate[G](state: String) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 

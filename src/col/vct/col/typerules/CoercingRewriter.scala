@@ -24,6 +24,7 @@ case object CoercingRewriter {
           case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
           case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
           case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+          case WrongType(n, expectedType, actualType) => s"$n was expected to have type $expectedType, but turned out to have type $actualType"
         })
       )
   }
@@ -34,7 +35,9 @@ case object CoercingRewriter {
 
   case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
 
-  case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
+  case class IncoercibleExplanation(blame: Node[_], message: String) extends CoercionError
+
+  case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
 
   private def coercionOrigin(of: Expr[_]): Origin = {
     of.o.replacePrefName("unknown")
@@ -1678,8 +1681,22 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case PVLCommunicate(s, r) => PVLCommunicate(s, r)
-      case Communicate(r, s) => Communicate(r, s)
+      case PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
+      case Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
+      case PVLSeqAssign(r, f, v) =>
+        try { PVLSeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
+      case SeqAssign(r, f, v) =>
+        try { SeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
     }
   }
 
@@ -1795,7 +1812,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case seqProg: SeqProg[Pre] => seqProg
-      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.args)
+      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.constructor, thread.args)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
@@ -1824,6 +1841,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case glob: LlvmGlobal[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLSeqProg[Pre] => seqProg
+      case seqRun: PVLSeqRun[Pre] => seqRun
       }
   }
 

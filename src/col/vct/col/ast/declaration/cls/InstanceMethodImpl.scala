@@ -1,7 +1,8 @@
 package vct.col.ast.declaration.cls
 
-import vct.col.ast.InstanceMethod
+import vct.col.ast.{InstanceMethod, TVoid}
 import vct.col.ast.declaration.category.AbstractMethodImpl
+import vct.col.check.{CheckContext, CheckError, SeqProgInstanceMethodArgs, SeqProgInstanceMethodBody, SeqProgInstanceMethodNonVoid}
 import vct.col.print._
 
 import scala.collection.immutable.ListMap
@@ -28,4 +29,11 @@ trait InstanceMethodImpl[G] extends ClassDeclarationImpl[G] with AbstractMethodI
         (if(outArgs.nonEmpty) Text(" returns") <+> "(" <> Doc.args(outArgs) <> ")" else Empty) <>
         body.map(Text(" ") <> _.layoutAsBlock).getOrElse(Text(";")),
     ))
+
+  override def check(context: CheckContext[G]): Seq[CheckError] = context.currentSeqProg match {
+    case None => Seq()
+    case Some(_) => (if(returnType != TVoid[G]()) Seq(SeqProgInstanceMethodNonVoid(this)) else Seq()) ++
+        (if(args.nonEmpty) Seq(SeqProgInstanceMethodArgs(this)) else Seq()) ++
+      (if(this.body.isEmpty) Seq(SeqProgInstanceMethodBody(this)) else Seq())
+  }
 }
