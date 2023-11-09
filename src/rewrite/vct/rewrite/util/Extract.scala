@@ -15,10 +15,8 @@ import scala.collection.mutable
 case object Extract {
   private def ExtractOrigin(name: String): Origin = Origin(
     Seq(
-      PreferredName(name),
-      ShortPosition("generated"),
-      Context("[At extracted expression]"),
-      InlineContext("[Extracted expression]"),
+      PreferredName(Seq(name)),
+      LabelContext("extracted"),
     )
   )
 

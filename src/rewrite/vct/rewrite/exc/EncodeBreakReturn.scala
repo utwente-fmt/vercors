@@ -4,7 +4,7 @@ import vct.col.ast._
 import RewriteHelpers._
 import hre.util.ScopedStack
 import vct.col.rewrite.error.ExcludedByPassOrder
-import vct.col.origin.{Context, InlineContext, Origin, PanicBlame, PreferredName, ShortPosition}
+import vct.col.origin.{LabelContext, Origin, PanicBlame, PreferredName}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -18,59 +18,38 @@ case object EncodeBreakReturn extends RewriterBuilder {
   override def key: String = "breakReturn"
   override def desc: String = "Encode break and return with goto or with exceptions."
 
-  private def PostLabeledStatementOrigin(label: LabelDecl[_]): Origin = Origin(
-    Seq(
-      PreferredName("break_" + label.o.getPreferredNameOrElse()),
-      ShortPosition("generated"),
-      Context("[At node generated to jump past a statement]"),
-      InlineContext("[After] " + label.o.getInlineContext.getOrElse(InlineContext("[unknown label inline context")).inlineContext),
-      )
-    )
+  private def PostLabeledStatementOrigin(label: LabelDecl[_]): Origin =
+    label.o.where(prefix = "break", context = "label after")
 
-  private def ReturnClass: Origin = Origin(
-    Seq(
-      PreferredName("Return"),
-      ShortPosition("generated"),
-      Context("[At class generated to encode return with an exception]"),
-      InlineContext("[Return value exception class]"),
-      )
-    )
+  private def ReturnClass: Origin =
+    Origin(Seq(
+      PreferredName(Seq("return")),
+      LabelContext("return exception"),
+    ))
 
-  private def ReturnField: Origin = Origin(
-    Seq(
-      PreferredName("value"),
-      ShortPosition("generated"),
-      Context("[At field generated to encode return with an exception]"),
-      InlineContext("[Return value exception class field]"),
-      )
-    )
+  private def ReturnField: Origin =
+    Origin(Seq(
+      PreferredName(Seq("value")),
+      LabelContext("return exception"),
+    ))
 
-  private def ReturnTarget: Origin = Origin(
-    Seq(
-      PreferredName("end"),
-      ShortPosition("generated"),
-      Context("[At label generated for the end of the method]"),
-      InlineContext("[End of method]"),
-      )
-    )
+  private def ReturnTarget: Origin =
+    Origin(Seq(
+      PreferredName(Seq("end")),
+      LabelContext("method end"),
+    ))
 
-  private def ReturnVariable: Origin = Origin(
-    Seq(
-      PreferredName("return"),
-      ShortPosition("generated"),
-      Context("[At variable generated for the result of the method]"),
-      InlineContext("[Return value]"),
-      )
-    )
+  private def ReturnVariable: Origin =
+    Origin(Seq(
+      PreferredName(Seq("return")),
+      LabelContext("return value"),
+    ))
 
-  private def BreakException: Origin = Origin(
-    Seq(
-      PreferredName("Break"),
-      ShortPosition("generated"),
-      Context("[At exception class generated to break on a label or loop]"),
-      InlineContext("[Break exception class]"),
-      )
-    )
+  private def BreakException: Origin =
+    Origin(Seq(
+      PreferredName(Seq("break")),
+      LabelContext("break exception"),
+    ))
 }
 
 case class EncodeBreakReturn[Pre <: Generation]() extends Rewriter[Pre] {

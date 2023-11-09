@@ -1,18 +1,18 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.Origin.messagesInContext
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.rewrite.ParBlockEncoder.ParBlockNotInjective
-import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, ParBlockEncoder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
+import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.Seq
@@ -29,10 +29,10 @@ case object LangCPPToCol {
   private case class CPPDoubleContracted(decl: CPPGlobalDeclaration[_], defn: CPPFunctionDefinition[_]) extends UserError {
     override def code: String = "multipleContracts"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         defn.o -> "This method has a non-empty contract at its definition, ...",
         decl.o -> "... but its forward declaration also has a contract.",
-      ))
+      )
   }
 
   private case class ReassigningEventVars(ass: PreAssignExpression[_]) extends UserError {
@@ -52,10 +52,10 @@ case object LangCPPToCol {
 
   private case class MultipleKernels(decl1: Statement[_], decl2: CPPInvocation[_]) extends UserError {
     override def code: String = "multipleKernels"
-    override def text: String = Origin.messagesInContext(Seq(
+    override def text: String = Message.messagesInContext(
       decl2.o -> "This kernel declaration is not allowed, as only one kernel declaration is allowed per command group, ...",
       decl1.o -> "... and there is already a kernel declared here.",
-    ))
+    )
   }
 
   private case class MissingKernel(decl: Statement[_]) extends UserError {
@@ -87,33 +87,31 @@ case object LangCPPToCol {
     override def text: String = node.o.messageInContext("This event variable might not be linked to a kernel submission to a queue.")
   }
 
- private class RangeDimensionCheckOrigin(iterVarOrRange: Expr[_]) extends Origin(
-   Seq(
-     PreferredName("RangeDimensionCheck"),
-     ShortPosition("generated"),
-     iterVarOrRange.o.getContext.getOrElse(Context("[unknown context]")),
-     iterVarOrRange.o.getInlineContext.getOrElse(InlineContext("[unknown inline context]")),
-   )
-  )
+  case object RangeDimensionCheck extends OriginContent
+  case object NDRangeDimensionCheck extends OriginContent
 
-  private class NDRangeDimensionCheckOrigin(range: Expr[_], dimension: Option[Int] = None) extends Origin(
-    Seq(
-      PreferredName("NDRangeDimensionCheck"),
-      ShortPosition("generated"),
-      Context((if (dimension.isDefined) s"At the dimensions at index ${dimension.get} in the global and local range of the nd_range constructor. \n" else "") + range.o.getInlineContextOrElse()),
-      InlineContext((if (dimension.isDefined) s" The dimensions at index ${dimension.get} in the global and local range of the nd_range constructor. \n" else "") + range.o.getInlineContextOrElse()),
-    )
-  )
+  private def RangeDimensionCheckOrigin(iterVarOrRange: Expr[_]) =
+    iterVarOrRange.o
+      .where(name = "RangeDimensionCheck")
+      .withContent(RangeDimensionCheck)
+
+  private def NDRangeDimensionCheckOrigin(range: Expr[_], dimension: Option[Int] = None) =
+    range.o
+      .where(name = "NDRangeDimensionCheck", context = s"range dimension ${dimension.getOrElse("?")}")
+      .withContent(NDRangeDimensionCheck)
 
   private case class KernelPreconditionNotEstablished(error: RunnablePreconditionNotEstablished) extends UserError {
     override def code: String = "kernelForkPre"
     override def text: String =  (error.failure, error.failure.node.o) match {
-      case (ContractFalse(_), o: RangeDimensionCheckOrigin) => o.messageInContext("All range dimensions should be greater or equal to zero.")
-      case (ContractFalse(_), o: NDRangeDimensionCheckOrigin) => o.messageInContext(
-        "Every global range dimension should be divisible by the local range dimension at the same index," +
-        " and the local range dimension should be greater than 0 to avoid division by zero. " +
-        "All global range dimensions should be greater or equal to zero.")
-      case _ => messagesInContext(Seq((error.node.o, "The precondition of the kernel may not hold, since ..."), (error.failure.node.o, "... " + error.failure.descCompletion)))
+      case (ContractFalse(_), o) if o.find[RangeDimensionCheck.type].isDefined =>
+        o.messageInContext("All range dimensions should be greater or equal to zero.")
+      case (ContractFalse(_), o) if o.find[NDRangeDimensionCheck.type].isDefined =>
+        o.messageInContext(
+          "Every global range dimension should be divisible by the local range dimension at the same index," +
+          " and the local range dimension should be greater than 0 to avoid division by zero. " +
+          "All global range dimensions should be greater or equal to zero."
+        )
+      case _ => Message.messagesInContext((error.node.o, "The precondition of the kernel may not hold, since ..."), (error.failure.node.o, "... " + error.failure.descCompletion))
     }
   }
 
@@ -180,12 +178,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getRangeSizeChecks(range: Expr[Pre]): Expr[Post] = currentKernelType match {
     case Some(BasicKernel(globalRangeSizes)) =>
       foldStar(globalRangeSizes.map(expr => {
-        implicit val o: Origin = new RangeDimensionCheckOrigin(expr)
+        implicit val o: Origin = RangeDimensionCheckOrigin(expr)
         GreaterEq(expr, const(0))
-      }))(new RangeDimensionCheckOrigin(range))
+      }))(RangeDimensionCheckOrigin(range))
     case Some(NDRangeKernel(globalRangeSizes, localRangeSizes)) => foldStar(globalRangeSizes.indices.map(i =>
       {
-        implicit val o: Origin = new NDRangeDimensionCheckOrigin(range, Some(i))
+        implicit val o: Origin = NDRangeDimensionCheckOrigin(range, Some(i))
         And(
           And(
             Greater(localRangeSizes(i), const(0)),
@@ -197,7 +195,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           )
         )
       }
-    ))(new NDRangeDimensionCheckOrigin(range))
+    ))(NDRangeDimensionCheckOrigin(range))
   }
 
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
@@ -206,7 +204,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def rewriteParam(cppParam: CPPParam[Pre]): Unit = {
     cppParam.drop()
-    val varO = cppParam.o.replacePrefName(CPP.getDeclaratorInfo(cppParam.declarator).name)
+    val varO = cppParam.o.where(name = CPP.getDeclaratorInfo(cppParam.declarator).name)
 
     val v = new Variable[Post](cppParam.specifiers.collectFirst
       { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get)(varO)
@@ -229,7 +227,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         (func.contract, Map.empty)
     }
 
-    val namedO = func.o.replacePrefName(info.name)
+    val namedO = func.o.where(name = info.name)
     val rewrittenContract = rw.dispatch(contract) // First rewrite contract to register given and yields variables
 
     val proc =
@@ -270,7 +268,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       // If name starts with sycl:: and not with sycl::item or sycl::nd_item, it can be removed
       // because those built-in SYCL methods are just used for resolution and type checking
       if (!info.name.startsWith("sycl::") || info.name.startsWith("sycl::item") || info.name.startsWith("sycl::nd_item")) {
-        val namedO = init.o.replacePrefName(info.name)
+        val namedO = init.o.where(name = info.name)
         info.params match {
           case Some(params) =>
             cppFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
@@ -307,7 +305,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val init = decl.decl.inits.head
 
     val info = CPP.getDeclaratorInfo(init.decl)
-    val varO: Origin = init.o.replacePrefName(info.name)
+    val varO: Origin = init.o.where(name = info.name)
     t match {
       case cta @ CPPTArray(Some(size), t) =>
         if (init.init.isDefined) throw WrongCPPType(decl)
@@ -516,12 +514,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           Seq(runMethod),
           Seq(),
           BooleanValue(value = true)
-        )(o.replacePrefName("SYCL_EVENT_CLASS"))
+        )(o.where(name = "SYCL_EVENT_CLASS"))
       }
     })
 
     // Create a variable to refer to the class instance
-    val variable = new Variable[Post](TClass(classWrapper.ref))(o.replacePrefName("sycl_event_ref"))
+    val variable = new Variable[Post](TClass(classWrapper.ref))(o.where(name = "sycl_event_ref"))
 
     // Create a new class instance and assign it to the class instance variable, then fork that variable
     (Block[Post](Seq(
@@ -549,7 +547,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the parblock representing the kernels
     val parBlock = ParBlock[Post](
-      decl = new ParBlockDecl[Post]()(o.replacePrefName("SYCL_BASIC_KERNEL")),
+      decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_BASIC_KERNEL")),
       iters = currentDimensions(GlobalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
@@ -580,7 +578,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the parblock representing the work-groups
     val parBlock = ParBlock[Post](
-      decl = new ParBlockDecl[Post]()(o.replacePrefName("SYCL_ND_RANGE_KERNEL")),
+      decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL")),
       iters = currentDimensions(GroupScope()) ++ currentDimensions(LocalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = contractRequires,
@@ -612,7 +610,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   // Generate the IterVariables that are passed to the parblock as ranges
   private def createRangeIterVar(scope: KernelScopeLevel, dimension: Int, maxRange: Expr[Post])(implicit o: Origin): IterVariable[Post] = {
-    val variable = new Variable[Post](TInt())(o.replacePrefName(s"${scope.idName}_$dimension"))
+    val variable = new Variable[Post](TInt())(o.where(name = s"${scope.idName}_$dimension"))
     new IterVariable[Post](variable, IntegerValue(0), maxRange)
   }
 

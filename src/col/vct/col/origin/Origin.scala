@@ -55,6 +55,15 @@ trait OriginContent {
  */
 trait NameStrategy extends OriginContent
 
+case class SimpleSourceName(name: String) extends NameStrategy {
+  override def name(tail: Origin): Option[Name] =
+    Some(Name.Preferred(
+      tail.span[NameStrategy]._1.originContents.collect {
+        case NamePrefix(prefix) => prefix
+      }.reverse :+ name
+    ))
+}
+
 case class PreferredName(preferredName: Seq[String]) extends NameStrategy {
   override def name(tail: Origin): Option[Name] =
     Some(Name.Preferred(
@@ -112,6 +121,10 @@ trait Context1 extends OriginContent {
   }
 }
 
+/**
+ * One or two lowercase words define the context, inline context and short position.
+ * For more extended explanations you should implement a case of Context yourself.
+ */
 case class LabelContext(label: String) extends Context1 {
   override protected def contextHere(tail: Origin): (String, Origin) = (s"At $label:", tail)
   override protected def inlineContextHere(tail: Origin): (String, Origin) = (label, tail)
@@ -186,7 +199,7 @@ case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Opt
  * A sequence of OriginContents. This sequence can be mutated (add, remove, replace) for convenience.
 * @param originContents The known origin contents at the time of Origin creation. Can be empty for a new Origin.
  */
-case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] with HasContext {
+final case class Origin(originContents: Seq[OriginContent]) extends Blame[VerificationFailure] with HasContext {
   def tail: Origin = Origin(originContents.tail)
 
   def find[T <: OriginContent](implicit tag: ClassTag[T]): Option[T] =
@@ -233,6 +246,13 @@ case class Origin(originContents: Seq[OriginContent]) extends Blame[Verification
       Option(prefix).map(NamePrefix).to(Seq) ++
       originContents
   )
+
+  /**
+   * Do not use to indicate a preferred name. This is to indicate the formal
+   * source name in the input. Use where(name = ...) instead.
+   */
+  def sourceName(name: String): Origin =
+    withContent(SourceName(name))
 
 //  def addStartEndLines(startIdx: Int, endIdx: Int): Origin =
 //    withContent(StartEndLines(startIdx, endIdx))
@@ -432,8 +452,6 @@ object InputOrigin {
         }
     }
 }
-
-object DiagnosticOrigin extends Origin(Nil)
 
 case class BlameCollector() extends Blame[VerificationFailure] {
   val errs: ArrayBuffer[VerificationFailure] = ArrayBuffer()

@@ -113,7 +113,7 @@ abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider
   }
 
   def positionToOrigin(startLineIdx: Int, endLineIdx: Int, cols: Some[(Int, Int)]) : Origin =
-    Origin(Seq(StartEndLines(startLineIdx, endLineIdx))).addOriginCols(cols)
+    Origin(Seq(PositionRange(startLineIdx, endLineIdx, cols)))
 
   def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
     errors.foldLeft(blameProvider(node)) {

@@ -35,12 +35,12 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
     case EnumDecl0(_, name, _, constants, _, _) =>
-      new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(Nil))(origin(enum).replacePrefName(convert(name)))
+      new vct.col.ast.Enum[G](constants.map(convertConstants(_)).getOrElse(Nil))(origin(enum).sourceName(convert(name)))
   }
 
   def convertConstants(implicit identifierList: IdentifierListContext): Seq[EnumConstant[G]] = identifierList match {
-    case IdentifierList0(id) => Seq(new vct.col.ast.EnumConstant[G]()(origin(identifierList).replacePrefName(convert(id))))
-    case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(origin(identifierList).replacePrefName(convert(id))) +: convertConstants(tail)
+    case IdentifierList0(id) => Seq(new vct.col.ast.EnumConstant[G]()(origin(identifierList).sourceName(convert(id))))
+    case IdentifierList1(id, _, tail) => new vct.col.ast.EnumConstant[G]()(origin(identifierList).sourceName(convert(id))) +: convertConstants(tail)
   }
 
   def convert(implicit decl: SeqProgDeclContext): ClassDeclaration[G] = decl match {
@@ -50,7 +50,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       new PVLEndpoint(
         convert(name),
         new UnresolvedRef[G, Class[G]](convert(endpointType)),
-        args.map(convert(_)).getOrElse(Nil))(origin(decl).replacePrefName(convert(name))
+        args.map(convert(_)).getOrElse(Nil))(origin(decl).sourceName(convert(name))
       )
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
@@ -63,7 +63,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           decls.map(convert(_)),
           contract.consumeApplicableContract(blame(cls)),
           args.map(convert(_)).getOrElse(Seq())
-        )(origin(cls).replacePrefName(convert(name)))
+        )(origin(cls).sourceName(convert(name)))
       })
   }
 
@@ -79,7 +79,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
-        )(blame(method))(origin(method).replacePrefName(convert(name)))
+        )(blame(method))(origin(method).sourceName(convert(name)))
       }))
   }
 
@@ -90,7 +90,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           declarations = decls.flatMap(convert(_)),
           supports = Nil,
           intrinsicLockInvariant = AstBuildHelpers.foldStar(contract.consume(contract.lock_invariant)),
-        )(origin(cls).replacePrefName(convert(name)))
+        )(origin(cls).sourceName(convert(name)))
       })
   }
 
@@ -114,7 +114,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           contract.consumeApplicableContract(blame(method)),
           inline = mods.consume(mods.inline),
           pure = mods.consume(mods.pure),
-        )(blame(method))(origin(method).replacePrefName(convert(name)))
+        )(blame(method))(origin(method).sourceName(convert(name)))
       }))
   }
 
@@ -135,7 +135,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
     case Field0(finalFlag, t, ids, _) =>
-      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(origin(field).replacePrefName(name)))
+      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(origin(field).sourceName(name)))
   }
 
   def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {
@@ -146,9 +146,9 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit args: ArgsContext): Seq[Variable[G]] = args match {
-    case Args0(t, name) => Seq(new Variable(convert(t))(origin(name).replacePrefName(convert(name))))
+    case Args0(t, name) => Seq(new Variable(convert(t))(origin(name).sourceName(convert(name))))
     case Args1(t, name, _, args) =>
-      new Variable(convert(t))(origin(name).replacePrefName(convert(name))) +: convert(args)
+      new Variable(convert(t))(origin(name).sourceName(convert(name))) +: convert(args)
   }
 
   def convert(implicit exprs: ExprListContext): Seq[Expr[G]] = exprs match {
@@ -323,7 +323,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       ??(stat)
     case PvlInvariant(_, name, _, res, _, body) =>
       ParInvariant(
-        new ParInvariantDecl()(origin(stat).replacePrefName(convert(name))),
+        new ParInvariantDecl()(origin(stat).sourceName(convert(name))),
         convert(res), convert(body)
       )(blame(stat))
     case PvlAtomic(_, _, invs, _, body) =>
@@ -349,7 +349,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
           convert(body))))
     case PvlBlock(inner) => convert(inner)
     case PvlGoto(_, label, _) => Goto(new UnresolvedRef[G, LabelDecl[G]](convert(label)))
-    case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).replacePrefName(convert(label))), Block(Nil))
+    case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
     case PvlCommunicateStatement(_, receiver, Direction0("<-"), sender, _) =>
       PVLCommunicate(convert(sender), convert(receiver))
@@ -383,7 +383,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit subject: SubjectContext): PVLCommunicateSubject[G] = subject match {
-    case Subject0(name) => PVLEndpointName(convert(name))(origin(subject).replacePrefName(convert(name)))
+    case Subject0(name) => PVLEndpointName(convert(name))(origin(subject).sourceName(convert(name)))
     case Subject1(family, _, expr, _) => ??(subject)
     case Subject2(family, _, binder, _, start, _, end, _) => ??(subject)
   }
@@ -395,7 +395,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       withContract(contract, contract => {
         val decl = name match {
           case None => new ParBlockDecl[G]()
-          case Some(name) => new ParBlockDecl[G]()(origin(region).replacePrefName(convert(name)))
+          case Some(name) => new ParBlockDecl[G]()(origin(region).sourceName(convert(name)))
         }
         ParBlock(
           decl,
@@ -414,18 +414,18 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit decls: DeclListContext, t: Type[G]): Seq[Statement[G]] = decls match {
     case DeclList0(name, None) =>
-      Seq(LocalDecl(new Variable(t)(origin(name).replacePrefName(convert(name)))))
+      Seq(LocalDecl(new Variable(t)(origin(name).sourceName(convert(name)))))
     case DeclList0(name, Some(DeclInit0(_, init))) =>
-      val v = new Variable(t)(origin(name).replacePrefName(convert(name)))
+      val v = new Variable(t)(origin(name).sourceName(convert(name)))
       Seq(
         LocalDecl(v),
         Assign(Local(v.ref[Variable[G]]), convert(init))(AssignLocalOk)
       )
     case DeclList1(name, None, _, more) =>
-      LocalDecl(new Variable(t)(origin(name).replacePrefName(convert(name)))) +:
+      LocalDecl(new Variable(t)(origin(name).sourceName(convert(name)))) +:
         convert(more, t)
     case DeclList1(name, Some(DeclInit0(_, init)), _, more) =>
-      val v = new Variable[G](t)(origin(name).replacePrefName(convert(name)))
+      val v = new Variable[G](t)(origin(name).sourceName(convert(name)))
       Seq(
         LocalDecl[G](v),
         Assign[G](Local(v.ref), convert(init))(AssignLocalOk)
@@ -449,7 +449,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit iter: IterContext): IterVariable[G] = iter match {
     case Iter0(t, name, _, from, _, to) =>
       IterVariable(
-        new Variable(convert(t))(origin(name).replacePrefName(convert(name))),
+        new Variable(convert(t))(origin(name).sourceName(convert(name))),
         convert(from), convert(to)
       )
   }
@@ -597,10 +597,10 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ValContractClause2(_, exp, _) => collector.requires += ((contract, convert(exp)))
     case ValContractClause3(_, exp, _) => collector.ensures += ((contract, convert(exp)))
     case ValContractClause4(_, t, id, _) =>
-      val variable = new Variable(convert(t))(origin(contract).replacePrefName(convert(id)))
+      val variable = new Variable(convert(t))(origin(contract).sourceName(convert(id)))
       collector.given += ((contract, variable))
     case ValContractClause5(_, t, id, _) =>
-      val variable = new Variable(convert(t))(origin(contract).replacePrefName(convert(id)))
+      val variable = new Variable(convert(t))(origin(contract).sourceName(convert(id)))
       collector.yields += ((contract, variable))
     case ValContractClause6(_, exp, _) => collector.context_everywhere += ((contract, convert(exp)))
     case ValContractClause7(_, exp, _) =>
@@ -609,7 +609,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ValContractClause8(_, exp, _) => collector.loop_invariant += ((contract, convert(exp)))
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
-      val variable = new Variable(convert(t))(origin(contract).replacePrefName(convert(id)))
+      val variable = new Variable(convert(t))(origin(contract).sourceName(convert(id)))
       collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
@@ -785,12 +785,12 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ValInhale(_, resource, _) => Inhale(convert(resource))
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
-      Label(new LabelDecl()(origin(stat).replacePrefName(convert(label))), Block(Nil))
+      Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, name, _, delta, _, resource, _) =>
-      Send(new SendDecl()(origin(stat).replacePrefName(convert(name))), convert(delta), convert(resource))(blame(stat))
+      Send(new SendDecl()(origin(stat).sourceName(convert(name))), convert(delta), convert(resource))(blame(stat))
     case ValRecv(_, name, _) =>
       Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
@@ -823,7 +823,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit arg: ValArgContext): Variable[G] = arg match {
-    case ValArg0(t, id) => new Variable(convert(t))(origin(arg).replacePrefName(convert(id)))
+    case ValArg0(t, id) => new Variable(convert(t))(origin(arg).sourceName(convert(id)))
   }
 
   def convert(implicit args: ValArgListContext): Seq[Variable[G]] = args match {
@@ -838,16 +838,16 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit decl: ValGlobalDeclarationContext): Seq[GlobalDeclaration[G]] = decl match {
     case ValAxiom(_, name, _, axiom, _) =>
-      Seq(new SimplificationRule(convert(axiom))(origin(decl).replacePrefName(convert(name))))
+      Seq(new SimplificationRule(convert(axiom))(origin(decl).sourceName(convert(name))))
     case ValPredicate(modifiers, _, name, _, args, _, definition) =>
       withModifiers(modifiers, mods =>
         Seq(new Predicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))
-        (origin(decl).replacePrefName(convert(name)))))
+        (origin(decl).sourceName(convert(name)))))
     case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c =>
         withModifiers(modifiers, m => {
-          val namedOrigin = origin(decl).replacePrefName(convert(name))
+          val namedOrigin = origin(decl).sourceName(convert(name))
           new Function(
             convert(t),
             args.map(convert(_)).getOrElse(Nil),
@@ -858,16 +858,16 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         })
       ))
     case ValModel(_, name, _, decls, _) =>
-      Seq(new Model(decls.flatMap(convert(_)))(origin(decl).replacePrefName(convert(name))))
+      Seq(new Model(decls.flatMap(convert(_)))(origin(decl).sourceName(convert(name))))
     case ValGhostDecl(_, inner) =>
       convert(inner)
     case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
       Seq(new AxiomaticDataType(decls.map(convert(_)), typeArgs.map(convert(_)).getOrElse(Nil))(
-        origin(decl).replacePrefName(convert(name))))
+        origin(decl).sourceName(convert(name))))
     case ValProverType(_, name, ints, _) =>
-      Seq(new ProverType(convert(ints))(origin(decl).replacePrefName(convert(name))))
+      Seq(new ProverType(convert(ints))(origin(decl).sourceName(convert(name))))
     case ValProverFunction(_, t, name, _, args, _, ints, _) =>
-      Seq(new ProverFunction(convert(ints), args.map(convert(_)).getOrElse(Nil), convert(t))(origin(decl).replacePrefName(convert(name))))
+      Seq(new ProverFunction(convert(ints), args.map(convert(_)).getOrElse(Nil), convert(t))(origin(decl).sourceName(convert(name))))
   }
 
   def convert(implicit int: ValProverInterpretationsContext): Seq[(ProverLanguage[G], String)] = int match {
@@ -890,7 +890,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       Seq(withModifiers(modifiers, mods => {
         transform(new InstancePredicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))(
-          origin(decl).replacePrefName(convert(name))))
+          origin(decl).sourceName(convert(name))))
       }))
     case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
@@ -902,7 +902,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
             convert(definition),
             c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
-            origin(decl).replacePrefName(convert(name))))
+            origin(decl).sourceName(convert(name))))
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
@@ -944,34 +944,34 @@ case class PVLToCol[G](override val baseOrigin: Origin,
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {
     case ValModelField(t, name, _) =>
       convert(name).map(name => {
-        new ModelField(convert(t))(origin(decl).replacePrefName(name))
+        new ModelField(convert(t))(origin(decl).sourceName(name))
       })
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
-          blame(decl))(origin(decl).replacePrefName(convert(name)))
+          blame(decl))(origin(decl).sourceName(convert(name)))
       }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
       Seq(withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
-          origin(decl).replacePrefName(convert(name)))
+          origin(decl).sourceName(convert(name)))
       }))
   }
 
   def convert(implicit ts: ValTypeVarsContext): Seq[Variable[G]] = ts match {
     case ValTypeVars0(_, names, _) =>
-      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).replacePrefName(name)))
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).sourceName(name)))
   }
 
   def convert(implicit decl: ValAdtDeclarationContext): ADTDeclaration[G] = decl match {
     case ValAdtAxiom(_, ax, _) => new ADTAxiom(convert(ax))
     case ValAdtFunction(_, returnType, name, _, args, _, _) =>
       new ADTFunction(args.map(convert(_)).getOrElse(Nil), convert(returnType))(
-        origin(decl).replacePrefName(convert(name)))
+        origin(decl).sourceName(convert(name)))
   }
 
   def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
@@ -1065,7 +1065,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
     case ValRangeBinding(t, id, _, from, _, to) =>
-      val variable = new Variable[G](convert(t))(origin(id).replacePrefName(convert(id)))
+      val variable = new Variable[G](convert(t))(origin(id).sourceName(convert(id)))
       val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
       (variable, Seq(cond))
     case ValNormalBinding(arg) =>
@@ -1096,14 +1096,14 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         case ValExistsSymb(_) => Exists(variables, Nil, foldAnd(conds :+ body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
-      Let(new Variable(convert(t))(origin(id).replacePrefName(convert(id))), convert(v), convert(body))
+      Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
     case ValSum(_, _, t, id, _, cond, _, body, _) =>
-      val binding = new Variable(convert(t))(origin(id).replacePrefName(convert(id)))
+      val binding = new Variable(convert(t))(origin(id).sourceName(convert(id)))
       Sum(Seq(binding), convert(cond), convert(body))
     case ValVectorSum(_, _, rng, _, vec, _) => VectorSum(convert(rng), convert(vec))
     case ValVectorCmp(_, _, left, _, right, _) => VectorCompare(convert(left), convert(right))

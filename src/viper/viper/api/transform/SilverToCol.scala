@@ -35,7 +35,7 @@ case object SilverToCol {
         Origin(Seq(
           PositionRange(line, line, Some((column, column)))
         ))
-      case VirtualPosition(identifier) => Origin(Seq(Context(identifier)))
+      case VirtualPosition(identifier) => Origin(Seq(LabelContext(identifier)))
       case _ => Origin(Nil)
     }
 
@@ -75,9 +75,9 @@ case object SilverToCol {
 
 case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider) {
   def origin(node: silver.Positioned, sourceName: String = ""): Origin =
-    if(sourceName.nonEmpty) SilverPositionOrigin(node).replacePrefName(sourceName)
+    if(sourceName.nonEmpty) SilverPositionOrigin(node).sourceName(sourceName)
     else node match {
-      case node: silver.Declaration => SilverPositionOrigin(node).replacePrefName(node.name)
+      case node: silver.Declaration => SilverPositionOrigin(node).sourceName(node.name)
       case _ => SilverPositionOrigin(node)
     }
 
@@ -114,7 +114,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
     )(origin(domain))
 
   def transform(o: Origin)(tVar: silver.TypeVar): col.Variable[G] =
-    new col.Variable(col.TType(col.TAnyValue()))(o.replacePrefName(tVar.name))
+    new col.Variable(col.TType(col.TAnyValue()))(o.sourceName(tVar.name))
 
   def transform(func: silver.DomainFunc): col.ADTFunction[G] =
     new col.ADTFunction(

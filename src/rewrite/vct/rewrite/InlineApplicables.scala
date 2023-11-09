@@ -3,7 +3,7 @@ package vct.col.rewrite
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{AssertFailed, Blame, FoldFailed, Origin, PreferredName, UnfoldFailed}
+import vct.col.origin.{AssertFailed, Blame, FoldFailed, LabelContext, Origin, PreferredName, UnfoldFailed}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
@@ -63,28 +63,16 @@ case object InlineApplicables extends RewriterBuilder {
     }
   }
 
-  private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin = Origin(
-    Seq(
-      PreferredName(definition.getPreferredNameOrElse()),
-      ShortPosition(usages.head.o.getShortPositionOrElse()),
-      Context(usages.map(_.o.getContext.getOrElse(Context("[unknown context]")).context).mkString(
-          start = " Inlined from:\n" + Origin.HR,
-          sep = Origin.HR + " ...Then inlined from:\n" + Origin.HR,
-          end = "",
-        ) + Origin.HR +
-          " In definition:\n" + Origin.HR +
-          definition.getContext.getOrElse(Context("[unknown context]")).context),
-      InlineContext(s"${definition.getInlineContextOrElse()} [inlined from] " +
-        s"${usages.head.o.getInlineContextOrElse()}")
+  private def InlinedOrigin(definition: Origin, usages: Seq[Apply[_]]): Origin =
+    Origin(
+      usages.flatMap(usage => LabelContext("inlined from") +: usage.o.originContents) ++
+        (LabelContext("definition") +: definition.originContents)
     )
-  )
 
   private def InlineLetThisOrigin: Origin = Origin(
     Seq(
-      PreferredName("self"),
-      Context("[At let binding for `this`]"),
-      InlineContext("[Let binding for `this`"),
-      ShortPosition("generated")
+      PreferredName(Seq("self")),
+      LabelContext("this"),
     )
   )
 

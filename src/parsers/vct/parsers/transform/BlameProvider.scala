@@ -23,10 +23,10 @@ trait PositionContextProvider[T] {
 
 object OriginProvider {
   def apply(startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin =
-    Origin(Seq(StartEndLines(startLineIdx, endLineIdx))).addOriginCols(cols)
+    Origin(Seq(PositionRange(startLineIdx, endLineIdx, cols)))
 
   def apply(origin: Origin, startLineIdx: Int, endLineIdx: Int, cols: Option[(Int, Int)]): Origin = {
-    Origin(origin.originContents ++ apply(startLineIdx, endLineIdx, cols).originContents)
+    Origin(apply(startLineIdx, endLineIdx, cols).originContents ++ origin.originContents)
   }
 
   def apply(start: Token, stop: Token): Origin =  {
@@ -38,7 +38,7 @@ object OriginProvider {
   }
 
   def apply(origin: Origin, start: Token, stop: Token): Origin = {
-    Origin(origin.originContents ++ apply(start, stop).originContents)
+    Origin(apply(start, stop).originContents ++ origin.originContents)
   }
 
   def apply(ctx: ParserRuleContext): Origin = apply(ctx.start, ctx.stop)

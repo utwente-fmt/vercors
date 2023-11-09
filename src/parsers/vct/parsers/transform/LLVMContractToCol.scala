@@ -26,7 +26,7 @@ case class LLVMContractToCol[G](override val baseOrigin: Origin,
 
   def createVariable(ctx: ParserRuleContext, id: LangIdContext, t: LangTypeContext): Variable[G] = {
     val varId = convert(id)
-    val variable = new Variable(convert(t))(origin(ctx).replacePrefName(varId))
+    val variable = new Variable(convert(t))(origin(ctx).sourceName(varId))
     variable
   }
 
@@ -392,7 +392,7 @@ case class LLVMContractToCol[G](override val baseOrigin: Origin,
       val modifierCollector = new ModifierCollector()
       modifiers.foreach(convert(_, modifierCollector))
 
-      val namedOrigin = origin(decl).replacePrefName(convert(name))
+      val namedOrigin = origin(decl).sourceName(convert(name))
       new LlvmSpecFunction(
         convert(name),
         convert(t),
