@@ -550,7 +550,6 @@ final case class Star[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) 
 final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with WandImpl[G]
 final case class Scale[G](scale: Expr[G], res: Expr[G])(val blame: Blame[ScaleNegative])(implicit val o: Origin) extends Expr[G] with ScaleImpl[G]
 final case class ScaleByParBlock[G](block: Ref[G, ParBlockDecl[G]], res: Expr[G])(implicit val o: Origin) extends Expr[G] with ScaleByParBlockImpl[G]
-final case class VeyMontCondition[G](condition: Seq[(Ref[G, Endpoint[G]], Expr[G])])(implicit val o: Origin) extends Expr[G] with VeyMontConditionImpl[G]
 final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(implicit val o: Origin) extends Expr[G] with PolarityDependentImpl[G]
 
 final case class Unfolding[G](res: Expr[G], body: Expr[G])(val blame: Blame[UnfoldFailed])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
@@ -1273,6 +1272,7 @@ case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(impli
 final case class Communicate[G](receiver: Access[G], sender: Access[G])(implicit val o: Origin) extends Statement[G] with CommunicateImpl[G]
 final case class SeqAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G] with SeqAssignImpl[G]
 final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
+final case class SeqGuard[G](conditions: Seq[(Ref[G, Endpoint[G]], Expr[G])])(implicit val o: Origin) extends Expr[G] with SeqGuardImpl[G]
 
 final case class VeyMontAssignExpression[G](endpoint: Ref[G, Endpoint[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
 final case class CommunicateX[G](receiver: Ref[G, Endpoint[G]], sender: Ref[G, Endpoint[G]], chanType: Type[G], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with CommunicateXImpl[G]

@@ -1593,7 +1593,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Z3SeqSuffixOf(post, seq) => Z3SeqSuffixOf(z3seq(post)._1, z3seq(seq)._1)
       case Z3SeqUnit(arg) => Z3SeqUnit(arg)
       case Z3TransitiveClosure(ref, args) => Z3TransitiveClosure(ref, coerceArgs(args, ref.ref.decl))
-      case VeyMontCondition(c) => VeyMontCondition(c)
+      case SeqGuard(c) => SeqGuard(c)
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LlvmLocal(name) => e

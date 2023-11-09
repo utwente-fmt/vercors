@@ -194,6 +194,8 @@ case class SilverTransformation
 
     // VeyMont sequential program encoding
     GenerateSeqProgPermissions,
+    InferSeqGuards,
+    EncodeBranchUnanimity,
     EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
