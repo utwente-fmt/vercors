@@ -9,7 +9,7 @@ trait EvalImpl[G] extends StatementImpl[G] { this: Eval[G] =>
   override def layout(implicit ctx: Ctx): Doc = expr.show <> ";"
 
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] = this match {
-    case Eval(MethodInvocation(EndpointUse(endpoint), _, _, _, _, _, _)) =>
+    case Eval(MethodInvocation(EndpointUse(endpoint), _, _, _, _, _, _)) if context.currentSeqProg.isDefined =>
       context.withReceiverEndpoint(endpoint.decl)
     case _ => context
   }

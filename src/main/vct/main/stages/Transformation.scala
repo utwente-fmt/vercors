@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.EncodeSeqProg
+import vct.rewrite.veymont.{EncodeSeqProg, GenerateSeqProgPermissions}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -176,8 +176,6 @@ case class SilverTransformation
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
 
-    EncodeSeqProg,
-
     ComputeBipGlue,
     InstantiateBipSynchronizations,
     EncodeBipPermissions,
@@ -193,6 +191,10 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,
+
+    // VeyMont sequential program encoding
+    GenerateSeqProgPermissions,
+    EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,

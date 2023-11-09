@@ -61,7 +61,7 @@ sealed trait CheckError {
     case SeqProgInstanceMethodBody(m) => Seq(context(m, "An instance method in a `seq_prog` must have a body."))
     case SeqProgInstanceMethodNonVoid(m) => Seq(context(m, "An instance method in a `seq_prog` must have return type `void`."))
     case SeqProgInvocation(s) => Seq(context(s, "Only invocations on `this` and endpoints are allowed."))
-    case SeqProgInvocationReceiver(e) => Seq(context(e, "Referring to other endpoints within an invocation on a specific endpoint is not yet supported."))
+    case SeqProgReceivingEndpoint(e) => Seq(context(e, s"Can only refer to the receiving endpoint of this statement"))
   }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
 
   def subcode: String
@@ -121,8 +121,8 @@ case class SeqProgStatement(s: Statement[_]) extends CheckError {
 case class SeqProgInvocation(s: Statement[_]) extends CheckError {
   val subcode = "seqProgInvocation"
 }
-case class SeqProgInvocationReceiver(e: Expr[_]) extends CheckError {
-  val subcode = "seqProgInvocationReceiver"
+case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
+  val subcode = "seqProgReceivingEndpoint"
 }
 
 case object CheckContext {

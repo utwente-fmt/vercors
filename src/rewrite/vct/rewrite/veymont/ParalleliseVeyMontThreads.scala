@@ -74,7 +74,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     channelClasses.foreach{ case (t,c) =>
       globalDeclarations.declare(c)
     }
-    seqProg.threads.foreach(thread => {
+    seqProg.endpoints.foreach(thread => {
       val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.t)), Set.empty)(thread.o)
       val channelFields = getChannelFields(thread, indexedChannelInfo, channelClasses)
       threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.run, seqProg.decls, channelFields, channelClasses, thread, threadField)) {

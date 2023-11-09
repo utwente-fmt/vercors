@@ -329,6 +329,16 @@ object AstBuildHelpers {
                        yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
     MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
+  def procedureInvocation[G]
+                         (blame: Blame[InvocationFailure],
+                          ref: Ref[G, Procedure[G]],
+                          args: Seq[Expr[G]] = Nil,
+                          outArgs: Seq[Expr[G]] = Nil,
+                          typeArgs: Seq[Type[G]] = Nil,
+                          givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                          yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): ProcedureInvocation[G] =
+    ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+
   private def GeneratedQuantifier: Origin = Origin(
     Seq(
       PreferredName("i"),
