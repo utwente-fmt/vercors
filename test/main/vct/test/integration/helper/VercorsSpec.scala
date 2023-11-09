@@ -5,11 +5,10 @@ import hre.io.Readable
 import org.scalactic.source
 import org.scalatest.Tag
 import org.scalatest.concurrent.TimeLimits.failAfter
-import org.scalatest.time._
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.time._
 import org.slf4j.LoggerFactory
-import org.slf4j.helpers.SubstituteLogger
-import vct.col.origin.VerificationFailure
+import vct.col.origin.{BlameUnreachable, VerificationFailure}
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
@@ -147,6 +146,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: UserError) =>
           println(err)
           fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
+        case Left(err: BlameUnreachable) if code.equals("unreachable:schematic") && err.message.equals("schematic") =>
         case Left(err: SystemError) =>
           println(err)
           fail(f"Expected the test to error with code $code, but it crashed with the above error instead.")
