@@ -23,8 +23,8 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
   def dispatchClassDeclarations(cls: Class[Pre]): Seq[ClassDeclaration[Post]] = {
     classDeclarations.collect {
       val numberOfInstanceFields = cls.declarations.collect { case i: InstanceField[Pre] => i }.size
-      cls.declarations.foreach(d => rewriteDefault(d))
       classDeclarations.declare(createPermissionField(cls, numberOfInstanceFields))
+      cls.declarations.foreach(d => rewriteDefault(d))
     }._1
   }
 

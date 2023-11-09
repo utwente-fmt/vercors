@@ -1,5 +1,9 @@
+class C{
+
+}
+
 class Test{
-    private int x;
+    private C[] x;
     private int y;
 
     public Test() {
@@ -11,9 +15,8 @@ class Test{
         requires Perm(y, 1\2);
         requires Perm(x, write);
         requires Perm(y, read);
-        ensures \result == x + y;
      */
     public int sum () {
-        return x + y;
+        return y + 1;
     }
 }

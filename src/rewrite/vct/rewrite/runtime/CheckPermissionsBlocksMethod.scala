@@ -1,10 +1,10 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{Block, Class, CodeStringAssertStatement, ContractApplicable, Declaration, Deref, Expr, InstanceField, InstanceMethod, MethodInvocation, PostAssignExpression, PreAssignExpression, Program, Result, Scope, Statement, Type, Variable}
+import vct.col.ast.{Block, Class, CodeStringStatement, ContractApplicable, Declaration, Deref, Expr, InstanceField, InstanceMethod, MethodInvocation, PostAssignExpression, PreAssignExpression, Program, Result, Scope, Statement, Type, Variable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
-import vct.rewrite.runtime.util.CodeStringDefaults.{assertCheckRead, assertCheckWrite}
+import vct.rewrite.runtime.util.CodeStringDefaults.{assertCheckRead, assertCheckWrite, lookUpThread}
 import vct.rewrite.runtime.util.FieldNumber
 
 import scala.collection.mutable.HashMap
@@ -72,14 +72,13 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     dispatch(v)
   }
 
-
-  private def generatePermissionChecksStatements(ref: LazyRef[Pre, InstanceField[Pre]], bool: Boolean, b: Block[Pre]): CodeStringAssertStatement[Post] = {
+  private def generatePermissionChecksStatements(ref: LazyRef[Pre, InstanceField[Pre]], bool: Boolean, b: Block[Pre]): CodeStringStatement[Post] = {
     val id: Int = fieldFinder.findNumber(ref.decl)
     val name: String = ref.decl.o.getPreferredNameOrElse()
     if (bool) {
-      CodeStringAssertStatement[Post](assertCheckWrite(id, name))(b.o)
+      CodeStringStatement[Post](assertCheckWrite(id, name))(b.o)
     } else {
-      CodeStringAssertStatement[Post](assertCheckRead(id, name))(b.o)
+      CodeStringStatement[Post](assertCheckRead(id, name))(b.o)
     }
   }
 

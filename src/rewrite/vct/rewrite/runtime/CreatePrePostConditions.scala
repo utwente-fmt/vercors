@@ -1,6 +1,6 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Class, CodeStringAssertStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Perm, ReadPerm, Statement, WritePerm}
+import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Perm, ReadPerm, Statement, WritePerm}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import hre.util.ScopedStack
 import vct.col.ref.LazyRef
@@ -20,12 +20,12 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   val instanceMethods: ScopedStack[InstanceMethod[Pre]] = ScopedStack()
-  val permissionExprContract: ScopedStack[Seq[CodeStringAssertStatement[Post]]] = ScopedStack()
+  val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
   val permInstanceFieldRef: ScopedStack[LazyRef[Pre, InstanceField[Pre]]] = ScopedStack()
   val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
 
 
-  def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[CodeStringAssertStatement[Post]] = {
+  def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[CodeStringStatement[Post]] = {
     permissionExprContract.having(Seq.empty) {
       val t = permissionExprContract.top
       t
@@ -37,28 +37,28 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   def dispatchBlockInMethod(b: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
-    val preConditionStatements: Seq[CodeStringAssertStatement[Post]] = dispatchApplicableContractToAssert(im.contract.requires)
+    val preConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.requires)
     val originalStatements: Seq[Statement[Post]] = b.statements.map(dispatch)
-    val postConditionStatements: Seq[CodeStringAssertStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
+    val postConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
     Block[Post](preConditionStatements ++ originalStatements ++ postConditionStatements)(b.o)
   }
 
 
-  private def createConditionCode(ref: LazyRef[Pre, InstanceField[Pre]], p: Perm[Pre]): CodeStringAssertStatement[Post] = {
+  private def createConditionCode(ref: LazyRef[Pre, InstanceField[Pre]], p: Perm[Pre]): CodeStringStatement[Post] = {
 
     p.perm match {
       case iv: IntegerValue[Pre] => {
         if (iv.value > 1) {
           throw Unreachable("Permission cannot be exceeding 1")
         }
-        CodeStringAssertStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
+        CodeStringStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
       }
       case d: Div[Pre] => {
-        CodeStringAssertStatement (assertPermissionCondition (fieldFinder.top.findNumber (ref.decl), fractionTemplate(d.left.toString, d.right.toString)) ) (p.o)
+        CodeStringStatement (assertPermissionCondition (fieldFinder.top.findNumber (ref.decl), fractionTemplate(d.left.toString, d.right.toString)) ) (p.o)
       }
-      case w: WritePerm[Pre] => CodeStringAssertStatement(assertCheckWrite(fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case r: ReadPerm[Pre] => CodeStringAssertStatement(assertCheckRead(fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case _ => CodeStringAssertStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
+      case w: WritePerm[Pre] => CodeStringStatement(assertCheckWrite(fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case r: ReadPerm[Pre] => CodeStringStatement(assertCheckRead(fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case _ => CodeStringStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
     }
   }
 
