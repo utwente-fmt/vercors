@@ -7,6 +7,9 @@ import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveReferences
 
+import scala.collection.immutable.ListSet
+import scala.collection.mutable
+
 case object Check {
   def inOrder(check1: => Seq[CheckError], check2: => Seq[CheckError]): Seq[CheckError] =
     check1 match {
@@ -61,7 +64,8 @@ sealed trait CheckError {
     case SeqProgInstanceMethodBody(m) => Seq(context(m, "An instance method in a `seq_prog` must have a body."))
     case SeqProgInstanceMethodNonVoid(m) => Seq(context(m, "An instance method in a `seq_prog` must have return type `void`."))
     case SeqProgInvocation(s) => Seq(context(s, "Only invocations on `this` and endpoints are allowed."))
-    case SeqProgReceivingEndpoint(e) => Seq(context(e, s"Can only refer to the receiving endpoint of this statement"))
+    case SeqProgReceivingEndpoint(e) => Seq(context(e, s"Can only refer to the receiving endpoint of this statement."))
+    case SeqProgParticipant(s) => Seq(context(s, s"This branch lets an endpoint participant which has been excluded by earlier branches."))
   }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
 
   def subcode: String
@@ -124,6 +128,9 @@ case class SeqProgInvocation(s: Statement[_]) extends CheckError {
 case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
   val subcode = "seqProgReceivingEndpoint"
 }
+case class SeqProgParticipant(s: SeqBranch[_]) extends CheckError {
+  val subcode = "seqProgParticipant"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
@@ -144,6 +151,7 @@ case class CheckContext[G]
   inPostCondition: Boolean = false,
   currentSeqProg: Option[SeqProg[G]] = None,
   currentReceiverEndpoint: Option[Endpoint[G]] = None,
+  currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
 ) {
   def withScope(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(scopes = scopes :+ CheckContext.ScopeFrame(decls, Nil))
@@ -170,6 +178,17 @@ case class CheckContext[G]
 
   def withReceiverEndpoint(endpoint: Endpoint[G]): CheckContext[G] =
     copy(currentReceiverEndpoint = Some(endpoint))
+
+  def withCurrentParticipatingEndpoints(endpoints: Seq[Endpoint[G]]): CheckContext[G] =
+    // ListSet to preserve insertion order
+    copy(currentParticipatingEndpoints = Some(ListSet.from(endpoints)))
+
+  def appendCurrentParticipatingEndpoints(newEndpoints: Seq[Endpoint[G]]): CheckContext[G] =
+    // ListSet to preserve insertion order
+    currentParticipatingEndpoints match {
+      case None => withCurrentParticipatingEndpoints(newEndpoints)
+      case Some(endpoints) => copy(currentParticipatingEndpoints = Some(endpoints.union(ListSet.from(newEndpoints))))
+    }
 
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     !undeclared.exists(_.contains(ref.decl)) && scopes.exists(_.contains(ref.decl))

@@ -1,10 +1,9 @@
 package vct.col.ast.statement
 
-import vct.col.ast.{Assert, Assign, Block, Branch, Communicate, CommunicateX, EndpointUse, Eval, Loop, MethodInvocation, SeqAssign, Scope, Statement, ThisSeqProg, VeyMontAssignExpression}
 import vct.col.ast.node.NodeFamilyImpl
+import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError, SeqProgStatement}
 import vct.col.print._
-import vct.col.ref.Ref
 
 trait StatementImpl[G] extends NodeFamilyImpl[G] { this: Statement[G] =>
   def layoutAsBlock(implicit ctx: Ctx): Doc =
@@ -26,7 +25,8 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] { this: Statement[G] =>
         _: Scope[G] |
         _: Block[G] |
         _: Eval[G] |
-        _: Assert[G] => Seq()
+        _: Assert[G] |
+        _: SeqBranch[G] => Seq()
       case _ => Seq(SeqProgStatement(this))
     }
   })

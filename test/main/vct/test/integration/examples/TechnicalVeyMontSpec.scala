@@ -3,7 +3,6 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec extends VercorsSpec {
-  // TODO: Should eventually become pass
   vercors should verify using silicon in "example using communicate" pvl
   """
      class Storage {
@@ -241,6 +240,61 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
      seq_run {
        alice.x := bob.x;
+     }
+  }
+  """
+
+  vercors should fail withCode "??? error missing" using silicon in "Parts of condition in branch have to agree inside seqprog" pvl
+  """
+  class Storage {
+     int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0 && bob.x == 0) {
+          // Alice might go here, bob might not: error
+        }
+     }
+  }
+  """
+
+  vercors should fail withCode "??? error missing" using silicon in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
+  """
+  class Storage {
+     int x;
+  }
+
+  pure int f() = 3;
+
+  seq_program Example() {
+     endpoint alice = Storage();
+
+     seq_run {
+        if (alice.x == 0 && f() == 3) {
+          // Alice might go here, will definitely, because of the second expression: error
+        }
+     }
+  }
+  """
+
+  vercors should error withCode "??? error missing" in "`if` cannot depend on bob, inside an `if` depending on alice" pvl
+  """
+  class Storage {
+    int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0) {
+          if (bob.x == 0) {
+            // Error
+          }
+        }
      }
   }
   """
