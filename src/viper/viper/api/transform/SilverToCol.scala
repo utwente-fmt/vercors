@@ -297,7 +297,9 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
     val f: silver.Exp => col.Expr[G] = transform
     e match {
       case silver.Add(left, right) => col.Plus(f(left), f(right))
-      case silver.And(left, right) => col.And(f(left), f(right))
+      case silver.And(left, right) =>
+        if (e.isPure) col.And(f(left), f(right))
+        else col.Star(f(left), f(right))
       case silver.AnySetCardinality(s) => col.Size(f(s))
       case silver.AnySetContains(elem, s) =>
         if(s.typ.isInstanceOf[silver.SetType]) col.SetMember(f(elem), f(s))
@@ -338,7 +340,7 @@ case class SilverToCol[G](program: silver.Program, blameProvider: BlameProvider)
       case silver.FieldAccess(rcv, field) => col.SilverDeref[G](f(rcv), new UnresolvedRef(field.name))(blame(e))
       case silver.FieldAccessPredicate(loc, perm) => col.Perm[G](col.SilverFieldLocation[G](f(loc.rcv), new UnresolvedRef(loc.field.name)), f(perm))
       case silver.Forall(variables, triggers, exp) =>
-        if(exp.typ == silver.Bool) col.Forall(variables.map(transform), triggers.map(transform), f(exp))
+        if(exp.isPure) col.Forall(variables.map(transform), triggers.map(transform), f(exp))
         else col.Starall(variables.map(transform), triggers.map(transform), f(exp))(blame(e))
       case silver.FractionalPerm(left, right) => col.Div(f(left), f(right))(blame(e))
       case silver.FullPerm() => col.WritePerm()

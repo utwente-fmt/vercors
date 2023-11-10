@@ -406,6 +406,8 @@ case object ResolveReferences extends LazyLogging {
       field.tryResolve(name => Spec.findModelField(obj, name).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverDeref(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
+    case deref@SilverFieldLocation(_, field) =>
+      field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverCurFieldPerm(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverFieldAssign(_, field, _) =>
