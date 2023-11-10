@@ -406,6 +406,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case Local(Ref(v)) => Local[Post](succ(v))(target.o)
       case deref @ DerefHeapVariable(Ref(v)) => DerefHeapVariable[Post](succ(v))(deref.blame)(target.o)
       case Deref(obj, Ref(f)) => Deref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
+      case SilverDeref(obj, Ref(f)) => SilverDeref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
       case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case deref @ DerefPointer(ptr) => DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)

@@ -30,7 +30,7 @@ case object EncodeCurrentThread extends RewriterBuilder {
       node.o.messageInContext("This reference to \\current_thread is misplaced, since the surrounding declaration is not thread_local.")
   }
 
-  case class MisplacedThreadLocalInvocation(node: Apply[_]) extends MisplacedCurrentThreadReference {
+  case class MisplacedThreadLocalInvocation(node: Node[_]) extends MisplacedCurrentThreadReference {
     override def text: String =
       node.o.messageInContext("This invocation refers to an applicable that is thread local, but the surrounding context is not thread local.")
   }
@@ -94,6 +94,20 @@ case class EncodeCurrentThread[Pre <: Generation]() extends Rewriter[Pre] {
         }
       } else {
         apply.rewrite()
+      }
+    case other => rewriteDefault(other)
+  }
+
+  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = stat match {
+    case invoke : InvocationStatement[Pre] =>
+      if (wantsThreadLocal(invoke.ref.decl)) {
+        if (currentThreadId.isEmpty) {
+          throw MisplacedThreadLocalInvocation(invoke)
+        } else {
+          invoke.rewrite(args = currentThreadId.top +: invoke.args.map(dispatch))
+        }
+      } else {
+        invoke.rewrite()
       }
     case other => rewriteDefault(other)
   }
