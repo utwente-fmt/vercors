@@ -7,7 +7,7 @@ import vct.col.ast.util.Declarator
 import vct.col.ast._
 import vct.col.typerules.CoercingRewriter
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{Blame, UnsafeCoercion}
+import vct.col.origin.{Blame, SourceName, UnsafeCoercion}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, RewriterBuilderArg}
 
@@ -104,7 +104,7 @@ abstract class ImportADT[Pre <: Generation](importer: ImportADTImporter) extends
 
   protected def find[T](decls: Seq[Declaration[Post]], name: String)(implicit tag: ClassTag[T]): T =
     decls.collectFirst {
-      case decl: T if decl.o.getPreferredName.isDefined && decl.o.getPreferredNameOrElse() == name =>
+      case decl: T if decl.o.find[SourceName].contains(SourceName(name)) =>
         decl
     }.get
 
