@@ -1,7 +1,7 @@
 package vct.col.resolve.ctx
 
 import vct.col.ast._
-import vct.col.origin.{Origin, PreferredName, SourceName}
+import vct.col.origin.SourceName
 import vct.col.resolve.NameLost
 import vct.col.resolve.lang.{C, CPP}
 
@@ -23,9 +23,10 @@ sealed trait Referrable[G] {
     case RefCPPParam(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPFunctionDefinition(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
-    case RefCPPLambda(decl) => ""
+    case RefCPPCustomType(typeName) => typeName
     case RefCPPLambdaDefinition(decl) => ""
     case RefCPPLocalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
+    case RefSYCLAccessMode(decl) => decl.name
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
     case RefJavaClass(decl) => decl.name
@@ -85,14 +86,15 @@ sealed trait Referrable[G] {
     case RefHeapVariable(decl) => Referrable.originName(decl)
     case RefPVLEndpoint(decl) => decl.name
     case RefPVLSeqProg(decl) => decl.name
+    case RefPVLSeqRun(_) => ""
 
     case RefJavaBipGlueContainer() => ""
     case PVLBuiltinInstanceMethod(_) => ""
     case BuiltinField(_) => ""
     case BuiltinInstanceMethod(_) => ""
     case RefPVLConstructor(decl) => ""
-    case ImplicitDefaultJavaConstructor() => ""
-    case ImplicitDefaultPVLConstructor() => ""
+    case ImplicitDefaultJavaConstructor(_) => ""
+    case ImplicitDefaultPVLConstructor(_) => ""
     case RefCudaThreadIdx() => "threadIdx"
     case RefCudaBlockDim() => "blockDim"
     case RefCudaBlockIdx() => "blockIdx"
@@ -178,6 +180,7 @@ case object Referrable {
     case decl: HeapVariable[G] => RefHeapVariable(decl)
     case decl: PVLEndpoint[G] => RefPVLEndpoint(decl)
     case decl: PVLSeqProg[G] => RefPVLSeqProg(decl)
+    case decl: PVLSeqRun[G] => RefPVLSeqRun(decl)
   })
 
   def originName(decl: Declaration[_]): String = decl.o.find[SourceName] match {
@@ -223,7 +226,8 @@ sealed trait SpecInvocationTarget[G]
   extends JavaInvocationTarget[G]
     with CNameTarget[G]
     with CDerefTarget[G] with CInvocationTarget[G]
-    with CPPNameTarget[G] with CPPInvocationTarget[G]
+    with CPPNameTarget[G]
+    with CPPDerefTarget[G] with CPPInvocationTarget[G]
     with PVLInvocationTarget[G]
     with LlvmInvocationTarget[G]
 
@@ -244,10 +248,11 @@ case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) ex
 case class RefCPPTranslationUnit[G](decl: CPPTranslationUnit[G]) extends Referrable[G]
 case class RefCPPParam[G](decl: CPPParam[G]) extends Referrable[G] with CPPNameTarget[G]
 case class RefCPPFunctionDefinition[G](decl: CPPFunctionDefinition[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
-case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
-case class RefCPPLambda[G](decl: CPPLambdaRef[G]) extends Referrable[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
-case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
+case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with CPPTypeNameTarget[G]
+case class RefCPPCustomType[G](typeName: String) extends Referrable[G] with CPPTypeNameTarget[G]
+case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with CPPDerefTarget[G] with ResultTarget[G]
 case class RefCPPLocalDeclaration[G](decls: CPPLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G]
+case class RefSYCLAccessMode[G](decl: SYCLAccessMode[G]) extends Referrable[G] with CPPNameTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]
@@ -305,6 +310,7 @@ case class RefBipConstructor[G](decl: BipConstructor[G]) extends Referrable[G]
 case class RefHeapVariable[G](decl: HeapVariable[G]) extends Referrable[G]
 case class RefPVLEndpoint[G](decl: PVLEndpoint[G]) extends Referrable[G] with PVLNameTarget[G]
 case class RefPVLSeqProg[G](decl: PVLSeqProg[G]) extends Referrable[G] with ThisTarget[G]
+case class RefPVLSeqRun[G](decl: PVLSeqRun[G]) extends Referrable[G]
 
 case class RefLlvmSpecFunction[G](decl: LlvmSpecFunction[G]) extends Referrable[G] with LlvmInvocationTarget[G] with ResultTarget[G]
 case class RefSeqProg[G](decl: SeqProg[G]) extends Referrable[G] with ThisTarget[G]
@@ -317,8 +323,8 @@ case class BuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) exten
 
 case class PVLBuiltinInstanceMethod[G](f: Expr[G] => Seq[Expr[G]] => Expr[G]) extends Referrable[G] with PVLInvocationTarget[G]
 
-case class ImplicitDefaultJavaConstructor[G]() extends Referrable[G] with JavaConstructorTarget[G]
-case class ImplicitDefaultPVLConstructor[G]() extends Referrable[G] with PVLConstructorTarget[G]
+case class ImplicitDefaultJavaConstructor[G](cls: JavaClass[G]) extends Referrable[G] with JavaConstructorTarget[G]
+case class ImplicitDefaultPVLConstructor[G](cls: Class[G]) extends Referrable[G] with PVLConstructorTarget[G]
 
 case class ImplicitDefaultJavaBipStatePredicate[G](state: String) extends Referrable[G] with JavaBipStatePredicateTarget[G]
 

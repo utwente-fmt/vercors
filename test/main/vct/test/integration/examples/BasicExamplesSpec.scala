@@ -4,11 +4,11 @@ import vct.test.integration.helper.VercorsSpec
 
 class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/AddAssignJava.java"
-  vercors should error withCode "resolutionError" example "concepts/basic/ArrayAsObject.java"
+  vercors should error withCode "resolutionError:type" example "concepts/basic/ArrayAsObject.java"
   vercors should verify using anyBackend example "concepts/basic/BasicAssert.java"
   vercors should verify using anyBackend example "concepts/basic/BasicAssert-e1.java"
   vercors should verify using anyBackend example "concepts/basic/BooleanOperators.java"
-  vercors should error withCode "resolutionError" example "concepts/basic/Boxing.java"
+  vercors should error withCode "resolutionError:type" example "concepts/basic/Boxing.java"
   vercors should verify using anyBackend example "concepts/basic/CollectionTest.pvl"
   vercors should verify using anyBackend example "concepts/basic/ContractUnsatisfiableIntentional.java"
   vercors should verify using anyBackend example "concepts/basic/ContractUnsatisfiableIntentional.pvl"
@@ -45,7 +45,7 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/DafnyIncr.java"
   vercors should verify using silicon example "concepts/basic/DafnyIncrE1.java"
   vercors should fail withCode "perm" using carbon example "concepts/basic/DafnyIncrE1.java"
-  vercors should error withCode "resolutionError" example "concepts/basic/BadType.pvl"
+  vercors should error withCode "resolutionError:type" example "concepts/basic/BadType.pvl"
   vercors should error withCode "notALocation" example "concepts/basic/BadType.java"
   vercors should verify using anyBackend example "concepts/basic/functions.pvl"
   vercors should verify using anyBackend example "concepts/basic/induction-problem.pvl"

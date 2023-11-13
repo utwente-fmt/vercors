@@ -45,7 +45,12 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit decl: SeqProgDeclContext): ClassDeclaration[G] = decl match {
     case SeqProgMethod(method) => convert(method)
-    case SeqProgRunMethod(runMethod) => convert(runMethod).head
+    case PvlSeqRun(contract, _, body) =>
+      withContract(contract, contract =>
+        PVLSeqRun(
+          convert(body),
+          contract.consumeApplicableContract(blame(decl))
+        )(blame(decl)))
     case PvlEndpoint(_, name, _, ClassType0(endpointType, None), _, args, _, _) =>
       new PVLEndpoint(
         convert(name),
@@ -355,6 +360,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       PVLCommunicate(convert(sender), convert(receiver))
     case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
       PVLCommunicate(convert(sender), convert(receiver))
+    case PvlParAssign(endpoint, _, field, _, _, expr, _) =>
+      PVLSeqAssign(
+        new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
+        new UnresolvedRef[G, InstanceField[G]](convert(field)),
+        convert(expr))
   }
 
   def convert(implicit stat: ForStatementListContext): Statement[G] =

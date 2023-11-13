@@ -58,21 +58,74 @@ sealed trait CheckError {
         Seq(context(clause) -> "This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block.")
       case ResultOutsidePostcondition(res) =>
         Seq(context(res) -> "\\result may only occur in the postcondition.")
+      case SeqProgStatement(s) => Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
+      case SeqProgInstanceMethodArgs(m) => Seq(context(m) -> "An instance method in a `seq_prog` cannot have any arguments.")
+      case SeqProgInstanceMethodBody(m) => Seq(context(m) -> "An instance method in a `seq_prog` must have a body.")
+      case SeqProgInstanceMethodNonVoid(m) => Seq(context(m) -> "An instance method in a `seq_prog` must have return type `void`.")
+      case SeqProgInvocation(s) => Seq(context(s) -> "Only invocations on `this` and endpoints are allowed.")
+      case SeqProgReceivingEndpoint(e) => Seq(context(e) -> s"Can only refer to the receiving endpoint of this statement")
     }): _*)
+
+  def subcode: String
 }
-case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError
-case class TypeErrorText(expr: Expr[_], expectedType: String) extends CheckError
-case class TypeErrorExplanation(expr: Expr[_], message: String) extends CheckError
-case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckError
-case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
-case class OutOfWriteScopeError[G](reason: Node[G], use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError
-case class DoesNotDefine(declarator: Declarator[_], declaration: Declaration[_], use: Node[_]) extends CheckError
-case class IncomparableTypes(left: Expr[_], right: Expr[_]) extends CheckError
-case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError
-case class NotAPredicateApplication(res: Expr[_]) extends CheckError
-case class AbstractPredicate(res: Expr[_]) extends CheckError
-case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError
-case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError
+
+case class TypeError(expr: Expr[_], expectedType: Type[_]) extends CheckError {
+  val subcode = "type"
+}
+case class TypeErrorText(expr: Expr[_], expectedType: String) extends CheckError {
+  val subcode = "type"
+}
+case class TypeErrorExplanation(expr: Node[_], message: String) extends CheckError {
+  val subcode = "type"
+}
+case class GenericTypeError(t: Type[_], expectedType: TType[_]) extends CheckError {
+  val subcode = "genericType"
+}
+case class OutOfScopeError[G](use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError {
+  val subcode = "outOfScope"
+}
+case class OutOfWriteScopeError[G](reason: Node[G], use: Node[G], ref: Ref[G, _ <: Declaration[G]]) extends CheckError {
+  val subcode = "outOfWriteScope"
+}
+case class DoesNotDefine(declarator: Declarator[_], declaration: Declaration[_], use: Node[_]) extends CheckError {
+  val subcode = "doesNotDefine"
+}
+case class IncomparableTypes(left: Expr[_], right: Expr[_]) extends CheckError {
+  val subcode = "incomparableTypes"
+}
+case class TupleTypeCount(tup: LiteralTuple[_]) extends CheckError {
+  val subcode = "tupleTypeCount"
+}
+case class NotAPredicateApplication(res: Expr[_]) extends CheckError {
+  val subcode = "notAPredicateApplication"
+}
+case class AbstractPredicate(res: Expr[_]) extends CheckError {
+  val subcode = "abstractPredicate"
+}
+case class RedundantCatchClause(clause: CatchClause[_]) extends CheckError {
+  val subcode = "redundantCatchClause"
+}
+case class ResultOutsidePostcondition(res: Expr[_]) extends CheckError {
+  val subcode = "resultOutsidePostcondition"
+}
+case class SeqProgInstanceMethodNonVoid(m: InstanceMethod[_]) extends CheckError {
+  val subcode = "seqProgInstanceMethodNonVoid"
+}
+case class SeqProgInstanceMethodArgs(m: InstanceMethod[_]) extends CheckError {
+  val subcode = "seqProgInstanceMethodArgs"
+}
+case class SeqProgInstanceMethodBody(m: InstanceMethod[_]) extends CheckError {
+  val subcode = "seqProgInstanceMethodBody"
+}
+case class SeqProgStatement(s: Statement[_]) extends CheckError {
+  val subcode = "seqProgStatement"
+}
+case class SeqProgInvocation(s: Statement[_]) extends CheckError {
+  val subcode = "seqProgInvocation"
+}
+case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
+  val subcode = "seqProgReceivingEndpoint"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](decls: Seq[Declaration[G]], scanLazily: Seq[Node[G]]) {
@@ -91,6 +144,8 @@ case class CheckContext[G]
   roScopes: Int = 0, roScopeReason: Option[Node[G]] = None,
   currentApplicable: Option[Applicable[G]] = None,
   inPostCondition: Boolean = false,
+  currentSeqProg: Option[SeqProg[G]] = None,
+  currentReceiverEndpoint: Option[Endpoint[G]] = None,
 ) {
   def withScope(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(scopes = scopes :+ CheckContext.ScopeFrame(decls, Nil))
@@ -111,6 +166,12 @@ case class CheckContext[G]
 
   def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(undeclared = undeclared :+ decls)
+
+  def withSeqProg(prog: SeqProg[G]): CheckContext[G] =
+    copy(currentSeqProg = Some(prog))
+
+  def withReceiverEndpoint(endpoint: Endpoint[G]): CheckContext[G] =
+    copy(currentReceiverEndpoint = Some(endpoint))
 
   def inScope[Decl <: Declaration[G]](ref: Ref[G, Decl]): Boolean =
     !undeclared.exists(_.contains(ref.decl)) && scopes.exists(_.contains(ref.decl))

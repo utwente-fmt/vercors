@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.progress.Progress
 import hre.stages.Stage
-import vct.col.ast.{SimplificationRule, Verification, Program}
+import vct.col.ast.{Program, SimplificationRule, Verification}
 import vct.col.check.CheckError
 import vct.col.feature
 import vct.col.feature.Feature
@@ -24,6 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
+import vct.rewrite.veymont.{EncodeSeqProg, GenerateSeqProgPermissions}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -190,6 +191,10 @@ case class SilverTransformation
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,
+
+    // VeyMont sequential program encoding
+    GenerateSeqProgPermissions,
+    EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
     EncodeChar,

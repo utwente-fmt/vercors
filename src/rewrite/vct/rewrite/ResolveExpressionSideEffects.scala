@@ -339,6 +339,8 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
         }
       case rangedFor: RangedFor[Pre] => rewriteDefault(rangedFor)
       case assign: VeyMontAssignExpression[Pre] => rewriteDefault(assign)
+      case assign: PVLSeqAssign[Pre] => rewriteDefault(assign)
+      case assign: SeqAssign[Pre] => rewriteDefault(assign)
       case comm: CommunicateX[Pre] => rewriteDefault(comm)
       case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
       case comm: Communicate[Pre] => rewriteDefault(comm)
@@ -397,6 +399,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case Local(Ref(v)) => Local[Post](succ(v))(target.o)
       case deref @ DerefHeapVariable(Ref(v)) => DerefHeapVariable[Post](succ(v))(deref.blame)(target.o)
       case Deref(obj, Ref(f)) => Deref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
+      case SilverDeref(obj, Ref(f)) => SilverDeref[Post](notInlined(obj), succ(f))(DerefAssignTarget)(target.o)
       case ArraySubscript(arr, index) => ArraySubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case PointerSubscript(arr, index) => PointerSubscript[Post](notInlined(arr), notInlined(index))(SubscriptAssignTarget)(target.o)
       case deref @ DerefPointer(ptr) => DerefPointer[Post](notInlined(ptr))(deref.blame)(target.o)

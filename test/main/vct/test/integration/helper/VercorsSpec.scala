@@ -5,11 +5,10 @@ import hre.io.{LiteralReadable, Readable}
 import org.scalactic.source
 import org.scalatest.Tag
 import org.scalatest.concurrent.TimeLimits.failAfter
-import org.scalatest.time._
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.time._
 import org.slf4j.LoggerFactory
-import org.slf4j.helpers.SubstituteLogger
-import vct.col.origin.VerificationFailure
+import vct.col.origin.{BlameUnreachable, VerificationFailure}
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
@@ -118,10 +117,10 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case AnyFail => value match {
         case Left(err: UserError) =>
           println(err)
-          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+          fail(s"Expected the test to fail, but it returned an error with code ${err.code} instead.")
         case Left(err: SystemError) =>
           println(err)
-          fail(s"Expected the test to pass, but it crashed with the above error instead.")
+          fail(s"Expected the test to fail, but it crashed with the above error instead.")
         case Right((Nil, _)) =>
           fail("Expected the test to fail, but it passed instead.")
         case Right((_, _)) => // success
@@ -129,12 +128,12 @@ abstract class VercorsSpec extends AnyFlatSpec {
       case Fail(code) => value match {
         case Left(err: UserError) =>
           println(err)
-          fail(s"Expected the test to pass, but it returned an error with code ${err.code} instead.")
+          fail(s"Expected the test to fail with code $code, but it returned an error with code ${err.code} instead.")
         case Left(err: SystemError) =>
           println(err)
-          fail(s"Expected the test to pass, but it crashed with the above error instead.")
+          fail(s"Expected the test to fail with code $code, but it crashed with the above error instead.")
         case Right((Nil, _)) =>
-          fail("Expected the test to fail, but it passed instead.")
+          fail("Expected the test to fail with code $code, but it passed instead.")
         case Right((fails, _)) => fails.filterNot(_.code == code) match {
           case Nil => // success
           case fails =>
@@ -147,6 +146,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
         case Left(err: UserError) =>
           println(err)
           fail(f"Expected the test to error with code $code, but got ${err.code} instead.")
+        case Left(err: BlameUnreachable) if code.equals("unreachable:schematic") && err.message.equals("schematic") =>
         case Left(err: SystemError) =>
           println(err)
           fail(f"Expected the test to error with code $code, but it crashed with the above error instead.")

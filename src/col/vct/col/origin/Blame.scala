@@ -247,8 +247,8 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-case class KernelLambdaFailure(kernelFailure: KernelFailure) extends CallableFailure {
-  override def code: String = "lambda" + kernelFailure.code.capitalize
+case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure) extends CallableFailure {
+  override def code: String = "syclKernelLambda" + kernelFailure.code.capitalize
   override def position: String = kernelFailure.position
   override def desc: String = kernelFailure.desc
   override def inlineDesc: String = kernelFailure.inlineDesc

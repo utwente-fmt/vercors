@@ -424,13 +424,13 @@ case object Java extends LazyLogging {
   }
 
   def findConstructor[G](t: Type[G], args: Seq[Expr[G]]): Option[JavaConstructorTarget[G]] = t match {
-    case JavaTClass(Ref(cls), _) =>
+    case JavaTClass(Ref(cls: JavaClass[G]), _) =>
       val definedConstructor = cls.decls.collectFirst {
         case cons: JavaConstructor[G] if Util.compatJavaParams(args, cons.parameters) => RefJavaConstructor(cons)
       }
 
       args match {
-        case Nil => definedConstructor.orElse(Some(ImplicitDefaultJavaConstructor()))
+        case Nil => definedConstructor.orElse(Some(ImplicitDefaultJavaConstructor(cls)))
         case _ => definedConstructor
       }
     case TModel(Ref(model)) if args.isEmpty =>
