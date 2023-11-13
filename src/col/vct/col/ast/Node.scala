@@ -1297,6 +1297,6 @@ sealed trait CodeString[G] extends Node[G] with CodeStringImpl[G] {
 }
 
 final case class CodeStringGlobal[G](content: String)(implicit val o: Origin) extends GlobalDeclaration[G]  with CodeString[G]
-final case class CodeStringClass[G](content: String)(implicit val o: Origin) extends ClassDeclaration[G] with CodeString[G]
+final case class CodeStringClass[G](content: String, ref: String)(implicit val o: Origin) extends ClassDeclaration[G] with CodeString[G]
 final case class CodeStringStatement[G](content: String)(implicit val o: Origin) extends Statement[G] with CodeString[G]
 

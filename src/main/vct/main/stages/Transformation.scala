@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.runtime.{CheckPermissionsBlocksMethod, CreateArrayFieldPermission, CreateArrayPermissions, CreateFieldPermissions, CreateLocking, CreateLoopInvariants, CreatePrePostConditions, CreatePredicates, CreateQuantifiers, GenerateJava, RefactorGeneratedCode, RemoveSelfLoops}
+import vct.rewrite.runtime.{CheckPermissionsBlocksMethod, CreateArrayFieldPermission, CreateArrayPermissions, CreateFieldPermissions, CreateForkPermissionTransfer, CreateJoinPermissionTransfer, CreateLocking, CreateLoopInvariants, CreatePrePostConditions, CreatePredicates, CreateQuantifiers, GenerateJava, RefactorGeneratedCode, RemoveSelfLoops}
 
 object Transformation {
 
@@ -325,12 +325,15 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
     RefactorGeneratedCode,
 
     CreateFieldPermissions,
-    CreateArrayFieldPermission,
+    CreateArrayFieldPermission,     //Creates the field permissions for the fields in arrays. Including initialization of the field
 
-    CheckPermissionsBlocksMethod, //Basic permission check
-    CreatePrePostConditions,      //Basic permission check for pre and post conditions
+    CheckPermissionsBlocksMethod,   //Basic permission check
+    CreatePrePostConditions,        //Basic permission check for pre and post conditions
 
-    CreateArrayPermissions,       //Basic permission check for arrays -> might be moved into CheckPermissionsBlocksMethod
+    CreateArrayPermissions,         //Basic permission check for arrays -> might be moved into CheckPermissionsBlocksMethod
+
+    CreateForkPermissionTransfer,   //Creates the permission transfer when a fork method occurs (when a start method is called)
+    CreateJoinPermissionTransfer,   //Creates the permission transfer when a join method occurs (when a join method is called)
 //    CreatePrePostArrayPermissions,
 //
 //    CreateQuantifiers,            //Creates loops for the quantifiers that are specified in the pre and post condition
@@ -340,5 +343,5 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
 //    CreateLocking,                //Create predicate instance for the Lock and use the constructor and synchronize keyword to check it
 //    CreateLoopInvariants,         //Create pre and post inside loop for all the specified conditions (maybe we can reuse code from the previous assertion checks)
 
-    GenerateJava                  //Generates valid java code
+//    GenerateJava                    //Generates valid java code
   ))

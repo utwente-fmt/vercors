@@ -1,12 +1,13 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{Class, ClassDeclaration, CodeString, CodeStringClass, Declaration, InstanceField}
+import vct.col.ast.{Class, ClassDeclaration, CodeString, CodeStringClass, Declaration, InstanceField, Program, Type}
 import vct.col.ast.RewriteHelpers.RewriteClass
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
+import vct.col.util.SuccessionMap
 import vct.rewrite.runtime.util.{CodeStringDefaults, FieldNumber}
 
 object CreateFieldPermissions extends RewriterBuilder {
-  override def key: String = "createArrayPermissions"
+  override def key: String = "createFieldPermissions"
 
   override def desc: String = "Create permissions for items in arrays"
 }
@@ -17,13 +18,15 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
   def createPermissionField(cls: Class[Pre], size: Int): ClassDeclaration[Post] = {
     val allNewHashMaps: Seq[String] = (1 to size).map(_ => CodeStringDefaults.newFieldConcurrentArray)
-    new CodeStringClass[Post](CodeStringDefaults.newFieldPermissions(allNewHashMaps.mkString(", ")))(cls.o)
+    CodeStringClass[Post](CodeStringDefaults.newFieldPermissions(allNewHashMaps.mkString(", ")), cls.o.getPreferredNameOrElse())(cls.o)
   }
 
   def dispatchClassDeclarations(cls: Class[Pre]): Seq[ClassDeclaration[Post]] = {
     classDeclarations.collect {
       val numberOfInstanceFields = cls.declarations.collect { case i: InstanceField[Pre] => i }.size
-      classDeclarations.declare(createPermissionField(cls, numberOfInstanceFields))
+      if (numberOfInstanceFields >= 1) {
+        classDeclarations.declare(createPermissionField(cls, numberOfInstanceFields))
+      }
       cls.declarations.foreach(d => rewriteDefault(d))
     }._1
   }
