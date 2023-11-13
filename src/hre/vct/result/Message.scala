@@ -7,6 +7,6 @@ case object Message {
   def messagesInContext(messages: (HasContext, String)*): String =
     messages.zipWithIndex.map {
       case ((origin, message), idx) =>
-        origin.bareMessageInContext(s"[${idx + 1}/${messages.size}] $message")
+        origin.bareMessageInContext(s"[${idx + 1}/${messages.size}] $message") + "\n"
     }.mkString(BOLD_HR, HR, BOLD_HR)
 }

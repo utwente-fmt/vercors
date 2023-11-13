@@ -98,7 +98,7 @@ abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider
    * @return a constructed Origin based on the (implicitly) given node
    */
   implicit def origin(implicit node: ParserRuleContext): Origin = {
-    Origin(baseOrigin.originContents ++ ctxToOrigin(node.start, node.stop).originContents)
+    Origin(ctxToOrigin(node.start, node.stop).originContents ++ baseOrigin.originContents)
   }
 
   /**
