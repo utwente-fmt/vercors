@@ -1,5 +1,7 @@
 package vct.rewrite.runtime
 
+import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers.RewriteInstanceMethod
 import vct.col.ast.{Block, Class, CodeStringStatement, ContractApplicable, Declaration, Deref, Expr, InstanceField, InstanceMethod, MethodInvocation, PostAssignExpression, PreAssignExpression, Program, Result, Scope, Statement, Type, Variable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
@@ -21,11 +23,10 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   private var seenMethodInvocation: Boolean = false
   private val givenMethodSucc: SuccessionMap[InstanceMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
 
-  var first = false
-  var target = false
+  val first: ScopedStack[Boolean] = ScopedStack()
+  val target: ScopedStack[Boolean] = ScopedStack()
   val occurences = new HashMap[LazyRef[Pre, InstanceField[Pre]], Boolean]()
-
-  var fieldFinder: FieldNumber[Pre] = null
+  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     val test = super.dispatch(program)
@@ -63,17 +64,19 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
 
   private def dispatchTarget(t: Expr[Pre]): Expr[Post] = {
-    target = true
-    dispatch(t)
+    target.having(true) {
+      dispatch(t)
+    }
   }
 
   private def dispatchValue(v: Expr[Pre]): Expr[Post] = {
-    target = false
-    dispatch(v)
+    target.having(false) {
+      dispatch(v)
+    }
   }
 
   private def generatePermissionChecksStatements(ref: LazyRef[Pre, InstanceField[Pre]], bool: Boolean, b: Block[Pre]): CodeStringStatement[Post] = {
-    val id: Int = fieldFinder.findNumber(ref.decl)
+    val id: Int = fieldFinder.top.findNumber(ref.decl)
     val name: String = ref.decl.o.getPreferredNameOrElse()
     if (bool) {
       CodeStringStatement[Post](assertCheckWrite(id, name))(b.o)
@@ -99,6 +102,13 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   }
 
 
+  private def rewriteDefaultMethod(im: InstanceMethod[Pre]): Unit = {
+    val newIm = new RewriteInstanceMethod[Pre,Post](im).rewrite()
+    givenMethodSucc.update(im, newIm)
+    classDeclarations.succeed(im, newIm)
+  }
+
+
   private def dispatchGivenMethod(im: InstanceMethod[Pre]): Unit = {
     im.body match {
       case Some(sc: Scope[Pre]) => {
@@ -109,10 +119,10 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
             classDeclarations.declare(newIm)
             givenMethodSucc.update(im, newIm)
           }
-          case e => rewriteDefault(e)
+          case e => rewriteDefaultMethod(im)
         }
       }
-      case _ => rewriteDefault(im)
+      case _ => rewriteDefaultMethod(im)
     }
   }
 
@@ -151,9 +161,9 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
       case d: Deref[Pre] => {
         d.ref match {
           case lr: LazyRef[Pre, InstanceField[Pre]] => {
-            if (target) {
+            if (!target.isEmpty && target.top) {
               occurences += (lr -> true)
-            } else if (!occurences.contains(lr)) {
+            } else if (!target.isEmpty && !occurences.contains(lr)) {
               occurences += (lr -> false)
             }
           }
@@ -170,8 +180,9 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     decl match {
       case im: InstanceMethod[Pre] => dispatchGivenMethod(im)
       case cls: Class[Pre] => {
-        fieldFinder = FieldNumber[Pre](cls)
-        rewriteDefault(cls)
+        fieldFinder.having(FieldNumber[Pre](cls)) {
+          rewriteDefault(cls)
+        }
       }
       case _ => rewriteDefault(decl)
     }
