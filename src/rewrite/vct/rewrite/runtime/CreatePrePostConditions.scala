@@ -18,6 +18,7 @@ object CreatePrePostConditions extends RewriterBuilder {
 
 case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
+//  TODO: fix post conditions when return statements is found
 
   val instanceMethods: ScopedStack[InstanceMethod[Pre]] = ScopedStack()
   val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
@@ -56,8 +57,8 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
       case d: Div[Pre] => {
         CodeStringStatement (assertPermissionCondition (fieldFinder.top.findNumber (ref.decl), fractionTemplate(d.left.toString, d.right.toString)) ) (p.o)
       }
-      case w: WritePerm[Pre] => CodeStringStatement(assertCheckWrite(fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case r: ReadPerm[Pre] => CodeStringStatement(assertCheckRead(fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case w: WritePerm[Pre] => CodeStringStatement(assertCheckWrite("",fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case r: ReadPerm[Pre] => CodeStringStatement(assertCheckRead("",fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
       case _ => CodeStringStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
     }
   }

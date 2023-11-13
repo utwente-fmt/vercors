@@ -1,15 +1,18 @@
 package vct.rewrite.runtime
 
+import com.sun.beans.finder.FieldFinder
 import hre.util.ScopedStack
-import vct.col.ast.RewriteHelpers.RewriteInstanceMethod
-import vct.col.ast.{Block, Class, CodeStringStatement, ContractApplicable, Declaration, Deref, Expr, InstanceField, InstanceMethod, MethodInvocation, PostAssignExpression, PreAssignExpression, Program, Result, Scope, Statement, Type, Variable}
+import vct.col.ast.RewriteHelpers.{RewriteAssign, RewriteEval, RewriteInstanceMethod, RewriteMethodInvocation, RewritePostAssignExpression, RewritePreAssignExpression}
+import vct.col.ast.{AnyFunctionInvocation, Assign, Block, Class, CodeStringStatement, ContractApplicable, Declaration, Deref, Eval, Expr, InstanceField, InstanceMethod, Local, MethodInvocation, PostAssignExpression, PreAssignExpression, ProcedureInvocation, Program, Result, Scope, Statement, TClass, ThisObject, Type, Variable}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
+import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.CodeStringDefaults.{assertCheckRead, assertCheckWrite, lookUpThread}
 import vct.rewrite.runtime.util.FieldNumber
 
-import scala.collection.mutable.HashMap
+import scala.collection.immutable.HashMap
+import scala.collection.mutable
 
 object CheckPermissionsBlocksMethod extends RewriterBuilder {
   override def key: String = "CheckPermissionsBlocksMethod"
@@ -20,94 +23,103 @@ object CheckPermissionsBlocksMethod extends RewriterBuilder {
 
 case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pre] {
 
-  private var seenMethodInvocation: Boolean = false
-  private val givenMethodSucc: SuccessionMap[InstanceMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
 
-  val first: ScopedStack[Boolean] = ScopedStack()
-  val target: ScopedStack[Boolean] = ScopedStack()
-  val occurences = new HashMap[LazyRef[Pre, InstanceField[Pre]], Boolean]()
-  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
+
+  private val givenMethodSucc: SuccessionMap[InstanceMethod[Pre], InstanceMethod[Post]] = SuccessionMap()
+  var hasInvocation: Boolean = false
+  private val dereferences: ScopedStack[mutable.HashMap[Deref[Pre], Boolean]] = ScopedStack()
+  val isTarget: ScopedStack[Boolean] = ScopedStack()
+
+
+
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     val test = super.dispatch(program)
     test
   }
 
-  private def createNewInstanceMethod(im: InstanceMethod[Pre], newBlock: Block[Post], newLocals: Seq[Variable[Post]], sc: Scope[Pre]): InstanceMethod[Post] = {
-    val newScope = Some(Scope(newLocals, newBlock)(sc.o))
-    new InstanceMethod[Post](dispatch(im.returnType),
-      variables.collect(im.args.foreach(a => dispatch(a)))._1,
-      variables.collect(im.outArgs.foreach(a => dispatch(a)))._1,
-      variables.collect(im.typeArgs.foreach(a => dispatch(a)))._1,
-      newScope,
-      dispatch(im.contract),
-      im.inline,
-      im.pure
-    )(im.blame)(im.o)
-
-  }
-
-
-  private def determineBlocks(b: Block[Pre]): Seq[Block[Pre]] = {
-    val newBlocks = b.statements.foldLeft((Seq.empty[Block[Pre]], Block[Pre](Seq())(b.o))) {
-      case ((blocks, tmpBlock), s) =>
-        rewriteDefault(s)
-        if (seenMethodInvocation) {
-          seenMethodInvocation = false
-          (blocks :+ tmpBlock :+ Block[Pre](Seq(s))(b.o), Block[Pre](Seq())(b.o))
-        } else {
-          (blocks, Block[Pre](tmpBlock.statements :+ s)(b.o))
-        }
-    }
-    newBlocks._1 :+ newBlocks._2
-  }
-
-
-  private def dispatchTarget(t: Expr[Pre]): Expr[Post] = {
-    target.having(true) {
-      dispatch(t)
-    }
-  }
-
-  private def dispatchValue(v: Expr[Pre]): Expr[Post] = {
-    target.having(false) {
-      dispatch(v)
-    }
-  }
-
-  private def generatePermissionChecksStatements(ref: LazyRef[Pre, InstanceField[Pre]], bool: Boolean, b: Block[Pre]): CodeStringStatement[Post] = {
-    val id: Int = fieldFinder.top.findNumber(ref.decl)
-    val name: String = ref.decl.o.getPreferredNameOrElse()
-    if (bool) {
-      CodeStringStatement[Post](assertCheckWrite(id, name))(b.o)
-    } else {
-      CodeStringStatement[Post](assertCheckRead(id, name))(b.o)
-    }
-  }
-
-
-  private def dispatchGivenMethodBlock(b: Block[Pre]): Block[Post] = {
-    occurences.clear()
-    val newStatements: Seq[Statement[Post]] = b.statements.map(dispatch)
-    val assertionStatements: Seq[Statement[Post]] = occurences.map(pair => generatePermissionChecksStatements(pair._1, pair._2, b)).toSeq
-    val allNewStatements: Seq[Statement[Post]] = assertionStatements ++ newStatements
-    Block[Post](allNewStatements)(b.o)
-  }
-
-
-  private def determineNewMethodStructure(b: Block[Pre]): Block[Post] = {
-    val methodBlocks: Seq[Block[Pre]] = determineBlocks(b)
-    val newMethodBlocks: Seq[Statement[Post]] = methodBlocks.map(dispatchGivenMethodBlock)
-    Block[Post](newMethodBlocks)(b.o)
-  }
-
-
   private def rewriteDefaultMethod(im: InstanceMethod[Pre]): Unit = {
-    val newIm = new RewriteInstanceMethod[Pre,Post](im).rewrite()
+    val newIm = new RewriteInstanceMethod[Pre, Post](im).rewrite()
     givenMethodSucc.update(im, newIm)
     classDeclarations.succeed(im, newIm)
   }
 
+
+
+
+  private def generatePermissionChecksStatements(d: Deref[Pre], write: Boolean) : Option[CodeStringStatement[Post]] = {
+    val name: String = d.ref.decl.o.getPreferredNameOrElse()
+    d.obj match {
+      case to: ThisObject[Pre] => {
+        val id: Int = FieldNumber[Pre](to.cls.decl).findNumber(d.ref.decl)
+        if (write) {
+          Some(CodeStringStatement[Post](assertCheckWrite("this", id, name))(d.o))
+        } else {
+          Some(CodeStringStatement[Post](assertCheckRead("this", id, name))(d.o))
+        }
+      }
+      case local: Local[Pre] => {
+        local.ref.decl.t match {
+          case tc: TClass[Pre] => {
+            val id: Int = FieldNumber[Pre](tc.cls.decl).findNumber(d.ref.decl)
+            val objectName = local.ref.decl.o.getPreferredNameOrElse()
+            if (write) {
+              Some(CodeStringStatement[Post](assertCheckWrite(objectName, id, name))(d.o))
+            } else {
+              Some(CodeStringStatement[Post](assertCheckRead(objectName, id, name))(d.o))
+            }
+          }
+        }
+      }
+      case _ => None
+    }
+  }
+
+
+  private def determineNewMethodStructure(b: Block[Pre]): Block[Post] = {
+    dereferences.having(new mutable.HashMap[Deref[Pre], Boolean]()) {
+      val newBlocks = b.statements.foldLeft((Seq.empty[Block[Post]], Block[Post](Seq())(b.o))) {
+        case ((blocks, tmpBlock), statement) => {
+          val newStatement = dispatch(statement)
+          if (!hasInvocation) {
+            (blocks, Block[Post](tmpBlock.statements :+ newStatement)(b.o))
+          } else {
+            hasInvocation = false
+            val newAssertions: Seq[CodeStringStatement[Post]] = dereferences.top.map(pair => generatePermissionChecksStatements(pair._1, pair._2)).filter(o => o.nonEmpty).map(o => o.get).toSeq
+            dereferences.top.clear()
+            //TODO create assertions
+            (blocks :+ Block[Post](newAssertions ++ tmpBlock.statements)(b.o) :+ Block[Post](Seq(newStatement))(b.o), Block[Post](Seq())(b.o))
+          }
+        }
+
+      }
+      val newAssertions: Seq[CodeStringStatement[Post]] = dereferences.top.map(pair => generatePermissionChecksStatements(pair._1, pair._2)).filter(o => o.nonEmpty).map(o => o.get).toSeq
+      val finalBlock: Block[Post] = Block[Post](newAssertions ++ newBlocks._2.statements)(b.o)
+      Block[Post](newBlocks._1 :+ finalBlock)(b.o)
+    }
+  }
+
+
+  override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] = {
+    stat match {
+      case a: Assign[Pre] => {
+        new RewriteAssign[Pre, Post](a).rewrite(
+          value = isTarget.having(false) {
+            dispatch(a.value)
+          },
+          target = isTarget.having(true) {
+            dispatch(a.target)
+          }
+        )
+      }
+      case e: Eval[Pre] => {
+        new RewriteEval[Pre, Post](e).rewrite(
+          expr = dispatch(e.expr)
+        )
+      }
+      case _ => super.dispatch(stat)
+    }
+  }
 
   private def dispatchGivenMethod(im: InstanceMethod[Pre]): Unit = {
     im.body match {
@@ -115,7 +127,10 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
         sc.body match {
           case b: Block[Pre] => {
             val newLocals = variables.collect(sc.locals.foreach(l => dispatch(l)))._1
-            val newIm = createNewInstanceMethod(im, determineNewMethodStructure(b), newLocals, sc)
+            val methodBody = determineNewMethodStructure(b)
+            val newIm = new RewriteInstanceMethod[Pre, Post](im).rewrite(
+              body = Some(Scope(newLocals, methodBody)(sc.o))
+            )
             classDeclarations.declare(newIm)
             givenMethodSucc.update(im, newIm)
           }
@@ -126,29 +141,19 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
     }
   }
 
+
   override def dispatch(e: Expr[Pre]): Expr[Rewritten[Pre]] = {
     e match {
       case mi: MethodInvocation[Pre] => {
-        seenMethodInvocation = true
-        new MethodInvocation[Post](
-          dispatch(mi.obj),
-          givenMethodSucc.ref[Post, InstanceMethod[Post]](mi.ref.decl),
-          mi.args.map(a => dispatch(a)),
-          mi.outArgs.map(a => dispatch(a)),
-          mi.typeArgs.map(a => dispatch(a)),
-          Seq(),
-          Seq()
-        )(mi.blame)(mi.o)
+        val newMI = new RewriteMethodInvocation[Pre, Post](mi).rewrite(
+          ref = givenMethodSucc.ref[Post, InstanceMethod[Post]](mi.ref.decl)
+        )
+        hasInvocation = true
+        newMI
       }
-      case preAssign: PreAssignExpression[Pre] => {
-        dispatchTarget(preAssign.target)
-        dispatchValue(preAssign.value)
-        super.rewriteDefault(e)
-      }
-      case postAssign: PostAssignExpression[Pre] => {
-        dispatchTarget(postAssign.target)
-        dispatchValue(postAssign.value)
-        super.rewriteDefault(e)
+      case pi: ProcedureInvocation[Pre] => {
+        hasInvocation = true
+        super.rewriteDefault(pi)
       }
       case res: Result[Pre] => {
         res.applicable.decl match {
@@ -158,33 +163,48 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
           case _ => rewriteDefault(res)
         }
       }
-      case d: Deref[Pre] => {
-        d.ref match {
-          case lr: LazyRef[Pre, InstanceField[Pre]] => {
-            if (!target.isEmpty && target.top) {
-              occurences += (lr -> true)
-            } else if (!target.isEmpty && !occurences.contains(lr)) {
-              occurences += (lr -> false)
-            }
+      case preExpr: PreAssignExpression[Pre] => {
+        new RewritePreAssignExpression[Pre, Post](preExpr).rewrite(
+          value = isTarget.having(false) {
+            dispatch(preExpr.value)
+          },
+          target = isTarget.having(true) {
+            dispatch(preExpr.target)
           }
-          case _ =>
-        }
-        super.rewriteDefault(d)
-
+        )
       }
-      case _ => rewriteDefault(e)
+      case postExpr: PostAssignExpression[Pre] => {
+        new RewritePostAssignExpression[Pre, Post](postExpr).rewrite(
+          value = isTarget.having(false) {
+            dispatch(postExpr.value)
+          },
+          target = isTarget.having(true) {
+            dispatch(postExpr.target)
+          }
+        )
+      }
+      case d: Deref[Pre] => {
+        val newD = super.rewriteDefault(d)
+        if (!dereferences.isEmpty) {
+          if (!isTarget.isEmpty && isTarget.top) {
+            dereferences.top += (d -> true)
+          } else if (!isTarget.isEmpty && !dereferences.top.contains(d)) {
+            dereferences.top += (d -> false)
+          }
+        }
+        newD
+      }
+      case _ => super.dispatch(e)
     }
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case im: InstanceMethod[Pre] => dispatchGivenMethod(im)
-      case cls: Class[Pre] => {
-        fieldFinder.having(FieldNumber[Pre](cls)) {
-          rewriteDefault(cls)
-        }
-      }
+      case cls: Class[Pre] => rewriteDefault(cls)
       case _ => rewriteDefault(decl)
     }
   }
+
+
 }

@@ -23,8 +23,8 @@ class Test {
     /*@
         requires Perm(x, 1);
         requires Perm(y, 1\2);
-        requires Perm(x, write);
-        requires Perm(y, read);
+        ensures Perm(x, write);
+        ensures Perm(y, read);
      */
     public int sum() {
 
@@ -32,16 +32,16 @@ class Test {
         int b = y;
 
         int z = b + y;
+        y = z + 6;
+
+        C ditIsEenVariable = new C();  //Has all the permissions
 
 
-        C c = new C();  //Has all the permissions
-
-
-        int a = c.z;
+        int a = ditIsEenVariable.z;
 
 
 //            Check nothing
-        Thread t = new Thread(c);
+        Thread t = new Thread(ditIsEenVariable);
 
 
 //            Check Nothing
@@ -50,7 +50,7 @@ class Test {
 
 
 //            Check permissions for c.r and g.z
-        int g = c.r + c.z;
+         ditIsEenVariable.r = a + ditIsEenVariable.z;
         y = z;
 
         return y;

@@ -45,12 +45,12 @@ case class CreateForkPermissionTransfer[Pre <: Generation]() extends Rewriter[Pr
       }
       case im: InstanceMethod[Pre] => {
         im.o.getPreferredNameOrElse() match {
-          case "start" => {
+          case "run" => {
 
           }
           case _ => ()
-          super.dispatch(im)
         }
+        super.dispatch(im)
       }
       case _ => super.dispatch(decl)
     }
