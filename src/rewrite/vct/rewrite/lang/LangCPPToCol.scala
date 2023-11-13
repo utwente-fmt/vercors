@@ -392,7 +392,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   def storePredicate(pred: Predicate[Pre]): Unit = {
-    if (pred.o.getPreferredName.isDefined && pred.o.getPreferredName.get.equals("sycl::buffer::exclusive_hostData_access")) {
+    if (pred.o.find[SourceName].contains(SourceName("sycl::buffer::exclusive_hostData_access"))) {
       savedPredicates.append(pred)
     }
   }
