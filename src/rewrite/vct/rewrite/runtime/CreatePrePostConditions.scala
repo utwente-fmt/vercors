@@ -1,6 +1,6 @@
 package vct.rewrite.runtime
 
-import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Perm, ReadPerm, Statement, WritePerm}
+import vct.col.ast.{AccountedPredicate, AmbiguousLocation, ApplicableContract, Block, Class, CodeStringStatement, Declaration, Deref, Div, Expr, InstanceField, InstanceMethod, IntegerValue, Perm, Program, ReadPerm, Result, Return, Scope, Statement, WritePerm}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import hre.util.ScopedStack
 import vct.col.ref.LazyRef
@@ -18,35 +18,50 @@ object CreatePrePostConditions extends RewriterBuilder {
 
 case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
-//  TODO: fix post conditions when return statements is found
+  override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
+    val test = super.dispatch(program)
+    test
+  }
 
   val instanceMethods: ScopedStack[InstanceMethod[Pre]] = ScopedStack()
   val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
   val permInstanceFieldRef: ScopedStack[LazyRef[Pre, InstanceField[Pre]]] = ScopedStack()
   val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
 
-
   def dispatchApplicableContractToAssert(ap: AccountedPredicate[Pre]): Seq[CodeStringStatement[Post]] = {
     permissionExprContract.having(Seq.empty) {
-      val t = permissionExprContract.top
-      t
       dispatch(ap)
-      permissionExprContract.push(permissionExprContract.top)
+      permissionExprContract.top
     }
-    permissionExprContract.pop()
   }
 
 
+  private def addPostConditions(postConditionStatements: Seq[CodeStringStatement[Post]], originalStatements: Seq[Statement[Post]]):  Seq[Statement[Post]] = {
+    originalStatements.foldLeft[Seq[Statement[Post]]](Seq.empty[Statement[Post]]) {
+      case (statements: Seq[Statement[Post]], currentStatement: Return[Post]) => {
+        statements ++ postConditionStatements :+ currentStatement
+      }
+      case (statements: Seq[Statement[Post]], currentStatement: Statement[Post]) => {
+        statements :+ currentStatement
+      }
+    }
+  }
+
   def dispatchBlockInMethod(b: Block[Pre], im: InstanceMethod[Pre]): Block[Post] = {
     val preConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.requires)
-    val originalStatements: Seq[Statement[Post]] = b.statements.map(dispatch)
     val postConditionStatements: Seq[CodeStringStatement[Post]] = dispatchApplicableContractToAssert(im.contract.ensures)
-    Block[Post](preConditionStatements ++ originalStatements ++ postConditionStatements)(b.o)
+    val originalStatements: Seq[Statement[Post]] = b.statements.map(dispatch)
+    val lastStatement: Option[Statement[Post]] = originalStatements.lastOption
+    val insertedPostConditions = addPostConditions(postConditionStatements, originalStatements)
+    lastStatement match {
+      case Some(_ : Return[Post])=> Block[Post](preConditionStatements ++ insertedPostConditions)(b.o)
+      case _ => Block[Post](preConditionStatements ++ insertedPostConditions ++ postConditionStatements)(b.o)
+    }
+
   }
 
 
   private def createConditionCode(ref: LazyRef[Pre, InstanceField[Pre]], p: Perm[Pre]): CodeStringStatement[Post] = {
-
     p.perm match {
       case iv: IntegerValue[Pre] => {
         if (iv.value > 1) {
@@ -55,10 +70,10 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
         CodeStringStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
       }
       case d: Div[Pre] => {
-        CodeStringStatement (assertPermissionCondition (fieldFinder.top.findNumber (ref.decl), fractionTemplate(d.left.toString, d.right.toString)) ) (p.o)
+        CodeStringStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), fractionTemplate(d.left.toString, d.right.toString)))(p.o)
       }
-      case w: WritePerm[Pre] => CodeStringStatement(assertCheckWrite("",fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case r: ReadPerm[Pre] => CodeStringStatement(assertCheckRead("",fieldFinder.top.findNumber (ref.decl),ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case w: WritePerm[Pre] => CodeStringStatement(assertCheckWrite("", fieldFinder.top.findNumber(ref.decl), ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case r: ReadPerm[Pre] => CodeStringStatement(assertCheckRead("", fieldFinder.top.findNumber(ref.decl), ref.decl.o.getPreferredNameOrElse()))(p.o)
       case _ => CodeStringStatement(assertPermissionCondition(fieldFinder.top.findNumber(ref.decl), p.perm.toString))(p.o)
     }
   }
@@ -70,7 +85,6 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
         if (!permissionExprContract.isEmpty) {
           permInstanceFieldRef.having(null) {
             super.dispatch(e)
-            val ref = permissionExprContract.top
             val newTop = permissionExprContract.top :+ createConditionCode(permInstanceFieldRef.top, p)
             permissionExprContract.pop()
             permissionExprContract.push(newTop)
@@ -107,6 +121,23 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
       }
       case _ => super.rewriteDefault(stat)
     }
+  }
+
+
+  private def findLastStatement(im: InstanceMethod[Pre]): Option[Statement[Pre]] = {
+    im.body match {
+      case Some(sc: Scope[Pre]) =>
+        sc.body match {
+          case b: Block[Pre] => {
+            if (b.statements.nonEmpty) {
+              return Some(b.statements.last)
+            }
+          }
+          case _ => {}
+        }
+      case _ => {}
+    }
+    None
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {

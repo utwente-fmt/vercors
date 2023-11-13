@@ -87,11 +87,9 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
             hasInvocation = false
             val newAssertions: Seq[CodeStringStatement[Post]] = dereferences.top.map(pair => generatePermissionChecksStatements(pair._1, pair._2)).filter(o => o.nonEmpty).map(o => o.get).toSeq
             dereferences.top.clear()
-            //TODO create assertions
             (blocks :+ Block[Post](newAssertions ++ tmpBlock.statements)(b.o) :+ Block[Post](Seq(newStatement))(b.o), Block[Post](Seq())(b.o))
           }
         }
-
       }
       val newAssertions: Seq[CodeStringStatement[Post]] = dereferences.top.map(pair => generatePermissionChecksStatements(pair._1, pair._2)).filter(o => o.nonEmpty).map(o => o.get).toSeq
       val finalBlock: Block[Post] = Block[Post](newAssertions ++ newBlocks._2.statements)(b.o)
