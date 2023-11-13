@@ -13,7 +13,7 @@ import vct.col.rewrite._
 import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
-import vct.col.rewrite.lang.NoSupportSelfLoop
+import vct.rewrite.lang.NoSupportSelfLoop
 import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
@@ -30,7 +30,7 @@ object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
     override def text: String =
       s"The ${pass.key} rewrite caused the AST to no longer typecheck:\n" + errors.map {
-        case (program, err) => err.message(program.messageInContext)
+        case (program, err) => err.message(program.highlight)
       }.mkString("\n")
   }
 

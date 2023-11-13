@@ -5,8 +5,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{DerefAssignTarget, Origin, SubscriptAssignTarget}
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{DerefAssignTarget, DiagnosticOrigin, LabelContext, Origin, PreferredName, SubscriptAssignTarget}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, NonLatchingRewriter, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -19,21 +18,17 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
   override def key: String = "sideEffects"
   override def desc: String = "Discharge side effects from expression evaluation into its surrounding context."
 
-  object SideEffectOrigin extends Origin(
+  val SideEffectOrigin: Origin = Origin(
     Seq(
-      PreferredName("flatten"),
-      ShortPosition("generated"),
-      Context("[At node generated to collect side effects]"),
-      InlineContext("[Extracted expression]"),
+      PreferredName(Seq("flatten")),
+      LabelContext("side effect"),
     )
   )
 
-  object ResultVar extends Origin(
+  val ResultVar: Origin = Origin(
     Seq(
-      PreferredName("res"),
-      ShortPosition("generated"),
-      Context("[At node generated to contain the result of a method]"),
-      InlineContext("[Method return value]"),
+      PreferredName(Seq("res")),
+      LabelContext("return value"),
     )
   )
 
@@ -49,12 +44,10 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
       proofExpression.o.messageInContext("Cannot evaluate this kind of expression here when combined with expressions that have a side effect.")
   }
 
-  object BreakOrigin extends Origin(
+  val BreakOrigin: Origin = Origin(
     Seq(
-      PreferredName("condition_false"),
-      ShortPosition("generated"),
-      Context("[At label generated to jump to when the side-effectful condition is false]"),
-      InlineContext("[Label: condition false]"),
+      PreferredName(Seq("condition_false")),
+      LabelContext("loop exit"),
     )
   )
 }

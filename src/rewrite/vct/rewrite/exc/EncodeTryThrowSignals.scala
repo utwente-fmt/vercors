@@ -28,55 +28,43 @@ case object EncodeTryThrowSignals extends RewriterBuilder {
 
   private def ExcVar: Origin = Origin(
     Seq(
-      PreferredName("exc"),
-      ShortPosition("generated"),
-      Context("[At variable generated to contain thrown exception]"),
-      InlineContext("[Current exception]"),
+      PreferredName(Seq("exc")),
+      LabelContext("current exception"),
     )
   )
 
   private def CurrentlyHandling: Origin = Origin(
     Seq(
-      PreferredName("currently_handling_exc"),
-      ShortPosition("generated"),
-      Context("[At variable generated to remember exception currently being handled]"),
-      InlineContext("[Exception currently being handled]"),
+      PreferredName(Seq("currently_handling_exc")),
+      LabelContext("handling exception"),
     )
   )
 
   private def ReturnPoint: Origin = Origin(
     Seq(
-      PreferredName("bubble"),
-      ShortPosition("generated"),
-      Context("[At label generated to bubble an exception]"),
-      InlineContext("[Exception bubble label]"),
+      PreferredName(Seq("bubble")),
+      LabelContext("bubble label"),
     )
   )
 
   private def CatchLabel: Origin = Origin(
     Seq(
-      PreferredName("catches"),
-      ShortPosition("generated"),
-      Context("[At label generated for catch blocks]"),
-      InlineContext("[Catch label]"),
+      PreferredName(Seq("catches")),
+      LabelContext("catch label"),
     )
   )
 
   private def FinallyLabel: Origin = Origin(
     Seq(
-      PreferredName("finally"),
-      ShortPosition("generated"),
-      Context("[At label generated for finally]"),
-      InlineContext("[Finally label]"),
+      PreferredName(Seq("finally")),
+      LabelContext("finally label"),
     )
   )
 
   private def ExcBeforeLoop: Origin = Origin(
     Seq(
-      PreferredName("excBeforeLoop"),
-      ShortPosition("generated"),
-      Context("[At variable generated to contain exc before loop]"),
-      InlineContext("[Exception before loop]"),
+      PreferredName(Seq("excBeforeLoop")),
+      LabelContext("loop exception"),
     )
   )
 

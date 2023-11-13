@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin, PreferredName}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ref.Ref
@@ -13,15 +13,7 @@ case object PureMethodsToFunctions extends RewriterBuilder {
   override def key: String = "pureMethods"
   override def desc: String = "Compile methods marked as pure into functions."
 
-  object PureMethodOrigin extends Origin(
-    Seq(
-      PreferredName("unknown"),
-      ShortPosition("generated"),
-      Context("[At node generated for pure method]"),
-      InlineContext("[Node generated for pure method]"),
-    )
-  )
-
+  val PureMethodOrigin: Origin = Origin(Seq(LabelContext("pure method")))
 
   case class MethodCannotIntoFunction(method: AbstractMethod[_], explanation: String) extends UserError {
     override def code: String = "notPure"

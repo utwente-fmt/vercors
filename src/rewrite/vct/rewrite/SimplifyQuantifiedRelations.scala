@@ -5,8 +5,7 @@ import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.util.Comparison
-import vct.col.origin.Origin
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin, PreferredName}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers
@@ -20,12 +19,10 @@ case object SimplifyQuantifiedRelations extends RewriterBuilder {
 }
 
 case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre] {
-  object SimplifyQuantifiedRelationsOrigin extends Origin(
+  val SimplifyQuantifiedRelationsOrigin: Origin = Origin(
     Seq(
-      PreferredName("unknown"),
-      ShortPosition("generated"),
-      Context("[At generated expression for the simplification of quantified integer relations]"),
-      InlineContext("[Simplified expression]"),
+      PreferredName(Seq("unknown")),
+      LabelContext("simplification"),
     )
   )
 

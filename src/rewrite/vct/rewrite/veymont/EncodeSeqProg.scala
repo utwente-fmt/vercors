@@ -118,7 +118,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
   }
 
   def rewriteRun(run: SeqRun[Pre]): Unit = {
-    implicit val o: Origin = run.o.replacePrefName(currentProg.top.o.getPreferredNameOrElse() + "_run")
+    implicit val o: Origin = run.o.where(name = currentProg.top.o.getPreferredNameOrElse().snake + "_run")
 
     currentRun.having(run) {
       for (endpoint <- currentProg.top.endpoints) {

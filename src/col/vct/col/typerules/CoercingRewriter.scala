@@ -39,9 +39,7 @@ case object CoercingRewriter {
 
   case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
 
-  private def coercionOrigin(of: Expr[_]): Origin = {
-    of.o.replacePrefName("unknown")
-  }
+  private def coercionOrigin(of: Expr[_]): Origin = of.o.where(name = "unknown")
 }
 
 abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pre, Rewritten[Pre]] with LazyLogging {

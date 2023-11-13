@@ -1,7 +1,7 @@
 package vct.test.integration.helper
 
 import ch.qos.logback.classic.{Level, Logger}
-import hre.io.Readable
+import hre.io.{LiteralReadable, Readable}
 import org.scalactic.source
 import org.scalatest.Tag
 import org.scalatest.concurrent.TimeLimits.failAfter

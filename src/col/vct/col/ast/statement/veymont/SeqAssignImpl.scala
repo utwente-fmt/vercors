@@ -11,6 +11,6 @@ trait SeqAssignImpl[G] extends StatementImpl[G] { this: SeqAssign[G] =>
       context.withReceiverEndpoint(receiver.decl)
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text(receiver.decl.o.getPreferredNameOrElse()) <> "." <> field.decl.o.getPreferredNameOrElse() <+> ":=" <+> value.show)
+    Group(Text(ctx.name(receiver)) <> "." <> ctx.name(field) <+> ":=" <+> value.show)
 
 }

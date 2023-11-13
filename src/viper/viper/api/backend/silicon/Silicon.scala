@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.LoggerFactory.getLogger
 import vct.col.ast.{Expr, Node}
 import vct.col.origin.Origin
+import vct.result.Message
 import viper.api.Resources
 import viper.api.backend.SilverBackend
 import viper.silicon.logger.SymbExLogger
@@ -167,9 +168,9 @@ case class Silicon(
               s"instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})"))
           case Left(n) =>
             logger.info(
-              s"""${Origin.BOLD_HR}Backend quantifier: $n
+              s"""${Message.BOLD_HR}Backend quantifier: $n
                  |instances: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})
-                 |${Origin.BOLD_HR}""".stripMargin
+                 |${Message.BOLD_HR}""".stripMargin
             )
         }
       }
@@ -186,7 +187,7 @@ case class Silicon(
         report.e match {
           case Right(e) =>
             val o = e.o
-            logger.info(s"${o.getShortPositionOrElse()}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
+            logger.info(s"${o.shortPositionText}: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
           case Left(n) =>
             logger.info(s"$n: inst: ${report.instances} (gen: ${report.maxGeneration}, cost: ${report.maxCost})")
         }

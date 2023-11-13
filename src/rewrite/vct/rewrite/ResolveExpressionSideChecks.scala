@@ -1,8 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.origin.{Origin, PanicBlame}
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin, PanicBlame, PreferredName}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, function}
 
@@ -12,10 +11,8 @@ case object ResolveExpressionSideChecks extends RewriterBuilder {
 
   private def EvalCheckFunction(preferredName: String = "unknown"): Origin = Origin(
     Seq(
-      PreferredName(preferredName),
-      ShortPosition("generated"),
-      Context("At: [Function generated to check the evaluation of an expression is ok]"),
-      InlineContext("[Function generated to check the evaluation of an expression is ok]"),
+      PreferredName(Seq(preferredName)),
+      LabelContext("side check"),
     )
   )
 }

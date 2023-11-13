@@ -6,17 +6,17 @@ case class ColHelperAllScopes(info: ColDescription) extends ColHelperMaker {
     import scala.reflect.ClassTag
     import scala.util.Try
     import vct.result.VerificationError.SystemError
+    import vct.result.Message
 
     case object AllScopes {
       case class InconsistentSuccessionTypes(left: Declaration[_], right: Declaration[_]) extends SystemError {
         override def text: String = {
-          val leftMessage = context[vct.col.util.CurrentRewriteProgramContext].map {
-            ctx => left.bareMessageInContext(ctx.program, "The kind of this declaration does not match ...")
-          } getOrElse left.o.bareMessageInContext("The kind of this declaration does not match ...")
+          val leftContext = context[vct.col.util.CurrentRewriteProgramContext].getOrElse(left.o)
 
-          val rightMessage = right.toString + Origin.HR + "... the kind of this declaration, so it may not be succeeded by this declaration."
-
-          Origin.BOLD_HR + leftMessage + Origin.HR + rightMessage + Origin.BOLD_HR
+          Message.messagesInContext(
+            leftContext -> "The kind of this declaration does not match ...",
+            right.highlight(right) -> "... the kind of this declaration, so it may not be succeeded by this declaration.",
+          )
         }
       }
     }

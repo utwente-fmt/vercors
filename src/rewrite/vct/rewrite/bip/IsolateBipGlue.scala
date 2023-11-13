@@ -3,6 +3,7 @@ package vct.col.rewrite.bip
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.origin.Origin
+import vct.result.Message
 
 /**
   * This pass scans the program for bip glues. For each java namespace where there is a glue, only the glue is included,
@@ -17,9 +18,10 @@ case object IsolateBipGlue extends LazyLogging {
           getBipGlues(decl) match {
             case Seq() => Seq(decl)
             case glues =>
-              logger.info(Origin.messagesInContext(
+              logger.info(Message.messagesInContext(
                 (decl.o, s"In this class, only the following ${glues.size} glues are kept:") +:
                   glues.zipWithIndex.map { case (g, i) => (g.o, s"glue ${i + 1}") }
+                : _*
               ))
               glues.map(g => new JavaBipGlueContainer[G](g)(g.o))
           }

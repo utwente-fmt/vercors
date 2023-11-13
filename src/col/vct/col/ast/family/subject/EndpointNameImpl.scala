@@ -5,5 +5,5 @@ import vct.col.print.{Ctx, Doc, Text}
 
 trait EndpointNameImpl[G] { this: EndpointName[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text(ref.decl.o.getPreferredNameOrElse())
+    Text(ctx.name(ref))
 }
