@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{Origin}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -29,18 +29,14 @@ case class RemoveUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch@SeqBranch(guards, yes, no) =>
+    case branch: SeqBranch[Pre] =>
       val newParticipants = if (branch.hasUnpointed) {
         currentParticipants.top
       } else {
         ListSet.from(branch.participants)
       }
       currentParticipants.having(newParticipants) {
-        SeqBranch(
-          branch.guards.flatMap(rewriteGuard),
-          dispatch(yes),
-          no.map(dispatch)
-        )(branch.o)
+        branch.rewrite(guards = branch.guards.flatMap(rewriteGuard))
       }
     case statement => rewriteDefault(statement)
   }

@@ -4,7 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.check.SeqProgParticipant
-import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.origin.{Blame, Origin, SeqBranchFailure}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -56,9 +56,9 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case branch: Branch[Pre] if currentProg.nonEmpty =>
+    case branch: UnresolvedSeqBranch[Pre] =>
       assert(branch.branches.nonEmpty)
-      unfoldBranch(branch.branches)(branch.o)
+      unfoldBranch(branch.branches)(branch.blame, branch.o)
 
     case l: Loop[Pre] if currentProg.nonEmpty =>
       ???
@@ -66,10 +66,10 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
     case statement => rewriteDefault(statement)
   }
 
-  def unfoldBranch(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit o: Origin): SeqBranch[Post] = branches match {
-    case Seq((e, s)) => SeqBranch(inferSeqGuard(e), dispatch(s), None)
+  def unfoldBranch(branches: Seq[(Expr[Pre], Statement[Pre])])(implicit blame: Blame[SeqBranchFailure], o: Origin): SeqBranch[Post] = branches match {
+    case Seq((e, s)) => SeqBranch(inferSeqGuard(e), dispatch(s), None)(blame)
     case (e, s) +: (otherYes +: branches) =>
-      SeqBranch(inferSeqGuard(e), dispatch(s), Some(unfoldBranch(otherYes +: branches)))
+      SeqBranch(inferSeqGuard(e), dispatch(s), Some(unfoldBranch(otherYes +: branches)))(blame)
     case _ => ???
   }
 
@@ -79,8 +79,8 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
     val exprs = unfoldStar(e)
     val pointed = exprs.map(point)
     pointed.map {
-      case (Some(endpoint), expr) => EndpointGuard[Post](succ(endpoint), dispatch(expr))(DiagnosticOrigin)
-      case (None, expr) => UnpointedGuard(dispatch(expr))(DiagnosticOrigin)
+      case (Some(endpoint), expr) => EndpointGuard[Post](succ(endpoint), dispatch(expr))(expr.o)
+      case (None, expr) => UnpointedGuard(dispatch(expr))(expr.o)
     }
   }
 

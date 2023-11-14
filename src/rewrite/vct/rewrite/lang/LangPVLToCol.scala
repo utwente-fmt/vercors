@@ -131,4 +131,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
     }
   }
+
+  def branch(branch: PVLBranch[Pre]): Statement[Post] =
+    if (rw.veymont.currentProg.nonEmpty) {
+      rw.veymont.rewriteBranch(branch)
+    } else {
+      Branch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.o)
+    }
 }

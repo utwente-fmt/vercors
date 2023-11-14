@@ -35,7 +35,7 @@ case class DeduplicateSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
       m.updateWith(guard.endpoint.decl)(exprs => Some(exprs.getOrElse(Nil) :+ guard.condition))
     }
     m.iterator.map { case (endpoint, exprs) =>
-      EndpointGuard[Post](succ(endpoint), foldAnd(exprs.map(dispatch))(DiagnosticOrigin))(DiagnosticOrigin)
+      EndpointGuard[Post](succ(endpoint), foldAnd(exprs.map(dispatch))(DiagnosticOrigin))(exprs.head.o)
     }.toSeq
   }
 }

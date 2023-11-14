@@ -304,6 +304,21 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
 }
 
+sealed trait FrontendIfFailure extends VerificationFailure
+sealed trait SeqBranchFailure extends FrontendIfFailure
+
+case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_]) extends SeqBranchFailure {
+  override def code: String = "branchNotUnanimous"
+
+  override def desc: String = Origin.messagesInContext(Seq(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this might not be the case")
+  ))
+
+  override def position: String = guard1.o.getShortPositionOrElse()
+  override def inlineDesc: String = "Two conditions in this branch might disagree."
+}
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"

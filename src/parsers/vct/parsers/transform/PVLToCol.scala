@@ -301,7 +301,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
     case PvlIf(_, _, cond, _, body, None) =>
-      Branch(Seq((convert(cond), convert(body))))
+      PVLBranch(Seq((convert(cond), convert(body))))(blame(stat))
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
       Branch(Seq(
         (convert(cond), convert(body)),

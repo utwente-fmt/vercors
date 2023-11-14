@@ -244,7 +244,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should fail withCode "??? error missing" using silicon in "Parts of condition in branch have to agree inside seqprog" pvl
+  vercors should fail withCode "branchNotUnanimous" using silicon in "Parts of condition in branch have to agree inside seqprog" pvl
   """
   class Storage {
      int x;
@@ -261,7 +261,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should fail withCode "??? error missing" using silicon in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
+  vercors should fail withCode "branchNotUnanimous" using silicon in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
   """
   class Storage {
      int x;
@@ -283,83 +283,6 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   vercors should verify using silicon in "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl
   """
-  class Storage {
-     int x;
-  }
-
-  pure int f() = 3;
-
-  seq_program Example() {
-     endpoint alice = Storage();
-
-     seq_run {
-        if (alice.x == 0 && f() == 3) {
-          // Alice might go here, bob will definitely, because of the second expression: error
-        }
-     }
-  }
-  """
-
-  vercors should error withCode "??? error missing" in "`if` cannot depend on bob, inside an `if` depending on alice" pvl
-  """
-  class Storage {
-    int x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
-
-     seq_run {
-        if (alice.x == 0) {
-          if (bob.x == 0) {
-            // Error
-          }
-        }
-     }
-  }
-  """
-}
-
-class TechnicalVeyMontSpec2 extends VercorsSpec {
-  vercors should fail withCode "seqProgParticipantErrors" using silicon in "Parts of condition in branch have to agree inside seqprog" pvl
-    """
-  class Storage {
-     int x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
-
-     seq_run {
-        if (alice.x == 0 && bob.x == 0) {
-          // Alice might go here, bob might not: error
-        }
-     }
-  }
-  """
-
-  vercors should fail withCode "??? error missing" using silicon in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
-    """
-  class Storage {
-     int x;
-  }
-
-  pure int f() = 3;
-
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
-
-     seq_run {
-        if (alice.x == 0 && f() == 3) {
-          // Alice might go here, bob will definitely, because of the second expression: error
-        }
-     }
-  }
-  """
-
-  vercors should verify using silicon in "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl
-    """
   class Storage {
      int x;
   }
@@ -378,7 +301,7 @@ class TechnicalVeyMontSpec2 extends VercorsSpec {
   """
 
   vercors should error withCode "seqProgParticipantErrors" in "`if` cannot depend on bob, inside an `if` depending on alice" pvl
-    """
+  """
   class Storage {
     int x;
   }
@@ -395,5 +318,4 @@ class TechnicalVeyMontSpec2 extends VercorsSpec {
      }
   }
   """
-
 }

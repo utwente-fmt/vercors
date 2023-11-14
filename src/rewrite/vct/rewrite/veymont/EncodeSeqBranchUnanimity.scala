@@ -1,11 +1,12 @@
 package vct.rewrite.veymont
 
 import vct.col.ast._
-import vct.col.origin.PanicBlame
+import vct.col.origin.{AssertFailed, Blame, BranchUnanimityFailed}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
+import vct.rewrite.veymont.EncodeSeqBranchUnanimity.ForwardBranchUnanimity
 
 object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   override def key: String = "encodeSeqBranchUnanimity"
@@ -15,6 +16,11 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
     override def code: String = "addVeyMontConditionError"
     override def text: String = node.o.messageInContext(msg)
   }
+
+  case class ForwardBranchUnanimity(branch: SeqBranch[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      branch.blame.blame(BranchUnanimityFailed(c1, c2))
+  }
 }
 
 case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
@@ -22,7 +28,7 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
   val guardSucc = SuccessionMap[SeqGuard[Pre], Variable[Post]]()
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
-    case SeqBranch(guards, yes, no) =>
+    case branch@SeqBranch(guards, yes, no) =>
       implicit val o = statement.o
       /*
       for each c in conds:
@@ -43,7 +49,7 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
       val assertions: Seq[Assert[Post]] = (0 until guards.length - 1).map { i =>
         val c1 = guards(i)
         val c2 = guards(i + 1)
-        Assert(guardSucc(c1).get === guardSucc(c2).get)(PanicBlame("TODO: Implement failing assert"))
+        Assert(guardSucc(c1).get === guardSucc(c2).get)(ForwardBranchUnanimity(branch, c1, c2))
       }
 
       val majorCond = new Variable[Post](TBool())

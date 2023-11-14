@@ -134,7 +134,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
           println(err)
           fail(s"Expected the test to fail with code $code, but it crashed with the above error instead.")
         case Right((Nil, _)) =>
-          fail("Expected the test to fail with code $code, but it passed instead.")
+          fail(s"Expected the test to fail with code $code, but it passed instead.")
         case Right((fails, _)) => fails.filterNot(_.code == code) match {
           case Nil => // success
           case fails =>

@@ -155,6 +155,8 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         scanScope(body)
       }._1)
 
+    case branch: PVLBranch[Pre] => pvl.branch(branch)
+
     case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) => java.initLocal(locals)
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
