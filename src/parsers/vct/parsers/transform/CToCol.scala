@@ -56,7 +56,6 @@ case class CToCol[G](override val baseOrigin: Origin,
       if (markerToken.getChannel == LangCLexer.LINE_DIRECTIVE_CHANNEL) {
         val lineDirectiveLine = Integer.parseInt(markerToken.getText.split(' ')(1))
         val tokenLine = markerToken.getLine
-        // FIXME PB: check for off-by-one stuff
         return Some(lineDirectiveLine - tokenLine - 1)
       }
     }

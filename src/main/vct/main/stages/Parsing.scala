@@ -87,7 +87,7 @@ case class Parsing[G <: Generation]
         case Language.C => ColCParser(origin, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
         case Language.InterpretedC => ColIParser(origin, blameProvider, cOrigin = None)
         case Language.CPP => ColCPPParser(origin, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
-        case Language.InterpretedCPP => ColIPPParser(origin, blameProvider)
+        case Language.InterpretedCPP => ColIPPParser(origin, blameProvider, cppOrigin = None)
         case Language.Java => ColJavaParser(origin, blameProvider)
         case Language.PVL => ColPVLParser(origin, blameProvider)
         case Language.Silver => ColSilverParser(origin, blameProvider)
