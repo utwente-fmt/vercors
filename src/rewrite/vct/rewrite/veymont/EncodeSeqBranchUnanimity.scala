@@ -8,7 +8,7 @@ import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
 object EncodeSeqBranchUnanimity  extends RewriterBuilder {
-  override def key: String = "encodeBranchUnanimity"
+  override def key: String = "encodeSeqBranchUnanimity"
   override def desc: String = "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
 
   case class AddVeyMontConditionError(node : Node[_], msg: String) extends UserError {

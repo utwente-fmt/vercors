@@ -56,7 +56,7 @@ import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLEndpointNameImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl}
-import vct.col.ast.family.seqguard.SeqGuardImpl
+import vct.col.ast.family.seqguard._
 import vct.col.ast.family.seqrun.SeqRunImpl
 import vct.col.ast.family.signals._
 import vct.col.ast.family.subject.EndpointNameImpl
@@ -1275,8 +1275,8 @@ final case class SeqAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, Insta
 final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
 
 sealed trait SeqGuard[G] extends NodeFamily[G] with SeqGuardImpl[G]
-final case class EndpointGuard[G](endpoint: Ref[G, Endpoint[G]], condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G]
-final case class UnpointedGuard[G](condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G]
+final case class EndpointGuard[G](endpoint: Ref[G, Endpoint[G]], condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G] with EndpointGuardImpl[G]
+final case class UnpointedGuard[G](condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G] with UnpointedGuardImpl[G]
 final case class SeqBranch[G](guards: Seq[SeqGuard[G]], yes: Statement[G], no:  Option[Statement[G]])(implicit val o: Origin) extends Statement[G] with SeqBranchImpl[G]
 
 final case class VeyMontAssignExpression[G](endpoint: Ref[G, Endpoint[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
