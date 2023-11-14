@@ -8,7 +8,7 @@ class C extends Runnable {
 }
 
 class Test {
-    private C[] x;
+    private C x;
     private int y;
 
     public Test() {
@@ -21,37 +21,13 @@ class Test {
     }
 
     /*@
-        requires Perm(x, 1);
+        requires Perm(x.z, 1);
+        requires Perm(x.r, 1\3);
         requires Perm(y, 1\2);
         ensures Perm(x, write);
         ensures Perm(y, read);
      */
     public int sum() {
-
-//            check y permission
-        int b = y;
-
-        int z = b + y;
-        y = z + 6;
-
-        C ditIsEenVariable = new C();  //Has all the permissions
-
-
-        int a = ditIsEenVariable.z;
-
-
-//            Check nothing
-        Thread t = new Thread(ditIsEenVariable);
-
-
-//            Check Nothing
-//            Remove permissions
-        t.start();
-
-
-//            Check permissions for c.r and g.z
-         ditIsEenVariable.r = a + ditIsEenVariable.z;
-        y = z;
 
         return y;
 
