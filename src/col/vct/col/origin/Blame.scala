@@ -207,11 +207,12 @@ case class ContextEverywhereFailedInPre(failure: ContractFailure, node: Invoking
   override def descInContext: String = "Context may not hold in precondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
-case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends InvocationFailure {
+case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeVerificationFailure with FrontendInvocationError {
   override def code: String = "syclItemMethodPreFailed"
   override def position: String = node.o.shortPositionText
-  override def desc: String = node.o.messageInContext("The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item.")
-  override def inlineDesc: String = "The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item."
+  override def descInContext: String = "The dimension parameter should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item."
+  override def inlineDescWithSource(source: String): String =
+    s"The dimension parameter `$source` should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item."
 }
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
@@ -247,7 +248,7 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure) extends CallableFailure {
+case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure) extends VerificationFailure {
   override def code: String = "syclKernelLambda" + kernelFailure.code.capitalize
   override def position: String = kernelFailure.position
   override def desc: String = kernelFailure.desc
@@ -851,6 +852,5 @@ case class NoContext(inner: Blame[PreconditionFailed]) extends Blame[InvocationF
   override def blame(error: InvocationFailure): Unit = error match {
     case pre: PreconditionFailed => inner.blame(pre)
     case ctx: ContextEverywhereFailedInPre => PanicBlame("Function or method does not list any context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(ctx)
-    case syclItemMethodPre: SYCLItemMethodPreconditionFailed => PanicBlame("Function or method is not a SYCL item or nd_item instance method, so cannot fail on a sycl item or nd_item instance method precondition.").blame(syclItemMethodPre)
   }
 }

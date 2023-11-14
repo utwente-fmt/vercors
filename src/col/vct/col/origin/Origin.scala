@@ -82,13 +82,13 @@ case class RequiredName(requiredName: String) extends NameStrategy {
 case class SourceName(name: String) extends NameStrategy {
   def splitName: Seq[String] =
     if(name.forall(c => !c.isLetter || c.isUpper)) name.split("[_]+").toIndexedSeq
-    else name.split("[_]+").flatMap(splitNameRec)
+    else name.split("[_]+").toIndexedSeq.flatMap(splitNameRec)
 
   private def splitNameRec(str: String): Seq[String] =
     if(str.isEmpty) Nil
     else {
       val (left, right) = str.tail.span(_.isLower)
-      (str.head + left) +: splitNameRec(right)
+      (str.head.toString + left) +: splitNameRec(right)
     }
 
   override def name(tail: Origin): Option[Name] =

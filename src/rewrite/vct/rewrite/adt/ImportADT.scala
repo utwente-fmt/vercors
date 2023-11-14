@@ -78,10 +78,12 @@ case object ImportADT {
     case TSmtlibString() => "smtstr"
     case TVeyMontChannel(t) => "veymontchan$" + t + "$"
     case TEndpoint(Ref(thread)) => thread.o.getPreferredNameOrElse().camel
+    case TResourceVal() => "resource"
     case _: JavaType[_] => throw ExtraNode
     case _: CType[_] => throw ExtraNode
     case _: CPPType[_] => throw ExtraNode
     case _: PVLType[_] => throw ExtraNode
+    case _: SYCLTClass[_] => throw ExtraNode
   }
 }
 
