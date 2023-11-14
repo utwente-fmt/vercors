@@ -18,8 +18,6 @@ object CreatePrePostConditions extends RewriterBuilder {
 
 
 case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
-
-  //TODO fix inner field checking this.x.y should check permission for y
   val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
   val permDeref: ScopedStack[Deref[Pre]] = ScopedStack()
 
