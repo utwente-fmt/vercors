@@ -855,7 +855,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val accName = CPP.nameFromDeclarator(accDecl.inits.head.decl)
       if (accDecl.inits.nonEmpty && accDecl.inits.head.init.isDefined && accDecl.inits.head.init.get.isInstanceOf[CPPInvocation[Pre]]) {
         val accO: Origin = new SYCLGeneratedAccessorPermissionsOrigin(decl).replacePrefName(accName)
-        val dimO: Origin = new SYCLGeneratedAccessorPermissionsOrigin(decl).replacePrefName(accName + "_dim")
+        val dimO: Origin = new SYCLGeneratedAccessorPermissionsOrigin(decl)
         accDecl.inits.head.init.get match {
           case inv@CPPInvocation(_, Seq(bufferRef: CPPLocal[Pre], _, accessModeRef: CPPLocal[Pre]), _, _) => {
             rw.dispatch(accessModeRef)  match {
@@ -865,7 +865,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                   throw Unreachable("Accessor type does not correspond with buffer type!")
                 }
                 val instanceField = new InstanceField[Post](buffer.generatedVar.t, Set())(accO)
-                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(_ => new InstanceField[Post](TInt(), Set())(dimO))
+                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(i => new InstanceField[Post](TInt(), Set())(dimO.replacePrefName(s"${accName}_r$i")))
                 accessors.append(SYCLAccessor[Post](buffer, accessMode, instanceField, rangeIndexFields)(accDecl.o))
                 currentAccessorSubstitutions(RefCPPLocalDeclaration(decl, 0)) = accessors.last
 
@@ -963,7 +963,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
             ),
             tt, Seq(), Seq(), Seq(), None
           )(PanicBlame("Constructors of kernel classes do not have pre-conditions, so it is impossible for them to be unsatisfiable."))
-        )(SYCLKernelConstructorCallableFailureBlame())
+        )(SYCLKernelConstructorCallableFailureBlame())(o.replacePrefName("event_constructor"))
       }
     })(commandGroupO))
   }
@@ -1298,11 +1298,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     Block(
       Join(variable)(SYCLKernelJoinBlame()) +:
       accessors.flatMap(acc => Seq(
-        releaseBufferAccess(acc),
         assignLocal(
           acc.buffer.generatedVar.get,
           Deref[Post](variable, acc.instanceField.ref)(new SYCLAccessorDerefBlame(acc.instanceField))
-        )
+        ),
+        releaseBufferAccess(acc)
       ))
     )
   }
