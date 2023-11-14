@@ -1,15 +1,15 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.lang.LangBipToCol
+import vct.rewrite.lang.LangBipToCol
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
-import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol
@@ -20,10 +20,8 @@ case object LangSpecificToCol extends RewriterBuilder {
 
   def ThisVar(): Origin = Origin(
     Seq(
-      PreferredName("this"),
-      ShortPosition("generated"),
-      Context("[At node generated to store this value for constructors]"),
-      InlineContext("this"),
+      PreferredName(Seq("this")),
+      LabelContext("constructor this"),
     )
   )
 
@@ -171,6 +169,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
+    case assign: PVLSeqAssign[Pre] => veymont.rewriteParAssign(assign)
 
     case other => rewriteDefault(other)
   }

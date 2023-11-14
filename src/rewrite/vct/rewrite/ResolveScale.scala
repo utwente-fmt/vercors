@@ -2,8 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.rewrite.ResolveScale.{CheckScale, ScaleNegativePreconditionFailed, WrongScale}
-import vct.col.origin.{Blame, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ScaleNegative}
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{Blame, DiagnosticOrigin, LabelContext, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ScaleNegative}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
@@ -19,12 +18,10 @@ case object ResolveScale extends RewriterBuilder {
       scale.o.messageInContext("This kind of expression cannot be scaled.")
   }
 
-  private def CheckScale(preferredName: String = ""): Origin = Origin(
+  private def CheckScale(preferredName: String = "unknown"): Origin = Origin(
     Seq(
-      PreferredName(preferredName),
-      ShortPosition("generated"),
-      Context("[At function generated to check that scale values are non-negative]"),
-      InlineContext("[Function generated to check that scale values are non-negative]"),
+      PreferredName(Seq(preferredName)),
+      LabelContext("scale check"),
     )
   )
 

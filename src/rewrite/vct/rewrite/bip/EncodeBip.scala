@@ -11,6 +11,7 @@ import vct.col.util.AstBuildHelpers.{contract, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 import BIP._
+import vct.result.Message
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -91,10 +92,10 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
     // Guard at POS needs data that transition at POS is not supplying!
     override def code: String = "bipMissingData"
     override def text: String = {
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         (guard.o, "Data required by this guard..."),
         (transition.o, "... is not supplied by this transition")
-      ))
+      )
     }
   }
 
@@ -107,16 +108,16 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   }
 
   private def DataWireValueCarrierOrigin(wire: BipGlueDataWire[_]): Origin = {
-    wire.o.replacePrefName(wire.o.getPreferredNameOrElse() + "_result")
+    wire.o.where(prefix = "result")
   }
 
   private def BipSynchronizationOrigin(s: BipTransitionSynchronization[_]): Origin = {
-    s.o.replacePrefName("synchron___" +
+    s.o.where(name = "synchron___" +
       s.transitions.map { case Ref(t) => "transition_" + t.signature.asciiSignature }.mkString("_$_"))
   }
 
   private def SynchronizationComponentVariableOrigin(s: BipTransitionSynchronization[_], c: BipComponent[_]): Origin = {
-    s.o.replacePrefName(c.fqn.mkString("."))
+    s.o.where(name = c.fqn.mkString("."))
   }
 
   case class ExhalingTransitionPreconditionFailed(results: BIP.VerificationResults, s: BipTransitionSynchronization[_], t: BipTransition[_]) extends Blame[ExhaleFailed] {
@@ -127,7 +128,7 @@ case object EncodeBip extends RewriterBuilderArg[VerificationResults] {
   }
 
   private def ImplCheckBipTransitionOrigin(c: BipComponent[_], t: BipTransition[_]): Origin = {
-    t.o.replacePrefName(s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
+    t.o.where(name = s"transitionImplementationCheck__${c.fqn.mkString("_")}__${
       t.o.getPreferredNameOrElse()}_${t.signature.asciiSignature}")
   }
 }

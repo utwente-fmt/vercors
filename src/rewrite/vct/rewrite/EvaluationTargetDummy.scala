@@ -2,7 +2,7 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import RewriteHelpers._
-import vct.col.origin.{Context, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.util.AstBuildHelpers._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 
@@ -12,10 +12,8 @@ case object EvaluationTargetDummy extends RewriterBuilder {
 
   private def EvaluationOrigin: Origin = Origin(
     Seq(
-      PreferredName("evaluationDummy"),
-      ShortPosition("generated"),
-      Context(s"[At variable generated for an evaluation]"),
-      InlineContext("[Variable generated for an evaluation]"),
+      PreferredName(Seq("evaluationDummy")),
+      LabelContext("evaluate"),
     )
   )
 }

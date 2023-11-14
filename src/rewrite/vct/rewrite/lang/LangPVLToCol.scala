@@ -1,4 +1,4 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{PVLInvocation, _}
@@ -6,12 +6,18 @@ import vct.col.origin.{Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
+import vct.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEndpoint, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPVLEndpoint, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
+import vct.col.resolve.ctx.{ImplicitDefaultPVLConstructor, PVLConstructorTarget}
+import vct.rewrite.lang.LangPVLToCol.ModelConstructorNotSupported
+import vct.result.VerificationError.SystemError
 
 case object LangPVLToCol {
+  case class ModelConstructorNotSupported() extends SystemError {
+    override def text: String = "VerCors attempted to get the constructor of a model, but this is not yet supported"
+  }
 }
 
 case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -20,6 +26,12 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   val pvlDefaultConstructor: SuccessionMap[Class[Pre], Procedure[Post]] = SuccessionMap()
   val pvlConstructor: SuccessionMap[PVLConstructor[Pre], Procedure[Post]] = SuccessionMap()
+
+  def constructorSucc(ref: PVLConstructorTarget[Pre]): Ref[Post, Procedure[Post]] = ref match {
+    case ImplicitDefaultPVLConstructor(cls) => pvlDefaultConstructor.ref(cls)
+    case RefPVLConstructor(cons) => pvlConstructor.ref(cons)
+    case RefModel(_) => throw new ModelConstructorNotSupported()
+  }
 
   def rewriteConstructor(cons: PVLConstructor[Pre]): Unit = {
     implicit val o: Origin = cons.o
@@ -113,7 +125,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         ProcedureInvocation[Post](pvlConstructor.ref(decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case ImplicitDefaultPVLConstructor() =>
+      case ImplicitDefaultPVLConstructor(_) =>
         ProcedureInvocation[Post](pvlDefaultConstructor.ref(t.asInstanceOf[TClass[Pre]].cls.decl), args.map(rw.dispatch), Nil, Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)

@@ -30,7 +30,7 @@ case class AddVeyMontConditionNodes[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case dcl: SeqProg[Pre] =>
-        inSeqProg.push(dcl.threads.size)
+        inSeqProg.push(dcl.endpoints.size)
         try {
           rewriteDefault(dcl)
         } finally {

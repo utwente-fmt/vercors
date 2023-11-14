@@ -6,11 +6,11 @@ import vct.col.ast.{AddrOf, ApplicableContract, CGlobalDeclaration, Expr, Global
 import org.antlr.v4.runtime.CharStreams
 import vct.col.ast._
 import vct.col.check.CheckError
-import vct.col.origin.{FileSpanningOrigin, Origin, OriginFilename, ReadableOrigin}
+import vct.col.origin.{FileSpanningOrigin, InlineBipContext, Origin, OriginFilename, ReadableOrigin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.Generation
 import vct.col.rewrite.bip.IsolateBipGlue
-import vct.col.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
+import vct.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader
 import vct.main.stages.Resolution.InputResolutionError
 import vct.options.Options
@@ -25,8 +25,7 @@ import java.io.{FileNotFoundException, Reader}
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
     override def code: String = s"resolutionError:${errors.map(_.subcode).mkString(",")}"
-
-    override def text: String = errors.map(_.message((node, message) => node.o.bareMessageInContext(message))).mkString("\n")
+    override def text: String = errors.map(_.message(_.o)).mkString("\n")
   }
 
   def ofOptions[G <: Generation](options: Options, blameProvider: BlameProvider): Resolution[G] =
@@ -55,7 +54,7 @@ case class SpecExprParseError(msg: String) extends UserError {
 case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecExprParser {
   override def parse[G](input: String, o: Origin): Expr[G] = {
     val sr = StringReadable(input)
-    val cjp = ColJavaParser(o.addInlineBipContext(input), blameProvider)
+    val cjp = ColJavaParser(o.withContent(InlineBipContext(input)), blameProvider)
     val x = try {
       sr.read { reader =>
         cjp.parseExpr[G](CharStreams.fromReader(reader, sr.fileName), false)
@@ -72,7 +71,7 @@ case class MyLocalJavaParser(blameProvider: BlameProvider) extends Resolve.SpecE
 
 case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.SpecContractParser {
   override def parse[G](input: LlvmFunctionContract[G], o: Origin): ApplicableContract[G] = {
-    val originProvider = Origin(Seq(ReadableOrigin(input.o.getFilename match {
+    val originProvider = Origin(Seq(ReadableOrigin(input.o.find[OriginFilename] match {
       case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
       case _ => StringReadable(input.value)
     })))
@@ -82,7 +81,7 @@ case class MyLocalLLVMSpecParser(blameProvider: BlameProvider) extends Resolve.S
   }
 
   override def parse[G](input: LlvmGlobal[G], o: Origin): GlobalDeclaration[G] = {
-    val originProvider = Origin(Seq(ReadableOrigin(input.o.getFilename match {
+    val originProvider = Origin(Seq(ReadableOrigin(input.o.find[OriginFilename] match {
       case Some(OriginFilename(filename)) => StringReadable(input.value, filename)
       case _ => StringReadable(input.value)
     })))

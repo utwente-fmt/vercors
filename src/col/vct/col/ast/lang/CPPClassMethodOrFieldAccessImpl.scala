@@ -17,6 +17,7 @@ trait CPPClassMethodOrFieldAccessImpl[G] { this: CPPClassMethodOrFieldAccess[G] 
     case ref: RefADTFunction[G] => Types.notAValue(ref)
     case ref: RefModelProcess[G] => Types.notAValue(ref)
     case ref: RefModelAction[G] => Types.notAValue(ref)
+    case RefProverFunction(decl) => decl.returnType
     case ref: BuiltinField[G] => ref.f(classInstance).t
     case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)

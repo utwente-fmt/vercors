@@ -3,20 +3,17 @@ package vct.col.rewrite
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{FramedArrIndex, Origin, TriggerPatternBlame}
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{DiagnosticOrigin, FramedArrIndex, LabelContext, Origin, PreferredName, TriggerPatternBlame}
 import vct.result.VerificationError.UserError
 
 case object QuantifySubscriptAny extends RewriterBuilder {
   override def key: String = "any"
   override def desc: String = "Quantify expressions that are automatically quantified with *."
 
-  object GeneratedQuantifierOrigin extends Origin(
+  val GeneratedQuantifierOrigin: Origin = Origin(
     Seq(
-      PreferredName("i"),
-      ShortPosition("generated"),
-      Context("[At node generated for auto-quantified expressions containing `*`]"),
-      InlineContext("[* index]"),
+      PreferredName(Seq("i")),
+      LabelContext("* index"),
     )
   )
 

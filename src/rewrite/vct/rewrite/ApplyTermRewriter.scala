@@ -280,7 +280,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
         logger.debug(s"Matches:          $pattern")
         if (inst.nonEmpty) {
           logger.debug("With bindings:")
-          inst.toSeq.sortBy { case (k, _) => k.o.getPreferredNameOrElse() }.foreach {
+          inst.toSeq.sortBy { case (k, _) => k.o.getPreferredNameOrElse().camel }.foreach {
             case (rule, (binding, over)) =>
               if (over.isEmpty)
                 logger.debug(s"  $rule = $binding")
@@ -370,7 +370,7 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
     }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
-    debugNameStack.having(decl.o.getPreferredNameOrElse()) {
+    debugNameStack.having(decl.o.getPreferredNameOrElse().ucamel) {
       rewriteDefault(decl)
     }
 

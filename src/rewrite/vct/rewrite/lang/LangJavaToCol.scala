@@ -1,4 +1,4 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
@@ -10,7 +10,7 @@ import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.JavaAnnotationData.{BipComponent, BipData}
 import vct.col.resolve.lang.{Java, JavaAnnotationData}
-import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
+import vct.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -19,42 +19,39 @@ import vct.result.VerificationError.UserError
 import scala.collection.mutable
 
 case object LangJavaToCol {
-  private def JavaFieldOrigin(fields: JavaFields[_], idx: Int): Origin = {
-    fields.decls(idx).o.replacePrefName(fields.decls(idx).name)
-      .replaceContext(fields.o.getContext.getOrElse(Context("[unknown context]")).context)
-  }
+  private def JavaFieldOrigin(fields: JavaFields[_], idx: Int): Origin =
+    fields.decls(idx).o.where(name = fields.decls(idx).name)
 
   private def JavaLocalOrigin(locals: JavaLocalDeclaration[_], idx: Int): Origin = {
-    locals.decls(idx).o.replacePrefName(locals.decls(idx).name)
-      .replaceContext(locals.o.getContext.getOrElse(Context("[unknown context]")).context)
+    locals.decls(idx).o.where(name = locals.decls(idx).name)
   }
 
   private def JavaConstructorOrigin(cons: JavaConstructor[_]): Origin = {
-    cons.o.replacePrefName(cons.name)
+    cons.o.where(name = cons.name)
   }
 
   private def JavaMethodOrigin(method: JavaMethod[_]): Origin = {
-    method.o.replacePrefName(method.name)
+    method.o.where(name = method.name)
   }
 
   private def JavaAnnotationMethodOrigin(method: JavaAnnotationMethod[_]): Origin = {
-    method.o.replacePrefName(method.name)
+    method.o.where(name = method.name)
   }
 
   private def JavaInstanceClassOrigin(cls: JavaClassOrInterface[_]): Origin = {
-    cls.o.replacePrefName(cls.name)
+    cls.o.where(name = cls.name)
   }
 
   private def JavaStaticsClassOrigin(cls: JavaClassOrInterface[_]): Origin = {
-    cls.o.replacePrefName(cls.name + "Statics")
+    cls.o.where(name = cls.name + "Statics")
   }
 
   private def JavaStaticsClassSingletonOrigin(cls: JavaClassOrInterface[_]): Origin = {
-    cls.o.replacePrefName(cls.name + "StaticsSingleton")
+    cls.o.where(name = cls.name + "StaticsSingleton")
   }
 
   private def JavaInlineArrayInitializerOrigin(inner: Origin): Origin = {
-    inner.replacePrefName("arrayInitializer")
+    inner.where(name = "arrayInitializer")
   }
 
   case class InvalidArrayInitializerNesting(initializer: JavaLiteralArray[_]) extends UserError {
@@ -191,7 +188,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
 
     declsDefault.foreach {
       case cons: JavaConstructor[Pre] =>
-        logger.debug(s"Constructor for ${cons.o.getContext.getOrElse(Context("[unknown context]")).context}")
+        logger.debug(s"Constructor for ${cons.o.inlineContextText}")
         implicit val o: Origin = cons.o
         val t = TClass(ref)
         val resVar = new Variable[Post](t)(ThisVar())
@@ -283,7 +280,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
       rw.bip.rewriteParameter(param)
     } else {
       javaParamSuccessor(param) =
-        rw.variables.declare(new Variable(rw.dispatch(param.t))(param.o.replacePrefName(param.name)))
+        rw.variables.declare(new Variable(rw.dispatch(param.t))(param.o.where(name = param.name)))
     }
 
   def rewriteClass(cls: JavaClassOrInterface[Pre]): Unit = {
@@ -468,7 +465,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
         ProcedureInvocation[Post](javaConstructor.ref(cons), args.map(rw.dispatch), Nil, typeParams.map(rw.dispatch),
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) })(inv.blame)
-      case ImplicitDefaultJavaConstructor() =>
+      case ImplicitDefaultJavaConstructor(_) =>
         val cls = t.asInstanceOf[JavaTClass[Pre]].ref.decl
         val ref = new LazyRef[Post, Procedure[Post]](javaConstructor(javaDefaultConstructor(cls)))
         ProcedureInvocation[Post](ref,

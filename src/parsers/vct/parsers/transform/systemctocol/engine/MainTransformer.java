@@ -26,6 +26,7 @@ import vct.parsers.transform.systemctocol.colmodel.StateClass;
 import vct.parsers.transform.systemctocol.util.Constants;
 import vct.parsers.transform.systemctocol.util.GeneratedBlame;
 import vct.parsers.transform.systemctocol.util.OriGen;
+import vct.parsers.transform.systemctocol.util.Seqs;
 
 /**
  * Generates a Main class encoding the SystemC scheduler. The Main class contains all class instances from the SystemC
@@ -223,7 +224,7 @@ public class MainTransformer<T> {
      *         associated with
      */
     private String create_instance_name(COLClass col_class) {
-        return col_class.get_generating_instance().getName() + "_" + col_system.get_col_class_translation(col_class).o().getPreferredNameOrElse("unknown");
+        return col_class.get_generating_instance().getName() + "_" + col_system.get_col_class_translation(col_class).o().getPreferredNameOrElse(Seqs.singleton("unknown"));
     }
 
     /**

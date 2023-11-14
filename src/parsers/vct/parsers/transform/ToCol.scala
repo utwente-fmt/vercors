@@ -98,13 +98,13 @@ abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider
    * @return a constructed Origin based on the (implicitly) given node
    */
   implicit def origin(implicit node: ParserRuleContext): Origin = {
-    Origin(baseOrigin.originContents ++ ctxToOrigin(node.start, node.stop).originContents)
+    baseOrigin.withContent(ctxToOrigin(node.start, node.stop))
   }
 
   /**
    * Helper function used to deduce a node's position in the origin, used by the implicit origin method
    */
-  def ctxToOrigin(start: Token, stop: Token): Origin = {
+  def ctxToOrigin(start: Token, stop: Token): PositionRange = {
     val startLineIdx = start.getLine - 1
     val startColIdx = start.getCharPositionInLine
     val endLineIdx = stop.getLine - 1
@@ -112,8 +112,8 @@ abstract class ToCol[G](val baseOrigin: Origin, val blameProvider: BlameProvider
     positionToOrigin(startLineIdx, endLineIdx, Some((startColIdx, endColIdx)))
   }
 
-  def positionToOrigin(startLineIdx: Int, endLineIdx: Int, cols: Some[(Int, Int)]) : Origin =
-    Origin(Seq(StartEndLines(startLineIdx, endLineIdx))).addOriginCols(cols)
+  def positionToOrigin(startLineIdx: Int, endLineIdx: Int, cols: Some[(Int, Int)]): PositionRange =
+    PositionRange(startLineIdx, endLineIdx, cols)
 
   def blame(implicit node: ParserRuleContext): Blame[VerificationFailure] =
     errors.foldLeft(blameProvider(node)) {

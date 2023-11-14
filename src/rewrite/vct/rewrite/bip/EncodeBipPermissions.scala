@@ -17,9 +17,8 @@ case object EncodeBipPermissions extends RewriterBuilder {
     component.o
   }
 
-  private def GeneratedBipFieldPermissionOrigin(component: BipComponent[_], field: InstanceField[_]): Origin = {
-    field.o.replacePrefName(s"bipPerm${field.o.getPreferredNameOrElse().capitalize}")
-  }
+  private def GeneratedBipFieldPermissionOrigin(component: BipComponent[_], field: InstanceField[_]): Origin =
+    field.o.where(prefix = "bipPerm")
 }
 
 case class EncodeBipPermissions[Pre <: Generation]() extends Rewriter[Pre] {

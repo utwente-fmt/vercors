@@ -2,7 +2,7 @@ package vct.parsers
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.{RWFile, Readable}
 import org.antlr.v4.runtime.{CharStream, CharStreams}
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, ReadableOrigin}
 import vct.parsers.CParser.PreprocessorError
 import vct.parsers.transform.BlameProvider
 import vct.result.VerificationError.{Unreachable, UserError}
@@ -77,7 +77,8 @@ case class ColCParser(override val origin: Origin,
         throw PreprocessorError(readable.fileName, process.exitValue(), writer.toString)
       }
 
-      val result = ColIParser(origin, blameProvider).parse[G](RWFile(interpreted))
+      val ireadable = RWFile(interpreted)
+      val result = ColIParser(Origin(Seq(ReadableOrigin(ireadable))), blameProvider, Some(origin)).parse[G](ireadable)
       result
     } catch {
       case _: FileNotFoundException => throw FileNotFound(readable.fileName)

@@ -286,10 +286,11 @@ case object ResolveReferences extends LazyLogging {
     case seqProg: SeqProg[G] => ctx
       .copy(currentThis = Some(RefSeqProg(seqProg)))
       .declare(seqProg.decls)
-      .declare(seqProg.threads)
+      .declare(seqProg.endpoints)
       .declare(seqProg.args)
     case seqProg: PVLSeqProg[G] => ctx
       .copy(currentThis = Some(RefPVLSeqProg(seqProg)))
+      .declare(seqProg.args)
       .declare(seqProg.declarations)
     case method: JavaMethod[G] => ctx
       .copy(currentResult=Some(RefJavaMethod(method)))
@@ -407,6 +408,17 @@ case object ResolveReferences extends LazyLogging {
         access.ref = Some(PVL.findDerefOfClass(subject.cls, field).getOrElse(throw NoSuchNameError("field", field, access)))
     case endpoint: PVLEndpoint[G] =>
       endpoint.ref = Some(PVL.findConstructor(TClass(endpoint.cls.decl.ref[Class[G]]), endpoint.args).getOrElse(throw ConstructorNotFound(endpoint)))
+    case parAssign: PVLSeqAssign[G] =>
+      parAssign.receiver.tryResolve(receiver => PVL.findName(receiver, ctx) match {
+        case Some(RefPVLEndpoint(decl)) => decl
+        case Some(_) => throw ForbiddenEndpointNameType(parAssign)
+        case None => throw NoSuchNameError("endpoint", receiver, parAssign)
+      })
+      parAssign.field.tryResolve(field => PVL.findDerefOfClass[G](parAssign.receiver.decl.cls.decl, field) match {
+        case Some(RefField(field)) => field
+        case Some(_) => throw UnassignableField(parAssign)
+        case None => throw NoSuchNameError("field", field, parAssign)
+      })
     case deref@CStructAccess(obj, field) =>
       deref.ref = Some(C.findDeref(obj, field, ctx, deref.blame).getOrElse(throw NoSuchNameError("field", field, deref)))
     case deref@CPPClassMethodOrFieldAccess(obj, methodOrFieldName) =>
@@ -424,6 +436,8 @@ case object ResolveReferences extends LazyLogging {
     case deref@ModelDeref(obj, field) =>
       field.tryResolve(name => Spec.findModelField(obj, name).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverDeref(_, field) =>
+      field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
+    case deref@SilverFieldLocation(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))
     case deref@SilverCurFieldPerm(_, field) =>
       field.tryResolve(name => Spec.findSilverField(name, ctx).getOrElse(throw NoSuchNameError("field", name, deref)))

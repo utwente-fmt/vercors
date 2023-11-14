@@ -10,8 +10,6 @@ import vct.col.ast.RewriteHelpers._
 case object EncodeRangedFor extends RewriterBuilder {
   override def key: String = "encodeRangedFor"
   override def desc: String = "Encodes ranged for as a regular for loop"
-
-  def ForeachBoundOrigin(inner: Origin, name: String): Origin = inner.replacePrefName(name)
 }
 
 case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
@@ -24,11 +22,11 @@ case class EncodeRangedFor[Pre <: Generation]() extends Rewriter[Pre] {
       implicit val o = iVar.o
       val i: Local[Post] = Local(succ[Variable[Post]](iVar))(iVar.o)
 
-      val fromVar = new Variable[Post](TInt()(fromExpr.o))(ForeachBoundOrigin(fromExpr.o, "from"))
-      val from = Local(fromVar.ref[Variable[Post]])(ForeachBoundOrigin(fromExpr.o, "from"))
+      val fromVar = new Variable[Post](TInt()(fromExpr.o))(fromExpr.o.where(name = "from"))
+      val from = Local(fromVar.ref[Variable[Post]])(fromExpr.o.where(name = "from"))
 
-      val toVar = new Variable[Post](TInt()(toExpr.o))(ForeachBoundOrigin(toExpr.o, "to"))
-      val to = Local(toVar.ref[Variable[Post]])(ForeachBoundOrigin(toExpr.o, "to"))
+      val toVar = new Variable[Post](TInt()(toExpr.o))(toExpr.o.where(name = "to"))
+      val to = Local(toVar.ref[Variable[Post]])(toExpr.o.where(name = "to"))
 
       Loop(
         Block(Seq(

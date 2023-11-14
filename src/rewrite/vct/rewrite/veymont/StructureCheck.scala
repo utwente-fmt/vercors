@@ -46,7 +46,7 @@ case class StructureCheck[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(prog : Program[Pre]) : Program[Post] = {
     if(!prog.declarations.exists {
       case dcl: SeqProg[Pre] =>
-        if(dcl.threads.isEmpty)
+        if(dcl.endpoints.isEmpty)
           throw VeyMontStructCheckError(dcl,"A seq_program needs to have at least 1 thread, but none was found!")
         else true
       case _ => false

@@ -1,6 +1,4 @@
-package vct.test.integration.helper
-
-import hre.io.Readable
+package hre.io
 
 import java.io.{Reader, StringReader}
 

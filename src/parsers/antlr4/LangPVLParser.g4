@@ -18,7 +18,7 @@ declVeyMontSeqProg : contract 'seq_program' identifier '(' args? ')' '{' seqProg
 
 seqProgDecl
  : 'endpoint' identifier '=' classType '(' exprList? ')' ';' # pvlEndpoint
- | runMethod # seqProgRunMethod
+ | contract 'seq_run' block # pvlSeqRun
  | method # seqProgMethod
  ;
 
@@ -188,6 +188,7 @@ statement
  | 'label' identifier ';' # pvlLabel
  | allowedForStatement ';' # pvlForStatement
  | 'communicate' access direction access ';' # pvlCommunicateStatement
+ | identifier '.' identifier ':' '=' expr ';' # pvlParAssign
  ;
 
 direction
