@@ -42,7 +42,6 @@ case object LangCPPToCol {
     override def blame(error: InvocationFailure): Unit = error match {
       case PreconditionFailed(_, _, node) => preconditionFailed(node)
       case ContextEverywhereFailedInPre(_, _) => PanicBlame("Item methods do not contain context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(error)
-      case SYCLItemMethodPreconditionFailed(_) => PanicBlame("Failing on a SYCLItemMethodPreconditionFailed error should not be possible here.").blame(error)
     }
   }
 
@@ -53,6 +52,21 @@ case object LangCPPToCol {
           "by the local range dimension, but it was already asserted that this is actually impossible."
       )).blame(error)
       case _ => PanicBlame("Division by zero is possible here, but it is actually impossible.").blame(error)
+    }
+  }
+
+  private case class KernelLambdaRunMethodBlame(kernelLambda: CPPLambdaDefinition[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case PostconditionFailed(path, failure, node) =>
+        kernelLambda.blame.blame(SYCLKernelLambdaFailure(KernelPostconditionFailed(failure, Right(kernelLambda))))
+      case TerminationMeasureFailed(applicable, apply, measure) =>
+        PanicBlame("Kernel lambdas do not have a termination measure yet").blame(error)
+      case ContextEverywhereFailedInPost(failure, node) =>
+        PanicBlame("Kernel lambdas do not have context_everywhere specifications").blame(error)
+      case SignalsFailed(failure, node) =>
+        PanicBlame("Kernel lambdas cannot throw exceptions").blame(error)
+      case ExceptionNotInSignals(node) =>
+        PanicBlame("Kernel lambdas cannot throw exceptions").blame(error)
     }
   }
 
@@ -262,7 +276,6 @@ case object LangCPPToCol {
       case c@ContextEverywhereFailedInPost(failure, node) => Message.messagesInContext((node.o, c.descInContext + ", since ..."), (failure.node.o, "... " + failure.descCompletion))
       case TerminationMeasureFailed(_, _, _) => PanicBlame("This kernel class constructor should aleays be able to terminate.").blame(error)
       case SignalsFailed(_, _) | ExceptionNotInSignals(_) => PanicBlame("This kernel class constructor contains no signals clause.").blame(error)
-      case SYCLKernelLambdaFailure(_) => PanicBlame("Cannot have a kernel lambda failure for a kernel class constructor").blame(error)
     }
   }
 
@@ -748,7 +761,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val runMethod = new RunMethod[Post](
       body = Some(ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o)),
       contract = runMethodContract,
-    )(commandGroup.blame)(commandGroup.o)
+    )(KernelLambdaRunMethodBlame(commandGroup))(commandGroup.o)
 
     // Create the surrounding class
     val postClass = new Class[Post](
@@ -977,15 +990,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     })(commandGroupO))
   }
 
-  private def getRangeSizeChecks(range: Expr[Pre]): Assert[Post] = currentKernelType match {
-    case Some(BasicKernel(globalRangeSizes)) =>
+  private def getRangeSizeChecks(range: Expr[Pre]): Assert[Post] = currentKernelType.get match {
+    case BasicKernel(globalRangeSizes) =>
       Assert(
         foldStar(globalRangeSizes.map(expr => {
           implicit val o: Origin = SYCLRangeDimensionCheckOrigin(expr)
           GreaterEq(expr, const(0))
         }))(SYCLRangeDimensionCheckOrigin(range))
       )(SYCLKernelRangeInvalidBlame())(SYCLRangeDimensionCheckOrigin(range))
-    case Some(NDRangeKernel(globalRangeSizes, localRangeSizes)) =>
+    case NDRangeKernel(globalRangeSizes, localRangeSizes) =>
       Assert(
         foldStar(globalRangeSizes.indices.map(i => {
           implicit val o: Origin = SYCLNDRangeDimensionCheckOrigin(range, Some(i))
@@ -1221,6 +1234,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           rw.dispatch(index)
         )(SYCLAccessorArraySubscriptErrorBlame(sub))(sub.o)
         case t: SYCLTAccessor[Pre] => throw SYCLWrongNumberOfSubscriptsForAccessor(sub, 1, t.dimCount)
+        case _ => ???
       }
     case AmbiguousSubscript(AmbiguousSubscript(base: CPPLocal[Pre], indexX), indexY) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       implicit val o: Origin = sub.o
@@ -1236,6 +1250,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           ProcedureInvocation[Post](linearizedIndexProc, linearizeArgs, Nil, Nil, Nil, Nil)(SYCLAccessorArraySubscriptLinearizeInvocationBlame(sub, base, Seq(indexX, indexY)))
         )(SYCLAccessorArraySubscriptErrorBlame(sub))
         case t: SYCLTAccessor[Pre] => throw SYCLWrongNumberOfSubscriptsForAccessor(sub, 2, t.dimCount)
+        case _ => ???
       }
     case AmbiguousSubscript(AmbiguousSubscript(AmbiguousSubscript(base: CPPLocal[Pre], indexX), indexY), indexZ) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       implicit val o: Origin = sub.o
@@ -1252,6 +1267,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           ProcedureInvocation[Post](linearizedIndexProc, linearizeArgs, Nil, Nil, Nil, Nil)(SYCLAccessorArraySubscriptLinearizeInvocationBlame(sub, base, Seq(indexX, indexY, indexZ)))
         )(SYCLAccessorArraySubscriptErrorBlame(sub))
         case t: SYCLTAccessor[Pre] => throw SYCLWrongNumberOfSubscriptsForAccessor(sub, 3, t.dimCount)
+        case _ => ???
       }
     case _ => rw.rewriteDefault(sub)
   }
@@ -1275,6 +1291,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   def deref(deref: CPPClassMethodOrFieldAccess[Pre]): Expr[Post] = {
     deref.ref.get match {
       case spec: SpecDerefTarget[Pre] => rw.specDeref(deref.classInstance, spec, deref, deref.blame)
+      case target: RefCPPGlobalDeclaration[Pre] => ???
       case target: SpecInvocationTarget[Pre] => ???
     }
   }

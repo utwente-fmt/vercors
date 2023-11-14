@@ -273,6 +273,8 @@ trait SilverBackend extends Backend with LazyLogging {
         throw NotSupported(s"Vercors does not support counterexamples from Viper")
       case VerificationErrorWithCounterexample(_, _, _, _, _) =>
         throw NotSupported(s"Vercors does not support counterexamples from Viper")
+      case other =>
+        throw NotSupported(s"Viper returned an error that VerCors does not recognize: $other")
     }
     case AbortedExceptionally(throwable) =>
       throwable.printStackTrace()
@@ -286,6 +288,7 @@ trait SilverBackend extends Backend with LazyLogging {
     case reasons.InsufficientPermission(access) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](access))
     case reasons.MagicWandChunkNotFound(wand) => blame.InsufficientPermissionToExhale(get[col.Expr[_]](wand))
     case reasons.NegativePermission(p) => blame.NegativePermissionValue(info(p).permissionValuePermissionNode.get) // need to fetch access
+    case _ => ???
   }
 
   def getDecreasesClause(reason: ErrorReason): col.DecreasesClause[_] = reason match {

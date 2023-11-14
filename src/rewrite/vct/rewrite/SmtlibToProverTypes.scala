@@ -29,7 +29,7 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
     case TRef() => "$Ref"
     case TInt() => "Int"
     case TRational() => "$Perm"
-    case TAxiomatic(adt, args) => adt.decl.o.getPreferredNameOrElse() + "<" + args.map(smtTypeString).mkString("~_") + ">"
+    case TAxiomatic(adt, args) => adt.decl.o.getPreferredNameOrElse().ucamel + "<" + args.map(smtTypeString).mkString("~_") + ">"
     case TProverType(ref) => ref.decl.interpretation.collectFirst { case (SmtLib(), int) => int }.get
     case TSmtlibArray(index, value) => s"(Array ${index.map(smtTypeString).mkString(" ")} ${smtTypeString(value)})"
     case TSmtlibBitVector(size) => s"(_ BitVec $size)"

@@ -93,6 +93,8 @@ trait LoopImpl[G] { this: Loop[G] =>
           case (_, _) => None
         }
         .map(elems => NodeDoc(stat, Doc.fold(elems)(_ <> "," <+/> _)))
+
+    case _ => None
   }
 
   def layoutControl(stat: Statement[G])(implicit ctx: Ctx): Doc =

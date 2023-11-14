@@ -207,6 +207,7 @@ case class EncodeResourceValues[Pre <: Generation]() extends Rewriter[Pre] with 
             args.map(dispatch)
           case ResourcePattern.InstancePredicateLocation(_) -> InstancePredicateLocation(_, obj, args) =>
             dispatch(obj) +: args.map(dispatch)
+          case _ -> _ => ???
         }
 
         def make(e: Expr[Pre], pat: ResourcePattern): Seq[Expr[Post]] = (pat, e) match {

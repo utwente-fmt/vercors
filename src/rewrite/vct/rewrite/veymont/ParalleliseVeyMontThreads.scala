@@ -264,7 +264,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
 
   private def getChannelNamesAndTypes(s: Statement[Pre]): Seq[ChannelInfo[Pre]] = {
     s.collect { case e@CommunicateX(recv, sender, chanType, assign) =>
-      new ChannelInfo(e,chanType, recv.decl.o.getPreferredNameOrElse()
+      new ChannelInfo(e,chanType, recv.decl.o.getPreferredNameOrElse().ucamel
         + sender.decl.o.getPreferredNameOrElse().camel + "Channel")
     }
   }
