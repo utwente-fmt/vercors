@@ -1,8 +1,9 @@
 package vct.parsers.transform
 
-import org.antlr.v4.runtime.{ParserRuleContext, Token}
+import org.antlr.v4.runtime.{ParserRuleContext, Token, TokenStream}
 import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
+import vct.antlr4.generated.LangCLexer
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
@@ -14,11 +15,55 @@ import vct.col.util.AstBuildHelpers
 
 import scala.annotation.nowarn
 import scala.collection.mutable
+import scala.util.Try
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class CToCol[G](override val baseOrigin: Origin,
-                     override val blameProvider: BlameProvider, override val errors: Seq[(Token, Token, ExpectedError)])
+                     override val blameProvider: BlameProvider,
+                     override val errors: Seq[(Token, Token, ExpectedError)],
+                     val cOrigin: Option[(TokenStream, Origin)],
+                    )
   extends ToCol(baseOrigin, blameProvider, errors) {
+
+  override implicit def origin(implicit node: ParserRuleContext): Origin =
+    cOrigin match {
+      case None => super.origin(node)
+      case Some((indicatorStream, cOrigin)) =>
+        val pos = ctxToOrigin(node.start, node.stop)
+        val interpretedOrigin = baseOrigin.withContent(pos)
+        val startOffset = getLineOffset(indicatorStream, pos.startLineIdx)
+        val endOffset = getLineOffset(indicatorStream, pos.endLineIdx)
+        val posCOrigin = Try((startOffset.get, endOffset.get)).toOption.fold(cOrigin) {
+          case (startOffset, endOffset) =>
+            cOrigin.withContent(PositionRange(
+              pos.startLineIdx + startOffset,
+              pos.endLineIdx + endOffset,
+              startEndColIdx = None
+            ))
+        }
+
+        Origin(interpretedOrigin.originContents ++ posCOrigin.originContents)
+    }
+
+  private def getLineOffset(indicatorStream: TokenStream, lineIdx: Int): Option[Int] = {
+    val firstTokenAtOrPastLine =
+      (0 until indicatorStream.size())
+        .find(i => indicatorStream.get(i).getLine - 1 >= lineIdx)
+        .getOrElse(return None)
+
+    for (tokIdx <- firstTokenAtOrPastLine to 0 by -1) {
+      val markerToken = indicatorStream.get(tokIdx)
+      if (markerToken.getChannel == LangCLexer.LINE_DIRECTIVE_CHANNEL) {
+        val lineDirectiveLine = Integer.parseInt(markerToken.getText.split(' ')(1))
+        val tokenLine = markerToken.getLine
+        // FIXME PB: check for off-by-one stuff
+        return Some(lineDirectiveLine - tokenLine - 1)
+      }
+    }
+
+    None
+  }
+
   def convert(unit: CompilationUnitContext): Seq[GlobalDeclaration[G]] = unit match {
     case CompilationUnit0(translationUnit, _) =>
       translationUnit.toSeq.map(convert(_))

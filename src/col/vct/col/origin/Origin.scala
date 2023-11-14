@@ -100,7 +100,7 @@ case class SourceName(name: String) extends NameStrategy {
  * origin. contextHere and inlineContextHere may optionally consume some more contents, otherwise they can just
  * return the tail as is.
  */
-trait Context1 extends OriginContent {
+trait Context extends OriginContent {
   protected def contextHere(tail: Origin): (String, Origin)
   protected def inlineContextHere(tail: Origin): (String, Origin)
   protected def shortPositionHere(tail: Origin): (String, Origin)
@@ -125,13 +125,13 @@ trait Context1 extends OriginContent {
  * One or two lowercase words define the context, inline context and short position.
  * For more extended explanations you should implement a case of Context yourself.
  */
-case class LabelContext(label: String) extends Context1 {
+case class LabelContext(label: String) extends Context {
   override protected def contextHere(tail: Origin): (String, Origin) = (s"At $label:", tail)
   override protected def inlineContextHere(tail: Origin): (String, Origin) = (label, tail)
   override protected def shortPositionHere(tail: Origin): (String, Origin) = (label, tail)
 }
 
-trait Source extends Context1 {
+trait Source extends Context {
   def positionContext(position: PositionRange): String
   def inlinePositionContext(position: PositionRange): String
   protected def genericContext: String
@@ -144,7 +144,8 @@ trait Source extends Context1 {
 }
 
 case class ReadableOrigin(readable: Readable) extends Source {
-  def positionContext(position: PositionRange): String = InputOrigin.contextLines(readable, position)
+  def positionContext(position: PositionRange): String =
+    genericContext + "\n" + HR + InputOrigin.contextLines(readable, position)
   def inlinePositionContext(position: PositionRange): String = InputOrigin.inlineContext(readable, position)
   override def genericContext: String = s"At ${readable.fileName}"
   override def genericInlineContext: String = s"${readable.fileName}"
@@ -167,7 +168,7 @@ case class InlineBipContext(bipContext: String) extends Source {
   override def genericShortPosition: String = "literal"
 }
 
-case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Option[(Int, Int)]) extends Context1 {
+case class PositionRange(startLineIdx: Int, endLineIdx: Int, startEndColIdx: Option[(Int, Int)]) extends Context {
   def onlyPositionText: String =
     startEndColIdx match {
       case Some((startColIdx, endColIdx)) =>
@@ -415,7 +416,7 @@ object InputOrigin {
       result.append(numberedLine(line, idx))
     }
 
-    result.toString()
+    result.toString().stripTrailing()
   }
 
   def sanitizeInlineText(text: String): String =

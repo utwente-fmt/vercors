@@ -5,7 +5,7 @@ import vct.antlr4.generated.{CParser, LangCLexer}
 import vct.col.origin.Origin
 import vct.parsers.transform.{BlameProvider, CToCol, OriginProvider}
 
-case class ColIParser(override val origin: Origin, override val blameProvider: BlameProvider)
+case class ColIParser(override val origin: Origin, override val blameProvider: BlameProvider, val cOrigin: Option[Origin])
                                                                   extends Parser(origin, blameProvider) {
   override def parse[G](stream: CharStream): ParseResult[G] = {
     try {
@@ -19,7 +19,7 @@ case class ColIParser(override val origin: Origin, override val blameProvider: B
         (errors, tree)
       }
 
-      val decls = CToCol[G](origin, blameProvider, errors).convert(tree)
+      val decls = CToCol[G](origin, blameProvider, errors, cOrigin.map(o => (tokens, o))).convert(tree)
       ParseResult(decls, errors.map(_._3))
     } catch {
       case m: MatchError =>

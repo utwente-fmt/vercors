@@ -85,7 +85,7 @@ case class Parsing[G <: Generation]
 
       val parser = language match {
         case Language.C => ColCParser(origin, blameProvider, cc, cSystemInclude, cOtherIncludes, cDefines)
-        case Language.InterpretedC => ColIParser(origin, blameProvider)
+        case Language.InterpretedC => ColIParser(origin, blameProvider, cOrigin = None)
         case Language.CPP => ColCPPParser(origin, blameProvider, ccpp, cppSystemInclude, cppOtherIncludes, cppDefines)
         case Language.InterpretedCPP => ColIPPParser(origin, blameProvider)
         case Language.Java => ColJavaParser(origin, blameProvider)
