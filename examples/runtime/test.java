@@ -1,5 +1,9 @@
+class B {
+    public int p;
+}
+
 class C extends Runnable {
-    public int z;
+    public B z;
     public int r;
 
     public void run() {
@@ -21,11 +25,8 @@ class Test {
     }
 
     /*@
-        requires Perm(x.z, 1);
-        requires Perm(x.r, 1\3);
-        requires Perm(y, 1\2);
-        ensures Perm(x, write);
-        ensures Perm(y, read);
+        requires Perm(x.z.p, 1);
+        ensures Perm(x.z.p, 1);
      */
     public int sum() {
 

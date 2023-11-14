@@ -7,7 +7,7 @@ import hre.util.ScopedStack
 import vct.col.ref.LazyRef
 import vct.result.VerificationError.Unreachable
 import vct.rewrite.runtime.util.CodeStringDefaults._
-import vct.rewrite.runtime.util.FieldNumber
+import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString}
 
 
 object CreatePrePostConditions extends RewriterBuilder {
@@ -18,13 +18,20 @@ object CreatePrePostConditions extends RewriterBuilder {
 
 
 case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
+
+  //TODO fix inner field checking this.x.y should check permission for y
   val permissionExprContract: ScopedStack[Seq[CodeStringStatement[Post]]] = ScopedStack()
   val permDeref: ScopedStack[Deref[Pre]] = ScopedStack()
 
 
+  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
+
+
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    val test = super.dispatch(program)
-    test
+    fieldFinder.having(FieldNumber[Pre](program)) {
+      val test = super.dispatch(program)
+      test
+    }
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -108,7 +115,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
         }
       }
       case d: Deref[Pre] => {
-        if (!permDeref.isEmpty) {
+        if (!permDeref.isEmpty && permDeref.top == null) {
           permDeref.pop()
           permDeref.push(d)
         }
@@ -121,35 +128,21 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
 
 
   private def createConditionCode(deref: Deref[Pre], p: Perm[Pre]): CodeStringStatement[Post] = {
-    val objectInfo = findObjectInfo(deref).getOrElse(("Unknown", -1))
+    val name: String = FieldObjectString().determineObjectReference(deref)
+    val id: Int = fieldFinder.top.findNumber(deref.ref.decl)
     p.perm match {
       case iv: IntegerValue[Pre] => {
         if (iv.value > 1) {
           throw Unreachable("Permission cannot be exceeding 1")
         }
-        CodeStringStatement(assertPermissionCondition(objectInfo._1, objectInfo._2, p.perm.toString))(p.o)
+        CodeStringStatement(assertPermissionCondition(name, id, p.perm.toString))(p.o)
       }
-      case d: Div[Pre] => CodeStringStatement(assertPermissionCondition(objectInfo._1, objectInfo._2, fractionTemplate(d.left.toString, d.right.toString)))(p.o)
-      case w: WritePerm[Pre] => CodeStringStatement(assertCheckWrite(objectInfo._1, objectInfo._2, deref.ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case r: ReadPerm[Pre] => CodeStringStatement(assertCheckRead(objectInfo._1, objectInfo._2, deref.ref.decl.o.getPreferredNameOrElse()))(p.o)
-      case _ => CodeStringStatement(assertPermissionCondition(objectInfo._1, objectInfo._2, p.perm.toString))(p.o)
+      case d: Div[Pre] => CodeStringStatement(assertPermissionCondition(name, id, fractionTemplate(d.left.toString, d.right.toString)))(p.o)
+      case _: WritePerm[Pre] => CodeStringStatement(assertCheckWrite(name, id, deref.ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case _: ReadPerm[Pre] => CodeStringStatement(assertCheckRead(name, id, deref.ref.decl.o.getPreferredNameOrElse()))(p.o)
+      case _ => CodeStringStatement(assertPermissionCondition(name, id, p.perm.toString))(p.o)
     }
   }
 
-  private def findObjectInfo(d: Deref[Pre]): Option[(String, Int)] = {
-    d.obj match {
-      case to: ThisObject[Pre] => Some("this", FieldNumber[Pre](to.cls.decl).findNumber(d.ref.decl))
-      case local: Local[Pre] => {
-        local.ref.decl.t match {
-          case tc: TClass[Pre] => {
-            val id: Int = FieldNumber[Pre](tc.cls.decl).findNumber(d.ref.decl)
-            val objectName = local.ref.decl.o.getPreferredNameOrElse()
-            Some((objectName, id))
-          }
-          case _ => None
-        }
-      }
-      case _ => None
-    }
-  }
 }
+

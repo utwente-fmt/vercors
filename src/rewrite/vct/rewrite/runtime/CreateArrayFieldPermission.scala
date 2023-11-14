@@ -18,16 +18,18 @@ object CreateArrayFieldPermission extends RewriterBuilder {
 case class CreateArrayFieldPermission[Pre <: Generation]() extends Rewriter[Pre] {
 
 
-  val classes: ScopedStack[Class[Pre]] = ScopedStack()
+  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
 
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    val test = super.dispatch(program)
-    test
+    fieldFinder.having(FieldNumber[Pre](program)){
+      val test = super.dispatch(program)
+      test
+    }
   }
 
   private def createPermissionField(instanceField: InstanceField[Pre]): Unit = {
-    val cs = new CodeStringClass[Post](newArrayPermission(FieldNumber[Pre](classes.top).findNumber(instanceField)),instanceField.o.getPreferredNameOrElse())(instanceField.o)
+    val cs = new CodeStringClass[Post](newArrayPermission(fieldFinder.top.findNumber(instanceField)),instanceField.o.getPreferredNameOrElse())(instanceField.o)
     classDeclarations.declare(cs)
   }
 
@@ -41,7 +43,6 @@ case class CreateArrayFieldPermission[Pre <: Generation]() extends Rewriter[Pre]
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
-
     decl match {
       case instanceField: InstanceField[Pre] => {
         instanceField.t match {
@@ -52,13 +53,7 @@ case class CreateArrayFieldPermission[Pre <: Generation]() extends Rewriter[Pre]
         }
         super.rewriteDefault(decl)
       }
-
-      case cls: Class[Pre] => {
-        classes.having(cls) {
-          globalDeclarations.succeed(cls, dispatchGivenClass(cls))
-        }
-      }
-
+      case cls: Class[Pre] => globalDeclarations.succeed(cls, dispatchGivenClass(cls))
       case _ => super.rewriteDefault(decl)
     }
   }

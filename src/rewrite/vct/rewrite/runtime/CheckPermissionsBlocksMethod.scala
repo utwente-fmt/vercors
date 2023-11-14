@@ -6,8 +6,8 @@ import vct.col.ast.RewriteHelpers.{RewriteAssign, RewriteBranch, RewriteEval, Re
 import vct.col.ast.{AnyFunctionInvocation, Assign, Block, Branch, Class, CodeStringStatement, ContractApplicable, Declaration, Deref, Eval, Expr, InstanceField, InstanceMethod, Local, Loop, MethodInvocation, PostAssignExpression, PreAssignExpression, ProcedureInvocation, Program, Result, Scope, Statement, TClass, ThisObject, Type, Variable}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.SuccessionMap
-import vct.rewrite.runtime.util.CodeStringDefaults.{assertCheckRead, assertCheckWrite, lookUpThread}
-import vct.rewrite.runtime.util.FieldNumber
+import vct.rewrite.runtime.util.CodeStringDefaults.{assertCheck, assertCheckRead, assertCheckWrite, lookUpThread}
+import vct.rewrite.runtime.util.{FieldNumber, FieldObjectString}
 
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
@@ -25,12 +25,14 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
   var hasInvocation: Boolean = false
   private val dereferences: ScopedStack[mutable.HashMap[Deref[Pre], Boolean]] = ScopedStack()
   val isTarget: ScopedStack[Boolean] = ScopedStack()
-
+  val fieldFinder: ScopedStack[FieldNumber[Pre]] = ScopedStack()
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    isTarget.having(false) {
-      val test = super.dispatch(program)
-      test
+    fieldFinder.having(FieldNumber[Pre](program)) {
+      isTarget.having(false) {
+        val test = super.dispatch(program)
+        test
+      }
     }
   }
 
@@ -42,31 +44,10 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
 
 
   private def generatePermissionChecksStatements(d: Deref[Pre], write: Boolean): Option[CodeStringStatement[Post]] = {
+    val objectLocation: String = FieldObjectString().determineObjectReference(d)
+    val id: Int = fieldFinder.top.findNumber(d.ref.decl)
     val name: String = d.ref.decl.o.getPreferredNameOrElse()
-    d.obj match {
-      case to: ThisObject[Pre] => {
-        val id: Int = FieldNumber[Pre](to.cls.decl).findNumber(d.ref.decl)
-        if (write) {
-          Some(CodeStringStatement[Post](assertCheckWrite("this", id, name))(d.o))
-        } else {
-          Some(CodeStringStatement[Post](assertCheckRead("this", id, name))(d.o))
-        }
-      }
-      case local: Local[Pre] => {
-        local.ref.decl.t match {
-          case tc: TClass[Pre] => {
-            val id: Int = FieldNumber[Pre](tc.cls.decl).findNumber(d.ref.decl)
-            val objectName = local.ref.decl.o.getPreferredNameOrElse()
-            if (write) {
-              Some(CodeStringStatement[Post](assertCheckWrite(objectName, id, name))(d.o))
-            } else {
-              Some(CodeStringStatement[Post](assertCheckRead(objectName, id, name))(d.o))
-            }
-          }
-        }
-      }
-      case _ => None
-    }
+    Some(CodeStringStatement[Post](assertCheck(objectLocation, id, name, write))(d.o))
   }
 
 
