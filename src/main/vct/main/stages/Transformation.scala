@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, RemoveUnpointedGuard, SplitSeqGuards}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, EncodeUnpointedGuard, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -195,7 +195,7 @@ case class SilverTransformation
     // VeyMont sequential program encoding
     GenerateSeqProgPermissions,
     SplitSeqGuards,
-    RemoveUnpointedGuard,
+    EncodeUnpointedGuard,
     DeduplicateSeqGuards,
     EncodeSeqBranchUnanimity,
     EncodeSeqProg,

@@ -12,12 +12,12 @@ import vct.rewrite.veymont.SplitSeqGuards.MultipleEndpoints
 
 import scala.collection.immutable.ListSet
 
-object RemoveUnpointedGuard extends RewriterBuilder {
-  override def key: String = "removeUnpointedGuard"
+object EncodeUnpointedGuard extends RewriterBuilder {
+  override def key: String = "encodeUnpointedGuard"
   override def desc: String = "Removes unpointed guard by duplicating the condition to all guards currently participating"
 }
 
-case class RemoveUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
+case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
   val currentParticipants: ScopedStack[ListSet[Endpoint[Pre]]] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
