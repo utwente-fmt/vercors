@@ -26,7 +26,7 @@ object SplitSeqGuards extends RewriterBuilder {
   case class SeqProgParticipantErrors(es: Seq[SeqProgParticipant]) extends UserError {
     override def code: String = "seqProgParticipantErrors"
     override def text: String = es.map {
-      case err: SeqProgParticipant => err.message { (n, m) => n.o.bareMessageInContext(m) }
+      case err: SeqProgParticipant => err.message { n => n.o }
     }.mkString("\n")
   }
 }
