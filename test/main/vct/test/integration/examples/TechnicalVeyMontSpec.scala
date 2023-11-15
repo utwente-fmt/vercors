@@ -353,3 +353,61 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 }
+
+class TechnicalVeyMontSpec2 extends VercorsSpec {
+  vercors should verify using silicon in "Programs where branch conditions agree should verify" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         bob.x := false;
+         communicate alice.x <- bob.x;
+       }
+     }
+  }
+  """
+
+  vercors should fail withCode "loopUnanimityNotEstablished" using silicon in "Programs where branch condition unanimity cannot be established should fail" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       while (alice.x && bob.x) {
+
+       }
+     }
+  }
+  """
+
+  vercors should fail withCode "loopUnanimityNotMaintained" using silicon in "Programs where branch condition unanimity cannot be maintained should fail" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+       }
+     }
+  }
+  """
+}

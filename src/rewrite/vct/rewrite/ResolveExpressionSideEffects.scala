@@ -345,8 +345,11 @@ case class ResolveExpressionSideEffects[Pre <: Generation]() extends Rewriter[Pr
       case comm: PVLCommunicate[Pre] => rewriteDefault(comm)
       case comm: Communicate[Pre] => rewriteDefault(comm)
       case _: PVLBranch[Pre] => throw ExtraNode
+      case _: PVLLoop[Pre] => throw ExtraNode
       case _: UnresolvedSeqBranch[Pre] => throw ExtraNode
+      case _: UnresolvedSeqLoop[Pre] => throw ExtraNode
       case _: SeqBranch[Pre] => throw ExtraNode
+      case _: SeqLoop[Pre] => throw ExtraNode
       case _: CStatement[Pre] => throw ExtraNode
       case _: CPPStatement[Pre] => throw ExtraNode
       case _: JavaStatement[Pre] => throw ExtraNode

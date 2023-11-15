@@ -335,7 +335,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
     case PvlWhile(contract, _, _, cond, _, body) =>
       withContract(contract, contract =>
-        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), contract.consumeLoopContract(stat), convert(body)))
+        Scope(Nil, PVLLoop(Block(Nil), convert(cond), Block(Nil), contract.consumeLoopContract(stat), convert(body))(blame(stat)))
       )
     case PvlFor(contract, _, _, init, _, cond, _, update, _, body) =>
       withContract(contract, contract =>

@@ -99,4 +99,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
 
   def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedSeqBranch[Post] =
     UnresolvedSeqBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)
+
+  def rewriteLoop(loop: PVLLoop[Pre]): UnresolvedSeqLoop[Post] =
+    UnresolvedSeqLoop(rw.dispatch(loop.cond), rw.dispatch(loop.contract), rw.dispatch(loop.body))(loop.blame)(loop.o)
+
 }

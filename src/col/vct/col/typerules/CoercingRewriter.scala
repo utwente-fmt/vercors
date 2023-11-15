@@ -1700,8 +1700,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             throw err
         }
       case s: SeqBranch[Pre] => s
+      case s: SeqLoop[Pre] => s
       case branch@UnresolvedSeqBranch(branches) => UnresolvedSeqBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
       case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
+      case loop@UnresolvedSeqLoop(cond, contract, body) => UnresolvedSeqLoop(bool(cond), contract, body)(loop.blame)
+      case loop@PVLLoop(init, cond, update, contract, body) => PVLLoop(init, bool(cond), update, contract, body)(loop.blame)
     }
   }
 
