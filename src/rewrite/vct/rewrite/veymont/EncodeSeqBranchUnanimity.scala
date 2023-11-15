@@ -12,11 +12,6 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   override def key: String = "encodeSeqBranchUnanimity"
   override def desc: String = "Encodes the branch unanimity requirement imposed by VeyMont on branches and loops in seq_program nodes."
 
-  case class AddVeyMontConditionError(node : Node[_], msg: String) extends UserError {
-    override def code: String = "addVeyMontConditionError"
-    override def text: String = node.o.messageInContext(msg)
-  }
-
   case class ForwardBranchUnanimity(branch: SeqBranch[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       branch.blame.blame(BranchUnanimityFailed(c1, c2))
