@@ -71,7 +71,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     if (prependNamespace) {
       declarator match {
         case decl: CPPTypedFunctionDeclarator[G] => CPPTypedFunctionDeclarator[G](decl.params, decl.varargs, getPrependedNameDeclarator(decl.inner))
-        case CPPName(name) => CPPName[G]((currentNamespacePath.reverse :+ name).mkString("::"))(o)
+        case CPPName(name) => CPPName[G]((currentNamespacePath.reverse :+ name).mkString("::"))
         case _ => declarator
       }
     } else {
@@ -816,8 +816,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support if spread operator '...' is used
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
     case Declaratorid0(None, idExpr) => convert(idExpr) match {
-      case CPPTypedefName(name, Seq()) => CPPName(name)
-//      case SYCLClassDefName(name, Seq()) => CPPName(s"sycl::$name")
+      case CPPTypedefName(name, Nil) => CPPName(name)
       case _ => ??(declaratorId)
     }
     case Declaratorid0(_, _) => ??(declaratorId)

@@ -4,7 +4,7 @@
   requires \pointer(a, 12, write);
   requires \pointer(b, 12, write);
 */
-void main(int* a, int* b) {
+void test(int* a, int* b) {
 	sycl::queue myQueue;
 
   sycl::buffer<int, 2> aBuffer = sycl::buffer(a, sycl::range<2>(3, 4));

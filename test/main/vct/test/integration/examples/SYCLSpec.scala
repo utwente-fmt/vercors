@@ -26,6 +26,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/WriteDataInBufferScope.cpp"
 
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/accessors/AccessorGetRangeDimensionOutOfBounds.cpp"
+  vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/AccessorInNDRange.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/AllAccessModes.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/GetKernelResult.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should error withCode "syclAccessorArraySubscriptLinearizePreconditionFailed" example "concepts/sycl/accessors/MissingRangeRequirements.cpp"
@@ -35,5 +36,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/sycl/accessors/TwoWriteKernelsWithWait.cpp"
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/accessors/WriteToReadAccessor.cpp"
 
-
+  vercors should verify using silicon example "concepts/sycl/addressSpaces/AllLocalAccessors.cpp"
+  vercors should verify using silicon example "concepts/sycl/addressSpaces/LocalAccessorUsage.cpp"
+  vercors should error withCode "syclNoLocalAccessorsInBasicKernel" example "concepts/sycl/addressSpaces/LocalAccessorUsageInBasicKernel.cpp"
 }

@@ -360,4 +360,30 @@ namespace sycl {
     sycl::range<3> get_range();
   }
 
+  namespace local_accessor {
+//    sycl::local_accessor<bool, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<bool, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<bool, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
+
+    sycl::local_accessor<int, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
+    sycl::local_accessor<int, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
+    sycl::local_accessor<int, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
+
+//    sycl::local_accessor<long, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<long, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<long, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//
+//    sycl::local_accessor<double, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<double, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<double, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//
+//    sycl::local_accessor<float, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<float, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<float, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//
+//    sycl::local_accessor<char, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<char, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
+//    sycl::local_accessor<char, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
+  }
+
 }

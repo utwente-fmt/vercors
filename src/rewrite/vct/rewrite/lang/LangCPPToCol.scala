@@ -2,7 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
-import vct.col.ast._
+import vct.col.ast.{CPPLocalDeclaration, _}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.NotApplicable
@@ -336,6 +336,21 @@ case object LangCPPToCol {
     override def text: String = pred.o.messageInContext("This predicate is used internally and is thus not allowed to be (un)folded.")
   }
 
+  private case class SYCLNoLocalAccessorsInBasicKernel(local: CPPLocal[_]) extends UserError {
+    override def code: String = "syclNoLocalAccessorsInBasicKernel"
+    override def text: String = local.o.messageInContext("Local accessors cannot be used in basic kernels.")
+  }
+
+  private case class SYCLLocalAccessorArraySizeBlame(range: Expr[_]) extends Blame[ArraySizeError] {
+    private case class SYCLLocalAccessorArraySizeError(error: ArraySizeError) extends UserError {
+      override def code: String = "syclLocalAccessorArraySizeError"
+
+      override def text: String = range.o.messageInContext("One or more of the dimensions of the local accessor's range may be negative.")
+    }
+
+    override def blame(error: ArraySizeError): Unit = throw SYCLLocalAccessorArraySizeError(error)
+  }
+
   case object SYCLGeneratedAccessorPermissions extends OriginContent
 
   private def SYCLGeneratedAccessorPermissionsOrigin(accessor: CPPLocalDeclaration[_]): Origin =
@@ -536,6 +551,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
               val (block, syclBufferRef) = rewriteSYCLBufferConstruction(inv, Some(varO))
               v = syclBufferRef
               result = block
+            case inv: CPPInvocation[Pre] if inv.ref.get.name == "sycl::local_accessor::constructor" =>
+              val newValue = invocation(inv)
+              v = new Variable(newValue.t)(v.o)
+              result = Block(Seq(LocalDecl(v), assignLocal(v.get, newValue)))
             case local: CPPLocal[Pre] if typ.isInstanceOf[SYCLTEvent[Post]] =>
               v = new Variable(cppNameSuccessor(local.ref.get).t)(varO)
               result = Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(preValue))))
@@ -571,6 +590,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           val deref = Deref[Post](currentThis.get, accessor.instanceField.ref)(SYCLAccessorFieldInsufficientReferencePermissionBlame(local))
           currentReplacementsForAccessors(deref) = accessor
           deref
+        case _: SYCLTLocalAccessor[Pre] if currentKernelType.get.isInstanceOf[BasicKernel] => throw SYCLNoLocalAccessorsInBasicKernel(local)
         case _ => Local(cppNameSuccessor.ref(ref))
       }
       case RefSYCLAccessMode(decl) => rw.dispatch(decl)
@@ -651,6 +671,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         case (Some(seq: LiteralSeq[Post]), Seq(arg)) => SeqSubscript(seq, rw.dispatch(arg))(SYCLRequestedRangeIndexOutOfBoundsBlame(seq, arg)) // Range coming from calling get_range() on an accessor
         case _ => throw NotApplicable(inv)
       }
+      case "sycl::local_accessor::constructor" => {
+        val range = rw.dispatch(args.head).asInstanceOf[SYCLRange[Post]]
+        NewArray(rw.dispatch(inv.t.asInstanceOf[SYCLTLocalAccessor[Pre]].typ), range.dimensions, 0)(SYCLLocalAccessorArraySizeBlame(args.head))
+      }
 
       case _ => {
         val procedureRef: Ref[Post, Procedure[Post]] = cppFunctionDeclSuccessor.ref((decls, initIdx))
@@ -721,8 +745,13 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     })
     val (accessorRunMethodConditions, accessorParblockConditions, bufferAccessStatements, accessors) = rewriteSYCLAccessorDeclarations(collectedAccessorDeclarations)
 
-    // Check that there is no other code in the command group other than 1 kernel declaration and the found accessors
-    if (commandGroupBodyStatements.size > 1 + accessors.size) {
+    // Generate an array each local accessor declared in the command group
+    val collectedLocalAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]] = commandGroupBodyStatements.collect({
+      case Block(Seq(declStmnt: CPPDeclarationStatement[Pre])) if CPP.getBaseTypeFromSpecs(declStmnt.decl.decl.specs).isInstanceOf[SYCLTLocalAccessor[Pre]] => declStmnt.decl
+    })
+
+    // Check that there is no other code in the command group other than 1 kernel declaration and the found (local) accessors
+    if (commandGroupBodyStatements.size > 1 + accessors.size + collectedLocalAccessorDeclarations.size) {
       throw SYCLNoExtraCodeInCommandGroup(commandGroupBody)
     }
 
@@ -735,7 +764,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create a block of code for the kernel body based on what type of kernel it is
     val (kernelParBlock, contractRequires, contractEnsures) = rangeType match {
       case SYCLTRange(_) => createBasicKernelBody(kernelDimensions, kernelDeclaration, accessorParblockConditions)
-      case SYCLTNDRange(_) => createNDRangeKernelBody(kernelDimensions, kernelDeclaration, accessorParblockConditions)
+      case SYCLTNDRange(_) => createNDRangeKernelBody(kernelDimensions, kernelDeclaration, accessorParblockConditions, collectedLocalAccessorDeclarations)
       case _ => throw Unreachable("Wrong type for the dimensions parameter of the kernel. " +
         "The dimensions parameter in a kernel declaration is supposed to be of type sycl::range<int> or sycl::nd_range<int>.")
     }
@@ -759,7 +788,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val runMethod = new RunMethod[Post](
       body = Some(ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o)),
       contract = runMethodContract,
-    )(KernelLambdaRunMethodBlame(commandGroup))(commandGroup.o)
+    )(KernelLambdaRunMethodBlame(kernelDeclaration))(commandGroup.o)
 
     // Create the surrounding class
     val postClass = new Class[Post](
@@ -834,7 +863,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     (parBlock, contractRequires, contractEnsures)
   }
 
-  private def createNDRangeKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre], accessorParblockConditions: Seq[Expr[Post]]): (ParBlock[Post], Expr[Post], Expr[Post]) = {
+  private def createNDRangeKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre], accessorParblockConditions: Seq[Expr[Post]], localAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]]): (ParBlock[Post], Expr[Post], Expr[Post]) = {
     // Register the kernel dimensions
     val (globalRange, localRange): (Seq[Expr[Post]], Seq[Expr[Post]]) = rw.dispatch(kernelDimensions) match {
       case SYCLNDRange(globalSize: SYCLRange[Post], localRange: SYCLRange[Post]) => (globalSize.dimensions, localRange.dimensions)
@@ -852,17 +881,33 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     implicit val o: Origin = kernelDeclaration.o
 
-    // Create the parblock representing the work-groups
-    val parBlock = ParBlock[Post](
-      decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL")),
-      iters = currentDimensions(GroupScope()) ++ currentDimensions(LocalScope()),
+    // Create the parblock representing the work-items inside work-groups
+    val workItemParBlock = ParStatement[Post](ParBlock[Post](
+      decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL_WORKITEMS")),
+      iters = currentDimensions(LocalScope()),
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
       requires = foldStar(accessorParblockConditions :+ contractRequires),
       ensures = foldStar(accessorParblockConditions :+ contractEnsures),
       content = rw.dispatch(kernelDeclaration.body)
+    )(SYCLKernelParBlockFailureBlame(kernelDeclaration)))
+
+    val localAccessorDecls = localAccessorDeclarations.map(localAccDecl => rewriteLocalDecl(localAccDecl))
+    val localAccessorVariables = localAccessorDeclarations.map(localAcc => cppNameSuccessor(RefCPPLocalDeclaration(localAcc, 0)))
+
+    val quantifiedConstractRequires = getKernelQuantifiedCondition(workItemParBlock.impl.asInstanceOf[ParBlock[Post]], removeLocalAccessorConditions(contractRequires, localAccessorVariables))
+    val quantifiedConstractEnsures = getKernelQuantifiedCondition(workItemParBlock.impl.asInstanceOf[ParBlock[Post]], removeLocalAccessorConditions(contractEnsures, localAccessorVariables))
+
+    // Create the parblock representing the work-groups
+    val workGroupParBlock = ParBlock[Post](
+      decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL_WORKGROUPS")),
+      iters = currentDimensions(GroupScope()),
+      context_everywhere = tt,
+      requires = foldStar(accessorParblockConditions :+ quantifiedConstractRequires),
+      ensures = foldStar(accessorParblockConditions :+ quantifiedConstractEnsures),
+      content = Scope(Nil, Block(localAccessorDecls :+ workItemParBlock))
     )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
-    (parBlock, contractRequires, contractEnsures)
+    (workGroupParBlock, quantifiedConstractRequires, quantifiedConstractEnsures)
   }
 
   private def rewriteSYCLAccessorDeclarations(decls: Seq[CPPLocalDeclaration[Pre]]): (Seq[Expr[Post]], Seq[Expr[Post]], Seq[Statement[Post]], Seq[SYCLAccessor[Post]]) = {
@@ -1175,7 +1220,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     ).getOrElse(throw SYCLHeaderItemNotFound("predicate", "sycl::buffer::exclusive_hostData_access"))
     val gainExclusiveAccess = Fold(PredicateApply[Post](rw.succ(exclusiveAccessPred), args, WritePerm()))(SYCLBufferConstructionFoldFailedBlame(inv))
 
-    val bufferLockVar = new Variable[Post](TInt())(varNameO.where(prefix = "lock"))
+    val bufferLockVar = new Variable[Post](TInt())(varNameO.where(name = varNameO.getPreferredNameOrElse().ucamel + "_lock"))
 
     val result: Statement[Post] = Block(Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess, LocalDecl(bufferLockVar), assignLocal(bufferLockVar.get, const(0))))
     syclBufferSuccessor.top.put(v, SYCLBuffer(array, v, range, bufferLockVar))
@@ -1318,6 +1363,13 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case e => e
     }
   }
+
+  private def removeLocalAccessorConditions(conditions: Expr[Post], localAccessorDecls: Seq[Variable[Post]]): Expr[Post] =
+    foldStar(unfoldStar(conditions).filterNot(expr => expr.exists({
+      case l: Local[Post] if localAccessorDecls.contains(l.ref.decl) => true
+    })))(conditions.o)
+
+
 
   private def syclKernelTermination(variable: Local[Post], accessors: Seq[SYCLAccessor[Post]])(implicit o: Origin): Statement[Post] = {
     currentRunningKernels.remove(variable)

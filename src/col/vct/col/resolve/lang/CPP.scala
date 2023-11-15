@@ -88,14 +88,13 @@ case object CPP {
       case Seq(SYCLClassDefName("nd_item", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTNDItem(dim.intValue)
       case Seq(SYCLClassDefName("range", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTRange(dim.intValue)
       case Seq(SYCLClassDefName("nd_range", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTNDRange(dim.intValue)
-      case Seq(SYCLClassDefName("buffer", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+      case Seq(SYCLClassDefName(name, Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
         getBaseTypeFromSpecs(Seq(typ)) match {
-          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTBuffer(primitiveType, dim.intValue)
-          case _ => throw CPPTypeNotSupported(context)
-        }
-      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
-        getBaseTypeFromSpecs(Seq(typ)) match {
-          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTAccessor(primitiveType, dim.intValue)
+          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => name match {
+            case "buffer" => SYCLTBuffer(primitiveType, dim.intValue)
+            case "accessor" => SYCLTAccessor(primitiveType, dim.intValue)
+            case "local_accessor" => SYCLTLocalAccessor(primitiveType, dim.intValue)
+          }
           case _ => throw CPPTypeNotSupported(context)
         }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()

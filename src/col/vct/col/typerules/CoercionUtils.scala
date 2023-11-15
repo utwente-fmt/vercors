@@ -266,6 +266,10 @@ case object CoercionUtils {
       CoerceIdentity(source),
       FuncTools.repeat(TArray[G](_), acc.dimCount, acc.typ).asInstanceOf[TArray[G]]
     ))
+    case acc: SYCLTLocalAccessor[G] => Some((
+      CoerceIdentity(source),
+      FuncTools.repeat(TArray[G](_), acc.dimCount, acc.typ).asInstanceOf[TArray[G]]
+    ))
     case t: TArray[G] => Some((CoerceIdentity(source), t))
     case _: TNull[G] =>
       val t = TArray[G](TAnyValue())
