@@ -74,9 +74,9 @@ case object LangCPPToCol {
     override def text: String = s"Could not find the $itemType $itemName, is the <sycl/sycl.hpp> header included?"
   }
 
-  private case class SYCLReassigningEventVars(ass: PreAssignExpression[_]) extends UserError {
-    override def code: String = "syclUnsupportedReassigningOfEventVars"
-    override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL event is not supported.")
+  private case class SYCLReassigningOfVariableUnsupported(objectName: String, codeExtension: String, ass: PreAssignExpression[_]) extends UserError {
+    override def code: String = "syclUnsupportedReassigningOf" + codeExtension
+    override def text: String = ass.o.messageInContext(s"Reassigning variables holding a SYCL " + objectName + " is not supported.")
   }
 
   private case class SYCLContractForCommandGroupUnsupported(contract: ApplicableContract[_]) extends UserError {
@@ -330,6 +330,12 @@ case object LangCPPToCol {
     override def text: String = accDecl.o.messageInContext("The buffer has to be declared in the same or higher scope as the accessor declaration.")
   }
 
+  private case class SYCLPredicateFoldingNotAllowed(pred: Expr[_]) extends UserError {
+    override def code: String = "syclPredicateFoldingNotAllowed"
+
+    override def text: String = pred.o.messageInContext("This predicate is used internally and is thus not allowed to be (un)folded.")
+  }
+
   case object SYCLGeneratedAccessorPermissions extends OriginContent
 
   private def SYCLGeneratedAccessorPermissionsOrigin(accessor: CPPLocalDeclaration[_]): Origin =
@@ -351,7 +357,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val savedPredicates: mutable.Buffer[Predicate[Pre]] = mutable.Buffer.empty
 
   val syclBufferSuccessor: ScopedStack[mutable.Map[Variable[Post], SYCLBuffer[Post]]] = ScopedStack()
-  val syclRunningKernelsSuccessor: ScopedStack[mutable.Map[Local[Post], Seq[SYCLAccessor[Post]]]] = ScopedStack()
+  val currentRunningKernels: mutable.Map[Local[Post], Seq[SYCLAccessor[Post]]] = mutable.Map.empty
   val currentAccessorSubstitutions: mutable.Map[CPPNameTarget[Pre], SYCLAccessor[Post]] = mutable.Map.empty
   val currentReplacementsForAccessors: mutable.Map[Expr[Post], SYCLAccessor[Post]] = mutable.Map.empty
 
@@ -376,13 +382,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     None
   }
 
-  private def removeFromAll[K, V](stack: ScopedStack[mutable.Map[K, V]], key: K): Option[V] = {
-    stack.foreach(map => {
-      if (map.contains(key)) return Some(map.remove(key).get)
-    })
-    None
-  }
-
   def rewriteUnit(cppUnit: CPPTranslationUnit[Pre]): Unit = {
     cppUnit.declarations.foreach(rw.dispatch)
   }
@@ -401,6 +400,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     if (pred.o.find[SourceName].contains(SourceName("sycl::buffer::exclusive_hostData_access"))) {
       savedPredicates.append(pred)
     }
+  }
+
+  def checkPredicateFoldingAllowed(predRes: Expr[Pre]): Unit = predRes match {
+    case CPPInvocation(CPPLocal("sycl::buffer::exclusive_hostData_access", Seq()), _, _, _)  => throw SYCLPredicateFoldingNotAllowed(predRes)
+    case _ =>
   }
 
   def rewriteFunctionDef(func: CPPFunctionDefinition[Pre]): Unit = {
@@ -575,7 +579,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   def preAssignExpr(preAssign: PreAssignExpression[Pre], target: CPPLocal[Pre]): Expr[Post] = {
     CPP.unwrappedType(target.t) match {
-      case _: SYCLTEvent[Pre] => throw SYCLReassigningEventVars(preAssign)
+      case _: SYCLTEvent[Pre] => throw SYCLReassigningOfVariableUnsupported("event", "EventVariable", preAssign)
+      case _: SYCLTBuffer[Pre] => throw SYCLReassigningOfVariableUnsupported("buffer", "Buffer", preAssign)
       case _ => rw.rewriteDefault(preAssign)
     }
   }
@@ -587,7 +592,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         implicit val o: Origin = inv.o
         rw.dispatch(inv.applicable.asInstanceOf[CPPClassMethodOrFieldAccess[Pre]].classInstance) match {
           case localVar: Local[Post] =>
-            val accessors: Seq[SYCLAccessor[Post]] = removeFromAll(syclRunningKernelsSuccessor, localVar).getOrElse(throw Unreachable(inv.o.messageInContext("Could not find the event variable in the stored running kernels.")))
+            val accessors: Seq[SYCLAccessor[Post]] = currentRunningKernels.getOrElse(localVar, throw Unreachable(inv.o.messageInContext("Could not find the event variable in the stored running kernels.")))
             syclKernelTermination(localVar, accessors)
           case _ => throw Unreachable(inv.o.messageInContext("The object on which the wait() method was called is not a locally declared SYCL event."))
         }
@@ -767,7 +772,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create a variable to refer to the class instance
     val classRef = new Variable[Post](TClass(postClass.ref))(commandGroup.o.where(name = "sycl_event_ref"))
     // Store the class ref and read-write accessors to be used when the kernel is done running
-    syclRunningKernelsSuccessor.top.put(classRef.get(commandGroup.o), accessors.filter(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]))
+    currentRunningKernels.put(classRef.get(commandGroup.o), accessors.filter(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]))
 
     // Declare a constructor for the class as a separate global method
     val constructor = createClassConstructor(accessors, preClass, commandGroup.o)
@@ -1180,6 +1185,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def destroySYCLBuffer(buffer: SYCLBuffer[Post], scope: CPPLifetimeScope[_]): Statement[Post] = {
     implicit val o: Origin = buffer.o
 
+    // Wait for SYCL kernels that access the buffer to finish executing
+    val kernelsToTerminate = currentRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer)))
+    val kernelTerminations = kernelsToTerminate.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
+
     // Call the method that copies the buffer contents to the hostData
     val copyInvRef = getSYCLHeaderMethodRef("sycl::buffer::copy_buffer_to_hostdata", Seq(buffer.hostData, buffer.generatedVar.get))
     val copyInv = ProcedureInvocation(copyInvRef, Seq(buffer.hostData, buffer.generatedVar.get), Nil, Nil, Nil, Nil)(SYCLBufferDestructionInvocationBlame(buffer.generatedVar, scope))
@@ -1192,7 +1201,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     ).getOrElse(throw SYCLHeaderItemNotFound("predicate", "sycl::buffer::exclusive_hostData_access"))
     val removeExclusiveAccess = Unfold(PredicateApply[Post](rw.succ(exclusiveAccessPred), args, WritePerm()))(SYCLBufferDestructionUnfoldFailedBlame(buffer.generatedVar, scope))
 
-    Block(Seq(removeExclusiveAccess, Eval(copyInv)))
+    Block(kernelTerminations ++ Seq(removeExclusiveAccess, Eval(copyInv)))
   }
 
   private def getBufferAccess(buffer: SYCLBuffer[Post], mode: SYCLAccessMode[Post], source: CPPLocalDeclaration[Pre]): Statement[Post] = {
@@ -1269,16 +1278,13 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     implicit val o: Origin = scope.o
 
     syclBufferSuccessor.push(mutable.Map.empty)
-    syclRunningKernelsSuccessor.push(mutable.Map.empty)
 
     val rewrittenBody = rw.dispatch(scope.body)
 
-    // Wait for SYCL kernels to finish executing
-    val kernelTerminations: Seq[Statement[Post]] = syclRunningKernelsSuccessor.pop().map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
     // Destroy all buffers and copy their data back to host
     val bufferDestructions: Seq[Statement[Post]] = syclBufferSuccessor.pop().map(tuple => destroySYCLBuffer(tuple._2, scope)).toSeq
 
-    Block[Post](rewrittenBody +: (kernelTerminations ++ bufferDestructions))
+    Block[Post](rewrittenBody +: bufferDestructions)
   }
 
   def deref(deref: CPPClassMethodOrFieldAccess[Pre]): Expr[Post] = {
@@ -1314,15 +1320,20 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   private def syclKernelTermination(variable: Local[Post], accessors: Seq[SYCLAccessor[Post]])(implicit o: Origin): Statement[Post] = {
+    currentRunningKernels.remove(variable)
     Block(
       Join(variable)(SYCLKernelJoinBlame()) +:
-      accessors.flatMap(acc => Seq(
-        assignLocal(
-          acc.buffer.generatedVar.get,
-          Deref[Post](variable, acc.instanceField.ref)(new SYCLAccessorDerefBlame(acc.instanceField))
-        ),
-        releaseBufferAccess(acc)
-      ))
+      accessors.flatMap(acc => acc.accessMode match {
+        case SYCLReadWriteAccess() => Seq(
+          // Only copy data back if there was read-write access
+          assignLocal(
+            acc.buffer.generatedVar.get,
+            Deref[Post](variable, acc.instanceField.ref)(new SYCLAccessorDerefBlame(acc.instanceField))
+          ),
+          releaseBufferAccess(acc)
+        )
+        case SYCLReadOnlyAccess() => Seq(releaseBufferAccess(acc))
+      })
     )
   }
 

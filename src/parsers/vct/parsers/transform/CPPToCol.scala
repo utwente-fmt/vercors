@@ -817,6 +817,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
     case Declaratorid0(None, idExpr) => convert(idExpr) match {
       case CPPTypedefName(name, Seq()) => CPPName(name)
+//      case SYCLClassDefName(name, Seq()) => CPPName(s"sycl::$name")
       case _ => ??(declaratorId)
     }
     case Declaratorid0(_, _) => ??(declaratorId)

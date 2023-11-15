@@ -4,15 +4,13 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.rewrite.lang.LangBipToCol
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
-import vct.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
 case object LangSpecificToCol extends RewriterBuilder {
   override def key: String = "langSpecific"
@@ -168,6 +166,15 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
+    case fold: Fold[Pre] => {
+      cpp.checkPredicateFoldingAllowed(fold.res)
+      rewriteDefault(fold)
+    }
+    case unfold: Unfold[Pre] => {
+      cpp.checkPredicateFoldingAllowed(unfold.res)
+      rewriteDefault(unfold)
+    }
+
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
     case assign: PVLSeqAssign[Pre] => veymont.rewriteParAssign(assign)
 
@@ -229,6 +236,10 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
     case _: CPPLambdaDefinition[Pre] => ???
     case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteAccessorSubscript(arrSub)
+    case unfolding: Unfolding[Pre] => {
+      cpp.checkPredicateFoldingAllowed(unfolding.res)
+      rewriteDefault(unfolding)
+    }
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)

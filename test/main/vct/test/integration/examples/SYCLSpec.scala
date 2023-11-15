@@ -15,6 +15,16 @@ class SYCLSpec extends VercorsSpec {
   vercors should fail withCode "syclItemMethodPreFailed" using silicon example "concepts/sycl/kernels/TooHighKernelDimension.cpp"
   vercors should error withCode "syclKernelRangeInvalid" example "concepts/sycl/kernels/ZeroNDRange.cpp"
 
+  vercors should verify using silicon example "concepts/sycl/buffers/AllBufferTypes.cpp"
+  vercors should error withCode "syclUnsupportedReassigningOfBuffer" example "concepts/sycl/buffers/NoBufferReassign.cpp"
+  vercors should error withCode "syclPredicateFoldingNotAllowed" example "concepts/sycl/buffers/UnfoldingExclusiveHostDataAccessPredicate.cpp"
+  vercors should fail withCode "ptrPerm" using silicon example "concepts/sycl/buffers/ReadDataInBufferScope.cpp"
+  vercors should verify using silicon example "concepts/sycl/buffers/ReleaseFromBuffer.cpp"
+  vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TooBigBuffer.cpp"
+  vercors should verify using silicon example "concepts/sycl/buffers/TooSmallBuffer.cpp"
+  vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TwoBuffersForSameData.cpp"
+  vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/WriteDataInBufferScope.cpp"
+
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/accessors/AccessorGetRangeDimensionOutOfBounds.cpp"
   vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/AllAccessModes.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/GetKernelResult.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
@@ -25,11 +35,5 @@ class SYCLSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/sycl/accessors/TwoWriteKernelsWithWait.cpp"
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/accessors/WriteToReadAccessor.cpp"
 
-  vercors should verify using silicon example "concepts/sycl/buffers/AllBufferTypes.cpp"
-  vercors should fail withCode "ptrPerm" using silicon example "concepts/sycl/buffers/ReadDataInBufferScope.cpp"
-  vercors should verify using silicon example "concepts/sycl/buffers/ReleaseFromBuffer.cpp"
-  vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TooBigBuffer.cpp"
-  vercors should verify using silicon example "concepts/sycl/buffers/TooSmallBuffer.cpp"
-  vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TwoBuffersForSameData.cpp"
-  vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/WriteDataInBufferScope.cpp"
+
 }
