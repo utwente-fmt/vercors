@@ -7,17 +7,13 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefPVLEndpoint
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.rewrite.lang.LangSpecificToCol
+import vct.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{CommunicateNotSupported, EndpointUseNotSupported, NoRunBody, NoRunMethod}
+import vct.rewrite.lang.LangVeyMontToCol.{EndpointUseNotSupported, NoRunMethod}
+import vct.rewrite.veymont.EncodeSeqProg.CommunicateNotSupported
 
 case object LangVeyMontToCol {
-  case object CommunicateNotSupported extends UserError {
-    override def code: String = "communicateNotSupported"
-    override def text: String = "The `communicate` statement is not yet supported"
-  }
-
   case object EndpointUseNotSupported extends UserError {
     override def code: String = "endpointUseNotSupported"
     override def text: String = "Referencing of endpoints is not yet supported"
@@ -29,13 +25,6 @@ case object LangVeyMontToCol {
       s"This `seq_program` has no `run` method."
     )
   }
-
-  case class NoRunBody(prog: RunMethod[_]) extends UserError {
-    override def code: String = "noRunBody"
-    override def text: String = prog.o.messageInContext(
-      s"This `run` method needs a body, as it is part of a `seq_program`."
-    )
-  }
 }
 
 case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
@@ -45,13 +34,22 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   val seqProgSucc: SuccessionMap[PVLSeqProg[Pre], SeqProg[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[PVLEndpoint[Pre], Endpoint[Post]] = SuccessionMap()
 
-  def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] = {
-    throw CommunicateNotSupported
+  def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
+    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.o)
+
+  def rewriteAccess(access: PVLCommunicateAccess[Pre]): Access[Post] =
+    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.o)
+
+  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
+    case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
+    case PVLIndexedFamilyName(family, index) => ???
+    case PVLFamilyRange(family, binder, start, end) => ???
   }
 
   def rewriteEndpoint(endpoint: PVLEndpoint[Pre]): Unit =
     endpointSucc(endpoint) = rw.endpoints.declare(new Endpoint(
       rw.succ[Class[Post]](endpoint.cls.decl),
+      rw.pvl.constructorSucc(endpoint.ref.get),
       endpoint.args.map(rw.dispatch)
     )(endpoint.o))
 
@@ -69,11 +67,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
             },
           )._1,
           prog.declarations.collectFirst {
-            case run: RunMethod[Pre] => rewriteRun(run)
+            case run: PVLSeqRun[Pre] => rewriteRun(run)
           }.getOrElse(throw NoRunMethod(prog)),
           rw.classDeclarations.collect(
             prog.declarations.foreach {
-              case _: RunMethod[Pre] =>
+              case _: PVLSeqRun[Pre] =>
               case _: PVLEndpoint[Pre] =>
               case decl => rw.dispatch(decl)
             }
@@ -83,22 +81,14 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
     }
   }
 
-  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
-    case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
-    case PVLIndexedFamilyName(family, index) => ???
-    case PVLFamilyRange(family, binder, start, end) => ???
-  }
+  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] =
+    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
 
-  def rewriteEndpointUse(endpoint: RefPVLEndpoint[Pre], local: PVLLocal[Pre]): EndpointUse[Post] = {
-    throw EndpointUseNotSupported
-    // TODO: Enable when actual seq_program analysis is implemented
-//    EndpointUse[Post](endpointSucc.ref(endpoint.decl))(local.o)
-  }
-
-  def rewriteRun(run: RunMethod[Pre]): SeqRun[Post] = run.body match {
-    case Some(body) =>
+  def rewriteRun(run: PVLSeqRun[Pre]): SeqRun[Post]  = {
       run.drop()
-      SeqRun(rw.dispatch(body), rw.dispatch(run.contract))(run.blame)(run.o)
-    case None => throw NoRunBody(run)
+      SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
+
+  def rewriteParAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
+    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.o)
 }

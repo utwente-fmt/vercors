@@ -14,7 +14,7 @@ case class ExcludedByPassOrder(message: String, node: Option[Node[_]]) extends S
     node match {
       case Some(node) =>
         context[CurrentRewriteProgramContext] match {
-          case Some(ctx) => ctx.program.messageInContext(node, fullMessage)
+          case Some(ctx) => ctx.program.highlight(node).messageInContext(fullMessage)
           case None => node.o.messageInContext(fullMessage)
         }
       case None => messageContext(fullMessage)

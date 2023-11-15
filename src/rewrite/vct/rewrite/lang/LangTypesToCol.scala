@@ -1,4 +1,4 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast.{TModel, _}
@@ -6,7 +6,7 @@ import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
-import vct.col.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
+import vct.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
 import vct.col.typerules.Types
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError

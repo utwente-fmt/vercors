@@ -8,6 +8,7 @@ import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite.{Generation, SuccessorProvider}
 import vct.col.serialize.Program
 import vct.col.util.Scopes._
+import vct.result.Message
 import vct.result.VerificationError.SystemError
 
 import scala.collection.mutable
@@ -28,11 +29,11 @@ object Scopes {
 
   case class DuplicateSuccessor(pre: Declaration[_], firstPost: Declaration[_], secondPost: Declaration[_]) extends SystemError {
     override def text: String =
-      Seq(
-        firstPost.toString + "\n" + Origin.HR + "This declaration already succeeds ...\n",
-        CurrentProgramContext.bareNodeContext(this, pre, "... this declaration, but is additionally succeeded by ...") + "\n",
-        secondPost.toString + "\n" + Origin.HR + "... this declaration.\n",
-      ).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
+      Message.messagesInContext(
+        firstPost.highlight(firstPost) -> "This declaration already succeeds ...",
+        context[CurrentProgramContext].map(_.program).getOrElse(pre).highlight(pre) -> "... this declaration, but is additionally succeeded by ...",
+        secondPost.highlight(secondPost) -> "... this declaration.",
+      )
   }
 
   case class NoSuccessor(pre: Declaration[_]) extends SystemError {
@@ -42,10 +43,10 @@ object Scopes {
         val useNode = getContext[CurrentCheckNodeContext].node
         val predProgram = getContext[CurrentRewriteProgramContext].program
         val predDecl = getContext[ConstructingSuccessorOfContext].decl
-        Doc.messagesInContext(Seq(
-          (predProgram, predDecl, "A reference to the successor of this declaration was made, ..."),
-          (useProgram, useNode, "... but it has no successor in this position.")
-        ))
+        Message.messagesInContext(
+          (predProgram.highlight(predDecl), "A reference to the successor of this declaration was made, ..."),
+          (useProgram.highlight(useNode), "... but it has no successor in this position.")
+        )
       } getOrElse {
         pre.o.messageInContext("A reference to the successor of this declaration was made, but it has no successor.")
       }

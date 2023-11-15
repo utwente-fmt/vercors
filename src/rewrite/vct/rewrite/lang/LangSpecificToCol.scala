@@ -1,15 +1,15 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.lang.LangBipToCol
+import vct.rewrite.lang.LangBipToCol
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
-import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol
@@ -20,10 +20,8 @@ case object LangSpecificToCol extends RewriterBuilder {
 
   def ThisVar(): Origin = Origin(
     Seq(
-      PreferredName("this"),
-      ShortPosition("generated"),
-      Context("[At node generated to store this value for constructors]"),
-      InlineContext("this"),
+      PreferredName(Seq("this")),
+      LabelContext("constructor this"),
     )
   )
 
@@ -117,8 +115,13 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case unit: CPPTranslationUnit[Pre] => cpp.rewriteUnit(unit)
     case cppParam: CPPParam[Pre] => cpp.rewriteParam(cppParam)
     case func: CPPFunctionDefinition[Pre] => cpp.rewriteFunctionDef(func)
-    case decl: CPPGlobalDeclaration[Pre] => cpp.rewriteGlobalDecl(decl)
+    case decl: CPPGlobalDeclaration[Pre] =>
+      cpp.rewriteGlobalDecl(decl)
     case decl: CPPLocalDeclaration[Pre] => ???
+    case pred: Predicate[Pre] => {
+      cpp.storePredicate(pred)
+      rewriteDefault(pred)
+    }
 
     case func: LlvmFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
     case global: LlvmGlobal[Pre] => llvm.rewriteGlobal(global)
@@ -159,12 +162,14 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
     case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
+    case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
     case goto: CGoto[Pre] => c.rewriteGoto(goto)
     case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
 
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
+    case assign: PVLSeqAssign[Pre] => veymont.rewriteParAssign(assign)
 
     case other => rewriteDefault(other)
   }
@@ -227,15 +232,16 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case Perm(a@AmbiguousLocation(expr), perm)
       if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
-      c.getBaseType(expr.t) match {
         case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
+      c.getBaseType(expr.t) match {
       }
 
-    case local: CPPLocal[Pre] => cpp.local(Left(local))
-    case local: CPPClassInstanceLocal[Pre] => cpp.local(Right(local))
+    case local: CPPLocal[Pre] => cpp.local(local)
+    case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
     case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
     case _: CPPLambdaDefinition[Pre] => ???
+    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteAccessorSubscript(arrSub)
 
     case inv: SilverPartialADTFunctionInvocation[Pre] => silver.adtInvocation(inv)
     case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)

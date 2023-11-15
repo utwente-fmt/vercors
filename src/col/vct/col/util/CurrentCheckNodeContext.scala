@@ -7,8 +7,6 @@ import vct.result.VerificationError
 case class CurrentCheckNodeContext(node: Node[_]) extends VerificationError.Context {
   override def tryMessageContext(message: String, err: VerificationError): Option[String] =
     err.context[CurrentCheckProgramContext].map { ctx =>
-      Doc.messagesInContext(Seq(
-        (ctx.program, node, message)
-      ))
+      ctx.program.highlight(node).messageInContext(message)
     }
 }

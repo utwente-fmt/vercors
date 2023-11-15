@@ -24,6 +24,7 @@ case object CoercingRewriter {
           case Incoercible(e, target) => s"Expression `$e` could not be coerced to `$target``"
           case IncoercibleText(e, target) => s"Expression `$e` could not be coerced to $target."
           case IncoercibleExplanation(e, message) => s"At `$e`: $message"
+          case WrongType(n, expectedType, actualType) => s"$n was expected to have type $expectedType, but turned out to have type $actualType"
         })
       )
   }
@@ -34,11 +35,11 @@ case object CoercingRewriter {
 
   case class IncoercibleText(e: Expr[_], targetText: String) extends CoercionError
 
-  case class IncoercibleExplanation(blame: Expr[_], message: String) extends CoercionError
+  case class IncoercibleExplanation(blame: Node[_], message: String) extends CoercionError
 
-  private def coercionOrigin(of: Expr[_]): Origin = {
-    of.o.replacePrefName("unknown")
-  }
+  case class WrongType(n: Node[_], expectedType: Type[_], actualType: Type[_]) extends CoercionError
+
+  private def coercionOrigin(of: Expr[_]): Origin = of.o.where(name = "unknown")
 }
 
 abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pre, Rewritten[Pre]] with LazyLogging {
@@ -240,6 +241,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: CPPDeclaration[Pre] => node
     case node: CPPAddressing[Pre] => node
     case node: CPPInit[Pre] => node
+    case node: CPPExprOrTypeSpecifier[Pre] => node
     case node: GpuMemoryFence[Pre] => node
     case node: JavaModifier[Pre] => node
     case node: JavaImport[Pre] => node
@@ -397,6 +399,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: CPPInit[Pre]): CPPInit[Pre] = node
   def postCoerce(node: CPPInit[Pre]): CPPInit[Post] = rewriteDefault(node)
   override final def dispatch(node: CPPInit[Pre]): CPPInit[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Pre] = node
+  def postCoerce(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Post] = rewriteDefault(node)
+  override final def dispatch(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: JavaName[Pre]): JavaName[Pre] = node
   def postCoerce(node: JavaName[Pre]): JavaName[Post] = rewriteDefault(node)
@@ -956,13 +962,15 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         val (coercedXs, TSeq(element)) = seq(xs)
         val sharedType = Types.leastCommonSuperType(x.t, element)
         Cons(coerce(x, sharedType), coerce(xs, TSeq(sharedType)))
-      case CPPClassInstanceLocal(_, _) => e
+      case cfa@CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName) => CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName)(cfa.blame)
       case defn@CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
       case CPPLambdaRef() => e
       case inv@CPPInvocation(applicable, args, givenArgs, yields) =>
         CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
       case CPPLocal(_, _) => e
+      case SYCLReadWriteAccess() => e
+      case SYCLReadOnlyAccess() => e
       case SYCLRange(dims) => SYCLRange(dims)
       case SYCLNDRange(globalRange, localRange) => SYCLNDRange(globalRange, localRange)
       case StringConcat(left, right) =>
@@ -1665,6 +1673,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case c @ Commit(obj) => Commit(cls(obj))(c.blame)
       case Continue(label) => Continue(label)
       case CPPDeclarationStatement(decl) => CPPDeclarationStatement(decl)
+      case CPPLifetimeScope(body) => CPPLifetimeScope(body)
       case DefaultCase() => DefaultCase()
       case Eval(expr) => Eval(expr)
       case e @ Exhale(assn) => Exhale(res(assn))(e.blame)
@@ -1718,8 +1727,22 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case PVLCommunicate(s, r) => PVLCommunicate(s, r)
-      case Communicate(r, s) => Communicate(r, s)
+      case PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
+      case Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
+      case PVLSeqAssign(r, f, v) =>
+        try { PVLSeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
+      case SeqAssign(r, f, v) =>
+        try { SeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+          case err: Incoercible =>
+            println(err.text)
+            throw err
+        }
     }
   }
 
@@ -1837,7 +1860,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             JavaVariableDeclaration(name, dims, Some(coerce(v, FuncTools.repeat[Type[Pre]](TArray(_), dims, declaration.t))))
         })
       case seqProg: SeqProg[Pre] => seqProg
-      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.args)
+      case thread: Endpoint[Pre] => new Endpoint(thread.cls, thread.constructor, thread.args)
       case bc: BipConstructor[Pre] => new BipConstructor(bc.args, bc.body, bc.requires)(bc.blame)
       case bc: BipComponent[Pre] =>
         new BipComponent(bc.fqn, res(bc.invariant), bc.initial)
@@ -1866,6 +1889,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case glob: LlvmGlobal[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLSeqProg[Pre] => seqProg
+      case seqRun: PVLSeqRun[Pre] => seqRun
       }
   }
 
@@ -2134,6 +2158,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     implicit val o: Origin = node.o
     val CPPInit(decl, init) = node
     CPPInit(decl, init)
+  }
+
+  def coerce(node: CPPExprOrTypeSpecifier[Pre]): CPPExprOrTypeSpecifier[Pre] = {
+    implicit val o: Origin = node.o
+    val CPPExprOrTypeSpecifier(expr, typeSpec) = node
+    CPPExprOrTypeSpecifier(expr, typeSpec)
   }
 
   def coerce(node: JavaName[Pre]): JavaName[Pre] = {

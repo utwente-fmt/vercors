@@ -1,8 +1,10 @@
 package vct.col.typerules
 
+import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.resolve.lang.{C, CPP}
+import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
 case object CoercionUtils {
   private implicit val o: Origin = DiagnosticOrigin
@@ -297,6 +299,10 @@ case object CoercionUtils {
   def getAnyArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TArray[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyArrayCoercion)
     case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyArrayCoercion)
+    case acc: SYCLTAccessor[G] => Some((
+      CoerceIdentity(source),
+      FuncTools.repeat(TArray[G](_), acc.dimCount, acc.typ).asInstanceOf[TArray[G]]
+    ))
     case t: TArray[G] => Some((CoerceIdentity(source), t))
     case _: TNull[G] =>
       val t = TArray[G](TAnyValue())

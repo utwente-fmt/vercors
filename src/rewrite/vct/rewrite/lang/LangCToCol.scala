@@ -1,4 +1,4 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
@@ -16,6 +16,7 @@ import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.typerules.CoercionUtils.getCoercion
 import vct.col.util.SuccessionMap
 import vct.col.util.AstBuildHelpers._
+import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.immutable.ListMap
@@ -100,10 +101,10 @@ case object LangCToCol {
   case class CDoubleContracted(decl: CGlobalDeclaration[_], defn: CFunctionDefinition[_]) extends UserError {
     override def code: String = "multipleContracts"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         defn.o -> "This method has a non-empty contract at its definition, ...",
         decl.o -> "... but its forward declaration also has a contract.",
-      ))
+      )
   }
 
   case class KernelNotInjective(kernel: CGpgpuKernelSpecifier[_]) extends Blame[ReceiverNotInjective] {
@@ -189,10 +190,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   private def CudaIndexVariableOrigin(dim: RefCudaVecDim[_]): Origin = Origin(
     Seq(
-      PreferredName(dim.vec.name + dim.name.toUpperCase),
-      Context(s"At: [Variable for dimension ${dim.name} of ${dim.vec.name}]"),
-      InlineContext(s"[Variable for dimension ${dim.name} of ${dim.vec.name}]"),
-      ShortPosition("generated"),
+      PreferredName(Seq(dim.vec.name, dim.name)),
+      LabelContext(s"${dim.vec.name}/${dim.name}"),
     )
   )
 
@@ -289,7 +288,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def rewriteGPUParam(cParam: CParam[Pre], kernelSpecifier: CGpgpuKernelSpecifier[Pre]): Unit = {
     cParam.drop()
-    val varO = cParam.o.replacePrefName(C.getDeclaratorInfo(cParam.declarator).name)
+    val varO = cParam.o.where(name = C.getDeclaratorInfo(cParam.declarator).name)
     implicit val o: Origin = cParam.o
     val cRef = RefCParam(cParam)
     val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
@@ -325,7 +324,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val specType = cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
 
     cParam.drop()
-    val varO = cParam.o.replacePrefName(C.getDeclaratorInfo(cParam.declarator).name)
+    val varO = cParam.o.where(name = C.getDeclaratorInfo(cParam.declarator).name)
 
     val v = new Variable[Post](specType)(varO)
     cNameSuccessor(RefCParam(cParam)) = v
@@ -351,7 +350,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         (func.contract, Map.empty)
     }
 
-    val namedO = func.o.replacePrefName(C.getDeclaratorInfo(func.declarator).name)
+    val namedO = func.o.where(name = C.getDeclaratorInfo(func.declarator).name)
     val proc =
       cCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
@@ -440,7 +439,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     dynamicSharedMemNames.foreach(d =>
     {
       implicit val o: Origin = getCDecl(d).o
-      val varO: Origin = o.replacePrefName(s"${C.getDeclaratorInfo(getCDecl(d)).name}_size")
+      val varO: Origin = o.where(name = s"${C.getDeclaratorInfo(getCDecl(d)).name}_size")
       val v = new Variable[Post](TCInt())(varO)
       dynamicSharedMemLengthVar(d) = v
       rw.variables.declare(v)
@@ -630,7 +629,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val prop = new TypeProperties(decl.decl.specs, decl.decl.inits.head.decl)
     if (!prop.shared) return false
     val init: CInit[Pre] = decl.decl.inits.head
-    val varO = decl.o.replacePrefName(C.getDeclaratorInfo(init.decl).name)
+    val varO = decl.o.where(name = C.getDeclaratorInfo(init.decl).name)
     val cRef = RefCLocalDeclaration(decl, 0)
 
     kernelSpecifier match {
@@ -805,8 +804,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val init = decl.decl.inits.head
 
     val info = C.getDeclaratorInfo(init.decl)
+    val varO: Origin = init.o.where(name = info.name)
     val varO: Origin = init.o.replacePrefName(info.name)
-    val v = new Variable[Post](t)(varO)
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
     implicit val o: Origin = init.o
     init.init

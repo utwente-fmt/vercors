@@ -4,8 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{ArraySubscript, _}
 import vct.col.ast.util.{AnnotationVariableInfoGetter, ExpressionEqualityCheck}
 import vct.col.rewrite.util.Comparison
-import vct.col.origin.{ArrayInsufficientPermission, Origin, PanicBlame, PointerBounds}
-import vct.col.origin.{Context, DiagnosticOrigin, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{ArrayInsufficientPermission, DiagnosticOrigin, LabelContext, Origin, PanicBlame, PointerBounds, PreferredName}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -36,21 +35,17 @@ case object SimplifyNestedQuantifiers extends RewriterBuilder {
 
 case class SimplifyNestedQuantifiers[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
 
-  object SimplifyNestedQuantifiersOrigin extends Origin(
+  val SimplifyNestedQuantifiersOrigin: Origin = Origin(
     Seq(
-      PreferredName("unknown"),
-      ShortPosition("generated"),
-      Context("[At generated expression for the simplification of nested quantifiers]"),
-      InlineContext("[Simplified expression]"),
+      PreferredName(Seq("unknown")),
+      LabelContext("simplification"),
     )
   )
 
   private def BinderOrigin(name: String): Origin = Origin(
     Seq(
-      PreferredName(name),
-      ShortPosition("generated"),
-      Context("[At generated expression for the simplification of nested quantifiers]"),
-      InlineContext("[Simplified expression]"),
+      PreferredName(Seq(name)),
+      LabelContext("simplification"),
     )
   )
 

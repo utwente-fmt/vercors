@@ -8,6 +8,7 @@ trait RangedForImpl[G] { this: RangedFor[G] =>
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
+      contract.show,
       Group(Text("for") <> "(" <> Doc.arg(iter) <> ")"),
     )) <+> body.layoutAsBlock
 }

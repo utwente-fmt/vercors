@@ -18,19 +18,15 @@ case object ClassToRef extends RewriterBuilder {
 
   private def TypeOfOrigin: Origin = Origin(
     Seq(
-      PreferredName( "type"),
-      ShortPosition("generated"),
-      Context("[At function type]"),
-      InlineContext("[Function type]"),
+      PreferredName(Seq("type")),
+      LabelContext("classToRef"),
     )
   )
 
   private def InstanceOfOrigin: Origin = Origin(
     Seq(
-      PreferredName( "subtype"),
-      ShortPosition("generated"),
-      Context("[At function subtype]"),
-      InlineContext("[Function subtype]"),
+      PreferredName(Seq("subtype")),
+      LabelContext("classToRef"),
     )
   )
 
@@ -45,10 +41,8 @@ case class ClassToRef[Pre <: Generation]() extends Rewriter[Pre] {
 
   private def This: Origin = Origin(
     Seq(
-      PreferredName( "this"),
-      ShortPosition("generated"),
-      Context("[At generated parameter for 'this']"),
-      InlineContext("this"),
+      PreferredName(Seq("this")),
+      LabelContext("classToRef"),
     )
   )
 

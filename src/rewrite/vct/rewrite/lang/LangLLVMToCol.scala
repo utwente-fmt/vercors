@@ -1,20 +1,22 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
-import vct.col.origin.{BlameCollector, InvocationFailure, Origin}
-import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.origin.RedirectOrigin.StringReadable
+import vct.col.origin.Origin
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx.RefLlvmFunctionDefinition
-import vct.col.rewrite.lang.LangLLVMToCol.UnexpectedLlvmNode
+import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.{CurrentProgramContext, SuccessionMap}
 import vct.result.VerificationError.SystemError
+import vct.rewrite.lang.LangLLVMToCol.UnexpectedLlvmNode
 
 case object LangLLVMToCol {
   case class UnexpectedLlvmNode(node: Node[_]) extends SystemError {
     override def text: String =
-      CurrentProgramContext.nodeContext(this, node, "VerCors assumes this node does not occur here in llvm input.")
+      context[CurrentProgramContext]
+        .map(_.highlight(node))
+        .getOrElse(node.o)
+        .messageInContext("VerCors assumes this node does not occur here in llvm input.")
   }
 }
 

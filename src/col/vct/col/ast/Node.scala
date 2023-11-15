@@ -39,6 +39,7 @@ import vct.col.ast.expr.op.tuple._
 import vct.col.ast.expr.op.vec._
 import vct.col.ast.expr.resource._
 import vct.col.ast.expr.sideeffect._
+import vct.col.ast.family.access._
 import vct.col.ast.family.accountedpredicate._
 import vct.col.ast.family.bipdata._
 import vct.col.ast.family.bipglueelement._
@@ -55,8 +56,10 @@ import vct.col.ast.family.javavar.JavaVariableDeclarationImpl
 import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
-import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLEndpointNameImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl}
+import vct.col.ast.family.pvlcommunicate._
+import vct.col.ast.family.seqrun.SeqRunImpl
 import vct.col.ast.family.signals._
+import vct.col.ast.family.subject.EndpointNameImpl
 import vct.col.ast.lang._
 import vct.col.ast.lang.smt._
 import vct.col.ast.node._
@@ -138,9 +141,6 @@ final case class TCFloat[G](exponent: Int, mantissa: Int)(implicit val o: Origin
 sealed trait DeclaredType[G] extends Type[G] with DeclaredTypeImpl[G]
 final case class TModel[G](model: Ref[G, Model[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TModelImpl[G]
 final case class TClass[G](cls: Ref[G, Class[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TClassImpl[G]
-final case class TSeqProg[G](cls: Ref[G, SeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TSeqProgImpl[G]
-final case class TPVLSeqProg[G](cls: Ref[G, PVLSeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
-final case class TEndpoint[G](cls: Ref[G, Endpoint[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TEndpointImpl[G]
 final case class TAnyClass[G]()(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAnyClassImpl[G]
 final case class TAxiomatic[G](adt: Ref[G, AxiomaticDataType[G]], args: Seq[Type[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TAxiomaticImpl[G]
 final case class TEnum[G](enum: Ref[G, Enum[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
@@ -230,8 +230,6 @@ final class HeapVariable[G](val t: Type[G])(implicit val o: Origin) extends Glob
 final class SimplificationRule[G](val axiom: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with SimplificationRuleImpl[G]
 final class AxiomaticDataType[G](val decls: Seq[ADTDeclaration[G]], val typeArgs: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with AxiomaticDataTypeImpl[G]
 final class Class[G](val declarations: Seq[ClassDeclaration[G]], val supports: Seq[Ref[G, Class[G]]], val intrinsicLockInvariant: Expr[G])(implicit val o: Origin) extends GlobalDeclaration[G] with ClassImpl[G]
-final class SeqProg[G](val contract: ApplicableContract[G], val args : Seq[Variable[G]], val threads: Seq[Endpoint[G]], val run: SeqRun[G], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with SeqProgImpl[G] with Declarator[G]
-final class Endpoint[G](val cls: Ref[G, Class[G]], val args: Seq[Expr[G]])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
 final class Model[G](val declarations: Seq[ModelDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with Declarator[G] with ModelImpl[G]
 final class Function[G](val returnType: Type[G], val args: Seq[Variable[G]], val typeArgs: Seq[Variable[G]],
                val body: Option[Expr[G]], val contract: ApplicableContract[G], val inline: Boolean = false, val threadLocal: Boolean = false)
@@ -490,7 +488,6 @@ final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(val blame: Bla
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with AddrOfImpl[G]
 final case class FunctionOf[G](binding: Ref[G, Variable[G]], vars: Seq[Ref[G, Variable[G]]])(implicit val o: Origin) extends Expr[G] with FunctionOfImpl[G]
 final case class ApplyCoercion[G](e: Expr[G], coercion: Coercion[G])(implicit val o: Origin) extends Expr[G] with ApplyCoercionImpl[G]
-final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
 final case class SizeOf[G](tname: Type[G])(implicit val o: Origin) extends Expr[G] with SizeOfImpl[G]
 
 sealed trait Apply[G] extends Expr[G] with ApplyImpl[G]
@@ -700,7 +697,6 @@ final case class SuperType[G](left: Expr[G], right: Expr[G])(implicit val o: Ori
 final case class IndeterminateInteger[G](min: Expr[G], max: Expr[G])(implicit val o: Origin) extends Expr[G] with IndeterminateIntegerImpl[G]
 
 sealed trait AssignExpression[G] extends Expr[G] with AssignExpressionImpl[G]
-final case class VeyMontAssignExpression[G](thread: Ref[G, Endpoint[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
 final case class PreAssignExpression[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends AssignExpression[G] with PreAssignExpressionImpl[G]
 final case class PostAssignExpression[G](target: Expr[G], value: Expr[G])(val blame: Blame[AssignFailed])(implicit val o: Origin) extends AssignExpression[G] with PostAssignExpressionImpl[G]
 
@@ -1014,7 +1010,7 @@ final case class CPPLong[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G
 final case class CPPSigned[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSignedImpl[G]
 final case class CPPUnsigned[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPUnsignedImpl[G]
 final case class CPPBool[G]()(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPBoolImpl[G]
-final case class CPPTypedefName[G](var nestedName: String, genericArg: Option[Int])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPTypedefNameImpl[G] {
+final case class CPPTypedefName[G](var nestedName: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPTypedefNameImpl[G] {
   var ref: Option[CPPTypeNameTarget[G]] = None
 }
 final case class CPPSpecificationType[G](t: Type[G])(implicit val o: Origin) extends CPPTypeSpecifier[G] with CPPSpecificationTypeImpl[G]
@@ -1050,28 +1046,29 @@ final class CPPFunctionDefinition[G](val contract: ApplicableContract[G], val sp
 
 sealed trait CPPStatement[G] extends Statement[G] with CPPStatementImpl[G]
 final case class CPPDeclarationStatement[G](decl: CPPLocalDeclaration[G])(implicit val o: Origin) extends CPPStatement[G] with CPPDeclarationStatementImpl[G]
+final case class CPPLifetimeScope[G](body: Statement[G])(implicit val o: Origin) extends CPPStatement[G] with CPPLifetimeScopeImpl[G]
 
 sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
-final case class CPPLocal[G](name: String, genericArg: Option[Int])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPLocalImpl[G] {
+final case class CPPLocal[G](name: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPLocalImpl[G] {
   var ref: Option[CPPNameTarget[G]] = None
 }
-final case class CPPClassInstanceLocal[G](classInstanceRefName: String, classLocalName: String)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin) extends CPPExpr[G] with CPPClassInstanceLocalImpl[G] {
-  var classInstanceRef: Option[CPPNameTarget[G]] = None
-  var classLocalRef: Option[CPPNameTarget[G]] = None
+final case class CPPClassMethodOrFieldAccess[G](classInstance: Expr[G], methodOrFieldName: String)(val blame: Blame[FrontendDerefError])(implicit val o: Origin) extends CPPExpr[G] with CPPClassMethodOrFieldAccessImpl[G] {
+  var ref: Option[CPPDerefTarget[G]] = None
 }
 final case class CPPLambdaRef[G]()(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaRefImpl[G]
 final case class CPPInvocation[G](applicable: Expr[G], args: Seq[Expr[G]], givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])], yields: Seq[(Expr[G], Ref[G, Variable[G]])])(val blame: Blame[FrontendInvocationError])(implicit val o: Origin) extends CPPExpr[G] with CPPInvocationImpl[G] {
   var ref: Option[CPPInvocationTarget[G]] = None
 }
-final case class CPPLambdaDefinition[G](contract: ApplicableContract[G], declarator: CPPDeclarator[G], body: Statement[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaDefinitionImpl[G]
+final case class CPPLambdaDefinition[G](contract: ApplicableContract[G], declarator: CPPDeclarator[G], body: Statement[G])(val blame: Blame[SYCLKernelLambdaFailure])(implicit val o: Origin) extends CPPExpr[G] with CPPLambdaDefinitionImpl[G]
 
 sealed trait CPPType[G] extends Type[G] with CPPTypeImpl[G]
 final case class CPPPrimitiveType[G](specifiers: Seq[CPPDeclarationSpecifier[G]])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPPrimitiveTypeImpl[G]
 final case class CPPTArray[G](size: Option[Expr[G]], innerType: Type[G])(val blame: Blame[ArraySizeError])(implicit val o: Origin = DiagnosticOrigin) extends CPPType[G] with CPPTArrayImpl[G]
 final case class CPPTLambda[G]()(implicit val o: Origin) extends CPPType[G] with CPPTLambdaImpl[G]
 
+final case class CPPExprOrTypeSpecifier[G](expr: Option[Expr[G]], typeSpec: Option[CPPDeclarationSpecifier[G]])(implicit val o: Origin) extends NodeFamily[G] with CPPExprOrTypeSpecifierImpl[G]
 
-final case class SYCLClassDefName[G](name: String, genericArg: Option[Int])(implicit val o: Origin) extends CPPTypeSpecifier[G] with SYCLClassDefNameImpl[G]
+final case class SYCLClassDefName[G](name: String, genericArgs: Seq[CPPExprOrTypeSpecifier[G]])(implicit val o: Origin) extends CPPTypeSpecifier[G] with SYCLClassDefNameImpl[G]
 
 sealed trait SYCLTClass[G] extends Type[G] with SYCLTClassImpl[G]
 final case class SYCLTEvent[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTEventImpl[G]
@@ -1081,11 +1078,17 @@ final case class SYCLTItem[G](dimCount: Int)(implicit val o: Origin) extends SYC
 final case class SYCLTNDItem[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTNDItemImpl[G]
 final case class SYCLTRange[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTRangeImpl[G]
 final case class SYCLTNDRange[G](dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTNDRangeImpl[G]
+final case class SYCLTBuffer[G](typ: Type[G], dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTBufferImpl[G]
+final case class SYCLTAccessor[G](typ: Type[G], dimCount: Int)(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessorImpl[G]
+final case class SYCLTAccessMode[G]()(implicit val o: Origin) extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
 
 sealed trait SYCLClassObject[G] extends CPPExpr[G]
 final case class SYCLRange[G](dimensions: Seq[Expr[G]])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLRangeImpl[G]
 final case class SYCLNDRange[G](globalSize: Expr[G], localSize: Expr[G])(implicit val o: Origin) extends SYCLClassObject[G] with SYCLNDRangeImpl[G]
 
+sealed trait SYCLAccessMode[G] extends SYCLClassObject[G] with SYCLAccessModeImpl[G]
+final case class SYCLReadWriteAccess[G]()(implicit val o: Origin) extends SYCLAccessMode[G] with SYCLReadWriteAccessImpl[G]
+final case class SYCLReadOnlyAccess[G]()(implicit val o: Origin) extends SYCLAccessMode[G] with SYCLReadOnlyAccessImpl[G]
 
 final case class JavaName[G](names: Seq[String])(implicit val o: Origin) extends NodeFamily[G] with JavaNameImpl[G] {
   var ref: Option[JavaTypeNameTarget[G]] = None
@@ -1276,11 +1279,16 @@ final case class PVLNew[G](t: Type[G], args: Seq[Expr[G]], givenMap: Seq[(Ref[G,
 
 sealed trait PVLClassDeclaration[G] extends ClassDeclaration[G] with PVLClassDeclarationImpl[G]
 final class PVLConstructor[G](val contract: ApplicableContract[G], val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[ConstructorFailure])(implicit val o: Origin) extends PVLClassDeclaration[G] with PVLConstructorImpl[G]
+
+final case class TSeqProg[G](cls: Ref[G, SeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TSeqProgImpl[G]
+final case class TPVLSeqProg[G](cls: Ref[G, PVLSeqProg[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G]
+final case class TEndpoint[G](cls: Ref[G, Endpoint[G]])(implicit val o: Origin = DiagnosticOrigin) extends DeclaredType[G] with TEndpointImpl[G]
+
 final class PVLEndpoint[G](val name: String, val cls: Ref[G, Class[G]], val args: Seq[Expr[G]])(implicit val o: Origin) extends ClassDeclaration[G] {
   var ref: Option[PVLConstructorTarget[G]] = None
 }
-
 final class PVLSeqProg[G](val name: String, val declarations: Seq[ClassDeclaration[G]], val contract: ApplicableContract[G], val args: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with PVLSeqProgImpl[G] with Declarator[G]
+final case class PVLSeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 
 sealed trait PVLCommunicateSubject[G] extends NodeFamily[G] with PVLCommunicateSubjectImpl[G]
 case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLEndpointNameImpl[G] {
@@ -1293,18 +1301,23 @@ case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end
   var ref: Option[RefPVLEndpoint[G]] = None
 }
 case class PVLCommunicateAccess[G](subject: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
-  var ref: Option[PVLDerefTarget[G]] = None
+  var ref: Option[RefField[G]] = None
 }
 case class PVLCommunicate[G](sender: PVLCommunicateAccess[G], receiver: PVLCommunicateAccess[G])(implicit val o: Origin) extends Statement[G] with PVLCommunicateImpl[G]
+final case class PVLSeqAssign[G](receiver: Ref[G, PVLEndpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G] with PVLSeqAssignImpl[G]
 
+final class Endpoint[G](val cls: Ref[G, Class[G]], val constructor: Ref[G, Procedure[G]], val args: Seq[Expr[G]])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
+final class SeqProg[G](val contract: ApplicableContract[G], val args : Seq[Variable[G]], val endpoints: Seq[Endpoint[G]], val run: SeqRun[G], val decls: Seq[ClassDeclaration[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with SeqProgImpl[G]
+final case class SeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends NodeFamily[G] with SeqRunImpl[G]
 sealed trait Subject[G] extends NodeFamily[G]
-final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G]
-case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(implicit val o: Origin) extends NodeFamily[G]
-final case class Communicate[G](receiver: Access[G], sender: Access[G])(implicit val o: Origin) extends Statement[G]
+final case class EndpointName[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Subject[G] with EndpointNameImpl[G]
+case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(implicit val o: Origin) extends NodeFamily[G] with AccessImpl[G]
+final case class Communicate[G](receiver: Access[G], sender: Access[G])(implicit val o: Origin) extends Statement[G] with CommunicateImpl[G]
+final case class SeqAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G] with SeqAssignImpl[G]
+final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
 
+final case class VeyMontAssignExpression[G](endpoint: Ref[G, Endpoint[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
 final case class CommunicateX[G](receiver: Ref[G, Endpoint[G]], sender: Ref[G, Endpoint[G]], chanType: Type[G], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with CommunicateXImpl[G]
-
-final case class SeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends NodeFamily[G]
 
 sealed trait SilverExpr[G] extends Expr[G] with SilverExprImpl[G]
 final case class SilverDeref[G](obj: Expr[G], field: Ref[G, SilverField[G]])(val blame: Blame[InsufficientPermission])(implicit val o: Origin) extends SilverExpr[G] with HeapDeref[G] with SilverDerefImpl[G]

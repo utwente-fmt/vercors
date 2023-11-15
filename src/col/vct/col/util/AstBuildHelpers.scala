@@ -250,14 +250,7 @@ object AstBuildHelpers {
     }
   }
 
-  private def constOrigin(value: scala.Any): Origin = Origin(
-    Seq(
-      PreferredName("unknown"),
-      ShortPosition("generated"),
-      Context(s"[At generated constant `$value`]"),
-      InlineContext(value.toString),
-    )
-  )
+  private def constOrigin(value: scala.Any): Origin = Origin(Seq(LabelContext(s"constant ${value}")))
 
   def tt[G]: BooleanValue[G] = BooleanValue(true)(constOrigin(true))
   def ff[G]: BooleanValue[G] = BooleanValue(false)(constOrigin(false))
@@ -343,12 +336,20 @@ object AstBuildHelpers {
                        yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): MethodInvocation[G] =
     MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields)(blame)
 
+  def procedureInvocation[G]
+                         (blame: Blame[InvocationFailure],
+                          ref: Ref[G, Procedure[G]],
+                          args: Seq[Expr[G]] = Nil,
+                          outArgs: Seq[Expr[G]] = Nil,
+                          typeArgs: Seq[Type[G]] = Nil,
+                          givenMap: Seq[(Ref[G, Variable[G]], Expr[G])] = Nil,
+                          yields: Seq[(Expr[G], Ref[G, Variable[G]])] = Nil)(implicit o: Origin): ProcedureInvocation[G] =
+    ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields)(blame)
+
   private def GeneratedQuantifier: Origin = Origin(
     Seq(
-      PreferredName("i"),
-      ShortPosition("generated"),
-      Context("[At generated quantifier]"),
-      InlineContext("[Generated quantifier]"),
+      PreferredName(Seq("i")),
+      LabelContext("generated quantifier"),
     )
   )
 
@@ -400,10 +401,8 @@ object AstBuildHelpers {
 
   private def GeneratedLet: Origin = Origin(
     Seq(
-      PreferredName("x"),
-      ShortPosition("generated"),
-      Context("[At generated let]"),
-      InlineContext("[Generated let]"),
+      PreferredName(Seq("x")),
+      LabelContext("generated let"),
     )
   )
 

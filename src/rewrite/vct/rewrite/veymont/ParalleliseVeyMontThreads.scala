@@ -24,7 +24,7 @@ object ParalleliseEndpoints extends RewriterBuilderArg[JavaClass[_]] {
     channelType.toString.capitalize + channelClassName
 
   def getThreadClassName(thread: Endpoint[_]) : String =
-    thread.o.getPreferredNameOrElse().capitalize + threadClassName
+    thread.o.getPreferredNameOrElse().ucamel + threadClassName
 
   def getVarName(v: Variable[_]) = v.o.getPreferredNameOrElse()
 
@@ -34,13 +34,13 @@ object ParalleliseEndpoints extends RewriterBuilderArg[JavaClass[_]] {
   }
 
   private def ThreadClassOrigin(thread: Endpoint[_]): Origin =
-    thread.o.replacePrefName(getThreadClassName(thread))
+    thread.o.where(name = getThreadClassName(thread))
 
   private def ChannelFieldOrigin(channelName: String, assign: Statement[_]): Origin =
-    assign.o.replacePrefName(channelName)
+    assign.o.where(name = channelName)
 
   private def RunMethodOrigin(runMethod: SeqRun[_]): Origin =
-    runMethod.o.replacePrefName("run")
+    runMethod.o.where(name = "run")
 }
 
 case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) extends Rewriter[Pre] { outer =>
@@ -74,7 +74,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     channelClasses.foreach{ case (t,c) =>
       globalDeclarations.declare(c)
     }
-    seqProg.threads.foreach(thread => {
+    seqProg.endpoints.foreach(thread => {
       val threadField = new InstanceField[Post](TClass(givenClassSucc.ref(thread.t)), Set.empty)(thread.o)
       val channelFields = getChannelFields(thread, indexedChannelInfo, channelClasses)
       threadBuildingBlocks.having(new ThreadBuildingBlocks(seqProg.run, seqProg.decls, channelFields, channelClasses, thread, threadField)) {
@@ -110,7 +110,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     // once we make constructors first class.
     def createClassConstructor(p: Procedure[Pre]): JavaConstructor[Post] =
       new JavaConstructor[Post](Seq(JavaPublic[Post]()(p.o)),
-        rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse(),
+        rewritingConstr.top._2.cls.decl.o.getPreferredNameOrElse().ucamel,
         p.args.map(createJavaParam),
         variables.dispatch(p.typeArgs),
         Seq.empty,
@@ -125,12 +125,12 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
         p.contract.rewrite(ensures = UnitAccountedPredicate[Post](BooleanValue(true)(p.o))(p.o)))(null)(p.o)
 
     def createJavaParam(v: Variable[Pre]): JavaParam[Post] =
-      new JavaParam[Post](Seq.empty, getVarName(v), dispatch(v.t))(v.o)
+      new JavaParam[Post](Seq.empty, getVarName(v).camel, dispatch(v.t))(v.o)
 
     override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
       case l: Local[Pre] =>
         if(rewritingConstr.nonEmpty && rewritingConstr.top._1.contains(l.ref.decl))
-          JavaLocal[Post](getVarName(l.ref.decl))(null)(e.o)
+          JavaLocal[Post](getVarName(l.ref.decl).camel)(null)(e.o)
         else rewriteDefault(l)
       case t: ThisObject[Pre] =>
         val thisClassType = TClass(t.cls)
@@ -182,7 +182,7 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
       case other => throw ParalleliseEndpointsError(other,"This node is expected to be an argument of seq_prog, and have type Local")
     }
     val threadConstrArgs: Seq[JavaParam[Post]] =
-      threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a, t)(ThreadClassOrigin(thread)) }
+      threadConstrArgBlocks.map{ case (a,t) => new JavaParam[Post](Seq.empty, a.camel, t)(ThreadClassOrigin(thread)) }
     val passedArgs = threadConstrArgs.map(a => JavaLocal[Post](a.name)(null)(ThreadClassOrigin(thread)))
     // TODO: The next check cannot fail anymore
     val threadTypeName = thread.t match { //TODO: replace by using givenClassSucc
@@ -264,8 +264,8 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
 
   private def getChannelNamesAndTypes(s: Statement[Pre]): Seq[ChannelInfo[Pre]] = {
     s.collect { case e@CommunicateX(recv, sender, chanType, assign) =>
-      new ChannelInfo(e,chanType, recv.decl.o.getPreferredNameOrElse()
-        + sender.decl.o.getPreferredNameOrElse() + "Channel")
+      new ChannelInfo(e,chanType, recv.decl.o.getPreferredNameOrElse().ucamel
+        + sender.decl.o.getPreferredNameOrElse().camel + "Channel")
     }
   }
 

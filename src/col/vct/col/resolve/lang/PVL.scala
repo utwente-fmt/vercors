@@ -15,7 +15,7 @@ case object PVL {
         }
 
         args match {
-          case Nil => resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor()))
+          case Nil => resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor(cls)))
           case _ => resolvedCons
         }
       case TModel(Ref(model)) if args.isEmpty => Some(RefModel(model))
@@ -32,7 +32,7 @@ case object PVL {
       case target: PVLNameTarget[G] if target.name == name => target
     }
 
-  def findDerefOfClass[G](decl: Class[G], name: String): Option[PVLDerefTarget[G]] =
+  def findDerefOfClass[G](decl: Class[G], name: String): Option[RefField[G]] =
     decl.declarations.flatMap(Referrable.from).collectFirst {
       case ref: RefField[G] if ref.name == name => ref
     }

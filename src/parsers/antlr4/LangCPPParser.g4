@@ -803,7 +803,8 @@ templateId:
 templateName: clangppIdentifier;
 
 templateArgumentList:
-	templateArgument Ellipsis? (Comma templateArgument Ellipsis?)*;
+	templateArgument Ellipsis? Comma templateArgumentList
+	| templateArgument Ellipsis?;
 
 templateArgument: theTypeId | constantExpression | idExpression;
 
