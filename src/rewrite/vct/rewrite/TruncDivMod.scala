@@ -44,14 +44,7 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
     FunctionInvocation[Post](truncDiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
   }
 
-  def TruncFunctionOrigin(operator: String, preferredName: String): Origin = Origin(
-    Seq(
-      PreferredName(preferredName),
-      ShortPosition("generated"),
-      Context("[At node generated for `" + operator + "` operator]"),
-      InlineContext(preferredName),
-    )
-  )
+  def truncFunctionOrigin(operator: String) = Origin(Seq(LabelContext("generated at `\" + operator + \"` operator\"")))
 
   /* Make a truncated modulo function.
      It should be equivalent to
@@ -59,10 +52,10 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
      where / and % are euclidean division and modulo, which Viper uses as default.
     */
   def makeTruncModFunction(): Function[Post] = {
-    implicit val o: Origin = TruncFunctionOrigin("%", "unknown")
+    implicit val o: Origin = truncFunctionOrigin("%")
     val new_t = TInt[Post]()
-    val a_var = new Variable[Post](new_t)(TruncFunctionOrigin("%", "a"))
-    val b_var = new Variable[Post](new_t)(TruncFunctionOrigin("%", "b"))
+    val a_var = new Variable[Post](new_t)(truncFunctionOrigin("%").where(name="a"))
+    val b_var = new Variable[Post](new_t)(truncFunctionOrigin("%").where(name="b"))
 
     val a = Local[Post](a_var.ref)
     val b = Local[Post](b_var.ref)
@@ -75,7 +68,7 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
       args = Seq(a_var, b_var),
       requires = UnitAccountedPredicate(b !== const(0)),
       body = Some(let(new_t, a % b, (mod: Local[Post]) => Select(a >= const(0) || mod === const(0), mod, mod - absb)))
-    )(TruncFunctionOrigin("%", "truncMod")))
+    )(truncFunctionOrigin("%").where(name="truncMod")))
   }
 
   /* Make a truncated division function.
@@ -84,10 +77,10 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
    where / and % are euclidean division and modulo, which Viper uses as default.
   */
   def makeTruncDivFunction(): Function[Post] = {
-    implicit val o: Origin = TruncFunctionOrigin("/", "unknown")
+    implicit val o: Origin = truncFunctionOrigin("/")
     val new_t = TInt[Post]()
-    val a_var = new Variable[Post](new_t)(TruncFunctionOrigin("/", "a"))
-    val b_var = new Variable[Post](new_t)(TruncFunctionOrigin("/", "b"))
+    val a_var = new Variable[Post](new_t)(truncFunctionOrigin("/").where(name="a"))
+    val b_var = new Variable[Post](new_t)(truncFunctionOrigin("/").where(name="b"))
 
     val a = Local[Post](a_var.ref)
     val b = Local[Post](b_var.ref)
@@ -102,7 +95,7 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
       body = Some(let(new_t, a / b, (div: Local[Post]) =>
         let(new_t, a % b, (mod: Local[Post]) =>
           Select(a >= const(0) || mod === const(0), div, div + one))))
-    )(TruncFunctionOrigin("/", "truncDiv")))
+    )(truncFunctionOrigin("/").where(name="truncDiv")))
   }
 
 }

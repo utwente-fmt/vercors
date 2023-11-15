@@ -5,7 +5,7 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
-import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
+import vct.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.lang.C
@@ -181,12 +181,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   private val globalMemNames: mutable.Set[RefCParam[Pre]] = mutable.Set()
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
 
-  private def FormalParameterOrigin(inner: Origin): Origin = inner.replacePrefName("formal" + inner.getPreferredNameOrElse().capitalize)
   private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
-    sdecl.o.replacePrefName(sdecl.name.getOrElse("AnonymousStruct"))
+    sdecl.o.where( name = sdecl.name.getOrElse("AnonymousStruct"))
 
   private def CStructFieldOrigin(cdecl: CDeclarator[_]): Origin =
-    cdecl.o.replacePrefName(nameFromDeclarator(cdecl))
+    cdecl.o.where(name = nameFromDeclarator(cdecl))
 
   private def CudaIndexVariableOrigin(dim: RefCudaVecDim[_]): Origin = Origin(
     Seq(
@@ -288,8 +287,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def rewriteGPUParam(cParam: CParam[Pre], kernelSpecifier: CGpgpuKernelSpecifier[Pre]): Unit = {
     cParam.drop()
-    val varO = cParam.o.where(name = C.getDeclaratorInfo(cParam.declarator).name)
     implicit val o: Origin = cParam.o
+    val varO = o.where(name = C.getDeclaratorInfo(cParam.declarator).name)
     val cRef = RefCParam(cParam)
     val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
 
@@ -324,9 +323,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val specType = cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
 
     cParam.drop()
-    val varO = cParam.o.where(name = C.getDeclaratorInfo(cParam.declarator).name)
-
-    val v = new Variable[Post](specType)(varO)
+    val v = new Variable[Post](specType)(cParam.o.where(name = C.getDeclaratorInfo(cParam.declarator).name))
     cNameSuccessor(RefCParam(cParam)) = v
     rw.variables.declare(v)
   }
@@ -731,13 +728,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     // LangTypesToCol makes it so that each declaration only has one init
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
-    val varO: Origin = init.o.replacePrefName(info.name)
     implicit val o: Origin = init.o
 
     decl.decl.specs match {
       case Seq(CSpecificationType(cta@CTArray(sizeOption, oldT))) =>
         val t = rw.dispatch(oldT)
-        val v = new Variable[Post](TPointer(t))(varO)
+        val v = new Variable[Post](TPointer(t))(o.where(name = info.name))
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
         (sizeOption, init.init) match {
@@ -763,7 +759,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def rewriteStructDeclaration(decl: CLocalDeclaration[Pre]): Statement[Post] = {
     val init = decl.decl.inits.head
     val info = C.getDeclaratorInfo(init.decl)
-    val varO: Origin = init.o.replacePrefName(info.name)
 
     val ref = decl.decl.specs match {
       case Seq(CSpecificationType(structSpec: CTStruct[Pre])) => structSpec.ref
@@ -775,7 +770,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val targetClass: Class[Post] = cStructSuccessor(target)
     val t = TClass[Post](targetClass.ref)
 
-    val v = new Variable[Post](t)(varO)
+    val v = new Variable[Post](t)(o.where(name=info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
     Block(Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))))
@@ -804,8 +799,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val init = decl.decl.inits.head
 
     val info = C.getDeclaratorInfo(init.decl)
-    val varO: Origin = init.o.where(name = info.name)
-    val varO: Origin = init.o.replacePrefName(info.name)
+    val v = new Variable[Post](t)(init.o.where(name=info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
     implicit val o: Origin = init.o
     init.init

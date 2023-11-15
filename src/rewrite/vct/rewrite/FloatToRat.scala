@@ -33,20 +33,13 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
     case TFloat(e, m) => s"f${e}_$m"
   }
 
-  def NonDetFloatOrigin(): Origin = Origin(
-    Seq(
-      PreferredName("nonDetFloat"),
-      ShortPosition("generated non-det float"),
-      Context("[At node generated for float to rational conversion]"),
-      InlineContext("nonDetFloat"),
-    )
-  )
+  private val nonDetFloatOrigin: Origin = Origin(Seq(LabelContext("float to rational conversion")))
 
   val nonDetFloat: mutable.Map[Unit, Function[Post]] = mutable.Map()
 
   def getNonDetFloat(): Expr[Post] = {
     val nondetFunc = nonDetFloat.getOrElseUpdate((), makeNondetFloatFunc())
-    FunctionInvocation[Post](nondetFunc.ref, Seq(), Nil, Nil, Nil)(TrueSatisfiable)(NonDetFloatOrigin())
+    FunctionInvocation[Post](nondetFunc.ref, Seq(), Nil, Nil, Nil)(TrueSatisfiable)(nonDetFloatOrigin)
   }
 
   def makeNondetFloatFunc(): Function[Post] = {
@@ -54,7 +47,7 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       blame = AbstractApplicable,
       contractBlame = TrueSatisfiable,
       returnType = TRational(),
-    )(NonDetFloatOrigin()))(NonDetFloatOrigin()))
+    )(nonDetFloatOrigin.where(name= "nonDetFloat")))(nonDetFloatOrigin))
   }
 
   def makeCast(from: TFloat[Pre], to: TFloat[Pre]): Function[Post] = {

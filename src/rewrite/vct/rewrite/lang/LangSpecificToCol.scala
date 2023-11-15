@@ -232,10 +232,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
 
     case Perm(a@AmbiguousLocation(expr), perm)
       if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
-        case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
       c.getBaseType(expr.t) match {
+        case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
       }
-
     case local: CPPLocal[Pre] => cpp.local(local)
     case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)

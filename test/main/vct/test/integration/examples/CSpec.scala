@@ -1,9 +1,7 @@
 package vct.test.integration.examples
 
 import vct.test.integration.helper.VercorsSpec
-import vct.test.tags.CTest
 
-@CTest
 class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/casts.c"
   vercors should verify using silicon example "concepts/c/floats.c"

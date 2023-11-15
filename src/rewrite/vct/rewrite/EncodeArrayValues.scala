@@ -5,7 +5,7 @@ import vct.col.ast.{Expr, _}
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin._
 import vct.col.resolve.lang.Java
-import vct.col.rewrite.lang.LangCToCol.UnsupportedStructPerm
+import vct.rewrite.lang.LangCToCol.UnsupportedStructPerm
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.typerules.CoercionUtils
 import vct.col.util.AstBuildHelpers
@@ -23,14 +23,7 @@ case object EncodeArrayValues extends RewriterBuilder {
 
   private val arrayCreationOrigin: Origin = Origin(Seq(LabelContext("array creation method")))
 
-  private def FreeFuncOrigin(preferedName: String): Origin = Origin(
-    Seq(
-      PreferredName(preferedName),
-      ShortPosition("generated free function"),
-      Context("[At node generated for free function]"),
-      InlineContext(preferedName),
-    )
-  )
+  private val freeFuncOrigin: Origin = Origin(Seq(LabelContext("pointer free method")))
 
   case class ArrayValuesPreconditionFailed(values: Values[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit = error.path match {
@@ -77,19 +70,19 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   val freeMethods: mutable.Map[Type[Post], Procedure[Post]] = mutable.Map()
 
   def makeFree(t: Type[Post]): Procedure[Post] = {
-    implicit val o: Origin = FreeFuncOrigin("free_" + t.toString)
+    implicit val o: Origin = freeFuncOrigin
 
     globalDeclarations.declare({
       val (vars, ptr) = variables.collect {
-        val a_var = new Variable[Post](TPointer(t))(FreeFuncOrigin("p"))
+        val a_var = new Variable[Post](TPointer(t))(o.where(name= "p"))
         variables.declare(a_var)
         Local[Post](a_var.ref)
       }
       val zero = const[Post](0)
       val size = PointerBlockLength(ptr)(FramedPtrBlockLength)
 
-      val i = new Variable[Post](TInt())(FreeFuncOrigin("i"))
-      val j = new Variable[Post](TInt())(FreeFuncOrigin("j"))
+      val i = new Variable[Post](TInt())(o.where(name= "i"))
+      val j = new Variable[Post](TInt())(o.where(name= "j"))
       val access = (i: Variable[Post]) => PointerSubscript(ptr, i.get)(FramedPtrOffset)
 
       val makeStruct = MakeAnns(i, j, size, access(i), Seq(access(i), access(j)))
@@ -128,7 +121,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           requires
         ),
         decreases = Some(DecreasesClauseNoRecursion[Post]())
-      )(o)
+      )(o.where("free_" + t.toString))
     })
   }
 
@@ -166,7 +159,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           i => Seq(Seq(ArraySubscript(arr, i)(TriggerPatternBlame)))
         )
       )
-    )))
+    )(o.where(name="values"))
+    ))
   }
 
   def makeCreationMethodFor(elementType: Type[Pre], definedDims: Int, undefinedDims: Int, initialize: Boolean): Procedure[Post] = {
@@ -267,7 +261,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
   case class MakeAnns(i: Variable[Post], j: Variable[Post], size: Expr[Post], trigger: Expr[Post], triggerUnique: Seq[Expr[Post]]){
     def makePerm(location: Variable[Post] => Location[Post]): Expr[Post] = {
-      implicit val o: Origin = ArrayCreationOrigin()
+      implicit val o: Origin = arrayCreationOrigin
       val blame = PanicBlame("Already checked")
       val zero =  const[Post](0)
       val body = (zero <= i.get && i.get < size) ==> Perm(location(i), WritePerm[Post]())
@@ -275,7 +269,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
     }
 
     def makeUnique(access: Variable[Post] => Expr[Post]): Expr[Post] = {
-      implicit val o: Origin = ArrayCreationOrigin()
+      implicit val o: Origin = arrayCreationOrigin
       val zero = const[Post](0)
       val pre1 = zero <= i.get && i.get < size
       val pre2 = zero <= j.get && j.get < size
@@ -291,19 +285,19 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def makePointerCreationMethodFor(elementType: Type[Pre]) = {
-    implicit val o: Origin = ArrayCreationOrigin()
+    implicit val o: Origin = arrayCreationOrigin
     // ar != null
     // ar.length == dim0
     // forall ar[i] :: Perm(ar[i], write)
     // (if type ar[i] is pointer or struct):
     // forall i,j :: i!=j ==> ar[i] != ar[j]
-    val sizeArg = new Variable[Post](TInt())(ArrayCreationOrigin("size"))
+    val sizeArg = new Variable[Post](TInt())(o.where(name= "size"))
     val zero =  const[Post](0)
 
     globalDeclarations.declare(withResult((result: Result[Post]) => {
       val requires = sizeArg.get >= zero
-      val i = new Variable[Post](TInt())(ArrayCreationOrigin("i"))
-      val j = new Variable[Post](TInt())(ArrayCreationOrigin("j"))
+      val i = new Variable[Post](TInt())(o.where(name= "i"))
+      val j = new Variable[Post](TInt())(o.where(name= "j"))
       val access = (i: Variable[Post]) => PointerSubscript(result, i.get)(FramedPtrOffset)
 
       val makeStruct = MakeAnns(i, j, sizeArg.get, access(i), Seq(access(i), access(j)))
@@ -331,7 +325,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         args = Seq(sizeArg),
         requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures)
-      )(ArrayCreationOrigin("make_pointer_array"))
+      )(o.where(name= "make_pointer_array_" + elementType.toString))
     }))
   }
 
