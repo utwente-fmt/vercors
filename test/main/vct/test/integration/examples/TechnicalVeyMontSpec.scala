@@ -408,4 +408,73 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   }
   """
+
+  vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+     endpoint charlie = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+         charlie.x := true;
+       }
+     }
+  }
+  """
+
+  vercors should verify using silicon in "Loops should also limit the number of participants when combined with branches" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+     endpoint charlie = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+         if (bob.x == true) {
+          bob.x := false;
+         }
+       }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants when combined with branches" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+     endpoint charlie = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+         if (bob.x == true) {
+          bob.x := false;
+          charlie.x := true;
+         }
+       }
+     }
+  }
+  """
+
 }
