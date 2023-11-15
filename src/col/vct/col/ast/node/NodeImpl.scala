@@ -2,11 +2,10 @@ package vct.col.ast.node
 
 import vct.col.ast._
 import vct.col.check._
-import vct.col.origin.Origin.{BOLD_HR, HR}
 import vct.col.origin._
 import vct.col.print._
 import vct.col.ref.Ref
-import vct.result.VerificationError
+import vct.result.{HasContext, VerificationError}
 import vct.col.util.CurrentCheckNodeContext
 
 import scala.runtime.ScalaRunTime
@@ -128,11 +127,11 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
     Group(show).toStringWithContext
   }
 
-  def bareMessageInContext(node: Node[_], message: String): String = {
-    implicit val ctx: Ctx = Ctx().namesIn(this)
-    this.show.highlight(node).strip() + "\n" + HR + message + "\n"
-  }
-
-  def messageInContext(node: Node[_], message: String): String =
-    BOLD_HR + bareMessageInContext(node, message) + BOLD_HR
+  def highlight(node: Node[_]): HasContext =
+    new HasContext {
+      def contextText: String = {
+        implicit val ctx: Ctx = Ctx().namesIn(NodeImpl.this)
+        NodeImpl.this.show.highlight(node).strip()
+      }
+    }
 }

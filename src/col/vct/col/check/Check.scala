@@ -6,6 +6,7 @@ import vct.col.err.ASTStateError
 import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.resolve.ResolveReferences
+import vct.result.{HasContext, Message}
 
 import scala.collection.immutable.ListSet
 import scala.collection.mutable
@@ -19,54 +20,62 @@ case object Check {
 }
 
 sealed trait CheckError {
-  def message(context: (Node[_], String) => String): String = (this match {
-    case TypeError(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
-      Seq(context(expr, s"This expression is not a value."))
-    case TypeErrorText(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
-      Seq(context(expr, s"This expression is not a value."))
-    case TypeError(expr, expectedType) =>
-      Seq(context(expr, s"Expected the type of this expression to be `$expectedType`, but got ${expr.t}."))
-    case TypeErrorText(expr, expectedType) =>
-      Seq(context(expr, s"Expected the type of this expression to be $expectedType, but got ${expr.t}."))
-    case TypeErrorExplanation(expr, message) =>
-      Seq(context(expr, message))
-    case GenericTypeError(t, expectedType) =>
-      Seq(context(t, s"This type variable refers to a name that is not actually a type."))
-    case OutOfScopeError(use, ref) =>
-      Seq(context(use, "This usage is out of scope,"), context(ref.decl, "since it is declared here."))
-    case OutOfWriteScopeError(reason, use, ref) =>
-      Seq(
-        context(use, "This may not be rewritten to, since ..."),
-        context(reason, "declarations outside this node must not be altered, and ..."),
-        context(ref.decl, "... it is declared here."),
-      )
-    case DoesNotDefine(declarator, declaration, use) =>
-      Seq(
-        context(use, "This uses a declaration, which is declared"),
-        context(declaration, "here, but it was expected to be declared"),
-        context(declarator.asInstanceOf[Node[_]], "in this declarator."),
-      )
-    // TODO PB: these are kind of obsolete? maybe?
-    case IncomparableTypes(left, right) =>
-      ???
-    case TupleTypeCount(tup) =>
-      ???
-    case NotAPredicateApplication(res) =>
-      Seq(context(res, "This expression is not a (scaled) predicate application"))
-    case AbstractPredicate(res) =>
-      Seq(context(res, "This predicate is abstract, and hence cannot be meaningfully folded or unfolded"))
-    case RedundantCatchClause(clause) =>
-      Seq(context(clause, "This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block."))
-    case ResultOutsidePostcondition(res) =>
-      Seq(context(res, "\\result may only occur in the postcondition."))
-    case SeqProgStatement(s) => Seq(context(s, "This statement is not allowed in `seq_prog`."))
-    case SeqProgInstanceMethodArgs(m) => Seq(context(m, "An instance method in a `seq_prog` cannot have any arguments."))
-    case SeqProgInstanceMethodBody(m) => Seq(context(m, "An instance method in a `seq_prog` must have a body."))
-    case SeqProgInstanceMethodNonVoid(m) => Seq(context(m, "An instance method in a `seq_prog` must have return type `void`."))
-    case SeqProgInvocation(s) => Seq(context(s, "Only invocations on `this` and endpoints are allowed."))
-    case SeqProgReceivingEndpoint(e) => Seq(context(e, s"Can only refer to the receiving endpoint of this statement."))
-    case SeqProgParticipant(s) => Seq(context(s, s"An endpoint is used in this branch which is not allowed to participate at this point in the program because of earlier branches."))
-  }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
+  def message(context: Node[_] => HasContext): String =
+    Message.messagesInContext((this match {
+      case TypeError(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
+        Seq(context(expr) -> s"This expression is not a value.")
+      case TypeErrorText(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
+        Seq(context(expr) -> s"This expression is not a value.")
+      case TypeError(expr, expectedType) =>
+        Seq(context(expr) -> s"Expected the type of this expression to be `$expectedType`, but got ${expr.t}.")
+      case TypeErrorText(expr, expectedType) =>
+        Seq(context(expr) -> s"Expected the type of this expression to be $expectedType, but got ${expr.t}.")
+      case TypeErrorExplanation(expr, message) =>
+        Seq(context(expr) -> message)
+      case GenericTypeError(t, expectedType) =>
+        Seq(context(t) -> s"This type variable refers to a name that is not actually a type.")
+      case OutOfScopeError(use, ref) =>
+        Seq(context(use) -> "This usage is out of scope,", context(ref.decl) -> "since it is declared here.")
+      case OutOfWriteScopeError(reason, use, ref) =>
+        Seq(
+          context(use) -> "This may not be rewritten to, since ...",
+          context(reason) -> "declarations outside this node must not be altered, and ...",
+          context(ref.decl) -> "... it is declared here.",
+        )
+      case DoesNotDefine(declarator, declaration, use) =>
+        Seq(
+          context(use) -> "This uses a declaration, which is declared",
+          context(declaration) -> "here, but it was expected to be declared",
+          context(declarator.asInstanceOf[Node[_]]) -> "in this declarator.",
+        )
+      // TODO PB: these are kind of obsolete? maybe?
+      case IncomparableTypes(left, right) =>
+        ???
+      case TupleTypeCount(tup) =>
+        ???
+      case NotAPredicateApplication(res) =>
+        Seq(context(res) -> "This expression is not a (scaled) predicate application")
+      case AbstractPredicate(res) =>
+        Seq(context(res) -> "This predicate is abstract, and hence cannot be meaningfully folded or unfolded")
+      case RedundantCatchClause(clause) =>
+        Seq(context(clause) -> "This catch clause is redundant, because it is subsumed by the caught types of earlier catch clauses in this block.")
+      case ResultOutsidePostcondition(res) =>
+        Seq(context(res) -> "\\result may only occur in the postcondition.")
+      case SeqProgStatement(s) =>
+        Seq(context(s) -> "This statement is not allowed in `seq_prog`.")
+      case SeqProgInstanceMethodArgs(m) =>
+        Seq(context(m) -> "An instance method in a `seq_prog` cannot have any arguments.")
+      case SeqProgInstanceMethodBody(m) =>
+        Seq(context(m) -> "An instance method in a `seq_prog` must have a body.")
+      case SeqProgInstanceMethodNonVoid(m) =>
+        Seq(context(m) -> "An instance method in a `seq_prog` must have return type `void`.")
+      case SeqProgInvocation(s) =>
+        Seq(context(s) -> "Only invocations on `this` and endpoints are allowed.")
+      case SeqProgReceivingEndpoint(e) =>
+        Seq(context(e) -> s"Can only refer to the receiving endpoint of this statement.")
+      case SeqProgParticipant(s) =>
+        Seq(context(s) -> s"An endpoint is used in this branch which is not allowed to participate at this point in the program because of earlier branches.")
+    }): _*)
 
   def subcode: String
 }

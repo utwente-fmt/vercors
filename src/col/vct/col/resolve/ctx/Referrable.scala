@@ -1,7 +1,7 @@
 package vct.col.resolve.ctx
 
 import vct.col.ast._
-import vct.col.origin.{Origin, PreferredName}
+import vct.col.origin.SourceName
 import vct.col.resolve.NameLost
 import vct.col.resolve.lang.{C, CPP}
 
@@ -23,9 +23,10 @@ sealed trait Referrable[G] {
     case RefCPPParam(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPFunctionDefinition(decl) => CPP.nameFromDeclarator(decl.declarator)
     case RefCPPGlobalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
-    case RefCPPLambda(decl) => ""
+    case RefCPPCustomType(typeName) => typeName
     case RefCPPLambdaDefinition(decl) => ""
     case RefCPPLocalDeclaration(decls, initIdx) => CPP.nameFromDeclarator(decls.decl.inits(initIdx).decl)
+    case RefSYCLAccessMode(decl) => decl.name
     case RefJavaNamespace(_) => ""
     case RefUnloadedJavaNamespace(_) => ""
     case RefJavaClass(decl) => decl.name
@@ -182,13 +183,13 @@ case object Referrable {
     case decl: PVLSeqRun[G] => RefPVLSeqRun(decl)
   })
 
-  def originName(decl: Declaration[_]): String = decl.o.getPreferredName match {
-    case Some(name) => name
+  def originName(decl: Declaration[_]): String = decl.o.find[SourceName] match {
+    case Some(SourceName(name)) => name
     case _ => throw NameLost(decl.o)
   }
 
-  def originNameOrEmpty(decl: Declaration[_]): String = decl.o.getPreferredName match {
-    case Some(name) => name
+  def originNameOrEmpty(decl: Declaration[_]): String = decl.o.find[SourceName] match {
+    case Some(SourceName(name)) => name
     case _ => ""
   }
 }
@@ -225,7 +226,8 @@ sealed trait SpecInvocationTarget[G]
   extends JavaInvocationTarget[G]
     with CNameTarget[G]
     with CDerefTarget[G] with CInvocationTarget[G]
-    with CPPNameTarget[G] with CPPInvocationTarget[G]
+    with CPPNameTarget[G]
+    with CPPDerefTarget[G] with CPPInvocationTarget[G]
     with PVLInvocationTarget[G]
     with LlvmInvocationTarget[G]
 
@@ -246,10 +248,11 @@ case class RefCLocalDeclaration[G](decls: CLocalDeclaration[G], initIdx: Int) ex
 case class RefCPPTranslationUnit[G](decl: CPPTranslationUnit[G]) extends Referrable[G]
 case class RefCPPParam[G](decl: CPPParam[G]) extends Referrable[G] with CPPNameTarget[G]
 case class RefCPPFunctionDefinition[G](decl: CPPFunctionDefinition[G]) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
-case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
-case class RefCPPLambda[G](decl: CPPLambdaRef[G]) extends Referrable[G] with CPPTypeNameTarget[G] with CPPDerefTarget[G]
-case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with ResultTarget[G]
+case class RefCPPLambdaDefinition[G](decl: CPPLambdaDefinition[G]) extends Referrable[G] with CPPInvocationTarget[G] with CPPTypeNameTarget[G]
+case class RefCPPCustomType[G](typeName: String) extends Referrable[G] with CPPTypeNameTarget[G]
+case class RefCPPGlobalDeclaration[G](decls: CPPGlobalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G] with CPPInvocationTarget[G] with CPPDerefTarget[G] with ResultTarget[G]
 case class RefCPPLocalDeclaration[G](decls: CPPLocalDeclaration[G], initIdx: Int) extends Referrable[G] with CPPNameTarget[G]
+case class RefSYCLAccessMode[G](decl: SYCLAccessMode[G]) extends Referrable[G] with CPPNameTarget[G]
 case class RefJavaNamespace[G](decl: JavaNamespace[G]) extends Referrable[G]
 case class RefUnloadedJavaNamespace[G](names: Seq[String]) extends Referrable[G] with JavaNameTarget[G] with JavaDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G]) extends Referrable[G] with JavaTypeNameTarget[G] with JavaNameTarget[G] with JavaDerefTarget[G] with ThisTarget[G]

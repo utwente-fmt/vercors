@@ -20,8 +20,7 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
   // multiple continue statements referring to the same label. In that case, we only refer to label origin, as
   // that is what all continues have in common. This should be changed if it results in a bad user experience.
   def ContinueToBreakOrigin(labelDeclOrigin: Origin): Origin = {
-    labelDeclOrigin.replacePrefName("continue" + labelDeclOrigin.getPreferredNameOrElse().capitalize)
-      .replaceContext("generated")
+    labelDeclOrigin.where(prefix = "continue", context = "loop label")
   }
 
   val loopLabelToInnerLabel = new mutable.HashMap[LabelDecl[Pre], LabelDecl[Post]]()

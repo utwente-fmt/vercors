@@ -1,7 +1,7 @@
 package vct.col.rewrite
 
 import vct.col.ast._
-import vct.col.origin.{Context, InlineContext, Origin, PreferredName, ShortPosition}
+import vct.col.origin.{LabelContext, Origin, PreferredName}
 import vct.col.ref.LazyRef
 import vct.col.util.AstBuildHelpers._
 
@@ -16,10 +16,8 @@ case class EncodeNdIndex[Pre <: Generation]() extends Rewriter[Pre] {
   class IndexAdt(dim: Int) {
     private def IndexAdtOrigin(preferredName: String): Origin = Origin(
       Seq(
-        PreferredName(preferredName),
-        Context("At: [generated node for index adt]"),
-        InlineContext("[Generated node for index adt]"),
-        ShortPosition("generated"),
+        PreferredName(Seq(preferredName)),
+        LabelContext("index adt"),
       )
     )
 

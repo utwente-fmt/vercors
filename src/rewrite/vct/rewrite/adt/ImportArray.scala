@@ -13,10 +13,8 @@ import scala.collection.mutable
 case object ImportArray extends ImportADTBuilder("array") {
   private def ArrayField(t: Type[_]): Origin = Origin(
     Seq(
-      PreferredName(typeText(t)),
-      ShortPosition("generated"),
-      Context(s"[At field generated for array location of type $t]"),
-      InlineContext(s"[Field generated for array location of type $t]"),
+      PreferredName(Seq(typeText(t))),
+      LabelContext("array field"),
     )
   )
 

@@ -10,6 +10,7 @@ import vct.col.origin.{Blame, DiagnosticOrigin, ExhaleFailed, Origin, SendFailed
 import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
+import vct.result.Message
 import vct.result.VerificationError.UserError
 
 import scala.collection.mutable
@@ -33,10 +34,10 @@ case object EncodeSendRecv extends RewriterBuilder {
   case class DuplicateRecv(left: Recv[_], right: Recv[_]) extends UserError {
     override def code: String = "dupRecv"
     override def text: String =
-      Origin.messagesInContext(Seq(
+      Message.messagesInContext(
         (left.o, "There must be at most one recv statement for a given send, but there is one here ..."),
         (right.o, "... and here."),
-      ))
+      )
   }
 
   case class SendFailedExhaleFailed(send: Send[_]) extends Blame[ExhaleFailed] {

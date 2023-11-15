@@ -1,4 +1,4 @@
-package vct.col.rewrite.lang
+package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{PVLInvocation, _}
@@ -6,12 +6,12 @@ import vct.col.origin.{Origin, PanicBlame, PostBlameSplit, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.RewriteHelpers._
-import vct.col.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
+import vct.rewrite.lang.LangSpecificToCol.{NotAValue, ThisVar}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.{BuiltinField, BuiltinInstanceMethod, ImplicitDefaultPVLConstructor, PVLBuiltinInstanceMethod, RefADTFunction, RefAxiomaticDataType, RefClass, RefEndpoint, RefEnum, RefEnumConstant, RefField, RefFunction, RefInstanceFunction, RefInstanceMethod, RefInstancePredicate, RefModel, RefModelAction, RefModelField, RefModelProcess, RefPVLConstructor, RefPVLEndpoint, RefPredicate, RefProcedure, RefProverFunction, RefVariable, SpecDerefTarget, SpecInvocationTarget, SpecNameTarget}
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.col.resolve.ctx.{ImplicitDefaultPVLConstructor, PVLConstructorTarget}
-import vct.col.rewrite.lang.LangPVLToCol.ModelConstructorNotSupported
+import vct.rewrite.lang.LangPVLToCol.ModelConstructorNotSupported
 import vct.result.VerificationError.SystemError
 
 case object LangPVLToCol {

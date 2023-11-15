@@ -1,12 +1,14 @@
 package vct.parsers.transform
 
-import org.antlr.v4.runtime.{ParserRuleContext, Token}
+import org.antlr.v4.runtime.{ParserRuleContext, Token, TokenStream}
 import vct.antlr4.generated.CPPParser._
 import vct.antlr4.generated.CPPParserPatterns._
+import vct.antlr4.generated.LangCPPLexer
 import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
+import vct.col.resolve.lang.CPP
 import vct.col.util.AstBuildHelpers
 import vct.col.util.AstBuildHelpers._
 import vct.col.{ast => col}
@@ -14,12 +16,53 @@ import vct.col.{ast => col}
 import scala.annotation.nowarn
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 @nowarn("msg=match may not be exhaustive&msg=Some\\(")
 case class CPPToCol[G](override val baseOrigin: Origin,
                        override val blameProvider: BlameProvider,
-                       override val errors: Seq[(Token, Token, ExpectedError)])
+                       override val errors: Seq[(Token, Token, ExpectedError)],
+                       val cppOrigin: Option[(TokenStream, Origin)],
+                      )
   extends ToCol(baseOrigin, blameProvider, errors) {
+
+  override implicit def origin(implicit node: ParserRuleContext): Origin =
+    cppOrigin match {
+      case None => super.origin(node)
+      case Some((indicatorStream, cOrigin)) =>
+        val pos = ctxToOrigin(node.start, node.stop)
+        val interpretedOrigin = baseOrigin.withContent(pos)
+        val startOffset = getLineOffset(indicatorStream, pos.startLineIdx)
+        val endOffset = getLineOffset(indicatorStream, pos.endLineIdx)
+        val posCOrigin = Try((startOffset.get, endOffset.get)).toOption.fold(cOrigin) {
+          case (startOffset, endOffset) =>
+            cOrigin.withContent(PositionRange(
+              pos.startLineIdx + startOffset,
+              pos.endLineIdx + endOffset,
+              startEndColIdx = None
+            ))
+        }
+
+        Origin(interpretedOrigin.originContents ++ posCOrigin.originContents)
+    }
+
+  private def getLineOffset(indicatorStream: TokenStream, lineIdx: Int): Option[Int] = {
+    val firstTokenAtOrPastLine =
+      (0 until indicatorStream.size())
+        .find(i => indicatorStream.get(i).getLine - 1 >= lineIdx)
+        .getOrElse(return None)
+
+    for (tokIdx <- firstTokenAtOrPastLine to 0 by -1) {
+      val markerToken = indicatorStream.get(tokIdx)
+      if (markerToken.getChannel == LangCPPLexer.LINE_DIRECTIVE_CHANNEL) {
+        val lineDirectiveLine = Integer.parseInt(markerToken.getText.split(' ')(1))
+        val tokenLine = markerToken.getLine
+        return Some(lineDirectiveLine - tokenLine - 1)
+      }
+    }
+
+    None
+  }
 
   private var prependNamespace: Boolean = true
   private val currentNamespacePath: mutable.Stack[String] = mutable.Stack()
@@ -93,8 +136,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit compoundStmnt: CompoundStatementContext): Statement[G] = compoundStmnt match {
-    case CompoundStatement0(_, None, _) => Scope(Nil, Block(Seq()))
-    case CompoundStatement0(_, Some(stmntSeq), _) => Scope(Nil, Block(convert(stmntSeq)))
+    case CompoundStatement0(_, None, _) => Scope(Nil, CPPLifetimeScope(Block(Seq())))
+    case CompoundStatement0(_, Some(stmntSeq), _) => Scope(Nil, CPPLifetimeScope(Block(convert(stmntSeq))))
   }
 
   def convert(implicit stmntSeq: StatementSeqContext): Seq[Statement[G]] = stmntSeq match {
@@ -178,12 +221,12 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support do-while loops, 'for(item : list) {}' and expression instead of declaration in a for-loop
   def convert(implicit iterStmnt: IterationStatementContext): Statement[G] = iterStmnt match {
     case IterationStatement0(contract1, _, _, cond, _, contract2, body) => withContract(contract1, contract2, c => {
-      Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), convert(body)))
+      Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement2(contract1, _, _, ForInitStatement1(simpleDecl), cond, _, update, _, contract2, body) =>
       withContract(contract1, contract2, c => {
-        Scope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), convert(body)))
+        Scope(Nil, Loop[G](CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))), cond.map(convert(_)).getOrElse(tt), evalOrNop(update), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
       })
     case IterationStatement2(_, _, _, _, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement3(_, _, _, _, _, _, _, _, _) => ??(iterStmnt)
@@ -399,14 +442,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case PostfixExpression3(target, _, args, _, given, yields) =>
       CPPInvocation(convert(target), args.map(convert(_)) getOrElse Nil,
         convertEmbedGiven(given), convertEmbedYields(yields))(blame(expr))
-    case PostfixExpression4(classVar, _, None, idExpr) =>
-      convert(classVar) match {
-        case CPPLocal(className, None) => convert(idExpr) match {
-          case CPPTypedefName(name, None) => CPPClassInstanceLocal(className, name)(blame(expr))
-          case _ => ??(expr)
-        }
-        case _ => ??(expr)
-      }
+    case PostfixExpression4(classVar, _, None, idExpr) => convert(idExpr) match {
+      case CPPTypedefName(name, Seq()) => CPPClassMethodOrFieldAccess(convert(classVar), name)(blame(expr))
+      case _ => ??(expr)
+    }
     case PostfixExpression4(_, _, _, _) => ??(expr)
     case PostfixExpression5(_, _, _) => ??(expr)
     case PostfixExpression6(_, _, _, _) => ??(expr)
@@ -571,9 +610,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case SimpleTypeSpecifier0(None, typeName) => Seq(convert(typeName))
     case SimpleTypeSpecifier0(Some(nestedNameSpec), typeName) =>
       convert(typeName) match {
-        case CPPTypedefName(name, genericArg) => convert(nestedNameSpec).nestedName match {
-          case s"sycl::$rest" => Seq(SYCLClassDefName(rest + name, genericArg))
-          case other => Seq(CPPTypedefName(other + name, genericArg))
+        case CPPTypedefName(name, genericArgs) => convert(nestedNameSpec).nestedName match {
+          case s"sycl::$rest" => Seq(SYCLClassDefName(rest + name, genericArgs))
+          case other => Seq(CPPTypedefName(other + name, genericArgs))
         }
         case _ => ??(typeSpec)
       }
@@ -612,23 +651,23 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   def convert(implicit nestedNameSpec: NestedNameSpecifierContext): CPPTypedefName[G] = nestedNameSpec match {
     case NestedNameSpecifier0(theTypeName, sep) =>
       convert(theTypeName) match {
-        case name@CPPTypedefName(_, None) => name.appendName(sep)
+        case name@CPPTypedefName(_, Seq()) => name.appendName(sep)
         case _ => ??(theTypeName)
       }
     case NestedNameSpecifier1(namespaceName, sep) => convert(namespaceName).appendName(sep)
     case NestedNameSpecifier2(_, _) => ??(nestedNameSpec)
-    case NestedNameSpecifier3(sep) => CPPTypedefName(sep, None)
+    case NestedNameSpecifier3(sep) => CPPTypedefName(sep, Seq())
     case NestedNameSpecifier4(inner, id, sep) =>
       convert(inner) match {
-        case name@CPPTypedefName(_, None) => name.appendName(convert(id)).appendName(sep)
+        case name@CPPTypedefName(_, Seq()) => name.appendName(convert(id)).appendName(sep)
         case _ => ??(inner)
       }
     case NestedNameSpecifier5(_, _, _, _) => ??(nestedNameSpec)
   }
 
   def convert(implicit namespaceName: NamespaceNameContext): CPPTypedefName[G] = namespaceName match {
-    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(convert(id), None)
-    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(convert(id), None)
+    case NamespaceName0(OriginalNamespaceName0(id)) => CPPTypedefName(convert(id), Seq())
+    case NamespaceName1(NamespaceAlias0(id)) => CPPTypedefName(convert(id), Seq())
   }
 
   // Do not support enum-names and typedef-names
@@ -641,7 +680,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   // Do not support template-names
   def convert(implicit className: ClassNameContext): CPPTypedefName[G] = className match {
-    case ClassName0(name) => CPPTypedefName(convert(name), None)
+    case ClassName0(name) => CPPTypedefName(convert(name), Seq())
     case ClassName1(_) => ??(className)
   }
 
@@ -650,24 +689,44 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case _: TemplateId1Context => ??(templateId)
   }
 
-  // Do not support argument-list with more than one argument
   def convert(implicit simpleTemplateId: SimpleTemplateIdContext): CPPTypeSpecifier[G] = simpleTemplateId match {
-    case SimpleTemplateId0(name, _, arg, _) => CPPTypedefName(convert(name), Some(convert(arg)))
-    case SimpleTemplateId1(_, _, _, _) => ??(simpleTemplateId)
+    case SimpleTemplateId0(name, _, arg, _) => CPPTypedefName(convert(name), Seq(convert(arg)))
+    case SimpleTemplateId1(name, _, Some(args), _) => CPPTypedefName(convert(name), convert(args))
+    case SimpleTemplateId1(name, _, None, _) => CPPTypedefName(convert(name), Seq())
+  }
+
+  def convert(implicit templateArgumentList: TemplateArgumentListContext): Seq[CPPExprOrTypeSpecifier[G]] = templateArgumentList match {
+    case TemplateArgumentList0(arg, None, _, argList) => Seq(convert(arg)) ++ convert(argList)
+    case TemplateArgumentList0(_, _, _, _) => ??(templateArgumentList)
+    case TemplateArgumentList1(arg, None) => Seq(convert(arg))
+    case TemplateArgumentList1(_, _) => ??(templateArgumentList)
   }
 
   // Only support constantExpression
-  def convert(implicit templateArgument: TemplateArgumentContext): Int = templateArgument match {
-    case TemplateArgument0(_) => ??(templateArgument)
-    case TemplateArgument1(constantExpr) => convert(constantExpr) match {
-      case IntegerValue(value) => value.intValue
-      case _ => ??(constantExpr)
+  def convert(implicit templateArgument: TemplateArgumentContext): CPPExprOrTypeSpecifier[G] = templateArgument match {
+    case TemplateArgument0(theTypeId) => convert(theTypeId) match {
+      // Only support one typeSpec
+      case Seq(typeSpec) => CPPExprOrTypeSpecifier(None, Some(typeSpec))
+      case _ => ??(templateArgument)
     }
+    case TemplateArgument1(constantExpr) => CPPExprOrTypeSpecifier(Some(convert(constantExpr)), None)
     case TemplateArgument2(_) => ??(templateArgument)
   }
 
   def convert(implicit templateName: TemplateNameContext): String = templateName match {
     case TemplateName0(identifier) => convert(identifier)
+  }
+
+  // Do not support abstractDeclarator
+  def convert(implicit theTypeId: TheTypeIdContext): Seq[CPPTypeSpecifier[G]] = theTypeId match {
+    case TheTypeId0(typeSpecSeq, None) => convert(typeSpecSeq)
+    case TheTypeId0(_, _) => ??(theTypeId)
+  }
+
+  // Do not support attributeSpecifierSeq
+  def convert(implicit typeSpecSeq: TypeSpecifierSeqContext): Seq[CPPTypeSpecifier[G]] = typeSpecSeq match {
+    case TypeSpecifierSeq0(typeSpecs, None) => typeSpecs.flatMap(convert(_))
+    case TypeSpecifierSeq0(_, _) => ??(typeSpecSeq)
   }
 
   // Do not support trailing return types
@@ -757,7 +816,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support if spread operator '...' is used
   def convert(implicit declaratorId: DeclaratoridContext): CPPDeclarator[G] = declaratorId match {
     case Declaratorid0(None, idExpr) => convert(idExpr) match {
-      case CPPTypedefName(name, None) => CPPName(name)
+      case CPPTypedefName(name, Seq()) => CPPName(name)
       case _ => ??(declaratorId)
     }
     case Declaratorid0(_, _) => ??(declaratorId)
@@ -766,7 +825,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support operatorFunctionId, conversionFunctionId, literalOperatorId, and things starting with a tilde
   def convert(implicit unqualifiedId: UnqualifiedIdContext): CPPTypeSpecifier[G] = unqualifiedId match {
     case UnqualifiedId0(templateId) => convert(templateId)
-    case UnqualifiedId1(clangppId) => CPPTypedefName(convert(clangppId), None)
+    case UnqualifiedId1(clangppId) => CPPTypedefName(convert(clangppId), Seq())
     case UnqualifiedId2(_) => ??(unqualifiedId)
     case UnqualifiedId3(_) => ??(unqualifiedId)
     case UnqualifiedId4(_) => ??(unqualifiedId)
@@ -775,9 +834,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   // Do not support template
   def convert(implicit qualifiedId: QualifiedIdContext): CPPTypeSpecifier[G] = qualifiedId match {
     case QualifiedId0(nestedNameSpec, None, id) => convert(id) match {
-      case CPPTypedefName(name, genericArg) => convert(nestedNameSpec).nestedName match {
-        case s"sycl::$rest" => SYCLClassDefName(rest + name, genericArg)
-        case other => CPPTypedefName(other + name, genericArg)
+      case CPPTypedefName(name, genericArgs) => convert(nestedNameSpec).nestedName match {
+        case s"sycl::$rest" => SYCLClassDefName(rest + name, genericArgs)
+        case other => CPPTypedefName(other + name, genericArgs)
       }
       case _ => ??(qualifiedId)
     }
@@ -833,7 +892,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def local(ctx: ParserRuleContext, name: String): Expr[G] =
-    CPPLocal(name, None)(blame(ctx))(origin(ctx))
+    CPPLocal(name, Seq())(blame(ctx))(origin(ctx))
 
   def convert(decl: LangGlobalDeclContext): Seq[GlobalDeclaration[G]] = decl match {
     case LangGlobalDecl0(decl) => convert(decl)
@@ -903,10 +962,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case ValContractClause2(_, exp, _) => collector.requires += ((contract, convert(exp)))
     case ValContractClause3(_, exp, _) => collector.ensures += ((contract, convert(exp)))
     case ValContractClause4(_, t, id, _) =>
-      val variable = new Variable(convert(t))(origin(contract).replacePrefName((convert(id))))
+      val variable = new Variable(convert(t))(origin(contract).sourceName((convert(id))))
       collector.given += ((contract, variable))
     case ValContractClause5(_, t, id, _) =>
-      val variable = new Variable(convert(t))(origin(contract).replacePrefName((convert(id))))
+      val variable = new Variable(convert(t))(origin(contract).sourceName((convert(id))))
       collector.yields += ((contract, variable))
     case ValContractClause6(_, exp, _) => collector.context_everywhere += ((contract, convert(exp)))
     case ValContractClause7(_, exp, _) =>
@@ -915,7 +974,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case ValContractClause8(_, exp, _) => collector.loop_invariant += ((contract, convert(exp)))
     case ValContractClause9(_, exp, _) => collector.kernel_invariant += ((contract, convert(exp)))
     case ValContractClause10(_, _, t, id, _, exp, _) =>
-      val variable = new Variable(convert(t))(origin(contract).replacePrefName((convert(id))))
+      val variable = new Variable(convert(t))(origin(contract).sourceName((convert(id))))
       collector.signals += ((contract, SignalsClause(variable, convert(exp))(OriginProvider(contract))))
     case ValContractClause11(_, invariant, _) => collector.lock_invariant += ((contract, convert(invariant)))
     case ValContractClause12(_, None, _) => collector.decreases += ((contract, DecreasesClauseNoRecursion()))
@@ -1091,12 +1150,12 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case ValInhale(_, resource, _) => Inhale(convert(resource))
     case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
     case ValLabel(_, label, _) =>
-      Label(new LabelDecl()(origin(stat).replacePrefName(convert(label))), Block(Nil))
+      Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case ValRefute(_, assn, _) => Refute(convert(assn))(blame(stat))
     case ValWitness(_, _, _) => ??(stat)
     case ValGhost(_, stat) => convert(stat)
     case ValSend(_, name, _, delta, _, resource, _) =>
-      Send(new SendDecl()(origin(stat).replacePrefName(convert(name))), convert(delta), convert(resource))(blame(stat))
+      Send(new SendDecl()(origin(stat).sourceName(convert(name))), convert(delta), convert(resource))(blame(stat))
     case ValRecv(_, name, _) =>
       Recv(new UnresolvedRef[G, SendDecl[G]](convert(name)))
     case ValTransfer(_, _, _) => ??(stat)
@@ -1129,7 +1188,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit arg: ValArgContext): Variable[G] = arg match {
-    case ValArg0(t, id) => new Variable(convert(t))(origin(arg).replacePrefName(convert(id)))
+    case ValArg0(paramDecl) => {
+      val param = convert(paramDecl)
+      new Variable(CPP.typeOrReturnTypeFromDeclarator(param.specifiers, param.declarator))(origin(arg).sourceName(CPP.nameFromDeclarator(param.declarator)))
+    }
   }
 
   def convert(implicit args: ValArgListContext): Seq[Variable[G]] = args match {
@@ -1144,16 +1206,16 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit decl: ValGlobalDeclarationContext): Seq[GlobalDeclaration[G]] = decl match {
     case ValAxiom(_, name, _, axiom, _) =>
-      Seq(new SimplificationRule(convert(axiom))(origin(decl).replacePrefName(convert(name))))
+      Seq(new SimplificationRule(convert(axiom))(origin(decl).sourceName(convert(name))))
     case ValPredicate(modifiers, _, name, _, args, _, definition) =>
       withModifiers(modifiers, mods =>
         Seq(new Predicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))
-          (origin(decl).replacePrefName((currentNamespacePath.reverse :+ convert(name)).mkString("::")))))
+          (origin(decl).sourceName((currentNamespacePath.reverse :+ convert(name)).mkString("::")))))
     case ValFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c =>
         withModifiers(modifiers, m => {
-          val namedOrigin = origin(decl).replacePrefName((currentNamespacePath.reverse :+ convert(name)).mkString("::"))
+          val namedOrigin = origin(decl).sourceName((currentNamespacePath.reverse :+ convert(name)).mkString("::"))
           new Function(
             convert(t),
             args.map(convert(_)).getOrElse(Nil),
@@ -1164,12 +1226,12 @@ case class CPPToCol[G](override val baseOrigin: Origin,
         })
       ))
     case ValModel(_, name, _, decls, _) =>
-      Seq(new Model(decls.flatMap(convert(_)))(origin(decl).replacePrefName(convert(name))))
+      Seq(new Model(decls.flatMap(convert(_)))(origin(decl).sourceName(convert(name))))
     case ValGhostDecl(_, inner) =>
       convert(inner)
     case ValAdtDecl(_, name, typeArgs, _, decls, _) =>
       Seq(new AxiomaticDataType(decls.map(convert(_)), typeArgs.map(convert(_)).getOrElse(Nil))(
-        origin(decl).replacePrefName((currentNamespacePath.reverse :+ convert(name)).mkString("::"))
+        origin(decl).sourceName((currentNamespacePath.reverse :+ convert(name)).mkString("::"))
       ))
   }
 
@@ -1183,7 +1245,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       Seq(withModifiers(modifiers, mods => {
         transform(new InstancePredicate(args.map(convert(_)).getOrElse(Nil), convert(definition),
           mods.consume(mods.threadLocal), mods.consume(mods.inline))(
-          origin(decl).replacePrefName(convert(name))))
+          origin(decl).sourceName(convert(name))))
       }))
     case ValInstanceFunction(contract, modifiers, _, t, name, typeArgs, _, args, _, definition) =>
       Seq(withContract(contract, c => {
@@ -1195,7 +1257,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
             convert(definition),
             c.consumeApplicableContract(blame(decl)), m.consume(m.inline))(
             blame(decl))(
-            origin(decl).replacePrefName(convert(name))))
+            origin(decl).sourceName(convert(name))))
         })
       }))
     case ValInstanceGhostDecl(_, decl) => convert(decl).map(transform)
@@ -1204,34 +1266,34 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   def convert(implicit decl: ValModelDeclarationContext): Seq[ModelDeclaration[G]] = decl match {
     case ValModelField(t, name, _) =>
       convert(name).map(name => {
-        new ModelField(convert(t))(origin(decl).replacePrefName(name))
+        new ModelField(convert(t))(origin(decl).sourceName(name))
       })
     case ValModelProcess(contract, _, name, _, args, _, _, definition, _) =>
       Seq(withContract(contract, c => {
         new ModelProcess(args.map(convert(_)).getOrElse(Nil), convert(definition),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
-          blame(decl))(origin(decl).replacePrefName(convert(name)))
+          blame(decl))(origin(decl).sourceName(convert(name)))
       }))
     case ValModelAction(contract, _, name, _, args, _, _) =>
       Seq(withContract(contract, c => {
         new ModelAction(args.map(convert(_)).getOrElse(Nil),
           AstBuildHelpers.foldAnd(c.consume(c.requires)), AstBuildHelpers.foldAnd(c.consume(c.ensures)),
           c.consume(c.modifies).map(new UnresolvedRef[G, ModelField[G]](_)), c.consume(c.accessible).map(new UnresolvedRef[G, ModelField[G]](_)))(
-          origin(decl).replacePrefName(convert(name)))
+          origin(decl).sourceName(convert(name)))
       }))
   }
 
   def convert(implicit ts: ValTypeVarsContext): Seq[Variable[G]] = ts match {
     case ValTypeVars0(_, names, _) =>
-      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).replacePrefName(name)))
+      convert(names).map(name => new Variable(TType(TAnyValue()))(origin(ts).sourceName(name)))
   }
 
   def convert(implicit decl: ValAdtDeclarationContext): ADTDeclaration[G] = decl match {
     case ValAdtAxiom(_, ax, _) => new ADTAxiom(convert(ax))
     case ValAdtFunction(_, returnType, name, _, args, _, _) =>
       new ADTFunction(args.map(convert(_)).getOrElse(Nil), convert(returnType))(
-        origin(decl).replacePrefName(convert(name)))
+        origin(decl).sourceName(convert(name)))
   }
 
   def convert(implicit definition: ValPureDefContext): Option[Expr[G]] = definition match {
@@ -1328,7 +1390,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
     case ValRangeBinding(t, id, _, from, _, to) =>
-      val variable = new Variable[G](convert(t))(origin(id).replacePrefName(convert(id)))
+      val variable = new Variable[G](convert(t))(origin(id).sourceName(convert(id)))
       val cond = SeqMember[G](Local(variable.ref), Range(convert(from), convert(to)))
       (variable, Seq(cond))
     case ValNormalBinding(arg) =>
@@ -1359,14 +1421,14 @@ case class CPPToCol[G](override val baseOrigin: Origin,
         case ValExistsSymb(_) => Exists(variables, Nil, foldAnd(conds :+ body))
       }
     case ValLet(_, _, t, id, _, v, _, body, _) =>
-      Let(new Variable(convert(t))(origin(id).replacePrefName(convert(id))), convert(v), convert(body))
+      Let(new Variable(convert(t))(origin(id).sourceName(convert(id))), convert(v), convert(body))
     case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
       ForPerm(convert(bindings), AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)), convert(body))
   }
 
   def convert(implicit e: ValPrimaryVectorContext): Expr[G] = e match {
     case ValSum(_, _, t, id, _, cond, _, body, _) =>
-      val binding = new Variable(convert(t))(origin(id).replacePrefName(convert(id)))
+      val binding = new Variable(convert(t))(origin(id).sourceName(convert(id)))
       Sum(Seq(binding), convert(cond), convert(body))
     case ValVectorSum(_, _, rng, _, vec, _) => VectorSum(convert(rng), convert(vec))
     case ValVectorCmp(_, _, left, _, right, _) => VectorCompare(convert(left), convert(right))

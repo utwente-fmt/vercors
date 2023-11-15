@@ -12,10 +12,8 @@ import scala.collection.mutable
 case object ImportPointer extends ImportADTBuilder("pointer") {
   private def PointerField(t: Type[_]): Origin = Origin(
     Seq(
-      PreferredName(typeText(t)),
-      ShortPosition("generated"),
-      Context(s"[At field generated for pointer location of type $t]"),
-      InlineContext(s"[Field generated for pointer location of type $t]"),
+      PreferredName(Seq(typeText(t))),
+      LabelContext("pointer field"),
     )
   )
 

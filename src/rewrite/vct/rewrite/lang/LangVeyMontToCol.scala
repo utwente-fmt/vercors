@@ -8,7 +8,7 @@ import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.Ref
 import vct.col.resolve.ctx.RefPVLEndpoint
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.col.rewrite.lang.LangSpecificToCol
+import vct.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol.{EndpointUseNotSupported, NoRunMethod}

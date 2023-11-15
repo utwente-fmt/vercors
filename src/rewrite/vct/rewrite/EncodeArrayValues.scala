@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.FuncTools
 import vct.col.ast.{Expr, _}
 import vct.col.rewrite.error.ExtraNode
-import vct.col.origin.{AbstractApplicable, ArraySize, ArraySizeError, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, Context, ContextEverywhereFailedInPre, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, InlineContext, InvocationFailure, IteratedArrayInjective, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, ShortPosition, TriggerPatternBlame, TrueSatisfiable}
+import vct.col.origin.{AbstractApplicable, ArraySize, ArraySizeError, ArrayValuesError, ArrayValuesFromNegative, ArrayValuesFromToOrder, ArrayValuesNull, ArrayValuesPerm, ArrayValuesToLength, Blame, ContextEverywhereFailedInPre, FailLeft, FailRight, FramedArrIndex, FramedArrLength, FramedSeqIndex, InvocationFailure, IteratedArrayInjective, LabelContext, NoContext, Origin, PanicBlame, PreconditionFailed, PreferredName, TriggerPatternBlame, TrueSatisfiable}
 import vct.col.resolve.lang.Java
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.typerules.CoercionUtils
@@ -17,23 +17,10 @@ case object EncodeArrayValues extends RewriterBuilder {
   override def key: String = "arrayValues"
   override def desc: String = "Encode \\values and array creation into functions/methods."
 
-  private def ValuesFunctionOrigin(preferredName: String = "unknown"): Origin = Origin(
-    Seq(
-      PreferredName(preferredName),
-      ShortPosition("generated"),
-      Context("[At node generated for \\values]"),
-      InlineContext("[Node generated for \\values]"),
-    )
-  )
+  private val valuesFunctionOrigin: Origin =
+    Origin(Seq(LabelContext("\\values function")))
 
-  private def ArrayCreationOrigin(preferredName: String = "unknown"): Origin = Origin(
-    Seq(
-      PreferredName(preferredName),
-      ShortPosition("generated"),
-      Context("[At node generated for array creation]"),
-      InlineContext("[Node generated for array creation]"),
-    )
-  )
+  private val arrayCreationOrigin: Origin = Origin(Seq(LabelContext("array creation method")))
 
   case class ArrayValuesPreconditionFailed(values: Values[_]) extends Blame[PreconditionFailed] {
     override def blame(error: PreconditionFailed): Unit = error.path match {
@@ -68,10 +55,10 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   val arrayCreationMethods: mutable.Map[(Type[Pre], Int, Int), Procedure[Post]] = mutable.Map()
 
   def makeFunctionFor(arrayType: TArray[Pre]): Function[Post] = {
-    implicit val o: Origin = ValuesFunctionOrigin()
-    val arr_var = new Variable[Post](dispatch(arrayType))(ValuesFunctionOrigin("a"))
-    val from_var = new Variable[Post](TInt())(ValuesFunctionOrigin("from"))
-    val to_var = new Variable[Post](TInt())(ValuesFunctionOrigin("to"))
+    implicit val o: Origin = valuesFunctionOrigin
+    val arr_var = new Variable[Post](dispatch(arrayType))(o.where(name = "a"))
+    val from_var = new Variable[Post](TInt())(o.where(name = "from"))
+    val to_var = new Variable[Post](TInt())(o.where(name = "to"))
 
     val arr = Local[Post](arr_var.ref)
     val from = Local[Post](from_var.ref)
@@ -105,9 +92,9 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def makeCreationMethodFor(elementType: Type[Pre], definedDims: Int, undefinedDims: Int): Procedure[Post] = {
-    implicit val o: Origin = ArrayCreationOrigin()
+    implicit val o: Origin = arrayCreationOrigin
 
-    val dimArgs = (0 until definedDims).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"dim$i")))
+    val dimArgs = (0 until definedDims).map(i => new Variable[Post](TInt())(o.where(name = s"dim$i")))
 
     // ar != null
     // ar.length == dim0
@@ -122,7 +109,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
     globalDeclarations.declare(withResult((result: Result[Post]) => {
       val forall = (count: Int,  assn: (Expr[Post], Option[ArrayLocation[Post]]) => Expr[Post]) => {
-        val bindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"i$i")))
+        val bindings = (0 until count).map(i => new Variable[Post](TInt())(o.where(name = s"i$i")))
         val access = (0 until count).foldLeft[Expr[Post]](result)((e, i) => ArraySubscript(e, bindings(i).get)(FramedArrIndex))
         val cond = foldAnd[Post](bindings.zip(dimArgs).map { case (i, dim) => const(0) <= i.get && i.get < dim.get })
 
@@ -136,8 +123,8 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
 
       val ensures = foldStar((0 until definedDims).map(count => {
         val injective = if(count > 0) {
-          val leftBindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"i$i")))
-          val rightBindings = (0 until count).map(i => new Variable[Post](TInt())(ArrayCreationOrigin(s"j$i")))
+          val leftBindings = (0 until count).map(i => new Variable[Post](TInt())(o.where(name = s"i$i")))
+          val rightBindings = (0 until count).map(i => new Variable[Post](TInt())(o.where(name = s"j$i")))
 
           val leftRanges = leftBindings.zip(dimArgs).map { case (i, dim) => const[Post](0) <= i.get && i.get < dim.get }
           val rightRanges = rightBindings.zip(dimArgs).map { case (i, dim) => const[Post](0) <= i.get && i.get < dim.get }
@@ -170,7 +157,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         args = dimArgs,
         requires = UnitAccountedPredicate(requires),
         ensures = UnitAccountedPredicate(ensures &* forall(definedDims, (access, _) => access === undefinedValue))
-      )(ArrayCreationOrigin("make_array"))
+      )(o.where(name = "make_array"))
     }))
   }
 
