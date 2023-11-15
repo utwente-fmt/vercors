@@ -352,9 +352,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   }
   """
-}
 
-class TechnicalVeyMontSpec2 extends VercorsSpec {
   vercors should verify using silicon in "Programs where branch conditions agree should verify" pvl
   """
   class Storage {

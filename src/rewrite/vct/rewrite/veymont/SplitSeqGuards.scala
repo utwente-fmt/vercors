@@ -61,7 +61,11 @@ case class SplitSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
       unfoldBranch(branch.branches)(branch.blame, branch.o)
 
     case loop: UnresolvedSeqLoop[Pre] if currentProg.nonEmpty =>
-      ???
+      SeqLoop(
+        inferSeqGuard(loop.cond),
+        dispatch(loop.contract),
+        dispatch(loop.body)
+      )(loop.blame)(loop.o)
 
     case statement => rewriteDefault(statement)
   }

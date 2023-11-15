@@ -26,6 +26,13 @@ case class DeduplicateSeqGuards[Pre <: Generation]() extends Rewriter[Pre] {
       }
       branch.rewrite(guards = dedup(guards))
 
+    case loop: SeqLoop[Pre] =>
+      val guards: Seq[EndpointGuard[Pre]] = loop.guards.map {
+        case guard: EndpointGuard[Pre] => guard
+        case guard: UnpointedGuard[Pre] => ??? // Excluded by RemoveUnpointedGuard
+      }
+      loop.rewrite(guards = dedup(guards))
+
     case _ => rewriteDefault(statement)
   }
 

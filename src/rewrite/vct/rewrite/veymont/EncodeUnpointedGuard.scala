@@ -14,7 +14,7 @@ import scala.collection.immutable.ListSet
 
 object EncodeUnpointedGuard extends RewriterBuilder {
   override def key: String = "encodeUnpointedGuard"
-  override def desc: String = "Removes unpointed guard by duplicating the condition to all guards currently participating"
+  override def desc: String = "Encodes unpointed guard by duplicating the condition to all guards currently participating"
 }
 
 case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
@@ -38,6 +38,17 @@ case class EncodeUnpointedGuard[Pre <: Generation]() extends Rewriter[Pre] {
       currentParticipants.having(newParticipants) {
         branch.rewrite(guards = branch.guards.flatMap(rewriteGuard))
       }
+
+    case loop: SeqLoop[Pre] =>
+      val newParticipants = if (loop.hasUnpointed) {
+        currentParticipants.top
+      } else {
+        ListSet.from(loop.participants)
+      }
+      currentParticipants.having(newParticipants) {
+        loop.rewrite(guards = loop.guards.flatMap(rewriteGuard))
+      }
+
     case statement => rewriteDefault(statement)
   }
 

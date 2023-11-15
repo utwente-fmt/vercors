@@ -335,7 +335,7 @@ case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_]) extends
   override def inlineDesc: String = "The agreement of two conditions in this branch could not be established before the loop."
 }
 
-case class LoopUnanimityMaintained(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
   override def code: String = "loopUnanimityNotMaintained"
 
   override def desc: String = Message.messagesInContext(

@@ -1,12 +1,12 @@
 package vct.rewrite.veymont
 
 import vct.col.ast._
-import vct.col.origin.{AssertFailed, Blame, BranchUnanimityFailed}
+import vct.col.origin.{AssertFailed, Blame, BranchUnanimityFailed, LoopUnanimityNotEstablished, LoopUnanimityNotMaintained, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.EncodeSeqBranchUnanimity.ForwardBranchUnanimity
+import vct.rewrite.veymont.EncodeSeqBranchUnanimity.{ForwardBranchUnanimity, ForwardLoopUnanimityNotEstablished, ForwardLoopUnanimityNotMaintained}
 
 object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   override def key: String = "encodeSeqBranchUnanimity"
@@ -15,6 +15,16 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   case class ForwardBranchUnanimity(branch: SeqBranch[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
       branch.blame.blame(BranchUnanimityFailed(c1, c2))
+  }
+
+  case class ForwardLoopUnanimityNotEstablished(loop: SeqLoop[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      loop.blame.blame(LoopUnanimityNotEstablished(c1, c2))
+  }
+
+  case class ForwardLoopUnanimityNotMaintained(loop: SeqLoop[_], c1: SeqGuard[_], c2: SeqGuard[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
+      loop.blame.blame(LoopUnanimityNotMaintained(c1, c2))
   }
 }
 
@@ -37,7 +47,7 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
       if (cons) dispatch(yes) dispatch(no)
        */
       val assignments: Seq[Assign[Post]] = guards.map { guard =>
-        guardSucc(guard) = new Variable(TBool())
+        guardSucc(guard) = new Variable(TBool())(guard.o.where(name = "g"))
         assignLocal(guardSucc(guard).get, dispatch(guard.condition))
       }
 
@@ -64,6 +74,42 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
         majorAssign :+
         finalIf
       ))
+
+    case loop@SeqLoop(guards, contract, body) =>
+      implicit val o = statement.o
+
+      val assignments: Seq[Assign[Post]] = guards.map { guard =>
+        guardSucc(guard) = new Variable(TBool())(guard.o.where(name = "g"))
+        assignLocal(guardSucc(guard).get, dispatch(guard.condition))
+      }
+
+      val establishAssertions: Seq[Assert[Post]] = (0 until guards.length - 1).map { i =>
+        val c1 = guards(i)
+        val c2 = guards(i + 1)
+        Assert(guardSucc(c1).get === guardSucc(c2).get)(ForwardLoopUnanimityNotEstablished(loop, c1, c2))
+      }
+
+      val maintainAssertions: Seq[Assert[Post]] = (0 until guards.length - 1).map { i =>
+        val c1 = guards(i)
+        val c2 = guards(i + 1)
+        Assert(guardSucc(c1).get === guardSucc(c2).get)(ForwardLoopUnanimityNotMaintained(loop, c1, c2))
+      }
+
+      val combinedCond = new Variable[Post](TBool())(loop.o.where(name = "combined"))
+      val combinedAssign: Assign[Post] = assignLocal[Post](
+        combinedCond.get,
+        foldAnd(guards.map(guard => guardSucc(guard).get))
+      )
+
+      val finalLoop: Loop[Post] = Loop(
+        Block(assignments ++ establishAssertions :+ combinedAssign),
+        combinedCond.get,
+        Block(assignments ++ maintainAssertions :+ combinedAssign),
+        dispatch(contract),
+        dispatch(body)
+      )
+
+      Scope(guards.map(guardSucc(_)) :+ combinedCond, finalLoop)
 
     case statement => rewriteDefault(statement)
   }
