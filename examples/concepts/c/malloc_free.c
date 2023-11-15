@@ -6,6 +6,11 @@ struct d{
  int x;
 };
 
+struct e{
+ struct d s;
+ int x;
+};
+
 int main(){
     int* xs = (int*) malloc(sizeof(int)*3);
 
@@ -26,6 +31,11 @@ int main(){
     ys[1].x = 2;
     ys[2].x = 1;
     free(ys);
+
+    struct e* a = (struct e*) malloc(1*sizeof(struct e));
+    a->s.x = 1;
+    struct d* b = &(a->s);
+    free(a);
 
     float * z = (float *) malloc(sizeof(float));
     z[0] = 3.0;

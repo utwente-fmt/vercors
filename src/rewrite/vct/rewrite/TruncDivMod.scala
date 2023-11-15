@@ -1,4 +1,4 @@
-package vct.rewrite
+package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.origin._
@@ -7,8 +7,8 @@ import vct.col.util.AstBuildHelpers._
 
 import scala.collection.mutable
 
-case object TDivMod extends RewriterBuilder {
-  override def key: String = "tdivmod"
+case object TruncDivMod extends RewriterBuilder {
+  override def key: String = "truncDivmod"
   override def desc: String = "Encode truncated division and modulo using euclidean division and modulo."
 }
 
@@ -16,35 +16,35 @@ case object TDivMod extends RewriterBuilder {
 // So here we rewrite the truncated versions towards versions that use the euclidean definition
 // See the paper Division and Modulus for Computer Scientists by DAAN LEIJEN for details
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf
-case class TDivMod[Pre <: Generation]() extends Rewriter[Pre] {
+case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = e match {
-    case mod: TMod[Pre] => tmod(mod)
-    case mod: TDiv[Pre] => tdiv(mod)
+    case mod: TruncMod[Pre] => truncMod(mod)
+    case mod: TruncDiv[Pre] => truncDiv(mod)
     case other => rewriteDefault(other)
   }
 
 
-  val tmodFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
-  val tdivFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
+  val truncModFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
+  val truncDivFunctions: mutable.Map[Unit, Function[Post]] = mutable.Map()
 
-  def tmod(mod: TMod[Pre]): Expr[Post] = {
-    val tmod_func = tmodFunctions.getOrElseUpdate((), makeTModFunction())
+  def truncMod(mod: TruncMod[Pre]): Expr[Post] = {
+    val truncModFunc = truncModFunctions.getOrElseUpdate((), makeTruncModFunction())
     // TODO: How to get blame right? It is a DivByZero blame, but that is exactly why a function invocation might fail.
-    FunctionInvocation[Post](tmod_func.ref, Seq(dispatch(mod.left), dispatch(mod.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(mod.o)
+    FunctionInvocation[Post](truncModFunc.ref, Seq(dispatch(mod.left), dispatch(mod.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(mod.o)
   }
 
-  def tdiv(div: TDiv[Pre]): Expr[Post] = {
-    div.left.t match {
-      case _: TFloat[Pre] => return FloorDiv[Post](dispatch(div.left), dispatch(div.right))(div.blame)(div.o)
+  def truncDiv(div: TruncDiv[Pre]): Expr[Post] = {
+    div.t match {
+      case _: TFloat[Pre] => return FloatDiv[Post](dispatch(div.left), dispatch(div.right))(div.blame)(div.o)
       case _ =>
     }
 
-    val tdiv_func = tdivFunctions.getOrElseUpdate((), makeTDivFunction())
-    FunctionInvocation[Post](tdiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
+    val truncDiv_func = truncDivFunctions.getOrElseUpdate((), makeTruncDivFunction())
+    FunctionInvocation[Post](truncDiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
   }
 
-  def TFunctionOrigin(operator: String, preferredName: String): Origin = Origin(
+  def TruncFunctionOrigin(operator: String, preferredName: String): Origin = Origin(
     Seq(
       PreferredName(preferredName),
       ShortPosition("generated"),
@@ -55,14 +55,14 @@ case class TDivMod[Pre <: Generation]() extends Rewriter[Pre] {
 
   /* Make a truncated modulo function.
      It should be equivalent to
-      tmod(a,b) = let mod == (a % b) in (a >= 0 || mod == 0) ? mod : mod - abs(b)
+      truncMod(a,b) = let mod == (a % b) in (a >= 0 || mod == 0) ? mod : mod - abs(b)
      where / and % are euclidean division and modulo, which Viper uses as default.
     */
-  def makeTModFunction(): Function[Post] = {
-    implicit val o: Origin = TFunctionOrigin("%", "unknown")
+  def makeTruncModFunction(): Function[Post] = {
+    implicit val o: Origin = TruncFunctionOrigin("%", "unknown")
     val new_t = TInt[Post]()
-    val a_var = new Variable[Post](new_t)(TFunctionOrigin("%", "a"))
-    val b_var = new Variable[Post](new_t)(TFunctionOrigin("%", "b"))
+    val a_var = new Variable[Post](new_t)(TruncFunctionOrigin("%", "a"))
+    val b_var = new Variable[Post](new_t)(TruncFunctionOrigin("%", "b"))
 
     val a = Local[Post](a_var.ref)
     val b = Local[Post](b_var.ref)
@@ -75,19 +75,19 @@ case class TDivMod[Pre <: Generation]() extends Rewriter[Pre] {
       args = Seq(a_var, b_var),
       requires = UnitAccountedPredicate(b !== const(0)),
       body = Some(let(new_t, a % b, (mod: Local[Post]) => Select(a >= const(0) || mod === const(0), mod, mod - absb)))
-    )(TFunctionOrigin("%", "tmod")))
+    )(TruncFunctionOrigin("%", "truncMod")))
   }
 
   /* Make a truncated division function.
    It should be equivalent to
-    tdiv(a,b) = let div == (a / b) in let mod == (a % b) in (a >= 0 || mod == 0) ? div : div + (b > 0 ? 1 : -1)
+    truncDiv(a,b) = let div == (a / b) in let mod == (a % b) in (a >= 0 || mod == 0) ? div : div + (b > 0 ? 1 : -1)
    where / and % are euclidean division and modulo, which Viper uses as default.
   */
-  def makeTDivFunction(): Function[Post] = {
-    implicit val o: Origin = TFunctionOrigin("/", "unknown")
+  def makeTruncDivFunction(): Function[Post] = {
+    implicit val o: Origin = TruncFunctionOrigin("/", "unknown")
     val new_t = TInt[Post]()
-    val a_var = new Variable[Post](new_t)(TFunctionOrigin("/", "a"))
-    val b_var = new Variable[Post](new_t)(TFunctionOrigin("/", "b"))
+    val a_var = new Variable[Post](new_t)(TruncFunctionOrigin("/", "a"))
+    val b_var = new Variable[Post](new_t)(TruncFunctionOrigin("/", "b"))
 
     val a = Local[Post](a_var.ref)
     val b = Local[Post](b_var.ref)
@@ -102,7 +102,7 @@ case class TDivMod[Pre <: Generation]() extends Rewriter[Pre] {
       body = Some(let(new_t, a / b, (div: Local[Post]) =>
         let(new_t, a % b, (mod: Local[Post]) =>
           Select(a >= const(0) || mod === const(0), div, div + one))))
-    )(TFunctionOrigin("/", "tdiv")))
+    )(TruncFunctionOrigin("/", "truncDiv")))
   }
 
 }

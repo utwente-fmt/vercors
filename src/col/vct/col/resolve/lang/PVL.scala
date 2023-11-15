@@ -1,7 +1,7 @@
 package vct.col.resolve.lang
 
 import vct.col.ast.{TNotAValue, _}
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._

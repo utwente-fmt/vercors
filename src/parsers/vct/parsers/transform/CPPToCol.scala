@@ -4,7 +4,7 @@ import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import vct.antlr4.generated.CPPParser._
 import vct.antlr4.generated.CPPParserPatterns._
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.util.AstBuildHelpers
@@ -222,8 +222,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     PreAssignExpression(target, op match {
       case AssignmentOperator0(_) => value
       case AssignmentOperator1(_) => AmbiguousMult(target, value)
-      case AssignmentOperator2(_) => TDiv(target, value)(blame(expr))
-      case AssignmentOperator3(_) => TMod(target, value)(blame(expr))
+      case AssignmentOperator2(_) => TruncDiv(target, value)(blame(expr))
+      case AssignmentOperator3(_) => TruncMod(target, value)(blame(expr))
       case AssignmentOperator4(_) => col.AmbiguousPlus(target, value)(blame(valueNode))
       case AssignmentOperator5(_) => col.AmbiguousMinus(target, value)(blame(valueNode))
       case _ => ??(op)
@@ -308,9 +308,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => TDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => TMod(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
 
@@ -1044,7 +1044,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {

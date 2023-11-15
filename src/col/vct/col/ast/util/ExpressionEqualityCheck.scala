@@ -240,44 +240,15 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       case (Neq(lhs1, lhs2), Neq(rhs1, rhs2)) => comm(lhs1, lhs2, rhs1, rhs2)
 
       //Non commutative operators
-      case (Exp(lhs1, lhs2), Exp(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Minus(lhs1, lhs2), Minus(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Div(lhs1, lhs2), Div(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (FloorDiv(lhs1, lhs2), FloorDiv(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Mod(lhs1, lhs2), Mod(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
+      case (e1: BinExpr[G], e2: BinExpr[G]) =>
+        equalExpressionsRecurse(e1.left, e2.left) && equalExpressionsRecurse(e1.right, e2.right)
 
-      case (BitShl(lhs1, lhs2), BitShl(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (BitShr(lhs1, lhs2), BitShr(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (BitUShr(lhs1, lhs2), BitUShr(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-
-      case (Implies(lhs1, lhs2), Implies(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
       case (Star(lhs1, lhs2), Star(rhs1, rhs2)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
       case (Wand(lhs1, lhs2), Wand(rhs1, rhs2)) =>
         equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-
-      case (Greater(lhs1, lhs2), Greater(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (Less(lhs1, lhs2), Less(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (GreaterEq(lhs1, lhs2), GreaterEq(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-      case (LessEq(lhs1, lhs2), LessEq(rhs1, rhs2)) =>
-        equalExpressionsRecurse(lhs1, rhs1) && equalExpressionsRecurse(lhs2, rhs2)
-
       // Unary expressions
-      case (UMinus(lhs), UMinus(rhs)) => equalExpressionsRecurse(lhs, rhs)
-      case (BitNot(lhs), BitNot(rhs)) => equalExpressionsRecurse(lhs, rhs)
-      case (Not(lhs), Not(rhs)) => equalExpressionsRecurse(lhs, rhs)
+      case (e1: UnExpr[G], e2: UnExpr[G]) => equalExpressionsRecurse(e1.arg, e2.arg)
 
       // Variables
       case (name1: Local[G], name2: Local[G]) =>

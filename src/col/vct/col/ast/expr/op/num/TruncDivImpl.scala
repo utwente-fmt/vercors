@@ -1,9 +1,9 @@
 package vct.col.ast.expr.op.num
 
-import vct.col.ast.TDiv
+import vct.col.ast.TruncDiv
 import vct.col.print.{Ctx, Doc, Precedence}
 
-trait TDivImpl[G] { this: TDiv[G] =>
+trait TruncDivImpl[G] { this: TruncDiv[G] =>
   override def precedence: Int = Precedence.MULTIPLICATIVE
   override def layout(implicit ctx: Ctx): Doc = lassoc(left, "/", right)
 }

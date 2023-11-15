@@ -619,8 +619,8 @@ case class JavaToCol[G](override val baseOrigin: Origin,
       mul match {
         case MulOp0(op) => op match {
           case "*" => AmbiguousMult(left, right)
-          case "/" => TDiv(left, right)(blame(expr))
-          case "%" => TMod(left, right)(blame(expr))
+          case "/" => TruncDiv(left, right)(blame(expr))
+          case "%" => TruncMod(left, right)(blame(expr))
         }
         case MulOp1(specOp) => convert(expr, specOp, left, right)
       }
@@ -666,14 +666,14 @@ case class JavaToCol[G](override val baseOrigin: Origin,
         case "+=" => AmbiguousPlus(target, value)(blame(right))
         case "-=" => AmbiguousMinus(target, value)(blame(right))
         case "*=" => AmbiguousMult(target,  value)
-        case "/=" => TDiv(target,  value)(blame(expr))
+        case "/=" => TruncDiv(target,  value)(blame(expr))
         case "&=" => AmbiguousComputationalAnd(target, value)
         case "|=" => BitOr(target, value)
         case "^=" => BitXor(target, value)
         case ">>=" => BitShr(target, value)
         case ">>>=" => BitUShr(target, value)
         case "<<=" => BitShl(target, value)
-        case "%=" => TMod(target, value)(blame(expr))
+        case "%=" => TruncMod(target, value)(blame(expr))
       })(blame(expr))
   }
 
@@ -1088,7 +1088,7 @@ case class JavaToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {

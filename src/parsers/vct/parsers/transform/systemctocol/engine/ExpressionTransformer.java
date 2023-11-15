@@ -1059,7 +1059,7 @@ public class ExpressionTransformer<T> {
             case "+=" -> new Plus<>(left, right, OriGen.create());
             case "-=" -> new Minus<>(left, right, OriGen.create());
             case "*=" -> new Mult<>(left, right, OriGen.create());
-            case "/=" -> new Div<>(left, right, new GeneratedBlame<>(), OriGen.create());
+            case "/=" -> new RatDiv<>(left, right, new GeneratedBlame<>(), OriGen.create());
             case "%=" -> new Mod<>(left, right, new GeneratedBlame<>(), OriGen.create());
             case "&=" -> new AmbiguousComputationalAnd<>(left, right, OriGen.create());
             case "|=" -> new AmbiguousComputationalOr<>(left, right, OriGen.create());

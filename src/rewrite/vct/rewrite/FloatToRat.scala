@@ -3,7 +3,7 @@ package vct.col.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.lang.PVL
@@ -97,12 +97,11 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
         denominator = denominator * 10
       }
       const[Post](numerator.toBigIntExact.get) /:/ const(denominator)
-    case div @ FloorDiv(left, right) if left.t.isInstanceOf[TFloat[Pre]] =>
+    case div @ FloatDiv(left, right) =>
       // Normally floats don't fail on division by zero, they get the `inf` value. Rewriting this to not fail on division by zero.
       implicit val o: Origin = div.o
       val newRight = dispatch(right)
-//      Div(dispatch(left), newRight)(div.blame)
-      Select(newRight !== const[Post](0) /:/ const(1), Div(dispatch(left), newRight)(div.blame)(div.o), getNonDetFloat())(div.o)
+      Select(newRight !== const[Post](0) /:/ const(1), RatDiv(dispatch(left), newRight)(div.blame)(div.o), getNonDetFloat())(div.o)
     case e => rewriteDefault(e)
   }
 

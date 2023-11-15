@@ -6,7 +6,7 @@ struct point {
     int y;
 };
 
-struct rect{
+struct triangle{
     struct point p1, p2, p3;
 };
 
@@ -64,7 +64,7 @@ void alter_copy_struct_2(struct point p){
   context r != NULL ** Perm(r, 1\2) ** Perm(*r, 1\2);
   ensures \result == (r->p1.x + r->p2.x + r->p3.x)/3;
 @*/
-int avr_x(struct rect *r){
+int avr_x(struct triangle *r){
     return (r->p1.x + r->p2.x + r->p3.x)/3;
 }
 /*@
@@ -148,7 +148,7 @@ int main(){
     p1.x = 1; p1.y = 1;
     p2.x = 2; p1.y = 2;
     p3.x = 3; p1.y = 3;
-    struct rect r, *rr;
+    struct triangle r, *rr;
     rr = &r;
     r.p1 = p1;
     r.p2 = p2;

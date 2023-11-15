@@ -3,8 +3,7 @@ package vct.col.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
-import vct.col.ast.`type`.TFloats.ieee754_32bit
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.rewrite.lang.LangSpecificToCol.NotAValue
 import vct.col.origin._
@@ -200,7 +199,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   class CudaVec(ref: RefCudaVec[Pre])(implicit val o: Origin) {
     val indices: ListMap[RefCudaVecDim[Pre], Variable[Post]] =
       ListMap(Seq(RefCudaVecX[Pre](ref), RefCudaVecY[Pre](ref), RefCudaVecZ[Pre](ref)).map(
-        dim => dim -> new Variable[Post](TInt())(CudaIndexVariableOrigin(dim))
+        dim => dim -> new Variable[Post](TCInt())(CudaIndexVariableOrigin(dim))
       ): _*)
   }
 
@@ -242,32 +241,32 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def isRatFloatOrInt(t: Type[Pre]): Boolean = getBaseType(t) match {
-    case _: TFloat[Pre] => true
+    case _: FloatType[Pre] => true
     case _: TRational[Pre] => true
-    case _: TInt[Pre] => true
+    case _: IntType[Pre] => true
     case _ => false
   }
 
   def isFloat(t: Type[Pre]): Boolean = getBaseType(t) match {
-      case _: TFloat[Pre] => true
+      case _: FloatType[Pre] => true
       case _ => false
   }
 
   def getBaseType(t: Type[Pre]): Type[Pre] = t match {
     case CPrimitiveType(specs) =>
-      val typeSpecs = specs
-        .filterNot(_.isInstanceOf[CSpecificationModifier[_]])
-        .filterNot(_.isInstanceOf[CStorageClassSpecifier[_]])
-      typeSpecs match {
-        case Seq(CSpecificationType(t)) => t
-        case other => CPrimitiveType(other)
-      }
+//      val typeSpecs = specs.collect { case spec: CTypeSpecifier[Pre] => spec }
+//      typeSpecs match {
+//        case Seq(defn @ CStructSpecifier(_)) => t
+//        case other => CPrimitiveType(other)
+//      }
+      C.getPrimitiveType(specs)
     case _ => t
   }
 
   def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean = (castType, getBaseType(exprType)) match {
     case (tc, te) if tc == te => true
-    case (TInt(), TBoundedInt(_, _)) => true
+    case (TCInt(), TBoundedInt(_, _)) => true
+    case (TBoundedInt(_, _), TCInt()) => true
     case _ => false
   }
 
@@ -442,7 +441,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     {
       implicit val o: Origin = getCDecl(d).o
       val varO: Origin = o.replacePrefName(s"${C.getDeclaratorInfo(getCDecl(d)).name}_size")
-      val v = new Variable[Post](TInt())(varO)
+      val v = new Variable[Post](TCInt())(varO)
       dynamicSharedMemLengthVar(d) = v
       rw.variables.declare(v)
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
@@ -1031,68 +1030,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case _ => false
   }
 
-  private def FreeFuncOrigin(preferedName: String = "unknown"): Origin = Origin(
-    Seq(
-      PreferredName(preferedName),
-      ShortPosition("generated free function"),
-      Context("[At node generated for free function]"),
-      InlineContext(preferedName),
-    )
-  )
-
-
-  val freeMethods: mutable.Map[Type[Post], Procedure[Post]] = mutable.Map()
-
-  def makeFree(t: Type[Post], global: RefCGlobalDeclaration[Pre]): Procedure[Post] = {
-    val RefCGlobalDeclaration(decls, idx) = global
-    val f = decls.decl.inits(idx)
-
-    val args = C.getDeclaratorInfo(decls.decl.inits(idx).decl).params.get
-
-    implicit val o: Origin = FreeFuncOrigin()
-    rw.globalDeclarations.declare({
-      val (vars, ptr) = rw.variables.collect {
-        val Seq(v: CParam[Pre]) = args
-        val a_var = new Variable[Post](TPointer(t))(v.o)
-        rw.variables.declare(a_var)
-        Local[Post](a_var.ref)
-      }
-
-      val b = PanicBlame("???")
-
-      procedure(
-        blame = b,
-        contractBlame = decls.decl.contract.blame,
-        returnType = TVoid[Post](),
-        args = vars,
-        outArgs = Nil,
-        typeArgs = Nil,
-        body = None,
-        /*@
-          requires ptr != NULL;
-          requires \pointer_block_offset(ptr) == 0;
-          requires (\forall* int i; 0 <= i && i < \pointer_block_length(ptr); Perm(&ptr[i], write));
-        @*/
-        requires = UnitAccountedPredicate(
-          (ptr !== Null[Post]())
-          &* (PointerBlockOffset(ptr)(PanicBlame("Checked NULL")) === const(0))
-          &* starall(b, TInt(), i => (const[Post](0) <= i && i < PointerBlockLength(ptr)(PanicBlame("Checked NULL"))) ==>
-           Perm(AmbiguousLocation(AddrOf(AmbiguousSubscript(ptr, i)(b) ))(b), WritePerm()))
-        ),
-        decreases = decls.decl.contract.decreases.map(rw.dispatch)
-      )(f.o)
-
-//      new Procedure[Post](
-//        returnType = TVoid[Post](),
-//        args = vars,
-//        outArgs = Nil,
-//        typeArgs = Nil,
-//        body = None,
-//        contract = rw.dispatch(decls.decl.contract),
-//      )(PanicBlame("???"))(f.o)
-    })
-  }
-
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
     if(givenMap.isEmpty && yields.isEmpty) {
@@ -1242,10 +1179,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     (e.name, args, givenMap, yields) match {
       case (_, _, g, y) if g.nonEmpty || y.nonEmpty =>
       case("__vercors_free", Seq(xs), _, _) if isCPointer(xs.t) =>
-        val newXs = rw.dispatch(xs)
-        val TPointer(t) = newXs.t
-        val free = freeMethods.getOrElseUpdate(t, makeFree(t, e))
-        return ProcedureInvocation[Post](free.ref, Seq(newXs), Nil, Nil, Nil, Nil)(inv.blame)(inv.o)
+        return FreePointer[Post](rw.dispatch(xs))(inv.blame)(inv.o)
       case _ => ()
     }
 

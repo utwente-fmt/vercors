@@ -22,7 +22,7 @@ import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes, TDivMod}
+import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef, SmtlibToProverTypes}
 import vct.rewrite.lang.ReplaceSYCLTypes
 
 object Transformation {
@@ -174,6 +174,7 @@ case class SilverTransformation
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
+    CFloatIntCoercion,
 
     ComputeBipGlue,
     InstantiateBipSynchronizations,
@@ -187,7 +188,7 @@ case class SilverTransformation
     FilterSpecIgnore,
 
     // Normalize AST
-    TDivMod,
+    TruncDivMod,
     Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
     DisambiguateLocation, // Resolve location type
     EncodeRangedFor,

@@ -14,6 +14,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new CIncludeSpec(),
       new ClassesSpec(),
       new CounterSpec(),
+      new CSpec(),
       new CPPSpec(),
       new DemoSpec(),
       new FinalConstExprSpec(),

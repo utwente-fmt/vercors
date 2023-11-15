@@ -17,7 +17,7 @@
 @*/
 /* inline */ int /*@ pure @*/ mod_eucl(int x, int y)
 {
-    long r = x%y;
+    int r = x%y;
     return r < 0 ? r + (y > 0 ? y : -y) : r;
 }
 

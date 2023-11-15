@@ -5,7 +5,7 @@ import vct.antlr4.generated.CParser._
 import vct.antlr4.generated.CParserPatterns._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.{ast => col}
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
@@ -103,8 +103,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       case "short" => CShort()
       case "int" => CInt()
       case "long" => CLong()
-      case "float" => CSpecificationType(TFloats.ieee754_32bit)
-      case "double" => CSpecificationType(TFloats.ieee754_64bit)
+      case "float" => CFloat()
+      case "double" => CDouble()
       case "signed" => CSigned()
       case "unsigned" => CUnsigned()
       case "_Bool" => CBool()
@@ -357,8 +357,8 @@ case class CToCol[G](override val baseOrigin: Origin,
       val e = PreAssignExpression(target, op match {
         case "=" => value
         case "*=" => AmbiguousMult(target, value)
-        case "/=" => TDiv(target, value)(blame(expr))
-        case "%=" => TMod(target, value)(blame(expr))
+        case "/=" => TruncDiv(target, value)(blame(expr))
+        case "%=" => TruncMod(target, value)(blame(expr))
         case "+=" => col.AmbiguousPlus(target, value)(blame(valueNode))
         case "-=" => col.AmbiguousMinus(target, value)((blame(valueNode)))
         case "<<=" => BitShl(target, value)
@@ -445,9 +445,9 @@ case class CToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => TDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => TMod(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
 
@@ -537,9 +537,9 @@ case class CToCol[G](override val baseOrigin: Origin,
   def parseFloat(numFlag: String)(implicit o: Origin): Option[Expr[G]] = {
     try {
       Some(numFlag.last match {
-        case 'f' | 'F' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_32bit)
-        case 'l' | 'L' => FloatValue(BigDecimal(numFlag.init), TFloats.ieee754_64bit)
-        case _ => FloatValue(BigDecimal(numFlag), TFloats.ieee754_32bit)
+        case 'f' | 'F' => FloatValue(BigDecimal(numFlag.init), TFloats.C_ieee754_32bit)
+        case 'l' | 'L' => FloatValue(BigDecimal(numFlag.init), TFloats.C_ieee754_64bit)
+        case _ => FloatValue(BigDecimal(numFlag), TFloats.C_ieee754_32bit)
       })
     } catch {
         case _: NumberFormatException => None
@@ -815,7 +815,7 @@ case class CToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {

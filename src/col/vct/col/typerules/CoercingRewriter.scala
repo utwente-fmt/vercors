@@ -3,7 +3,7 @@ package vct.col.typerules
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.FuncTools
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewritten}
@@ -195,7 +195,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceFloatRat(_) => e
       case CoerceIncreasePrecision(_, _) => e
       case CoerceWidenBound(_, _) => e
-      case CoerceUnboundInt(_) => e
+      case CoerceUnboundInt(_, _) => e
       case CoerceCArrayPointer(_) => e
       case CoerceCPPArrayPointer(_) => e
       case CoerceNullEnum(_) => e
@@ -203,6 +203,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CoerceIntRat() => e
       case CoerceRatZFrac() => e
       case CoerceZFracFrac() => e
+
+      case CoerceDecreasePrecision(_, _) => e
+      case CoerceCFloatCInt(_) => e
+      case CoerceCIntCFloat(_) => e
+      case CoerceCIntInt() => e
+      case CoerceCFloatFloat(_, _) => e
     }
   }
 
@@ -476,10 +482,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
   override final def dispatch(node: SeqRun[Pre]): SeqRun[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
-    ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
-      case Some(coercion) => coercion
-      case None => throw Incoercible(value, target)
+  def coerce(value: Expr[Pre], target: Type[Pre], canCDemote: Boolean = false): Expr[Pre] =
+    ApplyCoercion(value, CoercionUtils.getAnyCoercion(value.t, target) match {
+      case Some(coercion) if canCDemote || coercion.isCPromoting => coercion
+      case _ => throw Incoercible(value, target)
     })(coercionOrigin(value))
 
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =
@@ -487,14 +493,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case (value, arg) => coerce(value, arg.t)
     }
 
-  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]]): Seq[Expr[Pre]] =
+  def coerceArgs(args: Seq[Expr[Pre]], app: ContractApplicable[Pre], tArgs: Seq[Type[Pre]], canCDemote: Boolean = false): Seq[Expr[Pre]] =
     args.zip(app.args).map {
-      case (value, arg) => coerce(value, arg.t.particularize(app.typeArgs.zip(tArgs).toMap))
+      case (value, arg) => coerce(value, arg.t.particularize(app.typeArgs.zip(tArgs).toMap), canCDemote)
     }
 
-  def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])]): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
+  def coerceGiven(givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])], canCDemote: Boolean = false): Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])] =
     givenMap.map {
-      case (Ref(v), e) => (v.ref, coerce(e, v.t))
+      case (Ref(v), e) => (v.ref, coerce(e, v.t, canCDemote))
     }
 
   def coerceYields(yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])], blame: => Expr[_]): Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])] =
@@ -511,7 +517,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
-  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.max[Pre])
+  def float(e: Expr[Pre]): Expr[Pre] = coerce(e, TFloats.ieee754_64bit[Pre])
   def process(e: Expr[Pre]): Expr[Pre] = coerce(e, TProcess[Pre]())
   def ref(e: Expr[Pre]): Expr[Pre] = coerce(e, TRef[Pre]())
   def cls(e: Expr[Pre]): Expr[Pre] = coerce(e, TAnyClass[Pre]())
@@ -715,6 +721,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousGreater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousGreater(int(left), int(right)),
+          AmbiguousGreater(float(left), float(right)),
           AmbiguousGreater(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -730,6 +737,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousGreaterEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousGreaterEq(int(left), int(right)),
+          AmbiguousGreaterEq(float(left), float(right)),
           AmbiguousGreaterEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -745,6 +753,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousLess(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousLess(int(left), int(right)),
+          AmbiguousLess(float(left), float(right)),
           AmbiguousLess(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -760,6 +769,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousLessEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set, or a bag, but got ${left.t} and ${right.t}.",
           AmbiguousLessEq(int(left), int(right)),
+          AmbiguousLessEq(float(left), float(right)),
           AmbiguousLessEq(rat(left), rat(right)), {
             val (coercedLeft, leftSet) = set(left)
             val (coercedRight, rightSet) = set(right)
@@ -775,6 +785,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case minus @ AmbiguousMinus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a set or a bag; or a pointer and integer, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
+          Minus(float(left), float(right)),
           Minus(rat(left), rat(right)),
           AmbiguousMinus(pointer(left)._1, int(right))(minus.blame), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
@@ -808,6 +819,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case AmbiguousMult(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, a process, a set or a bag but got ${left.t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
+          AmbiguousMult(float(left), float(right)),
           AmbiguousMult(rat(left), rat(right)),
           AmbiguousMult(process(left), process(right)), {
             val (coercedLeft, TSet(elementLeft)) = set(left)
@@ -972,14 +984,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case deref @ DerefPointer(p) =>
         DerefPointer(pointer(p)._1)(deref.blame)
       case deref @ EndpointUse(_) => deref
-      case div @ Div(left, right) =>
-        firstOk(e, s"Expected both operands to be rational.",
-          // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
-          // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
-          // and rationals.
-          Div(rat(left), int(right))(div.blame),
-          Div(rat(left), rat(right))(div.blame),
-        )
       case Drop(xs, count) =>
         Drop(seq(xs)._1, int(count))
       case Empty(obj) =>
@@ -998,13 +1002,11 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Exp(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Exp(int(left), int(right)),
+          Exp(float(left), float(right)),
           Exp(rat(left), rat(right)),
         )
-      case div @ FloorDiv(left, right) =>
-        firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
-          FloorDiv(int(left), int(right))(div.blame),
-          FloorDiv(float(left), float(right))(div.blame),
-        )
+      case div@FloatDiv(left, right) => FloatDiv(float(left), float(right))(div.blame)
+      case div @ FloorDiv(left, right) => FloorDiv(int(left), int(right))(div.blame)
       case Forall(bindings, triggers, body) =>
         Forall(bindings, triggers, bool(body))
       case ForPerm(bindings, loc, body) =>
@@ -1012,7 +1014,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case ForPermWithValue(binding, body) =>
         ForPermWithValue(binding, bool(body))
       case inv @ FunctionInvocation(ref, args, typeArgs, givenMap, yields) =>
-        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        FunctionInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case get @ GetLeft(e) =>
         GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) =>
@@ -1024,11 +1026,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Greater(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Greater(int(left), int(right)),
+          Greater(float(left), float(right)),
           Greater(rat(left), rat(right)),
         )
       case GreaterEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           GreaterEq(int(left), int(right)),
+          GreaterEq(float(left), float(right)),
           GreaterEq(rat(left), rat(right)),
         )
       case head @ Head(xs) =>
@@ -1041,12 +1045,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
         Implies(bool(left), res(right))
       case FunctionOf(e, ref) =>
         FunctionOf(e, ref)
+      case f @ FreePointer(p) => FreePointer(pointer(p)._1)(f.blame)
       case IndeterminateInteger(min, max) =>
         IndeterminateInteger(int(min), int(max))
       case InlinePattern(inner, parent, group) =>
         InlinePattern(inner, parent, group)
       case inv @ InstanceFunctionInvocation(obj, ref, args, typeArgs, givenMap, yields) =>
-        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        InstanceFunctionInvocation(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case InstanceOf(value, typeValue) =>
         InstanceOf(value, typeValue)
       case InstancePredicateApply(obj, ref, args, perm) =>
@@ -1080,6 +1085,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case LessEq(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           LessEq(int(left), int(right)),
+          LessEq(float(left), float(right)),
           LessEq(rat(left), rat(right)),
         )
       case Let(binding, value, main) =>
@@ -1153,22 +1159,24 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case MatrixSum(indices, mat) =>
         MatrixSum(coerce(indices, TSeq[Pre](TInt())), coerce(mat, TSeq[Pre](TRational())))
       case inv @ MethodInvocation(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        MethodInvocation(obj, ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case Minus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Minus(int(left), int(right)),
+          Minus(float(left), float(right)),
           Minus(rat(left), rat(right)),
         )
       case div @ Mod(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Mod(int(left), int(right))(div.blame),
+          Mod(float(left), float(right))(div.blame),
           Mod(rat(left), rat(right))(div.blame),
         )
-      case div@TMod(left, right) => TMod(int(left), int(right))(div.blame)
-      case div@TDiv(left, right) =>
+      case div@TruncMod(left, right) => TruncMod(int(left), int(right))(div.blame)
+      case div@TruncDiv(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
-          TDiv(int(left), int(right))(div.blame),
-          TDiv(float(left), float(right))(div.blame),
+          TruncDiv(int(left), int(right))(div.blame),
+          TruncDiv(float(left), float(right))(div.blame),
         )
       case ModelAbstractState(m, state) =>
         ModelAbstractState(model(m)._1, bool(state))
@@ -1193,6 +1201,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Mult(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Mult(int(left), int(right)),
+          Mult(float(left), float(right)),
           Mult(rat(left), rat(right)),
         )
       case NdIndex(indices, dimensions) =>
@@ -1250,6 +1259,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Plus(left, right) =>
         firstOk(e, s"Expected both operands to be numeric, but got ${left.t} and ${right.t}.",
           Plus(int(left), int(right)),
+          Plus(float(left), float(right)),
           Plus(rat(left), rat(right)),
         )
       case add @ PointerAdd(p, offset) =>
@@ -1267,13 +1277,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PolarityDependent(onInhale, onExhale) =>
         PolarityDependent(res(onInhale), res(onExhale))
       case ass @ PostAssignExpression(target, value) =>
-        PostAssignExpression(target, coerce(value, target.t))(ass.blame)
+        PostAssignExpression(target, coerce(value, target.t, canCDemote=true))(ass.blame)
       case ass @ PreAssignExpression(target, value) =>
-        PreAssignExpression(target, coerce(value, target.t))(ass.blame)
+        PreAssignExpression(target, coerce(value, target.t, canCDemote=true))(ass.blame)
       case PredicateApply(ref, args, perm) =>
         PredicateApply(ref, coerceArgs(args, ref.decl), rat(perm))
       case inv @ ProcedureInvocation(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, inv))(inv.blame)
+        ProcedureInvocation(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap, canCDemote=true), coerceYields(yields, inv))(inv.blame)
       case inv @ LlvmFunctionInvocation(ref, args, givenMap, yields) =>
         LlvmFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
       case inv @ LlvmAmbiguousFunctionInvocation(name, args, givenMap, yields) =>
@@ -1298,6 +1308,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case PVLNew(t, args, givenMap, yields) => e
       case Range(from, to) =>
         Range(int(from), int(to))
+      case div@RatDiv(left, right) =>
+        firstOk(e, s"Expected both operands to be rational.",
+          // PB: horrible hack: Div ends up being silver.PermDiv, which expects an integer divisor. In other cases,
+          // we just hope the silver type-check doesn't complain, since in z3 it is uniformly `/` for mixed integers
+          // and rationals.
+          RatDiv(rat(left), int(right))(div.blame),
+          RatDiv(rat(left), rat(right))(div.blame),
+        )
       case ReadPerm() =>
         ReadPerm()
       case RemoveAt(xs, i) =>
@@ -1537,6 +1555,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case UMinus(arg) =>
         firstOk(e, s"Expected operand to be numeric, but got ${arg.t}.",
           UMinus(int(arg)),
+          UMinus(float(arg)),
           UMinus(rat(arg)),
         )
       case u @ Unfolding(pred, body) =>
@@ -1631,7 +1650,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     stat match {
       case a @ Assert(assn) => Assert(res(assn))(a.blame)
       case a @ Assign(target, value) =>
-        try { Assign(target, coerce(value, target.t))(a.blame) } catch {
+        try { Assign(target, coerce(value, target.t, canCDemote=true))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err
@@ -1660,9 +1679,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case IndetBranch(branches) => IndetBranch(branches)
       case Inhale(assn) => Inhale(res(assn))
       case inv @ InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
+        InvokeProcedure(ref, coerceArgs(args, ref.decl, typeArgs, canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case inv @ InvokeMethod(obj, ref, args, outArgs, typeArgs, givenMap, yields) =>
-        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs), outArgs, typeArgs, coerceGiven(givenMap), coerceYields(yields, args.head))(inv.blame)
+        InvokeMethod(cls(obj), ref, coerceArgs(args, ref.decl, typeArgs,canCDemote=true), outArgs, typeArgs, coerceGiven(givenMap,canCDemote=true), coerceYields(yields, args.head))(inv.blame)
       case JavaLocalDeclarationStatement(decl) => JavaLocalDeclarationStatement(decl)
       case j @ Join(obj) => Join(cls(obj))(j.blame)
       case Label(decl, stat) => Label(decl, stat)
@@ -1985,6 +2004,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case CShort() => CShort()
       case CInt() => CInt()
       case CLong() => CLong()
+      case CFloat() => CFloat()
+      case CDouble() => CDouble()
       case CSigned() => CSigned()
       case CUnsigned() => CUnsigned()
       case CBool() => CBool()
