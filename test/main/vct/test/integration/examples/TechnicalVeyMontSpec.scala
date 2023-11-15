@@ -318,4 +318,38 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   }
   """
+
+  vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot communicate" pvl
+  """
+  class Storage {
+    int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0) {
+          communicate alice.x <- bob.x;
+        }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot assign" pvl
+  """
+  class Storage {
+    int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0) {
+          bob.x := 3;
+        }
+     }
+  }
+  """
 }

@@ -65,7 +65,7 @@ sealed trait CheckError {
     case SeqProgInstanceMethodNonVoid(m) => Seq(context(m, "An instance method in a `seq_prog` must have return type `void`."))
     case SeqProgInvocation(s) => Seq(context(s, "Only invocations on `this` and endpoints are allowed."))
     case SeqProgReceivingEndpoint(e) => Seq(context(e, s"Can only refer to the receiving endpoint of this statement."))
-    case SeqProgParticipant(s) => Seq(context(s, s"This branch lets an endpoint participate which has been excluded by earlier branches."))
+    case SeqProgParticipant(s) => Seq(context(s, s"An endpoint is used in this branch which is not allowed to participate at this point in the program because of earlier branches."))
   }).mkString(Origin.BOLD_HR, Origin.HR, Origin.BOLD_HR)
 
   def subcode: String
@@ -128,7 +128,7 @@ case class SeqProgInvocation(s: Statement[_]) extends CheckError {
 case class SeqProgReceivingEndpoint(e: Expr[_]) extends CheckError {
   val subcode = "seqProgReceivingEndpoint"
 }
-case class SeqProgParticipant(s: SeqBranch[_]) extends CheckError {
+case class SeqProgParticipant(s: Node[_]) extends CheckError {
   val subcode = "seqProgParticipant"
 }
 
