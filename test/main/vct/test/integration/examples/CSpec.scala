@@ -6,6 +6,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/casts.c"
   vercors should verify using silicon example "concepts/c/floats.c"
   vercors should verify using silicon example "concepts/c/malloc_free.c"
+  vercors should verify using silicon example "concepts/c/mod_div.c"
   vercors should verify using silicon example "concepts/c/structs.c"
 
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c

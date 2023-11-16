@@ -739,7 +739,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         (sizeOption, init.init) match {
           case (None, None) => throw WrongCType(decl)
           case (Some(size), None) =>
-//            isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCType(decl))
             val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CLiteralArray(exprs))) =>

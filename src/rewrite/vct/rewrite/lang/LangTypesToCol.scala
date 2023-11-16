@@ -6,7 +6,7 @@ import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.{C, CPP}
-import vct.rewrite.lang.LangTypesToCol.IncompleteTypeArgs
+import vct.rewrite.lang.LangTypesToCol.{EmptyInlineDecl, IncompleteTypeArgs}
 import vct.col.typerules.Types
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.result.VerificationError.UserError
@@ -21,6 +21,13 @@ case object LangTypesToCol extends RewriterBuilder {
     override def code: String = "incompleteTypeArgs"
     override def text: String =
       t.o.messageInContext("This type does not specify all generic types for the domain.")
+  }
+
+  case class EmptyInlineDecl(d: CLocalDeclaration[_]) extends UserError {
+    override def code: String = "emptyInlineDecl"
+
+    override def text: String =
+      d.o.messageInContext(" ‘inline’ in empty declaration.")
   }
 }
 
@@ -213,6 +220,8 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case CDeclarationStatement(local) =>
       val (locals, _) = cLocalDeclarations.collect { dispatch(local) }
+      if(locals.isEmpty && local.decl.specs.collectFirst{case CInline() => }.nonEmpty)
+        throw EmptyInlineDecl(local)
       Block(locals.map(CDeclarationStatement(_)(stat.o)))(stat.o)
     case CPPDeclarationStatement(local) =>
       val (locals, _) = cPPLocalDeclarations.collect { dispatch(local) }
