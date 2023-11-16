@@ -240,6 +240,10 @@ case object Options {
         .action((path, c) => c.copy(cPreprocessorPath = path))
         .text("Set the location of the C preprocessor binary"),
 
+      opt[Unit]("veymont-generate-permissions")
+        .action((_, c) => c.copy(veymontGeneratePermissions = true))
+        .text("Generate permissions for the entire sequential program in the style of VeyMont 1.4"),
+
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont")
@@ -389,6 +393,7 @@ case class Options
   // VeyMont options
   veymontOutput: Path = null, // required
   veymontChannel: PathOrStd = PathOrStd.Path(getVeymontChannel),
+  veymontGeneratePermissions: Boolean = false,
 
   // VeSUV options
   vesuvOutput: Path = null,

@@ -1,5 +1,9 @@
 package vct.test.integration.examples
 
+import hre.io.LiteralReadable
+import vct.main.modes.Verify
+import vct.options.Options
+import vct.options.types.Verbosity
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec extends VercorsSpec {
@@ -477,4 +481,28 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
+}
+
+class TechnicalVeyMontSpec2 extends VercorsSpec {
+  (vercors should verify
+    using silicon
+    flags Seq("--veymont-generate-permissions")
+    in "Loops should also limit the number of participants when combined with branches" pvl
+  """
+  class Storage {
+    int x;
+
+    int m() {
+      x = 2;
+    }
+  }
+
+  seq_program Example() {
+    endpoint alice = Storage();
+    seq_run {
+      alice.m();
+      assert alice.x == 2;
+    }
+  }
+  """)
 }
