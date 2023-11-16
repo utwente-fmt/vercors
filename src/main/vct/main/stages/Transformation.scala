@@ -67,6 +67,7 @@ object Transformation {
           inferHeapContextIntoFrame = options.inferHeapContextIntoFrame,
           bipResults = bipResults,
           splitVerificationByProcedure = options.devSplitVerificationByProcedure,
+          veymontGeneratePermissions = options.veymontGeneratePermissions,
         )
     }
 
@@ -172,6 +173,7 @@ case class SilverTransformation
   bipResults: BIP.VerificationResults,
   checkSat: Boolean = true,
   splitVerificationByProcedure: Boolean = false,
+  veymontGeneratePermissions: Boolean = false,
 ) extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
     // Replace leftover SYCL types
     ReplaceSYCLTypes,
@@ -193,7 +195,7 @@ case class SilverTransformation
     EncodeRangedFor,
 
     // VeyMont sequential program encoding
-    GenerateSeqProgPermissions,
+    GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
     SplitSeqGuards,
     EncodeUnpointedGuard,
     DeduplicateSeqGuards,
