@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{ApplicableContract, ArraySubscript, Declaration, Deref, Endpoint, EndpointUse, EnumUse, Expr, FieldLocation, InstanceField, IterationContract, Length, Local, LoopContract, LoopInvariant, Null, Perm, SeqProg, SeqRun, SplitAccountedPredicate, TArray, TClass, TInt, Type, UnitAccountedPredicate, WritePerm}
+import vct.col.ast.{ApplicableContract, ArraySubscript, Class, Declaration, Deref, Endpoint, EndpointUse, EnumUse, Expr, FieldLocation, InstanceField, IterationContract, Length, Local, LoopContract, LoopInvariant, Null, Perm, SeqProg, SeqRun, SplitAccountedPredicate, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, WritePerm}
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
@@ -16,48 +16,54 @@ object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
 
 case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
 
-  val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
-  val currentRun: ScopedStack[SeqRun[Pre]] = ScopedStack()
+  sealed trait Context
+  case class ClassContext(cls: Class[Pre]) extends Context
+  case class SeqContext(prog: SeqProg[Pre]) extends Context
+
+  val currentContext: ScopedStack[Context] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: SeqProg[Pre] => currentProg.having(prog) { rewriteDefault(prog) }
+    case prog: SeqProg[Pre] if enabled => currentContext.having(SeqContext(prog)) { rewriteDefault(prog) }
+    case cls: Class[Pre] if enabled => currentContext.having(ClassContext(cls)) { rewriteDefault(cls) }
     case decl => rewriteDefault(decl)
   }
 
-  override def dispatch(run: SeqRun[Pre]): SeqRun[Post] = currentRun.having(run) { rewriteDefault(run) }
+  override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] = currentContext.topOption match {
+    case Some(ctx) =>
+      implicit val o = contract.o
+      contract.rewrite(
+        requires =
+          SplitAccountedPredicate[Post](
+            UnitAccountedPredicate(permissions(ctx)),
+            dispatch(contract.requires)
+          ),
+        ensures =
+         SplitAccountedPredicate[Post](
+           UnitAccountedPredicate(permissions(ctx)),
+           dispatch(contract.ensures)
+         )
+      )
+    case _ => rewriteDefault(contract)
+  }
 
-  override def dispatch(contract: ApplicableContract[Pre]): ApplicableContract[Post] =
-    (currentProg.topOption, currentRun.topOption) match {
-      case (Some(prog), Some(_)) if enabled =>
-        implicit val o = contract.o
-        contract.rewrite(
-          requires =
-            SplitAccountedPredicate[Post](
-              UnitAccountedPredicate(foldStar[Post](prog.endpoints.map(endpointPerm))),
-              dispatch(contract.requires)
-            ),
-          ensures =
-           SplitAccountedPredicate[Post](
-             UnitAccountedPredicate(foldStar[Post](prog.endpoints.map(endpointPerm))),
-             dispatch(contract.ensures)
-           )
-        )
-      case _ => rewriteDefault(contract)
-    }
-
-  override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] = (currentProg.topOption, currentRun.topOption, loopContract) match {
-    case (Some(prog), Some(_), invariant: LoopInvariant[pre]) if enabled =>
+  override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] = (currentContext.topOption, loopContract) match {
+    case (Some(ctx), invariant: LoopInvariant[pre]) =>
       implicit val o = loopContract.o
       invariant.rewrite(
-        invariant = foldStar[Post](prog.endpoints.map(endpointPerm) :+ dispatch(invariant.invariant))
+        invariant = foldStar[Post](Seq(permissions(ctx), dispatch(invariant.invariant)))
       )
-    case (Some(prog), Some(_), iteration: IterationContract[pre]) if enabled =>
+    case (Some(ctx), iteration: IterationContract[pre]) =>
       implicit val o = loopContract.o
       iteration.rewrite(
-        requires = foldStar[Post](prog.endpoints.map(endpointPerm) :+ dispatch(iteration.requires)),
-        ensures = foldStar[Post](prog.endpoints.map(endpointPerm) :+ dispatch(iteration.ensures))
+        requires = foldStar[Post](Seq(permissions(ctx), dispatch(iteration.requires))),
+        ensures = foldStar[Post](Seq(permissions(ctx), dispatch(iteration.ensures)))
       )
     case _ => rewriteDefault(loopContract)
+  }
+
+  def permissions(ctx: Context)(implicit o: Origin): Expr[Post] = ctx match {
+    case SeqContext(prog) => foldStar[Post](prog.endpoints.map(endpointPerm))
+    case ClassContext(cls) => transitivePerm(ThisObject[Post](succ(cls)), TClass(cls.ref))
   }
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
