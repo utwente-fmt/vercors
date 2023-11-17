@@ -953,14 +953,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case target: SpecInvocationTarget[Pre] => ???
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
-        val b = PanicBlame("Can't get this blame right") // TODO: How to fix this???
+        val b: Blame[PointerDerefError] = deref.blame
         val structRef = deref.struct.t match {
           case t@CPrimitiveType(specs) =>
             val struct = specs.collectFirst { case CSpecificationType(CTPointer(CTStruct(ref))) => ref }
             struct.getOrElse(throw WrongStructType(t))
           case t => throw WrongStructType(t)
         }
-        Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref((structRef.decl, struct.decls)))(deref.o)
+        Deref[Post](DerefPointer(rw.dispatch(deref.struct))(b), cStructFieldsSuccessor.ref((structRef.decl, struct.decls)))(deref.blame)(deref.o)
     }
   }
 

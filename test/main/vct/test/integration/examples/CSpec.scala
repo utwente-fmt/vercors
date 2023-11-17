@@ -68,13 +68,73 @@ class CSpec extends VercorsSpec {
     """
     #include <stdlib.h>
     struct d{
-     int x;
+      int x;
     };
     int main(){
-        struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
-        struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
-        //@ exhale Perm(xs[0].x, 1\2);
-        free(xs);
+      struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
+      struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
+      //@ exhale Perm(xs[0].x, 1\2);
+      free(xs);
+    }
+    """
+  vercors should fail withCode "ptrNull" using silicon in "Deref field of null ptr" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d* s;
+      s->x = 1;
+    }
+    """
+
+  vercors should fail withCode "ptrPerm" using silicon in "Deref field of zero perm ptr" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d s1;
+      struct d* s2 = &s1;
+      //@ exhale Perm(s2, 1\1);
+      s2->x = 1;
+    }
+    """
+
+  vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm ptr" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d s1;
+      struct d* s2 = &s1;
+      //@ exhale Perm(s2->x, 1\1);
+      s2->x = 1;
+    }
+    """
+
+  vercors should fail withCode "assignFieldFailed" using silicon in "Access field of zero perm ptr" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d s;
+      //@ exhale Perm(s.x, 1\1);
+      s.x = 1;
+    }
+    """
+  vercors should fail withCode "perm" using silicon in "Read field of zero perm ptr" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d s;
+      s.x = 1;
+      //@ exhale Perm(s.x, 1\1);
+      int x = s.x;
     }
     """
 }

@@ -551,7 +551,7 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 }
 
 sealed trait PointerSubscriptError extends FrontendSubscriptError
-sealed trait PointerDerefError extends PointerSubscriptError
+sealed trait PointerDerefError extends PointerSubscriptError with FrontendDerefError
 sealed trait PointerLocationError extends PointerDerefError
 sealed trait PointerAddError extends FrontendAdditiveError
 sealed trait PointerFreeError extends FrontendInvocationError
