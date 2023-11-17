@@ -35,13 +35,6 @@ case object LangCToCol {
       decl.o.messageInContext(s"We don't support declaring multiple shared memory variables at a single line.")
   }
 
-  case class UnsupportedCArrayParameter(decl: Node[_]) extends UserError {
-    override def code: String = "unsupportedCArrayParameter"
-
-    override def text: String =
-      decl.o.messageInContext(s"This array parameter is declared incorrectly.")
-  }
-
   case class WrongGPUKernelParameterType(param: CParam[_]) extends UserError {
     override def code: String = "wrongParameterType"
     override def text: String =
@@ -1199,9 +1192,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
   def arrayType(t: CTArray[Pre]): Type[Post] = {
-    if(t.size.isDefined) throw UnsupportedCArrayParameter(t)
+    // The size of an array for an parameter is ignored
     TPointer(rw.dispatch(t.innerType))
-//    CTArray(t.size.map(rw.dispatch(_)), rw.dispatch(t.innerType))(t.blame)
   }
 
   def structType(t: CTStruct[Pre]): Type[Post] = {
