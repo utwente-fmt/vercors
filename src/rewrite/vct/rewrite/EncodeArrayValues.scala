@@ -3,6 +3,7 @@ package vct.col.rewrite
 import hre.util.FuncTools
 import vct.col.ast.{Expr, _}
 import vct.col.origin._
+import vct.col.resolve.ctx.Referrable
 import vct.col.resolve.lang.Java
 import vct.rewrite.lang.LangCToCol.UnsupportedStructPerm
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -272,7 +273,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       val loc = (i: Variable[Post]) => Deref[Post](struct(i), member.ref)(DerefPerm)
       var anns : Seq[(Expr[Post], Expr[Pre] => PointerFreeError)] =
         Seq((makeStruct.makePerm(i => FieldLocation[Post](struct(i), member.ref), IteratedPtrInjective),
-          (p: Expr[Pre]) => PointerInsufficientFreeFieldPermission(p, member.toInlineString)))
+          (p: Expr[Pre]) => PointerInsufficientFreeFieldPermission(p, Referrable.originName(member))))
       anns = if(typeIsRef(member.t))
           anns :+ (makeStruct.makeUnique(loc), (p: Expr[Pre]) => GenericPointerFreeError(p))
         else anns

@@ -131,6 +131,14 @@ case object LangCToCol {
     }
   }
 
+  case class ArrayMallocFailed(inv: CInvocation[_]) extends Blame[ArraySizeError] {
+    override def blame(error: ArraySizeError): Unit = error match {
+      case ArraySize(arr) =>
+        inv.blame.blame(MallocSize(inv))
+      case other => throw Unreachable(s"Invalid invocation failure: $other")
+    }
+  }
+
   case class UnsupportedCast(c: CCast[_]) extends UserError {
     override def code: String = "unsupportedCast"
     override def text: String = c.o.messageInContext("This cast is not supported")
@@ -266,14 +274,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     case CCast(e, t) if (isFloat(t) && isRatFloatOrInt(e.t)) || (isRatFloatOrInt(t) && isFloat(e.t)) =>
       // We can convert between rationals, integers and floats
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
-    case CCast(CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil), CTPointer(t2)) =>
+    case CCast(inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil), CTPointer(t2)) =>
       val (t1, size) = arg match {
         case SizeOf(t1) => (t1, const[Post](1)(c.o))
         case AmbiguousMult(l, SizeOf(t1)) => (t1, rw.dispatch(l))
         case AmbiguousMult(SizeOf(t1), r) => (t1, rw.dispatch(r))
         case _ => throw UnsupportedMalloc(c)
       }
-      NewPointerArray(rw.dispatch(t1), size)(PanicBlame("TODO: Malloc argument should not be smaller than zero"))(c.o)
+      NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
     case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _), _) => throw UnsupportedMalloc(c)
     case _ => throw UnsupportedCast(c)
   }
@@ -436,7 +444,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), Local(v.ref))(PanicBlame("Shared memory sizes cannot be negative.")))
-        //NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(Local(v.ref)), 0, false)(PanicBlame("Shared memory sizes cannot be negative.")))
       result ++= Seq(decl, assign)
     })
     staticSharedMemNames.foreach{case (d,(size, blame)) =>
@@ -445,7 +452,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         // Since we set the size and blame together, we can assume the blame is not None
         NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), IntegerValue(size))(blame.get))
-        //NewArray[Post](getInnerType(cNameSuccessor(d).t), Seq(IntegerValue(size)), 0, false)(blame.get))
       result ++= Seq(decl, assign)
     }
 

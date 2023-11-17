@@ -491,6 +491,12 @@ case class MapKeyError(node: MapGet[_]) extends BuiltinError with FrontendSubscr
   override def descInContext: String = "Map may not contain this key."
   override def inlineDescWithSource(source: String): String = s"Map in `$source` may not contain that key."
 }
+case class MallocSize(node: Expr[_]) extends BuiltinError with NodeVerificationFailure {
+  override def code: String = "mallocNegativeSize"
+  override def descInContext: String = "Argument of malloc may be negative."
+  override def inlineDescWithSource(source: String): String = s"Size `$source` in malloc may be negative."
+}
+
 sealed trait ArraySizeError extends VerificationFailure
 sealed trait ArraySubscriptError extends FrontendSubscriptError
 sealed trait ArrayLocationError extends ArraySubscriptError
