@@ -231,7 +231,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: IterVariable[Pre] => node
     case node: CDeclaration[Pre] => node
     case node: CDeclarator[Pre] => node
-    case node: CDeclaration[Pre] => node
     case node: CDeclarationSpecifier[Pre] => node
     case node: CTypeQualifier[Pre] => node
     case node: CPointer[Pre] => node

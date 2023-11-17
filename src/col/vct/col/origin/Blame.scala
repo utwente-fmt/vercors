@@ -548,7 +548,33 @@ sealed trait PointerSubscriptError extends FrontendSubscriptError
 sealed trait PointerDerefError extends PointerSubscriptError
 sealed trait PointerLocationError extends PointerDerefError
 sealed trait PointerAddError extends FrontendAdditiveError
-case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with NodeVerificationFailure {
+sealed trait PointerFreeError extends FrontendInvocationError
+
+case class PointerOffsetNonZero(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrOffsetNonZero"
+  override def descInContext: String = "Free can only be called on pointers which are allocated and are at the start of the pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to invalid pointer block."
+}
+
+case class PointerInsufficientFreePermission(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreePerm"
+  override def descInContext: String = "Not enough permission to free the whole pointer block."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed due to insufficient permission."
+}
+
+case class GenericPointerFreeError(node: Expr[_]) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeError"
+  override def descInContext: String = "Pointer block cannot be freed."
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerInsufficientFreeFieldPermission(node: Expr[_], field: String) extends PointerFreeError with NodeVerificationFailure {
+  override def code: String = "ptrFreeFieldError"
+  override def descInContext: String = s"Not enough permission to free the whole pointer block, since we miss permission for field `$field`"
+  override def inlineDescWithSource(source: String): String = s"Pointer in `$source` cannot be freed."
+}
+
+case class PointerNull(node: Expr[_]) extends PointerLocationError with PointerAddError with PointerFreeError with NodeVerificationFailure {
   override def code: String = "ptrNull"
   override def descInContext: String = "Pointer may be null."
   override def inlineDescWithSource(source: String): String = s"Pointer in `$source` may be null."

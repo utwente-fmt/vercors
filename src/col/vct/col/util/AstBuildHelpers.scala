@@ -472,6 +472,11 @@ object AstBuildHelpers {
     case SplitAccountedPredicate(left, right) => Star(foldStar(left), foldStar(right))
   }
 
+  def foldPredicate[G](exprs: Seq[Expr[G]])(implicit o: Origin): AccountedPredicate[G] = exprs match {
+    case x :: Seq() => UnitAccountedPredicate(x)
+    case x :: xs => SplitAccountedPredicate(UnitAccountedPredicate(x), foldPredicate(xs))
+  }
+
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Or(_, _)).getOrElse(ff)
 }
