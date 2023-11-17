@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, IterationContract, Length, Local, LoopContract, LoopInvariant, Null, Perm, Procedure, Result, SeqProg, SeqRun, SplitAccountedPredicate, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Null, Perm, Procedure, Result, SeqProg, SeqRun, SplitAccountedPredicate, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
@@ -16,14 +16,10 @@ object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
 
 case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
 
-//  sealed trait Context
-//  case class ClassContext(cls: Class[Pre]) extends Context
-//  case class SeqContext(prog: SeqProg[Pre]) extends Context
-
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
 
   /* - Permission generation table -
-      Only considered nodes so far that occur in early VeyMont case studies.
+      Only considers nodes as necessary for VeyMont case studies.
 
                                   Pre             Post                    Invariant
                        Function:  args                                    N.a
@@ -37,7 +33,6 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
    */
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-//    case prog: SeqProg[Pre] if enabled => currentContext.having(SeqContext(prog)) { rewriteDefault(prog) }
     case fun: Function[Pre] if enabled =>
       globalDeclarations.declare(fun.rewrite(
         contract = prependContract(fun.contract, variablesPerm(fun.args)(fun.o), tt)(fun.o)
@@ -52,9 +47,23 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         body = proc.body.map(body => currentPerm.having(variablesPerm(proc.args)) { dispatch(body) })
       ))
 
-    case cls: Class[Pre] if enabled => currentPerm.having(???) { rewriteDefault(???) }
+    case cls: Class[Pre] if enabled => currentPerm.having(classPerm(cls)) { rewriteDefault(cls) }
 
     case fun: InstanceFunction[Pre] if enabled =>
+      implicit val o = fun.o
+      classDeclarations.declare(fun.rewrite(contract = prependContract(fun.contract, currentPerm.top, tt)))
+
+    case method: InstanceMethod[Pre] if enabled =>
+      implicit val o = method.o
+      classDeclarations.declare(method.rewrite(
+        contract = prependContract(
+          method.contract,
+          currentPerm.top,
+          currentPerm.top &* resultPerm(method)
+        )
+      ))
+
+    case prog: SeqProg[Pre] => ???
 
     case decl => rewriteDefault(decl)
   }
@@ -84,11 +93,6 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
       case _ => rewriteDefault(loopContract)
     }
 
-//  def permissions(ctx: Context)(implicit o: Origin): Expr[Post] = ctx match {
-//    case SeqContext(prog) => foldStar[Post](prog.endpoints.map(endpointPerm))
-//    case ClassContext(cls) => transitivePerm(ThisObject[Post](succ(cls)), TClass(cls.ref))
-//  }
-
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
     transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls))
 
@@ -100,6 +104,9 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   def resultPerm(app: ContractApplicable[Pre])(implicit o: Origin): Expr[Post] =
     transitivePerm(Result[Post](anySucc(app)), app.returnType)
+
+  def classPerm(cls: Class[Pre]): Expr[Post] =
+    transitivePerm(ThisObject[Post](succ(cls))(cls.o), TClass(cls.ref))(cls.o)
 
   /*
 
