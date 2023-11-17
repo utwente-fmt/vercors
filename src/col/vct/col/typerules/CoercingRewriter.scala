@@ -1460,7 +1460,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
           SmtlibIsInt(rat(arg)),
         )
       case SmtlibPow(left, right) =>
-        firstOk(e, s"Expected args to be floating, but got ${left.t} and ${right.t}.",
+        firstOk(e, s"Expected args to be numerical, but got ${left.t} and ${right.t}.",
+          SmtlibPow(int(left), int(right)),
           SmtlibPow(float(left), float(right)),
           SmtlibPow(rat(left), rat(right)),
         )

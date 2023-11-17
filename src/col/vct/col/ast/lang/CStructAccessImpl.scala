@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
-import vct.col.ast.{CStructAccess, TEnum, TInt, TNotAValue, Type}
-import vct.col.print.{Ctx, Doc, Precedence, Text}
+import vct.col.ast.{CStructAccess, TEnum, TCInt, Type}
+import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 import vct.col.resolve.lang.C
@@ -21,7 +21,7 @@ trait CStructAccessImpl[G] { this: CStructAccess[G] =>
     case ref: RefModelAction[G] => Types.notAValue(ref)
     case ref: BuiltinField[G] => ref.f(struct).t
     case ref: BuiltinInstanceMethod[G] => Types.notAValue(ref)
-    case ref: RefCudaVecDim[G] => TInt()
+    case ref: RefCudaVecDim[G] => TCInt()
     case RefEnumConstant(enum, _) => TEnum(enum.get.ref)
     case RefProverFunction(decl) => decl.returnType
   }

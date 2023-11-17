@@ -8,11 +8,7 @@
 
 void *__vercors_malloc(size_t size);
 
-/*@
-  requires ptr != NULL;
-  requires \pointer_block_offset(ptr) == 0;
-  requires (\forall* int i; 0 <= i && i < \pointer_block_length(ptr); Perm(&ptr[i], write));
-@*/
+// Contract is generated, and make sure to completely remove write permission to all the malloced data.
 void __vercors_free(void *ptr);
 
 #endif 

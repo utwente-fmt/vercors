@@ -36,12 +36,6 @@ case object C {
     Seq(CLong(), CLong(), CInt()),
   )
 
-  val FLOATING_LIKE_TYPES: Seq[Seq[CDeclarationSpecifier[_]]] = Seq(
-    Seq(CDouble()),
-    Seq(CLong(), CDouble()),
-    Seq(CFloat())
-  )
-
   val INTEGER_LIKE_SPECIFIERS: Seq[Seq[CDeclarationSpecifier[_]]] =
     for (prefix <- NUMBER_LIKE_PREFIXES; t <- INTEGER_LIKE_TYPES)
       yield prefix ++ t
@@ -67,20 +61,6 @@ case object C {
     case decl @ CAnonymousFunctionDeclarator(_, _) =>
       throw AnonymousMethodsUnsupported(decl)
     case CName(name) => DeclaratorInfo(params=None, typeOrReturnType=(t => t), name)
-  }
-
-  def isCFloat[G](t: Type[G]): Boolean = t match {
-    case t @ CPrimitiveType(specs) =>
-      val t = specs.collect { case spec: CTypeSpecifier[G] => spec }
-      FLOATING_LIKE_TYPES.contains(t)
-    case _ => false
-  }
-
-  def isCInt[G](t: Type[G]): Boolean = t match {
-    case t@CPrimitiveType(specs) =>
-      val t = specs.collect { case spec: CTypeSpecifier[G] => spec }
-      INTEGER_LIKE_SPECIFIERS.contains(t)
-    case _ => false
   }
 
 

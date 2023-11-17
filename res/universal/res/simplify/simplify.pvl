@@ -330,18 +330,3 @@ axiom scale_shift_range_perm_linear_indep {
     (∀* int i; i \in {l..r} ==> Perm(ar[i*factor + shift], p)) ==
     (∀* int i; (i \in {l*factor+shift..r*factor+shift} && (i-shift) % factor == 0) ==> Perm(ar[i], p))))
 }
-
-axiom push_implies_star_2 { (∀boolean a, boolean b, resource c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
-axiom push_implies_star_3 { (∀boolean a, resource b, boolean c; (a ==> b ** c) == ((a ==> b) ** (a ==> c))) }
-axiom scale_star_2 { (∀resource a, boolean b, rational s; ([s](a ** b)) == (([s]a) ** (b))) }
-axiom scale_star_2 { (∀boolean a, resource b, rational s; ([s](a ** b)) == ((a) ** ([s]b))) }
-axiom starall_star_1 {
-  (∀type<any> T, resource a, boolean b;
-    (∀* T t; (a!t) ** (b!t)) ==
-    ((∀* T t; (a!t)) ** (∀* T t; (b!t))))
-}
-axiom starall_star_2 {
-  (∀type<any> T, boolean a, resource b;
-    (∀* T t; (a!t) ** (b!t)) ==
-    ((∀* T t; (a!t)) ** (∀* T t; (b!t))))
-}

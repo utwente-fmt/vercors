@@ -26,6 +26,7 @@ case object CoercionUtils {
       case (TResource(), TResourceVal()) => CoerceResourceResourceVal()
       case (TResourceVal(), TResource()) => CoerceResourceValResource()
       case (TBool(), TResource()) => CoerceBoolResource()
+      case (TBool(), TResourceVal()) => CoercionSequence(Seq(CoerceBoolResource(), CoerceResourceResourceVal()))
 
       case (_, TAnyValue()) => CoerceSomethingAnyValue(source)
 

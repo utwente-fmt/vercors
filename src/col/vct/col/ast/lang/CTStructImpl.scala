@@ -5,5 +5,5 @@ import vct.col.print.{Ctx, Doc, Text}
 
 trait CTStructImpl[G] { this: CTStruct[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Text("struct ") <> Text(ctx.name(ref))
+    Text("struct") <+> ctx.name(ref)
 }
