@@ -1,3 +1,4 @@
+import $meta._
 import $ivy.`com.lihaoyi::mill-contrib-buildinfo:`
 import $ivy.`com.lihaoyi::mill-contrib-scalapblib:`
 
@@ -7,6 +8,8 @@ import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import contrib.buildinfo.BuildInfo
 import mill.util.Jvm
+
+import vct.col.ast.structure
 
 object settings {
   val root = implicitly[define.Ctx].millSourcePath
@@ -86,10 +89,11 @@ object util {
       // PB: this is nearly just Jvm.createLauncher, but you cannot set the filename, and uses a literal classpath instead of a file.
       for((name, mainClass) <- runScriptClasses()) {
         // thanks https://gist.github.com/lhns/ee821a5cd1b2031856b21a0e78e1ecc9
+        val quote = "\""
         val header = "@ 2>/dev/null # 2>nul & echo off & goto BOF"
         val unix = Seq(
           ":",
-          s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass \"$$@\"",
+          s"java ${forkArgs().mkString(" ")} @${unixClassPathArgumentFile()} $mainClass $quote$$@$quote",
           "exit",
         )
         val batch = Seq(
@@ -139,10 +143,14 @@ object util {
           coursier.LocalRepositories.ivy2Local,
           coursier.MavenRepository("https://repo1.maven.org/maven2")
         ),
-        Seq(ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}")
+        Seq(
+          ivy"com.thesamet.scalapb::scalapbc:${scalaPBVersion()}",
+        )
           .map(Lib.depToBoundDep(_, "2.13.1"))
       ).map(_.map(_.withRevalidateOnce))
     }
+
+    def scalaPBSearchDeps = true
   }
 
   trait SeparatePackedResourcesModule extends JavaModule {
@@ -552,6 +560,72 @@ object vercors extends Module {
   }
 
   object col extends VercorsModule {
+    object helpers extends Module {
+      // Note: relevant resources are generated as part of the meta-build in mill-build/build.sc.
+      def load[T: upickle.default.Reader](file: String): T =
+        upickle.default.read[T](classOf[helpers.type].getResourceAsStream(s"/${file}"), trace = true)
+
+      val declarationKinds = load[Seq[structure.Name]]("col-kinds.json")
+      val nodeFamilies = load[Seq[structure.Name]]("col-families.json")
+      val definitions = load[Seq[structure.NodeDefinition]]("col-definitions.json")
+      val categories = load[Seq[(structure.Name, Seq[structure.Name])]]("col-categories.json")
+
+      object generators extends VercorsModule {
+        def key = "helpers"
+        val structureClasspath = upickle.default.read[Seq[Path]](classOf[helpers.type].getResourceAsStream("/classpath.json"))
+        def deps: T[Agg[Dep]] = T { Nil }
+        def unmanagedClasspath = T { structureClasspath.map(PathRef(_)) }
+      }
+
+      def instantiate[T](name: String): Task[T] = T.task {
+        mill.api.ClassLoader
+          .create(generators.runClasspath().map(_.path.toIO.toURI.toURL), parent = classOf[helpers.type].getClassLoader)
+          .loadClass(s"vct.col.ast.helpers.generator.$name")
+          .asInstanceOf[Class[T]]
+          .getDeclaredConstructor()
+          .newInstance()
+      }
+
+      def protoAuxTypes = T.worker(instantiate[structure.AllNodesGenerator]("ProtoAuxTypes"))
+
+      def allFamiliesGenerators = T.worker {
+        Seq(
+          instantiate[structure.AllFamiliesGenerator]("AbstractRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("AllFrozenScopes")(),
+          instantiate[structure.AllFamiliesGenerator]("AllScopes")(),
+          instantiate[structure.AllFamiliesGenerator]("BaseCoercingRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("NonLatchingRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("SuccessorsProvider")(),
+        )
+      }
+
+      def familyGenerators = T.worker {
+        Seq(
+          instantiate[structure.FamilyGenerator]("DeserializeFamily"),
+          instantiate[structure.FamilyGenerator]("ProtoFamily")(),
+        )
+      }
+
+      def nodeGenerators = T.worker {
+        Seq(
+          instantiate[structure.NodeGenerator]("Compare")(),
+          instantiate[structure.NodeGenerator]("Deserialize")(),
+          instantiate[structure.NodeGenerator]("Ops")(),
+          instantiate[structure.NodeGenerator]("ProtoNode")(),
+          instantiate[structure.NodeGenerator]("Rewrite")(),
+          instantiate[structure.NodeGenerator]("Serialize")(),
+        )
+      }
+
+      object node extends Cross[nodeCross](definitions)
+      trait nodeCross extends Cross.Module[structure.NodeDefinition] {
+        def definition = T.input(crossValue)
+        def generate = T {
+          nodeGenerators().foreach(_.generate(T.dest.toNIO, definition()))
+        }
+      }
+    }
+
     def key = "col"
     def deps = T { Agg.empty }
     override def generatedSources = T { meta.helpers() }

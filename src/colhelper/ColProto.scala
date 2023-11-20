@@ -328,6 +328,13 @@ case class ColProto(info: ColDescription, output: File, writer: (File, String) =
     writer(f,
       f"""syntax = "proto2";
          |package vct.col.serialize;
+         |import "scalapb/scalapb.proto";
+         |
+         |option (scalapb.options) = {
+         |  getters: false
+         |  lenses: false
+         |  no_default_values_in_constructor: true
+         |};
          |
          |$messages
          |""".stripMargin)

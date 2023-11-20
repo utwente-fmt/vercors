@@ -305,7 +305,7 @@ final class SendDecl[G]()(implicit val o: Origin) extends Declaration[G] with Se
 final class ParBlockDecl[G]()(implicit val o: Origin) extends Declaration[G] with ParBlockDeclImpl[G]
 final class ParInvariantDecl[G]()(implicit val o: Origin) extends Declaration[G] with ParInvariantDeclImpl[G]
 
-sealed trait Applicable[G] extends Declaration[G] with ApplicableImpl[G]
+sealed trait Applicable[G] extends ApplicableImpl[G] /* with Declaration[G] */
 sealed trait InlineableApplicable[G] extends Applicable[G] with InlineableApplicableImpl[G]
 sealed trait AbstractPredicate[G] extends InlineableApplicable[G] with AbstractPredicateImpl[G]
 sealed trait ContractApplicable[G] extends InlineableApplicable[G] with ContractApplicableImpl[G]
