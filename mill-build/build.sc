@@ -27,12 +27,12 @@ object millbuild extends MillBuildRootModule {
   def resources = T.sources(analyseNodeDeclarations(), structureClassPath())
 
   object structure extends ScalaModule {
-    def scalaVersion = "2.13.5"
+    def scalaVersion = "2.13.12"
     def ivyDeps = T { Seq(ivy"com.lihaoyi::upickle:3.1.3", ivy"com.lihaoyi::mill-main-define:0.11.4") }
   }
 
   object analysis extends ScalaModule {
-    def scalaVersion = "2.13.5"
+    def scalaVersion = "2.13.12"
     def moduleDeps = Seq(structure)
     def ivyDeps = T { Seq(ivy"org.scalameta::scalameta:4.4.9") }
   }

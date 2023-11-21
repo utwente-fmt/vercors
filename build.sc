@@ -113,7 +113,7 @@ object util {
   }
 
   trait ScalaModule extends BaseScalaModule with JavaModule {
-    def scalaVersion = "2.13.5"
+    def scalaVersion = "2.13.12"
 
     override def scalacOptions = T {
       val shared = Seq(
@@ -573,13 +573,21 @@ object vercors extends Module {
       object generators extends VercorsModule {
         def key = "helpers"
         val structureClasspath = upickle.default.read[Seq[Path]](classOf[helpers.type].getResourceAsStream("/classpath.json"))
-        def deps: T[Agg[Dep]] = T { Nil }
+        def deps: T[Agg[Dep]] = T {
+          Agg(
+            ivy"org.scalameta::scalameta:4.4.9",
+          )
+        }
         def unmanagedClasspath = T { structureClasspath.map(PathRef(_)) }
+        def scalacOptions = T { Seq("-opt:local", "-opt:inline:**", "-Wopt") }
       }
 
       def instantiate[T](name: String): Task[T] = T.task {
         mill.api.ClassLoader
-          .create(generators.runClasspath().map(_.path.toIO.toURI.toURL), parent = classOf[helpers.type].getClassLoader)
+          .create(
+            generators.runClasspath().map(_.path.toIO.toURI.toURL),
+            parent = classOf[helpers.type].getClassLoader,
+          )
           .loadClass(s"vct.col.ast.helpers.generator.$name")
           .asInstanceOf[Class[T]]
           .getDeclaredConstructor()
@@ -609,11 +617,11 @@ object vercors extends Module {
       def nodeGenerators = T.worker {
         Seq(
           instantiate[structure.NodeGenerator]("Compare")(),
-          instantiate[structure.NodeGenerator]("Deserialize")(),
-          instantiate[structure.NodeGenerator]("Ops")(),
-          instantiate[structure.NodeGenerator]("ProtoNode")(),
-          instantiate[structure.NodeGenerator]("Rewrite")(),
-          instantiate[structure.NodeGenerator]("Serialize")(),
+//          instantiate[structure.NodeGenerator]("Deserialize")(),
+//          instantiate[structure.NodeGenerator]("Ops")(),
+//          instantiate[structure.NodeGenerator]("ProtoNode")(),
+//          instantiate[structure.NodeGenerator]("Rewrite")(),
+//          instantiate[structure.NodeGenerator]("Serialize")(),
         )
       }
 
