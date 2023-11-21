@@ -6,6 +6,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/casts.c"
   vercors should verify using silicon example "concepts/c/floats.c"
   vercors should verify using silicon example "concepts/c/malloc_free.c"
+  vercors should verify using silicon example "concepts/c/math.c"
   vercors should verify using silicon example "concepts/c/mod_div.c"
   vercors should verify using silicon example "concepts/c/structs.c"
 
@@ -226,4 +227,72 @@ class CSpec extends VercorsSpec {
     }
     """
 
+  vercors should error withCode "noSuchName" in "No struct found" c
+    """
+    struct d {
+        int x;
+    };
+
+    int main(){
+        struct y x;
+    }
+    """
+
+  vercors should verify using silicon in "Pure function in c" c
+    """
+    #include <stdlib.h>
+    #include <assert.h>
+
+    /*@ pure @*/ int plusOne(int x){
+        return x+1;
+    }
+
+    //@ ensures \result == plusOne(x);
+    int test(int x){
+        return x+1;
+    }
+
+    int main(){
+        assert(test(1) == 2);
+    }
+    """
+  vercors should error withCode "unsupportedStructPerm" in "cylic struct" c
+    """
+    struct d {
+      int x;
+      struct d y;
+    };
+
+    //@ requires Perm(s, write);
+    void test (struct d s) {
+      int x;
+    }
+
+    int main () {
+      struct d s;
+    }
+    """
+
+  vercors should error withCode "type" in "struct type is no value" c
+    """
+    struct d {
+        int x;
+    };
+
+    int main(){
+        struct d s = d;
+    }
+    """
+
+  vercors should error withCode "type" in "struct type is again no value" c
+    """
+    struct d {
+        int x;
+    };
+
+    int main(){
+        struct d s;
+        s = d;
+    }
+    """
 }

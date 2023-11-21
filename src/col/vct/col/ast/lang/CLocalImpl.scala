@@ -12,6 +12,7 @@ trait CLocalImpl[G] { this: CLocal[G] =>
     case ref: RefAxiomaticDataType[G] => Types.notAValue(ref)
     case RefVariable(decl) => decl.t
     case ref: RefCFunctionDefinition[G] => Types.notAValue(ref)
+    case ref: RefCStruct[G] => Types.notAValue(ref)
     case ref @ RefCGlobalDeclaration(decls, initIdx) =>
       val declInfo = C.getDeclaratorInfo(decls.decl.inits(initIdx).decl)
       declInfo.params match {

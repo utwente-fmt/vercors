@@ -19,10 +19,12 @@ pure double pow_math_h(double x, double y);
   decreases;
 @*/
 double /*@ pure @*/ ceil(double x);
+
 /*@
+  ensures \result == (x >= 0 ? x : -x);
   decreases;
 @*/
-double /*@ pure @*/ fabs(double x) = x >= 0 ? x : -x;
+double /*@ pure @*/ fabs(double x);
 
 /*@
   ensures \result == (double)((int)x);
@@ -38,17 +40,14 @@ double /*@ pure @*/ floor(double x);
 double /*@ pure @*/ pow(double x, double y);
 
 /*@
-  // Given precision, since we cannot express irrational numbers
-  given double eps;
-  requires eps > 0.0;
-  requires x >= 0.0;
-  ensures x - eps <= \result*\result && x + eps < \result*\result;
+  ensures \result == pow_math_h(x, 0.5);
   decreases;
 @*/
 double /*@ pure @*/ sqrt(double x);
 
 /*@
-  ensures \result == (double)(int)(x + 0.5);
+  ensures !(x < 0 && is_int(x-0.5)) ==> \result == (double)(int)(x + 0.5);
+  ensures (x < 0 && is_int(x-0.5)) ==> \result == x-0.5;
   decreases;
 @*/
 double /*@ pure @*/ round(double x);

@@ -919,6 +919,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         else
           Local(cNameSuccessor.ref(ref))
       case RefCFunctionDefinition(_) => throw NotAValue(local)
+      case ref: RefCStruct[Pre] => throw NotAValue(local)
       case ref @ RefCGlobalDeclaration(decl, initIdx) =>
         C.getDeclaratorInfo(decl.decl.inits(initIdx).decl).params match {
           case None => DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(local.blame)
