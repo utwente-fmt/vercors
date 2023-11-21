@@ -481,28 +481,25 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-}
-
-class TechnicalVeyMontSpec2 extends VercorsSpec {
   (vercors should verify
     using silicon
     flags Seq("--veymont-generate-permissions")
-    in "Loops should also limit the number of participants when combined with branches" pvl
-  """
-  class Storage {
-    int x;
+    in "Permission should be generated for constructors as well" pvl
+    """
+    class Storage {
+      int x;
 
-    int m() {
-      x = 2;
+      int m() {
+        x = 2;
+      }
     }
-  }
 
-  seq_program Example() {
-    endpoint alice = Storage();
-    seq_run {
-      alice.m();
-      assert alice.x == 2;
+    seq_program Example() {
+      endpoint alice = Storage();
+      seq_run {
+        alice.m();
+        assert alice.x == 2;
+      }
     }
-  }
-  """)
+    """)
 }

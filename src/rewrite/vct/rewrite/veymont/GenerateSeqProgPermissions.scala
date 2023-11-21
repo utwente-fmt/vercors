@@ -9,12 +9,15 @@ import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 
+import scala.annotation.switch
+
 object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
   override def key: String = "generateSeqProgPermissions"
   override def desc: String = "Generates permissions for fields of some types (classes, int, bool, and arrays of these) for constructs used inside seq_program."
 }
 
 case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
+  println(s"Enabled: $enabled")
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
 
@@ -34,12 +37,12 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   override def dispatch(decl: Declaration[Pre]): Unit = decl match {
     case fun: Function[Pre] if enabled =>
-      globalDeclarations.declare(fun.rewrite(
+      globalDeclarations.succeed(fun, fun.rewrite(
         contract = prependContract(fun.contract, variablesPerm(fun.args)(fun.o), tt)(fun.o)
       ))
     case proc: Procedure[Pre] if enabled =>
       implicit val o = proc.o
-      globalDeclarations.declare(proc.rewrite(
+      globalDeclarations.succeed(proc, proc.rewrite(
         contract = prependContract(
           proc.contract,
           variablesPerm(proc.args),
@@ -51,11 +54,11 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
     case fun: InstanceFunction[Pre] if enabled =>
       implicit val o = fun.o
-      classDeclarations.declare(fun.rewrite(contract = prependContract(fun.contract, currentPerm.top, tt)))
+      classDeclarations.succeed(fun, fun.rewrite(contract = prependContract(fun.contract, currentPerm.top, tt)))
 
     case method: InstanceMethod[Pre] if enabled =>
       implicit val o = method.o
-      classDeclarations.declare(method.rewrite(
+      classDeclarations.succeed(method, method.rewrite(
         contract = prependContract(
           method.contract,
           currentPerm.top,
@@ -63,7 +66,23 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         )
       ))
 
-    case prog: SeqProg[Pre] => ???
+    case prog: SeqProg[Pre] if enabled =>
+      val run = prog.run
+      globalDeclarations.succeed(prog, prog.rewrite(
+        contract = prependContract(
+          prog.contract,
+          variablesPerm(prog.args)(prog.o),
+          variablesPerm(prog.args)(prog.o)
+        )(prog.o),
+        run = run.rewrite(
+          contract = prependContract(
+            run.contract,
+            endpointsPerm(prog.endpoints)(run.o),
+            endpointsPerm(prog.endpoints)(run.o),
+          )(run.o),
+          body = currentPerm.having(endpointsPerm(prog.endpoints)(run.o)) {
+            rewriteDefault(run.body)
+          })))
 
     case decl => rewriteDefault(decl)
   }
@@ -95,6 +114,9 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
   def endpointPerm(endpoint: Endpoint[Pre])(implicit o: Origin): Expr[Post] =
     transitivePerm(EndpointUse[Post](succ(endpoint)), TClass(endpoint.cls))
+
+  def endpointsPerm(endpoints: Seq[Endpoint[Pre]])(implicit o: Origin): Expr[Post] =
+    foldStar(endpoints.map(endpointPerm))
 
   def variablePerm(variable: Variable[Pre]): Expr[Post] =
     transitivePerm(Local[Post](succ(variable))(variable.o), variable.t)(variable.o)
@@ -144,5 +166,4 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     fieldPerm[Post](`this`, succ(f), WritePerm()) &*
       transitivePerm(Deref[Post](`this`, succ(f))(PanicBlame("Permission for this field is already established")), f.t)
   }
-
 }
