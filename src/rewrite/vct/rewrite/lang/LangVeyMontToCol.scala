@@ -38,7 +38,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   val currentProg: ScopedStack[PVLSeqProg[Pre]] = ScopedStack()
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
-    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.o)
+    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.blame)(comm.o)
 
   def rewriteAccess(access: PVLCommunicateAccess[Pre]): Access[Post] =
     Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.o)
@@ -94,8 +94,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteParAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
-    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.o)
+  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
+    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.blame)(assign.o)
 
   def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedSeqBranch[Post] =
     UnresolvedSeqBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)

@@ -1683,18 +1683,18 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)(c.blame)
       case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
-      case Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)(c.blame)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
-      case PVLSeqAssign(r, f, v) =>
-        try { PVLSeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+      case a @ PVLSeqAssign(r, f, v) =>
+        try { PVLSeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err
         }
-      case SeqAssign(r, f, v) =>
-        try { SeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+      case a @ SeqAssign(r, f, v) =>
+        try { SeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err

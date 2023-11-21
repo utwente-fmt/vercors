@@ -347,6 +347,12 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends 
   override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
 }
 
+sealed trait PVLCommunicateFailure extends VerificationFailure
+sealed trait CommunicateFailure extends PVLCommunicateFailure
+
+sealed trait PVLSeqAssignFailure extends VerificationFailure
+sealed trait SeqAssignFailure extends PVLSeqAssignFailure
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"

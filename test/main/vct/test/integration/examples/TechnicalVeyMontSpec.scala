@@ -503,3 +503,38 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
     """)
 }
+
+class TechnicalVeyMontSpec2 extends VercorsSpec {
+  (vercors should verify
+    using silicon
+    in "Permission should be generated for constructors as well" pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      seq_run {
+        alice.x := 2;
+      }
+    }
+    """)
+
+  (vercors should verify
+    using silicon
+    in "Permission should be generated for constructors all" pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
+      seq_run {
+        communicate alice.x <- bob.x;
+      }
+    }
+    """)
+}
