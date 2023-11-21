@@ -46,7 +46,7 @@ class CSpec extends VercorsSpec {
       }
     """
 
-  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free null pointer" c
+  vercors should fail withCode "ptrOffsetNonZero" using silicon in "free offset 1 pointer" c
     """
       #include <stdlib.h>
       int main(){
@@ -101,7 +101,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm ptr" c
+  vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm field" c
     """
     struct d{
       int x;
@@ -137,4 +137,93 @@ class CSpec extends VercorsSpec {
       int x = s.x;
     }
     """
+
+  vercors should error withCode "unsupportedCast" in "Cast ptr struct to int" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d *s;
+      int* ss;
+      ss = (int *) s;
+    }
+    """
+
+  vercors should error withCode "unsupportedCast" in "Cast struct to int" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d s;
+      int ss;
+      ss = (int ) s;
+    }
+    """
+
+  vercors should error withCode "unsupportedCast" in "Cast int to struct" c
+    """
+    struct d{
+      int x;
+    };
+    int main(){
+      struct d s;
+      int ss = 5;
+      s = (struct d) ss;
+    }
+    """
+
+  vercors should error withCode "unsupportedMalloc" in "Unsupported malloc without sizeof" c
+    """
+    #include <stdlib.h>
+    int main(){
+      int *x = (int*) malloc(5*4);
+    }
+    """
+
+  vercors should error withCode "unsupportedMalloc" in "Unsupported malloc with wrong cast" c
+    """
+    #include <stdlib.h>
+    int main(){
+      float *x = (float* ) malloc(sizeof(int)*4);
+    }
+    """
+
+  vercors should error withCode "unsupportedSizeof" in "Unsupported use of sizeof" c
+    """
+    #include <stdlib.h>
+    int main(){
+      int x = sizeof(int);
+    }
+    """
+
+  vercors should fail withCode "divByZero" using silicon in "Truncated div divide zero" c
+    """
+    int test(int a, int b){
+      return a/b;
+    }
+    """
+
+  vercors should fail withCode "divByZero" using silicon in "Truncated mod divide zero" c
+    """
+    int test(int a, int b){
+      return a%b;
+    }
+    """
+
+  vercors should fail withCode "divByZero" using silicon in "Eucl div divide zero" c
+    """
+    int test(int a, int b){
+      return a/b;
+    }
+    """
+
+  vercors should fail withCode "divByZero" using silicon in "Eucl mod divide zero" c
+    """
+    int test(int a, int b){
+      return a%b;
+    }
+    """
+
 }

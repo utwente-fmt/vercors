@@ -9,6 +9,7 @@ import vct.col.ref.Ref
 import vct.col.resolve.lang.PVL
 import vct.col.rewrite.FloatToRat.CastFuncOrigin
 import vct.col.rewrite.error.ExtraNode
+import vct.col.typerules.CoercionUtils
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 
@@ -49,36 +50,16 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
       returnType = TRational(),
     )(nonDetFloatOrigin.where(name= "nonDetFloat")))(nonDetFloatOrigin))
   }
-
-  def makeCast(from: TFloat[Pre], to: TFloat[Pre]): Function[Post] = {
-    globalDeclarations.declare(function[Post](
-      args = Seq(new Variable(dispatch(from))(DiagnosticOrigin)),
-      returnType = dispatch(to),
-      blame = PanicBlame("Postcondition cannot fail for auto-generated cast function"),
-      contractBlame = PanicBlame("Pre-condition cannot be unsatisfiable for auto-generated cast function"))(CastFuncOrigin(s"${name(from)}_${name(to)}")))
-  }
-
-  val casts: mutable.Map[(Type[Pre], Type[Pre]), Function[Post]] = mutable.Map()
-
+  
   override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
     case CastFloat(e, t) if e.t == t => dispatch(e)
     case CastFloat(e, t: TFloat[Pre]) if e.t.isInstanceOf[TFloat[Pre]] => dispatch(e)
-    case c@CastFloat(e, t: TFloat[Pre]) if e.t == TInt[Pre]() =>
+    case c@CastFloat(e, t: TFloat[Pre]) if CoercionUtils.getCoercion(e.t, TInt()).isDefined =>
       implicit val o: Origin = c.o
       dispatch(e) /:/ const(1)
     case c@CastFloat(e, t: TInt[Pre]) if e.t.isInstanceOf[TFloat[Pre]] =>
       SmtlibToInt[Post](dispatch(e))(CastFuncOrigin("to_int"))
-    case CastFloat(e, t) =>
-      if (e.t == t) {
-        dispatch(e)
-      } else {
-        // PB: just casting to float is a bit dubious here, but at least:
-        // - e is type-checked to be coercible to TFloats.max
-        // - t is "supposed" to be a floaty type I guess
-        val f: Function[Post] = casts.getOrElseUpdate((e.t, t), makeCast(e.t.asInstanceOf[TFloat[Pre]], t.asInstanceOf[TFloat[Pre]]))
-        implicit val o: Origin = expr.o
-        FunctionInvocation(f.ref[Function[Post]], Seq(dispatch(e)), Nil, Nil, Nil)(PanicBlame("Can always call cast on float"))
-      }
+    case CastFloat(_, _) => ???
     case f @ FloatValue(num, _) =>
       implicit val o: Origin = f.o
       var numerator = num

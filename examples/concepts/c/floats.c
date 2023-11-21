@@ -28,6 +28,7 @@ int main(){
 
     int a,b,c,d,e;
     float w,x,y,z;
+    int f = 5*2;
     a = 1;
     x = 1.0;
     y = 1.1;

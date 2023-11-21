@@ -54,7 +54,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           }
       }
 
-    case IntegerValue(value) => Some(value)
+    case i: ConstantInt[G] => Some(i.value)
     case Exp(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1.pow(i2.toInt)
     case Plus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 + i2
     case AmbiguousPlus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 + i2
@@ -414,10 +414,10 @@ class AnnotationVariableInfoGetter[G]() {
         lt(from, e1, equal = true)
         lt(e1, to, equal = false)
       // n == m + 1 then m < n
-      case Eq(v1: Local[G], Plus(v2: Local[G], IntegerValue(i))) => varEqVarPlusInt(v1, v2, i)
-      case Eq(v1: Local[G], Plus(IntegerValue(i), v2: Local[G])) => varEqVarPlusInt(v1, v2, i)
-      case Eq(Plus(v2: Local[G], IntegerValue(i)), v1: Local[G]) => varEqVarPlusInt(v1, v2, i)
-      case Eq(Plus(IntegerValue(i), v2: Local[G]), v1: Local[G]) => varEqVarPlusInt(v1, v2, i)
+      case Eq(v1: Local[G], Plus(v2: Local[G], i: ConstantInt[G])) => varEqVarPlusInt(v1, v2, i.value)
+      case Eq(v1: Local[G], Plus(i: ConstantInt[G], v2: Local[G])) => varEqVarPlusInt(v1, v2, i.value)
+      case Eq(Plus(v2: Local[G], i: ConstantInt[G]), v1: Local[G]) => varEqVarPlusInt(v1, v2, i.value)
+      case Eq(Plus(i: ConstantInt[G], v2: Local[G]), v1: Local[G]) => varEqVarPlusInt(v1, v2, i.value)
       case Eq(v1: Local[G], Plus(v2: Local[G], v3: Local[G])) => varEqVarPlusVar(v1, v2, v3)
       case Eq(Plus(v2: Local[G], v3: Local[G]), v1: Local[G]) => varEqVarPlusVar(v1, v2, v3)
       case _ =>

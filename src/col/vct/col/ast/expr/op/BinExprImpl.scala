@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op
 
 import vct.col.ast.`type`.typeclass.TFloats.getFloatMax
-import vct.col.ast.{BinExpr, Expr, TBool, TCInt, TInt, TProcess, TRational, TString, Type}
+import vct.col.ast.{BinExpr, Expr, IntType, TBool, TCInt, TInt, TProcess, TRational, TString, Type}
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError
 
@@ -36,6 +36,8 @@ trait BinExprImpl[G] { this: BinExpr[G] =>
   def isProcessOp: Boolean = CoercionUtils.getCoercion(left.t, TProcess()).isDefined
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(left.t).isDefined
   def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(left.t).isDefined
+
+  def getIntType: IntType[G] = if(isCIntOp) TCInt() else TInt()
 
 
   def getNumericType: Type[G] = {

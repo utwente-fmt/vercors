@@ -78,29 +78,29 @@ case object CPP {
     specs.collect { case spec: CPPTypeSpecifier[G] => spec } match {
       case Seq(CPPVoid()) => TVoid()
       case Seq(CPPChar()) => TChar()
-      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TInt()
+      case t if CPP.NUMBER_LIKE_SPECIFIERS.contains(t) => TCInt()
       case Seq(CPPSpecificationType(t@TFloat(_, _))) => t
       case Seq(CPPBool()) => TBool()
       case Seq(SYCLClassDefName("event", Seq())) => SYCLTEvent()
       case Seq(SYCLClassDefName("handler", Seq())) => SYCLTHandler()
       case Seq(SYCLClassDefName("queue", Seq())) => SYCLTQueue()
-      case Seq(SYCLClassDefName("item", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTItem(dim.intValue)
-      case Seq(SYCLClassDefName("nd_item", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTNDItem(dim.intValue)
-      case Seq(SYCLClassDefName("range", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTRange(dim.intValue)
-      case Seq(SYCLClassDefName("nd_range", Seq(CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) => SYCLTNDRange(dim.intValue)
-      case Seq(SYCLClassDefName("buffer", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+      case Seq(SYCLClassDefName("item", Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) => SYCLTItem(dim.intValue)
+      case Seq(SYCLClassDefName("nd_item", Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) => SYCLTNDItem(dim.intValue)
+      case Seq(SYCLClassDefName("range", Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) => SYCLTRange(dim.intValue)
+      case Seq(SYCLClassDefName("nd_range", Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) => SYCLTNDRange(dim.intValue)
+      case Seq(SYCLClassDefName("buffer", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
         getBaseTypeFromSpecs(Seq(typ)) match {
-          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTBuffer(primitiveType, dim.intValue)
+          case primitiveType@(TBool() | TCInt() | TFloat(_, _) | TChar()) => SYCLTBuffer(primitiveType, dim.intValue)
           case _ => throw CPPTypeNotSupported(context)
         }
-      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+      case Seq(SYCLClassDefName("accessor", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
         getBaseTypeFromSpecs(Seq(typ)) match {
-          case primitiveType@(TBool() | TInt() | TFloat(_, _) | TChar()) => SYCLTAccessor(primitiveType, dim.intValue)
+          case primitiveType@(TBool() | TCInt() | TFloat(_, _) | TChar()) => SYCLTAccessor(primitiveType, dim.intValue)
           case _ => throw CPPTypeNotSupported(context)
         }
       case Seq(CPPTypedefName("VERCORS::LAMBDA", _)) => CPPTLambda()
       case Seq(CPPTypedefName("VERCORS::SYCL::ACCESS_MODE", _)) => SYCLTAccessMode()
-      case Seq(CPPTypedefName("VERCORS::ARRAY", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(IntegerValue(dim)), None)))) =>
+      case Seq(CPPTypedefName("VERCORS::ARRAY", Seq(CPPExprOrTypeSpecifier(None, Some(typ)), CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None)))) =>
         FuncTools.repeat(TArray[G](_), dim.toInt, getBaseTypeFromSpecs(Seq(typ)))
       case Seq(defn@CPPTypedefName(_, _)) => Types.notAValue(defn.ref.get)
       case Seq(CPPSpecificationType(typ)) => typ

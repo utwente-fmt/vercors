@@ -109,11 +109,11 @@ case object CoercionUtils {
 
       case (TBoundedInt(gte, lt), TFraction()) if gte >= 1 && lt <= 2 => CoerceBoundIntFrac()
       case (source @ TBoundedInt(gte, lt), TZFraction()) if gte >= 0 && lt <= 2 => CoerceBoundIntZFrac(source)
-      case (source @ TBoundedInt(_, _), target: FloatType[G]) => CoerceBoundIntFloat(source, target)
+      case (source @ TBoundedInt(_, _), target: TFloat[G]) => CoerceBoundIntFloat(source, target)
 
       case (source @ TBoundedInt(gte, lt), target @ TBoundedInt(t_gte, t_lt)) if t_gte <= gte && t_lt >= lt =>
         CoerceWidenBound(source, target)
-      case (source: TBoundedInt[G], target: IntType[G]) => CoerceUnboundInt(source, target)
+      case (source: TBoundedInt[G], target: TInt[G]) => CoerceUnboundInt(source, target)
       case (source: TBoundedInt[G], TRational()) => CoercionSequence(Seq(CoerceUnboundInt(source, TInt()), CoerceIntRat()))
       case (_: IntType[G], TRational()) => CoerceIntRat()
 

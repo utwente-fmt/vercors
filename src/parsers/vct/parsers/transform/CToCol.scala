@@ -530,10 +530,10 @@ case class CToCol[G](override val baseOrigin: Origin,
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousPlus(target, c_const(1))(blame(expr)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousMinus(target, c_const(1))(blame(expr)))(blame(expr))
     case UnaryExpression3(UnaryOperator0(op), arg) => op match {
       case "&" => AddrOf(convert(arg))
       case "*" => DerefPointer(convert(arg))(blame(expr))
@@ -559,10 +559,10 @@ case class CToCol[G](override val baseOrigin: Origin,
     case PostfixExpression4(struct, _, field) => CStructDeref(convert(struct), convert(field))(blame(expr))
     case PostfixExpression5(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousPlus(target, c_const(1))(blame(expr)))(blame(expr))
     case PostfixExpression6(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousMinus(target, c_const(1))(blame(expr)))(blame(expr))
     case PostfixExpression7(e, SpecPostfix0(postfix)) => convert(expr, postfix, convert(e))
     case PostfixExpression8(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression9(_, _, _, _, _, _, _) => ??(expr)
@@ -592,7 +592,7 @@ case class CToCol[G](override val baseOrigin: Origin,
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      Some(IntegerValue(BigInt(i)))
+      Some(CIntegerValue(BigInt(i)))
     } catch {
       case e: NumberFormatException => None
     }

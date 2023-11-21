@@ -146,7 +146,13 @@ case object LangCToCol {
 
   case class UnsupportedMalloc(c: Expr[_]) extends UserError {
     override def code: String = "unsupportedMalloc"
-    override def text: String = c.o.messageInContext("Only 'malloc' of the format '(t *) malloc(x*typeof(t)' is supported.")
+    override def text: String = c.o.messageInContext("Only 'malloc' of the format '(t *) malloc(x*sizeof(t)' is supported.")
+  }
+
+  case class UnsupportedSizeof(c: Expr[_]) extends UserError {
+    override def code: String = "unsupportedSizeof"
+
+    override def text: String = c.o.messageInContext("The use of 'sizeof' is only supported inside a malloc: '(t *) malloc(x*typeof(t)'.")
   }
 
   case class UnsupportedStructPerm(o: Origin) extends UserError {
@@ -183,10 +189,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   private var kernelSpecifier: Option[CGpgpuKernelSpecifier[Pre]] = None
 
   private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
-    sdecl.o.where( name = sdecl.name.getOrElse("AnonymousStruct"))
+    sdecl.o.sourceName(sdecl.name.get)
 
   private def CStructFieldOrigin(cdecl: CDeclarator[_]): Origin =
-    cdecl.o.where(name = nameFromDeclarator(cdecl))
+    cdecl.o.sourceName(nameFromDeclarator(cdecl))
 
   private def CudaIndexVariableOrigin(dim: RefCudaVecDim[_]): Origin = Origin(
     Seq(
@@ -276,9 +282,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       CastFloat[Post](rw.dispatch(c.expr), rw.dispatch(t))(c.o)
     case CCast(inv @ CInvocation(CLocal("__vercors_malloc"), Seq(arg), Nil, Nil), CTPointer(t2)) =>
       val (t1, size) = arg match {
-        case SizeOf(t1) => (t1, const[Post](1)(c.o))
-        case AmbiguousMult(l, SizeOf(t1)) => (t1, rw.dispatch(l))
-        case AmbiguousMult(SizeOf(t1), r) => (t1, rw.dispatch(r))
+        case SizeOf(t1) if castIsId(t1, t2)  => (t1, c_const[Post](1)(c.o))
+        case AmbiguousMult(l, SizeOf(t1)) if castIsId(t1, t2) => (t1, rw.dispatch(l))
+        case AmbiguousMult(SizeOf(t1), r) if castIsId(t1, t2) => (t1, rw.dispatch(r))
         case _ => throw UnsupportedMalloc(c)
       }
       NewPointerArray(rw.dispatch(t1), size)(ArrayMallocFailed(inv))(c.o)
@@ -289,7 +295,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def rewriteGPUParam(cParam: CParam[Pre], kernelSpecifier: CGpgpuKernelSpecifier[Pre]): Unit = {
     cParam.drop()
     implicit val o: Origin = cParam.o
-    val varO = o.where(name = C.getDeclaratorInfo(cParam.declarator).name)
+    val varO = o.sourceName(C.getDeclaratorInfo(cParam.declarator).name)
     val cRef = RefCParam(cParam)
     val tp = new TypeProperties(cParam.specifiers, cParam.declarator)
 
@@ -324,7 +330,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val specType = cParam.specifiers.collectFirst { case t: CSpecificationType[Pre] => rw.dispatch(t.t) }.get
 
     cParam.drop()
-    val v = new Variable[Post](specType)(cParam.o.where(name = C.getDeclaratorInfo(cParam.declarator).name))
+    val v = new Variable[Post](specType)(cParam.o.sourceName(C.getDeclaratorInfo(cParam.declarator).name))
     cNameSuccessor(RefCParam(cParam)) = v
     rw.variables.declare(v)
   }
@@ -348,7 +354,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         (func.contract, Map.empty)
     }
 
-    val namedO = func.o.where(name = C.getDeclaratorInfo(func.declarator).name)
+    val namedO = func.o.sourceName(info.name)
     val proc =
       cCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare(
@@ -396,7 +402,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     } else {
       Starall(filteredIdx.map{case (v,_) => v}.toSeq, Nil, Implies(
         foldAnd(filteredIdx.map {
-          case (idx, dim) => const[Post](0) <= idx.get && idx.get < dim.get
+          case (idx, dim) => c_const[Post](0) <= idx.get && idx.get < dim.get
         }),
         body
       ))(blame)
@@ -451,7 +457,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       val decl: Statement[Post] = LocalDecl(cNameSuccessor(d))
       val assign: Statement[Post] = assignLocal(Local(cNameSuccessor(d).ref),
         // Since we set the size and blame together, we can assume the blame is not None
-        NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), IntegerValue(size))(blame.get))
+        NewPointerArray[Post](getInnerType(cNameSuccessor(d).t), CIntegerValue(size))(blame.get))
       result ++= Seq(decl, assign)
     }
 
@@ -480,7 +486,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
         // We add the requirement that a GPU kernel must always have threads (non zero block or grid dimensions)
         val nonZeroThreads: Expr[Post] = foldStar(
             (blockDim.indices.values ++ gridDim.indices.values)
-              .map( v => Less(IntegerValue(0)(o), v.get(o))(o))
+              .map( v => Less(CIntegerValue(0)(o), v.get(o))(o))
               .toSeq)(o)
         val UnitAccountedPredicate(contractRequires: Expr[Pre]) = contract.requires
         val UnitAccountedPredicate(contractEnsures: Expr[Pre]) = contract.ensures
@@ -501,7 +507,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                   val innerContent = ParStatement(ParBlock(
                       decl = blockDecl,
                       iters = threadIdx.indices.values.zip(blockDim.indices.values).map {
-                        case (index, dim) => IterVariable(index, const(0), dim.get)
+                        case (index, dim) => IterVariable(index, c_const(0), dim.get)
                       }.toSeq,
                       // Context is already inherited
                       context_everywhere = Star(nonZeroThreads, rw.dispatch(contract.contextEverywhere)),
@@ -512,7 +518,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
                   ParStatement(ParBlock(
                     decl = gridDecl,
                     iters = blockIdx.indices.values.zip(gridDim.indices.values).map {
-                      case (index, dim) => IterVariable(index, const(0), dim.get)
+                      case (index, dim) => IterVariable(index, c_const(0), dim.get)
                     }.toSeq,
                     // Context is added to requires and ensures here
                     context_everywhere = tt,
@@ -606,7 +612,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def addStaticShared(decl:  CDeclarator[Pre], cRef: CNameTarget[Pre], t: Type[Pre], o: Origin,
                       declStatement: CLocalDeclaration[Pre], arraySize: Option[Expr[Pre]], sizeBlame: Option[Blame[ArraySizeError]]): Unit = arraySize match {
-      case Some(IntegerValue(size)) =>
+      case Some(CIntegerValue(size)) =>
         val v = new Variable[Post](TArray[Post](rw.dispatch(t)))(o)
         staticSharedMemNames(cRef) = (size, sizeBlame)
         cNameSuccessor(cRef) = v
@@ -625,7 +631,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val prop = new TypeProperties(decl.decl.specs, decl.decl.inits.head.decl)
     if (!prop.shared) return false
     val init: CInit[Pre] = decl.decl.inits.head
-    val varO = decl.o.where(name = C.getDeclaratorInfo(init.decl).name)
+    val varO = decl.o.sourceName(C.getDeclaratorInfo(init.decl).name)
     val cRef = RefCLocalDeclaration(decl, 0)
 
     kernelSpecifier match {
@@ -717,7 +723,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def assignliteralArray(array: Variable[Post], exprs: Seq[Expr[Pre]], origin: Origin): Seq[Statement[Post]] = {
     implicit val o: Origin = origin
     (exprs.zipWithIndex.map {
-        case (value, index) => Assign[Post](AmbiguousSubscript(array.get, const(index))(PanicBlame("The explicit initialization of an array in C should never generate an assignment that exceeds the bounds of the array")), rw.dispatch(value))(
+        case (value, index) => Assign[Post](AmbiguousSubscript(array.get, c_const(index))(PanicBlame("The explicit initialization of an array in C should never generate an assignment that exceeds the bounds of the array")), rw.dispatch(value))(
           PanicBlame("Assignment for an explicit array initializer cannot fail."))
       }
     )
@@ -732,7 +738,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     decl.decl.specs match {
       case Seq(CSpecificationType(cta@CTArray(sizeOption, oldT))) =>
         val t = rw.dispatch(oldT)
-        val v = new Variable[Post](TPointer(t))(o.where(name = info.name))
+        val v = new Variable[Post](TPointer(t))(o.sourceName(info.name))
         cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
         (sizeOption, init.init) match {
@@ -741,12 +747,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
             val newArr = NewPointerArray[Post](t, rw.dispatch(size))(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
           case (None, Some(CLiteralArray(exprs))) =>
-            val newArr = NewPointerArray[Post](t, const[Post](exprs.size))(cta.blame)
+            val newArr = NewPointerArray[Post](t, c_const[Post](exprs.size))(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs, o))
           case (Some(size), Some(CLiteralArray(exprs))) =>
             val realSize = isConstantInt(size).filter(_ >= 0).getOrElse(throw WrongCType(decl))
             if(realSize < exprs.size) logger.warn(s"Excess elements in array initializer: '${decl}'")
-            val newArr = NewPointerArray[Post](t, const[Post](realSize))(cta.blame)
+            val newArr = NewPointerArray[Post](t, c_const[Post](realSize))(cta.blame)
             Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++ assignliteralArray(v, exprs.take(realSize.intValue), o))
           case _ => throw WrongCType(decl)
         }
@@ -768,7 +774,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val targetClass: Class[Post] = cStructSuccessor(target)
     val t = TClass[Post](targetClass.ref)
 
-    val v = new Variable[Post](t)(o.where(name=info.name))
+    val v = new Variable[Post](t)(o.sourceName(info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
     Block(Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))))
@@ -797,7 +803,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val init = decl.decl.inits.head
 
     val info = C.getDeclaratorInfo(init.decl)
-    val v = new Variable[Post](t)(init.o.where(name=info.name))
+    val v = new Variable[Post](t)(init.o.sourceName(info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
     implicit val o: Origin = init.o
     init.init
@@ -1065,7 +1071,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def cudaKernelInvocation(kernel: GpgpuCudaKernelInvocation[Pre]): Expr[Post] = {
     val GpgpuCudaKernelInvocation(ker, blocks, threads, args, givenMap, yields) = kernel
     implicit val o: Origin = kernel.o
-    val one = const[Post](1)
+    val one = c_const[Post](1)
     kernel.ref.get match {
       case target: SpecInvocationTarget[_] => ???
       case ref: RefCFunctionDefinition[Pre] =>
@@ -1176,7 +1182,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
     val arg = if (args.size == 1) {
       args.head match {
-        case IntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
+        case CIntegerValue(i) if i >= 0 && i < 3 => Some(i.toInt)
         case _ => None
       }
     } else None

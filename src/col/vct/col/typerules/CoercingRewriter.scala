@@ -1582,6 +1582,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case ValidMatrix(mat, w, h) =>
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
+      case value: CIntegerValue[Pre] => e
       case value: IntegerValue[Pre] => e
       case value: FloatValue[Pre] => e
       case value @ Value(loc) =>

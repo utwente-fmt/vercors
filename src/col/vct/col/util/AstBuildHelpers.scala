@@ -261,6 +261,12 @@ object AstBuildHelpers {
   def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] =
     IntegerValue(i)
 
+  def c_const[G](i: Int)(implicit o: Origin): CIntegerValue[G] =
+    CIntegerValue(i)
+
+  def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] =
+    CIntegerValue(i)
+
   def contract[G]
               (blame: Blame[NontrivialUnsatisfiable],
                requires: AccountedPredicate[G] = UnitAccountedPredicate(tt[G])(constOrigin(true)),

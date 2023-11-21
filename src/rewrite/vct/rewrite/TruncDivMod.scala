@@ -4,8 +4,18 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
 import vct.col.util.AstBuildHelpers._
+import vct.result.VerificationError.Unreachable
 
 import scala.collection.mutable
+
+
+case class DivFailed(div:  DividingExpr[_]) extends Blame[InvocationFailure] {
+  override def blame(error: InvocationFailure): Unit = error match {
+    case PreconditionFailed(_, _, _) =>
+      div.blame.blame(DivByZero(div))
+    case other => throw Unreachable(s"Invalid invocation failure: $other")
+  }
+}
 
 case object TruncDivMod extends RewriterBuilder {
   override def key: String = "truncDivmod"
@@ -30,8 +40,7 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
 
   def truncMod(mod: TruncMod[Pre]): Expr[Post] = {
     val truncModFunc = truncModFunctions.getOrElseUpdate((), makeTruncModFunction())
-    // TODO: How to get blame right? It is a DivByZero blame, but that is exactly why a function invocation might fail.
-    FunctionInvocation[Post](truncModFunc.ref, Seq(dispatch(mod.left), dispatch(mod.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(mod.o)
+    FunctionInvocation[Post](truncModFunc.ref, Seq(dispatch(mod.left), dispatch(mod.right)), Nil, Nil, Nil)(DivFailed(mod))(mod.o)
   }
 
   def truncDiv(div: TruncDiv[Pre]): Expr[Post] = {
@@ -41,10 +50,10 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
     }
 
     val truncDiv_func = truncDivFunctions.getOrElseUpdate((), makeTruncDivFunction())
-    FunctionInvocation[Post](truncDiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(PanicBlame("TODO"))(div.o)
+    FunctionInvocation[Post](truncDiv_func.ref, Seq(dispatch(div.left), dispatch(div.right)), Nil, Nil, Nil)(DivFailed(div))(div.o)
   }
 
-  def truncFunctionOrigin(operator: String) = Origin(Seq(LabelContext("generated at `\" + operator + \"` operator\"")))
+  def truncFunctionOrigin(operator: String) = Origin(Seq(LabelContext("generated at `" + operator + "` operator\"")))
 
   /* Make a truncated modulo function.
      It should be equivalent to
@@ -62,8 +71,8 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
     val absb = Select(b > const(0), b, UMinus(b))
 
     globalDeclarations.declare(function[Post](
-      blame = AbstractApplicable,
-      contractBlame = PanicBlame("TODO: Integer division should not have zero second parameter"),
+      blame = PanicBlame("Post-condition cannot fail"),
+      contractBlame = PanicBlame("Pre-condition is always satisfiable"),
       returnType = new_t,
       args = Seq(a_var, b_var),
       requires = UnitAccountedPredicate(b !== const(0)),
@@ -87,8 +96,8 @@ case class TruncDivMod[Pre <: Generation]() extends Rewriter[Pre] {
     val one = Select(b > const(0), const(1), const(-1))
 
     globalDeclarations.declare(function[Post](
-      blame = AbstractApplicable,
-      contractBlame = PanicBlame("TODO"),
+      blame = PanicBlame("Post-condition cannot fail"),
+      contractBlame = PanicBlame("Pre-condition is always satisfiable"),
       returnType = new_t,
       args = Seq(a_var, b_var),
       requires = UnitAccountedPredicate(b !== const(0)),

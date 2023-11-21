@@ -229,6 +229,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
+    case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
     case Perm(a@AmbiguousLocation(expr), perm)
       if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>

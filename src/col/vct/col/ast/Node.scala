@@ -407,7 +407,9 @@ final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
 sealed trait Constant[G, T] extends Expr[G] with ConstantImpl[G, T]
-final case class IntegerValue[G](value: BigInt)(implicit val o: Origin) extends Constant[G, BigInt] with Expr[G] with IntegerValueImpl[G]
+sealed trait ConstantInt[G] extends Constant[G, BigInt]
+final case class CIntegerValue[G](value: BigInt)(implicit val o: Origin) extends ConstantInt[G] with Expr[G] with CIntegerValueImpl[G]
+final case class IntegerValue[G](value: BigInt)(implicit val o: Origin) extends ConstantInt[G] with Expr[G] with IntegerValueImpl[G]
 final case class BooleanValue[G](value: Boolean)(implicit val o: Origin) extends Constant[G, Boolean] with BooleanValueImpl[G]
 final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */)(implicit val o: Origin) extends Constant[G, BigDecimal] with FloatValueImpl[G]
 final case class StringValue[G](value: String)(implicit val o: Origin) extends Constant[G, String] with StringValueImpl[G]
@@ -680,7 +682,7 @@ final case class MatrixSum[G](indices: Expr[G], mat: Expr[G])(implicit val o: Or
 final case class MatrixCompare[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends BinExpr[G] with MatrixCompareImpl[G]
 final case class MatrixRepeat[G](e: Expr[G])(implicit val o: Origin) extends Expr[G] with MatrixRepeatImpl[G]
 
-final case class CastFloat[G](e: Expr[G], t: Type[G] /* TFloat */)(implicit val o: Origin) extends Expr[G] with CastFloatImpl[G]
+final case class CastFloat[G](e: Expr[G], t: Type[G] /* TFloat or TInt */)(implicit val o: Origin) extends Expr[G] with CastFloatImpl[G]
 
 final case class TypeValue[G](value: Type[G])(implicit val o: Origin) extends Expr[G] with TypeValueImpl[G]
 final case class TypeOf[G](expr: Expr[G])(implicit val o: Origin) extends Expr[G] with TypeOfImpl[G]
