@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, Local, LocalDecl, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, Variable}
-import vct.col.origin.{Blame, CallableFailure, DiagnosticOrigin, Origin, PanicBlame, VerificationFailure}
+import vct.col.origin.{AssignFailed, Blame, CallableFailure, CommunicateFailure, CommunicateTargetPermission, DiagnosticOrigin, InsufficientPermission, Origin, PanicBlame, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -140,6 +140,18 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
     }
   }
 
+  case class ForwardAssignFailed(access: Access[_], blame: Blame[CommunicateFailure]) extends Blame[AssignFailed] {
+    override def blame(error: AssignFailed): Unit = {
+      blame.blame(CommunicateTargetPermission(access))
+    }
+  }
+
+  case class ForwardInsufficientPermission(access: Access[_], blame: Blame[CommunicateFailure]) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit = {
+      blame.blame(CommunicateTargetPermission(access))
+    }
+  }
+
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
     case assign@SeqAssign(Ref(endpoint), Ref(field), e) =>
       implicit val o = assign.o
@@ -150,17 +162,17 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         )(GeneratedPerm),
         dispatch(e)
       )(GeneratedPerm)
-    case comm@Communicate(receiver, sender) =>
+    case comm @ Communicate(receiver, sender) =>
       implicit val o = comm.o
       Assign[Post](
-        rewriteAccess(receiver),
-        rewriteAccess(sender)
-      )(GeneratedPerm)
+        rewriteAccess(receiver, PanicBlame("This one should not be used.")),
+        rewriteAccess(sender, comm.blame)
+      )(ForwardAssignFailed(receiver, comm.blame))
     case stat => rewriteDefault(stat)
   }
 
-  def rewriteAccess(access: Access[Pre]): Expr[Post] =
-    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(GeneratedPerm)(access.o)
+  def rewriteAccess(access: Access[Pre], blame: Blame[CommunicateFailure]): Expr[Post] =
+    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(ForwardInsufficientPermission(access, blame))(access.o)
 
   def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
     case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)

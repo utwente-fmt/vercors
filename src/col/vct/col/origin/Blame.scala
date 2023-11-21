@@ -350,6 +350,12 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends 
 sealed trait PVLCommunicateFailure extends VerificationFailure
 sealed trait CommunicateFailure extends PVLCommunicateFailure
 
+case class CommunicateTargetPermission(node: Access[_]) extends CommunicateFailure with NodeVerificationFailure {
+  override def code: String = "communicateTargetPermission"
+  override def descInContext: String = "There may be insufficient permission to access this field."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
+}
+
 sealed trait PVLSeqAssignFailure extends VerificationFailure
 sealed trait SeqAssignFailure extends PVLSeqAssignFailure
 
