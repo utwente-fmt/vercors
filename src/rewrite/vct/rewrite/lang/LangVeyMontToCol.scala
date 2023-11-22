@@ -76,7 +76,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
                 case decl => rw.dispatch(decl)
               }
             )._1
-          )(prog.o)
+          )(prog.blame)(prog.o)
         )
       }
     }

@@ -30,7 +30,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case ProgramDecl1(cls) => Seq(convert(cls))
     case ProgramDecl2(enum) => Seq(convert(enum))
     case ProgramDecl3(method) => Seq(convertProcedure(method))
-    case ProgramDecl4(seqProg) => Seq(convertVeyMontProg(seqProg))
+    case ProgramDecl4(seqProg) => Seq(convertSeqProg(seqProg))
   }
 
   def convert(implicit enum: EnumDeclContext): Enum[G] = enum match {
@@ -50,7 +50,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
         PVLSeqRun(
           convert(body),
           contract.consumeApplicableContract(blame(decl))
-        )(blame(decl)))
+        )(blame(decl))(origin(decl).where(name = "run")))
     case PvlEndpoint(_, name, _, ClassType0(endpointType, None), _, args, _, _) =>
       new PVLEndpoint(
         convert(name),
@@ -60,15 +60,15 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
 
-  def convertVeyMontProg(implicit cls: DeclVeyMontSeqProgContext): PVLSeqProg[G] = cls match {
+  def convertSeqProg(implicit decl: DeclVeyMontSeqProgContext): PVLSeqProg[G] = decl match {
     case DeclVeyMontSeqProg0(contract, _, name, _, args, _, _, decls, _) =>
       withContract(contract, contract => {
         new PVLSeqProg(
           convert(name),
           decls.map(convert(_)),
-          contract.consumeApplicableContract(blame(cls)),
+          contract.consumeApplicableContract(blame(decl)),
           args.map(convert(_)).getOrElse(Seq())
-        )(origin(cls).sourceName(convert(name)))
+        )(blame(decl))(origin(decl).sourceName(convert(name)))
       })
   }
 
