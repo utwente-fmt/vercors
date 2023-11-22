@@ -38,10 +38,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   val currentProg: ScopedStack[PVLSeqProg[Pre]] = ScopedStack()
 
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
-    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.blame)(comm.o)
+    Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.o)
 
   def rewriteAccess(access: PVLAccess[Pre]): Access[Post] =
-    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.o)
+    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.blame)(access.o)
 
   def rewriteSubject(subject: PVLSubject[Pre]): Subject[Post] = subject match {
     case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
