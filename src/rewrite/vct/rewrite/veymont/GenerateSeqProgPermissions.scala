@@ -17,7 +17,6 @@ object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
 }
 
 case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
-  println(s"Enabled: $enabled")
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
 

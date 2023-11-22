@@ -3,12 +3,12 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, Local, LocalDecl, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, Origin, PanicBlame, PostconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, Origin, PanicBlame, PostconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import EncodeSeqProg.{CallableFailureToSeqProg, CallableFailureToSeqRun, CommunicateNotSupported, InsufficientPermissionToAccessFailure, AssignFailedToSeqAssignFailure, GeneratedPerm, SeqAssignNotSupported}
+import EncodeSeqProg.{AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -17,44 +17,13 @@ object EncodeSeqProg extends RewriterBuilder {
   override def key: String = "encodeSeqProg"
   override def desc: String = "Encodes the semantics of a parallel VeyMont program."
 
-  case object CommunicateNotSupported extends UserError {
-    override def code: String = "communicateNotSupported"
-    override def text: String = "The `communicate` statement is not yet supported"
-  }
+  object SignalsAlwaysEmpty extends PanicBlame("signals always empty")
 
-  case object SeqAssignNotSupported extends UserError {
-    override def code: String = "seqAssignNotSupported"
-    override def text: String = "The `:=` statement is not yet supported"
-  }
-
-  object GeneratedPerm extends PanicBlame("Permissions for these locations should be generated.")
-
-//  case class CallableFailureNotSupported(n: Node[_]) extends UserError {
-//    override def code: String = "callableFailureNotSupported"
-//    override def text: String = n.o.messageInContext("Failures of type CallableFailure are not yet supported for this node")
-//  }
-
-//  case class CallableFailureNotSupportedBlame(node: Node[_]) extends Blame[CallableFailure] {
-//    override def blame(error: CallableFailure): Unit = throw CallableFailureNotSupported(node)
-//  }
-
-  case class CallableFailureToSeqRun(run: SeqRun[_]) extends Blame[CallableFailure] {
+  case class CallableFailureToSeqCallableFailure(seqBlame: Blame[SeqCallableFailure]) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit = error match {
-      case PostconditionFailed(path, failure, node) => ???
-      case TerminationMeasureFailed(applicable, apply, measure) => ???
-      case ContextEverywhereFailedInPost(failure, node) => ???
-      case SignalsFailed(failure, node) => ???
-      case ExceptionNotInSignals(node) => ???
-    }
-  }
-
-  case class CallableFailureToSeqProg(prog: SeqProg[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = error match {
-      case PostconditionFailed(path, failure, node) => ???
-      case TerminationMeasureFailed(applicable, apply, measure) => ???
-      case ContextEverywhereFailedInPost(failure, node) => ???
-      case SignalsFailed(failure, node) => ???
-      case ExceptionNotInSignals(node) => ???
+      case failure: SeqCallableFailure => seqBlame.blame(failure)
+      case SignalsFailed(failure, node) => SignalsAlwaysEmpty.blame(error)
+      case ExceptionNotInSignals(node) => SignalsAlwaysEmpty.blame(error)
     }
   }
 
@@ -146,7 +115,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         args = prog.args.map(arg => variableSucc((mode, arg))),
         contract = dispatch(prog.contract),
         body = Some(body)
-      )(CallableFailureToSeqProg(prog)))
+      )(CallableFailureToSeqCallableFailure(prog.blame)))
     }
 
     case _ => rewriteDefault(decl)
@@ -171,7 +140,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         body = Some(dispatch(run.body)),
         outArgs = Seq(), typeArgs = Seq(),
         returnType = TVoid(),
-      )(CallableFailureToSeqRun(run)))
+      )(CallableFailureToSeqCallableFailure(run.blame)))
     }
   }
 

@@ -3,16 +3,12 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{DiagnosticOrigin, Origin}
-import vct.col.ref.Ref
+import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefPVLEndpoint
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{EndpointUseNotSupported, NoRunMethod}
-import vct.rewrite.veymont.EncodeSeqProg.CommunicateNotSupported
+import vct.rewrite.lang.LangVeyMontToCol.NoRunMethod
 
 case object LangVeyMontToCol {
   case object EndpointUseNotSupported extends UserError {
