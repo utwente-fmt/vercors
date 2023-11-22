@@ -50,7 +50,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """)
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
-  """
+    """
   seq_program Example() {
      seq_run {
        communicate charlie.x <- charlie.x;
@@ -59,7 +59,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "noSuchName" in "non-existent field in communicate fails" pvl
-  """
+    """
   class Storage { int x; }
   seq_program Example() {
      endpoint charlie = Storage();
@@ -70,7 +70,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "parseError" in "parameterized sends not yet supported " pvl
-  """
+    """
     class Storage { int x; }
     seq_program Example() {
       endpoint alice[10] = Storage();
@@ -82,12 +82,12 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "noRunMethod" in "run method should always be present" pvl
-  """
+    """
   seq_program Example() { }
   """
 
   vercors should error withCode "parseError" in "endpoints can only have class types" pvl
-  """
+    """
   seq_program Example() {
     endpoint alice = int();
   }
@@ -111,7 +111,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """)
 
   vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in "instance method in seq_program cannot have arguments" pvl
-  """
+    """
   seq_program Example() {
     void m(int x) { }
 
@@ -120,7 +120,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:seqProgInstanceMethodBody" in "instance method in seq_program must have a body" pvl
-  """
+    """
   seq_program Example() {
     void m();
 
@@ -129,7 +129,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:seqProgInstanceMethodNonVoid" in "instance method in seq_program must have void return type" pvl
-  """
+    """
   seq_program Example() {
     int m() { }
 
@@ -138,7 +138,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:seqProgStatement" in "seq_prog excludes certain statements" pvl
-  """
+    """
   class C { }
   seq_program Example(C c) {
     seq_run {
@@ -148,7 +148,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Dereferencing anything other than the receiving endpoint in the arguments of a endpoint method invocation is not supported yet" pvl
-  """
+    """
   class C { C d; void foo(int x); int x; }
   seq_program Example(C c) {
     endpoint c = C();
@@ -160,7 +160,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:seqProgInvocation" in "Only method calls on endpoints or seq_program are allowed within seq_program" pvl
-  """
+    """
   class C { C d; void foo(); }
   seq_program Example(C c) {
     endpoint c = C();
@@ -171,7 +171,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should verify using silicon in "Empty seq_program must verify" pvl
-  """
+    """
   seq_program C() {
     seq_run {
 
@@ -180,7 +180,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:type" in "Assign must be well-typed" pvl
-  """
+    """
   class C { int x; }
   seq_program C() {
     endpoint charlie = C();
@@ -191,7 +191,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "resolutionError:type" in "Communicating parties must agree on the type" pvl
-  """
+    """
   class C { int c; }
   class A { bool a; }
   seq_program C() {
@@ -271,7 +271,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """)
 
   vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Assignment statement only allows one endpoint in the assigned expression" pvl
-  """
+    """
   class Storage {
      int x;
   }
@@ -359,7 +359,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """)
 
   vercors should error withCode "seqProgParticipantErrors" in "`if` cannot depend on bob, inside an `if` depending on alice" pvl
-  """
+    """
   class Storage {
     int x;
   }
@@ -378,7 +378,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot communicate" pvl
-  """
+    """
   class Storage {
     int x;
   }
@@ -395,7 +395,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   """
 
   vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot assign" pvl
-  """
+    """
   class Storage {
     int x;
   }
@@ -485,7 +485,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """)
 
   vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants" pvl
-  """
+    """
   class Storage {
      bool x;
   }
@@ -534,7 +534,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     """)
 
   vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants when combined with branches" pvl
-  """
+    """
   class Storage {
      bool x;
   }
@@ -615,6 +615,32 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       endpoint alice = Storage();
       seq_run {
         alice.x := 3;
+      }
+    }
+    """)
+}
+
+class TechnicalVeyMontSpec2 extends VercorsSpec {
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Permissions are generated for loop invariants"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example(int N) {
+      endpoint alice = Storage();
+      ensures alice.x == 10;
+      seq_run {
+        alice.x := 0;
+        loop_invariant 0 <= alice.x && alice.x <= 10;
+        while(alice.x < 10) {
+          alice.x := alice.x + 1;
+        }
       }
     }
     """)

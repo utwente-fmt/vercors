@@ -126,7 +126,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
     currentRun.having(run) {
       for (endpoint <- currentProg.top.endpoints) {
-        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))
+        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
       }
 
       for (arg <- currentProg.top.args) {
