@@ -618,19 +618,41 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
-}
 
-class TechnicalVeyMontSpec2 extends VercorsSpec {
   (vercors
     should verify
     using silicon
     flag "--veymont-generate-permissions"
-    in "Permissions are generated for loop invariants"
+    in "Permissions are generated for loop invariants, procedures, functions, instance methods, instance functions"
     pvl
     """
     class Storage {
       int x;
+
+      ensures x == \old(x);
+      ensures \result == x;
+      int imx() {
+        return x;
+      }
+
+      pure int ifx() = x;
+
+      ensures x == \old(x);
+      void all() {
+        assert imx() == ifx();
+        assert ifx() == px(this);
+        assert px(this) == fx(this);
+      }
     }
+
+    ensures s.x == \old(s.x);
+    ensures \result == s.x;
+    int px(Storage s) {
+      return s.x;
+    }
+
+    ensures \result == s.x;
+    pure int fx(Storage s) = s.x;
 
     seq_program Example(int N) {
       endpoint alice = Storage();
@@ -641,6 +663,8 @@ class TechnicalVeyMontSpec2 extends VercorsSpec {
         while(alice.x < 10) {
           alice.x := alice.x + 1;
         }
+
+        alice.all();
       }
     }
     """)
