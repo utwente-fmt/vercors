@@ -1,5 +1,7 @@
 package vct.rewrite.veymont
 
+import hre.util.ScopedStack
+import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin.{AssertFailed, Blame, BranchUnanimityFailed, LoopUnanimityNotEstablished, LoopUnanimityNotMaintained, Origin}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -7,6 +9,8 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.EncodeSeqBranchUnanimity.{ForwardBranchUnanimity, ForwardLoopUnanimityNotEstablished, ForwardLoopUnanimityNotMaintained}
+
+import scala.collection.mutable
 
 object EncodeSeqBranchUnanimity  extends RewriterBuilder {
   override def key: String = "encodeSeqBranchUnanimity"
@@ -30,7 +34,11 @@ object EncodeSeqBranchUnanimity  extends RewriterBuilder {
 
 case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
 
+  val currentLoop = ScopedStack[SeqLoop[Pre]]()
+
   val guardSucc = SuccessionMap[SeqGuard[Pre], Variable[Post]]()
+
+  val loopCondition = mutable.LinkedHashMap[SeqLoop[Pre], Variable[Post]]()
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
     case branch@SeqBranch(guards, yes, no) =>
@@ -100,17 +108,33 @@ case class EncodeSeqBranchUnanimity[Pre <: Generation]() extends Rewriter[Pre] {
         combinedCond.get,
         foldAnd(guards.map(guard => guardSucc(guard).get))
       )
+      loopCondition(loop) = combinedCond
 
       val finalLoop: Loop[Post] = Loop(
         Block(assignments ++ establishAssertions :+ combinedAssign),
         combinedCond.get,
         Block(assignments ++ maintainAssertions :+ combinedAssign),
-        dispatch(contract),
+        currentLoop.having(loop) {
+          dispatch(contract)
+        },
         dispatch(body)
       )
 
       Scope(guards.map(guardSucc(_)) :+ combinedCond, finalLoop)
 
     case statement => rewriteDefault(statement)
+  }
+
+//  def rewriteGuard(guard: SeqGuard[Pre]): Expr[Post] = dispatch(guard.condition)
+
+  override def dispatch(contract: LoopContract[Pre]): LoopContract[Post] = (currentLoop.topOption, contract) match {
+    case (Some(loop), inv @ LoopInvariant(invariant, decreases)) =>
+      implicit val o = contract.o
+      inv.rewrite(
+        invariant =
+            dispatch(inv.invariant) &*
+            (loopCondition(loop).get === foldAnd(loop.guards.map(guard => dispatch(guard.condition))))
+      )
+    case _ /* IterationContract(requires, ensures, context_everywhere) */ => rewriteDefault(contract)
   }
 }
