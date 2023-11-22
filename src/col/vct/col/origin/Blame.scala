@@ -365,6 +365,12 @@ case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssign
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
+sealed trait PVLSeqProgFailure extends VerificationFailure
+sealed trait SeqProgFailure extends PVLSeqProgFailure
+
+sealed trait PVLSeqRunFailure extends VerificationFailure
+sealed trait SeqRunFailure extends PVLSeqRunFailure
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"

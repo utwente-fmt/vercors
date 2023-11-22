@@ -3,12 +3,12 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, Local, LocalDecl, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, DiagnosticOrigin, InsufficientPermission, Origin, PanicBlame, SeqAssignFailure, SeqAssignInsufficientPermission, VerificationFailure}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, Origin, PanicBlame, PostconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import EncodeSeqProg.{CallableFailureNotSupportedBlame, CommunicateNotSupported, GeneratedPerm, SeqAssignNotSupported}
+import EncodeSeqProg.{CallableFailureToSeqProg, CallableFailureToSeqRun, CommunicateNotSupported, InsufficientPermissionToAccessFailure, AssignFailedToSeqAssignFailure, GeneratedPerm, SeqAssignNotSupported}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -29,13 +29,48 @@ object EncodeSeqProg extends RewriterBuilder {
 
   object GeneratedPerm extends PanicBlame("Permissions for these locations should be generated.")
 
-  case class CallableFailureNotSupported(n: Node[_]) extends UserError {
-    override def code: String = "callableFailureNotSupported"
-    override def text: String = n.o.messageInContext("Failures of type CallableFailure are not yet supported for this node")
+//  case class CallableFailureNotSupported(n: Node[_]) extends UserError {
+//    override def code: String = "callableFailureNotSupported"
+//    override def text: String = n.o.messageInContext("Failures of type CallableFailure are not yet supported for this node")
+//  }
+
+//  case class CallableFailureNotSupportedBlame(node: Node[_]) extends Blame[CallableFailure] {
+//    override def blame(error: CallableFailure): Unit = throw CallableFailureNotSupported(node)
+//  }
+
+  case class CallableFailureToSeqRun(run: SeqRun[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case PostconditionFailed(path, failure, node) => ???
+      case TerminationMeasureFailed(applicable, apply, measure) => ???
+      case ContextEverywhereFailedInPost(failure, node) => ???
+      case SignalsFailed(failure, node) => ???
+      case ExceptionNotInSignals(node) => ???
+    }
   }
 
-  case class CallableFailureNotSupportedBlame(node: Node[_]) extends Blame[CallableFailure] {
-    override def blame(error: CallableFailure): Unit = throw CallableFailureNotSupported(node)
+  case class CallableFailureToSeqProg(prog: SeqProg[_]) extends Blame[CallableFailure] {
+    override def blame(error: CallableFailure): Unit = error match {
+      case PostconditionFailed(path, failure, node) => ???
+      case TerminationMeasureFailed(applicable, apply, measure) => ???
+      case ContextEverywhereFailedInPost(failure, node) => ???
+      case SignalsFailed(failure, node) => ???
+      case ExceptionNotInSignals(node) => ???
+    }
+  }
+
+  case class InsufficientPermissionToAccessFailure(access: Access[_]) extends Blame[VerificationFailure] {
+    override def blame(error: VerificationFailure): Unit = error match {
+      case _: AssignFailed =>
+        access.blame.blame(AccessInsufficientPermission(access))
+      case _: InsufficientPermission =>
+        access.blame.blame(AccessInsufficientPermission(access))
+      case _ => PanicBlame("Error should either be AssignFailed or InsufficientPermission").blame(error)
+    }
+  }
+
+  case class AssignFailedToSeqAssignFailure(assign: SeqAssign[_]) extends Blame[AssignFailed] {
+    override def blame(error: AssignFailed): Unit =
+      assign.blame.blame(SeqAssignInsufficientPermission(assign))
   }
 }
 
@@ -111,7 +146,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         args = prog.args.map(arg => variableSucc((mode, arg))),
         contract = dispatch(prog.contract),
         body = Some(body)
-      )(PanicBlame("TODO: callable failure blame")))
+      )(CallableFailureToSeqProg(prog)))
     }
 
     case _ => rewriteDefault(decl)
@@ -136,23 +171,8 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         body = Some(dispatch(run.body)),
         outArgs = Seq(), typeArgs = Seq(),
         returnType = TVoid(),
-      )(CallableFailureNotSupportedBlame(run)))
+      )(CallableFailureToSeqRun(run)))
     }
-  }
-
-  case class ForwardToAccessFailure(access: Access[_]) extends Blame[VerificationFailure] {
-    override def blame(error: VerificationFailure): Unit = error match {
-      case error: AssignFailed =>
-        access.blame.blame(AccessInsufficientPermission(access))
-      case error: InsufficientPermission =>
-        access.blame.blame(AccessInsufficientPermission(access))
-      case _ => ???
-    }
-  }
-
-  case class ForwardToSeqAssignFailure(assign: SeqAssign[_]) extends Blame[AssignFailed] {
-    override def blame(error: AssignFailed): Unit =
-      assign.blame.blame(SeqAssignInsufficientPermission(assign))
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] = stat match {
@@ -164,18 +184,18 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
           succ(field)
         )(PanicBlame("Unused by Silver encoding")),
         dispatch(e)
-      )(ForwardToSeqAssignFailure(assign))
+      )(AssignFailedToSeqAssignFailure(assign))
     case comm @ Communicate(receiver, sender) =>
       implicit val o = comm.o
       Assign[Post](
         rewriteAccess(receiver),
         rewriteAccess(sender)
-      )(ForwardToAccessFailure(receiver))
+      )(InsufficientPermissionToAccessFailure(receiver))
     case stat => rewriteDefault(stat)
   }
 
   def rewriteAccess(access: Access[Pre]): Expr[Post] =
-    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(ForwardToAccessFailure(access))(access.o)
+    Deref[Post](rewriteSubject(access.subject), succ(access.field.decl))(InsufficientPermissionToAccessFailure(access))(access.o)
 
   def rewriteSubject(subject: Subject[Pre]): Expr[Post] = subject match {
     case EndpointName(Ref(endpoint)) => Local[Post](endpointSucc((mode, endpoint)).ref)(subject.o)
