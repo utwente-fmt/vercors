@@ -241,6 +241,10 @@ case object Java extends LazyLogging {
           case JavaClassPathEntry.Path(root) => Some(root)
         }
 
+        println(s"Resolution: $name")
+        println(s"maybeBasePath: $maybeBasePath")
+        println(s"classPath: ${ctx.javaClassPath}")
+
         for {
           basePath <- maybeBasePath
           ns <- loader.load[G](basePath, name)

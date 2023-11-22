@@ -40,10 +40,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
     Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.blame)(comm.o)
 
-  def rewriteAccess(access: PVLCommunicateAccess[Pre]): Access[Post] =
+  def rewriteAccess(access: PVLAccess[Pre]): Access[Post] =
     Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.o)
 
-  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
+  def rewriteSubject(subject: PVLSubject[Pre]): Subject[Post] = subject match {
     case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
     case PVLIndexedFamilyName(family, index) => ???
     case PVLFamilyRange(family, binder, start, end) => ???

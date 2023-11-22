@@ -388,11 +388,11 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlAssign(target, _, value) => Assign(convert(target), convert(value))(blame(stat))
   }
 
-  def convert(implicit acc: AccessContext): PVLCommunicateAccess[G] = acc match {
-    case Access0(subject, _, field) => PVLCommunicateAccess(convert(subject), convert(field))
+  def convert(implicit acc: AccessContext): PVLAccess[G] = acc match {
+    case Access0(subject, _, field) => PVLAccess(convert(subject), convert(field))
   }
 
-  def convert(implicit subject: SubjectContext): PVLCommunicateSubject[G] = subject match {
+  def convert(implicit subject: SubjectContext): PVLSubject[G] = subject match {
     case Subject0(name) => PVLEndpointName(convert(name))(origin(subject).sourceName(convert(name)))
     case Subject1(family, _, expr, _) => ??(subject)
     case Subject2(family, _, binder, _, start, _, end, _) => ??(subject)
