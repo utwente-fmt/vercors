@@ -347,17 +347,23 @@ case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends 
   override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
 }
 
-sealed trait PVLCommunicateFailure extends VerificationFailure
-sealed trait CommunicateFailure extends PVLCommunicateFailure
+sealed trait PVLAccessFailure extends VerificationFailure
+sealed trait AccessFailure extends PVLAccessFailure
 
-case class CommunicateTargetPermission(node: Access[_]) extends CommunicateFailure with NodeVerificationFailure {
-  override def code: String = "communicateTargetPermission"
-  override def descInContext: String = "There may be insufficient permission to access this field."
+case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
+  override def code: String = "accessPerm"
+  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
 sealed trait PVLSeqAssignFailure extends VerificationFailure
 sealed trait SeqAssignFailure extends PVLSeqAssignFailure
+
+case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssignFailure with NodeVerificationFailure {
+  override def code: String = "seqAssignPerm"
+  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
+}
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {

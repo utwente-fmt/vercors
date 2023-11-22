@@ -199,6 +199,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc, _flags)
 
     def flags(args: Seq[String]): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, args)
+    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, Seq(arg))
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {

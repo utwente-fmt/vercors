@@ -7,36 +7,47 @@ import vct.options.types.Verbosity
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec extends VercorsSpec {
-  vercors should verify using silicon in "example using communicate" pvl
-  """
-     class Storage {
-        int x;
-     }
-     seq_program Example() {
-        endpoint alice = Storage();
-        endpoint bob = Storage();
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "example using communicate"
+    pvl
+    """
+       class Storage {
+          int x;
+       }
+       seq_program Example() {
+          endpoint alice = Storage();
+          endpoint bob = Storage();
 
-        seq_run {
-          communicate alice.x <- bob.x;
-          communicate bob.x -> alice.x;
-          assert alice.x == bob.x;
-        }
-     }
-  """
+          seq_run {
+            communicate alice.x <- bob.x;
+            communicate bob.x -> alice.x;
+            assert alice.x == bob.x;
+          }
+       }
+    """)
 
-  vercors should fail withCode "assertFailed:false" using silicon in "plain endpoint field dereference should be possible" pvl
-  """
-     class Storage {
-        int x;
-     }
-     seq_program Example() {
-        endpoint alice = Storage();
+  (vercors
+    should fail
+    withCode "assertFailed:false"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "plain endpoint field dereference should be possible"
+    pvl
+    """
+       class Storage {
+          int x;
+       }
+       seq_program Example() {
+          endpoint alice = Storage();
 
-        seq_run {
-          assert alice.x == 0;
-        }
-     }
-  """
+          seq_run {
+            assert alice.x == 0;
+          }
+       }
+    """)
 
   vercors should error withCode "noSuchName" in "non-existent thread name in communicate fails" pvl
   """
@@ -82,17 +93,22 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should verify using silicon in "Endpoint fields should be assignable" pvl
-  """
-  class Storage { int x; int y; }
-  seq_program Example() {
-    endpoint alice = Storage();
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Endpoint fields should be assignable"
+    pvl
+    """
+    class Storage { int x; int y; }
+    seq_program Example() {
+      endpoint alice = Storage();
 
-    seq_run {
-      alice.x := alice.y;
+      seq_run {
+        alice.x := alice.y;
+      }
     }
-  }
-  """
+    """)
 
   vercors should error withCode "resolutionError:seqProgInstanceMethodArgs" in "instance method in seq_program cannot have arguments" pvl
   """
@@ -187,51 +203,59 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  /* TODO: In the new veymont, this test will probably be replaced by one that manually manages the
-           permissions for alice.x
-  */
-  vercors should verify using silicon in "assignment should work" pvl
-  """
-  class Storage {
-    int x;
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "assignment should work"
+    pvl
+    """
+    class Storage {
+      int x;
 
-    ensures Perm(x, 1) ** x == 0;
-    constructor() {
-      x = 0;
+      ensures x == 0;
+      constructor() {
+        x = 0;
+      }
     }
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
+    seq_program Example() {
+       endpoint alice = Storage();
 
-     requires alice.x == 0;
-     ensures alice.x == 0;
-     seq_run {
-       assert alice.x == 0;
-     }
-  }
-  """
+       requires alice.x == 0;
+       ensures alice.x == 0;
+       seq_run {
+         assert alice.x == 0;
+       }
+    }
+    """)
 
   // TODO: Eventually should be postconditionFailed if the assignment statement works succesfully
-  vercors should error withCode "callableFailureNotSupported" in "assigning should change state" pvl
-  """
-  class Storage {
-     int x;
+  (vercors
+    should fail
+    withCode "postconditionFailed?"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "assigning should change state"
+    pvl
+    """
+    class Storage {
+       int x;
 
-     ensures Perm(x, write) ** x == v;
-     constructor(int v) {
-       x = v;
-     }
-  }
-  seq_program Example() {
-     endpoint alice = Storage(0);
+       ensures x == v;
+       constructor(int v) {
+         x = v;
+       }
+    }
+    seq_program Example() {
+       endpoint alice = Storage(0);
 
-     requires alice.x == 0;
-     ensures alice.x == 0;
-     seq_run {
-       alice.x := 1;
-     }
-  }
-  """
+       requires alice.x == 0;
+       ensures alice.x == 0;
+       seq_run {
+         alice.x := 1;
+       }
+    }
+    """)
 
   vercors should error withCode "resolutionError:seqProgReceivingEndpoint" in "Assignment statement only allows one endpoint in the assigned expression" pvl
   """
@@ -248,61 +272,78 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should fail withCode "branchNotUnanimous" using silicon in "Parts of condition in branch have to agree inside seqprog" pvl
-  """
-  class Storage {
-     int x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
+  (vercors
+    should fail
+    withCode "branchNotUnanimous"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Parts of condition in branch have to agree inside seqprog"
+    pvl
+    """
+    class Storage {
+       int x;
+    }
+    seq_program Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-     seq_run {
-        if (alice.x == 0 && bob.x == 0) {
-          // Alice might go here, bob might not: error
-        }
-     }
-  }
-  """
+       seq_run {
+          if (alice.x == 0 && bob.x == 0) {
+            // Alice might go here, bob might not: error
+          }
+       }
+    }
+    """)
 
-  vercors should fail withCode "branchNotUnanimous" using silicon in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
-  """
-  class Storage {
-     int x;
-  }
+  (vercors
+    should fail
+    withCode "branchNotUnanimous"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints"
+    pvl
+    """
+    class Storage {
+       int x;
+    }
 
-  pure int f() = 3;
+    pure int f() = 3;
 
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
+    seq_program Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-     seq_run {
-        if (alice.x == 0 && f() == 3) {
-          // Alice might go here, bob will definitely, because of the second expression: error
-        }
-     }
-  }
-  """
+       seq_run {
+          if (alice.x == 0 && f() == 3) {
+            // Alice might go here, bob will definitely, because of the second expression: error
+          }
+       }
+    }
+    """)
 
-  vercors should verify using silicon in "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl
-  """
-  class Storage {
-     int x;
-  }
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint"
+    pvl
+    """
+    class Storage {
+       int x;
+    }
 
-  pure int f() = 3;
+    pure int f() = 3;
 
-  seq_program Example() {
-     endpoint alice = Storage();
+    seq_program Example() {
+       endpoint alice = Storage();
 
-     seq_run {
-        if (alice.x == 0 && f() == 3) {
-          // Alice might go here, bob will definitely, because of the second expression: error
-        }
-     }
-  }
-  """
+       seq_run {
+          if (alice.x == 0 && f() == 3) {
+            // Alice might go here, bob will definitely, because of the second expression: error
+          }
+       }
+    }
+    """)
 
   vercors should error withCode "seqProgParticipantErrors" in "`if` cannot depend on bob, inside an `if` depending on alice" pvl
   """
@@ -357,61 +398,78 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should verify using silicon in "Programs where branch conditions agree should verify" pvl
-  """
-  class Storage {
-     bool x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Programs where branch conditions agree should verify"
+    pvl
+    """
+    class Storage {
+       bool x;
+    }
+    seq_program Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-     seq_run {
-       alice.x := true;
-       bob.x := true;
-       while (alice.x && bob.x) {
-         bob.x := false;
-         communicate alice.x <- bob.x;
+       seq_run {
+         alice.x := true;
+         bob.x := true;
+         while (alice.x && bob.x) {
+           bob.x := false;
+           communicate alice.x <- bob.x;
+         }
        }
-     }
-  }
-  """
+    }
+    """)
 
-  vercors should fail withCode "loopUnanimityNotEstablished" using silicon in "Programs where branch condition unanimity cannot be established should fail" pvl
-  """
-  class Storage {
-     bool x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
+  (vercors
+    should fail
+    withCode "loopUnanimityNotEstablished"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Programs where branch condition unanimity cannot be established should fail"
+    pvl
+    """
+    class Storage {
+       bool x;
+    }
+    seq_program Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-     seq_run {
-       while (alice.x && bob.x) {
+       seq_run {
+         while (alice.x && bob.x) {
 
+         }
        }
-     }
-  }
-  """
+    }
+    """)
 
-  vercors should fail withCode "loopUnanimityNotMaintained" using silicon in "Programs where branch condition unanimity cannot be maintained should fail" pvl
-  """
-  class Storage {
-     bool x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
+  (vercors
+    should fail
+    withCode "loopUnanimityNotMaintained"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Programs where branch condition unanimity cannot be maintained should fail"
+    pvl
+    """
+    class Storage {
+       bool x;
+    }
+    seq_program Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
 
-     seq_run {
-       alice.x := true;
-       bob.x := true;
-       while (alice.x && bob.x) {
-         alice.x := false;
+       seq_run {
+         alice.x := true;
+         bob.x := true;
+         while (alice.x && bob.x) {
+           alice.x := false;
+         }
        }
-     }
-  }
-  """
+    }
+    """)
 
   vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants" pvl
   """
@@ -434,28 +492,33 @@ class TechnicalVeyMontSpec extends VercorsSpec {
   }
   """
 
-  vercors should verify using silicon in "Loops should also limit the number of participants when combined with branches" pvl
-  """
-  class Storage {
-     bool x;
-  }
-  seq_program Example() {
-     endpoint alice = Storage();
-     endpoint bob = Storage();
-     endpoint charlie = Storage();
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Loops should also limit the number of participants when combined with branches"
+    pvl
+    """
+    class Storage {
+       bool x;
+    }
+    seq_program Example() {
+       endpoint alice = Storage();
+       endpoint bob = Storage();
+       endpoint charlie = Storage();
 
-     seq_run {
-       alice.x := true;
-       bob.x := true;
-       while (alice.x && bob.x) {
-         alice.x := false;
-         if (bob.x == true) {
-          bob.x := false;
+       seq_run {
+         alice.x := true;
+         bob.x := true;
+         while (alice.x && bob.x) {
+           alice.x := false;
+           if (bob.x == true) {
+            bob.x := false;
+           }
          }
        }
-     }
-  }
-  """
+    }
+    """)
 
   vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants when combined with branches" pvl
   """
@@ -483,12 +546,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   (vercors should verify
     using silicon
-    flags Seq("--veymont-generate-permissions")
+    flag "--veymont-generate-permissions"
     in "Permission should be generated for constructors as well" pvl
     """
     class Storage {
       int x;
 
+      ensures x == 2;
       int m() {
         x = 2;
       }
@@ -502,28 +566,13 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
-}
 
-class TechnicalVeyMontSpec2 extends VercorsSpec {
-  (vercors should verify
+  (vercors
+    should fail
+    withCode "accessPerm"
     using silicon
-    in "Permission should be generated for constructors as well" pvl
-    """
-    class Storage {
-      int x;
-    }
-
-    seq_program Example() {
-      endpoint alice = Storage();
-      seq_run {
-        alice.x := 2;
-      }
-    }
-    """)
-
-  (vercors should verify
-    using silicon
-    in "Permission should be generated for constructors all" pvl
+    in "When no permission is generated, a failure should occur on endpoint field access"
+    pvl
     """
     class Storage {
       int x;
@@ -534,6 +583,25 @@ class TechnicalVeyMontSpec2 extends VercorsSpec {
       endpoint bob = Storage();
       seq_run {
         communicate alice.x <- bob.x;
+      }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "seqAssignPerm"
+    using silicon
+    in "When no permission is generated, a failure should occur on seq assign field access"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      seq_run {
+        alice.x := 3;
       }
     }
     """)
