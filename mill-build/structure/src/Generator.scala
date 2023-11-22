@@ -11,7 +11,7 @@ trait AllNodesGenerator {
 }
 
 trait NodeGenerator {
-  def generate(out: Path, node: NodeDefinition): Unit
+  def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit
 }
 
 trait FamilyGenerator {

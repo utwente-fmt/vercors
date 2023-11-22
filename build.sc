@@ -629,14 +629,20 @@ object vercors extends Module {
       trait nodeCross extends Cross.Module[structure.NodeDefinition] {
         def definition = T.input(crossValue)
         def generate = T {
-          nodeGenerators().foreach(_.generate(T.dest.toNIO, definition()))
+          val defn = definition()
+          nodeGenerators().foreach(_.generate(T.dest.toNIO, defn, declarationKinds.contains(defn.name)))
+          T.dest
         }
+      }
+
+      def sources: T[Seq[PathRef]] = {
+        T.traverse(definitions)(node(_).generate)().map(PathRef(_, quick = true))
       }
     }
 
     def key = "col"
     def deps = T { Agg.empty }
-    override def generatedSources = T { meta.helpers() }
+    override def generatedSources = T { helpers.sources() }
     override def moduleDeps = Seq(hre, proto)
 
     object test extends Tests

@@ -5,5 +5,5 @@ import vct.col.ast.structure.{NodeDefinition, NodeGenerator}
 import java.nio.file.Path
 
 class Rewrite extends NodeGenerator {
-  override def generate(out: Path, node: NodeDefinition): Unit = ???
+  override def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit = ???
 }
