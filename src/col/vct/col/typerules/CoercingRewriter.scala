@@ -254,8 +254,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: LlvmLoopContract[Pre] => node
     case node: ProverLanguage[Pre] => node
     case node: SmtlibFunctionSymbol[Pre] => node
-    case node: PVLCommunicateAccess[Pre] => node
-    case node: PVLCommunicateSubject[Pre] => node
+    case node: PVLAccess[Pre] => node
+    case node: PVLSubject[Pre] => node
     case node: SeqRun[Pre] => node
     case node: Access[Pre] => node
     case node: Subject[Pre] => node
@@ -462,13 +462,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
   override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
-  def postCoerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
-  override final def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
+  def postCoerce(node: PVLAccess[Pre]): PVLAccess[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLAccess[Pre]): PVLAccess[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
-  def postCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
-  override final def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
+  def postCoerce(node: PVLSubject[Pre]): PVLSubject[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLSubject[Pre]): PVLSubject[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: Access[Pre]): Access[Pre] = node
   def postCoerce(node: Access[Pre]): Access[Post] = rewriteDefault(node)
@@ -2186,8 +2186,8 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 
-  def coerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
-  def coerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
+  def coerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
+  def coerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
   def coerce(node: SeqRun[Pre]): SeqRun[Pre] = node
   def coerce(node: Access[Pre]): Access[Pre] = node
   def coerce(node: Subject[Pre]): Subject[Pre] = node

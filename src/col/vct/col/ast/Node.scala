@@ -1258,20 +1258,20 @@ final class PVLEndpoint[G](val name: String, val cls: Ref[G, Class[G]], val args
 final class PVLSeqProg[G](val name: String, val declarations: Seq[ClassDeclaration[G]], val contract: ApplicableContract[G], val args: Seq[Variable[G]])(implicit val o: Origin) extends GlobalDeclaration[G] with PVLSeqProgImpl[G] with Declarator[G]
 final case class PVLSeqRun[G](body: Statement[G], contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G]
 
-sealed trait PVLCommunicateSubject[G] extends NodeFamily[G] with PVLCommunicateSubjectImpl[G]
-case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLEndpointNameImpl[G] {
+sealed trait PVLSubject[G] extends NodeFamily[G] with PVLCommunicateSubjectImpl[G]
+case class PVLEndpointName[G](name: String)(implicit val o: Origin) extends PVLSubject[G] with PVLEndpointNameImpl[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLIndexedFamilyNameImpl[G] {
+case class PVLIndexedFamilyName[G](family: String, index: Expr[G])(implicit val o: Origin) extends PVLSubject[G] with PVLIndexedFamilyNameImpl[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLCommunicateSubject[G] with PVLFamilyRangeImpl[G] {
+case class PVLFamilyRange[G](family: String, binder: String, start: Expr[G], end: Expr[G])(implicit val o: Origin) extends PVLSubject[G] with PVLFamilyRangeImpl[G] {
   var ref: Option[RefPVLEndpoint[G]] = None
 }
-case class PVLCommunicateAccess[G](subject: PVLCommunicateSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
+case class PVLAccess[G](subject: PVLSubject[G], field: String)(implicit val o: Origin) extends NodeFamily[G] with PVLCommunicateAccessImpl[G] {
   var ref: Option[RefField[G]] = None
 }
-case class PVLCommunicate[G](sender: PVLCommunicateAccess[G], receiver: PVLCommunicateAccess[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PVLCommunicateImpl[G]
+case class PVLCommunicate[G](sender: PVLAccess[G], receiver: PVLAccess[G])(val blame: Blame[PVLCommunicateFailure])(implicit val o: Origin) extends Statement[G] with PVLCommunicateImpl[G]
 final case class PVLSeqAssign[G](receiver: Ref[G, PVLEndpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(val blame: Blame[PVLSeqAssignFailure])(implicit val o: Origin) extends Statement[G] with PVLSeqAssignImpl[G]
 
 final class Endpoint[G](val cls: Ref[G, Class[G]], val constructor: Ref[G, Procedure[G]], val args: Seq[Expr[G]])(implicit val o: Origin) extends Declaration[G] with EndpointImpl[G]
