@@ -217,12 +217,13 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeV
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+sealed trait SeqCallableFailure extends CallableFailure
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
 }
-case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with VerificationFailure {
+case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with SeqCallableFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String = Message.messagesInContext(
@@ -233,7 +234,7 @@ case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: In
   override def inlineDesc: String =
     s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
 }
-case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
   override def descInContext: String = "Context may not hold in postcondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the postcondition, since $failure."
@@ -364,12 +365,6 @@ case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssign
   override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
-
-sealed trait PVLSeqProgFailure extends VerificationFailure
-sealed trait SeqProgFailure extends PVLSeqProgFailure
-
-sealed trait PVLSeqRunFailure extends VerificationFailure
-sealed trait SeqRunFailure extends PVLSeqRunFailure
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {

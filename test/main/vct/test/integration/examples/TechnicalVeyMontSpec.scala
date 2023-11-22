@@ -229,30 +229,43 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
     """)
 
-  // TODO: Eventually should be postconditionFailed if the assignment statement works succesfully
   (vercors
     should fail
-    withCode "postconditionFailed?"
+    withCode "postFailed:false"
     using silicon
     flag "--veymont-generate-permissions"
-    in "assigning should change state"
+    in "Postcondition of seq_run can fail"
     pvl
     """
     class Storage {
        int x;
-
-       ensures x == v;
-       constructor(int v) {
-         x = v;
-       }
     }
     seq_program Example() {
-       endpoint alice = Storage(0);
+       endpoint alice = Storage();
 
-       requires alice.x == 0;
        ensures alice.x == 0;
        seq_run {
-         alice.x := 1;
+       }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "postFailed:false"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Postcondition of seq_program can fail"
+    pvl
+    """
+    class Storage {
+       int x;
+    }
+
+    ensures 1 == 0;
+    seq_program Example() {
+       endpoint alice = Storage();
+
+       seq_run {
        }
     }
     """)
