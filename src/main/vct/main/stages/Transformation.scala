@@ -198,8 +198,8 @@ case class SilverTransformation
     SplitSeqGuards,
     EncodeUnpointedGuard,
     DeduplicateSeqGuards,
-    EncodeSeqBranchUnanimity,
     GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
+    EncodeSeqBranchUnanimity,
     EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
