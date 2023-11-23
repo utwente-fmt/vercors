@@ -801,8 +801,9 @@ case class SmtlibFpToReal[G](arg: Expr[G])(implicit val o: Origin) extends Smtli
 case class SmtlibFpToSInt[G](arg: Expr[G], bits: Int)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpToSIntImpl[G]
 case class SmtlibFpToUInt[G](arg: Expr[G], bits: Int)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibFpToUIntImpl[G]
 
-case class SmtlibToInt[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibToIntImpl[G]
 case class SmtlibIsInt[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibIsIntImpl[G]
+case class SmtlibToInt[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibToIntImpl[G]
+case class SmtlibToReal[G](arg: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibToRealImpl[G]
 case class SmtlibPow[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends SmtlibExpr[G] with BinExpr[G] with SmtlibPowImpl[G]
 
 case class SmtlibLiteralString[G](data: String)(implicit val o: Origin) extends SmtlibExpr[G] with SmtlibLiteralStringImpl[G]

@@ -1386,8 +1386,6 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case ValPointerBlockOffset(_, _, ptr, _) => PointerBlockOffset(convert(ptr))(blame(e))
     case ValPointerLength(_, _, ptr, _) => PointerLength(convert(ptr))(blame(e))
     case ValPolarityDependent(_, _, onInhale, _, onExhale, _) => PolarityDependent(convert(onInhale), convert(onExhale))
-    case ValEuclideanDiv(_, _, left, _, right, _) => FloorDiv(convert(left), convert(right))(blame(e))
-    case ValEuclideanMod(_, _, left, _, right, _) => col.Mod(convert(left), convert(right))(blame(e))
   }
 
   def convert(implicit v: ValBindingContext): (Variable[G], Seq[Expr[G]]) = v match {
@@ -1488,6 +1486,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+    case ValEuclideanDiv(_, _, left, _, right, _) => FloorDiv(convert(left), convert(right))(blame(e))
+    case ValEuclideanMod(_, _, left, _, right, _) => col.Mod(convert(left), convert(right))(blame(e))
+    case ValPow(_, _, left, _, right, _) => SmtlibPow(convert(left), convert(right))
+    case ValIsInt(_, _, arg, _) => SmtlibIsInt(convert(arg))
   }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {

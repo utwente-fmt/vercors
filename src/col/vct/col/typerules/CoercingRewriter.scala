@@ -1452,12 +1452,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case SmtlibFpToReal(arg) => SmtlibFpToReal(fp(arg)._1)
       case SmtlibFpToSInt(arg, bits) => SmtlibFpToSInt(fp(arg)._1, bits)
       case SmtlibFpToUInt(arg, bits) => SmtlibFpToUInt(fp(arg)._1, bits)
-      case SmtlibToInt(arg) => SmtlibToInt(rat(arg))
       case SmtlibIsInt(arg) =>
         firstOk(e, s"Expected operand to be floating, but got ${arg.t}.",
           SmtlibIsInt(float(arg)),
           SmtlibIsInt(rat(arg)),
         )
+      case SmtlibToInt(arg) => SmtlibToInt(rat(arg))
+      case SmtlibToReal(arg) => SmtlibToReal(int(arg))
       case SmtlibPow(left, right) =>
         firstOk(e, s"Expected args to be numerical, but got ${left.t} and ${right.t}.",
           SmtlibPow(int(left), int(right)),
