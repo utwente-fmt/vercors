@@ -60,6 +60,13 @@ case object LangCToCol {
       decl.o.messageInContext(s"This has a struct type that is not supported.")
   }
 
+  case class TypeUsedAsValue(decl: Node[_]) extends UserError {
+    override def code: String = "typeUsedAsValue"
+
+    override def text: String =
+      decl.o.messageInContext(s"This type name is incorrectly used a value.")
+  }
+
   case class WrongGPULocalType(local: CLocalDeclaration[_]) extends UserError {
     override def code: String = "wrongGPULocalType"
     override def text: String =
@@ -136,6 +143,18 @@ case object LangCToCol {
       case ArraySize(arr) =>
         inv.blame.blame(MallocSize(inv))
       case other => throw Unreachable(s"Invalid invocation failure: $other")
+    }
+  }
+
+  case class StructCopyFailed(assign: PreAssignExpression[_], field: InstanceField[_]) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit = {
+      assign.blame.blame(CopyStructFailed(assign, Referrable.originName(field)))
+    }
+  }
+
+  case class StructCopyBeforeCallFailed(inv: CInvocation[_], field: InstanceField[_]) extends Blame[InsufficientPermission] {
+    override def blame(error: InsufficientPermission): Unit = {
+      inv.blame.blame(CopyStructFailedBeforeCall(inv, Referrable.originName(field)))
     }
   }
 
@@ -946,7 +965,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case dim: RefCudaVecDim[Pre] => getCuda(dim)
       case struct: RefCStruct[Pre] => ???
       case struct: RefCStructField[Pre] =>
-        val CTStruct(struct_ref) = getBaseType(deref.struct.t)
+        val struct_ref = getBaseType(deref.struct.t) match {
+          case CTStruct(struct_ref) => struct_ref
+          case _: TNotAValue[Pre] => throw TypeUsedAsValue(deref.struct)
+          case _ => ???
+        }
         Deref[Post](rw.dispatch(deref.struct), cStructFieldsSuccessor.ref((struct_ref.decl, struct.decls)))(deref.blame)
     }
   }
@@ -997,7 +1020,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   }
 
 
-  def createStructCopy(a: Expr[Post], target: CGlobalDeclaration[Pre]): Expr[Post] = {
+  def createStructCopy(a: Expr[Post], target: CGlobalDeclaration[Pre], blame: InstanceField[_] => Blame[InsufficientPermission]): Expr[Post] = {
     implicit val o: Origin = a.o
     val targetClass: Class[Post] = cStructSuccessor(target)
     val t = TClass[Post](targetClass.ref)
@@ -1007,7 +1030,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case field: InstanceField[Post] =>
         val ref: Ref[Post, InstanceField[Post]] = field.ref
         // TODO: Pieter, what should I call the blames here? Could not work if did not have enough permission for a to start with.
-        assignField(v.get, ref, Deref[Post](a, field.ref)(PanicBlame("Should work")), PanicBlame("Should work"))
+        assignField(v.get, ref, Deref[Post](a, field.ref)(blame(field)), PanicBlame("Assignment should work"))
     }
 
     With(Block(Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))) ++ fieldAssigns), v.get)
@@ -1016,7 +1039,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def assignStruct(assign: PreAssignExpression[Pre]): Expr[Post] = {
     assign.target.t match {
       case CPrimitiveType(Seq(CSpecificationType(CTStruct(ref)))) =>
-        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl)
+        val copy = createStructCopy(rw.dispatch(assign.value), ref.decl, (f: InstanceField[_]) => StructCopyFailed(assign, f))
         PreAssignExpression(rw.dispatch(assign.target), copy)(AssignLocalOk)(assign.o)
       case _ => throw WrongStructType(assign.target)
     }
@@ -1045,7 +1068,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       a.t match {
         case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
           specs match {
-            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl)
+            case Seq(CSpecificationType(CTStruct(ref))) => createStructCopy(rw.dispatch(a), ref.decl, (f: InstanceField[_]) => StructCopyBeforeCallFailed(inv, f))
             case _ => throw WrongStructType(a)
           }
         case _ => rw.dispatch(a)

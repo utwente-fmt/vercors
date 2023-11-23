@@ -129,7 +129,7 @@ trait SilverBackend extends Backend with LazyLogging {
           case fieldAssign@col.SilverFieldAssign(_, _, _) =>
             reason match {
               case reasons.InsufficientPermission(access) if get[col.Node[_]](access) == fieldAssign =>
-                fieldAssign.blame.blame(blame.AssignFailed(fieldAssign))
+                fieldAssign.blame.blame(blame.AssignFieldFailed(fieldAssign))
               case otherReason =>
                 defer(otherReason)
             }

@@ -121,11 +121,26 @@ case class ExpectedErrorNotTripped(err: ExpectedError) extends ExpectedErrorFail
   override def inlineDesc: String = s"The expected error with code `${err.errorCode}` was not encountered."
 }
 
-case class AssignFailed(node: SilverFieldAssign[_]) extends NodeVerificationFailure {
+sealed trait AssignFailed extends NodeVerificationFailure
+
+case class AssignFieldFailed(node: SilverFieldAssign[_]) extends AssignFailed with NodeVerificationFailure {
   override def code: String = "assignFieldFailed"
   override def descInContext: String = "Insufficient permission to assign to field."
   override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
 }
+
+case class CopyStructFailed(node: Expr[_], field: String) extends AssignFailed with NodeVerificationFailure {
+  override def code: String = "copyStructFailed"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for assignment `$source`."
+}
+
+case class CopyStructFailedBeforeCall(node: Expr[_], field: String) extends AssignFailed with FrontendInvocationError with NodeVerificationFailure {
+  override def code: String = "copyStructFailedBeforeCall"
+  override def descInContext: String = s"Insufficient read permission for field '$field' to copy struct before call."
+  override def inlineDescWithSource(source: String): String = s"Insufficient permission for call `$source`."
+}
+
 case class AssertFailed(failure: ContractFailure, node: Assert[_]) extends WithContractFailure {
   override def baseCode: String = "assertFailed"
   override def descInContext: String = "Assertion may not hold, since"

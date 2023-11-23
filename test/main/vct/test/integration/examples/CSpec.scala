@@ -284,7 +284,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "type" in "struct type is again no value" c
+  vercors should error withCode "resolutionError:type" in "struct type is again no value" c
     """
     struct d {
         int x;
@@ -293,6 +293,54 @@ class CSpec extends VercorsSpec {
     int main(){
         struct d s;
         s = d;
+    }
+    """
+
+  vercors should error withCode "typeUsedAsValue" in "Struct deref type is used as value" c
+    """
+    struct d {
+        int x;
+    };
+
+    int main(){
+        struct d s;
+        //@ exhale Perm(d.x, 1\1);
+    }
+    """
+
+  vercors should fail withCode "copyStructFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
+    """
+    struct d {
+        int x;
+    };
+
+
+    int test(struct d t){
+        return 1;
+    }
+
+    int main(){
+        struct d s;
+        //@ exhale Perm(s.x, 1\1);
+        test(s);
+    }
+    """
+
+  vercors should fail withCode "copyStructFailed" using silicon in "Insufficient permission for field x to copy struct before call" c
+    """
+    struct d {
+        int x;
+    };
+
+
+    int test(struct d t){
+        return 1;
+    }
+
+    int main(){
+        struct d s, t;
+        //@ exhale Perm(s.x, 1\1);
+        s = t;
     }
     """
 }
