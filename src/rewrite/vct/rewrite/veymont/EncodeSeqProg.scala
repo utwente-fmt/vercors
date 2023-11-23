@@ -2,12 +2,12 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, Local, LocalDecl, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, Variable}
+import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
 import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, Origin, PanicBlame, PostconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
-import vct.result.VerificationError.UserError
+import vct.result.VerificationError.{Unreachable, UserError}
 import EncodeSeqProg.{AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
 import vct.col.ref.Ref
 
@@ -47,34 +47,42 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
   val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
   val currentRun: ScopedStack[SeqRun[Pre]] = ScopedStack()
+  val currentInstanceMethod: ScopedStack[InstanceMethod[Pre]] = ScopedStack()
 
   sealed trait Mode
   case object Top extends Mode
   case class InProg(prog: SeqProg[Pre]) extends Mode
   case class InRun(prog: SeqProg[Pre], run: SeqRun[Pre]) extends Mode
+  case class InMethod(prog: SeqProg[Pre], method: InstanceMethod[Pre]) extends Mode
 
-  def mode: Mode = (currentProg.topOption, currentRun.topOption) match {
-    case (None, None) => Top
-    case (Some(prog), None) => InProg(prog)
-    case (Some(prog), Some(run)) => InRun(prog, run)
-    case (None, Some(_)) => throw new RuntimeException()
+  def mode: Mode = (currentProg.topOption, currentRun.topOption, currentInstanceMethod.topOption) match {
+    case (None, None, None) => Top
+    case (Some(prog), None, None) => InProg(prog)
+    case (Some(prog), Some(run), None) => InRun(prog, run)
+    case (Some(prog), None, Some(method)) => InMethod(prog, method)
+    case (None, None, Some(_)) => Top
+    case (_, _, _) => throw Unreachable("AST structure should prevent this case")
   }
 
   val runSucc: mut.Map[SeqRun[Pre], Procedure[Post]] = mut.LinkedHashMap()
   val progSucc: SuccessionMap[SeqProg[Pre], Procedure[Post]] = SuccessionMap()
+  val methodSucc: SuccessionMap[InstanceMethod[Pre], Procedure[Post]] = SuccessionMap()
   val endpointSucc: SuccessionMap[(Mode, Endpoint[Pre]), Variable[Post]] = SuccessionMap()
   val variableSucc: SuccessionMap[(Mode, Variable[Pre]), Variable[Post]] = SuccessionMap()
 
-  override def dispatch(decl: Declaration[Pre]): Unit = decl match {
-    case prog: SeqProg[Pre] => currentProg.having(prog) {
+  override def dispatch(decl: Declaration[Pre]): Unit = (mode, decl) match {
+    case (Top, prog: SeqProg[Pre]) => currentProg.having(prog) {
       // First generate a procedure that implements the run method
-      rewriteRun(prog.run)
+      rewriteRun(prog)
+
+      // And also process all auxiliary instance methods
+      prog.decls.foreach(dispatch)
 
       // Then generate a procedure that initializes all the endpoints and calls the run procedure
       // First set up the succesor variables that will be encoding the seq_program argument and endpoints
       implicit val o = prog.o
       prog.endpoints.foreach(_.drop())
-      for (endpoint <- currentProg.top.endpoints) {
+      for (endpoint <- prog.endpoints) {
         endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
       }
 
@@ -118,24 +126,43 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       )(CallableFailureToSeqCallableFailure(prog.blame)))
     }
 
-    case _ => rewriteDefault(decl)
-  }
-
-  def rewriteRun(run: SeqRun[Pre]): Unit = {
-    implicit val o: Origin = run.o.where(name = currentProg.top.o.getPreferredNameOrElse().snake + "_run")
-
-    currentRun.having(run) {
-      for (endpoint <- currentProg.top.endpoints) {
+    case (InProg(prog), method: InstanceMethod[Pre]) => currentInstanceMethod.having(method) {
+      for (endpoint <- prog.endpoints) {
         endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
       }
 
-      for (arg <- currentProg.top.args) {
+      prog.args.foreach(_.drop())
+      for (arg <- prog.args) {
+        variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
+      }
+
+      methodSucc(method) = globalDeclarations.declare(new Procedure(
+        args = prog.args.map(arg => variableSucc((mode, arg))) ++
+          prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
+        body = method.body.map(dispatch),
+        outArgs = Nil, typeArgs = Nil, returnType = dispatch(method.returnType), contract = dispatch(method.contract)
+      )(method.blame)(method.o))
+    }
+
+    case _ => rewriteDefault(decl)
+  }
+
+  def rewriteRun(prog: SeqProg[Pre]): Unit = {
+    val run = prog.run
+    implicit val o: Origin = run.o.where(name = currentProg.top.o.getPreferredNameOrElse().snake + "_run")
+
+    currentRun.having(run) {
+      for (endpoint <- prog.endpoints) {
+        endpointSucc((mode, endpoint)) = new Variable(TClass(succ[Class[Post]](endpoint.cls.decl)))(endpoint.o)
+      }
+
+      for (arg <- prog.args) {
         variableSucc((mode, arg)) = new Variable(dispatch(arg.t))(arg.o)
       }
 
       runSucc(run) = globalDeclarations.declare(new Procedure(
-        args = currentProg.top.args.map(arg => variableSucc((mode, arg))) ++
-          currentProg.top.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
+        args = prog.args.map(arg => variableSucc((mode, arg))) ++
+          prog.endpoints.map(endpoint => endpointSucc((mode, endpoint))),
         contract = dispatch(run.contract),
         body = Some(dispatch(run.body)),
         outArgs = Seq(), typeArgs = Seq(),
@@ -175,6 +202,16 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       Local[Post](endpointSucc((mode, endpoint)).ref)(expr.o)
     case (mode, Local(Ref(v))) if mode != Top && currentProg.top.args.contains(v) =>
       Local[Post](variableSucc((mode, v)).ref)(expr.o)
+    case (mode, invocation @ MethodInvocation(ThisSeqProg(_), Ref(method), args, _, _, _, _)) if mode != Top =>
+      implicit val o = invocation.o
+      val prog = currentProg.top
+      assert(args.isEmpty)
+      procedureInvocation(
+        ref = methodSucc.ref(method),
+        args = prog.args.map(arg => Local[Post](variableSucc.ref((mode, arg)))(arg.o)) ++
+          prog.endpoints.map(endpoint => Local[Post](endpointSucc.ref((mode, endpoint)))(invocation.o)),
+        blame = invocation.blame
+      )
     case (_, expr) => rewriteDefault(expr)
   }
 }
