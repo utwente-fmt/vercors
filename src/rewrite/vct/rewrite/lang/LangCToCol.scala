@@ -998,7 +998,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
   def unwrapStructPerm(struct: AmbiguousLocation[Post], perm: Expr[Pre], structType: CTStruct[Pre], origin: Origin, visited: Seq[CTStruct[Pre]]= Seq()): Expr[Post] = {
     if(visited.contains(structType)) throw UnsupportedStructPerm(origin) // We do not allow this notation for recursive structs
     implicit val o: Origin = origin
-    val blame = PanicBlame("???")
+    val blame = PanicBlame("Field permission is framed")
     val Seq(CStructDeclaration(_, fields)) = structType.ref.decl.decl.specs
     val newPerm = rw.dispatch(perm)
     val AmbiguousLocation(newExpr) = struct
@@ -1029,7 +1029,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
     val fieldAssigns = targetClass.declarations.collect {
       case field: InstanceField[Post] =>
         val ref: Ref[Post, InstanceField[Post]] = field.ref
-        // TODO: Pieter, what should I call the blames here? Could not work if did not have enough permission for a to start with.
         assignField(v.get, ref, Deref[Post](a, field.ref)(blame(field)), PanicBlame("Assignment should work"))
     }
 
@@ -1053,15 +1052,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
 
   def invocation(inv: CInvocation[Pre]): Expr[Post] = {
     val CInvocation(applicable, args, givenMap, yields) = inv
-    if(givenMap.isEmpty && yields.isEmpty) {
-      (applicable, args) match {
-        case (CLocal("is_int"), Seq(x)) if isFloat(x.t) =>
-          return SmtlibIsInt[Post](rw.dispatch(args.head))(inv.o)
-        case (CLocal("pow_math_h"), Seq(x, y)) if isFloat(x.t) && isFloat(y.t) =>
-          return SmtlibPow[Post](rw.dispatch(x), rw.dispatch(y))(inv.o)
-        case _ =>
-      }
-    }
 
     // Create copy for any direct structure arguments
     val newArgs = args.map(a =>
