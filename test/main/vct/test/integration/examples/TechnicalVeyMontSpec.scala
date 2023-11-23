@@ -694,4 +694,90 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
+
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Calling auxiliary methods in seq_prog should be possible"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example(int N) {
+      endpoint alice = Storage();
+
+      ensures alice.x == \old(alice.x) + 1;
+      void step() {
+        alice.x := alice.x + 1;
+      }
+
+      ensures alice.x == \old(alice.x + 1);
+      seq_run {
+        step();
+      }
+    }
+    """)
+
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "VeyMont should conservatively generate permissions for auxiliary methods"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example(int N) {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
+
+      ensures alice.x == \old(alice.x) + 1;
+      void step() {
+        alice.x := alice.x + 1;
+      }
+
+      ensures alice.x == \old(alice.x + 1);
+      seq_run {
+        bob.x := 3;
+        step();
+        assert bob.x == 3;
+      }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "assertFailed:false"
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Permissions should be generated when an endpoint participates in an auxiliary method"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example(int N) {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
+
+      ensures alice.x == \old(alice.x) + 1;
+      void step() {
+        bob.x := 0;
+        alice.x := alice.x + 1;
+      }
+
+      ensures alice.x == \old(alice.x + 1);
+      seq_run {
+        bob.x := 3;
+        step();
+        assert bob.x == 3;
+      }
+    }
+    """)
 }

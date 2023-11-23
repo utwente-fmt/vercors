@@ -5,10 +5,10 @@ import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
 import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, SeqLoop, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast.declaration.global.SeqProgImpl.participants
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
-
 import scala.collection.immutable.ListSet
 
 object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
@@ -187,11 +187,4 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     fieldPerm[Post](`this`, succ(f), WritePerm()) &*
       transitivePerm(Deref[Post](`this`, succ(f))(PanicBlame("Permission for this field is already established")), f.t)
   }
-
-  def participants(node: Node[Pre]): ListSet[Endpoint[Pre]] =
-    ListSet.from(node.collect {
-      case EndpointGuard(Ref(endpoint), _) => endpoint
-      case SeqAssign(Ref(endpoint), _, _) => endpoint
-      case EndpointName(Ref(endpoint)) => endpoint
-    })
 }
