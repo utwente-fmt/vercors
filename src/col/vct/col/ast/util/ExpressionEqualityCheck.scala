@@ -34,6 +34,19 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     isConstantIntRecurse(e)
   }
 
+  def eucl_mod(a: BigInt, b: BigInt): BigInt = {
+    val m = a % b
+    val absB = if(b > 0) b else -b
+    if(m <= 0) m + absB else m
+  }
+
+  def eucl_div(a: BigInt, b: BigInt): BigInt = {
+    val m = a % b
+    val d = a / b
+    val add = if (b > 0) -1 else 1
+    if (m <= 0) d + add else d
+  }
+
   def isConstantIntRecurse(e: Expr[G]): Option[BigInt] = e match {
     case e: Local[G] =>
       // Does it have a direct int value?
@@ -62,8 +75,10 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     case AmbiguousMinus(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 - i2
     case Mult(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 * i2
     case AmbiguousMult(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 * i2
-    case FloorDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
-    case Mod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
+    case FloorDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield eucl_div(i1, i2)
+    case Mod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield eucl_mod(i1, i2)
+    case TruncDiv(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 / i2
+    case TruncMod(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 % i2
 
     case BitAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
     case ComputationalAnd(e1, e2) => for {i1 <- isConstantIntRecurse(e1); i2 <- isConstantIntRecurse(e2)} yield i1 & i2
@@ -125,6 +140,8 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 
         normalBound(e1) . foreach{ b1 => normalBound(e2) . foreach { b2 => if(b1>0 && b2>0) return Some(b1*b2) } }
         // THe other cases are to complicated, so we do not consider them
+      case Mod(e1, e2) if isLower => return Some(0)
+      case Mod(e1, e2) => isConstantInt(e2)
       case _ =>
     }
 
