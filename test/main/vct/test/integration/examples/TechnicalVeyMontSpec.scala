@@ -668,4 +668,30 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
+
+  (vercors
+    should verify
+    using silicon
+    flag "--veymont-generate-permissions"
+    in "Permission generation should only generate permissions that are strictly necessary"
+    pvl
+    """
+    class Storage {
+      int x;
+    }
+
+    seq_program Example() {
+      endpoint alice = Storage();
+      endpoint bob = Storage();
+      seq_run {
+        alice.x := 0;
+        bob.x := 3;
+        loop_invariant 0 <= alice.x && alice.x <= 10;
+        while(alice.x < 10) {
+          alice.x := alice.x + 1;
+        }
+        assert bob.x == 3;
+      }
+    }
+    """)
 }
