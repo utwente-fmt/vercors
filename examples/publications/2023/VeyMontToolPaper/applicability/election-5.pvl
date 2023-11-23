@@ -1,0 +1,106 @@
+class Process {
+  boolean leader;
+  int id1, id2, id3, id4, id5;
+
+  ensures !leader;
+  ensures id1 == -1 && id2 == -1 && id3 == -1 && id4 == -1 && id5 == -1;
+  Process() {
+    leader = false;
+    id1 = -1;
+    id2 = -1;
+    id3 = -1;
+    id4 = -1;
+    id5 = -1;
+  }
+
+  ensures \old(leader) == leader;
+  ensures \old(id1) == id1;
+  ensures \old(id2) == id2;
+  ensures \old(id3) == id3;
+  ensures \old(id4) == id4;
+  ensures \old(id5) == id5;
+  ensures 0 <= \result;
+  int randomId();
+
+  ensures id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1 ==> \result == true;
+  ensures id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2 ==> \result == true;
+  ensures id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3 ==> \result == true;
+  ensures id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4 ==> \result == true;
+  ensures id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5 ==> \result == true;
+  pure boolean hasMaxId() {
+    return (id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1) ||
+           (id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2) ||
+           (id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3) ||
+           (id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4) ||
+           (id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5);
+  }
+
+  requires this.hasMaxId();
+  ensures id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1 ==> \result == id1;
+  ensures id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2 ==> \result == id2;
+  ensures id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3 ==> \result == id3;
+  ensures id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4 ==> \result == id4;
+  ensures id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5 ==> \result == id5;
+  pure int getMaxId() {
+    return (id2 < id1 && id3 < id1 && id4 < id1 && id5 < id1) ? id1 :
+           (id1 < id2 && id3 < id2 && id4 < id2 && id5 < id2) ? id2 :
+           (id1 < id3 && id2 < id3 && id4 < id3 && id5 < id3) ? id3 :
+           (id1 < id4 && id2 < id4 && id3 < id4 && id5 < id4) ? id4 :
+           (id1 < id5 && id2 < id5 && id3 < id5 && id4 < id5) ? id5 : -1;
+  }
+}
+
+class SeqProgram {
+  Process p1, p2, p3, p4, p5;
+
+  inline resource consistency() =
+    p1.id1 == p2.id1 && p2.id1 == p3.id1 && p3.id1 == p4.id1 && p4.id1 == p5.id1 && p5.id1 == p1.id1 &&
+    p1.id2 == p2.id2 && p2.id2 == p3.id2 && p3.id2 == p4.id2 && p4.id2 == p5.id2 && p5.id2 == p1.id2 &&
+    p1.id3 == p2.id3 && p2.id3 == p3.id3 && p3.id3 == p4.id3 && p4.id3 == p5.id3 && p5.id3 == p1.id3 &&
+    p1.id4 == p2.id4 && p2.id4 == p3.id4 && p3.id4 == p4.id4 && p4.id4 == p5.id4 && p5.id4 == p1.id4 &&
+    p1.id5 == p2.id5 && p2.id5 == p3.id5 && p3.id5 == p4.id5 && p4.id5 == p5.id5 && p5.id5 == p1.id5;
+
+  ensures !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
+  ensures consistency();
+  SeqProgram() {
+    p1 = new Process();
+    p2 = new Process();
+    p3 = new Process();
+    p4 = new Process();
+    p5 = new Process();
+  }
+
+  requires !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
+  requires consistency();
+  ensures (p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader) ||
+          (!p1.leader && p2.leader && !p3.leader && !p4.leader && !p5.leader) ||
+          (!p1.leader && !p2.leader && p3.leader && !p4.leader && !p5.leader) ||
+          (!p1.leader && !p2.leader && !p3.leader && p4.leader && !p5.leader) ||
+          (!p1.leader && !p2.leader && !p3.leader && !p4.leader && p5.leader);
+  void run() {
+    loop_invariant !p1.leader && !p2.leader && !p3.leader && !p4.leader && !p5.leader;
+    loop_invariant consistency();
+    while (!p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId() && !p4.hasMaxId() && !p5.hasMaxId()) {
+      p1.id1 = p1.randomId(); p2.id1 = p1.id1; p3.id1 = p1.id1; p4.id1 = p1.id1; p5.id1 = p1.id1;
+      p2.id2 = p2.randomId(); p1.id2 = p2.id2; p3.id2 = p2.id2; p4.id2 = p2.id2; p5.id2 = p2.id2;
+      p3.id3 = p3.randomId(); p1.id3 = p3.id3; p2.id3 = p3.id3; p4.id3 = p3.id3; p5.id3 = p3.id3;
+      p4.id4 = p4.randomId(); p1.id4 = p4.id4; p2.id4 = p4.id4; p3.id4 = p4.id4; p5.id4 = p4.id4;
+      p5.id5 = p5.randomId(); p1.id5 = p5.id5; p2.id5 = p5.id5; p3.id5 = p5.id5; p4.id5 = p5.id5;
+    }
+    if (p1.id1 == p1.getMaxId() && p2.id1 == p2.getMaxId() && p3.id1 == p3.getMaxId() && p4.id1 == p4.getMaxId() && p5.id1 == p5.getMaxId()) {
+      p1.leader = true;
+    }
+    if (p1.id2 == p1.getMaxId() && p2.id2 == p2.getMaxId() && p3.id2 == p3.getMaxId() && p4.id2 == p4.getMaxId() && p5.id2 == p5.getMaxId()) {
+      p2.leader = true;
+    }
+    if (p1.id3 == p1.getMaxId() && p2.id3 == p2.getMaxId() && p3.id3 == p3.getMaxId() && p4.id3 == p4.getMaxId() && p5.id3 == p5.getMaxId()) {
+      p3.leader = true;
+    }
+    if (p1.id4 == p1.getMaxId() && p2.id4 == p2.getMaxId() && p3.id4 == p3.getMaxId() && p4.id4 == p4.getMaxId() && p5.id4 == p5.getMaxId()) {
+      p4.leader = true;
+    }
+    if (p1.id5 == p1.getMaxId() && p2.id5 == p2.getMaxId() && p3.id5 == p3.getMaxId() && p4.id5 == p4.getMaxId() && p5.id5 == p5.getMaxId()) {
+      p5.leader = true;
+    }
+  }
+}

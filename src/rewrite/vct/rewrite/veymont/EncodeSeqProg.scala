@@ -3,12 +3,11 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, Origin, PanicBlame, PostconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailed, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
-import EncodeSeqProg.{AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -41,9 +40,18 @@ object EncodeSeqProg extends RewriterBuilder {
     override def blame(error: AssignFailed): Unit =
       assign.blame.blame(SeqAssignInsufficientPermission(assign))
   }
+
+  case class ToSeqRunFailure(run: SeqRun[_]) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit = error match {
+      case PreconditionFailed(path, failure, node) => run.blame.blame(SeqRunPreconditionFailed(path, failure, run))
+      case ContextEverywhereFailedInPre(failure, node) => run.blame.blame(SeqRunContextEverywhereFailed(failure, run))
+    }
+
+  }
 }
 
 case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+  import EncodeSeqProg._
 
   val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
   val currentRun: ScopedStack[SeqRun[Pre]] = ScopedStack()
@@ -109,7 +117,7 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
         ref = runSucc(prog.run).ref,
         args = prog.args.map(arg => Local[Post](variableSucc((mode, arg)).ref)) ++
           prog.endpoints.map(endpoint => Local[Post](endpointSucc((mode, endpoint)).ref)),
-        blame = PanicBlame("TODO: run invocation failure blame")
+        blame = ToSeqRunFailure(prog.run)
       ))
 
       // Scope the endpoint vars and combine initialization and run method invocation

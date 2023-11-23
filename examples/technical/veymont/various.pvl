@@ -3,12 +3,13 @@
 class Storage {
   int v, temp;
 
+  ensures this.v == v;
   constructor(int v) {
     this.v = v;
   }
   
   void inc() {
-  	v = v+1;
+  	v = v + 1;
   }
   
   int num() {
@@ -20,11 +21,12 @@ class Storage {
 
 
 requires x >= 0;
+requires (x == 0) == (y == 0);
 seq_program SeqProgram(int x, int y) {
    endpoint s1 = Storage(x);
    endpoint s2 = Storage(y);
 
-  /* int */ void num() {
+  void num() {
 
   }
   
@@ -32,18 +34,14 @@ seq_program SeqProgram(int x, int y) {
      s1.temp := 7;
   }
   
-  // void bar(int a) {
-
-  // }
-
   requires x >= 0;
+  requires (s1.v == 0) == (s2.v == 0);
   seq_run {
     if(s1.v == 5 && s2.v == 6) {
     	s1.temp = s1.num();
-        // s1.temp = num();
         s1.temp = s1.v + s2.v;
     } else if(s1.v == 0 && s2.v == 0) {
-    	while(s1.temp == 1 && s2.v == 3) {
+    	while(s1.v == 1 && s2.v == 3) {
     	  s1.temp = 5;
     	}
     }
@@ -60,15 +58,13 @@ seq_program SeqProgram(int x, int y) {
     s2.temp = s2.v;
 
     foo();
-    // bar(1);
     s1.inc();
     s1.bla(s1.temp);
-    // s1.bla(s2.temp);
     communicate s1.v -> s2.temp;
     communicate s1.v <- s2.temp;
     communicate s2.v <- s1.temp;
-    assert s1.v == \old(s2.v);
-    assert s2.v == \old(s1.v);
+    assert s1.v == s2.temp;
+    assert s2.v == s1.temp;
   }
 }
 

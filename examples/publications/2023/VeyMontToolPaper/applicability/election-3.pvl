@@ -1,0 +1,80 @@
+class Process {
+  boolean leader;
+  int id1, id2, id3;
+
+  ensures !leader;
+  ensures id1 == -1 && id2 == -1 && id3 == -1;
+  Process() {
+    leader = false;
+    id1 = -1;
+    id2 = -1;
+    id3 = -1;
+  }
+
+  ensures \old(leader) == leader;
+  ensures \old(id1) == id1;
+  ensures \old(id2) == id2;
+  ensures \old(id3) == id3;
+  ensures 0 <= \result;
+  int randomId();
+
+  ensures id2 < id1 && id3 < id1 ==> \result == true;
+  ensures id1 < id2 && id3 < id2 ==> \result == true;
+  ensures id1 < id3 && id2 < id3 ==> \result == true;
+  pure boolean hasMaxId() {
+    return (id2 < id1 && id3 < id1) ||
+           (id1 < id2 && id3 < id2) ||
+           (id1 < id3 && id2 < id3);
+  }
+
+  requires this.hasMaxId();
+  ensures id2 < id1 && id3 < id1 ==> \result == id1;
+  ensures id1 < id2 && id3 < id2 ==> \result == id2;
+  ensures id1 < id3 && id2 < id3 ==> \result == id3;
+  pure int getMaxId() {
+    return (id2 < id1 && id3 < id1) ? id1 :
+           (id1 < id2 && id3 < id2) ? id2 :
+           (id1 < id3 && id2 < id3) ? id3 : -1;
+  }
+}
+
+class SeqProgram {
+  Process p1, p2, p3;
+
+  inline resource consistency() =
+    p1.id1 == p2.id1 && p2.id1 == p3.id1 && p3.id1 == p1.id1 &&
+    p1.id2 == p2.id2 && p2.id2 == p3.id2 && p3.id2 == p1.id2 &&
+    p1.id3 == p2.id3 && p2.id3 == p3.id3 && p3.id3 == p1.id3;
+
+  ensures !p1.leader && !p2.leader && !p3.leader;
+  ensures consistency();
+  SeqProgram() {
+    p1 = new Process();
+    p2 = new Process();
+    p3 = new Process();
+  }
+
+  requires !p1.leader && !p2.leader && !p3.leader;
+  requires consistency();
+  ensures (p1.leader && !p2.leader && !p3.leader) ||
+          (!p1.leader && p2.leader && !p3.leader) ||
+          (!p1.leader && !p2.leader && p3.leader);
+  void run() {
+    loop_invariant !p1.leader && !p2.leader && !p3.leader;
+    loop_invariant consistency();
+    while (!p1.hasMaxId() && !p2.hasMaxId() && !p3.hasMaxId()) {
+      p1.id1 = p1.randomId(); p2.id1 = p1.id1; p3.id1 = p1.id1;
+      p2.id2 = p2.randomId(); p1.id2 = p2.id2; p3.id2 = p2.id2;
+      p3.id3 = p3.randomId(); p1.id3 = p3.id3; p2.id3 = p3.id3;
+    }
+    if (p1.id1 == p1.getMaxId() && p2.id1 == p2.getMaxId() && p3.id1 == p3.getMaxId()) {
+      p1.leader = true;
+    }
+    if (p1.id2 == p1.getMaxId() && p2.id2 == p2.getMaxId() && p3.id2 == p3.getMaxId()) {
+      p2.leader = true;
+    }
+    if (p1.id3 == p1.getMaxId() && p2.id3 == p2.getMaxId() && p3.id3 == p3.getMaxId()) {
+      p3.leader = true;
+    }
+  }
+}

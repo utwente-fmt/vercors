@@ -780,4 +780,33 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       }
     }
     """)
+
+  (vercors
+    should fail
+    withCode "seqRunPreFailed"
+    using silicon
+    in "Precondition of seq_run should be checked"
+    pvl
+    """
+    seq_program Example() {
+      requires 1 == 0;
+      seq_run {
+      }
+    }
+    """)
+
+  (vercors
+    should fail
+    withCode "seqRunContextEverywhereFailed"
+    using silicon
+    in "Precondition of seq_run should be checked"
+    pvl
+    """
+    seq_program Example() {
+      context_everywhere 1 == 0;
+      seq_run {
+      }
+    }
+    """)
+
 }
