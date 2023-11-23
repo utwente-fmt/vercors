@@ -788,16 +788,20 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends Laz
       case _ => throw WrongStructType(decl)
     }
 
-    val target = ref.decl
     implicit val o: Origin = init.o
-    val targetClass: Class[Post] = cStructSuccessor(target)
+    val targetClass: Class[Post] = cStructSuccessor(ref.decl)
     val t = TClass[Post](targetClass.ref)
 
     val v = new Variable[Post](t)(o.sourceName(info.name))
     cNameSuccessor(RefCLocalDeclaration(decl, 0)) = v
 
-    Block(Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))))
+    val copy = init.init.map( v =>
+      Eval(createStructCopy(rw.dispatch(v), ref.decl, (f: InstanceField[_]) => PanicBlame("Cannot fail due to insufficient perm")))
+    )
 
+    val stats = Seq(LocalDecl(v), assignLocal(v.get, NewObject[Post](targetClass.ref))) ++
+      copy.toSeq
+    Block(stats)
   }
 
   def rewriteLocal(decl: CLocalDeclaration[Pre]): Statement[Post] = {

@@ -273,7 +273,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "type" in "struct type is no value" c
+  vercors should error withCode "typeUsedAsValue" in "struct type is no value" c
     """
     struct d {
         int x;
@@ -341,6 +341,32 @@ class CSpec extends VercorsSpec {
         struct d s, t;
         //@ exhale Perm(s.x, 1\1);
         s = t;
+    }
+    """
+
+    vercors should verify using silicon in "Parallel omp loop with declarations inside" c
+    """
+    #include <omp.h>
+    #include <assert.h>
+
+    int main(){
+        int sum[3] = {0, 0, 0};
+
+        #pragma omp parallel for
+        for(int i=0;i<3;i++)
+        /*@
+            context 0 <= i && i <3;
+            context Perm(&sum[i], write);
+            requires sum[i] == 0;
+            ensures sum[i] == i;
+        @*/
+        {
+            int xs[1] = {i};
+            sum[i] += xs[0];
+        }
+        assert(sum[0] == 0);
+        assert(sum[1] == 1);
+        assert(sum[2] == 2);
     }
     """
 }

@@ -39,8 +39,8 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
         collectVariables(body, extra = locals)
       }
 
-    case loop: Loop[Pre] =>
-      loop.rewrite(body = collectVariables(loop.body))
+    case loop @ Loop(_, _, _, _: IterationContract[Pre], body) =>
+      loop.rewrite(body = collectVariables(body))
 
     case vec: VecBlock[Pre] =>
       vec.rewrite(content = collectVariables(vec.content))

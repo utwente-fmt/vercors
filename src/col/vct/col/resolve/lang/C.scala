@@ -75,7 +75,7 @@ case object C {
       case Seq(CBool()) => TBool()
       case Seq(defn @ CTypedefName(_)) => Types.notAValue(defn.ref.get)
       case Seq(CSpecificationType(typ)) => typ
-      case Seq(defn @ CStructSpecifier(_)) => Types.notAValue(defn.ref.get)
+      case Seq(defn @ CStructSpecifier(_)) => CTStruct(defn.ref.get.decl.ref)
       case spec +: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
       case _ => throw CTypeNotSupported(context)
     }
@@ -94,9 +94,9 @@ case object C {
       case target: CTypeNameTarget[G] if target.name == name => target
     }
 
-  def findCStruct[G](name: String, ctx: TypeResolutionContext[G]): Option[CStructTarget[G]] =
+  def findCStruct[G](name: String, ctx: TypeResolutionContext[G]): Option[RefCStruct[G]] =
     ctx.stack.flatten.collectFirst {
-      case target: CStructTarget[G] if target.name == name => target
+      case target: RefCStruct[G] if target.name == name => target
     }
 
   def findCName[G](name: String, ctx: ReferenceResolutionContext[G]): Option[CNameTarget[G]] =

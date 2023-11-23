@@ -906,7 +906,7 @@ final case class CSpecificationType[G](t: Type[G])(implicit val o: Origin) exten
 
 final case class CStructDeclaration[G](name: Option[String], decl: Seq[CStructMemberDeclarator[G]])(implicit val o: Origin) extends CTypeSpecifier[G] with CStructDeclarationImpl[G]
 final case class CStructSpecifier[G](name: String)(implicit val o: Origin) extends CTypeSpecifier[G] with CStructSpecifierImpl[G] {
-  var ref: Option[CStructTarget[G]] = None
+  var ref: Option[RefCStruct[G]] = None
 }
 final case class CStructMemberDeclarator[G](specs: Seq[CDeclarationSpecifier[G]], decls: Seq[CDeclarator[G]])(implicit val o: Origin) extends Declaration[G] with CStructMemberDeclaratorImpl[G]
 

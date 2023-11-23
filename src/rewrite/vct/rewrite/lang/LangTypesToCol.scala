@@ -75,15 +75,7 @@ case class LangTypesToCol[Pre <: Generation]() extends Rewriter[Pre] {
       case t @ SilverPartialTAxiomatic(Ref(adt), partialTypeArgs) =>
         if(partialTypeArgs.map(_._1.decl).toSet != adt.typeArgs.toSet)
           throw IncompleteTypeArgs(t)
-
         TAxiomatic(succ(adt), adt.typeArgs.map(arg => dispatch(t.partialTypeArgs.find(_._1.decl == arg).get._2)))
-      case TNotAValue(decl) =>
-        decl match {
-          case RefCStruct(decl) =>
-            CTStruct(succ(decl))
-          case RefAxiomaticDataType(decl) => TAxiomatic[Post](succ(decl), Nil)
-          case _ => rewriteDefault(t)
-        }
       case other => rewriteDefault(other)
     }
   }
