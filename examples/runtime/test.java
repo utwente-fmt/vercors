@@ -1,52 +1,38 @@
-class B {
-    public int p;
-}
-
-class C extends Runnable {
-    public B z;
-    public int r;
-
-    public void run() {
-
-    }
-}
-
 class Test {
-    private C x;
+    private int x;
     private int y;
 
-    public Test() {
-
-    }
-
-
     public void run() {
-
+        //might be changing permission
     }
 
     /*@
-        requires Perm(x.z.p, 1);
-        ensures Perm(x.z.p, 1);
+        requires Perm(this.x, write);
+        ensures Perm(this.x, read);
      */
-    public int sum() {
+    public int advancedFunction() {
+        //Block 1
+        int oldX = x;
+        int oldY = y;
+        x = oldX + oldY + x + y;
 
+
+        if (run()) {
+
+        }else if(this.x == this.x) {
+
+        }
+        //Block 2
+        run();
+
+        //Block 3
+        int diffX = oldX -x;
+        int diffY = oldY -x;
+
+        x = oldX + x;
+        y = oldY + y;
         return y;
-
     }
 }
 
 
-class Thread {
-
-    public Thread(Runnable r) {
-
-    }
-
-    public void start();
-
-    public void join();
-}
-
-interface Runnable {
-    public void run();
-}

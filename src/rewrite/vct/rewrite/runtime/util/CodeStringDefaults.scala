@@ -24,4 +24,10 @@ case object CodeStringDefaults {
   val assertPermissionCondition: (String, Int, String) => String = (objectLocation: String, id: Int, perm: String) => s"assert(${objectLocation}.__runtime__.get($id).get(Thread.currentThread().getId() == $perm)"
   val fractionTemplate: (String, String) => String = (numerator: String, denominator: String) => s"Fraction.getFraction($numerator,$denominator)"
   val lookUpThread: String = "Long __runtime_thread_id__ = Thread.currentThread().getId();"
+
+  // Forking
+  val takePermissionInteger : (String, Int, String) => String = (objectLocation: String, id: Int, value: String) => s"${objectLocation}.__runtime__.get(${id}).put(Thread.currentThread().getId(), ${value})"
+  val takePermissionWrite : (String, Int) => String = (objectLocation: String, id: Int) => s"${objectLocation}.__runtime__.get(${id}).put(Thread.currentThread().getId(), 1)"
+  val takePermissionRead : (String, Int) => String = (objectLocation: String, id: Int) => s"${objectLocation}.__runtime__.get(${id}).put(Thread.currentThread().getId(), ${fractionTemplate("1","1000000")})"
+  val takePermissionDiv : (String, Int, String) => String = (objectLocation: String, id: Int, value: String) => s"${objectLocation}.__runtime__.get(${id}).put(Thread.currentThread().getId(), ${value})"
 }
