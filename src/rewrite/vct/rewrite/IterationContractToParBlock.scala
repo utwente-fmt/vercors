@@ -50,12 +50,12 @@ case class IterationContractToParBlock[Pre <: Generation]() extends Rewriter[Pre
 
       implicit val o: Origin = loop.o
       currentIterationVariables.having(v) {
-        val (newVars, newBody) = variables.collect {
-          dispatch(body)
-        }
-        val bodyScope = Scope[Post](newVars, newBody)(body.o)
-
         sendDecls.scope {
+          val (newVars, newBody) = variables.collect {
+            dispatch(body)
+          }
+          val bodyScope = Scope[Post](newVars, newBody)(body.o)
+
           ParStatement(
             ParBlock(
               decl = new ParBlockDecl(),

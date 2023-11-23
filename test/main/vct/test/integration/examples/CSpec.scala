@@ -273,7 +273,7 @@ class CSpec extends VercorsSpec {
     }
     """
 
-  vercors should error withCode "typeUsedAsValue" in "struct type is no value" c
+  vercors should error withCode "notAValue" in "struct type is no value" c
     """
     struct d {
         int x;
@@ -340,7 +340,7 @@ class CSpec extends VercorsSpec {
     int main(){
         struct d s, t;
         //@ exhale Perm(s.x, 1\1);
-        s = t;
+        t = s;
     }
     """
 
