@@ -195,11 +195,11 @@ case class SilverTransformation
     EncodeRangedFor,
 
     // VeyMont sequential program encoding
-    GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
     SplitSeqGuards,
     EncodeUnpointedGuard,
     DeduplicateSeqGuards,
     EncodeSeqBranchUnanimity,
+    GenerateSeqProgPermissions.withArg(veymontGeneratePermissions),
     EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
