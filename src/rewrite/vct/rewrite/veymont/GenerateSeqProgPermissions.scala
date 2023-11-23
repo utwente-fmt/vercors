@@ -4,12 +4,12 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers._
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Null, Perm, Procedure, Result, SeqProg, SeqRun, SplitAccountedPredicate, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
+import vct.col.ast.{Applicable, ApplicableContract, ArraySubscript, BooleanValue, Class, ContractApplicable, Declaration, Deref, Endpoint, EndpointGuard, EndpointName, SeqLoop, EndpointUse, EnumUse, Expr, FieldLocation, Function, InstanceField, InstanceFunction, InstanceMethod, IterationContract, Length, Local, LoopContract, LoopInvariant, Node, Null, Perm, Procedure, Result, SeqAssign, SeqProg, SeqRun, SplitAccountedPredicate, Statement, TArray, TClass, TInt, ThisObject, Type, UnitAccountedPredicate, Variable, WritePerm}
 import vct.col.origin.{Origin, PanicBlame}
 import vct.col.ref.Ref
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 
-import scala.annotation.switch
+import scala.collection.immutable.ListSet
 
 object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
   override def key: String = "generateSeqProgPermissions"
@@ -19,6 +19,7 @@ object GenerateSeqProgPermissions extends RewriterBuilderArg[Boolean] {
 case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = false) extends Rewriter[Pre] with LazyLogging {
 
   val currentPerm: ScopedStack[Expr[Post]] = ScopedStack()
+  val currentProg: ScopedStack[SeqProg[Pre]] = ScopedStack()
 
   /* - Permission generation table -
       Only considers nodes as necessary for VeyMont case studies.
@@ -55,7 +56,18 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
       implicit val o = fun.o
       classDeclarations.succeed(fun, fun.rewrite(contract = prependContract(fun.contract, currentPerm.top, tt)))
 
+    case method: InstanceMethod[Pre] if enabled && currentProg.nonEmpty =>
+      implicit val o = method.o
+      classDeclarations.succeed(method, method.rewrite(
+        contract = prependContract(
+          method.contract,
+          endpointsPerm(participants(method).toSeq),
+          endpointsPerm(participants(method).toSeq)
+        )
+      ))
+
     case method: InstanceMethod[Pre] if enabled =>
+      // Permission generation for InstanceMethods in classes
       implicit val o = method.o
       classDeclarations.succeed(method, method.rewrite(
         contract = prependContract(
@@ -67,21 +79,23 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
 
     case prog: SeqProg[Pre] if enabled =>
       val run = prog.run
-      globalDeclarations.succeed(prog, prog.rewrite(
-        contract = prependContract(
-          prog.contract,
-          variablesPerm(prog.args)(prog.o),
-          variablesPerm(prog.args)(prog.o)
-        )(prog.o),
-        run = run.rewrite(
+      currentProg.having(prog) {
+        globalDeclarations.succeed(prog, prog.rewrite(
           contract = prependContract(
-            run.contract,
-            endpointsPerm(prog.endpoints)(run.o),
-            endpointsPerm(prog.endpoints)(run.o),
-          )(run.o),
-          body = currentPerm.having(endpointsPerm(prog.endpoints)(run.o)) {
-            rewriteDefault(run.body)
-          })))
+            prog.contract,
+            variablesPerm(prog.args)(prog.o),
+            variablesPerm(prog.args)(prog.o)
+          )(prog.o),
+          run = run.rewrite(
+            contract = prependContract(
+              run.contract,
+              endpointsPerm(prog.endpoints)(run.o),
+              endpointsPerm(prog.endpoints)(run.o),
+            )(run.o),
+            body = currentPerm.having(endpointsPerm(prog.endpoints)(run.o)) {
+              rewriteDefault(run.body)
+            })))
+      }
 
     case decl => rewriteDefault(decl)
   }
@@ -97,6 +111,14 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
         case post => SplitAccountedPredicate[Post](UnitAccountedPredicate(post), dispatch(contract.ensures))
       }
     )
+
+  override def dispatch(statement: Statement[Pre]): Statement[Post] = statement match {
+    case loop: SeqLoop[Pre] =>
+      currentPerm.having(endpointsPerm(participants(statement).toSeq)(loop.contract.o)) {
+        loop.rewriteDefault()
+      }
+    case statement => rewriteDefault(statement)
+  }
 
   override def dispatch(loopContract: LoopContract[Pre]): LoopContract[Post] =
     (currentPerm.topOption, loopContract) match {
@@ -165,4 +187,11 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
     fieldPerm[Post](`this`, succ(f), WritePerm()) &*
       transitivePerm(Deref[Post](`this`, succ(f))(PanicBlame("Permission for this field is already established")), f.t)
   }
+
+  def participants(node: Node[Pre]): ListSet[Endpoint[Pre]] =
+    ListSet.from(node.collect {
+      case EndpointGuard(Ref(endpoint), _) => endpoint
+      case SeqAssign(Ref(endpoint), _, _) => endpoint
+      case EndpointName(Ref(endpoint)) => endpoint
+    })
 }
