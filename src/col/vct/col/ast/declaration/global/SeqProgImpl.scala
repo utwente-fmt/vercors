@@ -18,5 +18,7 @@ trait SeqProgImpl[G] extends Declarator[G] { this: SeqProg[G] =>
     ))
 
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
-    super.enterCheckContext(context).withSeqProg(this)
+    super.enterCheckContext(context)
+      .withSeqProg(this)
+      .withCurrentParticipatingEndpoints(endpoints)
 }

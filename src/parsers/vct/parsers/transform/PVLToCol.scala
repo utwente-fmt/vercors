@@ -301,7 +301,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlJoin(_, obj, _) => Join(convert(obj))(blame(stat))
     case PvlValStatement(inner) => convert(inner)
     case PvlIf(_, _, cond, _, body, None) =>
-      Branch(Seq((convert(cond), convert(body))))
+      PVLBranch(Seq((convert(cond), convert(body))))(blame(stat))
     case PvlIf(_, _, cond, _, body, Some(ElseBlock0(_, otherwise))) =>
       Branch(Seq(
         (convert(cond), convert(body)),
@@ -335,7 +335,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       ParAtomic(convert(invs).map(new UnresolvedRef[G, ParInvariantDecl[G]](_)), convert(body))(blame(stat))
     case PvlWhile(contract, _, _, cond, _, body) =>
       withContract(contract, contract =>
-        Scope(Nil, Loop(Block(Nil), convert(cond), Block(Nil), contract.consumeLoopContract(stat), convert(body)))
+        Scope(Nil, PVLLoop(Block(Nil), convert(cond), Block(Nil), contract.consumeLoopContract(stat), convert(body))(blame(stat)))
       )
     case PvlFor(contract, _, _, init, _, cond, _, update, _, body) =>
       withContract(contract, contract =>

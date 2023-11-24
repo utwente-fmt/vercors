@@ -14,7 +14,7 @@ import vct.col.rewrite.adt._
 import vct.col.rewrite.bip._
 import vct.col.rewrite.exc._
 import vct.rewrite.lang.NoSupportSelfLoop
-import vct.col.rewrite.veymont.{AddVeyMontAssignmentNodes, AddVeyMontConditionNodes, StructureCheck}
+import vct.col.rewrite.veymont.StructureCheck
 import vct.importer.{PathAdtImporter, Util}
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.stages.Transformation.TransformationCheckError
@@ -24,7 +24,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.{EncodeResourceValues, ExplicitResourceValues, HeapVariableToRef}
 import vct.rewrite.lang.ReplaceSYCLTypes
-import vct.rewrite.veymont.{EncodeSeqProg, GenerateSeqProgPermissions}
+import vct.rewrite.veymont.{DeduplicateSeqGuards, EncodeSeqBranchUnanimity, EncodeSeqProg, GenerateSeqProgPermissions, EncodeUnpointedGuard, SplitSeqGuards}
 
 object Transformation {
   case class TransformationCheckError(pass: RewriterBuilder, errors: Seq[(Program[_], CheckError)]) extends SystemError {
@@ -194,6 +194,10 @@ case class SilverTransformation
 
     // VeyMont sequential program encoding
     GenerateSeqProgPermissions,
+    SplitSeqGuards,
+    EncodeUnpointedGuard,
+    DeduplicateSeqGuards,
+    EncodeSeqBranchUnanimity,
     EncodeSeqProg,
 
     EncodeString, // Encode spec string as seq<int>
@@ -307,8 +311,8 @@ case class SilverTransformation
 case class VeyMontTransformation(override val onBeforePassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil,
                                  override val onAfterPassKey: Seq[(String, Verification[_ <: Generation] => Unit)] = Nil)
   extends Transformation(onBeforePassKey, onAfterPassKey, Seq(
-    AddVeyMontAssignmentNodes,
-    AddVeyMontConditionNodes,
+    // AddVeyMontAssignmentNodes,
+//    AddVeyMontConditionNodes,
     StructureCheck,
   ))
 

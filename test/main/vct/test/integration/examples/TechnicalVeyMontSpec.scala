@@ -3,7 +3,6 @@ package vct.test.integration.examples
 import vct.test.integration.helper.VercorsSpec
 
 class TechnicalVeyMontSpec extends VercorsSpec {
-  // TODO: Should eventually become pass
   vercors should verify using silicon in "example using communicate" pvl
   """
      class Storage {
@@ -244,4 +243,238 @@ class TechnicalVeyMontSpec extends VercorsSpec {
      }
   }
   """
+
+  vercors should fail withCode "branchNotUnanimous" using silicon in "Parts of condition in branch have to agree inside seqprog" pvl
+  """
+  class Storage {
+     int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0 && bob.x == 0) {
+          // Alice might go here, bob might not: error
+        }
+     }
+  }
+  """
+
+  vercors should fail withCode "branchNotUnanimous" using silicon in "Parts of condition in branch have to agree inside seqprog, including conditions for all endpoints" pvl
+  """
+  class Storage {
+     int x;
+  }
+
+  pure int f() = 3;
+
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0 && f() == 3) {
+          // Alice might go here, bob will definitely, because of the second expression: error
+        }
+     }
+  }
+  """
+
+  vercors should verify using silicon in "If there is only one endpoint, the conditions don't have to agree, as there is only one endpoint" pvl
+  """
+  class Storage {
+     int x;
+  }
+
+  pure int f() = 3;
+
+  seq_program Example() {
+     endpoint alice = Storage();
+
+     seq_run {
+        if (alice.x == 0 && f() == 3) {
+          // Alice might go here, bob will definitely, because of the second expression: error
+        }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "`if` cannot depend on bob, inside an `if` depending on alice" pvl
+  """
+  class Storage {
+    int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0) {
+          if (bob.x == 0) {
+            // Error
+          }
+        }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot communicate" pvl
+  """
+  class Storage {
+    int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0) {
+          communicate alice.x <- bob.x;
+        }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "If alice branches, bob cannot assign" pvl
+  """
+  class Storage {
+    int x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+        if (alice.x == 0) {
+          bob.x := 3;
+        }
+     }
+  }
+  """
+
+  vercors should verify using silicon in "Programs where branch conditions agree should verify" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         bob.x := false;
+         communicate alice.x <- bob.x;
+       }
+     }
+  }
+  """
+
+  vercors should fail withCode "loopUnanimityNotEstablished" using silicon in "Programs where branch condition unanimity cannot be established should fail" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       while (alice.x && bob.x) {
+
+       }
+     }
+  }
+  """
+
+  vercors should fail withCode "loopUnanimityNotMaintained" using silicon in "Programs where branch condition unanimity cannot be maintained should fail" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+       }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+     endpoint charlie = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+         charlie.x := true;
+       }
+     }
+  }
+  """
+
+  vercors should verify using silicon in "Loops should also limit the number of participants when combined with branches" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+     endpoint charlie = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+         if (bob.x == true) {
+          bob.x := false;
+         }
+       }
+     }
+  }
+  """
+
+  vercors should error withCode "seqProgParticipantErrors" in "Loops should also limit the number of participants when combined with branches" pvl
+  """
+  class Storage {
+     bool x;
+  }
+  seq_program Example() {
+     endpoint alice = Storage();
+     endpoint bob = Storage();
+     endpoint charlie = Storage();
+
+     seq_run {
+       alice.x := true;
+       bob.x := true;
+       while (alice.x && bob.x) {
+         alice.x := false;
+         if (bob.x == true) {
+          bob.x := false;
+          charlie.x := true;
+         }
+       }
+     }
+  }
+  """
+
 }

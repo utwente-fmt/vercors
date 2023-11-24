@@ -56,6 +56,7 @@ import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLEndpointNameImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl}
+import vct.col.ast.family.seqguard._
 import vct.col.ast.family.seqrun.SeqRunImpl
 import vct.col.ast.family.signals._
 import vct.col.ast.family.subject.EndpointNameImpl
@@ -154,6 +155,9 @@ final case class CatchClause[G](decl: Variable[G], body: Statement[G])(implicit 
 final case class IterVariable[G](variable: Variable[G], from: Expr[G], to: Expr[G])(implicit val o: Origin) extends NodeFamily[G] with IterVariableImpl[G]
 
 sealed trait Statement[G] extends NodeFamily[G] with StatementImpl[G]
+
+final case class PVLBranch[G](branches: Seq[(Expr[G], Statement[G])])(val blame: Blame[FrontendIfFailure])(implicit val o: Origin) extends Statement[G]
+final case class PVLLoop[G](init: Statement[G], cond: Expr[G], update: Statement[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[FrontEndLoopFailure])(implicit val o: Origin) extends Statement[G]
 
 sealed trait NonExecutableStatement[G] extends Statement[G] with NonExecutableStatementImpl[G]
 final case class LocalDecl[G](local: Variable[G])(implicit val o: Origin) extends NonExecutableStatement[G] with LocalDeclImpl[G]
@@ -550,7 +554,6 @@ final case class Star[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) 
 final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin) extends Expr[G] with WandImpl[G]
 final case class Scale[G](scale: Expr[G], res: Expr[G])(val blame: Blame[ScaleNegative])(implicit val o: Origin) extends Expr[G] with ScaleImpl[G]
 final case class ScaleByParBlock[G](block: Ref[G, ParBlockDecl[G]], res: Expr[G])(implicit val o: Origin) extends Expr[G] with ScaleByParBlockImpl[G]
-final case class VeyMontCondition[G](condition: Seq[(Ref[G, Endpoint[G]], Expr[G])])(implicit val o: Origin) extends Expr[G] with VeyMontConditionImpl[G]
 final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(implicit val o: Origin) extends Expr[G] with PolarityDependentImpl[G]
 
 final case class Unfolding[G](res: Expr[G], body: Expr[G])(val blame: Blame[UnfoldFailed])(implicit val o: Origin) extends Expr[G] with UnfoldingImpl[G]
@@ -1280,6 +1283,16 @@ case class Access[G](subject: Subject[G], field: Ref[G, InstanceField[G]])(impli
 final case class Communicate[G](receiver: Access[G], sender: Access[G])(implicit val o: Origin) extends Statement[G] with CommunicateImpl[G]
 final case class SeqAssign[G](receiver: Ref[G, Endpoint[G]], field: Ref[G, InstanceField[G]], value: Expr[G])(implicit val o: Origin) extends Statement[G] with SeqAssignImpl[G]
 final case class EndpointUse[G](ref: Ref[G, Endpoint[G]])(implicit val o: Origin) extends Expr[G] with EndpointUseImpl[G]
+
+final case class UnresolvedSeqBranch[G](branches: Seq[(Expr[G], Statement[G])])(val blame: Blame[SeqBranchFailure])(implicit val o: Origin) extends Statement[G]
+final case class UnresolvedSeqLoop[G](cond: Expr[G], contract: LoopContract[G], body: Statement[G])(val blame: Blame[SeqLoopFailure])(implicit val o: Origin) extends Statement[G]
+
+sealed trait SeqGuard[G] extends NodeFamily[G] with SeqGuardImpl[G]
+final case class EndpointGuard[G](endpoint: Ref[G, Endpoint[G]], condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G] with EndpointGuardImpl[G]
+final case class UnpointedGuard[G](condition: Expr[G])(implicit val o: Origin) extends SeqGuard[G] with UnpointedGuardImpl[G]
+
+final case class SeqBranch[G](guards: Seq[SeqGuard[G]], yes: Statement[G], no:  Option[Statement[G]])(val blame: Blame[SeqBranchFailure])(implicit val o: Origin) extends Statement[G] with SeqBranchImpl[G]
+final case class SeqLoop[G](guards: Seq[SeqGuard[G]], contract: LoopContract[G], body: Statement[G])(val blame: Blame[SeqLoopFailure])(implicit val o: Origin) extends Statement[G] with SeqLoopImpl[G]
 
 final case class VeyMontAssignExpression[G](endpoint: Ref[G, Endpoint[G]], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with VeyMontAssignExpressionImpl[G]
 final case class CommunicateX[G](receiver: Ref[G, Endpoint[G]], sender: Ref[G, Endpoint[G]], chanType: Type[G], assign: Statement[G])(implicit val o: Origin) extends Statement[G] with CommunicateXImpl[G]

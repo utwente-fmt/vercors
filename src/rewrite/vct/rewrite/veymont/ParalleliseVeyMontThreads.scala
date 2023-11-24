@@ -2,7 +2,7 @@ package vct.rewrite.veymont
 
 import hre.util.ScopedStack
 import vct.col.ast.RewriteHelpers.{RewriteApplicableContract, RewriteClass, RewriteDeref, RewriteJavaClass, RewriteJavaConstructor, RewriteMethodInvocation}
-import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, CommunicateX, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, VeyMontCondition}
+import vct.col.ast.{AbstractRewriter, ApplicableContract, Assert, Assign, Block, BooleanValue, Branch, Class, ClassDeclaration, CommunicateX, Declaration, Deref, Endpoint, EndpointUse, Eval, Expr, InstanceField, InstanceMethod, JavaClass, JavaConstructor, JavaInvocation, JavaLocal, JavaMethod, JavaNamedType, JavaParam, JavaPublic, JavaTClass, Local, Loop, MethodInvocation, NewObject, Node, Procedure, Program, RunMethod, Scope, SeqProg, SeqRun, Statement, TClass, TVeyMontChannel, TVoid, ThisObject, ThisSeqProg, Type, UnitAccountedPredicate, Variable, VeyMontAssignExpression, SeqGuard}
 import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefJavaMethod
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg, Rewritten}
@@ -291,7 +291,8 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     if(threadBuildingBlocks.nonEmpty) {
       val thread = threadBuildingBlocks.top.thread
       node match {
-        case c: VeyMontCondition[Pre] => paralleliseThreadCondition(node, thread, c)
+        // TODO: Disabled this because the AST changed, repair
+        // case c: SeqGuard[Pre] => paralleliseThreadCondition(node, thread, c)
         case m: MethodInvocation[Pre] => updateThreadRefMethodInvoc(thread, m)
         case d: Deref[Pre] => updateThreadRefInDeref(node, thread, d)
         case t: EndpointUse[Pre] => updateThreadRefVeyMontDeref(node, thread, t)
@@ -326,13 +327,15 @@ case class ParalleliseEndpoints[Pre <: Generation](channelClass: JavaClass[_]) e
     }
   }
 
-  private def paralleliseThreadCondition(node: Expr[Pre], thread: Endpoint[Pre], c: VeyMontCondition[Pre]) = {
-    c.condition.find { case (threadRef, _) =>
-      threadRef.decl == thread
-    } match {
-      case Some((_, threadExpr)) => dispatch(threadExpr)
-      case _ => throw ParalleliseEndpointsError(node, "Condition of if statement or while loop must contain an expression for every thread")
-    }
+  private def paralleliseThreadCondition(node: Expr[Pre], thread: Endpoint[Pre], c: SeqGuard[Pre]) = {
+    ???
+    // TODO: Broke this because AST changed, repair
+//    c.conditions.find { case (threadRef, _) =>
+//      threadRef.decl == thread
+//    } match {
+//      case Some((_, threadExpr)) => dispatch(threadExpr)
+//      case _ => throw ParalleliseEndpointsError(node, "Condition of if statement or while loop must contain an expression for every thread")
+//    }
   }
 
   private def getThisVeyMontDeref(thread: Endpoint[Pre], o: Origin, threadField: InstanceField[Rewritten[Pre]]) = {

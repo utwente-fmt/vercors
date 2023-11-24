@@ -305,6 +305,48 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
 }
 
+sealed trait FrontendIfFailure extends VerificationFailure
+sealed trait SeqBranchFailure extends FrontendIfFailure
+
+case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_]) extends SeqBranchFailure {
+  override def code: String = "branchNotUnanimous"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this might not be the case")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "Two conditions in this branch might disagree."
+}
+
+sealed trait FrontEndLoopFailure extends VerificationFailure
+sealed trait SeqLoopFailure extends FrontEndLoopFailure
+
+case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+  override def code: String = "loopUnanimityNotEstablished"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this could not be established before the loop.")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "The agreement of two conditions in this branch could not be established before the loop."
+}
+
+case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+  override def code: String = "loopUnanimityNotMaintained"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this could not be maintained for an arbitrary loop iteration.")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
+}
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"

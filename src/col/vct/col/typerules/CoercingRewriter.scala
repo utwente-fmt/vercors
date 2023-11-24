@@ -259,6 +259,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: SeqRun[Pre] => node
     case node: Access[Pre] => node
     case node: Subject[Pre] => node
+    case node: SeqGuard[Pre] => coerce(node)
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -480,6 +481,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: SeqRun[Pre]): SeqRun[Pre] = node
   def postCoerce(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
   override final def dispatch(node: SeqRun[Pre]): SeqRun[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: SeqGuard[Pre]): SeqGuard[Pre] = node
+  def postCoerce(node: SeqGuard[Pre]): SeqGuard[Post] = rewriteDefault(node)
+  override final def dispatch(node: SeqGuard[Pre]): SeqGuard[Post] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre]): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getCoercion(value.t, target) match {
@@ -1598,7 +1603,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Z3SeqSuffixOf(post, seq) => Z3SeqSuffixOf(z3seq(post)._1, z3seq(seq)._1)
       case Z3SeqUnit(arg) => Z3SeqUnit(arg)
       case Z3TransitiveClosure(ref, args) => Z3TransitiveClosure(ref, coerceArgs(args, ref.ref.decl))
-      case VeyMontCondition(c) => VeyMontCondition(c)
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LlvmLocal(name) => e
@@ -1695,6 +1699,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
             println(err.text)
             throw err
         }
+      case s: SeqBranch[Pre] => s
+      case s: SeqLoop[Pre] => s
+      case branch@UnresolvedSeqBranch(branches) => UnresolvedSeqBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
+      case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
+      case loop@UnresolvedSeqLoop(cond, contract, body) => UnresolvedSeqLoop(bool(cond), contract, body)(loop.blame)
+      case loop@PVLLoop(init, cond, update, contract, body) => PVLLoop(init, bool(cond), update, contract, body)(loop.blame)
     }
   }
 
@@ -2181,4 +2191,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: SeqRun[Pre]): SeqRun[Pre] = node
   def coerce(node: Access[Pre]): Access[Pre] = node
   def coerce(node: Subject[Pre]): Subject[Pre] = node
+  def coerce(node: SeqGuard[Pre]): SeqGuard[Pre] = node match {
+    case EndpointGuard(endpoint, cond) => EndpointGuard(endpoint, bool(cond))(node.o)
+    case UnpointedGuard(cond) => UnpointedGuard(bool(cond))(node.o)
+  }
+
 }
