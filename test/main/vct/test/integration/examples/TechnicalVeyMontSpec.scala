@@ -595,6 +595,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
       endpoint alice = Storage();
       endpoint bob = Storage();
       seq_run {
+        assume alice != bob;
         communicate alice.x <- bob.x;
       }
     }
@@ -783,7 +784,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   (vercors
     should fail
-    withCode "seqRunPreFailed"
+    withCode "seqRunPreFailed:false"
     using silicon
     in "Precondition of seq_run should be checked"
     pvl
@@ -797,7 +798,7 @@ class TechnicalVeyMontSpec extends VercorsSpec {
 
   (vercors
     should fail
-    withCode "seqRunContextEverywhereFailed"
+    withCode "seqRunContextPreFailed:false"
     using silicon
     in "Context everywhere of seq_run should be checked"
     pvl

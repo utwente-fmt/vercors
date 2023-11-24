@@ -26,6 +26,7 @@ trait StatementImpl[G] extends NodeFamilyImpl[G] { this: Statement[G] =>
         _: Block[G] |
         _: Eval[G] |
         _: Assert[G] |
+        _: Assume[G] |
         _: UnresolvedSeqBranch[G] |
         _: UnresolvedSeqLoop[G] |
         _: SeqBranch[G] |
