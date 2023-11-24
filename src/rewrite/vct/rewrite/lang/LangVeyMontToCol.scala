@@ -3,16 +3,12 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{DiagnosticOrigin, Origin}
-import vct.col.ref.Ref
+import vct.col.origin.Origin
 import vct.col.resolve.ctx.RefPVLEndpoint
 import vct.col.rewrite.{Generation, Rewritten}
-import vct.rewrite.lang.LangSpecificToCol
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.lang.LangVeyMontToCol.{EndpointUseNotSupported, NoRunMethod}
-import vct.rewrite.veymont.EncodeSeqProg.CommunicateNotSupported
+import vct.rewrite.lang.LangVeyMontToCol.NoRunMethod
 
 case object LangVeyMontToCol {
   case object EndpointUseNotSupported extends UserError {
@@ -40,10 +36,10 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
   def rewriteCommunicate(comm: PVLCommunicate[Pre]): Communicate[Post] =
     Communicate(rewriteAccess(comm.receiver), rewriteAccess(comm.sender))(comm.o)
 
-  def rewriteAccess(access: PVLCommunicateAccess[Pre]): Access[Post] =
-    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.o)
+  def rewriteAccess(access: PVLAccess[Pre]): Access[Post] =
+    Access[Post](rewriteSubject(access.subject), rw.succ(access.ref.get.decl))(access.blame)(access.o)
 
-  def rewriteSubject(subject: PVLCommunicateSubject[Pre]): Subject[Post] = subject match {
+  def rewriteSubject(subject: PVLSubject[Pre]): Subject[Post] = subject match {
     case subject@PVLEndpointName(name) => EndpointName[Post](endpointSucc.ref(subject.ref.get.decl))(subject.o)
     case PVLIndexedFamilyName(family, index) => ???
     case PVLFamilyRange(family, binder, start, end) => ???
@@ -80,7 +76,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
                 case decl => rw.dispatch(decl)
               }
             )._1
-          )(prog.o)
+          )(prog.blame)(prog.o)
         )
       }
     }
@@ -94,8 +90,8 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
       SeqRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
   }
 
-  def rewriteParAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
-    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.o)
+  def rewriteSeqAssign(assign: PVLSeqAssign[Pre]): SeqAssign[Post] =
+    SeqAssign[Post](endpointSucc.ref(assign.receiver.decl), rw.succ(assign.field.decl), rw.dispatch(assign.value))(assign.blame)(assign.o)
 
   def rewriteBranch(branch: PVLBranch[Pre]): UnresolvedSeqBranch[Post] =
     UnresolvedSeqBranch(branch.branches.map { case (e, s) => (rw.dispatch(e), rw.dispatch(s)) })(branch.blame)(branch.o)

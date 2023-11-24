@@ -8,11 +8,12 @@ import org.scalatest.concurrent.TimeLimits.failAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.time._
 import org.slf4j.LoggerFactory
+import scopt.OParser
 import vct.col.origin.{BlameUnreachable, VerificationFailure}
 import vct.col.rewrite.bip.BIP.Standalone.VerificationReport
 import vct.main.Main.TemporarilyUnsupported
 import vct.main.modes.Verify
-import vct.options.types
+import vct.options.{Options, types}
 import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.ParseError
 import vct.result.VerificationError
@@ -71,7 +72,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
     }
   }
 
-  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable])(implicit pos: source.Position): Unit = {
+  private def registerTest(verdict: Verdict, desc: String, tags: Seq[Tag], backend: Backend, inputs: Seq[Readable], flags: Seq[String])(implicit pos: source.Position): Unit = {
     val fullDesc: String = s"${desc.capitalize} produces verdict $verdict with $backend".replaceAll("should", "shld")
     // PB: note that object typically do not have a deterministic hashCode, but Strings do.
     val matrixId = Math.floorMod(fullDesc.hashCode, MATRIX_COUNT)
@@ -83,8 +84,16 @@ abstract class VercorsSpec extends AnyFlatSpec {
 
       failAfter(Span(300, Seconds)) {
         matchVerdict(verdict, backend match {
-          case types.Backend.Silicon => Verify.verifyWithSilicon(inputs)
+          case types.Backend.Silicon =>
+            Verify.verifyWithOptions(
+              Options.parse((Seq("--backend", "silicon") ++ flags).toArray).get,
+              inputs
+            )
           case types.Backend.Carbon => Verify.verifyWithCarbon(inputs)
+            Verify.verifyWithOptions(
+              Options.parse((Seq("--backend", "carbon") ++ flags).toArray).get,
+              inputs
+            )
         })
       }
     }
@@ -167,14 +176,14 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class ErrorVerdictPhrase() {
-    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), None, silicon)
+    def withCode(code: String): BackendPhrase = new BackendPhrase(Error(code), None, silicon, Nil)
   }
 
   class VerdictPhrase(val verdict: Verdict, val reportPath: Option[Path]) {
-    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend)
+    def using(backend: Seq[Backend]): BackendPhrase = new BackendPhrase(verdict, reportPath, backend, Nil)
   }
 
-  class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend]) {
+  class BackendPhrase(val verdict: Verdict, val reportPath: Option[Path], val backends: Seq[Backend], val _flags: Seq[String]) {
     def example(path: String)(implicit pos: source.Position): Unit = examples(path)
 
     def examples(examples: String*)(implicit pos: source.Position): Unit = {
@@ -183,32 +192,35 @@ abstract class VercorsSpec extends AnyFlatSpec {
       val inputs = paths.map(PathOrStd.Path)
 
       for(backend <- backends) {
-        registerTest(verdict, s"Examples ${paths.mkString(", ")}", Seq(new Tag("exampleCase")), backend, inputs)
+        registerTest(verdict, s"Examples ${paths.mkString(", ")}", Seq(new Tag("exampleCase")), backend, inputs, _flags)
       }
     }
 
-    def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc)
+    def in(desc: String): DescPhrase = new DescPhrase(verdict, backends, desc, _flags)
+
+    def flags(args: Seq[String]): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, args)
+    def flag(arg: String): BackendPhrase = new BackendPhrase(verdict, reportPath, backends, Seq(arg))
   }
 
-  class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String) {
+  class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {
     def pvl(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.pvl", data))
       for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
+        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
     def java(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.java", data))
       for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
+        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
     def c(data: String)(implicit pos: source.Position): Unit = {
       val inputs = Seq(LiteralReadable("test.c", data))
       for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs)
+        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
   }

@@ -18,7 +18,7 @@ object Name {
   case class Preferred(parts: Seq[String]) extends Name {
     override def snake: String = parts.map(_.toLowerCase).mkString("_")
     override def usnake: String = parts.map(_.toUpperCase).mkString("_")
-    override def camel: String = (parts.head.toLowerCase +: parts.map(_.toLowerCase.capitalize)).mkString("")
+    override def camel: String = (parts.head.toLowerCase +: parts.tail.map(_.toLowerCase.capitalize)).mkString("")
     override def ucamel: String = camel.capitalize
   }
 }

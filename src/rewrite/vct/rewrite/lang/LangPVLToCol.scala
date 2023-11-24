@@ -20,7 +20,7 @@ case object LangPVLToCol {
   }
 }
 
-case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends LazyLogging {
+case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGeneratePermissions: Boolean) extends LazyLogging {
   type Post = Rewritten[Pre]
   implicit val implicitRewriter: AbstractRewriter[Pre, Post] = rw
 
@@ -78,7 +78,7 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         ApplicableContract(
           UnitAccountedPredicate(tt),
           UnitAccountedPredicate(AstBuildHelpers.foldStar(cls.declarations.collect {
-            case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty =>
+            case field: InstanceField[Pre] if field.flags.collectFirst { case _: Final[Pre] => () }.isEmpty && !veymontGeneratePermissions =>
               fieldPerm[Post](result, rw.succ(field), WritePerm())
           }) &* (if (checkRunnable) IdleToken(result) else tt)), tt, Nil, Nil, Nil, None,
         )(TrueSatisfiable)
