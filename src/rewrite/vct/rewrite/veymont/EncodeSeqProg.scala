@@ -3,7 +3,7 @@ package vct.rewrite.veymont
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailed, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
@@ -44,9 +44,15 @@ object EncodeSeqProg extends RewriterBuilder {
   case class ToSeqRunFailure(run: SeqRun[_]) extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit = error match {
       case PreconditionFailed(path, failure, node) => run.blame.blame(SeqRunPreconditionFailed(path, failure, run))
-      case ContextEverywhereFailedInPre(failure, node) => run.blame.blame(SeqRunContextEverywhereFailed(failure, run))
+      case ContextEverywhereFailedInPre(failure, node) => run.blame.blame(SeqRunContextEverywhereFailedInPre(failure, run))
     }
+  }
 
+  case class InvocationFailureToEndpointFailure(endpoint: Endpoint[_]) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit = error match {
+      case PreconditionFailed(path, failure, _) => endpoint.blame.blame(EndpointPreconditionFailed(path, failure, endpoint))
+      case ContextEverywhereFailedInPre(failure, _) => endpoint.blame.blame(EndpointContextEverywhereFailedInPre(failure, endpoint))
+    }
   }
 }
 
@@ -103,13 +109,13 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
 
       // For each endpoint, make a local variable and initialize it using the constructor referenced in the endpoint
       val endpointsInit = prog.endpoints.map { endpoint =>
-          Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
+        Assign(Local[Post](endpointSucc((mode, endpoint)).ref),
           procedureInvocation[Post](
             ref = succ(endpoint.constructor.decl),
             args = endpoint.args.map(dispatch),
-            blame = PanicBlame("TODO: endpoint constructor failure blame")
+            blame = InvocationFailureToEndpointFailure(endpoint)
           )
-        )(PanicBlame("TODO: Constructor assign failure blame"))
+        )(AssignLocalOk)
       }
 
       // Invoke the run procedure with the seq_program arguments, as well as all the endpoints

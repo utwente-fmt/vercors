@@ -809,4 +809,23 @@ class TechnicalVeyMontSpec extends VercorsSpec {
     }
     """)
 
+  (vercors
+    should fail
+    withCode "endpointPreFailed:false"
+    using silicon
+    in "Precondition of endpoint constructor should be checked"
+    pvl
+    """
+    class Storage {
+      requires x == 0;
+      constructor (int x) { }
+    }
+
+    seq_program Example() {
+        endpoint alice = Storage(1);
+
+        seq_run {
+        }
+    }
+    """)
 }

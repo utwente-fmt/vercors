@@ -217,7 +217,6 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeV
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-sealed trait SeqCallableFailure extends VerificationFailure
 case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
@@ -249,12 +248,12 @@ case class ExceptionNotInSignals(node: AbstractMethod[_]) extends CallableFailur
   override def descInContext: String = "Method may throw exception not included in signals clauses."
   override def inlineDescWithSource(source: String): String = s"Method `$source` may throw exception not included in signals clauses."
 }
-case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqCallableFailure with WithContractFailure {
+case class SeqRunPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunPreFailed"
   override def descInContext: String = "Precondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
 }
-case class SeqRunContextEverywhereFailed(failure: ContractFailure, node: SeqRun[_]) extends SeqCallableFailure with WithContractFailure {
+case class SeqRunContextEverywhereFailedInPre(failure: ContractFailure, node: SeqRun[_]) extends SeqRunFailure with WithContractFailure {
   override def baseCode: String = "seqRunContextPreFailed"
   override def descInContext: String = "Context may not hold in precondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
@@ -314,6 +313,21 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def baseCode: String = innerFailure.baseCode
   override def descInContext: String = innerFailure.descInContext
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
+}
+
+sealed trait SeqCallableFailure extends VerificationFailure
+sealed trait SeqRunFailure extends SeqCallableFailure
+
+sealed trait EndpointFailure extends VerificationFailure
+case class EndpointPreconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: Endpoint[_]) extends EndpointFailure with WithContractFailure {
+  override def baseCode: String = "endpointPreFailed"
+  override def descInContext: String = "Precondition of constructor of this endpoint may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Precondition of `$node` may not hold, since $failure."
+}
+case class EndpointContextEverywhereFailedInPre(failure: ContractFailure, node: Endpoint[_]) extends EndpointFailure with WithContractFailure {
+  override def baseCode: String = "endpointContextPreFailed"
+  override def descInContext: String = "Context may not hold in precondition of endpoint constructor, since"
+  override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the precondition, since $failure."
 }
 
 sealed trait FrontendIfFailure extends VerificationFailure

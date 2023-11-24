@@ -50,7 +50,7 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) exten
       rw.succ[Class[Post]](endpoint.cls.decl),
       rw.pvl.constructorSucc(endpoint.ref.get),
       endpoint.args.map(rw.dispatch)
-    )(endpoint.o))
+    )(endpoint.blame)(endpoint.o))
 
   def rewriteSeqProg(prog: PVLSeqProg[Pre]): Unit = {
     implicit val o: Origin = prog.o

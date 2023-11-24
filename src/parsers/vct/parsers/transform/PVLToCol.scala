@@ -55,7 +55,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
       new PVLEndpoint(
         convert(name),
         new UnresolvedRef[G, Class[G]](convert(endpointType)),
-        args.map(convert(_)).getOrElse(Nil))(origin(decl).sourceName(convert(name))
+        args.map(convert(_)).getOrElse(Nil))(blame(decl))(origin(decl).sourceName(convert(name))
       )
     case PvlEndpoint(_, name, _, t@ClassType0(_, Some(_)), _, args, _, _) => ??(t)
   }
