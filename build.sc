@@ -619,8 +619,8 @@ object vercors extends Module {
           instantiate[structure.NodeGenerator]("Compare")(),
 //          instantiate[structure.NodeGenerator]("Deserialize")(),
 //          instantiate[structure.NodeGenerator]("Ops")(),
-//          instantiate[structure.NodeGenerator]("ProtoNode")(),
-//          instantiate[structure.NodeGenerator]("Rewrite")(),
+          instantiate[structure.NodeGenerator]("ProtoNode")(),
+          instantiate[structure.NodeGenerator]("Rewrite")(),
 //          instantiate[structure.NodeGenerator]("Serialize")(),
         )
       }

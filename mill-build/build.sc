@@ -20,7 +20,7 @@ object millbuild extends MillBuildRootModule {
   }
 
   def structureClassPath = T {
-    os.write(T.dest / "classpath.json", upickle.default.write(structure.localClasspath().map(_.path)))
+    os.write(T.dest / "classpath.json", upickle.default.write(structure.runClasspath().map(_.path)))
     T.dest
   }
 

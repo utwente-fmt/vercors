@@ -14,20 +14,12 @@ import scala.meta.internal.prettyprinters.TreeSyntax
 import scala.meta.dialects
 
 class Compare extends NodeGenerator {
-  override def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit = {
-    Using(Files.newBufferedWriter(out.resolve(s"${node.name.base}Compare.scala"), StandardCharsets.UTF_8)) { fileWriter =>
-      try {
-        val result = TreeSyntax[Tree](dialects.Scala213)(getTree(node, isDeclaration))
-        ResultStream.write(fileWriter, result)
-      } catch {
-        case t: Throwable => fileWriter.append(t.toString)
-      }
-    }
-  }
+  override def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit =
+    ResultStream.write(out.resolve(s"${node.name.base}Comapre.scala"), getTree(node, isDeclaration))
 
   def getTree(node: NodeDefinition, isDeclaration: Boolean): Source = {
     source"""
-      package vct.col.ast.compare
+      package vct.col.ast.ops.compare
 
       trait ${compareTrait(node)}[L] { this: ${typ(node)}[L] =>
         def compare[R](other: $Node[R]): $LazyList[$CompareResult[L, R]] =

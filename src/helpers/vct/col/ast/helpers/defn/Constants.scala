@@ -46,8 +46,15 @@ object Constants {
 
   val LazyList: Type = t"_root_.scala.collection.immutable.LazyList"
   val LazyListObj: Term = q"_root_.scala.collection.immutable.LazyList"
+  val LeftObj: Term = q"_root_.scala.util.Left"
+  val RightObj: Term = q"_root_.scala.util.Right"
 
   val Node: Type = typ(RootNodeName)
+  val Origin: Type = t"_root_.vct.col.origin.Origin"
+  val Blame: Type = t"_root_.vct.col.origin.Blame"
+  val RefType: Type = t"_root_.vct.col.ref.Ref"
+
+  val AbstractRewriter: Type = t"_root_.vct.col.ast.rewrite.AbstractRewriter"
 
   val CompareResult = t"_root_.vct.col.compare.CompareResult"
   val MatchingDeclaration = t"_root_.vct.col.compare.MatchingDeclaration"

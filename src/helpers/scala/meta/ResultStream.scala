@@ -1,9 +1,18 @@
 package scala.meta
 
 import java.io.Writer
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+import scala.meta.internal.prettyprinters.TreeSyntax
 import scala.meta.prettyprinters.Show._
+import scala.meta.dialects.Scala213
+import scala.util.Using
 
 object ResultStream {
+  /**
+   * Forwards all writes to the inner Appenable, but stores the two last written
+   * characters.
+   */
   class MiniContextAppendable(inner: Appendable) extends Appendable {
     private var last: Char = ' '
     private var prelast: Char = ' '
@@ -47,8 +56,15 @@ object ResultStream {
   }
 
   def newline(out: Appendable, indentation: Int): Unit = {
-    out.append(System.lineSeparator())
+    out.append("\n")
     out.append("  " * indentation)
+  }
+
+  def write(out: Path, tree: Tree): Unit = {
+    val result = TreeSyntax[Tree](Scala213)(tree)
+    Using(Files.newBufferedWriter(out, StandardCharsets.UTF_8)) { writer =>
+      write(writer, result)
+    }
   }
 
   def write(out: Appendable, result: Result): Unit =
