@@ -2,12 +2,13 @@ package vct.rewrite.veymont
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{Access, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
-import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
+import vct.col.ast.{Access, Assert, Assign, Block, Class, Communicate, Declaration, Deref, Endpoint, EndpointName, EndpointUse, Eval, Expr, InstanceMethod, Local, LocalDecl, MethodInvocation, Node, Procedure, Scope, SeqAssign, SeqProg, SeqRun, Statement, Subject, TClass, TVoid, ThisSeqProg, Variable}
+import vct.col.origin.{AccessFailure, AccessInsufficientPermission, AssertFailed, AssignFailed, AssignLocalOk, Blame, CallableFailure, ContextEverywhereFailedInPost, ContextEverywhereFailedInPre, ContractedFailure, DiagnosticOrigin, EndpointContextEverywhereFailedInPre, EndpointPreconditionFailed, ExceptionNotInSignals, InsufficientPermission, InvocationFailure, Origin, PanicBlame, ParticipantsNotDistinct, PostconditionFailed, PreconditionFailed, SeqAssignFailure, SeqAssignInsufficientPermission, SeqCallableFailure, SeqRunContextEverywhereFailedInPre, SeqRunPreconditionFailed, SignalsFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.{Unreachable, UserError}
+import EncodeSeqProg.{AssertFailedToParticipantsNotDistinct, AssignFailedToSeqAssignFailure, CallableFailureToSeqCallableFailure, InsufficientPermissionToAccessFailure}
 import vct.col.ref.Ref
 
 import scala.collection.{mutable => mut}
@@ -53,6 +54,10 @@ object EncodeSeqProg extends RewriterBuilder {
       case PreconditionFailed(path, failure, _) => endpoint.blame.blame(EndpointPreconditionFailed(path, failure, endpoint))
       case ContextEverywhereFailedInPre(failure, _) => endpoint.blame.blame(EndpointContextEverywhereFailedInPre(failure, endpoint))
     }
+  }
+
+  case class AssertFailedToParticipantsNotDistinct(comm: Communicate[_]) extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit = comm.blame.blame(ParticipantsNotDistinct(comm))
   }
 }
 
@@ -197,10 +202,15 @@ case class EncodeSeqProg[Pre <: Generation]() extends Rewriter[Pre] with LazyLog
       )(AssignFailedToSeqAssignFailure(assign))
     case comm @ Communicate(receiver, sender) =>
       implicit val o = comm.o
-      Assign[Post](
-        rewriteAccess(receiver),
-        rewriteAccess(sender)
-      )(InsufficientPermissionToAccessFailure(receiver))
+      Block(Seq(
+        Assert(
+          rewriteSubject(receiver.subject) !== rewriteSubject(sender.subject)
+        )(AssertFailedToParticipantsNotDistinct(comm)),
+        Assign[Post](
+          rewriteAccess(receiver),
+          rewriteAccess(sender)
+        )(InsufficientPermissionToAccessFailure(receiver))
+      ))
     case stat => rewriteDefault(stat)
   }
 

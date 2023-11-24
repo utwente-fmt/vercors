@@ -145,4 +145,11 @@ case class LangPVLToCol[Pre <: Generation](rw: LangSpecificToCol[Pre], veymontGe
     case PVLLoop(init, cond, update, contract, body) =>
       Loop(rw.dispatch(init), rw.dispatch(cond), rw.dispatch(update), rw.dispatch(contract), rw.dispatch(body))(loop.o)
   }
+
+  def assign(assign: Assign[Pre]): Statement[Post] =
+    if (rw.veymont.currentProg.nonEmpty)
+      rw.veymont.rewriteAssign(assign)
+    else
+      assign.rewriteDefault()
+
 }

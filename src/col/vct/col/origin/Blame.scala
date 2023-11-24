@@ -390,6 +390,15 @@ case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssign
   override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
+sealed trait PVLCommunicateFailure extends VerificationFailure
+sealed trait CommunicateFailure extends PVLCommunicateFailure
+
+case class ParticipantsNotDistinct(node: Communicate[_]) extends CommunicateFailure with NodeVerificationFailure {
+  override def code: String = "participantsNotDistinct"
+  override def descInContext: String = "The participants in this communicate statement might not be distinct."
+  override def inlineDescWithSource(source: String): String = s"The participants of `$source` might not be distinct."
+}
+
 sealed trait DerefInsufficientPermission extends FrontendDerefError
 case class InsufficientPermission(node: HeapDeref[_]) extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"

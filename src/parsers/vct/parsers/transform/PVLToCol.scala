@@ -357,9 +357,9 @@ case class PVLToCol[G](override val baseOrigin: Origin,
     case PvlLabel(_, label, _) => Label(new LabelDecl()(origin(stat).sourceName(convert(label))), Block(Nil))
     case PvlForStatement(inner, _) => convert(inner)
     case PvlCommunicateStatement(_, receiver, Direction0("<-"), sender, _) =>
-      PVLCommunicate(convert(sender), convert(receiver))
+      PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
     case PvlCommunicateStatement(_, sender, Direction1("->"), receiver, _) =>
-      PVLCommunicate(convert(sender), convert(receiver))
+      PVLCommunicate(convert(sender), convert(receiver))(blame(stat))
     case PvlSeqAssign(endpoint, _, field, _, _, expr, _) =>
       PVLSeqAssign(
         new UnresolvedRef[G, PVLEndpoint[G]](convert(endpoint)),
