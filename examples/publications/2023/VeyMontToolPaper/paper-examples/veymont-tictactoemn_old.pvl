@@ -4,7 +4,7 @@ class Move {
   ensures this.x == x;
   ensures this.y == y;
   ensures this.t == t;
-  Move(int x, int y, int t);
+  constructor(int x, int y, int t);
 
   ensures \old(x) == x && x == \result.x;
   ensures \old(y) == y && y == \result.y;
@@ -18,6 +18,7 @@ class Player {
   int width, height, myToken, yourToken;
   int[][] board;
   Move move;
+  Move temp;
   boolean goOn;
 
   inline resource constants() =
@@ -32,7 +33,7 @@ class Player {
             (\forall int j = 0..height;
               board[i][j] == 0));
   ensures goOn == false;
-  Player(int m, int n, int t1, int t2);
+  constructor(int m, int n, int t1, int t2);
 
   context \matrix(board, width, height);
   ensures constants();
@@ -87,47 +88,42 @@ class Player {
   void play();
 }
 
-class SeqProgram {
-  Player p1;
-  Player p2;
+inline resource consistency(Player p1, Player p2) =
+  p1.myToken == p2.yourToken ** p1.yourToken == p2.myToken **
+  p1.width == p2.width ** p1.height == p2.height **
+  \matrix(p1.board, p1.width, p1.height) **
+  \matrix(p2.board, p2.width, p2.height) **
+  (\forall int i = 0..p1.width; (\forall int j = 0..p1.height;
+         p1.board[i][j] == p2.board[i][j])) **
+  p1.goOn == p2.goOn;
 
-  inline resource consistency() =
-    p1.myToken == p2.yourToken ** p1.yourToken == p2.myToken **
-    p1.width == p2.width ** p1.height == p2.height **
-    \matrix(p1.board, p1.width, p1.height) **
-    \matrix(p2.board, p2.width, p2.height) **
-    (\forall int i = 0..p1.width;
-         (\forall int j = 0..p1.height;
-           p1.board[i][j] == p2.board[i][j])) **
-    p1.goOn == p2.goOn;
+seq_program ticTacToe(int m, int n) {
+  endpoint p1 = Player(m, n, 1, 2);
+  endpoint p2 = Player(m, n, 2, 1);
 
-  ensures consistency();
-  SeqProgram(int m, int n) {
-    p1 = new Player(m, n, 1, 2);
-    p2 = new Player(m, n, 2, 1);
-  }
-
-  context consistency();
+  context consistency(p1, p2);
   void turn1() {
     p1.think();
     p1.play();
     p2.think(); // in the background
-    p2.move = p1.move.clone();
+    p1.temp := p1.move.clone();
+    communicate p2.move <- p1.temp;
     p2.play(); // to update
   }
 
-  context consistency();
+  context consistency(p1, p2);
   void turn2() {
     p2.think();
     p2.play();
     p1.think(); // in the background
-    p1.move = p2.move.clone();
+    p2.temp := p2.move.clone();
+    communicate p1.move <- p2.temp;
     p1.play(); // to update
   }
 
-  context consistency();
-  void run() {
-    loop_invariant consistency();
+  context consistency(p1, p2);
+  seq_run {
+    loop_invariant consistency(p1, p2);
     while(p1.goOn && p2.goOn){
       turn1();
       if (p1.goOn && p2.goOn) {

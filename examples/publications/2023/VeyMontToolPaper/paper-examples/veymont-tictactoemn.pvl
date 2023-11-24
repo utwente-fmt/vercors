@@ -17,8 +17,8 @@ class Move {
 class Player {
   int width, height, myToken, yourToken;
   int[][] board;
-  Move move;
   Move temp;
+  Move move;
   boolean goOn;
 
   inline resource constants() =
@@ -29,17 +29,13 @@ class Player {
 
   ensures width == m && height == n && myToken == t1 && yourToken == t2;
   ensures \matrix(board, width, height);
-  ensures (\forall int i = 0..width;
-            (\forall int j = 0..height;
-              board[i][j] == 0));
+  ensures (\forall int i = 0..width, int j = 0..height; {: board[i][j] :} == 0);
   ensures goOn == false;
   constructor(int m, int n, int t1, int t2);
 
   context \matrix(board, width, height);
   ensures constants();
-  ensures (\forall int i = 0..width;
-            (\forall int j = 0..height;
-              \old(board[i][j]) == board[i][j]));
+  ensures (\forall int i = 0..width, int j = 0..height; \old(board[i][j]) == {: board[i][j] :});
   ensures \old(goOn) == goOn;
   ensures 2 <= move.x && move.x < width - 2;
   ensures 2 <= move.y && move.y < height - 2;
@@ -56,9 +52,8 @@ class Player {
   ensures \old(move.x) == move.x;
   ensures \old(move.y) == move.y;
   ensures \old(move.t) == move.t;
-  ensures (\forall int i = 0..width;
-            (\forall int j = 0..height;
-              (i != move.x || j != move.y) ==> \old(board[i][j]) == board[i][j]));
+  ensures (\forall int i = 0..width, int j = 0..height;
+              (i != move.x || j != move.y) ==> \old({: board[i][j] :}) == board[i][j]);
   ensures board[move.x][move.y] == move.t;
   ensures \old(goOn) == false ==> goOn == false;
   ensures \old(goOn) == true && ((board[move.x-2][move.y] == move.t && board[move.x-1][move.y] == move.t) ||
@@ -93,12 +88,10 @@ inline resource consistency(Player p1, Player p2) =
   p1.width == p2.width ** p1.height == p2.height **
   \matrix(p1.board, p1.width, p1.height) **
   \matrix(p2.board, p2.width, p2.height) **
-  (\forall int i = 0..p1.width;
-       (\forall int j = 0..p1.height;
-         p1.board[i][j] == p2.board[i][j])) **
+  (\forall int i = 0..p1.width, int j = 0..p1.height; {: p1.board[i][j] :} == {: p2.board[i][j] :}) **
   p1.goOn == p2.goOn;
 
-seq_program ticTacToe(int m, int n) {
+seq_program tic_tac_toe(int m, int n) {
   endpoint p1 = Player(m, n, 1, 2);
   endpoint p2 = Player(m, n, 2, 1);
 
