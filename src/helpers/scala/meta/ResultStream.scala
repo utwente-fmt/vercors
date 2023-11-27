@@ -78,13 +78,13 @@ object ResultStream {
       case None =>
       case Str(text) => out.append(text)
       case Sequence(xs@_*) => xs.foreach(write(out, _, indentation))
-      case Repeat(Nil, sep) => ()
       case Repeat(first +: tail, sep) =>
         write(out, first, indentation)
         tail.foreach { x =>
           out.append(sep)
           write(out, x, indentation)
         }
+      case Repeat(_, _) =>
       case Indent(res) =>
         newline(out, indentation + 1)
         write(out, res, indentation + 1)

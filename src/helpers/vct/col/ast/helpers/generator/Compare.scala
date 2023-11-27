@@ -1,17 +1,12 @@
 package vct.col.ast.helpers.generator
 
-import vct.col.ast.helpers.defn.Constants.{CompareResult, LazyList, LazyListObj, MatchingDeclaration, MatchingDeclarationObj, MatchingReferenceObj, Node, StructuralDifferenceObj}
+import vct.col.ast.helpers.defn.Constants.{CompareResult, LazyList, LazyListObj, MatchingDeclarationObj, MatchingReferenceObj, Node, StructuralDifferenceObj}
 import vct.col.ast.helpers.defn.Naming.{compareTrait, typ}
-import vct.col.ast.helpers.defn.Types
 import vct.col.ast.structure
 import vct.col.ast.structure.{NodeDefinition, NodeGenerator}
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
-import scala.util.Using
+import java.nio.file.Path
 import scala.meta._
-import scala.meta.internal.prettyprinters.TreeSyntax
-import scala.meta.dialects
 
 class Compare extends NodeGenerator {
   override def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit =
@@ -58,10 +53,10 @@ class Compare extends NodeGenerator {
     t match {
       case structure.Type.Node(_) => q"true"
       case structure.Type.Ref(_) => q"true"
-      case Types.PrimitiveType() => q"$left == $right"
-      case Types.OptionType(t) => q"$left.isEmpty == $right.isEmpty && ($left.isEmpty || ${compareValues(q"$left.get", q"$right.get", t)})"
+      case _: structure.Type.PrimitiveType => q"$left == $right"
+      case structure.Type.Option(t) => q"$left.isEmpty == $right.isEmpty && ($left.isEmpty || ${compareValues(q"$left.get", q"$right.get", t)})"
 
-      case Types.EitherType(l, r) =>
+      case structure.Type.Either(l, r) =>
         q"""
           $left.isLeft == $right.isLeft &&
           (
@@ -70,14 +65,14 @@ class Compare extends NodeGenerator {
           )
         """
 
-      case Types.TupleTypes(ts) =>
+      case structure.Type.Tuple(ts) =>
         ts.zipWithIndex.map {
           case (t, i) =>
             val field = Term.Name(s"_${i+1}")
             compareValues(q"$left.$field", q"$right.$field", t)
         }.reduce((l, r) => q"$l && $r")
 
-      case Types.SeqType(t) => q"$left.size == $right.size && $left.zip($right).forall { case (l0, r0) => ${compareValues(q"l0", q"r0", t)} }"
+      case structure.Type.Seq(t) => q"$left.size == $right.size && $left.zip($right).forall { case (l0, r0) => ${compareValues(q"l0", q"r0", t)} }"
 
       case _ => q"???"
     }
@@ -93,17 +88,17 @@ class Compare extends NodeGenerator {
     t match {
       case structure.Type.Node(_) => q"$LazyListObj()"
       case structure.Type.Ref(_) => q"$LazyListObj($MatchingReferenceObj($left.decl, $right.decl))"
-      case Types.PrimitiveType() => q"$LazyListObj()"
-      case Types.OptionType(t) => q"if($left.isDefined) ${compareRefs(q"$left.get", q"$right.get", t)} else $LazyListObj()"
-      case Types.EitherType(l, r) =>
+      case _: structure.Type.PrimitiveType => q"$LazyListObj()"
+      case structure.Type.Option(t) => q"if($left.isDefined) ${compareRefs(q"$left.get", q"$right.get", t)} else $LazyListObj()"
+      case structure.Type.Either(l, r) =>
         q"if($left.isLeft) ${compareRefs(q"$left.left", q"$right.left", l)} else ${compareRefs(q"$left.right", q"$right.right", r)}"
-      case Types.TupleTypes(ts) =>
+      case structure.Type.Tuple(ts) =>
         ts.zipWithIndex.map {
           case (t, i) =>
             val field = Term.Name(s"_${i+1}")
             compareRefs(q"$left.$field", q"$right.$field", t)
         }.reduce((l, r) => q"$l #::: $r")
-      case Types.SeqType(t) => q"$left.zip($right).to($LazyListObj).flatMap { case (l0, r0) => ${compareRefs(q"l0", q"r0", t)} }"
+      case structure.Type.Seq(t) => q"$left.zip($right).to($LazyListObj).flatMap { case (l0, r0) => ${compareRefs(q"l0", q"r0", t)} }"
 
       case _ => q"???"
     }
@@ -119,17 +114,17 @@ class Compare extends NodeGenerator {
     t match {
       case structure.Type.Node(_) => q"$left.compare($right)"
       case structure.Type.Ref(_) => q"$LazyListObj()"
-      case Types.PrimitiveType() => q"$LazyListObj()"
-      case Types.OptionType(t) => q"if($left.isDefined) ${compareSubnodes(q"$left.get", q"$right.get", t)} else $LazyListObj()"
-      case Types.EitherType(l, r) =>
+      case _: structure.Type.PrimitiveType => q"$LazyListObj()"
+      case structure.Type.Option(t) => q"if($left.isDefined) ${compareSubnodes(q"$left.get", q"$right.get", t)} else $LazyListObj()"
+      case structure.Type.Either(l, r) =>
         q"if($left.isLeft) ${compareSubnodes(q"$left.left", q"$right.left", l)} else ${compareSubnodes(q"$left.right", q"$right.right", r)}"
-      case Types.TupleTypes(ts) =>
+      case structure.Type.Tuple(ts) =>
         ts.zipWithIndex.map {
           case (t, i) =>
             val field = Term.Name(s"_${i+1}")
             compareSubnodes(q"$left.$field", q"$right.$field", t)
         }.reduce((l, r) => q"$l #::: $r")
-      case Types.SeqType(t) => q"$left.zip($right).to($LazyListObj).flatMap { case (l0, r0) => ${compareSubnodes(q"l0", q"r0", t)} }"
+      case structure.Type.Seq(t) => q"$left.zip($right).to($LazyListObj).flatMap { case (l0, r0) => ${compareSubnodes(q"l0", q"r0", t)} }"
 
       case _ => q"???"
     }

@@ -22,6 +22,7 @@ case class Name(parts: Seq[String]) {
   def baseName: Name = Name(Seq(base))
 
   def initName: Name = Name(parts.init)
+  def tailName: Name = Name(parts.tail)
 }
 
 object Name {
@@ -35,7 +36,7 @@ object Name {
 sealed trait Type
 
 object Type {
-  implicit val rw: RW[Type] = RW.merge(Node.rw, Ref.rw, Generation.rw, Tuple.rw, Other.rw)
+  implicit val rw: RW[Type] = RW.merge(Node.rw, Ref.rw, Tuple.rw, Seq.rw, Option.rw, Either.rw, PrimitiveType.rw)
 
   /**
    * A type that supports the root node type, and takes exactly one type parameter: the generation. This is not
@@ -55,28 +56,60 @@ object Type {
   object Ref {
     implicit val rw: RW[Ref] = macroRW
   }
-
-  object Generation extends Type {
-    implicit val rw: RW[Generation.type] = macroRW
-  }
-
-  /**
-   * A tuple type, since it is a special case in scalameta.
-   */
-  case class Tuple(args: Seq[Type]) extends Type
+  case class Tuple(args: scala.Seq[Type]) extends Type
 
   object Tuple {
     implicit val rw: RW[Tuple] = macroRW
   }
 
-  /**
-   * Other types, such as collections (Seq, Set) and primitive types (BigInt, String)
-   */
-  case class Other(name: Name, args: Seq[Type]) extends Type
+  case class Seq(arg: Type) extends Type
 
-  object Other {
-    implicit val rw: RW[Other] = macroRW
+  object Seq {
+    implicit val rw: RW[Seq] = macroRW
   }
+
+  case class Option(arg: Type) extends Type
+
+  object Option {
+    implicit val rw: RW[Option] = macroRW
+  }
+
+  case class Either(left: Type, right: Type) extends Type
+
+  object Either {
+    implicit val rw: RW[Either] = macroRW
+  }
+
+  sealed trait PrimitiveType extends Type
+
+  object PrimitiveType {
+    implicit val rw: RW[PrimitiveType] =
+      RW.merge(ValueType.rw, macroRW[Nothing.type], macroRW[Unit.type], macroRW[String.type], macroRW[BigInt.type], macroRW[BigDecimal.type], macroRW[BitString.type], macroRW[ExpectedError.type])
+  }
+
+  object Nothing extends PrimitiveType
+  object Unit extends PrimitiveType
+  object String extends PrimitiveType
+  object BigInt extends PrimitiveType
+  object BigDecimal extends PrimitiveType
+  object BitString extends PrimitiveType
+  object ExpectedError extends PrimitiveType
+
+  sealed trait ValueType extends PrimitiveType
+
+  object ValueType {
+    implicit val rw: RW[ValueType] =
+      RW.merge(macroRW[Boolean.type], macroRW[Byte.type], macroRW[Short.type], macroRW[Int.type], macroRW[Long.type], macroRW[Float.type], macroRW[Double.type], macroRW[Char.type])
+  }
+
+  object Boolean extends ValueType
+  object Byte extends ValueType
+  object Short extends ValueType
+  object Int extends ValueType
+  object Long extends ValueType
+  object Float extends ValueType
+  object Double extends ValueType
+  object Char extends ValueType
 }
 
 sealed trait AnyNodeDeclaration {
@@ -95,7 +128,7 @@ object AnyNodeDeclaration {
  * @param blameType Empty if there is no blame, otherwise the type argument to the blame parameter
  * @param supports extends/with types of this node.
  */
-case class NodeDefinition(name: Name, fields: Seq[(String, Type)], blameType: Option[Name], supports: Seq[Type])
+case class NodeDefinition(name: Name, fields: Seq[(String, Type)], blameType: Option[Name], supports: Seq[Type.Node])
     extends AnyNodeDeclaration
 
 object NodeDefinition {

@@ -263,7 +263,7 @@ final class InstanceMethod[G](val returnType: Type[G],
 final class InstancePredicate[G](val args: Seq[Variable[G]], val body: Option[Expr[G]],
                         val threadLocal: Boolean = false, val inline: Boolean = false)(implicit val o: Origin)
   extends ClassDeclaration[G] with AbstractPredicate[G] with InstancePredicateImpl[G]
-final class InstanceField[G](val t: Type[G], val flags: Set[FieldFlag[G]])(implicit val o: Origin) extends ClassDeclaration[G] with Field[G] with InstanceFieldImpl[G]
+final class InstanceField[G](val t: Type[G], val flags: Seq[FieldFlag[G]])(implicit val o: Origin) extends ClassDeclaration[G] with Field[G] with InstanceFieldImpl[G]
 final class RunMethod[G](val body: Option[Statement[G]], val contract: ApplicableContract[G])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with RunMethodImpl[G]
 final class InstanceOperatorFunction[G](val returnType: Type[G], val operator: Operator[G], val args: Seq[Variable[G]],
                                         val body: Option[Expr[G]], val contract: ApplicableContract[G],
@@ -397,12 +397,12 @@ final case class CoerceZFracFrac[G]()(implicit val o: Origin) extends Coercion[G
 
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 
-sealed trait Constant[G, T] extends Expr[G] with ConstantImpl[G, T]
-final case class IntegerValue[G](value: BigInt)(implicit val o: Origin) extends Constant[G, BigInt] with Expr[G] with IntegerValueImpl[G]
-final case class BooleanValue[G](value: Boolean)(implicit val o: Origin) extends Constant[G, Boolean] with BooleanValueImpl[G]
-final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */)(implicit val o: Origin) extends Constant[G, BigDecimal] with FloatValueImpl[G]
-final case class StringValue[G](value: String)(implicit val o: Origin) extends Constant[G, String] with StringValueImpl[G]
-final case class CharValue[G](value: Int)(implicit val o: Origin) extends Constant[G, Int] with CharValueImpl[G]
+sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
+final case class IntegerValue[G](value: BigInt)(implicit val o: Origin) extends Constant[G] with Expr[G] with IntegerValueImpl[G]
+final case class BooleanValue[G](value: Boolean)(implicit val o: Origin) extends Constant[G] with BooleanValueImpl[G]
+final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */)(implicit val o: Origin) extends Constant[G] with FloatValueImpl[G]
+final case class StringValue[G](value: String)(implicit val o: Origin) extends Constant[G] with StringValueImpl[G]
+final case class CharValue[G](value: Int)(implicit val o: Origin) extends Constant[G] with CharValueImpl[G]
 final case class LiteralSeq[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralSeqImpl[G]
 final case class LiteralSet[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralSetImpl[G]
 final case class LiteralBag[G](element: Type[G], values: Seq[Expr[G]])(implicit val o: Origin) extends Expr[G] with LiteralBagImpl[G]

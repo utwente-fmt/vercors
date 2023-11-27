@@ -2,11 +2,11 @@ package vct.col.ast.expr.literal.constant
 
 import vct.col.ast.Constant
 
-trait ConstantImpl[G, T] { this: Constant[G, T] =>
-  def value: T
+trait ConstantImpl[G] { this: Constant[G] =>
+  def value: Any
 
   override def equals(obj: scala.Any): Boolean = obj match {
-    case const: Constant[_, T] => this.value == const.value
+    case const: Constant[_] => this.value == const.value
     case _ => false
   }
 

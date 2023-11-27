@@ -2,7 +2,6 @@ package vct.col.ast.helpers.generator
 
 import vct.col.ast.helpers.defn.Naming._
 import vct.col.ast.helpers.defn.Constants._
-import vct.col.ast.helpers.defn.Types
 import vct.col.ast.structure
 import vct.col.ast.structure.{NodeDefinition, NodeGenerator}
 
@@ -40,10 +39,10 @@ class Rewrite extends NodeGenerator {
 
   def arg(name: String, t: structure.Type): Term.Param =
     t match {
-      case Types.ValueType() =>
+      case _: structure.Type.ValueType =>
         param"${Name(name)}: Option[${typ(t, t"Post")}] = None"
       case _ =>
-        param"${Name(name)}: ${typ(t, t"Post")}= null"
+        param"${Name(name)}: ${typ(t, t"Post")} = null"
     }
 
   def blameArg(blameType: structure.Name): Term.Param =
@@ -68,7 +67,7 @@ class Rewrite extends NodeGenerator {
 
   def makeField(fieldName: String, t: structure.Type): Term = {
     val field = Term.Name(fieldName)
-    if(Types.isValueType(t))
+    if(t.isInstanceOf[structure.Type.ValueType])
       q"$field.getOrElse(${rewriteDefault(q"this.$field", t)})"
     else
       q"if($field ne null) $field else ${rewriteDefault(q"this.$field", t)}"
@@ -78,12 +77,12 @@ class Rewrite extends NodeGenerator {
     t match {
       case structure.Type.Node(_) => q"$term.rewriteDefault()(`~rw`)"
       case structure.Type.Ref(kind) => q"`~rw`.succ($term)"
-      case Types.PrimitiveType() => term
-      case Types.OptionType(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
-      case Types.EitherType(l, r) =>
+      case _: structure.Type.PrimitiveType => term
+      case structure.Type.Option(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
+      case structure.Type.Either(l, r) =>
         q"$term.fold(`~x` => $LeftObj(${rewriteDefault(q"`~x`", l)}), `~x` => $RightObj(${rewriteDefault(q"`~x`", r)}))"
-      case Types.SeqType(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
-      case Types.TupleTypes(ts) =>
+      case structure.Type.Seq(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
+      case structure.Type.Tuple(ts) =>
         val elems = ts.zipWithIndex.map {
           case (t, i) =>
             val field = Term.Name(s"_${i+1}")

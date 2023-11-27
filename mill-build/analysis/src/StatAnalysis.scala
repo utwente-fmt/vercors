@@ -91,9 +91,11 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
           case (p@Term.Param(mods, name, t, _)) :: Nil =>
             val blameType = t.map { t =>
               Try("blameType") {
-                types.get(t).get match {
-                  case Type.Other(Name(Seq("Blame")), Seq(Type.Other(name, Nil))) => name
-                  case other => fail(t, "The blame parameter should be of type `Blame[T]`, where T is a verification failure category")
+                t match {
+                  case ScType.Apply(t"Blame", List(blameType)) =>
+                    types.getName(blameType).get
+                  case other =>
+                    fail(other, "The blame parameter should be of type `Blame[T]`, where T is a verification failure category")
                 }
               }
             }
@@ -114,13 +116,21 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
 
     val template = Try("template") {
       val Template(early, inits, _, stats) = rawStat.templ
-      val supports = inits.map(init => types.get(init.tpe))
+      val supports = inits.flatMap(_.tpe match {
+        case blame @ ScType.Apply(t, List(t"G")) =>
+          Try(blame) {
+            types.getNode(types.getName(t).get, blame).get
+          } match {
+            case Failures(_) => Nil
+            case Ok(res) => Seq(res)
+          }
+        case _ => Nil
+      })
       check(
         assertPure(early.isEmpty, early.head, "Node declarations must not have early initializers"),
         assertPure(true /*stats.isEmpty*/ , stats.head, s"Any declarations must go in ${rawStat.name.base}Impl"),
-        supports.all,
       )
-      supports.get
+      supports
     }
 
     check(modConditions, tparamConditions, publicConstructor, ctorConditions, fields, origin, blameType, template)

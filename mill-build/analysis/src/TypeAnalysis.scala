@@ -25,45 +25,49 @@ case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], s
 
   def get(t: ScType): Result[Type] = Try(t) {
     t match {
-      case ScType.Name("G") => Type.Generation
-      case _: ScType.Name | _: ScType.Select => Type.Other(getName(t).get, Nil)
-      case ScType.Apply(t, args0) =>
-        val name = getName(t).get
-        val args = args0.map(get).get
-        getRef(name, args, blame = t).get
-          .orElse(getNode(name, args, blame = t).get)
-          .getOrElse(Type.Other(name, args))
+      case t"G" =>
+        fail(t, "Generation parameter may not occur here")
+      case _: ScType.Name | _: ScType.Select =>
+        getPrimitive(getName(t).get, blame = t).get
+      case ScType.Apply(t, List(t"G")) =>
+        getNode(getName(t).get, blame = t).get
+      case ScType.Apply(t, List(gen @ t"G", nodeType)) =>
+        getRef(getName(t).get, get(nodeType).get, blame = t).get
+          .getOrElse(fail(gen, "Generation parameter may not occur here"))
+      case ScType.Apply(t, List(t0)) =>
+        Constants.CollectionType1.getOrElse(getName(t).get.parts, fail(t, "This type is not supported"))(get(t0).get)
+      case ScType.Apply(t, List(t0, t1)) =>
+        Constants.CollectionType2.getOrElse(getName(t).get.parts, fail(t, "This type is not supported"))(get(t0).get, get(t1).get)
       case ScType.Tuple(ts) => Type.Tuple(ts.map(get).get)
       case other => fail(other, "This kind of type is not supported here")
     }
   }
 
-  def getRef(name: Name, args: Seq[Type], blame: Tree): Result[Option[Type]] = Try("Ref type") {
+  def getPrimitive(name: Name, blame: Tree): Result[Type] = Try(blame) {
+    Constants.ValueTypes.get(name.parts)
+      .orElse(Constants.PrimitiveTypes.get(name.parts))
+      .getOrElse(fail(blame, "This type is not supported"))
+  }
+
+  def getRef(name: Name, nodeType: Type, blame: Tree): Result[Option[Type]] = Try("Ref type") {
     if (name != Constants.RefName && name != Constants.RefName.baseName)
       return Ok(None)
 
-    assertPure(args.size == 2, blame, "Ref must have two type arguments: `G` and a node category.").get
-
-    val node = Try("Ref node type") {
-      args.last match {
-        case n: Type.Node => n
-        case _ => fail(blame, "The second type parameter of Ref must be a node category")
-      }
+    val node = nodeType match {
+      case n: Type.Node => n
+      case _ => fail(blame, "The second type parameter of Ref must be a node category")
     }
 
-    check(
-      assertPure(args.head == Type.Generation, blame, "The first parameter of Ref must be `G`"),
-      node,
-    )
-
-    Some(Type.Ref(node.get))
+    Some(Type.Ref(node))
   }
 
-  def getNode(name: Name, args: Seq[Type], blame: Tree): Result[Option[Type]] = Try("Node type") {
-    val candidates = typeLookup.getOrElse(name.base, return Ok(None))
+  def getNode(name: Name, blame: Tree): Result[Type.Node] = Try("Node type") {
+    val message = "Unknown node type (Or: do not pass `G` as a type parameter to collections)"
+
+    val candidates = typeLookup.getOrElse(name.base, fail(blame, message))
     val prefixLengths = (0 to scope.parts.size).reverse
 
-    prefixLengths.foldLeft[Option[Type]](None) {
+    prefixLengths.foldLeft[Option[Type.Node]](None) {
       case (Some(result), _) => Some(result)
       case (None, prefixLength) =>
         val prefix = Name(scope.parts.take(prefixLength))
@@ -74,6 +78,6 @@ case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], s
           case multiple =>
             fail(blame, s"Ambiguous reference to node type `${(name + prefix).parts.mkString(".")}`: Defined at: ${multiple.map(_.blame).map(posText).mkString(", ")}")
         }
-    }
+    }.getOrElse(fail(blame, message))
   }
 }

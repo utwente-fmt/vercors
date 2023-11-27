@@ -2,7 +2,7 @@ package vct.col.ast.helpers.defn
 
 import vct.col.ast.helpers.defn.Constants.RefType
 import vct.col.ast.structure
-import vct.col.ast.structure.{NodeDefinition}
+import vct.col.ast.structure.NodeDefinition
 
 import scala.meta._
 
@@ -21,10 +21,25 @@ object Naming {
   def typ(t: structure.Type, g: Type): Type = t match {
     case structure.Type.Node(name) => t"${typ(name)}[$g]"
     case structure.Type.Ref(node) => t"$RefType[$g, ${typ(node.name)}[$g]]"
-    case structure.Type.Generation => g
     case structure.Type.Tuple(args) => t"(..${args.toList.map(typ(_, g))})"
-    case structure.Type.Other(name, Nil) => t"${typ(name)}"
-    case structure.Type.Other(name, args) => t"${typ(name)}[..${args.toList.map(typ(_, g))}]"
+    case structure.Type.Seq(arg) => t"_root_.scala.Seq[${typ(arg, g)}]"
+    case structure.Type.Option(arg) => t"_root_.scala.Option[${typ(arg, g)}]"
+    case structure.Type.Either(left, right) => t"_root_.scala.util.Either[${typ(left, g)}, ${typ(right, g)}]"
+    case structure.Type.Nothing => t"_root_.scala.Nothing"
+    case structure.Type.Unit => t"_root_.scala.Unit"
+    case structure.Type.String => t"_root_.java.lang.String"
+    case structure.Type.BigInt => t"_root_.scala.BigInt"
+    case structure.Type.BigDecimal => t"_root_.scala.BigDecimal"
+    case structure.Type.BitString => t"_root_.hre.data.BitString"
+    case structure.Type.ExpectedError => t"_root_.vct.col.origin.ExpectedError"
+    case structure.Type.Boolean => t"_root_.scala.Boolean"
+    case structure.Type.Byte => t"_root_.scala.Byte"
+    case structure.Type.Short => t"_root_.scala.Short"
+    case structure.Type.Int => t"_root_.scala.Int"
+    case structure.Type.Long => t"_root_.scala.Long"
+    case structure.Type.Float => t"_root_.scala.Float"
+    case structure.Type.Double => t"_root_.scala.Double"
+    case structure.Type.Char => t"_root_.scala.Char"
   }
 
   def compareTrait(node: NodeDefinition) = Type.Name(node.name.base + "Compare")
