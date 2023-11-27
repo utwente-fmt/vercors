@@ -10,6 +10,10 @@ case object CodeStringDefaults {
   val newFieldPermissions: String => String = (hashMaps: String) => s"public List<ConcurrentHashMap<Long, Fraction>> __runtime__ = new ArrayList<>(Arrays.asList($hashMaps));"
   val newFieldConcurrentArray: String = "new ConcurrentHashMap<Long, Fraction>()"
   val newArrayPermission: (Int) => String = (id: Int) => s"public List<ConcurrentHashMap<Long, Fraction>> __runtime__$id = new ArrayList<>();"
+  val initNewArrayPermissions: (Int, String) => String = (id: Int, hashMaps: String) => s"public List<ConcurrentHashMap<Long, Fraction>> __runtime__$id = new ArrayList<>(Arrays.asList($hashMaps));"
+  val generatedHashMapsFunction : String = "private void __generateHashMap__(int size, List<ConcurrentHashMap<Long, Fraction>> arrayMap ) {\n\t\tarrayMap.clear();\n\t\tfor(int i = 0; i < size; i ++) {\n\t\t\tarrayMap.add(new ConcurrentHashMap<Long, Fraction>());\n\t\t}\n\t}"
+  val callGenerateHashMaps : (String, Int) => String = (size: String, id: Int) => s"__generateHashMap__($size, __runtime__$id)"
+  val generateHashMapCreation : (Int) => String = (size: Int) => (1 to size).map(_ => CodeStringDefaults.newFieldConcurrentArray).mkString(", ")
 
   // Assertion checking
   val assertCheck: (String, Int, String, Boolean) => String = (objectLocation: String, id: Int, field: String, write: Boolean) => {
