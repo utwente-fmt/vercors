@@ -66,9 +66,10 @@ class NonLatchingRewriter[Pre, Post]() extends AbstractRewriter[Pre, Post] {
   override def dispatch(node: LlvmFunctionContract[Pre]): LlvmFunctionContract[Post] = rewriteDefault(node)
   override def dispatch(node: LlvmLoopContract[Pre]): LlvmLoopContract[Post] = rewriteDefault(node)
 
-  override def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
-  override def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
+  override def dispatch(node: PVLAccess[Pre]): PVLAccess[Post] = rewriteDefault(node)
+  override def dispatch(node: PVLSubject[Pre]): PVLSubject[Post] = rewriteDefault(node)
   override def dispatch(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
   override def dispatch(node: Access[Pre]): Access[Post] = rewriteDefault(node)
   override def dispatch(node: Subject[Pre]): Subject[Post] = rewriteDefault(node)
+  override def dispatch(node: SeqGuard[Pre]): SeqGuard[Post] = rewriteDefault(node)
 }

@@ -260,11 +260,12 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
     case node: LlvmLoopContract[Pre] => node
     case node: ProverLanguage[Pre] => node
     case node: SmtlibFunctionSymbol[Pre] => node
-    case node: PVLCommunicateAccess[Pre] => node
-    case node: PVLCommunicateSubject[Pre] => node
+    case node: PVLAccess[Pre] => node
+    case node: PVLSubject[Pre] => node
     case node: SeqRun[Pre] => node
     case node: Access[Pre] => node
     case node: Subject[Pre] => node
+    case node: SeqGuard[Pre] => coerce(node)
   }
 
   def preCoerce(e: Expr[Pre]): Expr[Pre] = e
@@ -467,13 +468,13 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def postCoerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = rewriteDefault(node)
   override final def dispatch(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
-  def postCoerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = rewriteDefault(node)
-  override final def dispatch(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Post] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
+  def postCoerce(node: PVLAccess[Pre]): PVLAccess[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLAccess[Pre]): PVLAccess[Post] = postCoerce(coerce(preCoerce(node)))
 
-  def preCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
-  def postCoerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = rewriteDefault(node)
-  override final def dispatch(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Post] = postCoerce(coerce(preCoerce(node)))
+  def preCoerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
+  def postCoerce(node: PVLSubject[Pre]): PVLSubject[Post] = rewriteDefault(node)
+  override final def dispatch(node: PVLSubject[Pre]): PVLSubject[Post] = postCoerce(coerce(preCoerce(node)))
 
   def preCoerce(node: Access[Pre]): Access[Pre] = node
   def postCoerce(node: Access[Pre]): Access[Post] = rewriteDefault(node)
@@ -486,6 +487,10 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def preCoerce(node: SeqRun[Pre]): SeqRun[Pre] = node
   def postCoerce(node: SeqRun[Pre]): SeqRun[Post] = rewriteDefault(node)
   override final def dispatch(node: SeqRun[Pre]): SeqRun[Post] = postCoerce(coerce(preCoerce(node)))
+
+  def preCoerce(node: SeqGuard[Pre]): SeqGuard[Pre] = node
+  def postCoerce(node: SeqGuard[Pre]): SeqGuard[Post] = rewriteDefault(node)
+  override final def dispatch(node: SeqGuard[Pre]): SeqGuard[Post] = postCoerce(coerce(preCoerce(node)))
 
   def coerce(value: Expr[Pre], target: Type[Pre], canCDemote: Boolean = false): Expr[Pre] =
     ApplyCoercion(value, CoercionUtils.getAnyCoercion(value.t, target) match {
@@ -1648,7 +1653,6 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case Z3SeqSuffixOf(post, seq) => Z3SeqSuffixOf(z3seq(post)._1, z3seq(seq)._1)
       case Z3SeqUnit(arg) => Z3SeqUnit(arg)
       case Z3TransitiveClosure(ref, args) => Z3TransitiveClosure(ref, coerceArgs(args, ref.ref.decl))
-      case VeyMontCondition(c) => VeyMontCondition(c)
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LlvmLocal(name) => e
@@ -1729,22 +1733,28 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case w @ WandPackage(expr, stat) => WandPackage(res(expr), stat)(w.blame)
       case VeyMontAssignExpression(t,a) => VeyMontAssignExpression(t,a)
       case CommunicateX(r,s,t,a) => CommunicateX(r,s,t,a)
-      case PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
+      case c @ PVLCommunicate(s, r) if r.fieldType == s.fieldType => PVLCommunicate(s, r)
       case comm@PVLCommunicate(s, r) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.fieldType}, but actually has type ${r.fieldType}.")
-      case Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
+      case c @ Communicate(r, s) if r.field.decl.t == s.field.decl.t => Communicate(r, s)
       case comm@Communicate(r, s) => throw IncoercibleExplanation(comm, s"The receiver should have type ${s.field.decl.t}, but actually has type ${r.field.decl.t}.")
-      case PVLSeqAssign(r, f, v) =>
-        try { PVLSeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+      case a @ PVLSeqAssign(r, f, v) =>
+        try { PVLSeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err
         }
-      case SeqAssign(r, f, v) =>
-        try { SeqAssign(r, f, coerce(v, f.decl.t)) } catch {
+      case a @ SeqAssign(r, f, v) =>
+        try { SeqAssign(r, f, coerce(v, f.decl.t))(a.blame) } catch {
           case err: Incoercible =>
             println(err.text)
             throw err
         }
+      case s: SeqBranch[Pre] => s
+      case s: SeqLoop[Pre] => s
+      case branch@UnresolvedSeqBranch(branches) => UnresolvedSeqBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
+      case branch@PVLBranch(branches) => PVLBranch(branches.map { case (cond, effect) => (bool(cond), effect) })(branch.blame)
+      case loop@UnresolvedSeqLoop(cond, contract, body) => UnresolvedSeqLoop(bool(cond), contract, body)(loop.blame)
+      case loop@PVLLoop(init, cond, update, contract, body) => PVLLoop(init, bool(cond), update, contract, body)(loop.blame)
     }
   }
 
@@ -2238,9 +2248,14 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
   def coerce(node: SmtlibFunctionSymbol[Pre]): SmtlibFunctionSymbol[Pre] = node
 
-  def coerce(node: PVLCommunicateAccess[Pre]): PVLCommunicateAccess[Pre] = node
-  def coerce(node: PVLCommunicateSubject[Pre]): PVLCommunicateSubject[Pre] = node
+  def coerce(node: PVLAccess[Pre]): PVLAccess[Pre] = node
+  def coerce(node: PVLSubject[Pre]): PVLSubject[Pre] = node
   def coerce(node: SeqRun[Pre]): SeqRun[Pre] = node
   def coerce(node: Access[Pre]): Access[Pre] = node
   def coerce(node: Subject[Pre]): Subject[Pre] = node
+  def coerce(node: SeqGuard[Pre]): SeqGuard[Pre] = node match {
+    case EndpointGuard(endpoint, cond) => EndpointGuard(endpoint, bool(cond))(node.o)
+    case UnpointedGuard(cond) => UnpointedGuard(bool(cond))(node.o)
+  }
+
 }

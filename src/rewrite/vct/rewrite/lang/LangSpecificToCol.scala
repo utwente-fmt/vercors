@@ -10,11 +10,11 @@ import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.Java
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.result.VerificationError.UserError
 import vct.rewrite.lang.LangVeyMontToCol
 
-case object LangSpecificToCol extends RewriterBuilder {
+case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
   override def key: String = "langSpecific"
   override def desc: String = "Translate language-specific constructs to a common subset of nodes."
 
@@ -31,12 +31,12 @@ case object LangSpecificToCol extends RewriterBuilder {
   }
 }
 
-case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with LazyLogging {
+case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Boolean = false) extends Rewriter[Pre] with LazyLogging {
   val java: LangJavaToCol[Pre] = LangJavaToCol(this)
   val bip: LangBipToCol[Pre] = LangBipToCol(this)
   val c: LangCToCol[Pre] = LangCToCol(this)
   val cpp: LangCPPToCol[Pre] = LangCPPToCol(this)
-  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this)
+  val pvl: LangPVLToCol[Pre] = LangPVLToCol(this, veymontGeneratePermissions)
   val veymont: LangVeyMontToCol[Pre] = LangVeyMontToCol(this)
   val silver: LangSilverToCol[Pre] = LangSilverToCol(this)
   val llvm: LangLLVMToCol[Pre] = LangLLVMToCol(this)
@@ -158,6 +158,9 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
         scanScope(body)
       }._1)
 
+    case branch: PVLBranch[Pre] => pvl.branch(branch)
+    case loop: PVLLoop[Pre] => pvl.loop(loop)
+
     case JavaLocalDeclarationStatement(locals: JavaLocalDeclaration[Pre]) => java.initLocal(locals)
 
     case CDeclarationStatement(decl) => c.rewriteLocal(decl)
@@ -169,7 +172,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case eval@Eval(CPPInvocation(_, _, _, _)) => cpp.invocationStatement(eval)
 
     case communicate: PVLCommunicate[Pre] => veymont.rewriteCommunicate(communicate)
-    case assign: PVLSeqAssign[Pre] => veymont.rewriteParAssign(assign)
+    case assign: PVLSeqAssign[Pre] => veymont.rewriteSeqAssign(assign)
 
     case other => rewriteDefault(other)
   }
