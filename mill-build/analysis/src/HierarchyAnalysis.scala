@@ -9,30 +9,22 @@ import scala.meta.{Name => ScName, Type => ScType, _}
 import scala.reflect.ClassTag
 
 object HierarchyAnalysis {
-  case class Hierarchy(declarations: Seq[(Name, Seq[NodeDefinition])], nodes: Seq[(Name, Seq[NodeDefinition])])
+  case class Hierarchy(declaredNodes: Seq[(Name, Seq[NodeDefinition])], structuralNodes: Seq[(Name, Seq[NodeDefinition])])
 
-  def get(decls: Seq[(Tree, AnyNodeDeclaration)]): Result[Hierarchy] = Try("hierarchy") {
+  def get(decls: Seq[StatAnalysis.Decl]): Result[Hierarchy] = Try("hierarchy") {
     val rootNode =
-      decls.find(_._2.name == Constants.RootNodeName)
+      decls.find(_.name == Constants.RootNodeName)
         .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
 
     val nodeFamily =
-      decls.find(_._2.name == Constants.NodeFamilyName)
-        .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
-        ._2
+      decls.find(_.name == Constants.NodeFamilyName)
+        .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all structural nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
 
     val declaration =
-      decls.find(_._2.name == Constants.DeclarationName)
-        .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
-        ._2
+      decls.find(_.name == Constants.DeclarationName)
+        .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all declared nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
 
-    val declarationKinds = decls.filter(_._2.supports.contains(Type.Node(Constants.DeclarationName)))
-    val nodeFamilies = decls.filter(_._2.supports.contains(Type.Node(Constants.NodeFamilyName)))
-
-    val overlap = declarationKinds.intersect(nodeFamilies)
-    overlap.map(x => Try(x._1) { fail(x._1, "This category extends both NodeFamily and Declaration, which is not allowed.") }).get
-
-    val lookup = decls.map(x => x._2.name -> x._2).to(ListMap)
+    val lookup = decls.map(x => x.name -> x).to(ListMap)
 
     val _transSupports: mutable.Map[Name, ListSet[Name]] = mutable.Map()
 
@@ -47,46 +39,56 @@ object HierarchyAnalysis {
             .to(ListSet)
       )
 
-    val categoryRoots = (declarationKinds ++ nodeFamilies).map(_._2.name).to(ListSet)
+    val declarationFamilies = decls.filter(decl => decl.family && transSupports(decl.name).contains(declaration.name))
+    val structuralFamilies = decls.filter(decl => decl.family && transSupports(decl.name).contains(nodeFamily.name))
+
+    val overlap = declarationFamilies.intersect(structuralFamilies)
+    overlap.map(x => Try(x.blame) {
+      fail(x.blame, "This category extends both NodeFamily and Declaration, which is not allowed.")
+    }).get
+
+    val familyRoots = (declarationFamilies ++ structuralFamilies).map(_.name).to(ListSet)
 
     val defnsByRoots =
       decls
-        .collect { case blame -> (defn: NodeDefinition) => blame -> defn }
-        .groupBy { case _ -> defn => transSupports(defn.name).intersect(categoryRoots) }
+        .filter(_.defn.isDefined)
+        .groupBy(decl => transSupports(decl.name).intersect(familyRoots))
 
     val defnsByRoot = defnsByRoots.map {
       case (roots, defns) =>
-        Try(defns.head._1) {
-          if(roots.size == 1) roots.head -> defns
+        Try(defns.head.blame) {
+          if(roots.size == 1) roots.head -> defns.map(decl => {
+            val defn = decl.defn.get
+            val rootKind =
+              if(declarationFamilies.exists(_.name == roots.head)) DeclaredNode
+              else StructuralNode
+
+            NodeDefinition(decl.name, defn.fields, defn.blameType, rootKind)
+          })
           else if(roots.isEmpty)
-            fail(defns.head._1, "Node definitions must extends a node family or declaration kind")
+            fail(defns.head.blame, "Node definitions must extends a node family or declaration kind")
           else
-            fail(defns.head._1, s"Node definitions must not extend more than one node family and/or declaration kind (Currently: ${roots.map(_.parts.mkString(".")).mkString(", ")})")
+            fail(defns.head.blame, s"Node definitions must not extend more than one node family and/or declaration kind (Currently: ${roots.map(_.parts.mkString(".")).mkString(", ")})")
         }
     }.toSeq.get.to(ListMap)
 
-    val declarations = declarationKinds.map {
-      case blame -> kind =>
-        Try(blame) {
-          kind.name ->
-            defnsByRoot
-              .getOrElse(kind.name, fail(blame, "Declaration kinds may not be empty"))
-              .map(_._2)
-        }
+    val declarations = declarationFamilies.map { family =>
+      Try(family.blame) {
+        family.name ->
+          defnsByRoot.getOrElse(family.name, fail(family.blame, "Declaration kinds may not be empty"))
+      }
     }
 
-    val nodes = nodeFamilies.map {
-      case blame -> family =>
-        Try(blame) {
-          family.name ->
-            defnsByRoot
-              .getOrElse(family.name, fail(blame, "Node families may not be empty"))
-              .map(_._2)
-        }
+    val structuralNodes = structuralFamilies.map { family =>
+      Try(family.blame) {
+        family.name ->
+          defnsByRoot
+            .getOrElse(family.name, fail(family.blame, "Node families may not be empty"))
+      }
     }
 
-    check(declarations.all, nodes.all)
+    check(declarations.all, structuralNodes.all)
 
-    Hierarchy(declarations.get, nodes.get)
+    Hierarchy(declarations.get, structuralNodes.get)
   }
 }

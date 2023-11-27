@@ -2,6 +2,7 @@ package vct.col.ast.node
 
 import vct.col.ast._
 import vct.col.check._
+import vct.col.compare.CompareResult
 import vct.col.origin._
 import vct.col.print._
 import vct.col.ref.Ref
@@ -39,6 +40,8 @@ import scala.runtime.ScalaRunTime
 trait NodeImpl[G] extends Show { this: Node[G] =>
   def check(context: CheckContext[G]): Seq[CheckError]
   def o: Origin
+
+  def compare[G1](other: Node[G1]): LazyList[CompareResult[G, G1]]
 
   def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     context

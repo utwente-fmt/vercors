@@ -30,10 +30,10 @@ object Analysis {
       case Ok(decls) => decls
     }
 
-    write(output.resolve("col-kinds.json"), hierarchy.declarations.map(_._1))
-    write(output.resolve("col-families.json"), hierarchy.nodes.map(_._1))
-    write(output.resolve("col-definitions.json"), (hierarchy.declarations ++ hierarchy.nodes).flatMap(_._2))
-    write(output.resolve("col-categories.json"), (hierarchy.declarations ++ hierarchy.nodes).map { case category -> defns => category -> defns.map(_.name) })
+    write(output.resolve("col-decl-families.json"), hierarchy.declaredNodes.map(_._1))
+    write(output.resolve("col-struct-families.json"), hierarchy.structuralNodes.map(_._1))
+    write(output.resolve("col-definitions.json"), (hierarchy.declaredNodes ++ hierarchy.structuralNodes).flatMap(_._2))
+    write(output.resolve("col-families.json"), (hierarchy.declaredNodes ++ hierarchy.structuralNodes).map { case category -> defns => category -> defns.map(_.name) })
   }
 
   def read(path: Path): Result[Seq[RawStatAnalysis.RawStat]] = Try(s"reading $path") {

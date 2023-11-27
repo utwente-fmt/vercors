@@ -112,14 +112,14 @@ object Type {
   object Char extends ValueType
 }
 
-sealed trait AnyNodeDeclaration {
-  def name: Name
-  def supports: Seq[Type]
+sealed trait NodeKind
+
+object NodeKind {
+  implicit val rw: RW[NodeKind] = RW.merge(macroRW[StructuralNode.type], macroRW[DeclaredNode.type])
 }
 
-object AnyNodeDeclaration {
-  implicit val rw: RW[AnyNodeDeclaration] = RW.merge(NodeDefinition.rw, NodeCategory.rw)
-}
+object StructuralNode extends NodeKind
+object DeclaredNode extends NodeKind
 
 /**
  * All the parts that define a concrete node. Concrete nodes can be classes or case classes.
@@ -128,22 +128,9 @@ object AnyNodeDeclaration {
  * @param blameType Empty if there is no blame, otherwise the type argument to the blame parameter
  * @param supports extends/with types of this node.
  */
-case class NodeDefinition(name: Name, fields: Seq[(String, Type)], blameType: Option[Name], supports: Seq[Type.Node])
-    extends AnyNodeDeclaration
+case class NodeDefinition(name: Name, fields: Seq[(String, Type)], blameType: Option[Name], kind: NodeKind)
 
 object NodeDefinition {
   implicit val rw: RW[NodeDefinition] = macroRW
   implicit val segments: mill.define.Cross.ToSegments[NodeDefinition] = new mill.define.Cross.ToSegments(n => n.name.parts.toList)
-}
-
-/**
- * Any intermediate category of nodes, or the root Node type. Categories can be abstract classes or traits.
- * @param name The fully qualified name of the category
- * @param supports extends/with types of this node.
- */
-case class NodeCategory(name: Name, supports: Seq[Type])
-    extends AnyNodeDeclaration
-
-object NodeCategory {
-  implicit val rw: RW[NodeCategory] = macroRW
 }

@@ -5,6 +5,7 @@ object Constants {
   val NodeFamilyName: Name = Name(Seq("_root_", "vct", "col", "ast", "NodeFamily"))
   val DeclarationName: Name = Name(Seq("_root_", "vct", "col", "ast", "Declaration"))
   val RefName: Name = Name(Seq("_root_", "vct", "col", "ref", "Ref"))
+  val FamilyName: Name = Name(Seq("_root_", "vct", "col", "structure", "family"))
 
   def typeMap[T](pairs: (Seq[String], T)*): Map[Seq[String], T] =
     pairs.flatMap {

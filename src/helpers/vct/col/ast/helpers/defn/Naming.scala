@@ -1,6 +1,6 @@
 package vct.col.ast.helpers.defn
 
-import vct.col.ast.helpers.defn.Constants.RefType
+import vct.col.ast.helpers.defn.Constants.{ComparePackage, RefType, RewritePackage}
 import vct.col.ast.structure
 import vct.col.ast.structure.NodeDefinition
 
@@ -16,7 +16,7 @@ object Naming {
     if(name.parts.size == 1) Type.Name(name.base)
     else Type.Select(term(name.initName), Type.Name(name.base))
 
-  def typ(node: structure.AnyNodeDeclaration): Type = typ(node.name)
+  def typ(node: structure.NodeDefinition): Type = typ(node.name)
 
   def typ(t: structure.Type, g: Type): Type = t match {
     case structure.Type.Node(name) => t"${typ(name)}[$g]"
@@ -42,6 +42,17 @@ object Naming {
     case structure.Type.Char => t"_root_.scala.Char"
   }
 
+  def packageFromRoot(t: Term): Term.Ref = t match {
+    case name: Term.Name => q"_root_.$name"
+    case Term.Select(base, name) => q"${packageFromRoot(base)}.$name"
+    case _ => ???
+  }
+
+  def opsTrait(node: NodeDefinition) = Type.Name(node.name.base + "Ops")
+  def opsFamilyTrait(node: structure.Name) = Type.Name(node.base + "FamilyOps")
+
   def compareTrait(node: NodeDefinition) = Type.Name(node.name.base + "Compare")
+  def compareType(node: NodeDefinition) = t"${packageFromRoot(ComparePackage)}.${compareTrait(node)}"
   def rewriteTrait(node: NodeDefinition) = Type.Name(node.name.base + "Rewrite")
+  def rewriteType(node: NodeDefinition) = t"${packageFromRoot(RewritePackage)}.${rewriteTrait(node)}"
 }

@@ -1,33 +1,33 @@
 package vct.col.ast.helpers.generator
 
-import vct.col.ast.helpers.defn.Constants.{CompareResult, LazyList, LazyListObj, MatchingDeclarationObj, MatchingReferenceObj, Node, StructuralDifferenceObj}
+import vct.col.ast.helpers.defn.Constants.{ComparePackage, CompareResult, LazyList, LazyListObj, MatchingDeclarationObj, MatchingReferenceObj, Node, StructuralDifferenceObj}
 import vct.col.ast.helpers.defn.Naming.{compareTrait, typ}
 import vct.col.ast.structure
-import vct.col.ast.structure.{NodeDefinition, NodeGenerator}
+import vct.col.ast.structure.{DeclaredNode, NodeDefinition, NodeGenerator}
 
 import java.nio.file.Path
 import scala.meta._
 
 class Compare extends NodeGenerator {
-  override def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit =
-    ResultStream.write(out.resolve(s"${node.name.base}Comapre.scala"), getTree(node, isDeclaration))
+  override def generate(out: Path, node: NodeDefinition): Unit =
+    ResultStream.write(out.resolve(s"${node.name.base}Compare.scala"), getTree(node))
 
-  def getTree(node: NodeDefinition, isDeclaration: Boolean): Source = {
+  def getTree(node: NodeDefinition): Source = {
     source"""
-      package vct.col.ast.ops.compare
+      package $ComparePackage
 
       trait ${compareTrait(node)}[L] { this: ${typ(node)}[L] =>
         def compare[R](other: $Node[R]): $LazyList[$CompareResult[L, R]] =
           if(this.getClass != other.getClass) $LazyListObj($StructuralDifferenceObj(this, other))
           else {
             val `~x` = other.asInstanceOf[${typ(node)}[R]]
-            ${compare(q"this", q"`~x`", node, isDeclaration)}
+            ${compare(q"this", q"`~x`", node)}
           }
       }
     """
   }
 
-  def compare(left: Term, right: Term, node: NodeDefinition, isDeclaration: Boolean): Term = {
+  def compare(left: Term, right: Term, node: NodeDefinition): Term = {
     val valuesEqual = compareValues(left, right, node)
     val refs = compareRefs(left, right, node)
     val subnodes = compareSubnodes(left, right, node)
@@ -35,7 +35,7 @@ class Compare extends NodeGenerator {
     simplify(
       q"""
         if($valuesEqual) ${
-          if(isDeclaration) q"$MatchingDeclarationObj($left, $right) #:: $refs #::: $subnodes"
+          if(node.kind == DeclaredNode) q"$MatchingDeclarationObj($left, $right) #:: $refs #::: $subnodes"
           else q"$refs #::: $subnodes"
         } else $LazyListObj($StructuralDifferenceObj($left, $right))
       """

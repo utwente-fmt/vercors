@@ -5,11 +5,18 @@ import Util._
 import scala.meta.{Name => ScName, Type => ScType, _}
 import scala.reflect.ClassTag
 
+object StatAnalysis {
+  case class Decl(blame: Tree, name: Name, supports: Seq[Type.Node], family: Boolean, defn: Option[Defn])
+  case class Defn(fields: Seq[(String, Type)], blameType: Option[Name])
+}
+
 case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
+  import StatAnalysis._
+
   def is[M <: Mod](mods: Seq[Mod])(implicit tag: ClassTag[M]): Boolean =
     mods.collectFirst { case _: M => () }.nonEmpty
 
-  def getDeclaration(rawStat: RawStatAnalysis.RawStat): Result[(Tree, AnyNodeDeclaration)] = Try(rawStat.blame) {
+  def getDeclaration(rawStat: RawStatAnalysis.RawStat): Result[Decl] = Try(rawStat.blame) {
     val types = TypeAnalysis(typeLookup, scope = rawStat.name.initName)
 
     val isConcrete = !rawStat.isTrait && !is[Mod.Abstract](rawStat.mods)
@@ -17,6 +24,15 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
     val modConditions =
       if (isConcrete) assertPure(true /*is[Mod.Final](rawStat.mods)*/ , rawStat.blame, "Node definitions must be final")
       else assertPure(is[Mod.Sealed](rawStat.mods), rawStat.blame, "Node categories must be sealed")
+
+    val isFamily =
+      Try(rawStat.blame) {
+        rawStat.mods.exists {
+          case Mod.Annot(Init(t, ScName.Anonymous(), Nil)) =>
+            types.getName(t).get == Constants.FamilyName.baseName
+          case _ => false
+        }
+      }
 
     val tparamConditions = Try("type parameters") {
       assertPure(true /*rawStat.tparams.size == 1*/ , rawStat.tparams.headOption.getOrElse(rawStat.blame), "Node declarations must have exactly one type parameter").get
@@ -135,9 +151,10 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
 
     check(modConditions, tparamConditions, publicConstructor, ctorConditions, fields, origin, blameType, template)
 
-    if (isConcrete)
-      rawStat.blame -> NodeDefinition(rawStat.name, fields.get, blameType.get, template.get)
-    else
-      rawStat.blame -> NodeCategory(rawStat.name, template.get)
+    val defn =
+      if(isConcrete) Some(Defn(fields.get, blameType.get))
+      else None
+
+    Decl(rawStat.blame, rawStat.name, template.get, isFamily.get, defn)
   }
 }

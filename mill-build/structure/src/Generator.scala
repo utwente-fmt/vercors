@@ -3,7 +3,7 @@ package vct.col.ast.structure
 import java.nio.file.Path
 
 trait AllFamiliesGenerator {
-  def generate(out: Path, families: Seq[Name]): Unit
+  def generate(out: Path, declaredFamilies: Seq[Name], structuralFamilies: Seq[Name]): Unit
 }
 
 trait AllNodesGenerator {
@@ -11,7 +11,7 @@ trait AllNodesGenerator {
 }
 
 trait NodeGenerator {
-  def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit
+  def generate(out: Path, node: NodeDefinition): Unit
 }
 
 trait FamilyGenerator {

@@ -17,7 +17,7 @@ object Constants {
   val Blame: Type = t"_root_.vct.col.origin.Blame"
   val RefType: Type = t"_root_.vct.col.ref.Ref"
 
-  val AbstractRewriter: Type = t"_root_.vct.col.ast.rewrite.AbstractRewriter"
+  val AbstractRewriter: Type = t"_root_.vct.col.ast.AbstractRewriter"
 
   val CompareResult = t"_root_.vct.col.compare.CompareResult"
   val MatchingDeclaration = t"_root_.vct.col.compare.MatchingDeclaration"
@@ -27,4 +27,7 @@ object Constants {
   val StructuralDifference = t"_root_.vct.col.compare.StructuralDifference"
   val StructuralDifferenceObj = q"_root_.vct.col.compare.StructuralDifference"
 
+  val OpsPackage = q"vct.col.ast.ops"
+  val RewritePackage = q"$OpsPackage.rewrite"
+  val ComparePackage = q"$OpsPackage.rewrite"
 }

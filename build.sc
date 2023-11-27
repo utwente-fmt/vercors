@@ -565,10 +565,10 @@ object vercors extends Module {
       def load[T: upickle.default.Reader](file: String): T =
         upickle.default.read[T](classOf[helpers.type].getResourceAsStream(s"/${file}"), trace = true)
 
-      val declarationKinds = load[Seq[structure.Name]]("col-kinds.json")
-      val nodeFamilies = load[Seq[structure.Name]]("col-families.json")
+      val declarationFamilies = load[Seq[structure.Name]]("col-decl-families.json")
+      val structuralFamilies = load[Seq[structure.Name]]("col-struct-families.json")
       val definitions = load[Seq[structure.NodeDefinition]]("col-definitions.json")
-      val categories = load[Seq[(structure.Name, Seq[structure.Name])]]("col-categories.json")
+      val families = load[Seq[(structure.Name, Seq[structure.Name])]]("col-families.json")
 
       object generators extends VercorsModule {
         def key = "helpers"
@@ -579,7 +579,6 @@ object vercors extends Module {
           )
         }
         def unmanagedClasspath = T { structureClasspath.map(PathRef(_)) }
-        def scalacOptions = T { Seq("-opt:local", "-opt:inline:**", "-Wopt") }
       }
 
       def instantiate[T](name: String): Task[T] = T.task {
@@ -592,6 +591,20 @@ object vercors extends Module {
           .asInstanceOf[Class[T]]
           .getDeclaredConstructor()
           .newInstance()
+      }
+
+      object implTraits extends Module {
+        val root = settings.src / "col" / "vct" / "col" / "ast"
+
+        def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
+
+        def fix = T {
+          ()
+        }
+
+        def generate = T {
+          ()
+        }
       }
 
       def protoAuxTypes = T.worker(instantiate[structure.AllNodesGenerator]("ProtoAuxTypes"))
@@ -609,7 +622,9 @@ object vercors extends Module {
 
       def familyGenerators = T.worker {
         Seq(
-          instantiate[structure.FamilyGenerator]("DeserializeFamily"),
+          instantiate[structure.FamilyGenerator]("DeserializeFamily")(),
+          instantiate[structure.FamilyGenerator]("OpsFamily")(),
+
           instantiate[structure.FamilyGenerator]("ProtoFamily")(),
         )
       }
@@ -617,31 +632,61 @@ object vercors extends Module {
       def nodeGenerators = T.worker {
         Seq(
           instantiate[structure.NodeGenerator]("Compare")(),
-//          instantiate[structure.NodeGenerator]("Deserialize")(),
-//          instantiate[structure.NodeGenerator]("Ops")(),
-          instantiate[structure.NodeGenerator]("ProtoNode")(),
           instantiate[structure.NodeGenerator]("Rewrite")(),
-//          instantiate[structure.NodeGenerator]("Serialize")(),
+          //          instantiate[structure.NodeGenerator]("Serialize")(),
+          instantiate[structure.NodeGenerator]("Ops")(),
+
+          //          instantiate[structure.NodeGenerator]("Deserialize")(),
+          instantiate[structure.NodeGenerator]("ProtoNode")(),
         )
       }
 
-      object node extends Cross[nodeCross](definitions)
-      trait nodeCross extends Cross.Module[structure.NodeDefinition] {
+      object global extends Module {
+        def generate = T {
+          allFamiliesGenerators().foreach(_.generate(T.dest.toNIO, declarationFamilies, structuralFamilies))
+          protoAuxTypes().generate(T.dest.toNIO, definitions)
+          Seq(T.dest)
+        }
+      }
+
+      implicit object FamilySegments extends Cross.ToSegments[(structure.Name, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
+
+      object family extends Cross[FamilyCross](families)
+      trait FamilyCross extends Cross.Module[(structure.Name, Seq[structure.Name])] {
+        def family = T.input(crossValue._1)
+        def nodes = T.input(crossValue._2)
+        def generate = T {
+          val familyVal = family()
+          val nodesVal = nodes()
+          familyGenerators().foreach(_.generate(T.dest.toNIO, familyVal, nodesVal))
+          T.dest
+        }
+      }
+
+      object node extends Cross[NodeCross](definitions)
+      trait NodeCross extends Cross.Module[structure.NodeDefinition] {
         def definition = T.input(crossValue)
         def generate = T {
           val defn = definition()
-          nodeGenerators().foreach(_.generate(T.dest.toNIO, defn, declarationKinds.contains(defn.name)))
+          nodeGenerators().foreach(_.generate(T.dest.toNIO, defn))
           T.dest
         }
       }
 
       def sources: T[Seq[PathRef]] = {
-        T.traverse(definitions)(node(_).generate)().map(PathRef(_, quick = true))
+        T.traverse(definitions)(node(_).generate)().map(PathRef(_, quick = true)) ++
+          T.traverse(families)(family(_).generate)().map(PathRef(_, quick = true)) ++
+          global.generate().map(PathRef(_, quick = true))
       }
     }
 
     def key = "col"
     def deps = T { Agg.empty }
+    override def sources = T {
+      helpers.implTraits.fix()
+      helpers.implTraits.generate()
+      super.sources()
+    }
     override def generatedSources = T { helpers.sources() }
     override def moduleDeps = Seq(hre, proto)
 

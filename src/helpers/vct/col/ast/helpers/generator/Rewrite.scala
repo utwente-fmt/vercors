@@ -9,12 +9,12 @@ import java.nio.file.Path
 import scala.meta._
 
 class Rewrite extends NodeGenerator {
-  override def generate(out: Path, node: NodeDefinition, isDeclaration: Boolean): Unit =
-    ResultStream.write(out.resolve(s"${node.name.base}Rewrite"), getTree(node))
+  override def generate(out: Path, node: NodeDefinition): Unit =
+    ResultStream.write(out.resolve(s"${node.name.base}Rewrite.scala"), getTree(node))
 
   def getTree(node: NodeDefinition): Tree =
     source"""
-      package vct.col.ast.ops.rewrite
+      package $RewritePackage
 
       trait ${rewriteTrait(node)}[Pre] { this: ${typ(node)}[Pre] =>
         def rewrite[Post](..${args(node)})(implicit `~rw`: $AbstractRewriter[Pre, Post]): ${typ(node)}[Post] =
