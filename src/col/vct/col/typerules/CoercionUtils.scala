@@ -150,6 +150,9 @@ case object CoercionUtils {
           case None => return None
         }
 
+//      case (source: SYCLTClass[G], target@TRef()) => CoerceColToCPPPrimitive(source, target)
+
+
       // Something with TVar?
 
       // Unsafe coercions
@@ -280,6 +283,14 @@ case object CoercionUtils {
   def getAnyMatrixArrayCoercion[G](source: Type[G]): Option[(Coercion[G], TArray[G])] = source match {
     case t: CPrimitiveType[G] => chainCCoercion(t, getAnyMatrixArrayCoercion)
     case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyMatrixArrayCoercion)
+    case acc: SYCLTAccessor[G] if acc.dimCount >= 2 => Some((
+      CoerceIdentity(source),
+      FuncTools.repeat(TArray[G](_), acc.dimCount, acc.typ).asInstanceOf[TArray[G]]
+    ))
+    case acc: SYCLTLocalAccessor[G] if acc.dimCount >= 2 => Some((
+      CoerceIdentity(source),
+      FuncTools.repeat(TArray[G](_), acc.dimCount, acc.typ).asInstanceOf[TArray[G]]
+    ))
     case t @ TArray(TArray(_)) => Some((CoerceIdentity(source), t))
     case TArray(TNull()) => Some(???)
     case TNull() =>

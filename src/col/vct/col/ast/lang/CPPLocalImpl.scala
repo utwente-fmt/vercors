@@ -25,6 +25,7 @@ trait CPPLocalImpl[G] { this: CPPLocal[G] =>
         case None => declInfo.typeOrReturnType(CPPPrimitiveType(decls.decl.specs)) // Static declaration
       }
     case _: RefSYCLAccessMode[G] => SYCLTAccessMode()
+    case ref: RefSYCLConstructorDefinition[G] => Types.notAValue(ref)
     case RefModelField(field) => field.t
     case target: SpecInvocationTarget[G] => Types.notAValue(target)
     case cls: RefClass[G] => Types.notAValue(cls)

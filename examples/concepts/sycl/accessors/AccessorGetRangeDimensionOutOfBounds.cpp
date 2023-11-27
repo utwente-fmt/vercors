@@ -6,7 +6,7 @@
 void test(int* a) {
 	sycl::queue myQueue;
 
-  sycl::buffer<int, 2> aBuffer = sycl::buffer(a, sycl::range<1>(2, 3));
+  sycl::buffer<int, 2> aBuffer = sycl::buffer(a, sycl::range<2>(2, 3));
 
 	myQueue.submit(
   	[&](sycl::handler& cgh) {

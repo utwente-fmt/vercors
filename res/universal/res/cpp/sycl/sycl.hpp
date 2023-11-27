@@ -8,18 +8,6 @@ namespace sycl {
 		sycl::event submit(VERCORS::LAMBDA lambda_method);
 	}
 
-	namespace range {
-		sycl::range<1> constructor(int dim0);
-		sycl::range<2> constructor(int dim0, int dim1);
-		sycl::range<3> constructor(int dim0, int dim1, int dim2);
-	}
-
-	namespace nd_range {
-		sycl::nd_range<1> constructor(sycl::range<1> globalSize, sycl::range<1> localSize);
-		sycl::nd_range<2> constructor(sycl::range<2> globalSize, sycl::range<2> localSize);
-		sycl::nd_range<3> constructor(sycl::range<3> globalSize, sycl::range<3> localSize);
-	}
-
 	namespace handler {
 		void parallel_for(sycl::range<1> numWorkItems, VERCORS::LAMBDA lambda_method);
 		void parallel_for(sycl::range<2> numWorkItems, VERCORS::LAMBDA lambda_method);
@@ -188,11 +176,6 @@ namespace sycl {
   }
 
   namespace buffer {
-
-    sycl::buffer<bool, 1> constructor(bool* hostData, sycl::range<1>& bufferRange);
-    sycl::buffer<bool, 2> constructor(bool* hostData, sycl::range<2>& bufferRange);
-    sycl::buffer<bool, 3> constructor(bool* hostData, sycl::range<3>& bufferRange);
-
     /*@
       resource exclusive_hostData_access(bool* hostData, int range) = \pointer(hostData, range, write);
 
@@ -205,15 +188,11 @@ namespace sycl {
 
       ghost
       context \array(buffer, buffer.length) ** Perm(buffer[*], read);
-      context \pointer(hostData, buffer.length, write);
-      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      context sycl::buffer::exclusive_hostData_access(hostData, buffer.length);
+      ensures \unfolding sycl::buffer::exclusive_hostData_access(hostData, buffer.length) \in (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
       void copy_buffer_to_hostdata(bool* hostData, VERCORS::ARRAY<bool, 1> buffer);
-
     */
 
-    sycl::buffer<int, 1> constructor(int* hostData, sycl::range<1>& bufferRange);
-    sycl::buffer<int, 2> constructor(int* hostData, sycl::range<2>& bufferRange);
-    sycl::buffer<int, 3> constructor(int* hostData, sycl::range<3>& bufferRange);
     /*@
       resource exclusive_hostData_access(int* hostData, int range) = \pointer(hostData, range, write);
 
@@ -226,14 +205,11 @@ namespace sycl {
 
       ghost
       context \array(buffer, buffer.length) ** Perm(buffer[*], read);
-      context \pointer(hostData, buffer.length, write);
-      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      context sycl::buffer::exclusive_hostData_access(hostData, buffer.length);
+      ensures \unfolding sycl::buffer::exclusive_hostData_access(hostData, buffer.length) \in (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
       void copy_buffer_to_hostdata(int* hostData, VERCORS::ARRAY<int, 1> buffer);
     */
 
-    sycl::buffer<long, 1> constructor(long* hostData, sycl::range<1>& bufferRange);
-    sycl::buffer<long, 2> constructor(long* hostData, sycl::range<2>& bufferRange);
-    sycl::buffer<long, 3> constructor(long* hostData, sycl::range<3>& bufferRange);
     /*@
       resource exclusive_hostData_access(long* hostData, int range) = \pointer(hostData, range, write);
 
@@ -246,14 +222,11 @@ namespace sycl {
 
       ghost
       context \array(buffer, buffer.length) ** Perm(buffer[*], read);
-      context \pointer(hostData, buffer.length, write);
-      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      context sycl::buffer::exclusive_hostData_access(hostData, buffer.length);
+      ensures \unfolding sycl::buffer::exclusive_hostData_access(hostData, buffer.length) \in (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
       void copy_buffer_to_hostdata(long* hostData, VERCORS::ARRAY<long, 1> buffer);
     */
 
-    sycl::buffer<double, 1> constructor(double* hostData, sycl::range<1>& bufferRange);
-    sycl::buffer<double, 2> constructor(double* hostData, sycl::range<2>& bufferRange);
-    sycl::buffer<double, 3> constructor(double* hostData, sycl::range<3>& bufferRange);
     /*@
       resource exclusive_hostData_access(double* hostData, int range) = \pointer(hostData, range, write);
 
@@ -266,14 +239,11 @@ namespace sycl {
 
       ghost
       context \array(buffer, buffer.length) ** Perm(buffer[*], read);
-      context \pointer(hostData, buffer.length, write);
-      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      context sycl::buffer::exclusive_hostData_access(hostData, buffer.length);
+      ensures \unfolding sycl::buffer::exclusive_hostData_access(hostData, buffer.length) \in (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
       void copy_buffer_to_hostdata(double* hostData, VERCORS::ARRAY<double, 1> buffer);
     */
 
-    sycl::buffer<float, 1> constructor(float* hostData, sycl::range<1>& bufferRange);
-    sycl::buffer<float, 2> constructor(float* hostData, sycl::range<2>& bufferRange);
-    sycl::buffer<float, 3> constructor(float* hostData, sycl::range<3>& bufferRange);
     /*@
       resource exclusive_hostData_access(float* hostData, int range) = \pointer(hostData, range, write);
 
@@ -286,14 +256,11 @@ namespace sycl {
 
       ghost
       context \array(buffer, buffer.length) ** Perm(buffer[*], read);
-      context \pointer(hostData, buffer.length, write);
-      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      context sycl::buffer::exclusive_hostData_access(hostData, buffer.length);
+      ensures \unfolding sycl::buffer::exclusive_hostData_access(hostData, buffer.length) \in (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
       void copy_buffer_to_hostdata(float* hostData, VERCORS::ARRAY<float, 1> buffer);
     */
 
-    sycl::buffer<char, 1> constructor(char* hostData, sycl::range<1>& bufferRange);
-    sycl::buffer<char, 2> constructor(char* hostData, sycl::range<2>& bufferRange);
-    sycl::buffer<char, 3> constructor(char* hostData, sycl::range<3>& bufferRange);
     /*@
       resource exclusive_hostData_access(char* hostData, int range) = \pointer(hostData, range, write);
 
@@ -306,12 +273,10 @@ namespace sycl {
 
       ghost
       context \array(buffer, buffer.length) ** Perm(buffer[*], read);
-      context \pointer(hostData, buffer.length, write);
-      ensures (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
+      context sycl::buffer::exclusive_hostData_access(hostData, buffer.length);
+      ensures \unfolding sycl::buffer::exclusive_hostData_access(hostData, buffer.length) \in (\forall int i; i >= 0 && i < buffer.length; {: hostData[i] :} == buffer[i]);
       void copy_buffer_to_hostdata(char* hostData, VERCORS::ARRAY<char, 1> buffer);
     */
-
-
   }
   
   namespace accessor {
@@ -331,59 +296,9 @@ namespace sycl {
       pure int linearize_3_indices(int id0, int id1, int id2, int r0, int r1, int r2);
     */
 
-    sycl::accessor<bool, 1> constructor(sycl::buffer<bool, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<bool, 2> constructor(sycl::buffer<bool, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<bool, 3> constructor(sycl::buffer<bool, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-
-    sycl::accessor<int, 1> constructor(sycl::buffer<int, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<int, 2> constructor(sycl::buffer<int, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<int, 3> constructor(sycl::buffer<int, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-
-    sycl::accessor<long, 1> constructor(sycl::buffer<long, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<long, 2> constructor(sycl::buffer<long, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<long, 3> constructor(sycl::buffer<long, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-
-    sycl::accessor<double, 1> constructor(sycl::buffer<double, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<double, 2> constructor(sycl::buffer<double, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<double, 3> constructor(sycl::buffer<double, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-
-    sycl::accessor<float, 1> constructor(sycl::buffer<float, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<float, 2> constructor(sycl::buffer<float, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<float, 3> constructor(sycl::buffer<float, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-
-    sycl::accessor<char, 1> constructor(sycl::buffer<char, 1> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<char, 2> constructor(sycl::buffer<char, 2> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-    sycl::accessor<char, 3> constructor(sycl::buffer<char, 3> bufferRef, sycl::handler& commandGroupHandlerRef, VERCORS::SYCL::ACCESS_MODE access_mode);
-
     sycl::range<1> get_range();
     sycl::range<2> get_range();
     sycl::range<3> get_range();
-  }
-
-  namespace local_accessor {
-//    sycl::local_accessor<bool, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<bool, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<bool, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
-
-    sycl::local_accessor<int, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
-    sycl::local_accessor<int, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
-    sycl::local_accessor<int, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
-
-//    sycl::local_accessor<long, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<long, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<long, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//
-//    sycl::local_accessor<double, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<double, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<double, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//
-//    sycl::local_accessor<float, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<float, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<float, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//
-//    sycl::local_accessor<char, 1> constructor(sycl::range<1>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<char, 2> constructor(sycl::range<2>& bufferRange, sycl::handler& commandGroupHandlerRef);
-//    sycl::local_accessor<char, 3> constructor(sycl::range<3>& bufferRange, sycl::handler& commandGroupHandlerRef);
   }
 
 }
