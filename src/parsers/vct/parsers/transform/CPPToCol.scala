@@ -230,14 +230,19 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       Scope(Nil, Loop[G](Block(Nil), convert(cond), Block(Nil), c.consumeLoopContract(iterStmnt), CPPLifetimeScope(convert(body))))
     })
     case IterationStatement1(_, _, _, _, _, _, _) => ??(iterStmnt)
-    case IterationStatement2(contract1, _, _, ForInitStatement1(simpleDecl), cond, _, update, _, contract2, body) =>
+    case IterationStatement2(contract1, _, _, init, cond, _, update, _, contract2, body) =>
+      val loopInit = init match {
+        case ForInitStatement0(expr) => convert(expr)
+        case ForInitStatement1(simpleDecl) => CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl)))
+      }
       withContract(contract1, contract2, c => {
         Scope(Nil, Loop[G](
-          CPPDeclarationStatement(new CPPLocalDeclaration(convert(simpleDecl))),
+          loopInit,
           cond.map(convert(_)).getOrElse(tt),
           evalOrNop(update),
           c.consumeLoopContract(iterStmnt),
-          CPPLifetimeScope(convert(body))))
+          CPPLifetimeScope(convert(body))
+        ))
       })
     case IterationStatement2(_, _, _, _, _, _, _, _, _, _) => ??(iterStmnt)
     case IterationStatement3(_, _, _, _, _, _, _, _, _) => ??(iterStmnt)
