@@ -741,19 +741,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val commandGroup = invocation.args.head.asInstanceOf[CPPLambdaDefinition[Pre]]
     val commandGroupBody: Statement[Pre] = commandGroup.body
 
-//      commandGroupBody.asInstanceOf[Scope[Pre]].body.asInstanceOf[CPPLifetimeScope[Pre]].body.asInstanceOf[Block[Pre]].statements
-
     // Do not allow contracts for the command group
     if (commandGroup.contract.nonEmpty) throw SYCLContractForCommandGroupUnsupported(commandGroup.contract)
 
     // Get the kernel declarations in the command group
-//    val collectedKernelDeclarations: Seq[CPPInvocation[Pre]] = {
-//      commandGroupBodyStatements.collect({
-//        case Eval(inv) if inv.isInstanceOf[CPPInvocation[Pre]] && inv.asInstanceOf[CPPInvocation[Pre]].ref.isDefined &&
-//          inv.asInstanceOf[CPPInvocation[Pre]].ref.get.name == "sycl::handler::parallel_for" =>
-//          inv.asInstanceOf[CPPInvocation[Pre]]
-//      })
-//    }
     val collectedKernelDeclarations: Seq[CPPInvocation[Pre]] = findStatements(commandGroupBody, {
       case Eval(inv: CPPInvocation[Pre]) if inv.ref.isDefined && inv.ref.get.name == "sycl::handler::parallel_for" => Some(inv)
       case _ => None
@@ -775,9 +766,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     this.currentThis = Some(rw.dispatch(ThisObject[Pre](preEventClass.ref)(preEventClass.o)))
 
     // Generate conditions and accessor objects for each accessor declared in the command group
-//    val collectedAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]] = commandGroupBodyStatements.collect({
-//      case Block(Seq(declStmnt: CPPDeclarationStatement[Pre])) if CPP.getBaseTypeFromSpecs(declStmnt.decl.decl.specs).isInstanceOf[SYCLTAccessor[Pre]] => declStmnt.decl
-//    })
     val collectedAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]] = findStatements(commandGroupBody, {
       case CPPDeclarationStatement(decl) if CPP.getBaseTypeFromSpecs(decl.decl.specs).isInstanceOf[SYCLTAccessor[Pre]] => Some(decl)
       case _ => None
@@ -785,9 +773,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val (accessorRunMethodConditions, accessorParblockConditions, bufferAccessStatements, accessors) = rewriteSYCLAccessorDeclarations(collectedAccessorDeclarations)
 
     // Generate an array each local accessor declared in the command group
-//    val collectedLocalAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]] = commandGroupBodyStatements.collect({
-//      case Block(Seq(declStmnt: CPPDeclarationStatement[Pre])) if CPP.getBaseTypeFromSpecs(declStmnt.decl.decl.specs).isInstanceOf[SYCLTLocalAccessor[Pre]] => declStmnt.decl
-//    })
     val collectedLocalAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]] = findStatements(commandGroupBody, {
       case CPPDeclarationStatement(decl) if CPP.getBaseTypeFromSpecs(decl.decl.specs).isInstanceOf[SYCLTLocalAccessor[Pre]] => Some(decl)
       case _ => None
