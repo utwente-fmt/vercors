@@ -123,7 +123,13 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
               assertPure(blameType.isDefined, p, "The blame parameter must have a type"),
               blameType.getOrElse(Ok(()))
             )
-            Some(blameType.get.get)
+
+            val simpleName = blameType.get.get
+            val fqName =
+              if(simpleName.parts.size == 1) Constants.BlamePackage + simpleName
+              else simpleName
+
+            Some(fqName)
           case other =>
             fail(other.headOrElse(rawStat.blame), "The blame parameter list should have exactly one parameter")
         }

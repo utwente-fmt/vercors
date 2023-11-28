@@ -5,8 +5,9 @@ import vct.col.ast.util.Declarator
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.origin.Origin
 import vct.col.print._
+import vct.col.ast.ops.SeqProgOps
 
-trait SeqProgImpl[G] extends Declarator[G] { this: SeqProg[G] =>
+trait SeqProgImpl[G] extends Declarator[G] with SeqProgOps[G] { this: SeqProg[G] =>
   override def declarations: Seq[Declaration[G]] = args ++ endpoints ++ decls
 
   override def layout(implicit ctx: Ctx): Doc =

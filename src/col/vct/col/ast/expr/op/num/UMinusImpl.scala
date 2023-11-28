@@ -3,8 +3,9 @@ package vct.col.ast.expr.op.num
 import vct.col.ast.{CoerceFloatRat, CoerceUnboundInt, TBoundedInt, TInt, TRational, Type, UMinus}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.typerules.CoercionUtils
+import vct.col.ast.ops.UMinusOps
 
-trait UMinusImpl[G] { this: UMinus[G] =>
+trait UMinusImpl[G] extends UMinusOps[G] { this: UMinus[G] =>
   override def t: Type[G] =
     CoercionUtils.getCoercion(arg.t, TInt())
       .orElse(CoercionUtils.getCoercion(arg.t, TRational())) match {

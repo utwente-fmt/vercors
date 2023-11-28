@@ -46,7 +46,7 @@ class Rewrite extends NodeGenerator {
     }
 
   def blameArg(blameType: structure.Name): Term.Param =
-    param"blame: $Blame[${typ(blameType)}[G]] = null"
+    param"blame: $Blame[${typ(blameType)}] = null"
 
   def scopes(node: NodeDefinition, make: Term): Term = make
 

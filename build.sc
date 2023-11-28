@@ -7,9 +7,12 @@ import mill._
 import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _}
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import contrib.buildinfo.BuildInfo
+import mill.api.Result
 import mill.util.Jvm
 
 import vct.col.ast.structure
+
+import scala.util.control.NonFatal
 
 object settings {
   val root = implicitly[define.Ctx].millSourcePath
@@ -598,12 +601,59 @@ object vercors extends Module {
 
         def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
 
+        val defnSet = definitions.map(_.name.base).toSet
+        val familySet = (declarationFamilies ++ structuralFamilies).map(_.base).toSet
+
+        private def nodeName(p: PathRef): String =
+          p.path.last.dropRight("Impl.scala".length)
+
+        def generator = T.worker(instantiate[structure.ImplTraitGenerator]("ImplTrait"))
+
         def fix = T {
+          val gen = generator()
+          inputs().foreach { input =>
+            val name = nodeName(input)
+            val opsNames =
+              (if(defnSet.contains(name)) Seq(name + "Ops") else Nil) ++
+                (if(familySet.contains(name)) Seq(name + "FamilyOps") else Nil)
+
+            try {
+              gen.fix(input.path.toNIO, opsNames)
+            } catch {
+              case NonFatal(_) => // ok, it's best effort.
+            }
+          }
+        }
+
+        def generate: T[Unit] = T {
+          val gen = generator()
+          val ungenerated = (defnSet ++ familySet) -- inputs().map(nodeName)
+          ungenerated.foreach { node =>
+            os.makeDir.all(root / "unsorted")
+            gen.generate(
+              p = (root / "unsorted" / (node + "Impl.scala")).toNIO,
+              node = node,
+              concrete = defnSet.contains(node),
+              family = familySet.contains(node),
+            )
+          }
+
+          if(ungenerated.nonEmpty)
+            T.log.error({
+              val items = ungenerated.map(name => s" - ${name}Impl").mkString("\n")
+              s"""
+                 |New {Node}Impl stubs have been generated for these nodes:
+                 |$items
+                 |Please make sure that the appropriate {Node} extends its corresponding {Node}Impl - you can do that before it exists.
+                 |If not, compilation will fail after this message.""".stripMargin
+            })
+
           ()
         }
 
-        def generate = T {
-          ()
+        def run = T {
+          fix()
+          generate()
         }
       }
 
@@ -633,10 +683,10 @@ object vercors extends Module {
         Seq(
           instantiate[structure.NodeGenerator]("Compare")(),
           instantiate[structure.NodeGenerator]("Rewrite")(),
-          //          instantiate[structure.NodeGenerator]("Serialize")(),
+          // instantiate[structure.NodeGenerator]("Serialize")(),
           instantiate[structure.NodeGenerator]("Ops")(),
 
-          //          instantiate[structure.NodeGenerator]("Deserialize")(),
+          // instantiate[structure.NodeGenerator]("Deserialize")(),
           instantiate[structure.NodeGenerator]("ProtoNode")(),
         )
       }
@@ -683,8 +733,7 @@ object vercors extends Module {
     def key = "col"
     def deps = T { Agg.empty }
     override def sources = T {
-      helpers.implTraits.fix()
-      helpers.implTraits.generate()
+      helpers.implTraits.run()
       super.sources()
     }
     override def generatedSources = T { helpers.sources() }

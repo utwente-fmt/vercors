@@ -14,6 +14,8 @@ class AbstractRewriter extends AllFamiliesGenerator {
     source"""
       package vct.col.ast
 
-      trait AbstractRewriter[Pre, Post]
+      trait AbstractRewriter[Pre, Post] {
+        def succ(x: scala.Any): Nothing
+      }
     """
 }

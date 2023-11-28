@@ -2,8 +2,9 @@ package vct.col.ast.expr.misc
 
 import vct.col.ast.{Old, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
+import vct.col.ast.ops.OldOps
 
-trait OldImpl[G] { this: Old[G] =>
+trait OldImpl[G] extends OldOps[G] { this: Old[G] =>
   override def t: Type[G] = expr.t
 
   override def precedence: Int = Precedence.ATOMIC

@@ -18,3 +18,7 @@ trait FamilyGenerator {
   def generate(out: Path, family: Name, nodes: Seq[Name]): Unit
 }
 
+trait ImplTraitGenerator {
+  def fix(p: Path, opsNames: Seq[String]): Unit
+  def generate(p: Path, node: String, concrete: Boolean, family: Boolean): Unit
+}

@@ -28,16 +28,19 @@ object HierarchyAnalysis {
 
     val _transSupports: mutable.Map[Name, ListSet[Name]] = mutable.Map()
 
-    def transSupports(node: Name): ListSet[Name] =
-      _transSupports.getOrElseUpdate(node,
-        ListSet(node) ++
-          lookup
-            .getOrElse(node, fail(s"Node $node is mentioned in the declarations, but cannot be found."))
-            .supports
-            .collect { case Type.Node(name) => name }
-            .flatMap(transSupports)
-            .to(ListSet)
-      )
+    def transSupports(node: Name, seen: List[Name] = Nil): ListSet[Name] = {
+      if(seen.contains(node)) fail(s"Inheritance cycle: $seen")
+      else
+        _transSupports.getOrElseUpdate(node,
+          ListSet(node) ++
+            lookup
+              .getOrElse(node, fail(s"Node $node is mentioned in the declarations, but cannot be found."))
+              .supports
+              .collect { case Type.Node(name) => name }
+              .flatMap(transSupports(_, node +: seen))
+              .to(ListSet)
+        )
+    }
 
     val declarationFamilies = decls.filter(decl => decl.family && transSupports(decl.name).contains(declaration.name))
     val structuralFamilies = decls.filter(decl => decl.family && transSupports(decl.name).contains(nodeFamily.name))

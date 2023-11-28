@@ -3,8 +3,9 @@ package vct.col.ast.declaration.model
 import vct.col.ast.{ModelAction, Node, TBool, TProcess, Type}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print._
+import vct.col.ast.ops.ModelActionOps
 
-trait ModelActionImpl[G] { this: ModelAction[G] =>
+trait ModelActionImpl[G] extends ModelActionOps[G] { this: ModelAction[G] =>
   override def returnType: Type[G] = TProcess()
   override def body: Option[Node[G]] = None
 

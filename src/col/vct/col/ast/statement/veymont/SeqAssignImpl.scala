@@ -4,8 +4,9 @@ import vct.col.ast.SeqAssign
 import vct.col.ast.statement.StatementImpl
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print.{Ctx, Doc, Group, Text}
+import vct.col.ast.ops.SeqAssignOps
 
-trait SeqAssignImpl[G] extends StatementImpl[G] { this: SeqAssign[G] =>
+trait SeqAssignImpl[G] extends StatementImpl[G] with SeqAssignOps[G] { this: SeqAssign[G] =>
 
   override def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
       context.withReceiverEndpoint(receiver.decl)

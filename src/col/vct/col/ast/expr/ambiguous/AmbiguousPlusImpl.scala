@@ -6,8 +6,9 @@ import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ref.Ref
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError.Unreachable
+import vct.col.ast.ops.AmbiguousPlusOps
 
-trait AmbiguousPlusImpl[G] { this: AmbiguousPlus[G] =>
+trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] { this: AmbiguousPlus[G] =>
   def isProcessOp: Boolean = CoercionUtils.getCoercion(left.t, TProcess()).isDefined
   def isSeqOp: Boolean = CoercionUtils.getAnySeqCoercion(left.t).isDefined
   def isBagOp: Boolean = CoercionUtils.getAnyBagCoercion(left.t).isDefined

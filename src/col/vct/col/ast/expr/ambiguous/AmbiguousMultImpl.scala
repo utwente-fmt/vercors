@@ -4,8 +4,9 @@ import vct.col.ast._
 import vct.col.ast.`type`.TFloats
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.typerules.CoercionUtils
+import vct.col.ast.ops.AmbiguousMultOps
 
-trait AmbiguousMultImpl[G] { this: AmbiguousMult[G] =>
+trait AmbiguousMultImpl[G] extends AmbiguousMultOps[G] { this: AmbiguousMult[G] =>
   def isProcessOp: Boolean = CoercionUtils.getCoercion(left.t, TProcess()).isDefined
   def isIntOp: Boolean = CoercionUtils.getCoercion(left.t, TInt()).isDefined && CoercionUtils.getCoercion(right.t, TInt()).isDefined
   def isSetOp: Boolean = CoercionUtils.getAnySetCoercion(left.t).isDefined

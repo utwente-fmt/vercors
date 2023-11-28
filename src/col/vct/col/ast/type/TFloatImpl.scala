@@ -4,6 +4,7 @@ import vct.col.ast.{TFloat, Type}
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.print.{Ctx, Doc, Empty, Group, Text}
 import vct.col.typerules.CoercionUtils
+import vct.col.ast.ops.TFloatOps
 
 // https://en.wikipedia.org/wiki/Single-precision_floating-point_format#IEEE_754_standard:_binary32
 // https://en.wikipedia.org/wiki/Double-precision_floating-point_format#IEEE_754_double-precision_binary_floating-point_format:_binary64
@@ -35,7 +36,7 @@ object TFloats {
 
 }
 
-trait TFloatImpl[G] { this: TFloat[G] =>
+trait TFloatImpl[G] extends TFloatOps[G] { this: TFloat[G] =>
   assert(this.exponent > 0)
   assert(this.mantissa > 0)
 

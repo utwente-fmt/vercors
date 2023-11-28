@@ -2,8 +2,9 @@ package vct.col.ast.statement.terminal
 
 import vct.col.ast.Send
 import vct.col.print.{Ctx, Doc, Show, Text, Group}
+import vct.col.ast.ops.SendOps
 
-trait SendImpl[G] { this: Send[G] =>
+trait SendImpl[G] extends SendOps[G] { this: Send[G] =>
   def layoutSpec(implicit ctx: Ctx): Doc =
     Group(Text("send") <+> ctx.name(decl) <> "," <+> delta.toString <> ":" <>> res <> ";")
 
