@@ -24,7 +24,8 @@ case class CreateFieldPermissions[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
     fieldFinder.having(FieldNumber[Pre](program)) {
-      super.dispatch(program)
+      val test = super.dispatch(program)
+      test
     }
   }
 

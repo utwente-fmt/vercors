@@ -324,6 +324,7 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
     RemoveSelfLoops,
     RefactorGeneratedCode,
     CreateFieldPermissions,
+    CreatePredicates
 //    CreateArrayFieldPermission,     //Creates the field permissions for the fields in arrays. Including initialization of the field
 //
 //    CheckPermissionsBlocksMethod,   //Basic permission check
