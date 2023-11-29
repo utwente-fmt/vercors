@@ -1,7 +1,7 @@
 package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
-import hre.util.{FuncTools, ScopedStack}
+import hre.util.ScopedStack
 import vct.col.ast.{CPPLocalDeclaration, InstanceField, _}
 import vct.col.origin._
 import vct.col.ref.Ref
@@ -369,7 +369,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val cppCurrentDefinitionParamSubstitutions: ScopedStack[Map[CPPParam[Pre], CPPParam[Pre]]] = ScopedStack()
 
   val savedGlobalDeclarations: mutable.Map[String, mutable.Buffer[(CPPGlobalDeclaration[Pre], Boolean)]] = mutable.Map.empty
-  val savedPredicates: mutable.Buffer[Predicate[Pre]] = mutable.Buffer.empty
+  val savedPredicates: mutable.Map[Type[Post], (Predicate[Post], Procedure[Post], Procedure[Post])] = mutable.Map.empty
 
   val cppRangeVariableToExpr: mutable.Map[Variable[Post], Expr[Post]] = mutable.Map.empty
 
@@ -381,7 +381,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val currentDimensions: mutable.Map[KernelScopeLevel, Seq[IterVariable[Post]]] = mutable.Map.empty
   var currentKernelType: Option[KernelType] = None
   var currentThis: Option[Expr[Post]] = None
-  var allowSYCLPredicateFolding: Boolean = false
 
   sealed abstract class KernelScopeLevel(val idName: String)
   case class GlobalScope() extends KernelScopeLevel("GLOBAL_ID")
@@ -392,7 +391,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   case class BasicKernel(globalRangeSizes: Seq[Expr[Post]]) extends KernelType()
   case class NDRangeKernel(globalRangeSizes: Seq[Expr[Post]], localRangeSizes: Seq[Expr[Post]]) extends KernelType()
 
-  case class SYCLBuffer[Post](hostData: Expr[Post], generatedVar: Variable[Post], range: SYCLRange[Post], bufferLockVar: Variable[Post])(implicit val o: Origin)
+  case class SYCLBuffer[Post](hostData: Expr[Post], generatedVar: Variable[Post], range: SYCLRange[Post], bufferLockVar: Variable[Post], typ: SYCLTBuffer[Post])(implicit val o: Origin)
   case class SYCLAccessor[Post](buffer: SYCLBuffer[Post], accessMode: SYCLAccessMode[Post], instanceField: InstanceField[Post], rangeIndexFields: Seq[InstanceField[Post]])(implicit val o: Origin)
 
   private def getFromAll[K, V](stack: ScopedStack[mutable.Map[K, V]], key: K): Option[V] = {
@@ -414,15 +413,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     rw.variables.declare(v)
   }
 
-  def storePredicate(pred: Predicate[Pre]): Unit = {
-    if (pred.o.find[SourceName].contains(SourceName("sycl::buffer::exclusive_hostData_access"))) {
-      savedPredicates.append(pred)
-    }
-  }
-
   def checkPredicateFoldingAllowed(predRes: Expr[Pre]): Unit = predRes match {
-    case CPPInvocation(CPPLocal("sycl::buffer::exclusive_hostData_access", Seq()), _, _, _)
-      if !allowSYCLPredicateFolding => throw SYCLPredicateFoldingNotAllowed(predRes)
+    case CPPInvocation(CPPLocal("sycl::buffer::exclusive_hostData_access", Seq()), _, _, _) => throw SYCLPredicateFoldingNotAllowed(predRes)
     case _ =>
   }
 
@@ -495,12 +487,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                 outArgs = Nil,
                 typeArgs = Nil,
                 body = None,
-                contract = {
-                  allowSYCLPredicateFolding = info.name.equals("sycl::buffer::copy_buffer_to_hostdata")
-                  val result = rw.dispatch(decl.decl.contract)
-                  allowSYCLPredicateFolding = false
-                  result
-                },
+                contract = rw.dispatch(decl.decl.contract),
                 inline = decl.decl.specs.collectFirst { case CPPInline() => () }.nonEmpty,
                 pure = decl.decl.specs.collectFirst { case CPPPure() => () }.nonEmpty,
               )(AbstractApplicable)(namedO)
@@ -1229,29 +1216,46 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     implicit val o: Origin = inv.o
     val varNameO = maybeVarNameO.getOrElse(o)
     val array = rw.dispatch(inv.args.head)
+    val preType = inv.t.asInstanceOf[SYCLTBuffer[Pre]]
+    val postType = rw.dispatch(preType).asInstanceOf[SYCLTBuffer[Post]]
 
     val range = rw.dispatch(inv.args(1)) match {
       case r: SYCLRange[Post] => r
       case _ => throw Unreachable("The range parameter of the buffer was not rewritten to a range.")
     }
 
-    val v = new Variable[Post](FuncTools.repeat(TArray[Post](_), 1, array.t.asPointer.get.element))(varNameO)
+    val v = new Variable[Post](TArray(postType.typ))(varNameO)
     val args = Seq(array, range.size)
 
+    // Generate or get the exclusive access predicate and copy procedures
+    val (exclusiveAccessPredicate, copyHostDataToBufferProcedure, copyBufferToHostDataProcedure) = savedPredicates.get(postType) match {
+      case Some(triple) => triple
+      case None =>
+        val preGeneratedPredicate = preType.generateExclusiveAccessPredicate()
+        val postGeneratedPredicate = postType.generateExclusiveAccessPredicate()
+        rw.globalDeclarations.succeed(preGeneratedPredicate, postGeneratedPredicate)
+        val preCopyHostDataToBufferProcedure = preType.generateCopyHostDataToBufferProcedure(preGeneratedPredicate.ref)
+        val postCopyHostDataToBufferProcedure = postType.generateCopyHostDataToBufferProcedure(postGeneratedPredicate.ref)
+        rw.globalDeclarations.succeed(preCopyHostDataToBufferProcedure, postCopyHostDataToBufferProcedure)
+        val preCopyBufferToHostDataProcedure = preType.generateCopyBufferToHostDataProcedure(preGeneratedPredicate.ref)
+        val postCopyBufferToHostDataProcedure = postType.generateCopyBufferToHostDataProcedure(postGeneratedPredicate.ref)
+        rw.globalDeclarations.succeed(preCopyBufferToHostDataProcedure, postCopyBufferToHostDataProcedure)
+        savedPredicates.put(postType, (postGeneratedPredicate, postCopyHostDataToBufferProcedure, postCopyBufferToHostDataProcedure))
+        (postGeneratedPredicate, postCopyHostDataToBufferProcedure, postCopyBufferToHostDataProcedure)
+    }
+
+
     // Call the method that copies the hostData contents to the buffer
-    val copyInvRef = getSYCLHeaderMethodRef("sycl::buffer::copy_hostdata_to_buffer", args)
-    val copyInv = ProcedureInvocation(copyInvRef, args, Nil, Nil, Nil, Nil)(SYCLBufferConstructionInvocationBlame(inv))
+    val copyInv = ProcedureInvocation[Post](copyHostDataToBufferProcedure.ref, args, Nil, Nil, Nil, Nil)(SYCLBufferConstructionInvocationBlame(inv))
 
     // Fold predicate to gain exclusive access to the hostData
-    val exclusiveAccessPred = savedPredicates.find(pred =>
-        Util.compatTypes[Post](args, CPP.getParamTypes[Pre](RefPredicate[Pre](pred)).map(rw.dispatch))
-    ).getOrElse(throw SYCLHeaderItemNotFound("predicate", "sycl::buffer::exclusive_hostData_access"))
-    val gainExclusiveAccess = Fold(PredicateApply[Post](rw.succ(exclusiveAccessPred), args, WritePerm()))(SYCLBufferConstructionFoldFailedBlame(inv))
+    val gainExclusiveAccess = Fold(PredicateApply[Post](exclusiveAccessPredicate.ref, args, WritePerm()))(SYCLBufferConstructionFoldFailedBlame(inv))
 
     val bufferLockVar = new Variable[Post](TInt())(varNameO.where(name = varNameO.getPreferredNameOrElse().ucamel + "_lock"))
 
+    syclBufferSuccessor.top.put(v, SYCLBuffer[Post](array, v, range, bufferLockVar, postType))
+
     val result: Statement[Post] = Block(Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess, LocalDecl(bufferLockVar), assignLocal(bufferLockVar.get, const(0))))
-    syclBufferSuccessor.top.put(v, SYCLBuffer(array, v, range, bufferLockVar))
     (result, v)
   }
 
@@ -1262,17 +1266,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val kernelsToTerminate = currentRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer)))
     val kernelTerminations = kernelsToTerminate.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
 
-    // Call the method that copies the buffer contents to the hostData
-    val copyInvRef = getSYCLHeaderMethodRef("sycl::buffer::copy_buffer_to_hostdata", Seq(buffer.hostData, buffer.generatedVar.get))
-    val copyInv = ProcedureInvocation(copyInvRef, Seq(buffer.hostData, buffer.generatedVar.get), Nil, Nil, Nil, Nil)(SYCLBufferDestructionInvocationBlame(buffer.generatedVar, scope))
+    // Get the exclusive access predicate and copy procedures
+    val (exclusiveAccessPredicate, _, copyBufferToHostDataProcedure) = savedPredicates(buffer.typ)
 
-    val args = Seq(buffer.hostData, buffer.range.size)
+    // Call the method that copies the buffer contents to the hostData
+    val copyInv = ProcedureInvocation[Post](copyBufferToHostDataProcedure.ref, Seq(buffer.hostData, buffer.generatedVar.get), Nil, Nil, Nil, Nil)(SYCLBufferDestructionInvocationBlame(buffer.generatedVar, scope))
 
     // Unfold predicate to release exclusive access to the hostData
-    val exclusiveAccessPred = savedPredicates.find(pred =>
-      Util.compatTypes[Post](args, CPP.getParamTypes[Pre](RefPredicate[Pre](pred)).map(rw.dispatch))
-    ).getOrElse(throw SYCLHeaderItemNotFound("predicate", "sycl::buffer::exclusive_hostData_access"))
-    val removeExclusiveAccess = Unfold(PredicateApply[Post](rw.succ(exclusiveAccessPred), args, WritePerm()))(SYCLBufferDestructionUnfoldFailedBlame(buffer.generatedVar, scope))
+    val args = Seq(buffer.hostData, buffer.range.size)
+    val removeExclusiveAccess = Unfold(PredicateApply[Post](exclusiveAccessPredicate.ref, args, WritePerm()))(SYCLBufferDestructionUnfoldFailedBlame(buffer.generatedVar, scope))
 
     Block(kernelTerminations ++ Seq(Eval(copyInv), removeExclusiveAccess))
   }
