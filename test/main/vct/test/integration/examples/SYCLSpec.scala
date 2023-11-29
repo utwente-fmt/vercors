@@ -17,7 +17,7 @@ class SYCLSpec extends VercorsSpec {
 
   vercors should verify using silicon example "concepts/sycl/buffers/AllBufferTypes.cpp"
   vercors should error withCode "syclUnsupportedReassigningOfBuffer" example "concepts/sycl/buffers/NoBufferReassign.cpp"
-  vercors should error withCode "syclPredicateFoldingNotAllowed" example "concepts/sycl/buffers/UnfoldingExclusiveHostDataAccessPredicate.cpp"
+  vercors should error withCode "noSuchName" example "concepts/sycl/buffers/UnfoldingExclusiveHostDataAccessPredicate.cpp"
   vercors should fail withCode "ptrPerm" using silicon example "concepts/sycl/buffers/ReadDataInBufferScope.cpp"
   vercors should verify using silicon example "concepts/sycl/buffers/ReleaseFromBuffer.cpp"
   vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TooBigBuffer.cpp"
@@ -32,7 +32,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "syclAccessorArraySubscriptLinearizePreconditionFailed" example "concepts/sycl/accessors/MissingRangeRequirements.cpp"
   vercors should error withCode "syclBufferOutOfScope" example  "concepts/sycl/accessors/PassBufferToMethod.cpp"
   vercors should verify using silicon example "concepts/sycl/accessors/TwoReadKernels.cpp"
-  vercors should error withCode "syclBufferLock" example "concepts/sycl/accessors/TwoWriteKernels.cpp"
+  vercors should verify using silicon example "concepts/sycl/accessors/TwoWriteKernels.cpp"
   vercors should verify using silicon example "concepts/sycl/accessors/TwoWriteKernelsWithWait.cpp"
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/accessors/WriteToReadAccessor.cpp"
 

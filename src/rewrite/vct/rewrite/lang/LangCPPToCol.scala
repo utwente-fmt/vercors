@@ -391,7 +391,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   case class BasicKernel(globalRangeSizes: Seq[Expr[Post]]) extends KernelType()
   case class NDRangeKernel(globalRangeSizes: Seq[Expr[Post]], localRangeSizes: Seq[Expr[Post]]) extends KernelType()
 
-  case class SYCLBuffer[Post](hostData: Expr[Post], generatedVar: Variable[Post], range: SYCLRange[Post], bufferLockVar: Variable[Post], typ: SYCLTBuffer[Post])(implicit val o: Origin)
+  case class SYCLBuffer[Post](hostData: Expr[Post], generatedVar: Variable[Post], range: SYCLRange[Post], typ: SYCLTBuffer[Post])(implicit val o: Origin)
   case class SYCLAccessor[Post](buffer: SYCLBuffer[Post], accessMode: SYCLAccessMode[Post], instanceField: InstanceField[Post], rangeIndexFields: Seq[InstanceField[Post]])(implicit val o: Origin)
 
   private def getFromAll[K, V](stack: ScopedStack[mutable.Map[K, V]], key: K): Option[V] = {
@@ -953,8 +953,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                 parblockConditions.append(basicPermissions)
                 runMethodConditions.append(basicPermissions)
                 runMethodConditions.append(fieldArrayElementsPermission)
-
-                bufferAccessStatements.append(getBufferAccess(buffer, accessMode, decl))
+                bufferAccessStatements.append(getKernelsWaitingForBuffer(buffer, accessMode, decl))
 
               case _ => throw Unreachable(accessModeRef.o.messageInContext("Accesmode was rewritten to something invalid."))
             }
@@ -1215,20 +1214,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def rewriteSYCLBufferConstruction(inv: CPPInvocation[Pre], maybeVarNameO: Option[Origin] = None): (Statement[Post], Variable[Post]) = {
     implicit val o: Origin = inv.o
     val varNameO = maybeVarNameO.getOrElse(o)
-    val array = rw.dispatch(inv.args.head)
     val preType = inv.t.asInstanceOf[SYCLTBuffer[Pre]]
     val postType = rw.dispatch(preType).asInstanceOf[SYCLTBuffer[Post]]
 
-    val range = rw.dispatch(inv.args(1)) match {
-      case r: SYCLRange[Post] => r
-      case _ => throw Unreachable("The range parameter of the buffer was not rewritten to a range.")
-    }
-
-    val v = new Variable[Post](TArray(postType.typ))(varNameO)
-    val args = Seq(array, range.size)
-
     // Generate or get the exclusive access predicate and copy procedures
-    val (exclusiveAccessPredicate, copyHostDataToBufferProcedure, copyBufferToHostDataProcedure) = savedPredicates.get(postType) match {
+    val (exclusiveAccessPredicate, copyHostDataToBufferProcedure, _) = savedPredicates.get(postType) match {
       case Some(triple) => triple
       case None =>
         val preGeneratedPredicate = preType.generateExclusiveAccessPredicate()
@@ -1240,22 +1230,29 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         val preCopyBufferToHostDataProcedure = preType.generateCopyBufferToHostDataProcedure(preGeneratedPredicate.ref)
         val postCopyBufferToHostDataProcedure = postType.generateCopyBufferToHostDataProcedure(postGeneratedPredicate.ref)
         rw.globalDeclarations.succeed(preCopyBufferToHostDataProcedure, postCopyBufferToHostDataProcedure)
+
         savedPredicates.put(postType, (postGeneratedPredicate, postCopyHostDataToBufferProcedure, postCopyBufferToHostDataProcedure))
         (postGeneratedPredicate, postCopyHostDataToBufferProcedure, postCopyBufferToHostDataProcedure)
     }
 
+    // Get arguments
+    val hostData = rw.dispatch(inv.args.head)
+    val range = rw.dispatch(inv.args(1)) match {
+      case r: SYCLRange[Post] => r
+      case _ => throw Unreachable("The range parameter of the buffer was not rewritten to a range.")
+    }
 
     // Call the method that copies the hostData contents to the buffer
+    val args = Seq(hostData, range.size)
     val copyInv = ProcedureInvocation[Post](copyHostDataToBufferProcedure.ref, args, Nil, Nil, Nil, Nil)(SYCLBufferConstructionInvocationBlame(inv))
 
     // Fold predicate to gain exclusive access to the hostData
     val gainExclusiveAccess = Fold(PredicateApply[Post](exclusiveAccessPredicate.ref, args, WritePerm()))(SYCLBufferConstructionFoldFailedBlame(inv))
 
-    val bufferLockVar = new Variable[Post](TInt())(varNameO.where(name = varNameO.getPreferredNameOrElse().ucamel + "_lock"))
+    val v = new Variable[Post](TArray(postType.typ))(varNameO)
+    syclBufferSuccessor.top.put(v, SYCLBuffer[Post](hostData, v, range, postType))
 
-    syclBufferSuccessor.top.put(v, SYCLBuffer[Post](array, v, range, bufferLockVar, postType))
-
-    val result: Statement[Post] = Block(Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess, LocalDecl(bufferLockVar), assignLocal(bufferLockVar.get, const(0))))
+    val result: Statement[Post] = Block(Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess))
     (result, v)
   }
 
@@ -1279,34 +1276,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     Block(kernelTerminations ++ Seq(Eval(copyInv), removeExclusiveAccess))
   }
 
-  private def getBufferAccess(buffer: SYCLBuffer[Post], mode: SYCLAccessMode[Post], source: CPPLocalDeclaration[Pre]): Statement[Post] = {
+  private def getKernelsWaitingForBuffer(buffer: SYCLBuffer[Post], mode: SYCLAccessMode[Post], source: CPPLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = source.o
-    val (maxValue, newValue: Expr[Post]) = mode match {
-      case SYCLReadOnlyAccess() => (Greater(buffer.bufferLockVar.get, const(-1)), Plus(buffer.bufferLockVar.get, const(1)))
-      case SYCLReadWriteAccess() => (Eq(buffer.bufferLockVar.get, const(0)), const(-1))
+
+    val kernelsToWaitFor: mutable.Map[Local[Post], Seq[SYCLAccessor[Post]]] = mode match {
+      case SYCLReadOnlyAccess() => currentRunningKernels.filter(tuple => tuple._2.exists(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]] && acc.buffer.equals(buffer)))
+      case SYCLReadWriteAccess() => currentRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer)))
     }
 
-//    val kernelsToWaitFor: mutable.Map[Local[Post], Seq[SYCLAccessor[Post]]] = mode match {
-//      case SYCLReadOnlyAccess() => currentRunningKernels.filter(tuple => tuple._2.exists(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]] && acc.buffer.equals(buffer)))
-//      case SYCLReadWriteAccess() => currentRunningKernels.filter(tuple => tuple._2.exists(acc => acc.buffer.equals(buffer)))
-//    }
-//
-//    val kernelWaits = kernelsToWaitFor.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq
-
-    Block[Post](Seq(
-      Assert(maxValue)(SYCLBufferLockBlame(source)),
-      assignLocal(buffer.bufferLockVar.get, newValue)
-    ))
-//    Block[Post](kernelWaits)
-  }
-
-  private def releaseBufferAccess(acc: SYCLAccessor[Post]): Statement[Post] = {
-    implicit val o: Origin = acc.o
-    val newValue: Expr[Post] = acc.accessMode match {
-      case SYCLReadOnlyAccess() => Minus(acc.buffer.bufferLockVar.get, const(1))
-      case SYCLReadWriteAccess() => const(0)
-    }
-    assignLocal(acc.buffer.bufferLockVar.get, newValue)
+    Block[Post](kernelsToWaitFor.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq)
   }
 
   def rewriteAccessorSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match {
@@ -1412,16 +1390,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     currentRunningKernels.remove(variable)
     Block(
       Join(variable)(SYCLKernelJoinBlame()) +:
-      accessors.flatMap(acc => acc.accessMode match {
-        case SYCLReadWriteAccess() => Seq(
-          // Only copy data back if there was read-write access
+      accessors.collect({
+        case SYCLAccessor(buffer, SYCLReadWriteAccess(), instanceField, _) =>
           assignLocal(
-            acc.buffer.generatedVar.get,
-            Deref[Post](variable, acc.instanceField.ref)(new SYCLAccessorDerefBlame(acc.instanceField))
-          ),
-          releaseBufferAccess(acc)
-        )
-        case SYCLReadOnlyAccess() => Seq(releaseBufferAccess(acc))
+            buffer.generatedVar.get,
+            Deref[Post](variable, instanceField.ref)(new SYCLAccessorDerefBlame(instanceField))
+          )
       })
     )
   }
