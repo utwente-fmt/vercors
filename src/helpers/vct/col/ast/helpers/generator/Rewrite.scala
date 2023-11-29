@@ -17,6 +17,9 @@ class Rewrite extends NodeGenerator {
       package $RewritePackage
 
       trait ${rewriteTrait(node)}[Pre] { this: ${typ(node)}[Pre] =>
+        def rewriteDefault[Post]()(implicit `~rw`: $AbstractRewriter[Pre, Post]): ${typ(node)}[Post] =
+          rewrite()(`~rw`)
+
         def rewrite[Post](..${args(node)})(implicit `~rw`: $AbstractRewriter[Pre, Post]): ${typ(node)}[Post] =
           ${scopes(node, make(node))}
       }
@@ -76,7 +79,7 @@ class Rewrite extends NodeGenerator {
   def rewriteDefault(term: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) => q"$term.rewriteDefault()(`~rw`)"
-      case structure.Type.Ref(kind) => q"`~rw`.succ($term)"
+      case structure.Type.Ref(kind) => q"`~rw`.succ[${typ(kind.name)}[Post]]($term.decl)"
       case _: structure.Type.PrimitiveType => term
       case structure.Type.Option(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
       case structure.Type.Either(l, r) =>

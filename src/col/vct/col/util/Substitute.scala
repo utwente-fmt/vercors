@@ -24,16 +24,16 @@ case class Substitute[G](subs: Map[Expr[G], Expr[G]],
 
   override def dispatch(e: Expr[G]): Expr[G] = e match {
     case expr if subs.contains(expr) => subs(expr)
-    case other => rewriteDefault(other)
+    case other => other.rewriteDefault()
   }
 
   override def dispatch(t: Type[G]): Type[G] = t match {
     case v @ TVar(_) if typeSubs.contains(v) => dispatch(typeSubs(v))
-    case other => rewriteDefault(other)
+    case other => other.rewriteDefault()
   }
 
   override def dispatch(v: Declaration[G]): Unit = v match {
     case decl: Variable[G] if bindingSubs.contains(decl) => dispatch(bindingSubs(decl))
-    case other => rewriteDefault(other)
+    case other => other.rewriteDefault()
   }
 }

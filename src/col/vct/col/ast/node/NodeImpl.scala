@@ -71,7 +71,7 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
   def checkContextRecursor[T](context: CheckContext[G], f: (CheckContext[G], Node[G]) => T): Seq[T] =
     subnodes.map(f(enterCheckContext(context), _))
 
-  def subnodes: Seq[Node[G]] = Subnodes.subnodes(this)
+  def subnodes: Seq[Node[G]]
 
   def transSubnodes: LazyList[Node[G]] =
     this #:: subnodes.to(LazyList).flatMap(_.transSubnodes)

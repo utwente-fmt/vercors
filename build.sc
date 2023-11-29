@@ -662,10 +662,10 @@ object vercors extends Module {
       def allFamiliesGenerators = T.worker {
         Seq(
           instantiate[structure.AllFamiliesGenerator]("AbstractRewriter")(),
-          instantiate[structure.AllFamiliesGenerator]("AllFrozenScopes")(),
           instantiate[structure.AllFamiliesGenerator]("AllScopes")(),
+          instantiate[structure.AllFamiliesGenerator]("AllFrozenScopes")(),
           instantiate[structure.AllFamiliesGenerator]("BaseCoercingRewriter")(),
-          instantiate[structure.AllFamiliesGenerator]("NonLatchingRewriter")(),
+          instantiate[structure.AllFamiliesGenerator]("BaseNonLatchingRewriter")(),
           instantiate[structure.AllFamiliesGenerator]("SuccessorsProvider")(),
         )
       }
@@ -684,6 +684,7 @@ object vercors extends Module {
           instantiate[structure.NodeGenerator]("Compare")(),
           instantiate[structure.NodeGenerator]("Rewrite")(),
           // instantiate[structure.NodeGenerator]("Serialize")(),
+          instantiate[structure.NodeGenerator]("Subnodes")(),
           instantiate[structure.NodeGenerator]("Ops")(),
 
           // instantiate[structure.NodeGenerator]("Deserialize")(),
@@ -727,6 +728,7 @@ object vercors extends Module {
         T.traverse(definitions)(node(_).generate)().map(PathRef(_, quick = true)) ++
           T.traverse(families)(family(_).generate)().map(PathRef(_, quick = true)) ++
           global.generate().map(PathRef(_, quick = true))
+
       }
     }
 

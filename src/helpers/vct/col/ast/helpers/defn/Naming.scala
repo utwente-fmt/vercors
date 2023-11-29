@@ -1,6 +1,6 @@
 package vct.col.ast.helpers.defn
 
-import vct.col.ast.helpers.defn.Constants.{ComparePackage, RefType, RewritePackage}
+import vct.col.ast.helpers.defn.Constants.{ComparePackage, RefType, RewritePackage, SubnodesPackage}
 import vct.col.ast.structure
 import vct.col.ast.structure.NodeDefinition
 
@@ -48,6 +48,9 @@ object Naming {
     case _ => ???
   }
 
+  def scopes(family: String): Term.Name =
+    Term.Name(family.charAt(0).toLower.toString + family.substring(1) + "s")
+
   def opsTrait(node: NodeDefinition) = Type.Name(node.name.base + "Ops")
   def opsFamilyTrait(node: structure.Name) = Type.Name(node.base + "FamilyOps")
 
@@ -55,4 +58,6 @@ object Naming {
   def compareType(node: NodeDefinition) = t"${packageFromRoot(ComparePackage)}.${compareTrait(node)}"
   def rewriteTrait(node: NodeDefinition) = Type.Name(node.name.base + "Rewrite")
   def rewriteType(node: NodeDefinition) = t"${packageFromRoot(RewritePackage)}.${rewriteTrait(node)}"
+  def subnodesTrait(node: NodeDefinition) = Type.Name(node.name.base + "Subnodes")
+  def subnodesType(node: NodeDefinition) = t"${packageFromRoot(SubnodesPackage)}.${subnodesTrait(node)}"
 }

@@ -45,7 +45,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] { this: Type[G] =>
 
       override def dispatch(t: Type[G]): Type[G] = t match {
         case TVar(Ref(v)) => substitutions(v)
-        case other => rewriteDefault(other)
+        case other => other.rewriteDefault()
       }
     }
     Particularize.dispatch(this)

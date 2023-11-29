@@ -1,16 +1,16 @@
-package vct.col.util
+package vct.col.compare
 
-import vct.col.ast.{Comparator, Declaration, Node}
+import vct.col.ast.{Declaration, Node}
 
 import scala.collection.mutable
 
 case object Compare {
-  def compare[L, R](left: Node[L], right: Node[R])(toNormalForm: PartialFunction[Node[L], Node[L]]): LazyList[Comparator.Difference[L, R]] =
-    underEquivalence(Comparator.compare(left, right))(toNormalForm)
+  def compare[L, R](left: Node[L], right: Node[R])(toNormalForm: PartialFunction[Node[L], Node[L]]): LazyList[CompareResult[L, R]] =
+    underEquivalence(left.compare(right))(toNormalForm)
 
-  def underEquivalence[L, R](diffs: LazyList[Comparator.Difference[L, R]])(toNormalForm: PartialFunction[Node[L], Node[L]]): LazyList[Comparator.Difference[L, R]] =
+  def underEquivalence[L, R](diffs: LazyList[CompareResult[L, R]])(toNormalForm: PartialFunction[Node[L], Node[L]]): LazyList[CompareResult[L, R]] =
     diffs.flatMap {
-      case diff @ Comparator.StructuralDifference(left, right) =>
+      case diff @ StructuralDifference(left, right) =>
         (toNormalForm.lift(left), toNormalForm.lift(right.asInstanceOf[Node[L]]).asInstanceOf[Option[Node[R]]]) match {
           case (None, None) => Seq(diff)
           case (maybeLeft, maybeRight) =>
@@ -19,9 +19,8 @@ case object Compare {
       case otherDiff => Seq(otherDiff)
     }
 
-  def equals[L, R](left: Node[L], right: Node[R]): Boolean = {
-    Comparator.compare(left, right).isEmpty
-  }
+  def equals[L, R](left: Node[L], right: Node[R]): Boolean =
+    left.compare(right).isEmpty
 
   def getIsomorphism[L, R](left: Node[L], right: Node[R]): Either[Seq[(Node[L], Node[R])], Map[Declaration[L], Declaration[R]]] = {
     val isomorphism = mutable.Map[Declaration[L], Declaration[R]]()
@@ -38,10 +37,10 @@ case object Compare {
       }
     }
 
-    Comparator.compare(left, right).foreach {
-      case Comparator.MatchingReference(left, right) => define(left, right)
-      case Comparator.MatchingDeclaration(left, right) => define(left, right)
-      case Comparator.StructuralDifference(left, right) =>
+    left.compare(right).foreach {
+      case MatchingReference(left, right) => define(left, right)
+      case MatchingDeclaration(left, right) => define(left, right)
+      case StructuralDifference(left, right) =>
         irreconcilableDiffs += ((left, right))
     }
 

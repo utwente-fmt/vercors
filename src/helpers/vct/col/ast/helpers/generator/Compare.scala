@@ -2,6 +2,7 @@ package vct.col.ast.helpers.generator
 
 import vct.col.ast.helpers.defn.Constants.{ComparePackage, CompareResult, LazyList, LazyListObj, MatchingDeclarationObj, MatchingReferenceObj, Node, StructuralDifferenceObj}
 import vct.col.ast.helpers.defn.Naming.{compareTrait, typ}
+import vct.col.ast.helpers.defn.Simplify.simplify
 import vct.col.ast.structure
 import vct.col.ast.structure.{DeclaredNode, NodeDefinition, NodeGenerator}
 
@@ -128,66 +129,4 @@ class Compare extends NodeGenerator {
 
       case _ => q"???"
     }
-
-  def simplify(t: Term): Term = simplifyFlatly(recurse(t))
-
-  def recurse(term: Term): Term = term match {
-    // Exception: immediately push .to(LazyList) inwards, since we can further simplify the subterms.
-    case q"(if($cond) $whenTrue else $whenFalse).to(${`LazyListObj`})" =>
-      simplify(q"if($cond) $whenTrue.to($LazyListObj) else $whenFalse.to($LazyListObj)")
-
-    case q"if($cond) $whenTrue else $whenFalse" =>
-      q"if(${simplify(cond)}) ${simplify(whenTrue)} else ${simplify(whenFalse)}"
-    case q"$zipped.flatMap({ case ($l, $r) => $exp })" =>
-      q"${simplify(zipped)}.flatMap({ case ($l, $r) => ${simplify(exp)} })"
-    case q"$zipped.forall({ case($l, $r) => $exp })" =>
-      q"${simplify(zipped)}.forall({ case($l, $r) => ${simplify(exp)} })"
-    case q"$_.LazyList(..$terms)" => q"$LazyListObj(..${terms.map(simplify)})"
-    case q"$l #:: $r" => q"${simplify(l)} #:: ${simplify(r)}"
-    case q"$l #::: $r" => q"${simplify(l)} #::: ${simplify(r)}"
-    case q"$l && $r" => q"${simplify(l)} && ${simplify(r)}"
-    case q"$l || $r" => q"${simplify(l)} || ${simplify(r)}"
-    case q"$l == $r" => q"${simplify(l)} == ${simplify(r)}"
-    case q"$l.$r" => q"${simplify(l)}.$r"
-    case q"($l, $r)" => q"(${simplify(l)}, ${simplify(r)})"
-    case q"$inner.to($_.LazyList)" => q"${simplify(inner)}.to($LazyListObj)"
-    case q"$l.zip($r)" => q"${simplify(l)}.zip(${simplify(r)})"
-    case _: Term.Name | q"true" | q"false" | q"this" => term
-    case q"$_.compare($_)" => term
-    case q"$_.MatchingDeclaration(..$_)" => term
-    case q"$_.MatchingReference(..$_)" => term
-    case q"$_.StructuralDifference(..$_)" => term
-    case other =>
-      println(s"[warn] [ColHelper] Not recursing simplifier into unknown term $term")
-      other
-  }
-
-  def simplifyFlatly(term: Term): Term = simplifyFlatly(term match {
-    case q"true && $bool" => bool
-    case q"$bool && true" => bool
-    case q"false && $bool" => q"false"
-    case q"$bool && false" => q"false"
-
-    case q"true || $bool" => q"true"
-    case q"$bool || true" => q"true"
-    case q"false || $bool" => bool
-    case q"$bool || false" => bool
-
-    case q"$_.LazyList() #::: $xs" => xs
-    case q"$xs #::: $_.LazyList()" => xs
-
-    case q"if(true) $whenTrue else $_" => whenTrue
-    case q"if(false) $_ else $whenFalse" => whenFalse
-
-    case q"$_.LazyList($x) #::: $xs" => q"$x #:: $xs"
-    case q"($a #::: $b) #::: $c" => q"$a #::: $b #::: $c"
-
-    case q"$_.flatMap({ case ($l, $r) => $_.LazyList() })" => q"$LazyListObj()"
-    case q"$_.forall({ case ($l, $r) => true })" => q"true"
-
-    case q"if($cond) $whenTrue else $whenFalse" if whenTrue.getClass == whenFalse.getClass && whenTrue.show[Structure] == whenFalse.show[Structure] =>
-      whenTrue
-
-    case other => return other
-  })
 }

@@ -4,11 +4,11 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
+import vct.col.compare.Compare
 import vct.col.rewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.rewrite._
-import vct.col.util.Compare
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec

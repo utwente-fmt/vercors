@@ -169,7 +169,7 @@ class ImplTrait extends ImplTraitGenerator {
             |import vct.col.print._
             |
             |trait ${node}Impl[G] extends $ext { this: $node[G] =>
-            |  override def layout(implicit ctx: Ctx): Doc = super.layout
+            |  // override def layout(implicit ctx: Ctx): Doc = ???
             |}
             |""".stripMargin
       )
