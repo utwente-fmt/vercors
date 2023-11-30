@@ -886,8 +886,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                 if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
                   throw Unreachable("Accessor type does not correspond with buffer type!")
                 }
-                val instanceField = new InstanceField[Post](buffer.generatedVar.t, Set())(accO)
-                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(_ => new InstanceField[Post](TInt(), Set())(dimO))
+                val instanceField = new InstanceField[Post](buffer.generatedVar.t, Nil)(accO)
+                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(_ => new InstanceField[Post](TInt(), Nil)(dimO))
                 accessors.append(SYCLAccessor[Post](buffer, accessMode, instanceField, rangeIndexFields)(accDecl.o))
                 currentAccessorSubstitutions(RefCPPLocalDeclaration(decl, 0)) = accessors.last
 

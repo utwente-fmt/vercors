@@ -50,6 +50,25 @@ object HierarchyAnalysis {
       fail(x.blame, "This category extends both NodeFamily and Declaration, which is not allowed.")
     }).get
 
+    def validateType(t: Type): Type = t match {
+      case Type.Node(name) => Type.Node(name)
+      case Type.Ref(node) =>
+        if(!transSupports(node.name).contains(declaration.name)) {
+          fail(s"Category `${node.name.base}` cannot be referred to, because it is not part of any declaration family.")
+        }
+
+        transSupports(node.name).toSeq.intersect(declarationFamilies.map(_.name)) match {
+          case Nil => Type.MultiRef(node)
+          case _ => Type.Ref(node)
+        }
+      case Type.MultiRef(node) => Type.MultiRef(node)
+      case Type.Tuple(args) => Type.Tuple(args.map(validateType))
+      case Type.Seq(arg) => Type.Seq(validateType(arg))
+      case Type.Option(arg) => Type.Option(validateType(arg))
+      case Type.Either(left, right) => Type.Either(validateType(left), validateType(right))
+      case primitiveType: Type.PrimitiveType => primitiveType
+    }
+
     val familyRoots = (declarationFamilies ++ structuralFamilies).map(_.name).to(ListSet)
 
     val defnsByRoots =
@@ -66,7 +85,9 @@ object HierarchyAnalysis {
               if(declarationFamilies.exists(_.name == roots.head)) DeclaredNode
               else StructuralNode
 
-            NodeDefinition(decl.name, defn.fields, defn.blameType, rootKind)
+            val fields = defn.fields.map(field => field.copy(_2 = validateType(field._2)))
+
+            NodeDefinition(decl.name, fields, defn.blameType, rootKind)
           })
           else if(roots.isEmpty)
             fail(defns.head.blame, "Node definitions must extends a node family or declaration kind")

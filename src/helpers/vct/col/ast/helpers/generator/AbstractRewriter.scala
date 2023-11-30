@@ -12,6 +12,7 @@ class AbstractRewriter extends AllFamiliesGenerator {
   override def generate(out: Path, declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Unit =
     ResultStream.write(out.resolve("AbstractRewriter.scala"), getArw(declaredFamilies, structuralFamilies))
 
+  // TODO: anySucc should probably use the succProvider - how?
   def getArw(declaredFamilies: Seq[structure.Name], structuralFamilies: Seq[structure.Name]): Source =
     source"""
       package vct.col.ast
@@ -24,15 +25,23 @@ class AbstractRewriter extends AllFamiliesGenerator {
 
         def dispatch(decl: $Declaration[Pre]): $Unit
 
+        @_root_.scala.deprecated("Use decl.rewriteDefault().succeed(decl) instead")
+        def rewriteDefault(decl: $Declaration[Pre]): $Unit =
+          allScopes.anyDeclare(decl.rewriteDefault())
+
         def porcelainRefSucc[RefDecl <: $Declaration[Post]](ref: $RefType[Pre, _])(implicit tag: $ClassTag[RefDecl]): $OptionType[$RefType[Post, RefDecl]] = None
         def porcelainRefSeqSucc[RefDecl <: $Declaration[Post]](refs: $SeqType[$RefType[Pre, _]])(implicit tag: $ClassTag[RefDecl]): $OptionType[$SeqType[$RefType[Post, RefDecl]]] = None
 
         val allScopes: $AllScopes[Pre, Post] = $AllScopesObj()
         def succProvider: $SuccessorsProvider[Pre, Post] = this.allScopes.freeze
 
+        def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
+          allScopes.anySucc[RefDecl](`~decl`)(tag)
+
         ..${declaredFamilies.map(succ).toList}
         ..${declaredFamilies.map(scope).toList}
         ..${structuralFamilies.map(dispatch).toList}
+        ..${structuralFamilies.map(rewriteDefault).toList}
       }
     """
 
@@ -51,5 +60,12 @@ class AbstractRewriter extends AllFamiliesGenerator {
   def dispatch(family: structure.Name): Decl.Def =
     q"""
       def dispatch(node: ${typ(family)}[Pre]): ${typ(family)}[Post]
+    """
+
+  def rewriteDefault(family: structure.Name): Defn.Def =
+    q"""
+      @_root_.scala.deprecated("Use node.rewriteDefault() instead")
+      def rewriteDefault(node: ${typ(family)}[Pre]): ${typ(family)}[Post] =
+        node.rewriteDefault()
     """
 }

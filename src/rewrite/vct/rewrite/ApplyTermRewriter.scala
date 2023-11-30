@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.progress.Progress
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast._
-import vct.col.compare.Compare
+import vct.col.compare._
 import vct.col.rewrite.util.FreeVariables
 import vct.col.origin.{DiagnosticOrigin, Origin}
 import vct.col.ref.{LazyRef, Ref}
@@ -233,12 +233,12 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
       // SAFETY: the result of a match arm MUST NOT again match a case.
       case _ if false => ???
     } foreach {
-      case Comparator.MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
+      case MatchingDeclaration(left: Variable[Rule], right: Variable[Pre]) =>
         bindingInst(left) = right
-      case Comparator.MatchingDeclaration(_, _) =>
+      case MatchingDeclaration(_, _) =>
         throw Unreachable("Simplification rules do not declare anything other than variables from binders.")
 
-      case Comparator.MatchingReference(left: Variable[Rule], right: Variable[Pre]) =>
+      case MatchingReference(left: Variable[Rule], right: Variable[Pre]) =>
         if(free.contains(left)) {
           if(!(left.t match {
             case TType(_) => declareTypeInst(left, TVar(right.ref))
@@ -251,19 +251,19 @@ case class ApplyTermRewriter[Rule, Pre <: Generation]
             return None
           }
         }
-      case Comparator.MatchingReference(_, _) =>
+      case MatchingReference(_, _) =>
         throw Unreachable("Simplification rules do not refer to anything other than variables.")
 
-      case Comparator.StructuralDifference(Local(Ref(v)), right: Expr[Pre]) if free.contains(v) =>
+      case StructuralDifference(Local(Ref(v)), right: Expr[Pre]) if free.contains(v) =>
         if(!declareInst(v, right, Nil)) return None
 
-      case Comparator.StructuralDifference(FunctionOf(Ref(v), bindings), right: Expr[Pre]) if free.contains(v) =>
+      case StructuralDifference(FunctionOf(Ref(v), bindings), right: Expr[Pre]) if free.contains(v) =>
         if(!declareInst(v, right, bindings.map(_.decl))) return None
 
-      case Comparator.StructuralDifference(TVar(Ref(v)), right: Type[Pre]) if free.contains(v) =>
+      case StructuralDifference(TVar(Ref(v)), right: Type[Pre]) if free.contains(v) =>
         if(!declareTypeInst(v, right)) return None
 
-      case Comparator.StructuralDifference(left, right) =>
+      case StructuralDifference(left, right) =>
         if(debugNoMatch && debugFilter)
           logger.debug(s"$debugHeader $left cannot be matched to $right.")
         return None

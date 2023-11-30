@@ -25,15 +25,6 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
       if (isConcrete) assertPure(true /*is[Mod.Final](rawStat.mods)*/ , rawStat.blame, "Node definitions must be final")
       else assertPure(is[Mod.Sealed](rawStat.mods), rawStat.blame, "Node categories must be sealed")
 
-    val isFamily =
-      Try(rawStat.blame) {
-        rawStat.mods.exists {
-          case Mod.Annot(Init(t, ScName.Anonymous(), Nil)) =>
-            types.getName(t).get == Constants.FamilyName.baseName
-          case _ => false
-        }
-      }
-
     val tparamConditions = Try("type parameters") {
       assertPure(true /*rawStat.tparams.size == 1*/ , rawStat.tparams.headOption.getOrElse(rawStat.blame), "Node declarations must have exactly one type parameter").get
       rawStat.tparams.head match {
@@ -109,7 +100,7 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
               Try("blameType") {
                 t match {
                   case ScType.Apply(t"Blame", List(blameType)) =>
-                    types.getName(blameType).get
+                    TypeAnalysis.getName(blameType).get
                   case other =>
                     fail(other, "The blame parameter should be of type `Blame[T]`, where T is a verification failure category")
                 }
@@ -141,7 +132,7 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
       val supports = inits.flatMap(_.tpe match {
         case blame @ ScType.Apply(t, List(t"G")) =>
           Try(blame) {
-            types.getNode(types.getName(t).get, blame).get
+            types.getNode(TypeAnalysis.getName(t).get, blame).get._1
           } match {
             case Failures(_) => Nil
             case Ok(res) => Seq(res)
@@ -161,6 +152,6 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
       if(isConcrete) Some(Defn(fields.get, blameType.get))
       else None
 
-    Decl(rawStat.blame, rawStat.name, template.get, isFamily.get, defn)
+    Decl(rawStat.blame, rawStat.name, template.get, rawStat.isFamily, defn)
   }
 }

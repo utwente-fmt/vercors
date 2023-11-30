@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.util.{FuncTools, ScopedStack}
 import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
-import vct.col.ast.lang.JavaAnnotationEx
+import vct.col.ast.lang.java.JavaAnnotationEx
 import vct.col.origin._
 import vct.col.ref.{LazyRef, Ref}
 import vct.col.resolve.ctx._
@@ -104,7 +104,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends 
           javaFieldsSuccessor((fields, idx)) =
             new InstanceField(
               t = FuncTools.repeat(TArray[Post](_), dims, rw.dispatch(fields.t)),
-              flags = fields.modifiers.collect { case JavaFinal() => new Final[Post]() }.toSet[FieldFlag[Post]])(JavaFieldOrigin(fields, idx))
+              flags = fields.modifiers.collect { case JavaFinal() => new Final[Post]() })(JavaFieldOrigin(fields, idx))
           rw.classDeclarations.declare(javaFieldsSuccessor((fields, idx)))
         }
       case _ =>

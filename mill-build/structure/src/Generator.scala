@@ -15,7 +15,7 @@ trait NodeGenerator {
 }
 
 trait FamilyGenerator {
-  def generate(out: Path, family: Name, nodes: Seq[Name]): Unit
+  def generate(out: Path, family: Name, kind: NodeKind, nodes: Seq[Name]): Unit
 }
 
 trait ImplTraitGenerator {

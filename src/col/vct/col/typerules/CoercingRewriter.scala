@@ -263,7 +263,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
   }
 
   def preCoerce(decl: Declaration[Pre]): Declaration[Pre] = decl
-  def postCoerce(decl: Declaration[Pre]): Unit = rewriteDefault(decl)
+  def postCoerce(decl: Declaration[Pre]): Unit = allScopes.anySucceed(decl, decl.rewriteDefault())
   override final def dispatch(decl: Declaration[Pre]): Unit = {
     val coercedDecl = coerce(preCoerce(decl))
     coercedDeclaration(decl) = coercedDecl

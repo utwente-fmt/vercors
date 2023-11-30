@@ -36,7 +36,7 @@ object Name {
 sealed trait Type
 
 object Type {
-  implicit val rw: RW[Type] = RW.merge(Node.rw, Ref.rw, Tuple.rw, Seq.rw, Option.rw, Either.rw, PrimitiveType.rw)
+  implicit val rw: RW[Type] = RW.merge(Node.rw, Ref.rw, MultiRef.rw, Tuple.rw, Seq.rw, Option.rw, Either.rw, PrimitiveType.rw)
 
   /**
    * A type that supports the root node type, and takes exactly one type parameter: the generation. This is not
@@ -56,6 +56,13 @@ object Type {
   object Ref {
     implicit val rw: RW[Ref] = macroRW
   }
+
+  case class MultiRef(node: Node) extends Type
+
+  object MultiRef {
+    implicit val rw: RW[MultiRef] = macroRW
+  }
+
   case class Tuple(args: scala.Seq[Type]) extends Type
 
   object Tuple {

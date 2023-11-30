@@ -1,6 +1,6 @@
 package vct.col.ast.helpers.defn
 
-import vct.col.ast.helpers.defn.Constants.{ComparePackage, RefType, RewritePackage, SubnodesPackage}
+import vct.col.ast.helpers.defn.Constants.{ComparePackage, DeclarePackage, RefType, RewritePackage, SubnodesPackage}
 import vct.col.ast.structure
 import vct.col.ast.structure.NodeDefinition
 
@@ -21,6 +21,7 @@ object Naming {
   def typ(t: structure.Type, g: Type): Type = t match {
     case structure.Type.Node(name) => t"${typ(name)}[$g]"
     case structure.Type.Ref(node) => t"$RefType[$g, ${typ(node.name)}[$g]]"
+    case structure.Type.MultiRef(node) => t"$RefType[$g, ${typ(node.name)}[$g]]"
     case structure.Type.Tuple(args) => t"(..${args.toList.map(typ(_, g))})"
     case structure.Type.Seq(arg) => t"_root_.scala.Seq[${typ(arg, g)}]"
     case structure.Type.Option(arg) => t"_root_.scala.Option[${typ(arg, g)}]"
@@ -60,4 +61,6 @@ object Naming {
   def rewriteType(node: NodeDefinition) = t"${packageFromRoot(RewritePackage)}.${rewriteTrait(node)}"
   def subnodesTrait(node: NodeDefinition) = Type.Name(node.name.base + "Subnodes")
   def subnodesType(node: NodeDefinition) = t"${packageFromRoot(SubnodesPackage)}.${subnodesTrait(node)}"
+  def declareTrait(node: structure.Name) = Type.Name(node.base + "FamilyDeclare")
+  def declareType(node: structure.Name) = t"${packageFromRoot(DeclarePackage)}.${declareTrait(node)}"
 }

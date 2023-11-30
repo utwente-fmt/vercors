@@ -29,12 +29,22 @@ class AllScopes extends AllFamiliesGenerator {
             Case(p"(pre: ${typ(name)}[Pre], post: ${typ(name)}[Post])", None, q"${scopes(name.base)}.succeedOnly(pre, post); `~post`")
           ).toList :+ Case(p"(pre, post)", None, q"throw $InconsistentSuccessionTypesObj(pre, post)"))}
 
+        def anySucceed[T <: $Declaration[Post]](`~pre`: $Declaration[Pre], `~post`: T)(implicit tag: $ClassTag[T]): T = {
+          anyDeclare(`~post`)
+          anySucceedOnly(`~pre`, `~post`)
+        }
+
+        def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
+          ${Term.Match(q"`~decl`", declaredFamilies.map(name =>
+            Case(p"(decl: ${typ(name)}[Pre])", None, q"succ(decl)")
+          ).toList)}
+
         ..${declaredFamilies.map(name => q"""
           val ${Pat.Var(scopes(name.base))}: $Scopes[Pre, Post, ${typ(name)}[Pre], ${typ(name)}[Post]] = $ScopesObj()
         """).toList}
 
         ..${declaredFamilies.map(name => q"""
-          def succ[RefDecl <: ${typ(name)}[Post]](decl: ${typ(name)}[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
+          def succ[RefDecl <: $Declaration[Post]](decl: ${typ(name)}[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
             this.${scopes(name.base)}.freeze.succ(decl)
         """).toList}
       }

@@ -140,7 +140,7 @@ case class PVLToCol[G](override val baseOrigin: Origin,
 
   def convert(implicit field: FieldContext): Seq[InstanceField[G]] = field match {
     case Field0(finalFlag, t, ids, _) =>
-      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSet)(origin(field).sourceName(name)))
+      convert(ids).map(name => new InstanceField[G](convert(t), finalFlag.map(convert(_)).toSeq)(origin(field).sourceName(name)))
   }
 
   def convert(implicit method: RunMethodContext): Seq[RunMethod[G]] = method match {

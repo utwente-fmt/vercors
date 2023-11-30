@@ -48,4 +48,5 @@ object Constants {
   val RewritePackage = q"$OpsPackage.rewrite"
   val ComparePackage = q"$OpsPackage.compare"
   val SubnodesPackage = q"$OpsPackage.subnodes"
+  val DeclarePackage = q"$OpsPackage.declare"
 }

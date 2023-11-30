@@ -727,7 +727,7 @@ case class TSmtlibFloatingPoint[G](exponentBits: Int, mantissaAndSignBits: Int)(
 case class TSmtlibString[G]()(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G] with TSmtlibStringImpl[G]
 case class TSmtlibRegLan[G]()(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G] with TSmtlibRegLanImpl[G]
 // Non-standard Z3 extensions
-case class TSmtlibSeq[G](element: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G]
+case class TSmtlibSeq[G](element: Type[G])(implicit val o: Origin = DiagnosticOrigin) extends SmtlibType[G] with TSmtlibSeqImpl[G]
 
 @family sealed trait SmtlibFunctionSymbol[G] extends NodeFamily[G] with SmtlibFunctionSymbolImpl[G]
 case class SmtlibADTFunctionSymbol[G](ref: Ref[G, ADTFunction[G]])(implicit val o: Origin) extends SmtlibFunctionSymbol[G] with SmtlibADTFunctionSymbolImpl[G]

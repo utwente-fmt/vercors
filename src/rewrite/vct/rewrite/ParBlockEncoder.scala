@@ -154,7 +154,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def constantExpression[A](e: Expr[A], nonConstVars: Set[Variable[A]]): Boolean = e match {
-    case _: Constant[_, _] => true
+    case _: Constant[_] => true
     case op: BinExpr[_] => constantExpression(op.left, nonConstVars) && constantExpression(op.right, nonConstVars)
     case Local(v) => !nonConstVars.contains(v.decl)
     case _ => false
@@ -203,7 +203,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   def scanForAssignE(e: Expr[Pre]): Option[Set[Variable[Pre]]] = e match {
-    case _: Constant[Pre, _] => Some(Set())
+    case _: Constant[Pre] => Some(Set())
     case Local(_) => Some(Set())
     case op: BinExpr[Pre] => combine(scanForAssignE(op.left), scanForAssignE(op.right))
     case ProcedureInvocation(_, args, outArgs, _, givenMap, yields) =>
@@ -242,7 +242,7 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
   case class NonConstantVariables(vars: Set[Variable[Pre]])
 
   def isConstant(e: Expr[Post]): Boolean = e match {
-    case _ : Constant[Post, _] => true
+    case _ : Constant[Post] => true
     // TODO: Is this true??
 //    case _: Local[Post] => true
     case op: BinExpr[Post] => isConstant(op.left) && isConstant(op.right)

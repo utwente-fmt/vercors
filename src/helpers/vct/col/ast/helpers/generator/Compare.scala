@@ -53,7 +53,7 @@ class Compare extends NodeGenerator {
   def compareValues(left: Term, right: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) => q"true"
-      case structure.Type.Ref(_) => q"true"
+      case structure.Type.Ref(_) | structure.Type.MultiRef(_) => q"true"
       case _: structure.Type.PrimitiveType => q"$left == $right"
       case structure.Type.Option(t) => q"$left.isEmpty == $right.isEmpty && ($left.isEmpty || ${compareValues(q"$left.get", q"$right.get", t)})"
 
@@ -74,8 +74,6 @@ class Compare extends NodeGenerator {
         }.reduce((l, r) => q"$l && $r")
 
       case structure.Type.Seq(t) => q"$left.size == $right.size && $left.zip($right).forall { case (l0, r0) => ${compareValues(q"l0", q"r0", t)} }"
-
-      case _ => q"???"
     }
 
   def compareRefs(left: Term, right: Term, node: NodeDefinition): Term =
@@ -88,7 +86,7 @@ class Compare extends NodeGenerator {
   def compareRefs(left: Term, right: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) => q"$LazyListObj()"
-      case structure.Type.Ref(_) => q"$LazyListObj($MatchingReferenceObj($left.decl, $right.decl))"
+      case structure.Type.Ref(_) | structure.Type.MultiRef(_) => q"$LazyListObj($MatchingReferenceObj($left.decl, $right.decl))"
       case _: structure.Type.PrimitiveType => q"$LazyListObj()"
       case structure.Type.Option(t) => q"if($left.isDefined) ${compareRefs(q"$left.get", q"$right.get", t)} else $LazyListObj()"
       case structure.Type.Either(l, r) =>
@@ -100,8 +98,6 @@ class Compare extends NodeGenerator {
             compareRefs(q"$left.$field", q"$right.$field", t)
         }.reduce((l, r) => q"$l #::: $r")
       case structure.Type.Seq(t) => q"$left.zip($right).to($LazyListObj).flatMap { case (l0, r0) => ${compareRefs(q"l0", q"r0", t)} }"
-
-      case _ => q"???"
     }
 
   def compareSubnodes(left: Term, right: Term, node: NodeDefinition): Term =
@@ -114,7 +110,7 @@ class Compare extends NodeGenerator {
   def compareSubnodes(left: Term, right: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) => q"$left.compare($right)"
-      case structure.Type.Ref(_) => q"$LazyListObj()"
+      case structure.Type.Ref(_) | structure.Type.MultiRef(_) => q"$LazyListObj()"
       case _: structure.Type.PrimitiveType => q"$LazyListObj()"
       case structure.Type.Option(t) => q"if($left.isDefined) ${compareSubnodes(q"$left.get", q"$right.get", t)} else $LazyListObj()"
       case structure.Type.Either(l, r) =>
@@ -126,7 +122,5 @@ class Compare extends NodeGenerator {
             compareSubnodes(q"$left.$field", q"$right.$field", t)
         }.reduce((l, r) => q"$l #::: $r")
       case structure.Type.Seq(t) => q"$left.zip($right).to($LazyListObj).flatMap { case (l0, r0) => ${compareSubnodes(q"l0", q"r0", t)} }"
-
-      case _ => q"???"
     }
 }

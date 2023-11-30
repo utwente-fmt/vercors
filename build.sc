@@ -517,36 +517,6 @@ object viper extends ScalaModule {
 }
 
 object vercors extends Module {
-  object meta extends VercorsModule {
-    def key = "colhelper"
-    def deps = Agg(
-      ivy"org.scalameta::scalameta:4.4.9",
-      ivy"com.google.protobuf:protobuf-java:3.19.6",
-    )
-
-    def nodeDefinitions = T.sources { settings.src / "col" / "vct" / "col" / "ast" / "Node.scala" }
-
-    def helperSources = T {
-      Jvm.runSubprocess(
-        mainClass = "ColHelper",
-        classPath = runClasspath().map(_.path),
-        mainArgs = Seq(
-          T.dest.toString,
-        ) ++ nodeDefinitions().map(_.path.toString),
-      )
-
-      T.dest
-    }
-
-    def helpers = T.sources { helperSources() / "java" }
-    def protobuf = T.sources { helperSources() / "protobuf" }
-  }
-
-  object proto extends ScalaPBModule {
-    override def scalaPBSources = meta.protobuf
-    override def scalaPBFlatPackage = true
-  }
-
   object hre extends VercorsModule {
     def key = "hre"
     def deps = Agg(
@@ -571,7 +541,7 @@ object vercors extends Module {
       val declarationFamilies = load[Seq[structure.Name]]("col-decl-families.json")
       val structuralFamilies = load[Seq[structure.Name]]("col-struct-families.json")
       val definitions = load[Seq[structure.NodeDefinition]]("col-definitions.json")
-      val families = load[Seq[(structure.Name, Seq[structure.Name])]]("col-families.json")
+      val families = load[Seq[(structure.Name, structure.NodeKind, Seq[structure.Name])]]("col-families.json")
 
       object generators extends VercorsModule {
         def key = "helpers"
@@ -657,7 +627,12 @@ object vercors extends Module {
         }
       }
 
-      def protoAuxTypes = T.worker(instantiate[structure.AllNodesGenerator]("ProtoAuxTypes"))
+      def protoAuxTypes = T.worker {
+        Seq(
+          instantiate[structure.AllNodesGenerator]("ProtoAuxTypes")(),
+          instantiate[structure.AllNodesGenerator]("RewriteHelpers")(),
+        )
+      }
 
       def allFamiliesGenerators = T.worker {
         Seq(
@@ -673,6 +648,7 @@ object vercors extends Module {
       def familyGenerators = T.worker {
         Seq(
           instantiate[structure.FamilyGenerator]("DeserializeFamily")(),
+          instantiate[structure.FamilyGenerator]("DeclareFamily")(),
           instantiate[structure.FamilyGenerator]("OpsFamily")(),
 
           instantiate[structure.FamilyGenerator]("ProtoFamily")(),
@@ -695,28 +671,30 @@ object vercors extends Module {
       object global extends Module {
         def generate = T {
           allFamiliesGenerators().foreach(_.generate(T.dest.toNIO, declarationFamilies, structuralFamilies))
-          protoAuxTypes().generate(T.dest.toNIO, definitions)
+          protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitions))
           Seq(T.dest)
         }
       }
 
-      implicit object FamilySegments extends Cross.ToSegments[(structure.Name, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
+      implicit object FamilySegments extends Cross.ToSegments[(structure.Name, structure.NodeKind, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
 
       object family extends Cross[FamilyCross](families)
-      trait FamilyCross extends Cross.Module[(structure.Name, Seq[structure.Name])] {
-        def family = T.input(crossValue._1)
-        def nodes = T.input(crossValue._2)
+      trait FamilyCross extends Cross.Module[(structure.Name, structure.NodeKind, Seq[structure.Name])] {
+        def family = T(crossValue._1)
+        def kind = T(crossValue._2)
+        def nodes = T(crossValue._3)
         def generate = T {
           val familyVal = family()
+          val kindVal = kind()
           val nodesVal = nodes()
-          familyGenerators().foreach(_.generate(T.dest.toNIO, familyVal, nodesVal))
+          familyGenerators().foreach(_.generate(T.dest.toNIO, familyVal, kindVal, nodesVal))
           T.dest
         }
       }
 
       object node extends Cross[NodeCross](definitions)
       trait NodeCross extends Cross.Module[structure.NodeDefinition] {
-        def definition = T.input(crossValue)
+        def definition = T(crossValue)
         def generate = T {
           val defn = definition()
           nodeGenerators().foreach(_.generate(T.dest.toNIO, defn))
@@ -731,6 +709,12 @@ object vercors extends Module {
 
       }
     }
+
+    /*object proto extends ScalaPBModule {
+      override def scalaPBSources = T.sources(helpers.sources())
+      override def scalaPBFlatPackage = true
+    }*/
+    object proto extends ScalaModule
 
     def key = "col"
     def deps = T { Agg.empty }

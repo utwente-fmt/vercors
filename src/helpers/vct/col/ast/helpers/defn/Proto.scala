@@ -95,7 +95,7 @@ object Proto {
   }
 
   def explode(name: String): Seq[String] =
-    name.split("_").flatMap(explodeCamel(_))
+    name.split("_").toIndexedSeq.flatMap(explodeCamel(_))
 
   @tailrec
   def explodeCamel(name: String, acc: Seq[String] = Nil): Seq[String] = {
@@ -109,7 +109,7 @@ object Proto {
       explodeCamel(rem1, acc :+ (leftUpper + leftLower).toLowerCase)
     } else {
       // ADTFunctionInvocation -> ADT +: explodeCamel("FunctionInvocation")
-      explodeCamel(leftUpper.last + rem0, acc :+ leftUpper.init.toLowerCase)
+      explodeCamel(s"${leftUpper.last}${rem0}", acc :+ leftUpper.init.toLowerCase)
     }
   }
 
@@ -146,6 +146,7 @@ object Proto {
   def typeText(t: structure.Type): String = t match {
     case Type.Node(name) => name.tailName.parts.flatMap(parts).map(_.capitalize).mkString("")
     case Type.Ref(node) => s"Ref1_${typeText(node)}"
+    case Type.MultiRef(node) => s"Ref1_${typeText(node)}"
     case Type.Tuple(args) => s"Tuple${args.size}_${args.map(typeText).mkString("_")}"
     case Type.Option(arg) => s"Option_${typeText(arg)}"
     case Type.Seq(arg) => s"Seq_${typeText(arg)}"
@@ -210,7 +211,7 @@ object Proto {
       t match {
         case Type.Node(name) =>
           PrimitiveTypeResult(getType(name.tailName), imports=Seq(name.tailName.parts))
-        case Type.Ref(node) => getStandardType("Ref")
+        case Type.Ref(_) | Type.MultiRef(_) => getStandardType("Ref")
         case Type.Tuple(args) => getTupleAux(args)
 
         case Type.Nothing => PrimitiveTypeResult(Bool)

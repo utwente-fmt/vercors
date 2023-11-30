@@ -5,7 +5,7 @@ import Util._
 import scala.meta.{Name => ScName, Type => ScType, _}
 import scala.reflect.ClassTag
 
-case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], scope: Name) {
+object TypeAnalysis {
   def getTermName(t: Term): Result[Name] = Try(t) {
     t match {
       case Term.Name(name) => Name(Seq(name))
@@ -22,6 +22,10 @@ case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], s
       case other => fail(other, "Expected a simple name here")
     }
   }
+}
+
+case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], scope: Name) {
+  import TypeAnalysis._
 
   def get(t: ScType): Result[Type] = Try(t) {
     t match {
@@ -30,9 +34,11 @@ case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], s
       case _: ScType.Name | _: ScType.Select =>
         getPrimitive(getName(t).get, blame = t).get
       case ScType.Apply(t, List(t"G")) =>
-        getNode(getName(t).get, blame = t).get
+        val (res, isFamily) = getNode(getName(t).get, blame = t).get
+        if(!isFamily) fail(t, "This is a node, but you can only refer to a node family here")
+        res
       case ScType.Apply(t, List(gen @ t"G", nodeType)) =>
-        getRef(getName(t).get, get(nodeType).get, blame = t).get
+        getRef(getName(t).get, nodeType, blame = t).get
           .getOrElse(fail(gen, "Generation parameter may not occur here"))
       case ScType.Apply(t, List(t0)) =>
         Constants.CollectionType1.getOrElse(getName(t).get.parts, fail(t, "This type is not supported"))(get(t0).get)
@@ -49,32 +55,33 @@ case class TypeAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]], s
       .getOrElse(fail(blame, "This type is not supported"))
   }
 
-  def getRef(name: Name, nodeType: Type, blame: Tree): Result[Option[Type]] = Try("Ref type") {
+  def getRef(name: Name, nodeType: ScType, blame: Tree): Result[Option[Type]] = Try("Ref type") {
     if (name != Constants.RefName && name != Constants.RefName.baseName)
       return Ok(None)
 
     val node = nodeType match {
-      case n: Type.Node => n
+      case ScType.Apply(t, List(t"G")) =>
+        getNode(getName(t).get, blame = t).get._1
       case _ => fail(blame, "The second type parameter of Ref must be a node category")
     }
 
     Some(Type.Ref(node))
   }
 
-  def getNode(name: Name, blame: Tree): Result[Type.Node] = Try("Node type") {
+  def getNode(name: Name, blame: Tree): Result[(Type.Node, Boolean)] = Try("Node type") {
     val message = "Unknown node type (Or: do not pass `G` as a type parameter to collections)"
 
     val candidates = typeLookup.getOrElse(name.base, fail(blame, message))
     val prefixLengths = (0 to scope.parts.size).reverse
 
-    prefixLengths.foldLeft[Option[Type.Node]](None) {
+    prefixLengths.foldLeft[Option[(Type.Node, Boolean)]](None) {
       case (Some(result), _) => Some(result)
       case (None, prefixLength) =>
         val prefix = Name(scope.parts.take(prefixLength))
         candidates.filter(_.name == prefix + name) match {
           case Nil => None
           case Seq(rawStat) =>
-            Some(Type.Node(prefix + name))
+            Some((Type.Node(prefix + name), rawStat.isFamily))
           case multiple =>
             fail(blame, s"Ambiguous reference to node type `${(name + prefix).parts.mkString(".")}`: Defined at: ${multiple.map(_.blame).map(posText).mkString(", ")}")
         }

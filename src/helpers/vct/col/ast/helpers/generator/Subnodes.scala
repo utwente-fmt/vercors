@@ -40,8 +40,8 @@ class Subnodes extends NodeGenerator {
     typ match {
       case _: Type.Node =>
         q"$SeqObj($term)"
-      case _: Type.Ref =>
-        noNodes
+      case _: Type.Ref => noNodes
+      case _: Type.MultiRef => noNodes
       case Type.Tuple(ts) =>
         concat(ts.zipWithIndex.map {
           case (typ, i) =>

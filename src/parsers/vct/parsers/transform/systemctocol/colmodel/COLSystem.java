@@ -48,7 +48,7 @@ public class COLSystem<T> {
     // ============================================================================================================== //
 
     /** Constant empty set of field flags */
-    public final Set<FieldFlag<T>> NO_FLAGS;
+    public final Seq<FieldFlag<T>> NO_FLAGS;
     /** Constant empty list of variables */
     public final List<Variable<T>> NO_VARS;
     /** Constant empty list of expressions */
@@ -507,7 +507,7 @@ public class COLSystem<T> {
         this.total_nr_primitive_channels = 0;
 
         java.util.List<FieldFlag<T>> no_flags = java.util.List.of();
-        this.NO_FLAGS = Set.from(CollectionConverters.asScala(no_flags));
+        this.NO_FLAGS = Seq.from(CollectionConverters.asScala(no_flags));
         java.util.List<Variable<T>> no_vars = java.util.List.of();
         this.NO_VARS = List.from(CollectionConverters.asScala(no_vars));
         java.util.List<Expr<T>> no_exprs = java.util.List.of();

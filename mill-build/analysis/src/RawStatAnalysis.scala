@@ -6,7 +6,14 @@ import scala.meta.{Name => ScName, Type => ScType, _}
 import scala.reflect.ClassTag
 
 object RawStatAnalysis {
-  case class RawStat(name: Name, isTrait: Boolean, mods: Seq[Mod], tparams: Seq[ScType.Param], ctor: Ctor.Primary, templ: Template, blame: Tree)
+  case class RawStat(name: Name, isTrait: Boolean, mods: Seq[Mod], tparams: Seq[ScType.Param], ctor: Ctor.Primary, templ: Template, blame: Tree) {
+    def isFamily: Boolean =
+      mods.exists {
+        case Mod.Annot(Init(t, ScName.Anonymous(), Nil)) =>
+          TypeAnalysis.getName(t).get == Constants.FamilyName.baseName
+        case _ => false
+      }
+  }
 
   def getRawStats(stat: Stat): Result[Seq[RawStat]] = Try(stat) {
     stat match {
