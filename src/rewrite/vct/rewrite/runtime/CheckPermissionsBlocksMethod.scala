@@ -80,7 +80,7 @@ case class CheckPermissionsBlocksMethod[Pre <: Generation]() extends Rewriter[Pr
             determineNewBlockStructure(block)
           }
         }
-        case _ => ???
+        case _ => super.dispatch(b._2)
       }
     })
     Branch[Post](gatheredConditions.zip(gatheredBlocks))(branch.o)

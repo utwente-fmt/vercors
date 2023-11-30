@@ -1300,3 +1300,6 @@ final case class CodeStringGlobal[G](content: String)(implicit val o: Origin) ex
 final case class CodeStringClass[G](content: String, ref: String)(implicit val o: Origin) extends ClassDeclaration[G] with CodeString[G]
 final case class CodeStringStatement[G](content: String)(implicit val o: Origin) extends Statement[G] with CodeString[G]
 
+final class CodeStringQuantifier[G](val binder: Variable[G], val lowerBound: Int, val upperBound: Int, val body: Seq[Statement[G]])(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierImpl[G]
+final case class CodeStringQuantifierCall[G](quantifierId: String)(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierCallImpl[G]
+final class CodeStringQuantifierMethod[G](val quantifierId: String, val body: Statement[G], val parameters: Seq[Variable[G]])(implicit val o: Origin) extends ClassDeclaration[G] with CodeStringQuantifierMethodImpl[G]

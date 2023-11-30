@@ -74,13 +74,13 @@ case class RewriteContractExpr[Pre <: Generation](outer: Rewriter[Pre], givenSta
 
             val newMethodId = quantifiers.size.toString
             quantifiers.addOne(newMethodId)
-            val newMethod = CodeStringClass(methodTemplate(newMethodId, newMethodId), forLoopBody)(forAll.o)
-            classDeclarations.declare(newMethod)
+            val newMethod = CodeStringClass(methodTemplate(newMethodId, forLoopBody, "parameters"), forLoopBody)(forAll.o)
+//            classDeclarations.declare(newMethod)
             newMethodId
           }
 
           if(internalCodeStrings.nonEmpty) {
-            internalCodeStrings.top.addOne()
+            internalCodeStrings.top.addOne(assertCondition(callMethodTemplate(methodName,"parameters")))
           }
         }
       case _ =>

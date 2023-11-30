@@ -39,8 +39,8 @@ case object CodeStringDefaults {
 
   //Quantifiers
   val quantifierTemplate : (String, Int, Int,String) => String = (variable: String, lowerBound: Int, upperBound: Int, body) => s"for(int $variable = $lowerBound; $variable <= $upperBound; $variable++){\n\t$body\n}"
-  val methodTemplate : (String, String) => String = (quantifierId: String, quantifier: String) => s"public void __runtime__quantifier__$quantifierId() {" +
-    s"$quantifier" +
+  val methodTemplate : (String, String, String) => String = (quantifierId: String, body: String, paramaters: String) => s"public void __runtime__quantifier__$quantifierId($paramaters) {" +
+    s"$body" +
     s"}"
   val loopConditionTemplate: (String, String) => String = (loopCondition: String, body: String) => s"if($loopCondition){\n$body\n}"
   val callMethodTemplate: (String, String) => String = (quantifierId: String, paramaters: String) => s"__runtime__quantifier__$quantifierId($paramaters)"

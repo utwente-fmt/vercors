@@ -84,7 +84,7 @@ case class CreatePrePostConditions[Pre <: Generation]() extends Rewriter[Pre] {
     val updatedBranches = branch.branches.map(b => {
       b._2 match {
         case block: Block[Post] => (b._1, Block[Post](addPostConditions(postConditionStatements, block.statements))(block.o))
-        case _ => ???
+        case _ => b
       }
     })
     Branch[Post](updatedBranches)(branch.o)
