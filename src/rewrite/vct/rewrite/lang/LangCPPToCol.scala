@@ -375,8 +375,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   val syclBufferSuccessor: ScopedStack[mutable.Map[Variable[Post], SYCLBuffer[Post]]] = ScopedStack()
   val currentRunningKernels: mutable.Map[Local[Post], Seq[SYCLAccessor[Post]]] = mutable.Map.empty
-  val currentAccessorSubstitutions: mutable.Map[CPPNameTarget[Pre], SYCLAccessor[Post]] = mutable.Map.empty
-  val currentReplacementsForAccessors: mutable.Map[Expr[Post], SYCLAccessor[Post]] = mutable.Map.empty
+  val syclAccessorSuccessor: mutable.Map[CPPNameTarget[Pre], SYCLAccessor[Post]] = mutable.Map.empty
 
   val currentDimensions: mutable.Map[KernelScopeLevel, Seq[IterVariable[Post]]] = mutable.Map.empty
   var currentKernelType: Option[KernelType] = None
@@ -587,10 +586,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case ref: RefCPPLocalDeclaration[Pre] => CPP.unwrappedType(local.t) match {
         case _: SYCLTAccessor[Pre] =>
           // Referencing an accessor variable can only be done in kernels, otherwise an error will already have been thrown
-          val accessor = currentAccessorSubstitutions(ref)
-          val deref = Deref[Post](currentThis.get, accessor.instanceField.ref)(SYCLAccessorFieldInsufficientReferencePermissionBlame(local))
-          currentReplacementsForAccessors(deref) = accessor
-          deref
+          val accessor = syclAccessorSuccessor(ref)
+          Deref[Post](currentThis.get, accessor.instanceField.ref)(SYCLAccessorFieldInsufficientReferencePermissionBlame(local))
         case _: SYCLTLocalAccessor[Pre] if currentKernelType.get.isInstanceOf[BasicKernel] => throw SYCLNoLocalAccessorsInBasicKernel(local)
         case _: SYCLTRange[Pre] | _: SYCLTNDRange[Pre] => cppRangeVariableToExpr(cppNameSuccessor(ref))
         case _ => Local(cppNameSuccessor.ref(ref))
@@ -665,10 +662,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case "sycl::nd_item::get_global_id" => getGlobalWorkItemId(inv)
       case "sycl::nd_item::get_global_range" => getGlobalWorkItemRange(inv)
       case "sycl::nd_item::get_global_linear_id" => getGlobalWorkItemLinearId(inv)
-      case "sycl::accessor::get_range" if classInstance.isDefined =>
-        val rangeIndexFields = currentReplacementsForAccessors(classInstance.get).rangeIndexFields
-        LiteralSeq[Post](TInt(), rangeIndexFields.map(f => Deref[Post](currentThis.get, f.ref)(SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(inv))))
-      case "sycl::accessor::get_range" => throw NotApplicable(inv)
+      case "sycl::accessor::get_range" => classInstance match {
+        case Some(Deref(_, ref)) =>
+          val accessor = syclAccessorSuccessor.values.find(acc => ref.decl.equals(acc.instanceField)).get
+          LiteralSeq[Post](TInt(), accessor.rangeIndexFields.map(f => Deref[Post](currentThis.get, f.ref)(SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(inv))))
+        case None => throw NotApplicable(inv)
+      }
       case "sycl::range::get" => (classInstance, args) match {
         case (Some(seq: LiteralSeq[Post]), Seq(arg)) => SeqSubscript(seq, rw.dispatch(arg))(SYCLRequestedRangeIndexOutOfBoundsBlame(seq, arg)) // Range coming from calling get_range() on an accessor
         case _ => throw NotApplicable(inv)
@@ -757,7 +756,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case CPPDeclarationStatement(decl) if CPP.getBaseTypeFromSpecs(decl.decl.specs).isInstanceOf[SYCLTAccessor[Pre]] => Some(decl)
       case _ => None
     })
-    val (accessorRunMethodConditions, accessorParblockConditions, bufferAccessStatements, accessors) = rewriteSYCLAccessorDeclarations(collectedAccessorDeclarations)
+    val (accessors, accessorRunMethodConditions, accessorParblockConditions, bufferAccessStatements) = rewriteSYCLAccessorDeclarations(collectedAccessorDeclarations)
 
     // Generate an array each local accessor declared in the command group
     val collectedLocalAccessorDeclarations: Seq[CPPLocalDeclaration[Pre]] = findStatements(commandGroupBody, {
@@ -767,7 +766,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     val nrOfCommandGroupStatements = findStatements(commandGroupBody, s => Some(s)).size
     // Check that there is no other code in the command group other than 1 kernel declaration and the found (local) accessors
-    if (nrOfCommandGroupStatements > 1 + accessors.size + collectedLocalAccessorDeclarations.size) {
+    if (nrOfCommandGroupStatements > 1 + collectedAccessorDeclarations.size + collectedLocalAccessorDeclarations.size) {
       throw SYCLNoExtraCodeInCommandGroup(commandGroupBody)
     }
 
@@ -827,7 +826,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Reset the global variables as we are done processing the kernel
     currentKernelType = None
     currentDimensions.clear()
-    currentAccessorSubstitutions.clear()
+    syclAccessorSuccessor.clear()
     currentThis = None
 
     // Create a new class instance and assign it to the class instance variable, then fork that variable
@@ -925,47 +924,57 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     (workGroupParBlock, quantifiedContractRequires, quantifiedContractEnsures)
   }
 
-  private def rewriteSYCLAccessorDeclarations(decls: Seq[CPPLocalDeclaration[Pre]]): (Seq[Expr[Post]], Seq[Expr[Post]], Seq[Statement[Post]], Seq[SYCLAccessor[Post]]) = {
-    val runMethodConditions: mutable.Buffer[Expr[Post]] = mutable.Buffer.empty
-    val parblockConditions: mutable.Buffer[Expr[Post]] = mutable.Buffer.empty
-    val bufferAccessStatements: mutable.Buffer[Statement[Post]] = mutable.Buffer.empty
-    val accessors: mutable.Buffer[SYCLAccessor[Post]] = mutable.Buffer.empty
+  private def rewriteSYCLAccessorDeclarations(decls: Seq[CPPLocalDeclaration[Pre]]): (Seq[SYCLAccessor[Post]], Seq[Expr[Post]], Seq[Expr[Post]], Seq[Statement[Post]]) = {
+    // SYCLBuffer to (accessor object, kernelRunnerConditions, kernelParblockConditions, bufferAccessStatements)
+    val buffersToAccessorResults: mutable.Map[SYCLBuffer[Post], (SYCLAccessor[Post], Expr[Post], Expr[Post], Statement[Post])] = mutable.Map.empty
     decls.foreach(decl => {
       val accDecl = decl.decl
       val accName = CPP.nameFromDeclarator(accDecl.inits.head.decl)
       if (accDecl.inits.nonEmpty && accDecl.inits.head.init.isDefined && accDecl.inits.head.init.get.isInstanceOf[CPPInvocation[Pre]]) {
-        val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = accName)
-        val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
         accDecl.inits.head.init.get match {
-          case inv@CPPInvocation(_, Seq(bufferRef: CPPLocal[Pre], _, accessModeRef: CPPLocal[Pre]), _, _) => {
+          case inv@CPPInvocation(_, Seq(bufferRef: CPPLocal[Pre], _, accessModeRef: CPPLocal[Pre]), _, _) =>
             rw.dispatch(accessModeRef)  match {
               case accessMode: SYCLAccessMode[Post] =>
                 val buffer = getFromAll(syclBufferSuccessor, cppNameSuccessor(bufferRef.ref.get)).getOrElse(throw SYCLBufferOutOfScopeError(decl))
+                var accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = buffer.o.getPreferredNameOrElse().ucamel)
+                val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
                 if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
                   throw Unreachable("Accessor type does not correspond with buffer type!")
                 }
-                val instanceField = new InstanceField[Post](buffer.generatedVar.t, Set())(accO)
-                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(i => new InstanceField[Post](TInt(), Set())(dimO.where(name = s"${accName}_r$i")))
-                accessors.append(SYCLAccessor[Post](buffer, accessMode, instanceField, rangeIndexFields)(accDecl.o))
-                currentAccessorSubstitutions(RefCPPLocalDeclaration(decl, 0)) = accessors.last
 
-                val (basicPermissions, fieldArrayElementsPermission) = getBasicAccessorPermissions(accessors.last, this.currentThis.get)
-                parblockConditions.append(basicPermissions)
-                runMethodConditions.append(basicPermissions)
-                runMethodConditions.append(fieldArrayElementsPermission)
-                bufferAccessStatements.append(getKernelsWaitingForBuffer(buffer, accessMode, decl))
+                buffersToAccessorResults.get(buffer) match {
+                  case Some((foundAcc, _, _, _)) =>
+                    // Buffer already exists, so skip creation of fields and use already existing fields
+                    val newAcc = SYCLAccessor[Post](buffer, accessMode, foundAcc.instanceField, foundAcc.rangeIndexFields)(accDecl.o)
+                    syclAccessorSuccessor(RefCPPLocalDeclaration(decl, 0)) = newAcc
 
-              case _ => throw Unreachable(accessModeRef.o.messageInContext("Accesmode was rewritten to something invalid."))
+                    // Upgrade read access to write access if the new accessor wants write access, as is done in the SYCL specification in Table 4 of section 3.8.1 (page 27)
+                    if (foundAcc.accessMode.isInstanceOf[SYCLReadOnlyAccess[Post]] && accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]) {
+                      val (basicPermissions, fieldArrayElementsPermission) = getBasicAccessorPermissions(newAcc, this.currentThis.get)
+                      buffersToAccessorResults(buffer) = (newAcc, Star(basicPermissions, fieldArrayElementsPermission)(accO), basicPermissions, getKernelsWaitingForBuffer(buffer, accessMode, decl))
+                    }
+                  case None =>
+                    // No accessor for buffer exist in the command group, so make fields and permissions
+                    val instanceField = new InstanceField[Post](buffer.generatedVar.t, Set())(accO)
+                    val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(i => new InstanceField[Post](TInt(), Set())(dimO.where(name = s"${accName}_r$i")))
+                    val newAcc = SYCLAccessor[Post](buffer, accessMode, instanceField, rangeIndexFields)(accDecl.o)
+                    syclAccessorSuccessor(RefCPPLocalDeclaration(decl, 0)) = newAcc
+
+                    val (basicPermissions, fieldArrayElementsPermission) = getBasicAccessorPermissions(newAcc, this.currentThis.get)
+                    buffersToAccessorResults(buffer) = (newAcc, Star(basicPermissions, fieldArrayElementsPermission)(accO), basicPermissions, getKernelsWaitingForBuffer(buffer, accessMode, decl))
+                }
+              case _ => throw Unreachable(accessModeRef.o.messageInContext("Access mode was rewritten to something invalid."))
             }
-          }
           case _ => throw Unreachable(accDecl.inits.head.init.get.o.messageInContext("Accessor declaration is malformed."))
         }
-
       } else {
         throw Unreachable(decl.o.messageInContext("Accessor declaration is malformed."))
       }
     })
-    (runMethodConditions.toSeq, parblockConditions.toSeq, bufferAccessStatements.toSeq, accessors.toSeq)
+
+    buffersToAccessorResults.values.foldLeft((Nil, Nil, Nil, Nil): (Seq[SYCLAccessor[Post]], Seq[Expr[Post]], Seq[Expr[Post]], Seq[Statement[Post]]))((result, value) => {
+      (result._1 :+ value._1, result._2 :+ value._2, result._3 :+ value._3, result._4 :+ value._4)
+    })
   }
 
   private def getBasicAccessorPermissions(acc: SYCLAccessor[Post], classObj: Expr[Post]): (Expr[Post], Perm[Post]) = {
@@ -1008,7 +1017,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         val newConstructorAccessorArg = new Variable[Post](TArray(TInt()))(acc.instanceField.o)
         val newConstructorAccessorDimensionArgs = acc.rangeIndexFields.map(f => new Variable[Post](TInt())(f.o))
 
-        val (basicPermissions, fieldArrayElementsPermission)  = getBasicAccessorPermissions(acc, result)
+        val (basicPermissions, fieldArrayElementsPermission) = getBasicAccessorPermissions(acc, result)
         constructorPostConditions.append(basicPermissions)
         constructorPostConditions.append(fieldArrayElementsPermission)
         constructorPostConditions.append(foldStar[Post](
@@ -1287,14 +1296,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     Block[Post](kernelsToWaitFor.map(tuple => syclKernelTermination(tuple._1, tuple._2)).toSeq)
   }
 
-  def rewriteAccessorSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match {
+  def rewriteSubscript(sub: AmbiguousSubscript[Pre]): Expr[Post] = sub match {
     case AmbiguousSubscript(base: CPPLocal[Pre], index) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       CPP.unwrappedType(base.t) match {
         case SYCLTAccessor(_, 1) => ArraySubscript[Post](
           Deref[Post](
             currentThis.get,
-            currentAccessorSubstitutions(base.ref.get).instanceField.ref
-          )(new SYCLAccessorDerefBlame(currentAccessorSubstitutions(base.ref.get).instanceField))(sub.o),
+            syclAccessorSuccessor(base.ref.get).instanceField.ref
+          )(new SYCLAccessorDerefBlame(syclAccessorSuccessor(base.ref.get).instanceField))(sub.o),
           rw.dispatch(index)
         )(SYCLAccessorArraySubscriptErrorBlame(sub))(sub.o)
         case t: SYCLTAccessor[Pre] => throw SYCLWrongNumberOfSubscriptsForAccessor(sub, 1, t.dimCount)
@@ -1302,7 +1311,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       }
     case AmbiguousSubscript(AmbiguousSubscript(base: CPPLocal[Pre], indexX), indexY) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       implicit val o: Origin = sub.o
-      val accessor = currentAccessorSubstitutions(base.ref.get)
+      val accessor = syclAccessorSuccessor(base.ref.get)
       val linearizeArgs = Seq(rw.dispatch(indexX), rw.dispatch(indexY),
         Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))),
         Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1)))
@@ -1318,7 +1327,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       }
     case AmbiguousSubscript(AmbiguousSubscript(AmbiguousSubscript(base: CPPLocal[Pre], indexX), indexY), indexZ) if CPP.unwrappedType(base.t).isInstanceOf[SYCLTAccessor[Pre]] =>
       implicit val o: Origin = sub.o
-      val accessor = currentAccessorSubstitutions(base.ref.get)
+      val accessor = syclAccessorSuccessor(base.ref.get)
       val linearizeArgs = Seq(rw.dispatch(indexX), rw.dispatch(indexY), rw.dispatch(indexZ),
         Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))),
         Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1))),

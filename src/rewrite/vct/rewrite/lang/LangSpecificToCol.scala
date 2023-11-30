@@ -231,7 +231,7 @@ case class LangSpecificToCol[Pre <: Generation]() extends Rewriter[Pre] with Laz
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
     case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
     case _: CPPLambdaDefinition[Pre] => ???
-    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteAccessorSubscript(arrSub)
+    case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteSubscript(arrSub)
     case unfolding: Unfolding[Pre] => {
       cpp.checkPredicateFoldingAllowed(unfolding.res)
       rewriteDefault(unfolding)
