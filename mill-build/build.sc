@@ -6,7 +6,7 @@ object millbuild extends MillBuildRootModule {
   def moduleDeps = Seq(structure)
 
   def nodeSources = T.sources(
-    T.ctx().workspace / os.up / "src" / "col" / "vct" / "col" / "ast" / "Node.scala"
+    T.ctx().workspace / "src" / "col" / "vct" / "col" / "ast" / "Node.scala"
   )
 
   def analyseNodeDeclarations = T {
@@ -25,15 +25,20 @@ object millbuild extends MillBuildRootModule {
   }
 
   def resources = T.sources(analyseNodeDeclarations(), structureClassPath())
+  def compileResources = T { Seq.empty[PathRef] }
 
   object structure extends ScalaModule {
     def scalaVersion = "2.13.12"
     def ivyDeps = T { Seq(ivy"com.lihaoyi::upickle:3.1.3", ivy"com.lihaoyi::mill-main-define:0.11.4") }
+    def compileResources = T { Seq.empty[PathRef] }
+    def resources = T { Seq.empty[PathRef] }
   }
 
   object analysis extends ScalaModule {
     def scalaVersion = "2.13.12"
     def moduleDeps = Seq(structure)
     def ivyDeps = T { Seq(ivy"org.scalameta::scalameta:4.4.9") }
+    def compileResources = T { Seq.empty[PathRef] }
+    def resources = T { Seq.empty[PathRef] }
   }
 }

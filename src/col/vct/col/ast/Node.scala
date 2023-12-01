@@ -98,6 +98,7 @@ object TNotAValue {
   def unapply[G](t: TNotAValue[G]): Some[Referrable[G]] = Some(t.decl.get)
 }
 
+
 final class TNotAValue[G]()(implicit val o: Origin = DiagnosticOrigin) extends Type[G] with TNotAValueImpl[G] {
   var decl: Option[Referrable[G]] = None
 }

@@ -536,23 +536,23 @@ object vercors extends Module {
     object helpers extends Module {
       // Note: relevant resources are generated as part of the meta-build in mill-build/build.sc.
       def load[T: upickle.default.Reader](file: String): T =
-        upickle.default.read[T](classOf[helpers.type].getResourceAsStream(s"/${file}"), trace = true)
+        upickle.default.read[T](classOf[helpers.type].getResourceAsStream(s"/$file"), trace = true)
 
-      val declarationFamilies = load[Seq[structure.Name]]("col-decl-families.json")
-      val structuralFamilies = load[Seq[structure.Name]]("col-struct-families.json")
-      val definitions = load[Seq[structure.NodeDefinition]]("col-definitions.json")
-      val families = load[Seq[(structure.Name, structure.NodeKind, Seq[structure.Name])]]("col-families.json")
+      def loadDeclarationFamilies() = load[Seq[structure.Name]]("col-decl-families.json")
+      def loadStructuralFamilies() = load[Seq[structure.Name]]("col-struct-families.json")
+      def loadDefinitions() = load[Seq[structure.NodeDefinition]]("col-definitions.json")
+      def loadFamilies() = load[Seq[(structure.Name, structure.NodeKind, Seq[structure.Name])]]("col-families.json")
 
       object generators extends VercorsModule {
         def key = "helpers"
-        val structureClasspath = upickle.default.read[Seq[Path]](classOf[helpers.type].getResourceAsStream("/classpath.json"))
         def deps: T[Agg[Dep]] = T {
           Agg(
             ivy"org.scalameta::scalameta:4.4.9",
           )
         }
-        def unmanagedClasspath = T { structureClasspath.map(PathRef(_)) }
+        def unmanagedClasspath = T { load[Seq[Path]]("classpath.json").map(PathRef(_)) }
       }
+
 
       def instantiate[T](name: String): Task[T] = T.task {
         mill.api.ClassLoader
@@ -571,8 +571,8 @@ object vercors extends Module {
 
         def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
 
-        val defnSet = definitions.map(_.name.base).toSet
-        val familySet = (declarationFamilies ++ structuralFamilies).map(_.base).toSet
+        def loadDefnSet() = loadDefinitions().map(_.name.base).toSet
+        def loadFamilySet() = (loadDeclarationFamilies() ++ loadStructuralFamilies()).map(_.base).toSet
 
         private def nodeName(p: PathRef): String =
           p.path.last.dropRight("Impl.scala".length)
@@ -581,6 +581,8 @@ object vercors extends Module {
 
         def fix = T {
           val gen = generator()
+          val defnSet = loadDefnSet()
+          val familySet = loadFamilySet()
           inputs().foreach { input =>
             val name = nodeName(input)
             val opsNames =
@@ -597,6 +599,8 @@ object vercors extends Module {
 
         def generate: T[Unit] = T {
           val gen = generator()
+          val defnSet = loadDefnSet()
+          val familySet = loadFamilySet()
           val ungenerated = (defnSet ++ familySet) -- inputs().map(nodeName)
           ungenerated.foreach { node =>
             os.makeDir.all(root / "unsorted")
@@ -670,6 +674,9 @@ object vercors extends Module {
 
       object global extends Module {
         def generate = T {
+          val declarationFamilies = loadDeclarationFamilies()
+          val structuralFamilies = loadStructuralFamilies()
+          val definitions = loadDefinitions()
           allFamiliesGenerators().foreach(_.generate(T.dest.toNIO, declarationFamilies, structuralFamilies))
           protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitions))
           Seq(T.dest)
@@ -678,7 +685,7 @@ object vercors extends Module {
 
       implicit object FamilySegments extends Cross.ToSegments[(structure.Name, structure.NodeKind, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
 
-      object family extends Cross[FamilyCross](families)
+      object family extends Cross[FamilyCross](loadFamilies())
       trait FamilyCross extends Cross.Module[(structure.Name, structure.NodeKind, Seq[structure.Name])] {
         def family = T(crossValue._1)
         def kind = T(crossValue._2)
@@ -692,7 +699,7 @@ object vercors extends Module {
         }
       }
 
-      object node extends Cross[NodeCross](definitions)
+      object node extends Cross[NodeCross](loadDefinitions())
       trait NodeCross extends Cross.Module[structure.NodeDefinition] {
         def definition = T(crossValue)
         def generate = T {
@@ -703,10 +710,11 @@ object vercors extends Module {
       }
 
       def sources: T[Seq[PathRef]] = {
+        val definitions = loadDefinitions()
+        val families = loadFamilies()
         T.traverse(definitions)(node(_).generate)().map(PathRef(_, quick = true)) ++
           T.traverse(families)(family(_).generate)().map(PathRef(_, quick = true)) ++
           global.generate().map(PathRef(_, quick = true))
-
       }
     }
 
