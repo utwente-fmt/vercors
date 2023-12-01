@@ -54,7 +54,7 @@ import vct.col.ast.family.javavar.JavaVariableDeclarationImpl
 import vct.col.ast.family.location._
 import vct.col.ast.family.loopcontract._
 import vct.col.ast.family.parregion._
-import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl, PVLEndpointNameImpl}
+import vct.col.ast.family.pvlcommunicate.{PVLCommunicateAccessImpl, PVLCommunicateImpl, PVLCommunicateSubjectImpl, PVLEndpointNameImpl, PVLFamilyRangeImpl, PVLIndexedFamilyNameImpl}
 import vct.col.ast.family.signals._
 import vct.col.ast.lang._
 import vct.col.ast.lang.smt._
@@ -70,6 +70,8 @@ import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.JavaAnnotationData
+
+import scala.collection.mutable.ArrayBuffer
 
 /** @inheritdoc */ sealed trait Node[G] extends NodeImpl[G]
 
@@ -1301,5 +1303,14 @@ final case class CodeStringClass[G](content: String, ref: String)(implicit val o
 final case class CodeStringStatement[G](content: String)(implicit val o: Origin) extends Statement[G] with CodeString[G]
 
 final class CodeStringQuantifier[G](val binder: Variable[G], val lowerBound: Int, val upperBound: Int, val body: Seq[Statement[G]])(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierImpl[G]
-final case class CodeStringQuantifierCall[G](quantifierId: String)(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierCallImpl[G]
-final class CodeStringQuantifierMethod[G](val quantifierId: String, val body: Statement[G], val parameters: Seq[Variable[G]])(implicit val o: Origin) extends ClassDeclaration[G] with CodeStringQuantifierMethodImpl[G]
+final case class CodeStringQuantifierCall[G](obj: Expr[G], quantifierId: String, ref: Ref[G, CodeStringQuantifierMethod[G]], args: Seq[Expr[G]])(val blame: Blame[InstanceInvocationFailure])(implicit val o: Origin) extends AnyMethodInvocation[G] with InstanceApply[G] with CodeStringQuantifierCallImpl[G]
+final class CodeStringQuantifierMethod[G](val quantifierId: String, val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with AbstractMethod[G] with CodeStringQuantifierMethodImpl[G]
+object CodeStringQuantifierMethod{
+  private val quantifiers = new ArrayBuffer[String]
+
+  def nextId(): String = {
+    val newMethodId = quantifiers.size.toString
+    quantifiers.addOne(newMethodId)
+    newMethodId
+  }
+}
