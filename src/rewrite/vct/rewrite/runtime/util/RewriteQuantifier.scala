@@ -25,8 +25,8 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
     exists.rewrite()
   }
 
-
   def createBodyForAllQuantifier(forAll: Forall[Pre], imp: Implies[Pre]): Statement[Post] = {
+    //TODO not completely correct, should be another if statement that checks if the loop condition is correct and then in that if statement should be another if statement that checks if the right side of the implementation is correct.
     val bounds: ArrayBuffer[(Variable[Pre], Int, Int)] = FindBoundsQuantifier[Pre]().findBounds(forAll)
     val loopCondition = Not[Post](dispatch(imp.right))(forAll.o)
     val loopConditionBody = Return[Post](BooleanValue(false)(forAll.o))(forAll.o)
