@@ -16,15 +16,20 @@ object millbuild extends MillBuildRootModule {
       mainArgs = T.dest.toString() +: nodeSources().map(_.path.toString()),
     )
 
-    T.dest
+    ()
   }
 
   def structureClassPath = T {
     os.write(T.dest / "classpath.json", upickle.default.write(structure.runClasspath().map(_.path)))
-    T.dest
+    ()
   }
 
-  def resources = T.sources(analyseNodeDeclarations(), structureClassPath())
+  def resources = T {
+    analyseNodeDeclarations()
+    structureClassPath()
+    Seq.empty[PathRef]
+  }
+
   def compileResources = T { Seq.empty[PathRef] }
 
   object structure extends ScalaModule {

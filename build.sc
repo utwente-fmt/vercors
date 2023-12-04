@@ -21,6 +21,7 @@ object settings {
   val res = root / "res"
   val lib = root / "lib"
   val docs = root / "docs"
+  val meta = root / "out" / "mill-build"
 
   object deps {
     val log = Agg(
@@ -535,13 +536,13 @@ object vercors extends Module {
   object col extends VercorsModule {
     object helpers extends Module {
       // Note: relevant resources are generated as part of the meta-build in mill-build/build.sc.
-      def load[T: upickle.default.Reader](file: String): T =
-        upickle.default.read[T](classOf[helpers.type].getResourceAsStream(s"/$file"), trace = true)
+      def load[T: upickle.default.Reader](file: Path => Path): T =
+        upickle.default.read[T](file(settings.meta).toNIO, trace = true)
 
-      def loadDeclarationFamilies() = load[Seq[structure.Name]]("col-decl-families.json")
-      def loadStructuralFamilies() = load[Seq[structure.Name]]("col-struct-families.json")
-      def loadDefinitions() = load[Seq[structure.NodeDefinition]]("col-definitions.json")
-      def loadFamilies() = load[Seq[(structure.Name, structure.NodeKind, Seq[structure.Name])]]("col-families.json")
+      def loadDeclarationFamilies() = load[Seq[structure.Name]](_ / "analyseNodeDeclarations.dest" / "col-decl-families.json")
+      def loadStructuralFamilies() = load[Seq[structure.Name]](_ / "analyseNodeDeclarations.dest" / "col-struct-families.json")
+      def loadDefinitions() = load[Seq[structure.NodeDefinition]](_ / "analyseNodeDeclarations.dest" / "col-definitions.json")
+      def loadFamilies() = load[Seq[(structure.Name, structure.NodeKind, Seq[structure.Name])]](_ / "analyseNodeDeclarations.dest" / "col-families.json")
 
       object generators extends VercorsModule {
         def key = "helpers"
@@ -550,7 +551,7 @@ object vercors extends Module {
             ivy"org.scalameta::scalameta:4.4.9",
           )
         }
-        def unmanagedClasspath = T { load[Seq[Path]]("classpath.json").map(PathRef(_)) }
+        def unmanagedClasspath = T { load[Seq[Path]](_ / "structureClassPath.dest" / "classpath.json").map(PathRef(_)) }
       }
 
 
@@ -677,7 +678,10 @@ object vercors extends Module {
           val declarationFamilies = loadDeclarationFamilies()
           val structuralFamilies = loadStructuralFamilies()
           val definitions = loadDefinitions()
-          allFamiliesGenerators().foreach(_.generate(T.dest.toNIO, declarationFamilies, structuralFamilies))
+          allFamiliesGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName}")
+            gen.generate(T.dest.toNIO, declarationFamilies, structuralFamilies)
+          }
           protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitions))
           Seq(T.dest)
         }
@@ -694,7 +698,10 @@ object vercors extends Module {
           val familyVal = family()
           val kindVal = kind()
           val nodesVal = nodes()
-          familyGenerators().foreach(_.generate(T.dest.toNIO, familyVal, kindVal, nodesVal))
+          familyGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${familyVal.base}")
+            gen.generate(T.dest.toNIO, familyVal, kindVal, nodesVal)
+          }
           T.dest
         }
       }
@@ -704,7 +711,10 @@ object vercors extends Module {
         def definition = T(crossValue)
         def generate = T {
           val defn = definition()
-          nodeGenerators().foreach(_.generate(T.dest.toNIO, defn))
+          nodeGenerators().foreach { gen =>
+            T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
+            gen.generate(T.dest.toNIO, defn)
+          }
           T.dest
         }
       }
@@ -885,7 +895,7 @@ object vercors extends Module {
     object buildInfo extends BuildInfo with ScalaModule {
       def callOrElse(command: Shellable*)(alt: => String): String =
         try {
-          os.proc(command: _*).call().out.text().strip()
+          os.proc(command: _*).call().out.text().trim
         } catch {
           case _: SubprocessException => alt
         }

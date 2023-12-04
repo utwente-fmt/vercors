@@ -78,7 +78,7 @@ class Rewrite extends NodeGenerator {
 
   def rewriteDefault(term: Term, t: structure.Type): Term =
     t match {
-      case structure.Type.Node(_) => q"$term.rewriteDefault()(`~rw`)"
+      case structure.Type.Node(_) => q"`~rw`.dispatch($term)"
       case structure.Type.Ref(kind) => q"`~rw`.succ[${typ(kind.name)}[Post]]($term.decl)"
       case structure.Type.MultiRef(kind) => q"`~rw`.anySucc[${typ(kind.name)}[Post]]($term.decl)"
       case _: structure.Type.PrimitiveType => term
