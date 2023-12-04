@@ -138,6 +138,8 @@ object AstBuildHelpers {
         new RewriteInstanceMethod(method).rewrite(args = args, returnType = returnType, body = body, inline = inline, contract = contract, typeArgs = typeArgs, outArgs = outArgs, pure = pure, blame = blame)
       case method: InstanceOperatorMethod[Pre] =>
         new RewriteInstanceOperatorMethod(method).rewrite(returnType = returnType, operator = rewriter.dispatch(method.operator), args = args, body = body, contract = contract, inline = inline, pure = pure, blame = blame)
+      case method: CodeStringQuantifierMethod[Pre] =>
+        new RewriteCodeStringQuantifierMethod(method).rewrite(quantifierId = method.quantifierId, args = args, body = body)
     }
   }
 
@@ -224,6 +226,8 @@ object AstBuildHelpers {
         new RewriteProcedureInvocation(inv).rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
       case inv: MethodInvocation[Pre] =>
         new RewriteMethodInvocation(inv).rewrite(args = args, outArgs = outArgs, typeArgs = typeArgs, givenMap = givenMap, yields = yields)
+      case codeCall:CodeStringQuantifierCall[Pre] =>
+        new RewriteCodeStringQuantifierCall(codeCall).rewrite(args = args)
     }
   }
 

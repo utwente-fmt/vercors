@@ -69,8 +69,10 @@ import vct.col.ast.util.Declarator
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.ctx._
+import vct.col.resolve.lang.C.o
 import vct.col.resolve.lang.JavaAnnotationData
 
+import scala.collection.immutable.Seq
 import scala.collection.mutable.ArrayBuffer
 
 /** @inheritdoc */ sealed trait Node[G] extends NodeImpl[G]
@@ -327,6 +329,20 @@ final case class DecreasesClauseTuple[G](exprs: Seq[Expr[G]])(implicit val o: Or
 final case class ApplicableContract[G](requires: AccountedPredicate[G], ensures: AccountedPredicate[G], contextEverywhere: Expr[G],
                                        signals: Seq[SignalsClause[G]], givenArgs: Seq[Variable[G]], yieldsArgs: Seq[Variable[G]], decreases: Option[DecreasesClause[G]])
                                       (val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin) extends NodeFamily[G] with ApplicableContractImpl[G]
+
+object ApplicableContract {
+  def createEmptyContract[G](implicit o: Origin): ApplicableContract[G] = {
+    ApplicableContract[G](
+      UnitAccountedPredicate[G](BooleanValue(true)(o))(o),
+      UnitAccountedPredicate[G](BooleanValue(true)(o))(o),
+      BooleanValue(true)(o),
+      Seq.empty,
+      Seq.empty,
+      Seq.empty,
+      None
+    )(o)
+  }
+}
 
 /** @inheritdoc */ sealed trait AccountedPredicate[G] extends NodeFamily[G] with AccountedPredicateImpl[G]
 case class UnitAccountedPredicate[G](pred: Expr[G])(implicit val o: Origin) extends AccountedPredicate[G] with UnitAccountedPredicateImpl[G]
@@ -1302,7 +1318,7 @@ final case class CodeStringGlobal[G](content: String)(implicit val o: Origin) ex
 final case class CodeStringClass[G](content: String, ref: String)(implicit val o: Origin) extends ClassDeclaration[G] with CodeString[G]
 final case class CodeStringStatement[G](content: String)(implicit val o: Origin) extends Statement[G] with CodeString[G]
 
-final class CodeStringQuantifier[G](val binder: Variable[G], val lowerBound: Int, val upperBound: Int, val body: Seq[Statement[G]])(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierImpl[G]
+final case class CodeStringQuantifier[G](quantifier: Expr[G], lowerBound: Expr[G], condition: Expr[G], body: Statement[G])(implicit val o: Origin) extends Statement[G] with CodeStringQuantifierImpl[G]
 final case class CodeStringQuantifierCall[G](obj: Expr[G], quantifierId: String, ref: Ref[G, CodeStringQuantifierMethod[G]], args: Seq[Expr[G]])(val blame: Blame[InstanceInvocationFailure])(implicit val o: Origin) extends AnyMethodInvocation[G] with InstanceApply[G] with CodeStringQuantifierCallImpl[G]
 final class CodeStringQuantifierMethod[G](val quantifierId: String, val args: Seq[Variable[G]], val body: Option[Statement[G]])(val blame: Blame[CallableFailure])(implicit val o: Origin) extends ClassDeclaration[G] with AbstractMethod[G] with CodeStringQuantifierMethodImpl[G]
 object CodeStringQuantifierMethod{

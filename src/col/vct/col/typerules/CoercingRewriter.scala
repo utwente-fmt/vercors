@@ -1579,6 +1579,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case localIncoming: BipLocalIncomingData[Pre] => localIncoming
       case glue: JavaBipGlue[Pre] => glue
       case LlvmLocal(name) => e
+      case CodeStringQuantifierCall(_,_,_,_) => e
     }
   }
 
@@ -1657,6 +1658,7 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case VeyMontCommExpression(r,s,t,a) => VeyMontCommExpression(r,s,t,a)
       case PVLCommunicate(s, r) => PVLCommunicate(s, r)
       case CodeStringStatement(c) => CodeStringStatement(c)
+      case CodeStringQuantifier(q, l, u, body) => CodeStringQuantifier(q, l, u, body)
     }
   }
 
@@ -1801,9 +1803,9 @@ abstract class CoercingRewriter[Pre <: Generation]() extends AbstractRewriter[Pr
       case glob: LlvmGlobal[Pre] => glob
       case endpoint: PVLEndpoint[Pre] => endpoint
       case seqProg: PVLSeqProg[Pre] => seqProg
-      case declaration: CodeString[Pre] =>
-        declaration
-      }
+      case codestring: CodeString[Pre] => decl
+      case codeStringQuantifier: CodeStringQuantifierMethod[Pre] => decl
+    }
   }
 
   def coerce(region: ParRegion[Pre]): ParRegion[Pre] = {

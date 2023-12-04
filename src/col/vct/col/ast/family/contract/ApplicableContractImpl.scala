@@ -54,4 +54,5 @@ trait ApplicableContractImpl[G] extends NodeFamilyImpl[G] { this: ApplicableCont
     case Ctx.Silver => layoutSilver
     case _ => Doc.spec(Show.lazily(layoutSpec(_)))
   }
+
 }

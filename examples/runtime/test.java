@@ -1,32 +1,13 @@
 class Test {
 
-
-    private int x;
-    private int y;
     private int[] z;
 
-
-    public boolean trial(){
-        return true;
-    }
-
-    public void test2() {
-
-    }
-
-
     /*@
-        requires Perm(this.x, 1);
-        requires Perm(this.y, 1);
-        requires (\forall int i; 0 <= i && i < z.length; z[i] > 0);
+        requires (\exists int i, int j; 0 <= i && i < z.length && 0 <= j && j < i; z[i] > 0 && z[i] <= z[j]);
+        requires z.length > 10 || (z.length < 5 && z[0] == 0);
      */
     public void run() {
-        int b;
-        if(trial()) {
-            b = 1;
-        }
 
-        test2();
     }
 
 }
