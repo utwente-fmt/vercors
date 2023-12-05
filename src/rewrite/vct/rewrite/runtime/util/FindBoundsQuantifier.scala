@@ -14,7 +14,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 
-case class FindBoundsQuantifier[Pre <: Generation](outer: Rewriter[Pre], newVariables: SuccessionMap[Variable[Pre], Variable[Rewritten[Pre]]] = new SuccessionMap[Variable[Pre], Variable[Rewritten[Pre]]]()) extends Rewriter[Pre] {
+case class FindBoundsQuantifier[Pre <: Generation](outer: RewriteQuantifier[Pre], newVariables: SuccessionMap[Variable[Pre], Variable[Rewritten[Pre]]] = new SuccessionMap[Variable[Pre], Variable[Rewritten[Pre]]]()) extends Rewriter[Pre] {
   override val allScopes = outer.allScopes
 
 
@@ -89,10 +89,7 @@ case class FindBoundsQuantifier[Pre <: Generation](outer: Rewriter[Pre], newVari
   }
 
   def dispatchLocal(local: Local[Pre]): Expr[Post] = {
-    newVariables.get(local.ref.decl) match {
-      case Some(v) => Local[Post](v.ref)(v.o)
-      case None => super.dispatch(local)
-    }
+    outer.dispatchLocal(local)
   }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] = {
