@@ -36,7 +36,7 @@ object Name {
 sealed trait Type
 
 object Type {
-  implicit val rw: RW[Type] = RW.merge(Node.rw, Ref.rw, MultiRef.rw, Tuple.rw, Seq.rw, Option.rw, Either.rw, PrimitiveType.rw)
+  implicit val rw: RW[Type] = RW.merge(Node.rw, Declaration.rw, DeclarationSeq.rw, Ref.rw, MultiRef.rw, Tuple.rw, Seq.rw, Option.rw, Either.rw, PrimitiveType.rw)
 
   /**
    * A type that supports the root node type, and takes exactly one type parameter: the generation. This is not
@@ -46,6 +46,18 @@ object Type {
 
   object Node {
     implicit val rw: RW[Node] = macroRW
+  }
+
+  case class Declaration(name: Name) extends Type
+
+  object Declaration {
+    implicit val rw: RW[Declaration] = macroRW
+  }
+
+  case class DeclarationSeq(name: Name) extends Type
+
+  object DeclarationSeq {
+    implicit val rw: RW[DeclarationSeq] = macroRW
   }
 
   /**
@@ -131,11 +143,12 @@ object DeclaredNode extends NodeKind
 /**
  * All the parts that define a concrete node. Concrete nodes can be classes or case classes.
  * @param name The fully qualified name of the node type
+ * @param kind Whether the node is structural or declared
+ * @param scopes The declaration families that this node type scopes
  * @param fields The fields that make up the node, not including the blame or origin
  * @param blameType Empty if there is no blame, otherwise the type argument to the blame parameter
- * @param supports extends/with types of this node.
  */
-case class NodeDefinition(name: Name, fields: Seq[(String, Type)], blameType: Option[Name], kind: NodeKind)
+case class NodeDefinition(name: Name, kind: NodeKind, scopes: Seq[Type.Declaration], fields: Seq[(String, Type)], blameType: Option[Name])
 
 object NodeDefinition {
   implicit val rw: RW[NodeDefinition] = macroRW

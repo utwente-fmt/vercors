@@ -1,3 +1,3 @@
 package vct.col.structure
 
-class family extends scala.annotation.StaticAnnotation
+class family extends scala.annotation.Annotation

@@ -27,7 +27,7 @@ class AbstractRewriter extends AllFamiliesGenerator {
 
         @_root_.scala.deprecated("Use decl.rewriteDefault().succeed(decl) instead")
         def rewriteDefault(decl: $Declaration[Pre]): $Unit =
-          allScopes.anyDeclare(decl.rewriteDefault())
+          allScopes.anySucceed(decl, decl.rewriteDefault())
 
         def porcelainRefSucc[RefDecl <: $Declaration[Post]](ref: $RefType[Pre, _])(implicit tag: $ClassTag[RefDecl]): $OptionType[$RefType[Post, RefDecl]] = None
         def porcelainRefSeqSucc[RefDecl <: $Declaration[Post]](refs: $SeqType[$RefType[Pre, _]])(implicit tag: $ClassTag[RefDecl]): $OptionType[$SeqType[$RefType[Post, RefDecl]]] = None

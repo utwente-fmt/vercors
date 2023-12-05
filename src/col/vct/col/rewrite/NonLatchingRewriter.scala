@@ -11,5 +11,6 @@ class NonLatchingRewriter[Pre, Post]() extends BaseNonLatchingRewriter[Pre, Post
       program.rewriteDefault()
     }
 
-  override def dispatch(decl: Declaration[Pre]): Unit = ???
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    allScopes.anySucceed(decl, decl.rewriteDefault())
 }

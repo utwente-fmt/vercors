@@ -38,8 +38,10 @@ class Subnodes extends NodeGenerator {
 
   def subnodes(term: Term, typ: structure.Type): Term =
     typ match {
-      case _: Type.Node =>
+      case _: Type.Node | _: Type.Declaration =>
         q"$SeqObj($term)"
+      case _: Type.DeclarationSeq =>
+        term
       case _: Type.Ref => noNodes
       case _: Type.MultiRef => noNodes
       case Type.Tuple(ts) =>

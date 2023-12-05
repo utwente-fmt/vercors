@@ -2,6 +2,7 @@ package vct.col.ast.helpers.generator
 
 import vct.col.ast.helpers.defn.Naming._
 import vct.col.ast.helpers.defn.Constants._
+import vct.col.ast.helpers.defn.Naming
 import vct.col.ast.structure
 import vct.col.ast.structure.{NodeDefinition, NodeGenerator}
 
@@ -51,7 +52,15 @@ class Rewrite extends NodeGenerator {
   def blameArg(blameType: structure.Name): Term.Param =
     param"blame: $Blame[${typ(blameType)}] = null"
 
-  def scopes(node: NodeDefinition, make: Term): Term = make
+  def scopes(node: NodeDefinition, make: Term): Term =
+    node.scopes.foldLeft[Term](make) {
+      case (acc, structure.Type.Declaration(name)) =>
+        q"""
+          `~rw`.${Naming.scopes(name.base)}.scope {
+            $acc
+          }
+        """
+    }
 
   def make(node: NodeDefinition): Term = {
     val fieldValues = node.fields.map {
@@ -62,7 +71,7 @@ class Rewrite extends NodeGenerator {
       case Some(_) =>
         List(fieldValues.toList, List(q"if(blame ne null) blame else this.blame"), List(q"if(o ne null) o else this.o"))
       case None =>
-        List(fieldValues.toList, List(q"o"))
+        List(fieldValues.toList, List(q"if(o ne null) o else this.o"))
     }
 
     q"new ${Init(typ(node.name), Name.Anonymous(), valuess)}"
@@ -79,6 +88,8 @@ class Rewrite extends NodeGenerator {
   def rewriteDefault(term: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) => q"`~rw`.dispatch($term)"
+      case structure.Type.Declaration(name) => q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
+      case structure.Type.DeclarationSeq(name) => q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
       case structure.Type.Ref(kind) => q"`~rw`.succ[${typ(kind.name)}[Post]]($term.decl)"
       case structure.Type.MultiRef(kind) => q"`~rw`.anySucc[${typ(kind.name)}[Post]]($term.decl)"
       case _: structure.Type.PrimitiveType => term

@@ -2,12 +2,14 @@ package vct.col.ast.analysis
 
 import vct.col.ast.structure._
 import Util._
+import vct.col.ast.structure.Constants.ScopesName
+
 import scala.meta.{Name => ScName, Type => ScType, _}
 import scala.reflect.ClassTag
 
 object StatAnalysis {
   case class Decl(blame: Tree, name: Name, supports: Seq[Type.Node], family: Boolean, defn: Option[Defn])
-  case class Defn(fields: Seq[(String, Type)], blameType: Option[Name])
+  case class Defn(fields: Seq[(String, Type)], blameType: Option[Name], scopes: Seq[Type.Node])
 }
 
 case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
@@ -24,6 +26,16 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
     val modConditions =
       if (isConcrete) assertPure(true /*is[Mod.Final](rawStat.mods)*/ , rawStat.blame, "Node definitions must be final")
       else assertPure(is[Mod.Sealed](rawStat.mods), rawStat.blame, "Node categories must be sealed")
+
+//    println(rawStat.mods.headOption.map(_.structure))
+
+    val scopes = Try("scopes") {
+      rawStat.mods.collect {
+        case Mod.Annot(Init(scopes @ ScType.Apply(ScType.Name(name), List(family)), ScName.Anonymous(), Nil)) if name == ScopesName.base =>
+          if(!isConcrete) fail(scopes, "Only concrete nodes can scope declaration families.")
+          types.getNode(TypeAnalysis.getName(family).get, family).get._1
+      }
+    }
 
     val tparamConditions = Try("type parameters") {
       assertPure(true /*rawStat.tparams.size == 1*/ , rawStat.tparams.headOption.getOrElse(rawStat.blame), "Node declarations must have exactly one type parameter").get
@@ -146,10 +158,10 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
       supports
     }
 
-    check(modConditions, tparamConditions, publicConstructor, ctorConditions, fields, origin, blameType, template)
+    check(modConditions, scopes, tparamConditions, publicConstructor, ctorConditions, fields, origin, blameType, template)
 
     val defn =
-      if(isConcrete) Some(Defn(fields.get, blameType.get))
+      if(isConcrete) Some(Defn(fields.get, blameType.get, scopes.get))
       else None
 
     Decl(rawStat.blame, rawStat.name, template.get, rawStat.isFamily, defn)

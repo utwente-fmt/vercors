@@ -20,6 +20,8 @@ object Naming {
 
   def typ(t: structure.Type, g: Type): Type = t match {
     case structure.Type.Node(name) => t"${typ(name)}[$g]"
+    case structure.Type.Declaration(name) => t"${typ(name)}[$g]"
+    case structure.Type.DeclarationSeq(name) => t"_root_.scala.Seq[${typ(name)}[$g]]"
     case structure.Type.Ref(node) => t"$RefType[$g, ${typ(node.name)}[$g]]"
     case structure.Type.MultiRef(node) => t"$RefType[$g, ${typ(node.name)}[$g]]"
     case structure.Type.Tuple(args) => t"(..${args.toList.map(typ(_, g))})"

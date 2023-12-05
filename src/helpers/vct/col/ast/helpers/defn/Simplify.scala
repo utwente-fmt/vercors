@@ -20,6 +20,10 @@ object Simplify {
       q"${simplify(xs)}.flatMap($arg => ${simplify(exp)})"
     case q"$zipped.flatMap({ case ($l, $r) => $exp })" =>
       q"${simplify(zipped)}.flatMap({ case ($l, $r) => ${simplify(exp)} })"
+    case q"$xs.map($arg => $exp)" =>
+      q"${simplify(xs)}.map($arg => ${simplify(exp)})"
+    case q"$zipped.map({ case ($l, $r) => $exp })" =>
+      q"${simplify(zipped)}.map({ case ($l, $r) => ${simplify(exp)} })"
     case q"$zipped.forall({ case($l, $r) => $exp })" =>
       q"${simplify(zipped)}.forall({ case($l, $r) => ${simplify(exp)} })"
     case q"$_.LazyList(..$terms)" => q"$LazyListObj(..${terms.map(simplify)})"

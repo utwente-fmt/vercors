@@ -145,8 +145,10 @@ object Proto {
 
   def typeText(t: structure.Type): String = t match {
     case Type.Node(name) => name.tailName.parts.flatMap(parts).map(_.capitalize).mkString("")
-    case Type.Ref(node) => s"Ref1_${typeText(node)}"
-    case Type.MultiRef(node) => s"Ref1_${typeText(node)}"
+    case Type.Declaration(name) => typeText(Type.Node(name))
+    case Type.DeclarationSeq(name) => typeText(Type.Seq(Type.Node(name)))
+    case Type.Ref(node) => s"Ref_${typeText(node)}"
+    case Type.MultiRef(node) => s"Ref_${typeText(node)}"
     case Type.Tuple(args) => s"Tuple${args.size}_${args.map(typeText).mkString("_")}"
     case Type.Option(arg) => s"Option_${typeText(arg)}"
     case Type.Seq(arg) => s"Seq_${typeText(arg)}"
@@ -211,6 +213,8 @@ object Proto {
       t match {
         case Type.Node(name) =>
           PrimitiveTypeResult(getType(name.tailName), imports=Seq(name.tailName.parts))
+        case Type.Declaration(name) =>
+          PrimitiveTypeResult(getType(name.tailName), imports=Seq(name.tailName.parts))
         case Type.Ref(_) | Type.MultiRef(_) => getStandardType("Ref")
         case Type.Tuple(args) => getTupleAux(args)
 
@@ -231,6 +235,7 @@ object Proto {
         case Type.Char => PrimitiveTypeResult(Int)
 
         case Type.Seq(t) => getSeqAux(t)
+        case Type.DeclarationSeq(name) => getSeqAux(Type.Declaration(name))
         case Type.Option(t) => getOptionAux(t)
         case Type.Either(left, right) => getEitherAux(left, right)
       }

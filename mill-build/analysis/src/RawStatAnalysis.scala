@@ -9,8 +9,8 @@ object RawStatAnalysis {
   case class RawStat(name: Name, isTrait: Boolean, mods: Seq[Mod], tparams: Seq[ScType.Param], ctor: Ctor.Primary, templ: Template, blame: Tree) {
     def isFamily: Boolean =
       mods.exists {
-        case Mod.Annot(Init(t, ScName.Anonymous(), Nil)) =>
-          TypeAnalysis.getName(t).get == Constants.FamilyName.baseName
+        case Mod.Annot(Init(ScType.Name(name), ScName.Anonymous(), Nil)) =>
+          name == Constants.FamilyName.base
         case _ => false
       }
   }

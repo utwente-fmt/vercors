@@ -50,23 +50,41 @@ object HierarchyAnalysis {
       fail(x.blame, "This category extends both NodeFamily and Declaration, which is not allowed.")
     }).get
 
-    def validateType(t: Type): Type = t match {
-      case Type.Node(name) => Type.Node(name)
-      case Type.Ref(node) =>
-        if(!transSupports(node.name).contains(declaration.name)) {
-          fail(s"Category `${node.name.base}` cannot be referred to, because it is not part of any declaration family.")
+    def validateType(t: Type, blame: Tree): Type = {
+      def validateTypeRec(t: Type): Type =
+        t match {
+          case Type.Declaration(name) => Type.Declaration(name)
+          case Type.DeclarationSeq(name) => Type.DeclarationSeq(name)
+          case Type.Node(name) =>
+            if (transSupports(name).contains(declaration.name))
+              fail(blame, s"Declaration types (here: ${name.parts.mkString(".")} may only occur in field types directly, or as a sequence of that type.")
+            Type.Node(name)
+          case Type.Ref(node) =>
+            if (!transSupports(node.name).contains(declaration.name)) {
+              fail(blame, s"Category `${node.name.base}` cannot be referred to, because it is not part of any declaration family.")
+            }
+
+            transSupports(node.name).toSeq.intersect(declarationFamilies.map(_.name)) match {
+              case Nil => Type.MultiRef(node)
+              case _ => Type.Ref(node)
+            }
+          case Type.MultiRef(node) => Type.MultiRef(node)
+          case Type.Tuple(args) => Type.Tuple(args.map(validateTypeRec))
+          case Type.Seq(arg) => Type.Seq(validateTypeRec(arg))
+          case Type.Option(arg) => Type.Option(validateTypeRec(arg))
+          case Type.Either(left, right) => Type.Either(validateTypeRec(left), validateTypeRec(right))
+          case primitiveType: Type.PrimitiveType => primitiveType
         }
 
-        transSupports(node.name).toSeq.intersect(declarationFamilies.map(_.name)) match {
-          case Nil => Type.MultiRef(node)
-          case _ => Type.Ref(node)
-        }
-      case Type.MultiRef(node) => Type.MultiRef(node)
-      case Type.Tuple(args) => Type.Tuple(args.map(validateType))
-      case Type.Seq(arg) => Type.Seq(validateType(arg))
-      case Type.Option(arg) => Type.Option(validateType(arg))
-      case Type.Either(left, right) => Type.Either(validateType(left), validateType(right))
-      case primitiveType: Type.PrimitiveType => primitiveType
+      validateTypeRec(t)
+    }
+
+    def validateTopType(t: Type, blame: Tree): Type = t match {
+      case Type.Node(name) if transSupports(name).contains(declaration.name) =>
+        Type.Declaration(name)
+      case Type.Seq(Type.Node(name)) if transSupports(name).contains(declaration.name) =>
+        Type.DeclarationSeq(name)
+      case other => validateType(other, blame)
     }
 
     val familyRoots = (declarationFamilies ++ structuralFamilies).map(_.name).to(ListSet)
@@ -81,13 +99,23 @@ object HierarchyAnalysis {
         Try(defns.head.blame) {
           if(roots.size == 1) roots.head -> defns.map(decl => {
             val defn = decl.defn.get
+
             val rootKind =
               if(declarationFamilies.exists(_.name == roots.head)) DeclaredNode
               else StructuralNode
 
-            val fields = defn.fields.map(field => field.copy(_2 = validateType(field._2)))
+            val scopes = defn.scopes.map { node =>
+              Try("scope") {
+                if (!declarationFamilies.exists(_.name == node.name))
+                  fail(decl.blame, s"Nodes may only scope declaration families (here: ${node.name.parts.mkString(".")})")
 
-            NodeDefinition(decl.name, fields, defn.blameType, rootKind)
+                Type.Declaration(node.name)
+              }
+            }.get
+
+            val fields = defn.fields.map(field => field.copy(_2 = validateTopType(field._2, decl.blame)))
+
+            NodeDefinition(decl.name, rootKind, scopes, fields, defn.blameType)
           })
           else if(roots.isEmpty)
             fail(defns.head.blame, "Node definitions must extends a node family or declaration kind")
