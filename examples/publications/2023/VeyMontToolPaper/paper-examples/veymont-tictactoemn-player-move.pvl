@@ -1,0 +1,85 @@
+class Move {
+  int x, y, t;
+
+  ensures this.x == x;
+  ensures this.y == y;
+  ensures this.t == t;
+  constructor(int x, int y, int t);
+
+  ensures \old(x) == x && x == \result.x;
+  ensures \old(y) == y && y == \result.y;
+  ensures \old(t) == t && t == \result.t;
+  Move clone() {
+    return new Move(x, y, t);
+  }
+}
+
+class Player {
+  int width, height, myToken, yourToken;
+  int[][] board;
+  Move temp;
+  Move move;
+  boolean goOn;
+
+  inline resource constants() =
+    \old(width) == width &&
+    \old(height) == height &&
+    \old(myToken) == myToken &&
+    \old(yourToken) == yourToken;
+
+  ensures width == m && height == n && myToken == t1 && yourToken == t2;
+  ensures board.length == width && (\forall int i = 0 .. width; board[i].length == height);
+  ensures (\forall int i = 0..width, int j = 0..height; {: board[i][j] :} == 0);
+  ensures goOn == false;
+  constructor(int m, int n, int t1, int t2);
+
+  context board.length == width && (\forall int i = 0 .. width; board[i].length == height);
+  ensures constants();
+  ensures (\forall int i = 0..width, int j = 0..height; \old(board[i][j]) == {: board[i][j] :});
+  ensures \old(goOn) == goOn;
+  ensures 2 <= move.x && move.x < width - 2;
+  ensures 2 <= move.y && move.y < height - 2;
+  ensures move.t == myToken;
+  ensures board[move.x][move.y] == 0;
+  void think();
+
+  context board.length == width && (\forall int i = 0 .. width; board[i].length == height);
+  context 2 <= move.x && move.x < width - 2;
+  context 2 <= move.y && move.y < height - 2;
+  context move.t == myToken || move.t == yourToken;
+  requires board[move.x][move.y] == 0;
+  ensures constants();
+  ensures \old(move.x) == move.x;
+  ensures \old(move.y) == move.y;
+  ensures \old(move.t) == move.t;
+  ensures (\forall int i = 0..width, int j = 0..height;
+              (i != move.x || j != move.y) ==> \old({: board[i][j] :}) == board[i][j]);
+  ensures board[move.x][move.y] == move.t;
+  ensures \old(goOn) == false ==> goOn == false;
+  ensures \old(goOn) == true && ((board[move.x-2][move.y] == move.t && board[move.x-1][move.y] == move.t) ||
+                                 (board[move.x-1][move.y] == move.t && board[move.x+1][move.y] == move.t) ||
+                                 (board[move.x+1][move.y] == move.t && board[move.x+2][move.y] == move.t) ||
+                                 (board[move.x][move.y-2] == move.t && board[move.x][move.y-1] == move.t) ||
+                                 (board[move.x][move.y-1] == move.t && board[move.x][move.y+1] == move.t) ||
+                                 (board[move.x][move.y+1] == move.t && board[move.x][move.y+2] == move.t) ||
+                                 (board[move.x-2][move.y-2] == move.t && board[move.x-1][move.y-1] == move.t) ||
+                                 (board[move.x-1][move.y-1] == move.t && board[move.x+1][move.y+1] == move.t) ||
+                                 (board[move.x+1][move.y+1] == move.t && board[move.x+2][move.y+2] == move.t) ||
+                                 (board[move.x+2][move.y-2] == move.t && board[move.x+1][move.y-1] == move.t) ||
+                                 (board[move.x+1][move.y-1] == move.t && board[move.x-1][move.y+1] == move.t) ||
+                                 (board[move.x-1][move.y+1] == move.t && board[move.x-2][move.y+2] == move.t)) ==> goOn == false;
+  ensures \old(goOn) == true && !((board[move.x-2][move.y] == move.t && board[move.x-1][move.y] == move.t) ||
+                                  (board[move.x-1][move.y] == move.t && board[move.x+1][move.y] == move.t) ||
+                                  (board[move.x+1][move.y] == move.t && board[move.x+2][move.y] == move.t) ||
+                                  (board[move.x][move.y-2] == move.t && board[move.x][move.y-1] == move.t) ||
+                                  (board[move.x][move.y-1] == move.t && board[move.x][move.y+1] == move.t) ||
+                                  (board[move.x][move.y+1] == move.t && board[move.x][move.y+2] == move.t) ||
+                                  (board[move.x-2][move.y-2] == move.t && board[move.x-1][move.y-1] == move.t) ||
+                                  (board[move.x-1][move.y-1] == move.t && board[move.x+1][move.y+1] == move.t) ||
+                                  (board[move.x+1][move.y+1] == move.t && board[move.x+2][move.y+2] == move.t) ||
+                                  (board[move.x+2][move.y-2] == move.t && board[move.x+1][move.y-1] == move.t) ||
+                                  (board[move.x+1][move.y-1] == move.t && board[move.x-1][move.y+1] == move.t) ||
+                                  (board[move.x-1][move.y+1] == move.t && board[move.x-2][move.y+2] == move.t)) ==> goOn == true;
+  void play();
+}
+
