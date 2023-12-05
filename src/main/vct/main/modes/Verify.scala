@@ -71,25 +71,35 @@ case object Verify extends LazyLogging {
       case _: IllegalArgumentException =>
     }
 
-    verifyWithOptions(options, options.inputs) match {
-      case Left(err: VerificationError.UserError) =>
-        logger.error(err.text)
-        EXIT_CODE_ERROR
-      case Left(err: VerificationError.SystemError) =>
-        logger.error(CollectString(s => err.printStackTrace(s)))
-        EXIT_CODE_ERROR
-      case Right((Nil, report)) =>
-        logger.info("Verification completed successfully.")
-        friendlyHandleBipReport(report, options.bipReportFile)
-        EXIT_CODE_SUCCESS
-      case Right((fails, report)) =>
-        if(options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
-        else {
-          logger.info("Printing verification results as a compressed table. Run with `--more` for verbose verification results.")
-          logger.error(TableEntry.render(fails.map(_.asTableEntry)))
-        }
-        friendlyHandleBipReport(report, options.bipReportFile)
-        EXIT_CODE_VERIFICATION_FAILURE
+    val start = System.nanoTime()
+
+    try {
+      verifyWithOptions(options, options.inputs) match {
+        case Left(err: VerificationError.UserError) =>
+          logger.error(err.text)
+          EXIT_CODE_ERROR
+        case Left(err: VerificationError.SystemError) =>
+          logger.error(CollectString(s => err.printStackTrace(s)))
+          EXIT_CODE_ERROR
+        case Right((Nil, report)) =>
+          logger.info("Verification completed successfully.")
+          friendlyHandleBipReport(report, options.bipReportFile)
+          EXIT_CODE_SUCCESS
+        case Right((fails, report)) =>
+          if (options.more || fails.size <= 2) fails.foreach(fail => logger.error(fail.desc))
+          else {
+            logger.info("Printing verification results as a compressed table. Run with `--more` for verbose verification results.")
+            logger.error(TableEntry.render(fails.map(_.asTableEntry)))
+          }
+          friendlyHandleBipReport(report, options.bipReportFile)
+          EXIT_CODE_VERIFICATION_FAILURE
+      }
+    } finally {
+      val totalSeconds = (System.nanoTime() - start) / 1000_000_000
+      val hours = totalSeconds / 3600
+      val minutes = (totalSeconds - hours * 3600) / 60
+      val seconds = totalSeconds - hours * 3600 - minutes * 60
+      logger.info(f"Duration $hours%02d:$minutes%02d:$seconds%02d")
     }
   }
 

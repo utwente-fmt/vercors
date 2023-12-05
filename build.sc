@@ -115,6 +115,7 @@ object util {
       val shared = Seq(
         "-deprecation",
         "-feature",
+        "-Xno-patmat-analysis"
       )
 
       if (strictOptions()) {

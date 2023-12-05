@@ -179,7 +179,7 @@ case class GenerateSeqProgPermissions[Pre <: Generation](enabled: Boolean = fals
           (arrayPerm(e, i, WritePerm(), PanicBlame("Encoding guarantees well-formedness")) &*
             transitivePerm(ArraySubscript(e, i)(PanicBlame("Encoding guarantees well-formedness")), u))
       )
-    case TClass(Ref(cls)) => foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f) })
+    case TClass(Ref(cls)) => foldStar(cls.collect { case f: InstanceField[Pre] => fieldTransitivePerm(e, f)(f.o) })
     case _ => tt
   }
 
