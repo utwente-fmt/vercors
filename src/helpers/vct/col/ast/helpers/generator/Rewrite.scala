@@ -69,9 +69,9 @@ class Rewrite extends NodeGenerator {
 
     val valuess = node.blameType match {
       case Some(_) =>
-        List(fieldValues.toList, List(q"if(blame ne null) blame else this.blame"), List(q"if(o ne null) o else this.o"))
+        List(fieldValues.toList, List(q"if(blame ne null) blame else `~rw`.dispatch(this.blame)"), List(q"if(o ne null) o else `~rw`.dispatch(this.o)"))
       case None =>
-        List(fieldValues.toList, List(q"if(o ne null) o else this.o"))
+        List(fieldValues.toList, List(q"if(o ne null) o else `~rw`.dispatch(this.o)"))
     }
 
     q"new ${Init(typ(node.name), Name.Anonymous(), valuess)}"

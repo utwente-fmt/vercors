@@ -53,8 +53,7 @@ class Compare extends NodeGenerator {
   def compareValues(left: Term, right: Term, t: structure.Type): Term =
     t match {
       case structure.Type.Node(_) |
-           structure.Type.Declaration(_) |
-           structure.Type.DeclarationSeq(_) => q"true"
+           structure.Type.Declaration(_) => q"true"
 
       case structure.Type.Ref(_) | structure.Type.MultiRef(_) => q"true"
 
@@ -79,6 +78,7 @@ class Compare extends NodeGenerator {
         }.reduce((l, r) => q"$l && $r")
 
       case structure.Type.Seq(t) => q"$left.size == $right.size && $left.zip($right).forall { case (l0, r0) => ${compareValues(q"l0", q"r0", t)} }"
+      case structure.Type.DeclarationSeq(_) => q"$left.size == $right.size"
     }
 
   def compareRefs(left: Term, right: Term, node: NodeDefinition): Term =
