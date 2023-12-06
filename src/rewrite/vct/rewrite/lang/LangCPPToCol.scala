@@ -961,7 +961,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       implicit val o: Origin = iterVar.o
       Local[Post](iterVar.variable.ref) >= const(0) && Local[Post](iterVar.variable.ref) < iterVar.to
     })
-
     implicit val o: Origin = kernelDeclaration.o
 
     // Create the parblock representing the kernels
@@ -1019,22 +1018,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
     val localIdLimits = currentDimensionIterVars(LocalScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
-//      val iVar = new Variable[Post](TInt())
-//      val iVar2 = new Variable[Post](TInt())
-//      val injective = Forall(Seq(iVar, iVar2), Nil, Implies[Post](
-//        Local[Post](iVar.ref) >= const(0) && Local[Post](iVar.ref) < iterVar.to &&
-//        Local[Post](iVar2.ref) >= const(0) && Local[Post](iVar2.ref) < iterVar.to &&
-//        Local[Post](iVar.ref) !== Local[Post](iVar2.ref),
-//        getSYCLHeaderMethodRef("get_global_id_injective", Seq(const(currentDimensionIterVars(LocalScope()).indexOf(iterVar))))
-//      ))
       Local[Post](iterVar.variable.ref) >= const(0) && Local[Post](iterVar.variable.ref) < iterVar.to
-
     })
     val groupIdLimits = currentDimensionIterVars(GroupScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
       Local[Post](iterVar.variable.ref) >= const(0) && Local[Post](iterVar.variable.ref) < iterVar.to
     })
-
 
     implicit val o: Origin = kernelDeclaration.o
 
@@ -1069,14 +1058,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     val buffersToAccessorResults: mutable.Map[SYCLBuffer[Post], (SYCLAccessor[Post], Expr[Post], Expr[Post], Statement[Post])] = mutable.Map.empty
     decls.foreach(decl => {
       val accDecl = decl.decl
-      val accName = CPP.nameFromDeclarator(accDecl.inits.head.decl)
       if (accDecl.inits.nonEmpty && accDecl.inits.head.init.isDefined && accDecl.inits.head.init.get.isInstanceOf[CPPInvocation[Pre]]) {
         accDecl.inits.head.init.get match {
           case inv@CPPInvocation(_, Seq(bufferRef: CPPLocal[Pre], _, accessModeRef: CPPLocal[Pre]), _, _) =>
             rw.dispatch(accessModeRef)  match {
               case accessMode: SYCLAccessMode[Post] =>
                 val buffer = getFromAll(syclBufferSuccessor, cppNameSuccessor(bufferRef.ref.get)).getOrElse(throw SYCLBufferOutOfScopeError(decl))
-                val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = buffer.o.getPreferredNameOrElse().ucamel)
+                val accName = buffer.generatedVar.o.getPreferredNameOrElse().ucamel
+                val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = accName)
                 val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
                 if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
                   throw Unreachable("Accessor type does not correspond with buffer type!")
@@ -1296,6 +1285,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
+
+    // groupIds[dimension] + (localIds[dimension] * groupRanges[dimension])
+//    val localId = SeqSubscript[Post](LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.variable.get).toSeq), rw.dispatch(inv.args.head))(SYCLItemMethodSeqBoundFailureBlame(inv))
+//    val groupId = SeqSubscript[Post](LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.variable.get).toSeq), rw.dispatch(inv.args.head))(SYCLItemMethodSeqBoundFailureBlame(inv))
+//    val localRange = SeqSubscript[Post](LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to).toSeq), rw.dispatch(inv.args.head))(SYCLItemMethodSeqBoundFailureBlame(inv))
+//    val groupRange = SeqSubscript[Post](LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to).toSeq), rw.dispatch(inv.args.head))(SYCLItemMethodSeqBoundFailureBlame(inv))
+//    val args = Seq(localId, groupId, localRange, groupRange)
+//    val procRef = getSYCLHeaderMethodRef("sycl::linearize2", args)
+//    ProcedureInvocation[Post](procRef, args, Nil, Nil, Nil, Nil)(SYCLItemMethodInvocationBlame(inv))
   }
 
   private def getGlobalWorkItemRange(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {

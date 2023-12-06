@@ -76,11 +76,30 @@ namespace sycl {
 			given seq<int> localRanges;
 			requires |groupIds| == |localIds| && |localIds| == |groupRanges| && |groupRanges| == |localRanges|;
 			requires dimension >= 0 && dimension < |groupIds|;
-			requires groupRanges[dimension] > 0;
 			ensures \result == groupIds[dimension] + (localIds[dimension] * groupRanges[dimension]);
 			ensures \result >= 0 && \result < sycl::nd_item::get_global_range(dimension) given{groupRanges = groupRanges, localRanges = localRanges};
 		@*/
 		/*@ pure @*/ int get_global_id(int dimension);
+
+		/*@
+		  ghost
+		  adt sycl_global_id {
+
+        axiom
+          (\forall int id1, int id2, int x, int y;
+            (id1 != id2 && y != 0) ==>
+            (x + (id1 * y)) != (x + (id2 * y))
+          );
+
+        axiom
+          (\forall int x, int id1, int id2, int y;
+            (id1 != id2) ==>
+            (id1 + (x * y)) != (id2 + (x * y))
+          );
+      }
+		*/
+
+
 
 		/*@
 			given seq<int> groupRanges;
@@ -99,8 +118,7 @@ namespace sycl {
 			requires |groupIds| == |localIds| && |localIds| == |groupRanges| && |groupRanges| == |localRanges|;
 			requires (\forall int i; i >= 0 && i < |groupIds|;
 			  sycl::nd_item::get_global_id(i) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges} >= 0 &&
-			  sycl::nd_item::get_global_id(i) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges} < sycl::nd_item::get_global_range(i) given{groupRanges = groupRanges, localRanges = localRanges} &&
-			  sycl::nd_item::get_global_range(i) given{groupRanges = groupRanges, localRanges = localRanges} >= 0);
+			  sycl::nd_item::get_global_id(i) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges} < sycl::nd_item::get_global_range(i) given{groupRanges = groupRanges, localRanges = localRanges});
 			ensures |groupIds| == 1 ==> \result == sycl::nd_item::get_global_id(0) given {groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges};
 			ensures |groupIds| == 2 ==> \result == sycl::linearize2(
 				sycl::nd_item::get_global_id(0) given{groupIds = groupIds, localIds = localIds, groupRanges = groupRanges, localRanges = localRanges},

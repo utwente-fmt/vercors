@@ -460,4 +460,7 @@ object AstBuildHelpers {
 
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
     exprs.reduceOption(Or(_, _)).getOrElse(ff)
+
+  def foldAnd[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
+    exprs.reduceOption(And(_, _)).getOrElse(tt)
 }

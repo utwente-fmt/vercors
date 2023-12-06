@@ -27,13 +27,13 @@ class SYCLSpec extends VercorsSpec {
 
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/accessors/AccessorGetRangeDimensionOutOfBounds.cpp"
   vercors should verify using silicon example "concepts/sycl/accessors/AccessorInNDRange.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
-  vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/AllAccessModes.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
-  vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/DoNotWriteOnReadAccessorWithDoubleAccessors.cpp"
-  vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/GetKernelResult.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/AllAccessModes.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/DoNotWriteOnReadAccessorWithDoubleAccessors.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/GetKernelResult.cpp" // This example does verify with the flag --no-infer-heap-context-into-frame enabled
   vercors should error withCode "syclAccessorArraySubscriptLinearizePreconditionFailed" example "concepts/sycl/accessors/MissingRangeRequirements.cpp"
   vercors should error withCode "syclBufferOutOfScope" example  "concepts/sycl/accessors/PassBufferToMethod.cpp"
   vercors should verify using silicon example "concepts/sycl/accessors/TwoReadKernels.cpp"
-  vercors should error withCode "unreachable:schematic" example "concepts/sycl/accessors/TwoWriteAccessorsForSameBuffer.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/accessors/TwoWriteAccessorsForSameBuffer.cpp"
   vercors should verify using silicon example "concepts/sycl/accessors/TwoWriteKernels.cpp"
   vercors should verify using silicon example "concepts/sycl/accessors/TwoWriteKernelsWithWait.cpp"
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/accessors/WriteToReadAccessor.cpp"

@@ -217,12 +217,13 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_]) extends NodeV
 
 sealed trait CallableFailure extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure extends CallableFailure
-case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+sealed trait SeqCallableFailure extends CallableFailure
+case class PostconditionFailed(path: Seq[AccountedDirection], failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "postFailed"
   override def descInContext: String = "Postcondition may not hold, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Postcondition of `$node` may not hold, since $failure."
 }
-case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with VerificationFailure {
+case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: Invocation[_], measure: DecreasesClause[_]) extends ContractedFailure with SeqCallableFailure with VerificationFailure {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
   override def desc: String = Message.messagesInContext(
@@ -233,7 +234,7 @@ case class TerminationMeasureFailed(applicable: ContractApplicable[_], apply: In
   override def inlineDesc: String =
     s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
 }
-case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with WithContractFailure {
+case class ContextEverywhereFailedInPost(failure: ContractFailure, node: ContractApplicable[_]) extends ContractedFailure with SeqCallableFailure with WithContractFailure {
   override def baseCode: String = "contextPostFailed"
   override def descInContext: String = "Context may not hold in postcondition, since"
   override def inlineDescWithSource(node: String, failure: String): String = s"Context of `$node` may not hold in the postcondition, since $failure."
@@ -303,6 +304,66 @@ case class PlusProviderInvocationFailed(innerFailure: WithContractFailure) exten
   override def baseCode: String = innerFailure.baseCode
   override def descInContext: String = innerFailure.descInContext
   override def inlineDescWithSource(node: String, failure: String): String = innerFailure.inlineDescWithSource(node, failure)
+}
+
+sealed trait FrontendIfFailure extends VerificationFailure
+sealed trait SeqBranchFailure extends FrontendIfFailure
+
+case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_]) extends SeqBranchFailure {
+  override def code: String = "branchNotUnanimous"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this might not be the case")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "Two conditions in this branch might disagree."
+}
+
+sealed trait FrontEndLoopFailure extends VerificationFailure
+sealed trait SeqLoopFailure extends FrontEndLoopFailure
+
+case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+  override def code: String = "loopUnanimityNotEstablished"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this could not be established before the loop.")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "The agreement of two conditions in this branch could not be established before the loop."
+}
+
+case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_]) extends SeqLoopFailure {
+  override def code: String = "loopUnanimityNotMaintained"
+
+  override def desc: String = Message.messagesInContext(
+    (guard1.o, "This condition..."),
+    (guard2.o, "...should agree with this condition, but this could not be maintained for an arbitrary loop iteration.")
+  )
+
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String = "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
+}
+
+sealed trait PVLAccessFailure extends VerificationFailure
+sealed trait AccessFailure extends PVLAccessFailure
+
+case class AccessInsufficientPermission(node: Access[_]) extends AccessFailure with NodeVerificationFailure {
+  override def code: String = "accessPerm"
+  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
+}
+
+sealed trait PVLSeqAssignFailure extends VerificationFailure
+sealed trait SeqAssignFailure extends PVLSeqAssignFailure
+
+case class SeqAssignInsufficientPermission(node: SeqAssign[_]) extends SeqAssignFailure with NodeVerificationFailure {
+  override def code: String = "seqAssignPerm"
+  override def descInContext: String = "There may be insufficient permission to access this field on this endpoint."
+  override def inlineDescWithSource(source: String): String = s"There may be insufficient permission to access `$source`."
 }
 
 sealed trait DerefInsufficientPermission extends FrontendDerefError
