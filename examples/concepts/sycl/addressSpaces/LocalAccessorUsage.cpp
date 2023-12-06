@@ -9,6 +9,7 @@ void test() {
 
       cgh.parallel_for(sycl::nd_range<1>(sycl::range<1>(20), sycl::range<1>(5)),
         /*@
+          context it.get_local_id(0) < a_local_acc.get_range().get(0);
           context Perm(a_local_acc[it.get_local_id(0)], write);
           ensures a_local_acc[it.get_local_id(0)] == 10;
         */

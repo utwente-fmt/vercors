@@ -2,7 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{CPPLocalDeclaration, InstanceField, _}
+import vct.col.ast.{CPPLocalDeclaration, Expr, InstanceField, Perm, TInt, _}
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.resolve.NotApplicable
@@ -36,12 +36,12 @@ case object LangCPPToCol {
       )
   }
 
-  private abstract class CPPInvocationBlame() extends Blame[InvocationFailure] {
-    def preconditionFailed(node: InvokingNode[_]): Unit
+  private abstract class CPPInvocationBlame(kind: String) extends Blame[InvocationFailure] {
+    def preconditionFailed(error: PreconditionFailed): Unit
 
     override def blame(error: InvocationFailure): Unit = error match {
-      case PreconditionFailed(_, _, node) => preconditionFailed(node)
-      case ContextEverywhereFailedInPre(_, _) => PanicBlame("Item methods do not contain context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(error)
+      case predErr@PreconditionFailed(_, _, _) => preconditionFailed(predErr)
+      case ContextEverywhereFailedInPre(_, _) => PanicBlame(s"${kind.capitalize} do not contain context_everywhere clauses, so cannot fail on a context_everywhere clause.").blame(error)
     }
   }
 
@@ -113,8 +113,25 @@ case object LangCPPToCol {
       "only takes one (nd_)item argument, which should match the first (nd_)range parameter of the parallel_for method.")
   }
 
-  private case class SYCLItemMethodInvocationBlame(inv: CPPInvocation[_]) extends CPPInvocationBlame {
-    override def preconditionFailed(node: InvokingNode[_]): Unit = inv.blame.blame(SYCLItemMethodPreconditionFailed(node))
+  private case class SYCLItemMethodInvocationBlame(inv: CPPInvocation[_]) extends CPPInvocationBlame("SYCL item methods") {
+    override def preconditionFailed(error: PreconditionFailed): Unit = inv.blame.blame(SYCLItemMethodPreconditionFailed(error.node))
+  }
+
+  private case class SYCLItemMethodSeqBoundFailureBlame(inv: CPPInvocation[_]) extends Blame[SeqBoundFailure] {
+    case class SYCLItemMethodSeqBoundNegativeError() extends UserError {
+      override def code: String = "syclItemMethodSeqBoundNegative"
+      override def text: String = inv.o.messageInContext("The dimension parameter may not be negative.")
+    }
+
+    case class SYCLItemMethodSeqBoundExceedsLengthError() extends UserError {
+      override def code: String = "syclItemMethodSeqBoundExceedsLength"
+      override def text: String = inv.o.messageInContext("The dimension parameter should be smaller than the number of dimensions in the (nd_)item..")
+    }
+
+    override def blame(error: SeqBoundFailure): Unit = error match {
+      case SeqBoundNegative(_) => throw SYCLItemMethodSeqBoundNegativeError()
+      case SeqBoundExceedsLength(_) => throw SYCLItemMethodSeqBoundExceedsLengthError()
+    }
   }
 
   private case class SYCLKernelForkNull(node: Fork[_]) extends UserError {
@@ -125,13 +142,13 @@ case object LangCPPToCol {
   private case object RangeDimensionCheck extends OriginContent
   private case object NDRangeDimensionCheck extends OriginContent
 
-  private def RangeDimensionCheckOrigin(iterVarOrRange: Expr[_]) =
-    iterVarOrRange.o
+  private def RangeDimensionCheckOrigin(o: Origin): Origin =
+    o
       .where(name = "RangeDimensionCheck")
       .withContent(RangeDimensionCheck)
 
-  private def NDRangeDimensionCheckOrigin(range: Expr[_], dimension: Option[Int] = None) =
-    range.o
+  private def NDRangeDimensionCheckOrigin(o: Origin, dimension: Option[Int] = None): Origin =
+    o
       .where(name = "NDRangeDimensionCheck", context = s"range dimension ${dimension.getOrElse("?")}")
       .withContent(NDRangeDimensionCheck)
 
@@ -179,8 +196,8 @@ case object LangCPPToCol {
     }
   }
 
-  private case class SYCLKernelRangeInvalidBlame() extends Blame[AssertFailed] {
-    private case class KernelRangeInvalidError(error: AssertFailed) extends UserError {
+  private case class SYCLKernelRangeInvalidBlame() extends CPPInvocationBlame("SYCL kernel constructors") {
+    private case class KernelRangeInvalidError(error: PreconditionFailed) extends UserError {
       override def code: String = "syclKernelRangeInvalid"
 
       override def text: String = error.failure.node.o match {
@@ -189,11 +206,11 @@ case object LangCPPToCol {
           "Every global range dimension should be divisible by the local range dimension at the same index," +
             " and the local range dimension should be greater than 0 to avoid division by zero. " +
             "All global range dimensions should be greater or equal to zero.")
-        case _ => Message.messagesInContext((error.node.o, "Assertion may not hold, since ..."), (error.failure.node.o, "... " + error.failure.descCompletion))
+        case _ => Message.messagesInContext((error.node.o, "Precondition may not hold, since ..."), (error.failure.node.o, "... " + error.failure.descCompletion))
       }
     }
 
-    override def blame(error: AssertFailed): Unit = throw KernelRangeInvalidError(error)
+    def preconditionFailed(error: PreconditionFailed): Unit = throw KernelRangeInvalidError(error)
   }
 
   private case class SYCLBufferConstructionFailed(inv: CPPInvocation[_]) extends UserError {
@@ -205,8 +222,8 @@ case object LangCPPToCol {
     )
   }
 
-  private case class SYCLBufferConstructionInvocationBlame(inv: CPPInvocation[_]) extends CPPInvocationBlame {
-    override def preconditionFailed(node: InvokingNode[_]): Unit = throw SYCLBufferConstructionFailed(inv)
+  private case class SYCLBufferConstructionInvocationBlame(inv: CPPInvocation[_]) extends CPPInvocationBlame("SYCL buffer constructors") {
+    override def preconditionFailed(error: PreconditionFailed): Unit = throw SYCLBufferConstructionFailed(inv)
   }
 
   private case class SYCLBufferConstructionFoldFailedBlame(inv: CPPInvocation[_]) extends Blame[FoldFailed] {
@@ -221,8 +238,8 @@ case object LangCPPToCol {
     )
   }
 
-  private case class SYCLBufferDestructionInvocationBlame(bufferDecl: Variable[_], scope: CPPLifetimeScope[_]) extends CPPInvocationBlame {
-    override def preconditionFailed(node: InvokingNode[_]): Unit = throw SYCLBufferDestructionFailed(bufferDecl, scope)
+  private case class SYCLBufferDestructionInvocationBlame(bufferDecl: Variable[_], scope: CPPLifetimeScope[_]) extends CPPInvocationBlame("SYCL buffer destructors") {
+    override def preconditionFailed(error: PreconditionFailed): Unit = throw SYCLBufferDestructionFailed(bufferDecl, scope)
   }
 
   private case class SYCLBufferDestructionUnfoldFailedBlame(bufferDecl: Variable[_], scope: CPPLifetimeScope[_]) extends Blame[UnfoldFailed] {
@@ -274,14 +291,25 @@ case object LangCPPToCol {
       case ContextEverywhereFailedInPost(_, node) if node.o.find[SYCLGeneratedAccessorPermissions.type].isDefined =>
         PanicBlame(node.o.messageInContext("Generated post conditions for this accessor are unsatisfiable, but this should not be possible.")).blame(error)
       case c@ContextEverywhereFailedInPost(failure, node) => Message.messagesInContext((node.o, c.descInContext + ", since ..."), (failure.node.o, "... " + failure.descCompletion))
-      case TerminationMeasureFailed(_, _, _) => PanicBlame("This kernel class constructor should aleays be able to terminate.").blame(error)
+      case TerminationMeasureFailed(_, _, _) => PanicBlame("This kernel class constructor should always be able to terminate.").blame(error)
       case SignalsFailed(_, _) | ExceptionNotInSignals(_) => PanicBlame("This kernel class constructor contains no signals clause.").blame(error)
     }
+  }
+
+  private case class SYCLKernelConstructorNontrivialUnsatisfiableBlame(commandGroupO: Origin) extends Blame[NontrivialUnsatisfiable] {
+    private case class SYCLKernelConstructorNontrivialUnsatisfiableError() extends UserError {
+      override def code: String = "syclKernelConstructorNontrivialUnsatisfiable"
+      override def text: String = commandGroupO.messageInContext(s"The precondition of the contract of the kernel constructor generated for this command group may be unsatisfiable. If this is intentional, replace it with `requires false`.")
+    }
+
+    override def blame(error: NontrivialUnsatisfiable): Unit = throw SYCLKernelConstructorNontrivialUnsatisfiableError()
   }
 
   private class SYCLAccessorDerefBlame(accField: InstanceField[_]) extends PanicBlame(accField.o.messageInContext("There should always be enough permission to dereference the accessor field."))
 
   private class SYCLAccessorDimensionDerefBlame(accDimField: InstanceField[_]) extends PanicBlame(accDimField.o.messageInContext("There should always be enough permission to dereference the range dimension field of an accessor."))
+
+  private class SYCLRangeDerefBlame(rangeField: InstanceField[_]) extends PanicBlame(rangeField.o.messageInContext("There should always be enough permission to dereference the range fields."))
 
   private case class SYCLAccessorArraySubscriptErrorBlame(accSubscript: AmbiguousSubscript[_]) extends Blame[ArraySubscriptError] {
     private case class SYCLAccessorArraySubscriptArrayInsufficientPermissionError(error: ArrayInsufficientPermission) extends UserError {
@@ -376,19 +404,70 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   val syclBufferSuccessor: ScopedStack[mutable.Map[Variable[Post], SYCLBuffer[Post]]] = ScopedStack()
   val currentRunningKernels: mutable.Map[Local[Post], Seq[SYCLAccessor[Post]]] = mutable.Map.empty
   val syclAccessorSuccessor: mutable.Map[CPPNameTarget[Pre], SYCLAccessor[Post]] = mutable.Map.empty
+  val syclLocalAccessorVarToDimensions: mutable.Map[Variable[Post], Seq[Expr[Post]]] = mutable.Map.empty
 
-  val currentDimensions: mutable.Map[KernelScopeLevel, Seq[IterVariable[Post]]] = mutable.Map.empty
+  val currentDimensionIterVars: mutable.Map[KernelScopeLevel, mutable.Buffer[IterVariable[Post]]] = mutable.Map.empty
   var currentKernelType: Option[KernelType] = None
   var currentThis: Option[Expr[Post]] = None
 
   sealed abstract class KernelScopeLevel(val idName: String)
-  case class GlobalScope() extends KernelScopeLevel("GLOBAL_ID")
-  case class LocalScope() extends KernelScopeLevel("LOCAL_ID")
-  case class GroupScope() extends KernelScopeLevel("GROUP_ID")
+  private case class GlobalScope() extends KernelScopeLevel("GLOBAL_ID")
+  private case class LocalScope() extends KernelScopeLevel("LOCAL_ID")
+  private case class GroupScope() extends KernelScopeLevel("GROUP_ID")
 
-  sealed abstract class KernelType()
-  case class BasicKernel(globalRangeSizes: Seq[Expr[Post]]) extends KernelType()
-  case class NDRangeKernel(globalRangeSizes: Seq[Expr[Post]], localRangeSizes: Seq[Expr[Post]]) extends KernelType()
+  sealed abstract class KernelType(rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) {
+    def getPermissions(thisObj: Expr[Post]): Seq[Expr[Post]] = rangeFields.map(f => {
+      implicit val o: Origin = f.o
+      Perm[Post](FieldLocation[Post](thisObj, f.ref), ReadPerm())
+    })
+
+    def getRangeSizeChecks(params: mutable.Buffer[Variable[Post]]): Expr[Post]
+
+    def getConstructorPostConditions(result: Result[Post], params: mutable.Buffer[Variable[Post]]): Seq[Expr[Post]]
+
+    def getRangeFields: Seq[InstanceField[Post]] = rangeFields
+    def getRangeValues: Seq[Expr[Post]] = rangeValues
+  }
+  private case class BasicKernel(rangeO: Origin, rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) extends KernelType(rangeFields, rangeValues) {
+    override def getRangeSizeChecks(params: mutable.Buffer[Variable[Post]]): Expr[Post] = foldStar(params.indices.map(i => {
+      implicit val o: Origin = RangeDimensionCheckOrigin(params(i).o)
+      Local[Post](params(i).ref) >= const(0)
+    }))(RangeDimensionCheckOrigin(rangeO))
+
+    override def getConstructorPostConditions(result: Result[Post], params: mutable.Buffer[Variable[Post]]): Seq[Expr[Post]] = params.indices.map(i => {
+      implicit val o: Origin = params(i).o
+      Star(
+        Perm(FieldLocation[Post](result, rangeFields(i).ref), ReadPerm()),
+        Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) === Local[Post](params(i).ref)
+      )
+    })
+  }
+  private case class NDRangeKernel(rangeO: Origin, rangeFields: Seq[InstanceField[Post]], rangeValues: Seq[Expr[Post]]) extends KernelType(rangeFields, rangeValues) {
+    override def getRangeSizeChecks(params: mutable.Buffer[Variable[Post]]): Expr[Post] = {
+      // Order of rangeFields is group0, local0, group1, local1, ...
+      // Order of params is global0, local0, global1, local1, ...
+      foldStar(Seq.range(0, params.size, 2).map(i => {
+        implicit val o: Origin = NDRangeDimensionCheckOrigin(rangeO, Some(i))
+          (Local[Post](params(i).ref) >= const(0)) &&
+          (Local[Post](params(i+1).ref) > const(0)) &&
+          (Mod(Local[Post](params(i).ref), Local[Post](params(i+1).ref))(ImpossibleDivByZeroBlame()) === const(0))
+      }))(NDRangeDimensionCheckOrigin(rangeO))
+    }
+
+    override def getConstructorPostConditions(result: Result[Post], params: mutable.Buffer[Variable[Post]]): Seq[Expr[Post]] = {
+      // Order of rangeFields is group0, local0, group1, local1, ...
+      // Order of params is global0, local0, global1, local1, ...
+      Seq.range(0, rangeFields.size, 2).map(i => {
+        implicit val o: Origin = params(i).o
+        foldStar(Seq(
+          Perm(FieldLocation[Post](result, rangeFields(i).ref), ReadPerm()),
+          Deref[Post](result, rangeFields(i).ref)(new SYCLRangeDerefBlame(rangeFields(i))) === FloorDiv(Local[Post](params(i).ref), Local[Post](params(i+1).ref))(ImpossibleDivByZeroBlame()),
+          Perm(FieldLocation[Post](result, rangeFields(i+1).ref), ReadPerm()),
+          Deref[Post](result, rangeFields(i+1).ref)(new SYCLRangeDerefBlame(rangeFields(i+1))) === Local[Post](params(i+1).ref)
+        ))}
+      )
+    }
+  }
 
   case class SYCLBuffer[Post](hostData: Expr[Post], generatedVar: Variable[Post], range: SYCLRange[Post], typ: SYCLTBuffer[Post])(implicit val o: Origin)
   case class SYCLAccessor[Post](buffer: SYCLBuffer[Post], accessMode: SYCLAccessMode[Post], instanceField: InstanceField[Post], rangeIndexFields: Seq[InstanceField[Post]])(implicit val o: Origin)
@@ -473,7 +552,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       var declared = false
       // Some method whose name start with sycl:: do not have to be declared
       // because those methods were just used for resolution and type checking
-      if (mustDeclare || !info.name.startsWith("sycl::") || info.name.startsWith("sycl::item") || info.name.startsWith("sycl::nd_item") || info.name.startsWith("sycl::accessor::linearize")) {
+      if (mustDeclare || !info.name.startsWith("sycl::") || info.name.startsWith("sycl::nd_item::get_global_") || info.name.startsWith("sycl::linearize") || info.name.startsWith("sycl::get_linear_id")) {
         val namedO = init.o.where(name = info.name)
         info.params match {
           case Some(params) =>
@@ -547,8 +626,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           result = block
         case (SYCLTLocalAccessor(_, _), inv: CPPInvocation[Pre]) if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] =>
           // Local accessor constructor
-          val newValue = rw.dispatch(preValue)
-          v = new Variable(newValue.t)(v.o) // new type should be COL array, not local accessor
+          val newValue: NewArray[Post] = rw.dispatch(preValue) match {
+            case arr: NewArray[Post] => arr
+            case _ => throw Unreachable("A SYCL local accessor should only be able to be initialized with a constructor that returns a new COL array.")
+          }
+          v = new Variable(newValue.t)(v.o) // new type should be COL array, not local accessor, so update
+          syclLocalAccessorVarToDimensions(v) = newValue.dims
           result = Block(Seq(LocalDecl(v), assignLocal(v.get, newValue)))
         case (SYCLTRange(_), _) |  (SYCLTNDRange(_), _) => cppRangeVariableToExpr(v) = rw.dispatch(preValue)
         case _ => result = Block(Seq(LocalDecl(v), assignLocal(v.get, rw.dispatch(preValue))))
@@ -666,10 +749,16 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         case Some(Deref(_, ref)) =>
           val accessor = syclAccessorSuccessor.values.find(acc => ref.decl.equals(acc.instanceField)).get
           LiteralSeq[Post](TInt(), accessor.rangeIndexFields.map(f => Deref[Post](currentThis.get, f.ref)(SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(inv))))
-        case None => throw NotApplicable(inv)
+        case _ => throw NotApplicable(inv)
+      }
+      case "sycl::local_accessor::get_range" => classInstance match {
+        case Some(Local(ref)) =>
+          val dimensions = syclLocalAccessorVarToDimensions(ref.decl)
+          LiteralSeq[Post](TInt(), dimensions)
+        case _ => throw NotApplicable(inv)
       }
       case "sycl::range::get" => (classInstance, args) match {
-        case (Some(seq: LiteralSeq[Post]), Seq(arg)) => SeqSubscript(seq, rw.dispatch(arg))(SYCLRequestedRangeIndexOutOfBoundsBlame(seq, arg)) // Range coming from calling get_range() on an accessor
+        case (Some(seq: LiteralSeq[Post]), Seq(arg)) => SeqSubscript(seq, rw.dispatch(arg))(SYCLRequestedRangeIndexOutOfBoundsBlame(seq, arg)) // Range coming from calling get_range() on a (local)accessor
         case _ => throw NotApplicable(inv)
       }
 
@@ -685,13 +774,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   private def syclConstructorInvocation(typ: SYCLTConstructableClass[Pre], inv: CPPInvocation[Pre]): Expr[Post] = {
-    val CPPInvocation(applicable, args, givenMap, yields) = inv
+    val CPPInvocation(applicable, args, _, _) = inv
     implicit val o: Origin = inv.o
-
-    val classInstance: Option[Expr[Post]] = applicable match {
-      case CPPClassMethodOrFieldAccess(obj, _) => Some(rw.dispatch(obj))
-      case _ => None
-    }
 
     typ match {
       case SYCLTRange(_) => SYCLRange[Post](args.map(rw.dispatch))
@@ -787,16 +871,21 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Create the pre- and postconditions for the run-method that will hold the generated kernel code
     val kernelRunnerPreCondition = {
       implicit val o: Origin = kernelDeclaration.contract.requires.o
-      UnitAccountedPredicate(
-        foldStar(accessorRunMethodConditions :+ getKernelQuantifiedCondition(kernelParBlock, removeKernelClassInstancePermissions(contractRequires)))(commandGroupBody.o)
-      )
+      UnitAccountedPredicate(foldStar(
+        currentKernelType.get.getPermissions(currentThis.get) ++
+          accessorRunMethodConditions :+
+          getKernelQuantifiedCondition(kernelParBlock, removeKernelClassInstancePermissions(contractRequires))
+      )(commandGroupBody.o))
     }
     val kernelRunnerPostCondition = {
       implicit val o: Origin = kernelDeclaration.contract.ensures.o
-      UnitAccountedPredicate(
-        foldStar(accessorRunMethodConditions :+ getKernelQuantifiedCondition(kernelParBlock, removeKernelClassInstancePermissions(contractEnsures)))(commandGroupBody.o)
-      )
+      UnitAccountedPredicate(foldStar(
+        currentKernelType.get.getPermissions(currentThis.get) ++
+          accessorRunMethodConditions :+
+          getKernelQuantifiedCondition(kernelParBlock, removeKernelClassInstancePermissions(contractEnsures))
+      )(commandGroupBody.o))
     }
+
     // Declare the newly generated kernel code inside a run-method
     val kernelRunnerContract = ApplicableContract[Post](kernelRunnerPreCondition, kernelRunnerPostCondition, tt, Nil, Nil, Nil, None)(SYCLKernelRunMethodContractUnsatisfiableBlame(kernelRunnerPreCondition))(commandGroup.o)
     val kernelRunner = new RunMethod[Post](
@@ -806,7 +895,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
     // Create the surrounding class
     val postEventClass = new Class[Post](
-      declarations = accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
+      declarations = currentKernelType.get.getRangeFields ++ accessors.flatMap(acc => acc.instanceField +: acc.rangeIndexFields) ++ Seq(kernelRunner),
       supports = Seq(),
       intrinsicLockInvariant = tt
     )(commandGroup.o.where(name = "SYCL_EVENT_CLASS"))
@@ -820,32 +909,30 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     // Declare a constructor for the class as a separate global method
     val eventClassConstructor = createEventClassConstructor(accessors, preEventClass, commandGroup.o)
 
-    // Generate expressions that check the bounds of the given range
-    val rangeSizeChecks = getRangeSizeChecks(kernelDimensions)
-
-    // Reset the global variables as we are done processing the kernel
-    currentKernelType = None
-    currentDimensions.clear()
-    syclAccessorSuccessor.clear()
-    currentThis = None
-
     // Create a new class instance and assign it to the class instance variable, then fork that variable
-    (Block[Post](
+    val result = (Block[Post](
       bufferAccessStatements ++
       Seq(
-        rangeSizeChecks,
         LocalDecl[Post](eventClassRef)(commandGroup.o),
         assignLocal(
           eventClassRef.get(commandGroup.o),
           ProcedureInvocation[Post]( // Call constructor
-            eventClassConstructor.ref,
-            accessors.flatMap(acc => acc.buffer.generatedVar.get(acc.buffer.generatedVar.o) +: acc.buffer.range.dimensions.map(dim => dim)),
+            ref = eventClassConstructor.ref,
+            args = currentKernelType.get.getRangeValues ++ accessors.flatMap(acc => acc.buffer.generatedVar.get(acc.buffer.generatedVar.o) +: acc.buffer.range.dimensions.map(dim => dim)),
             Nil, Nil, Nil, Nil,
-          )(PanicBlame("The preconditions of a kernel class constructor cannot be unsatisfiable, as it does not have preconditions."))(commandGroup.o)
+          )(SYCLKernelRangeInvalidBlame())(commandGroup.o)
         )(commandGroup.o),
         Fork(eventClassRef.get(eventClassRef.o))(SYCLKernelForkBlame(kernelDeclaration))(invocation.o)
       )
     )(invocation.o), eventClassRef)
+
+    // Reset the global variables as we are done processing the kernel
+    currentKernelType = None
+    currentDimensionIterVars.clear()
+    syclAccessorSuccessor.clear()
+    currentThis = None
+
+    result
   }
 
   private def createBasicKernelBody(kernelDimensions: Expr[Pre], kernelDeclaration: CPPLambdaDefinition[Pre], accessorParblockConditions: Seq[Expr[Post]]): (ParBlock[Post], Expr[Post], Expr[Post]) = {
@@ -855,22 +942,35 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case _ => throw Unreachable("The dimensions parameter of the kernel was not rewritten to a range.")
     }
 
-    currentKernelType = Some(BasicKernel(range))
-    currentDimensions(GlobalScope()) = range.indices.map(index => createRangeIterVar(GlobalScope(), index, range(index))(range(index).o))
+    currentDimensionIterVars.clear()
+    currentDimensionIterVars(GlobalScope()) = mutable.Buffer.empty
+    val rangeFields: mutable.Buffer[InstanceField[Post]] = mutable.Buffer.empty
+    range.indices.foreach(index => {
+      implicit val o: Origin = range(index).o.where(name = s"range$index")
+      val instanceField = new InstanceField[Post](TInt(), Set())
+      rangeFields.append(instanceField)
+      val iterVar = createRangeIterVar(GlobalScope(), index, Deref[Post](currentThis.get, instanceField.ref)(new SYCLRangeDerefBlame(instanceField)))
+      currentDimensionIterVars(GlobalScope()).append(iterVar)
+    })
+    currentKernelType = Some(BasicKernel(kernelDimensions.o, rangeFields.toSeq, range))
 
     // Get the pre- and postcondition
     val UnitAccountedPredicate(contractRequires: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.requires)
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
+    val idLimits = currentDimensionIterVars(GlobalScope()).map(iterVar => {
+      implicit val o: Origin = iterVar.o
+      Local[Post](iterVar.variable.ref) >= const(0) && Local[Post](iterVar.variable.ref) < iterVar.to
+    })
 
     implicit val o: Origin = kernelDeclaration.o
 
     // Create the parblock representing the kernels
     val parBlock = ParBlock[Post](
       decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_BASIC_KERNEL")),
-      iters = currentDimensions(GlobalScope()),
+      iters = currentDimensionIterVars(GlobalScope()).toSeq,
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
-      requires = foldStar(accessorParblockConditions :+ contractRequires),
-      ensures = foldStar(accessorParblockConditions :+ contractEnsures),
+      requires = foldStar(currentKernelType.get.getPermissions(currentThis.get) ++ idLimits ++ accessorParblockConditions :+ contractRequires),
+      ensures = foldStar(currentKernelType.get.getPermissions(currentThis.get) ++ idLimits ++ accessorParblockConditions :+ contractEnsures),
       content = rw.dispatch(kernelDeclaration.body),
     )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
@@ -884,41 +984,81 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case _ => throw Unreachable("The dimensions parameter of the kernel was not rewritten to an nd_range.")
     }
 
-    currentKernelType = Some(NDRangeKernel(globalRange, localRange))
-    currentDimensions(LocalScope()) = localRange.indices.map(index => createRangeIterVar(LocalScope(), index, localRange(index))(localRange(index).o))
-    currentDimensions(GroupScope()) = globalRange.indices.map(index =>
-      createRangeIterVar(GroupScope(), index, FloorDiv(globalRange(index), localRange(index))(ImpossibleDivByZeroBlame())(localRange(index).o))(kernelDimensions.o))
+    currentDimensionIterVars.clear()
+    currentDimensionIterVars(LocalScope()) = mutable.Buffer.empty
+    currentDimensionIterVars(GroupScope()) = mutable.Buffer.empty
+    val rangeFields: mutable.Buffer[InstanceField[Post]] = mutable.Buffer.empty
+    localRange.indices.foreach(index => {
+      {
+        implicit val o: Origin = kernelDimensions.o.where(name = s"group_range$index")
+        val groupInstanceField = new InstanceField[Post](TInt(), Set())
+        rangeFields.append(groupInstanceField)
+        val groupIterVar = createRangeIterVar(GroupScope(), index, Deref[Post](currentThis.get, groupInstanceField.ref)(new SYCLRangeDerefBlame(groupInstanceField)))
+        currentDimensionIterVars(GroupScope()).append(groupIterVar)
+      }
+      {
+        implicit val o: Origin = localRange(index).o.where(name = s"local_range$index")
+        val localInstanceField = new InstanceField[Post](TInt(), Set())
+        rangeFields.append(localInstanceField)
+        val localIterVar = createRangeIterVar(LocalScope(), index, Deref[Post](currentThis.get, localInstanceField.ref)(new SYCLRangeDerefBlame(localInstanceField)))
+        currentDimensionIterVars(LocalScope()).append(localIterVar)
+      }
+    })
+    currentKernelType = Some(NDRangeKernel(kernelDimensions.o, rangeFields.toSeq, globalRange.zip(localRange).flatMap(tuple => Seq(tuple._1, tuple._2))))
+
+    // Add the local accessors
+    val localAccessorDecls: mutable.Buffer[Statement[Post]] = mutable.Buffer.empty
+    val localAccessorVariables: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty
+    localAccessorDeclarations.foreach(localAccDecl => {
+      localAccessorDecls.append(rewriteLocalDecl(localAccDecl))
+      localAccessorVariables.append(cppNameSuccessor(RefCPPLocalDeclaration(localAccDecl, 0)))
+    })
 
     // Get the pre- and postcondition
     val UnitAccountedPredicate(contractRequires: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.requires)
     val UnitAccountedPredicate(contractEnsures: Expr[Post]) = rw.dispatch(kernelDeclaration.contract.ensures)
+    val localIdLimits = currentDimensionIterVars(LocalScope()).map(iterVar => {
+      implicit val o: Origin = iterVar.o
+//      val iVar = new Variable[Post](TInt())
+//      val iVar2 = new Variable[Post](TInt())
+//      val injective = Forall(Seq(iVar, iVar2), Nil, Implies[Post](
+//        Local[Post](iVar.ref) >= const(0) && Local[Post](iVar.ref) < iterVar.to &&
+//        Local[Post](iVar2.ref) >= const(0) && Local[Post](iVar2.ref) < iterVar.to &&
+//        Local[Post](iVar.ref) !== Local[Post](iVar2.ref),
+//        getSYCLHeaderMethodRef("get_global_id_injective", Seq(const(currentDimensionIterVars(LocalScope()).indexOf(iterVar))))
+//      ))
+      Local[Post](iterVar.variable.ref) >= const(0) && Local[Post](iterVar.variable.ref) < iterVar.to
+
+    })
+    val groupIdLimits = currentDimensionIterVars(GroupScope()).map(iterVar => {
+      implicit val o: Origin = iterVar.o
+      Local[Post](iterVar.variable.ref) >= const(0) && Local[Post](iterVar.variable.ref) < iterVar.to
+    })
+
 
     implicit val o: Origin = kernelDeclaration.o
 
     // Create the parblock representing the work-items inside work-groups
     val workItemParBlock = ParStatement[Post](ParBlock[Post](
       decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL_WORKITEMS")),
-      iters = currentDimensions(LocalScope()),
+      iters = currentDimensionIterVars(LocalScope()).toSeq,
       context_everywhere = rw.dispatch(kernelDeclaration.contract.contextEverywhere),
-      requires = foldStar(accessorParblockConditions :+ contractRequires),
-      ensures = foldStar(accessorParblockConditions :+ contractEnsures),
+      requires = foldStar(currentKernelType.get.getPermissions(currentThis.get) ++ groupIdLimits ++ localIdLimits ++ accessorParblockConditions :+ contractRequires),
+      ensures = foldStar(currentKernelType.get.getPermissions(currentThis.get) ++ groupIdLimits ++ localIdLimits ++ accessorParblockConditions :+ contractEnsures),
       content = rw.dispatch(kernelDeclaration.body)
     )(SYCLKernelParBlockFailureBlame(kernelDeclaration)))
 
-    val localAccessorDecls = localAccessorDeclarations.map(localAccDecl => rewriteLocalDecl(localAccDecl))
-    val localAccessorVariables = localAccessorDeclarations.map(localAcc => cppNameSuccessor(RefCPPLocalDeclaration(localAcc, 0)))
-
-    val quantifiedContractRequires = getKernelQuantifiedCondition(workItemParBlock.impl.asInstanceOf[ParBlock[Post]], removeLocalAccessorConditions(contractRequires, localAccessorVariables))
-    val quantifiedContractEnsures = getKernelQuantifiedCondition(workItemParBlock.impl.asInstanceOf[ParBlock[Post]], removeLocalAccessorConditions(contractEnsures, localAccessorVariables))
+    val quantifiedContractRequires = getKernelQuantifiedCondition(workItemParBlock.impl.asInstanceOf[ParBlock[Post]], removeLocalAccessorConditions(contractRequires, localAccessorVariables.toSeq))
+    val quantifiedContractEnsures = getKernelQuantifiedCondition(workItemParBlock.impl.asInstanceOf[ParBlock[Post]], removeLocalAccessorConditions(contractEnsures, localAccessorVariables.toSeq))
 
     // Create the parblock representing the work-groups
     val workGroupParBlock = ParBlock[Post](
       decl = new ParBlockDecl[Post]()(o.where(name = "SYCL_ND_RANGE_KERNEL_WORKGROUPS")),
-      iters = currentDimensions(GroupScope()),
+      iters = currentDimensionIterVars(GroupScope()).toSeq,
       context_everywhere = tt,
-      requires = foldStar(accessorParblockConditions :+ quantifiedContractRequires),
-      ensures = foldStar(accessorParblockConditions :+ quantifiedContractEnsures),
-      content = Scope(Nil, Block(localAccessorDecls :+ workItemParBlock))
+      requires = foldStar(currentKernelType.get.getPermissions(currentThis.get) ++ groupIdLimits ++ accessorParblockConditions :+ quantifiedContractRequires),
+      ensures = foldStar(currentKernelType.get.getPermissions(currentThis.get) ++ groupIdLimits ++ accessorParblockConditions :+ quantifiedContractEnsures),
+      content = Scope(Nil, Block(localAccessorDecls.toSeq :+ workItemParBlock))
     )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
     (workGroupParBlock, quantifiedContractRequires, quantifiedContractEnsures)
@@ -936,7 +1076,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
             rw.dispatch(accessModeRef)  match {
               case accessMode: SYCLAccessMode[Post] =>
                 val buffer = getFromAll(syclBufferSuccessor, cppNameSuccessor(bufferRef.ref.get)).getOrElse(throw SYCLBufferOutOfScopeError(decl))
-                var accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = buffer.o.getPreferredNameOrElse().ucamel)
+                val accO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl).where(name = buffer.o.getPreferredNameOrElse().ucamel)
                 val dimO: Origin = SYCLGeneratedAccessorPermissionsOrigin(decl)
                 if (!CPP.getBaseTypeFromSpecs(accDecl.specs).asInstanceOf[SYCLTAccessor[Pre]].equals(CPP.unwrappedType(inv.t))) {
                   throw Unreachable("Accessor type does not correspond with buffer type!")
@@ -1013,6 +1153,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val constructorPostConditions: mutable.Buffer[Expr[Post]] = mutable.Buffer.empty
       val constructorArgs: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty
 
+      // Generate expressions that check the bounds of the given range
+      constructorArgs.appendAll(currentKernelType.get.getRangeFields.map(f => new Variable[Post](TInt())(f.o)))
+      constructorPostConditions.appendAll(currentKernelType.get.getConstructorPostConditions(result, constructorArgs))
+      val preConditions = UnitAccountedPredicate[Post](currentKernelType.get.getRangeSizeChecks(constructorArgs))(commandGroupO)
+
       accessors.foreach(acc => {
         val newConstructorAccessorArg = new Variable[Post](TArray(TInt()))(acc.instanceField.o)
         val newConstructorAccessorDimensionArgs = acc.rangeIndexFields.map(f => new Variable[Post](TInt())(f.o))
@@ -1044,43 +1189,16 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           args = constructorArgs.toSeq,
           outArgs = Seq(), typeArgs = Seq(), body = None,
           contract = ApplicableContract[Post](
-            UnitAccountedPredicate[Post](tt),
+            preConditions,
             SplitAccountedPredicate(
               left = UnitAccountedPredicate((result !== Null()) && (TypeOf(result) === TypeValue(t))),
               right = UnitAccountedPredicate[Post](foldStar[Post](constructorPostConditions.toSeq :+ IdleToken[Post](result))),
             ),
             tt, Seq(), Seq(), Seq(), None
-          )(PanicBlame("Constructors of kernel classes do not have pre-conditions, so it is impossible for them to be unsatisfiable."))
+          )(SYCLKernelConstructorNontrivialUnsatisfiableBlame(commandGroupO))
         )(SYCLKernelConstructorCallableFailureBlame())(o.where(name = "event_constructor"))
       }
     })(commandGroupO))
-  }
-
-  private def getRangeSizeChecks(range: Expr[Pre]): Assert[Post] = currentKernelType.get match {
-    case BasicKernel(globalRangeSizes) =>
-      Assert(
-        foldStar(globalRangeSizes.map(expr => {
-          implicit val o: Origin = RangeDimensionCheckOrigin(expr)
-          GreaterEq(expr, const(0))
-        }))(RangeDimensionCheckOrigin(range))
-      )(SYCLKernelRangeInvalidBlame())(RangeDimensionCheckOrigin(range))
-    case NDRangeKernel(globalRangeSizes, localRangeSizes) =>
-      Assert(
-        foldStar(globalRangeSizes.indices.map(i => {
-          implicit val o: Origin = NDRangeDimensionCheckOrigin(range, Some(i))
-          And(
-            And(
-              Greater(localRangeSizes(i), const(0)),
-              GreaterEq(globalRangeSizes(i), const(0))
-            ),
-            Eq(
-              Mod(globalRangeSizes(i), localRangeSizes(i))(ImpossibleDivByZeroBlame()),
-              const(0)
-            )
-          )
-        }
-        ))(NDRangeDimensionCheckOrigin(range))
-      )(SYCLKernelRangeInvalidBlame())(RangeDimensionCheckOrigin(range))
   }
 
   // Returns what kind of kernel we are working with and check that the kernel ranges match with the (nd_)item ranges
@@ -1149,45 +1267,42 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   }
 
   private def getSimpleWorkItemId(inv: CPPInvocation[Pre], level: KernelScopeLevel) (implicit o: Origin) : Expr[Post] = {
-    val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
-      Seq((procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(level).map(iterVar => iterVar.variable.get))))
-
-    getSYCLWorkItemIdOrRange(inv, givenValueLambda)
+    SeqSubscript[Post](LiteralSeq(TInt(), currentDimensionIterVars(level).map(iterVar => iterVar.variable.get).toSeq), rw.dispatch(inv.args.head))(SYCLItemMethodSeqBoundFailureBlame(inv))
   }
 
   private def getSimpleWorkItemRange(inv: CPPInvocation[Pre], level: KernelScopeLevel)(implicit o: Origin): Expr[Post] = {
-    val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
-      Seq((procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(level).map(iterVar => iterVar.to))))
-
-    getSYCLWorkItemIdOrRange(inv, givenValueLambda)
+    SeqSubscript[Post](LiteralSeq(TInt(), currentDimensionIterVars(level).map(iterVar => iterVar.to).toSeq), rw.dispatch(inv.args.head))(SYCLItemMethodSeqBoundFailureBlame(inv))
   }
 
   private def getSimpleWorkItemLinearId(inv: CPPInvocation[Pre], level: KernelScopeLevel)(implicit o: Origin): Expr[Post] = {
-    val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
-      Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(level).map (iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(level).map(iterVar => iterVar.to)))
-      )
-
-    getSYCLWorkItemIdOrRange(inv, givenValueLambda)
+    val args: Seq[LiteralSeq[Post]] = Seq(
+      LiteralSeq(TInt(), currentDimensionIterVars(level).map(iterVar => iterVar.variable.get).toSeq),
+      LiteralSeq(TInt(), currentDimensionIterVars(level).map(iterVar => iterVar.to).toSeq)
+    )
+    ProcedureInvocation[Post](
+      getSYCLHeaderMethodRef("sycl::get_linear_id", args),
+      args,
+      Nil, Nil, Nil, Nil
+    )(SYCLItemMethodInvocationBlame(inv))
   }
 
   private def getGlobalWorkItemId(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {
-    val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
+    val givenValueLambda: Ref[Post, Procedure[Post]] =>  Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.variable.get).toSeq)),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.variable.get).toSeq)),
+        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to).toSeq)),
+        (procedureRef.decl.contract.givenArgs(3).ref, LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to).toSeq))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
   }
 
   private def getGlobalWorkItemRange(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {
-    val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
+    val givenValueLambda: Ref[Post, Procedure[Post]] =>  Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to).toSeq)),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to).toSeq))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
@@ -1196,10 +1311,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getGlobalWorkItemLinearId(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to))),
-        (procedureRef.decl.contract.givenArgs(3).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.variable.get).toSeq)),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.variable.get).toSeq)),
+        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TInt(), currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to).toSeq)),
+        (procedureRef.decl.contract.givenArgs(3).ref, LiteralSeq(TInt(), currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to).toSeq))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
@@ -1316,7 +1431,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](currentThis.get, accessor.rangeIndexFields(0).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(0))),
         Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1)))
       )
-      val linearizedIndexProc = getSYCLHeaderMethodRef("sycl::accessor::linearize_2_indices", linearizeArgs)
+      val linearizedIndexProc = getSYCLHeaderMethodRef("sycl::linearize2", linearizeArgs)
       CPP.unwrappedType(base.t) match {
         case SYCLTAccessor(_, 2) => ArraySubscript[Post](
           Deref[Post](currentThis.get, accessor.instanceField.ref)(new SYCLAccessorDerefBlame(accessor.instanceField)),
@@ -1333,7 +1448,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         Deref[Post](currentThis.get, accessor.rangeIndexFields(1).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(1))),
         Deref[Post](currentThis.get, accessor.rangeIndexFields(2).ref)(new SYCLAccessorDimensionDerefBlame(accessor.rangeIndexFields(2)))
       )
-      val linearizedIndexProc = getSYCLHeaderMethodRef("sycl::accessor::linearize_3_indices", linearizeArgs)
+      val linearizedIndexProc = getSYCLHeaderMethodRef("sycl::linearize3", linearizeArgs)
       CPP.unwrappedType(base.t) match {
         case SYCLTAccessor(_, 3) => ArraySubscript[Post](
           Deref[Post](currentThis.get, accessor.instanceField.ref)(new SYCLAccessorDerefBlame(accessor.instanceField)),

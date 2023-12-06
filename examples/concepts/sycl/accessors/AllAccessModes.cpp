@@ -23,6 +23,7 @@ void test(int* a, int* b) {
           context 1 < b_accessor.get_range().get(0);
           context 2 < b_accessor.get_range().get(1);
           context 1 < b_accessor.get_range().get(2);
+          context it.get_range(0) == 1;
           context Perm(a_accessor[1][2], write);
           context Perm(b_accessor[1][2][1], read);
         */
