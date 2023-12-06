@@ -34,6 +34,6 @@ case class Substitute[G](subs: Map[Expr[G], Expr[G]],
 
   override def dispatch(v: Declaration[G]): Unit = v match {
     case decl: Variable[G] if bindingSubs.contains(decl) => dispatch(bindingSubs(decl))
-    case other => other.rewriteDefault()
+    case other => super.dispatch(other)
   }
 }
