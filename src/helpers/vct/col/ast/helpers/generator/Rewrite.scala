@@ -44,9 +44,9 @@ class Rewrite extends NodeGenerator {
   def arg(name: String, t: structure.Type): Term.Param =
     t match {
       case _: structure.Type.ValueType =>
-        param"${Name(name)}: Option[${typ(t, t"Post")}] = None"
+        param"${Name(name)}: => Option[${typ(t, t"Post")}] = None"
       case _ =>
-        param"${Name(name)}: ${typ(t, t"Post")} = null"
+        param"${Name(name)}: => ${typ(t, t"Post")} = null"
     }
 
   def blameArg(blameType: structure.Name): Term.Param =
@@ -82,7 +82,7 @@ class Rewrite extends NodeGenerator {
     if(t.isInstanceOf[structure.Type.ValueType])
       q"$field.getOrElse(${rewriteDefault(q"this.$field", t)})"
     else
-      q"if($field ne null) $field else ${rewriteDefault(q"this.$field", t)}"
+      q"_root_.scala.Predef.locally({ val `~x` = $field; if(`~x` ne null) `~x` else ${rewriteDefault(q"this.$field", t)} })"
   }
 
   def rewriteDefault(term: Term, t: structure.Type): Term =
@@ -90,8 +90,10 @@ class Rewrite extends NodeGenerator {
       case structure.Type.Node(_) => q"`~rw`.dispatch($term)"
       case structure.Type.Declaration(name) => q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
       case structure.Type.DeclarationSeq(name) => q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
-      case structure.Type.Ref(kind) => q"`~rw`.succ[${typ(kind.name)}[Post]]($term.decl)"
-      case structure.Type.MultiRef(kind) => q"`~rw`.anySucc[${typ(kind.name)}[Post]]($term.decl)"
+      case structure.Type.Ref(kind) =>
+        q"`~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse(`~rw`.succ[${typ(kind.name)}[Post]]($term.decl))"
+      case structure.Type.MultiRef(kind) =>
+        q"`~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse(`~rw`.anySucc[${typ(kind.name)}[Post]]($term.decl))"
       case _: structure.Type.PrimitiveType => term
       case structure.Type.Option(t) => q"$term.map(`~x` => ${rewriteDefault(q"`~x`", t)})"
       case structure.Type.Either(l, r) =>

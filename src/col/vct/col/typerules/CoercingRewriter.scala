@@ -467,12 +467,16 @@ abstract class CoercingRewriter[Pre <: Generation]() extends BaseCoercingRewrite
     }
   }
 
+  override def postCoerce(e: Expr[Pre]): Expr[Post] = e match {
+    case ApplyCoercion(e, coercion) => applyCoercion(dispatch(e), coercion)(e.o)
+    case e => e.rewriteDefault()
+  }
+
   def coerce(e: Expr[Pre]): Expr[Pre] = {
     implicit val o: Origin = e.o
 
     e match {
-      case ApplyCoercion(_, _) =>
-        throw Unreachable("All instances of ApplyCoercion should be immediately rewritten by CoercingRewriter.dispatch.")
+      case ApplyCoercion(_, _) => e
 
       case ActionApply(action, args) =>
         ActionApply(action, coerceArgs(args, action.decl))

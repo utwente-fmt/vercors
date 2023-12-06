@@ -34,11 +34,6 @@ class AllScopes extends AllFamiliesGenerator {
           anySucceedOnly(`~pre`, `~post`)
         }
 
-        def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
-          ${Term.Match(q"`~decl`", declaredFamilies.map(name =>
-            Case(p"(decl: ${typ(name)}[Pre])", None, q"succ(decl)")
-          ).toList)}
-
         ..${declaredFamilies.map(name => q"""
           val ${Pat.Var(scopes(name.base))}: $Scopes[Pre, Post, ${typ(name)}[Pre], ${typ(name)}[Post]] = $ScopesObj()
         """).toList}

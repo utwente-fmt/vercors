@@ -24,6 +24,11 @@ class SuccessorsProvider extends AllFamiliesGenerator {
   def successorsProvider(declaredFamilies: Seq[structure.Name]): Defn.Trait =
     q"""
       trait SuccessorsProvider[Pre, Post] {
+        def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
+          ${Term.Match(q"`~decl`", declaredFamilies.map(name =>
+            Case(p"(decl: ${typ(name)}[Pre])", None, q"succ(decl)")
+          ).toList)}
+
         ..${declaredFamilies.map(name => q"""
           def computeSucc(decl: ${typ(name)}[Pre]): $OptionType[${typ(name)}[Post]]
         """).toList}

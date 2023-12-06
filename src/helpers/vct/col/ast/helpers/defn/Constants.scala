@@ -1,6 +1,7 @@
 package vct.col.ast.helpers.defn
 
 import vct.col.ast.helpers.defn.Naming.typ
+import vct.col.ast.structure
 import vct.col.ast.structure.Constants.{DeclarationName, RootNodeName}
 
 import scala.meta._
@@ -21,6 +22,10 @@ object Constants {
 
   val Node: Type = typ(RootNodeName)
   val Declaration: Type = typ(DeclarationName)
+  val ExprName: structure.Name = structure.Name(Seq("_root_", "vct", "col", "ast", "Expr"))
+  val Expr: Type = typ(ExprName)
+  val Coercion: Type = t"_root_.vct.col.ast.Coercion"
+  val ApplyCoercionPat: (Pat, Pat) => Pat = (e, c) => p"_root_.vct.col.ast.ApplyCoercion($e, $c)"
   val Origin: Type = t"_root_.vct.col.origin.Origin"
   val Blame: Type = t"_root_.vct.col.origin.Blame"
   val VerificationFailure: Type = t"_root_.vct.col.origin.VerificationFailure"

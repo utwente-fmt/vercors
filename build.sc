@@ -691,7 +691,7 @@ object vercors extends Module {
             gen.generate(T.dest.toNIO, declarationFamiliesVal, structuralFamiliesVal)
           }
           protoAuxTypes().foreach(_.generate(T.dest.toNIO, definitionsVal))
-          Seq(T.dest)
+          Seq(PathRef(T.dest, quick = true))
         }
       }
 
@@ -710,7 +710,7 @@ object vercors extends Module {
             T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${familyVal.base}")
             gen.generate(T.dest.toNIO, familyVal, kindVal, nodesVal)
           }
-          T.dest
+          PathRef(T.dest, quick = true)
         }
       }
 
@@ -723,14 +723,14 @@ object vercors extends Module {
             T.log.debug(s"Generating ${gen.getClass.getSimpleName} for ${defn.name.base}")
             gen.generate(T.dest.toNIO, defn)
           }
-          T.dest
+          PathRef(T.dest, quick = true)
         }
       }
 
       def sources: T[Seq[PathRef]] = T {
-        T.traverse(definitions.load())(node(_).generate)().map(PathRef(_, quick = true)) ++
-          T.traverse(families.load())(family(_).generate)().map(PathRef(_, quick = true)) ++
-          global.generate().map(PathRef(_, quick = true))
+        T.traverse(definitions.load())(node(_).generate)() ++
+          T.traverse(families.load())(family(_).generate)() ++
+          global.generate()
       }
     }
 

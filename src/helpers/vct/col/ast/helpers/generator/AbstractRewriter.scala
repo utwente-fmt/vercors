@@ -36,7 +36,7 @@ class AbstractRewriter extends AllFamiliesGenerator {
         def succProvider: $SuccessorsProvider[Pre, Post] = this.allScopes.freeze
 
         def anySucc[RefDecl <: $Declaration[Post]](`~decl`: $Declaration[Pre])(implicit tag: $ClassTag[RefDecl]): $RefType[Post, RefDecl] =
-          allScopes.anySucc[RefDecl](`~decl`)(tag)
+          succProvider.anySucc[RefDecl](`~decl`)(tag)
 
         ..${declaredFamilies.map(succ).toList}
         ..${declaredFamilies.map(scope).toList}
