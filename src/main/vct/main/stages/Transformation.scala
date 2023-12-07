@@ -324,22 +324,14 @@ case class RuntimeTransformation(override val onBeforePassKey: Seq[(String, Veri
     RemoveSelfLoops,
     RefactorGeneratedCode,
     CreateFieldPermissions,
-    CreatePredicates
-//    CreateArrayFieldPermission,     //Creates the field permissions for the fields in arrays. Including initialization of the field
-//
-//    CheckPermissionsBlocksMethod,   //Basic permission check
-//    CreatePrePostConditions,        //Basic permission check for pre and post conditions
+    //    CreateLocking,                //Create predicate instance for the Lock and use the constructor and synchronize keyword to check it
+    CreatePredicates, //Create predicate templates for all specified predicates -> since you only need to check the predicate condition if the predicate is folded In the pre and post conditions then we need to do the check if the thread holds a predicate
+    CheckPermissionsBlocksMethod,   //Basic permission check
+    //    CreatePrePostConditions,        //Basic permission check for pre and post conditions by making use of the RewriteContractExpr
+    //    CreateLoopInvariants,         //Create pre and post inside loop for all the specified conditions (maybe we can reuse code from the previous assertion checks) by making use of the RewriteContractExpr
 
-//    CreateForkPermissionTransfer,   //Creates the permission transfer when a fork method occurs (when a start method is called)
-//    CreateJoinPermissionTransfer,   //Creates the permission transfer when a join method occurs (when a join method is called)
-//    CreatePrePostArrayPermissions,
-//
-//    CreateQuantifiers,            //Creates loops for the quantifiers that are specified in the pre and post condition
-//
-//    CreatePredicates,             //Create predicate templates for all specified predicates -> since you only need to check the predicate condition if the predicate is folded
-//                                  In the pre and post conditions then we need to do the check if the thread holds a predicate
-//    CreateLocking,                //Create predicate instance for the Lock and use the constructor and synchronize keyword to check it
-//    CreateLoopInvariants,         //Create pre and post inside loop for all the specified conditions (maybe we can reuse code from the previous assertion checks)
+    //    CreateForkPermissionTransfer,   //Creates the permission transfer when a fork method occurs (when a start method is called)
+    //    CreateJoinPermissionTransfer,   //Creates the permission transfer when a join method occurs (when a join method is called)
 
-//    GenerateJava                    //Generates valid java code
+//    GenerateJava                    //Generates valid java code so that it can be executed properly
   ))

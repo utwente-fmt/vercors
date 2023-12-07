@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 object CreateFieldPermissions extends RewriterBuilder {
   override def key: String = "createFieldPermissions"
 
-  override def desc: String = "Create permissions look up"
+  override def desc: String = "Create permissions look up for fields and arrays and also initialize the lookup for array fields whenever this is necessary"
 }
 
 
