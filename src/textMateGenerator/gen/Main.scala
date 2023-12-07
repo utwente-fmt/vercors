@@ -1,0 +1,5 @@
+package gen
+
+class Main {
+
+}
