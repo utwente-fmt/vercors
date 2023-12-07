@@ -7,7 +7,6 @@ import mill._
 import scalalib.{JavaModule => BaseJavaModule, ScalaModule => BaseScalaModule, _}
 import contrib.scalapblib.{ScalaPBModule => BaseScalaPBModule, _}
 import contrib.buildinfo.BuildInfo
-import mill.api.Result
 import mill.util.Jvm
 
 import vct.col.ast.structure
@@ -37,6 +36,59 @@ object settings {
 }
 
 object util {
+  case class DataPoint(base: Path, coordinate: os.SubPath) {
+    lazy val mtime = os.mtime(base / coordinate)
+
+    override def equals(obj: Any): Boolean = obj match {
+      case other: DataPoint => coordinate == other.coordinate
+    }
+
+    private lazy val _hashCode = coordinate.hashCode()
+    override def hashCode(): Int = _hashCode
+
+    def copyTo(dest: Path): Unit = {
+      os.copy(base / coordinate, dest / coordinate, createFolders = true)
+    }
+
+    def copyOver(dest: Path): Unit =
+      if(DataPoint(dest, coordinate).mtime != mtime)
+        os.copy.over(base / coordinate, dest / coordinate)
+
+    def delete(): Unit =
+      os.remove(base / coordinate)
+  }
+
+  def quickCopy(target: Path, sourcePaths: Seq[PathRef]): Unit = {
+    val sources =
+      sourcePaths
+        .map(_.path)
+        .flatMap { base =>
+          os.walk.stream(base)
+            .filter(os.isFile(_))
+            .map(p => DataPoint(base, p.subRelativeTo(base)))
+            .toSeq
+        }
+        .toSet
+
+    val targets =
+      os.walk.stream(target)
+        .filter(os.isFile(_))
+        .map(p => DataPoint(target, p.subRelativeTo(target)))
+        .toSet
+
+    for(toRemove <- targets if !sources.contains(toRemove)) {
+      toRemove.delete()
+    }
+
+    for(toWrite <- sources if !targets.contains(toWrite)) {
+      toWrite.copyTo(target)
+    }
+
+    for(toWriteOver <- sources if targets.contains(toWriteOver)) {
+      toWriteOver.copyOver(target)
+    }
+  }
+
   trait JavaModule extends BaseJavaModule {
     // https://github.com/viperproject/silicon/issues/748
     // 32MB is enough stack space for silicon, a 100% marco guarantee
@@ -727,18 +779,17 @@ object vercors extends Module {
         }
       }
 
-      def sources: T[Seq[PathRef]] = T {
+      def generatedSources: T[Seq[PathRef]] = T {
         T.traverse(definitions.load())(node(_).generate)() ++
           T.traverse(families.load())(family(_).generate)() ++
           global.generate()
       }
-    }
 
-    /*object proto extends ScalaPBModule {
-      override def scalaPBSources = T.sources(helpers.sources())
-      override def scalaPBFlatPackage = true
-    }*/
-    object proto extends ScalaModule
+      def sources: T[PathRef] = T.persistent {
+        util.quickCopy(T.dest, generatedSources())
+        PathRef(T.dest, quick = true)
+      }
+    }
 
     def key = "col"
     def deps = T { Agg.empty }
@@ -746,10 +797,18 @@ object vercors extends Module {
       helpers.implTraits.run()
       super.sources()
     }
-    override def generatedSources = T { helpers.sources() }
-    override def moduleDeps = Seq(hre, proto)
+    override def generatedSources = T { Seq(helpers.sources()) }
+    override def moduleDeps = Seq(hre, serialize)
 
     object test extends Tests
+  }
+
+  object serialize extends VercorsModule with ScalaPBModule {
+    override def scalaPBSources = T {
+      col.helpers.sources() +: this.sources()
+    }
+    override def key: String = "serialize"
+    override def deps: T[Agg[Dep]] = T { Agg.empty }
   }
 
   object parsers extends VercorsModule {
@@ -766,7 +825,7 @@ object vercors extends Module {
     def deps = Agg(
       ivy"org.antlr:antlr4-runtime:4.8"
     )
-    override def moduleDeps = Seq(hre, col)
+    override def moduleDeps = Seq(hre, col, serialize)
 
     trait GenModule extends Module {
       def base = T { settings.src / "parsers" / "antlr4" }
