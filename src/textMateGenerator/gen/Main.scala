@@ -40,7 +40,7 @@ case object Main {
               if (ruleText.matches(".*\\{.*\\}.*"))
               textMateGrammar = textMateGrammar.addPattern(
                 MatchPattern(ruleText.substring(ruleText.indexOf('{') + 2, ruleText.indexOf("}") - 2),
-                ruleText.split('\'')(1))
+                "\\b(?:" + ruleText.split('\'')(1) + ")\\b")
               )
         }
     }
