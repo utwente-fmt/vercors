@@ -1,7 +1,7 @@
 package vct.col.ast.lang
 
 import vct.col.ast._
-import vct.col.print.{Ctx, Doc, Text}
+import vct.col.print.{Ctx, Doc, Group, Text}
 import vct.col.ref.Ref
 
 trait CodeStringQuantifierCallImpl[G] {
@@ -12,6 +12,7 @@ trait CodeStringQuantifierCallImpl[G] {
   override def outArgs: Seq[Expr[G]] = Seq.empty
 
 
-  override def layout(implicit ctx: Ctx): Doc = Text("content")
+  override def layout(implicit ctx: Ctx): Doc =
+    Group(Group(assoc(obj) <> "." <> ctx.name(ref) <> "(" <> Doc.args(args ++ outArgs) <> ")"))
 
 }

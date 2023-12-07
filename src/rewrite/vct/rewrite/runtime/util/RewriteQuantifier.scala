@@ -71,11 +71,12 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
   }
 
   def declareNewMethod(expr: Expr[Pre], quantifierId: String, arguments: Seq[Variable[Post]], newLocals: Seq[Variable[Post]], methodBlock: Block[Post]): CodeStringQuantifierMethod[Post] = {
+    val newMethodOrigin = expr.o.addPrefName("__runtime_quantifier__" + quantifierId)
     val newMethod = new CodeStringQuantifierMethod[Post](
       quantifierId,
       arguments,
       Some(Scope[Post](newLocals, methodBlock)(expr.o))
-    )(null)(expr.o)
+    )(null)(newMethodOrigin)
     classDeclarations.declare(newMethod)
     newMethod
   }
@@ -91,7 +92,6 @@ case class RewriteQuantifier[Pre <: Generation](outer: Rewriter[Pre], cls: Class
 
 
   def createNewArguments() : Seq[Variable[Pre]] = {
-    val allArgs = requiredLocals.top
     val requiredArguments = requiredLocals.top --= allBinders
     requiredArguments.toSeq
   }
