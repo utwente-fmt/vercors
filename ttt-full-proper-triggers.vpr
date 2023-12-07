@@ -1,0 +1,1419 @@
+domain WellFoundedOrder[T]  {
+  
+  function bounded(v: T): Bool 
+  
+  function decreasing(v1: T, v2: T): Bool 
+}
+
+domain IntOrder  {
+  
+  axiom {
+    (forall i: Int ::0 <= i == (bounded(i): Bool))
+  }
+  
+  axiom {
+    (forall i: Int ::(forall j: Int ::i < j == (decreasing(i, j): Bool)))
+  }
+}
+
+domain Array  {
+  
+  function array_loc(a: Array, i: Int): Ref 
+  
+  function alen(a: Array): Int 
+  
+  function loc_inv_1(loc: Ref): Array 
+  
+  function loc_inv_2(loc: Ref): Int 
+  
+  axiom {
+    (forall a: Array, i: Int ::
+      { array_loc(a, i) }
+      loc_inv_1(array_loc(a, i)) == a && loc_inv_2(array_loc(a, i)) == i)
+  }
+  
+  axiom {
+    (forall a: Array :: { alen(a) } alen(a) >= 0)
+  }
+}
+
+domain Any  {
+  
+  
+}
+
+domain Option[T1]  {
+  
+  function none1(): Option[T1] 
+  
+  function some(x1: T1): Option[T1] 
+  
+  function option_get(opt: Option[T1]): T1 
+  
+  axiom {
+    (forall x1: T1 ::
+      { (some(x1): Option[T1]) }
+      (none1(): Option[T1]) != (some(x1): Option[T1]))
+  }
+  
+  axiom {
+    (forall x1: T1 ::
+      { (some(x1): Option[T1]) }
+      (option_get((some(x1): Option[T1])): T1) == x1)
+  }
+  
+  axiom {
+    (forall opt: Option[T1] ::
+      { (some((option_get(opt): T1)): Option[T1]) }
+      (some((option_get(opt): T1)): Option[T1]) == opt)
+  }
+}
+
+domain Void  {
+  
+  function unit(): Void 
+  
+  axiom {
+    (forall v: Void ::true ==> unit() == v)
+  }
+}
+
+field myToken: Int
+
+field height: Int
+
+field temp: Ref
+
+field width: Int
+
+field arr_int: Option[Array]
+
+field goOn: Bool
+
+field move: Ref
+
+field t: Int
+
+field yourToken: Int
+
+field board: Option[Array]
+
+field x: Int
+
+field y: Int
+
+field int: Int
+
+function aloc(a: Array, i: Int): Ref
+  requires 0 <= i
+  requires i < alen(a)
+  decreases 
+  ensures loc_inv_1(result) == a
+  ensures loc_inv_2(result) == i
+{
+  array_loc(a, i)
+}
+
+function anyAs(t1: Any): Any
+  decreases 
+
+
+function asAny(t1: Any): Any
+  decreases 
+  ensures anyAs(result) == t1
+
+
+function optGet(opt: Option[Any]): Any
+  requires opt != (none1(): Option[Any])
+  decreases 
+  ensures (some(result): Option[Any]) == opt
+{
+  (option_get(opt): Any)
+}
+
+function optOrElse(opt: Option[Any], alt: Any): Any
+  decreases 
+  ensures opt == (none1(): Option[Any]) ==> result == alt
+  ensures opt != (none1(): Option[Any]) ==> result == optGet(opt)
+{
+  (opt == (none1(): Option[Any]) ? alt : optGet(opt))
+}
+
+function optGet1(opt: Option[Array]): Array
+  requires opt != (none1(): Option[Array])
+  decreases 
+  ensures (some(result): Option[Array]) == opt
+{
+  (option_get(opt): Array)
+}
+
+function type(type1: Ref): Int
+  decreases 
+  ensures result >= 0
+  ensures result <= 2
+  ensures type1 == null ==> result == 0
+  ensures type1 != null ==> result != 0
+
+
+function subtype(subtype1: Int, subtype2: Int): Bool
+  requires subtype1 >= 0
+  requires subtype1 <= 2
+  requires subtype2 >= 0
+  requires subtype2 <= 2
+  decreases 
+{
+  (subtype1 == 0 ==> true) &&
+  ((subtype1 == 2 ==> subtype2 == 2) && (subtype1 == 1 ==> subtype2 == 1))
+}
+
+method unknown(tid: Int, x1: Int, y1: Int, t1: Int) returns (res: Ref)
+  ensures acc(res.x, write)
+  ensures acc(res.y, write)
+  ensures acc(res.t, write)
+  ensures res != null
+  ensures type(res) == 1
+  ensures res.x == x1
+  ensures res.y == y1
+  ensures res.t == t1
+
+
+method clone(this: Ref, tid: Int) returns (res: Ref)
+  requires this != null
+  requires acc(this.x, write)
+  requires acc(this.y, write)
+  requires acc(this.t, write)
+  ensures acc(this.x, write)
+  ensures acc(this.y, write)
+  ensures acc(this.t, write)
+  ensures acc(res.x, write)
+  ensures acc(res.y, write)
+  ensures acc(res.t, write)
+  ensures old(this.x) == this.x
+  ensures this.x == res.x
+  ensures old(this.y) == this.y
+  ensures this.y == res.y
+  ensures old(this.t) == this.t
+  ensures this.t == res.t
+{
+  {
+    var exc: Ref
+    var return: Ref
+    var res1: Ref
+    var flatten: Ref
+    exc := null
+    res1 := unknown(tid, this.x, this.y, this.t)
+    flatten := res1
+    return := flatten
+    goto END
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method unknown1(tid: Int, m: Int, n: Int, t1: Int, t2: Int)
+  returns (res: Ref)
+  ensures acc(res.width, write)
+  ensures acc(res.height, write)
+  ensures acc(res.myToken, write)
+  ensures acc(res.yourToken, write)
+  ensures acc(res.board, write)
+  ensures res.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(res.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(res.board)) ==>
+      acc(aloc(optGet1(res.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(res.board)) ==>
+      aloc(optGet1(res.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(res.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(res.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(res.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(res.temp, write)
+  ensures acc(res.temp.x, write)
+  ensures acc(res.temp.y, write)
+  ensures acc(res.temp.t, write)
+  ensures acc(res.move, write)
+  ensures acc(res.move.x, write)
+  ensures acc(res.move.y, write)
+  ensures acc(res.move.t, write)
+  ensures acc(res.goOn, write)
+  ensures res != null
+  ensures type(res) == 2
+  ensures res.width == m
+  ensures res.height == n
+  ensures res.myToken == t1
+  ensures res.yourToken == t2
+  ensures (let mat ==
+      (res.board) in
+      (let w ==
+        (res.width) in
+        (let h ==
+          (res.height) in
+          mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+          ((forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+          (forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h)))))
+  ensures (forall i: Int, j: Int ::
+      { aloc(optGet1(aloc(optGet1(res.board), i).arr_int), j) }
+      0 <= i && i < res.width && (0 <= j && j < res.height) ==>
+      aloc(optGet1(aloc(optGet1(res.board), i).arr_int), j).int == 0)
+  ensures res.goOn == false
+
+
+method think(this: Ref, tid: Int) returns (res: Void)
+  requires this != null
+  requires acc(this.width, write)
+  requires acc(this.height, write)
+  requires acc(this.myToken, write)
+  requires acc(this.yourToken, write)
+  requires acc(this.board, write)
+  requires this.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(this.board)) ==>
+      acc(aloc(optGet1(this.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(this.board)) ==>
+      aloc(optGet1(this.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(this.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(this.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(this.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(this.temp, write)
+  requires acc(this.temp.x, write)
+  requires acc(this.temp.y, write)
+  requires acc(this.temp.t, write)
+  requires acc(this.move, write)
+  requires acc(this.move.x, write)
+  requires acc(this.move.y, write)
+  requires acc(this.move.t, write)
+  requires acc(this.goOn, write)
+  requires (let mat ==
+      (this.board) in
+      (let w ==
+        (this.width) in
+        (let h ==
+          (this.height) in
+          mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+          ((forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+          (forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h)))))
+  ensures acc(this.width, write)
+  ensures acc(this.height, write)
+  ensures acc(this.myToken, write)
+  ensures acc(this.yourToken, write)
+  ensures acc(this.board, write)
+  ensures this.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(this.board)) ==>
+      acc(aloc(optGet1(this.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(this.board)) ==>
+      aloc(optGet1(this.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(this.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(this.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(this.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(this.temp, write)
+  ensures acc(this.temp.x, write)
+  ensures acc(this.temp.y, write)
+  ensures acc(this.temp.t, write)
+  ensures acc(this.move, write)
+  ensures acc(this.move.x, write)
+  ensures acc(this.move.y, write)
+  ensures acc(this.move.t, write)
+  ensures acc(this.goOn, write)
+  ensures (let mat ==
+      (this.board) in
+      (let w ==
+        (this.width) in
+        (let h ==
+          (this.height) in
+          mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+          ((forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+          (forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h)))))
+  ensures (let self ==
+      (this) in
+      old(self.width) == self.width && old(self.height) == self.height &&
+      old(self.myToken) == self.myToken &&
+      old(self.yourToken) == self.yourToken &&
+      old(self.temp) == self.temp &&
+      old(self.move) == self.move &&
+      old(self.board) == self.board &&
+      (forall preferred_arrayseq_i__: Int ::
+        { aloc(optGet1(self.board), preferred_arrayseq_i__) }
+        0 <= preferred_arrayseq_i__ &&
+        preferred_arrayseq_i__ < alen(optGet1(self.board)) ==>
+        old(aloc(optGet1(self.board), preferred_arrayseq_i__).arr_int) ==
+        aloc(optGet1(self.board), preferred_arrayseq_i__).arr_int))
+  ensures (forall i: Int, j: Int ::
+      { aloc(optGet1(aloc(optGet1(this.board), i).arr_int), j) }
+      0 <= i && i < this.width && (0 <= j && j < this.height) ==>
+      old(aloc(optGet1(aloc(optGet1(this.board), i).arr_int), j).int) ==
+      aloc(optGet1(aloc(optGet1(this.board), i).arr_int), j).int)
+  ensures old(this.goOn) == this.goOn
+  ensures 2 <= this.move.x
+  ensures this.move.x < this.width - 2
+  ensures 2 <= this.move.y
+  ensures this.move.y < this.height - 2
+  ensures this.move.t == this.myToken
+  ensures aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y).int ==
+    0
+
+
+method play(this: Ref, tid: Int) returns (res: Void)
+  requires this != null
+  requires acc(this.width, write)
+  requires acc(this.height, write)
+  requires acc(this.myToken, write)
+  requires acc(this.yourToken, write)
+  requires acc(this.board, write)
+  requires this.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(this.board)) ==>
+      acc(aloc(optGet1(this.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(this.board)) ==>
+      aloc(optGet1(this.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(this.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(this.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(this.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(this.temp, write)
+  requires acc(this.temp.x, write)
+  requires acc(this.temp.y, write)
+  requires acc(this.temp.t, write)
+  requires acc(this.move, write)
+  requires acc(this.move.x, write)
+  requires acc(this.move.y, write)
+  requires acc(this.move.t, write)
+  requires acc(this.goOn, write)
+  requires (let mat ==
+      (this.board) in
+      (let w ==
+        (this.width) in
+        (let h ==
+          (this.height) in
+          mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+          ((forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+          (forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h)))))
+  requires 2 <= this.move.x
+  requires this.move.x < this.width - 2
+  requires 2 <= this.move.y
+  requires this.move.y < this.height - 2
+  requires this.move.t == this.myToken || this.move.t == this.yourToken
+  requires aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y).int ==
+    0
+  ensures acc(this.width, write)
+  ensures acc(this.height, write)
+  ensures acc(this.myToken, write)
+  ensures acc(this.yourToken, write)
+  ensures acc(this.board, write)
+  ensures this.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(this.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(this.board)) ==>
+      acc(aloc(optGet1(this.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(this.board)) ==>
+      aloc(optGet1(this.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(this.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(this.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(this.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(this.temp, write)
+  ensures acc(this.temp.x, write)
+  ensures acc(this.temp.y, write)
+  ensures acc(this.temp.t, write)
+  ensures acc(this.move, write)
+  ensures acc(this.move.x, write)
+  ensures acc(this.move.y, write)
+  ensures acc(this.move.t, write)
+  ensures acc(this.goOn, write)
+  ensures (let mat ==
+      (this.board) in
+      (let w ==
+        (this.width) in
+        (let h ==
+          (this.height) in
+          mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+          ((forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+          (forall i: Int ::
+            { aloc(optGet1(mat), i) }
+            0 <= i && i < w ==>
+            alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h)))))
+  ensures 2 <= this.move.x
+  ensures this.move.x < this.width - 2
+  ensures 2 <= this.move.y
+  ensures this.move.y < this.height - 2
+  ensures this.move.t == this.myToken || this.move.t == this.yourToken
+  ensures (let self ==
+      (this) in
+      old(self.width) == self.width && old(self.height) == self.height &&
+      old(self.myToken) == self.myToken &&
+      old(self.yourToken) == self.yourToken &&
+      old(self.temp) == self.temp &&
+      old(self.move) == self.move &&
+      old(self.board) == self.board &&
+      (forall preferred_arrayseq_i__: Int ::
+        { aloc(optGet1(self.board), preferred_arrayseq_i__) }
+        0 <= preferred_arrayseq_i__ &&
+        preferred_arrayseq_i__ < alen(optGet1(self.board)) ==>
+        old(aloc(optGet1(self.board), preferred_arrayseq_i__).arr_int) ==
+        aloc(optGet1(self.board), preferred_arrayseq_i__).arr_int))
+  ensures old(this.move.x) == this.move.x
+  ensures old(this.move.y) == this.move.y
+  ensures old(this.move.t) == this.move.t
+  ensures (forall i: Int, j: Int ::
+      { aloc(optGet1(aloc(optGet1(this.board), i).arr_int), j) }
+      0 <= i && i < this.width && (0 <= j && j < this.height) ==>
+      i != this.move.x || j != this.move.y ==>
+      old(aloc(optGet1(aloc(optGet1(this.board), i).arr_int), j).int) ==
+      aloc(optGet1(aloc(optGet1(this.board), i).arr_int), j).int)
+  ensures aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y).int ==
+    this.move.t
+  ensures old(this.goOn) == false ==> this.goOn == false
+  ensures old(this.goOn) == true
+  ensures (aloc(optGet1(aloc(optGet1(this.board), this.move.x - 2).arr_int),
+    this.move.y).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 1).arr_int), this.move.y).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 1).arr_int), this.move.y).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 1).arr_int), this.move.y).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 1).arr_int), this.move.y).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 2).arr_int), this.move.y).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y -
+    2).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y -
+    1).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y -
+    1).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y +
+    1).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y +
+    1).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x).arr_int), this.move.y +
+    2).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 2).arr_int), this.move.y -
+    2).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 1).arr_int), this.move.y -
+    1).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 1).arr_int), this.move.y -
+    1).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 1).arr_int), this.move.y +
+    1).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 1).arr_int), this.move.y +
+    1).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 2).arr_int), this.move.y +
+    2).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 2).arr_int), this.move.y -
+    2).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 1).arr_int), this.move.y -
+    1).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x + 1).arr_int), this.move.y -
+    1).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 1).arr_int), this.move.y +
+    1).int ==
+    this.move.t ||
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 1).arr_int), this.move.y +
+    1).int ==
+    this.move.t &&
+    aloc(optGet1(aloc(optGet1(this.board), this.move.x - 2).arr_int), this.move.y +
+    2).int ==
+    this.move.t) ==
+    !this.goOn
+
+
+method tic_tac_toe_run(tid: Int, m: Int, n: Int, p1: Ref, p2: Ref)
+  returns (res: Void)
+  requires acc(p1.width, write)
+  requires acc(p1.height, write)
+  requires acc(p1.myToken, write)
+  requires acc(p1.yourToken, write)
+  requires acc(p1.board, write)
+  requires p1.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p1.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p1.board)) ==>
+      acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+      aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p1.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(p1.temp, write)
+  requires acc(p1.temp.x, write)
+  requires acc(p1.temp.y, write)
+  requires acc(p1.temp.t, write)
+  requires acc(p1.move, write)
+  requires acc(p1.move.x, write)
+  requires acc(p1.move.y, write)
+  requires acc(p1.move.t, write)
+  requires acc(p1.goOn, write)
+  requires acc(p2.width, write)
+  requires acc(p2.height, write)
+  requires acc(p2.myToken, write)
+  requires acc(p2.yourToken, write)
+  requires acc(p2.board, write)
+  requires p2.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p2.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p2.board)) ==>
+      acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+      aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p2.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(p2.temp, write)
+  requires acc(p2.temp.x, write)
+  requires acc(p2.temp.y, write)
+  requires acc(p2.temp.t, write)
+  requires acc(p2.move, write)
+  requires acc(p2.move.x, write)
+  requires acc(p2.move.y, write)
+  requires acc(p2.move.t, write)
+  requires acc(p2.goOn, write)
+  requires (let p3 ==
+      (p1) in
+      (let p4 ==
+        (p2) in
+        p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+        p3.width == p4.width &&
+        p3.height == p4.height &&
+        (let mat ==
+          (p3.board) in
+          (let w ==
+            (p3.width) in
+            (let h ==
+              (p3.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (let mat ==
+          (p4.board) in
+          (let w ==
+            (p4.width) in
+            (let h ==
+              (p4.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (forall i: Int, j: Int ::
+          { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+          i).arr_int), j) }
+          0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+          aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+          aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+        p3.goOn == p4.goOn))
+  ensures acc(p1.width, write)
+  ensures acc(p1.height, write)
+  ensures acc(p1.myToken, write)
+  ensures acc(p1.yourToken, write)
+  ensures acc(p1.board, write)
+  ensures p1.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p1.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p1.board)) ==>
+      acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+      aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p1.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(p1.temp, write)
+  ensures acc(p1.temp.x, write)
+  ensures acc(p1.temp.y, write)
+  ensures acc(p1.temp.t, write)
+  ensures acc(p1.move, write)
+  ensures acc(p1.move.x, write)
+  ensures acc(p1.move.y, write)
+  ensures acc(p1.move.t, write)
+  ensures acc(p1.goOn, write)
+  ensures acc(p2.width, write)
+  ensures acc(p2.height, write)
+  ensures acc(p2.myToken, write)
+  ensures acc(p2.yourToken, write)
+  ensures acc(p2.board, write)
+  ensures p2.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p2.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p2.board)) ==>
+      acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+      aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p2.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(p2.temp, write)
+  ensures acc(p2.temp.x, write)
+  ensures acc(p2.temp.y, write)
+  ensures acc(p2.temp.t, write)
+  ensures acc(p2.move, write)
+  ensures acc(p2.move.x, write)
+  ensures acc(p2.move.y, write)
+  ensures acc(p2.move.t, write)
+  ensures acc(p2.goOn, write)
+  ensures (let p3 ==
+      (p1) in
+      (let p4 ==
+        (p2) in
+        p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+        p3.width == p4.width &&
+        p3.height == p4.height &&
+        (let mat ==
+          (p3.board) in
+          (let w ==
+            (p3.width) in
+            (let h ==
+              (p3.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (let mat ==
+          (p4.board) in
+          (let w ==
+            (p4.width) in
+            (let h ==
+              (p4.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (forall i: Int, j: Int ::
+          { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+          i).arr_int), j) }
+          0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+          aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+          aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+        p3.goOn == p4.goOn))
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    var res2: Void
+    var excbeforeloop: Ref
+    exc := null
+    label LOOP
+    excbeforeloop := exc
+    assert p1.goOn == p2.goOn
+    while (p1.goOn && p2.goOn)
+      invariant exc == excbeforeloop
+      invariant acc(p1.width, write)
+      invariant acc(p1.height, write)
+      invariant acc(p1.myToken, write)
+      invariant acc(p1.yourToken, write)
+      invariant acc(p1.board, write)
+      invariant p1.board != (none1(): Option[Array])
+      invariant (forall preferred_list_i__: Int ::
+          { aloc(optGet1(p1.board), preferred_list_i__) }
+          0 <= preferred_list_i__ &&
+          preferred_list_i__ < alen(optGet1(p1.board)) ==>
+          acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+      invariant (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+          aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+        (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+          i < alen(optGet1(p1.board)) &&
+          (0 <= preferred_list_i__ &&
+          preferred_list_i__ <
+          alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+          acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+      invariant acc(p1.temp, write)
+      invariant acc(p1.temp.x, write)
+      invariant acc(p1.temp.y, write)
+      invariant acc(p1.temp.t, write)
+      invariant acc(p1.move, write)
+      invariant acc(p1.move.x, write)
+      invariant acc(p1.move.y, write)
+      invariant acc(p1.move.t, write)
+      invariant acc(p1.goOn, write)
+      invariant acc(p2.width, write)
+      invariant acc(p2.height, write)
+      invariant acc(p2.myToken, write)
+      invariant acc(p2.yourToken, write)
+      invariant acc(p2.board, write)
+      invariant p2.board != (none1(): Option[Array])
+      invariant (forall preferred_list_i__: Int ::
+          { aloc(optGet1(p2.board), preferred_list_i__) }
+          0 <= preferred_list_i__ &&
+          preferred_list_i__ < alen(optGet1(p2.board)) ==>
+          acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+      invariant (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+          aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+        (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+          i < alen(optGet1(p2.board)) &&
+          (0 <= preferred_list_i__ &&
+          preferred_list_i__ <
+          alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+          acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+      invariant acc(p2.temp, write)
+      invariant acc(p2.temp.x, write)
+      invariant acc(p2.temp.y, write)
+      invariant acc(p2.temp.t, write)
+      invariant acc(p2.move, write)
+      invariant acc(p2.move.x, write)
+      invariant acc(p2.move.y, write)
+      invariant acc(p2.move.t, write)
+      invariant acc(p2.goOn, write)
+      invariant (let p3 ==
+          (p1) in
+          (let p4 ==
+            (p2) in
+            p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+            p3.width == p4.width &&
+            p3.height == p4.height &&
+            (let mat ==
+              (p3.board) in
+              (let w ==
+                (p3.width) in
+                (let h ==
+                  (p3.height) in
+                  mat != (none1(): Option[Array]) &&
+                  alen(optGet1(mat)) == w &&
+                  ((forall i: Int ::
+                    { aloc(optGet1(mat), i) }
+                    0 <= i && i < w ==>
+                    aloc(optGet1(mat), i).arr_int !=
+                    (none1(): Option[Array])) &&
+                  (forall i: Int ::
+                    { aloc(optGet1(mat), i) }
+                    0 <= i && i < w ==>
+                    alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+            (let mat ==
+              (p4.board) in
+              (let w ==
+                (p4.width) in
+                (let h ==
+                  (p4.height) in
+                  mat != (none1(): Option[Array]) &&
+                  alen(optGet1(mat)) == w &&
+                  ((forall i: Int ::
+                    { aloc(optGet1(mat), i) }
+                    0 <= i && i < w ==>
+                    aloc(optGet1(mat), i).arr_int !=
+                    (none1(): Option[Array])) &&
+                  (forall i: Int ::
+                    { aloc(optGet1(mat), i) }
+                    0 <= i && i < w ==>
+                    alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+            (forall i: Int, j: Int ::
+              { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+              i).arr_int), j) }
+              0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+              aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+              aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+            p3.goOn == p4.goOn))
+      invariant p1.goOn == p2.goOn 
+    {
+      res1 := turn1(tid, m, n, p1, p2)
+      assert p1.goOn == p2.goOn
+      if (p1.goOn && p2.goOn) {
+        res2 := turn2(tid, m, n, p1, p2)
+      }
+      assert p1.goOn == p2.goOn
+    }
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method turn1(tid: Int, m: Int, n: Int, p1: Ref, p2: Ref)
+  returns (res: Void)
+  requires acc(p1.width, write)
+  requires acc(p1.height, write)
+  requires acc(p1.myToken, write)
+  requires acc(p1.yourToken, write)
+  requires acc(p1.board, write)
+  requires p1.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p1.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p1.board)) ==>
+      acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+      aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p1.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(p1.temp, write)
+  requires acc(p1.temp.x, write)
+  requires acc(p1.temp.y, write)
+  requires acc(p1.temp.t, write)
+  requires acc(p1.move, write)
+  requires acc(p1.move.x, write)
+  requires acc(p1.move.y, write)
+  requires acc(p1.move.t, write)
+  requires acc(p1.goOn, write)
+  requires acc(p2.width, write)
+  requires acc(p2.height, write)
+  requires acc(p2.myToken, write)
+  requires acc(p2.yourToken, write)
+  requires acc(p2.board, write)
+  requires p2.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p2.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p2.board)) ==>
+      acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+      aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p2.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(p2.temp, write)
+  requires acc(p2.temp.x, write)
+  requires acc(p2.temp.y, write)
+  requires acc(p2.temp.t, write)
+  requires acc(p2.move, write)
+  requires acc(p2.move.x, write)
+  requires acc(p2.move.y, write)
+  requires acc(p2.move.t, write)
+  requires acc(p2.goOn, write)
+  requires (let p3 ==
+      (p1) in
+      (let p4 ==
+        (p2) in
+        p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+        p3.width == p4.width &&
+        p3.height == p4.height &&
+        (let mat ==
+          (p3.board) in
+          (let w ==
+            (p3.width) in
+            (let h ==
+              (p3.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (let mat ==
+          (p4.board) in
+          (let w ==
+            (p4.width) in
+            (let h ==
+              (p4.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (forall i: Int, j: Int ::
+          { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+          i).arr_int), j) }
+          0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+          aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+          aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+        p3.goOn == p4.goOn))
+  ensures acc(p1.width, write)
+  ensures acc(p1.height, write)
+  ensures acc(p1.myToken, write)
+  ensures acc(p1.yourToken, write)
+  ensures acc(p1.board, write)
+  ensures p1.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p1.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p1.board)) ==>
+      acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+      aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p1.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(p1.temp, write)
+  ensures acc(p1.temp.x, write)
+  ensures acc(p1.temp.y, write)
+  ensures acc(p1.temp.t, write)
+  ensures acc(p1.move, write)
+  ensures acc(p1.move.x, write)
+  ensures acc(p1.move.y, write)
+  ensures acc(p1.move.t, write)
+  ensures acc(p1.goOn, write)
+  ensures acc(p2.width, write)
+  ensures acc(p2.height, write)
+  ensures acc(p2.myToken, write)
+  ensures acc(p2.yourToken, write)
+  ensures acc(p2.board, write)
+  ensures p2.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p2.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p2.board)) ==>
+      acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+      aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p2.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(p2.temp, write)
+  ensures acc(p2.temp.x, write)
+  ensures acc(p2.temp.y, write)
+  ensures acc(p2.temp.t, write)
+  ensures acc(p2.move, write)
+  ensures acc(p2.move.x, write)
+  ensures acc(p2.move.y, write)
+  ensures acc(p2.move.t, write)
+  ensures acc(p2.goOn, write)
+  ensures (let p3 ==
+      (p1) in
+      (let p4 ==
+        (p2) in
+        p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+        p3.width == p4.width &&
+        p3.height == p4.height &&
+        (let mat ==
+          (p3.board) in
+          (let w ==
+            (p3.width) in
+            (let h ==
+              (p3.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (let mat ==
+          (p4.board) in
+          (let w ==
+            (p4.width) in
+            (let h ==
+              (p4.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (forall i: Int, j: Int ::
+          { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+          i).arr_int), j) }
+          0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+          aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+          aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+        p3.goOn == p4.goOn))
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    var res2: Void
+    var res3: Void
+    var res4: Ref
+    var flatten: Ref
+    var flatten1: Ref
+    var res5: Ref
+    var flatten2: Ref
+    var res6: Void
+    exc := null
+    res1 := think(p1, tid)
+    res2 := play(p1, tid)
+    res3 := think(p2, tid)
+    res4 := clone(p1.move, tid)
+    flatten := res4
+    p1.temp := flatten
+    assert p2 != p1
+    flatten1 := p1.temp
+    p2.move := flatten1
+    res5 := clone(p1.move, tid)
+    flatten2 := res5
+    p1.temp := flatten2
+    res6 := play(p2, tid)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method turn2(tid: Int, m: Int, n: Int, p1: Ref, p2: Ref)
+  returns (res: Void)
+  requires acc(p2.width, write)
+  requires acc(p2.height, write)
+  requires acc(p2.myToken, write)
+  requires acc(p2.yourToken, write)
+  requires acc(p2.board, write)
+  requires p2.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p2.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p2.board)) ==>
+      acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+      aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p2.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(p2.temp, write)
+  requires acc(p2.temp.x, write)
+  requires acc(p2.temp.y, write)
+  requires acc(p2.temp.t, write)
+  requires acc(p2.move, write)
+  requires acc(p2.move.x, write)
+  requires acc(p2.move.y, write)
+  requires acc(p2.move.t, write)
+  requires acc(p2.goOn, write)
+  requires acc(p1.width, write)
+  requires acc(p1.height, write)
+  requires acc(p1.myToken, write)
+  requires acc(p1.yourToken, write)
+  requires acc(p1.board, write)
+  requires p1.board != (none1(): Option[Array])
+  requires (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p1.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p1.board)) ==>
+      acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+  requires (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+      aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p1.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+  requires acc(p1.temp, write)
+  requires acc(p1.temp.x, write)
+  requires acc(p1.temp.y, write)
+  requires acc(p1.temp.t, write)
+  requires acc(p1.move, write)
+  requires acc(p1.move.x, write)
+  requires acc(p1.move.y, write)
+  requires acc(p1.move.t, write)
+  requires acc(p1.goOn, write)
+  requires (let p3 ==
+      (p1) in
+      (let p4 ==
+        (p2) in
+        p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+        p3.width == p4.width &&
+        p3.height == p4.height &&
+        (let mat ==
+          (p3.board) in
+          (let w ==
+            (p3.width) in
+            (let h ==
+              (p3.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (let mat ==
+          (p4.board) in
+          (let w ==
+            (p4.width) in
+            (let h ==
+              (p4.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (forall i: Int, j: Int ::
+          { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+          i).arr_int), j) }
+          0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+          aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+          aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+        p3.goOn == p4.goOn))
+  ensures acc(p2.width, write)
+  ensures acc(p2.height, write)
+  ensures acc(p2.myToken, write)
+  ensures acc(p2.yourToken, write)
+  ensures acc(p2.board, write)
+  ensures p2.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p2.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p2.board)) ==>
+      acc(aloc(optGet1(p2.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(p2.board)) ==>
+      aloc(optGet1(p2.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p2.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p2.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p2.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(p2.temp, write)
+  ensures acc(p2.temp.x, write)
+  ensures acc(p2.temp.y, write)
+  ensures acc(p2.temp.t, write)
+  ensures acc(p2.move, write)
+  ensures acc(p2.move.x, write)
+  ensures acc(p2.move.y, write)
+  ensures acc(p2.move.t, write)
+  ensures acc(p2.goOn, write)
+  ensures acc(p1.width, write)
+  ensures acc(p1.height, write)
+  ensures acc(p1.myToken, write)
+  ensures acc(p1.yourToken, write)
+  ensures acc(p1.board, write)
+  ensures p1.board != (none1(): Option[Array])
+  ensures (forall preferred_list_i__: Int ::
+      { aloc(optGet1(p1.board), preferred_list_i__) }
+      0 <= preferred_list_i__ &&
+      preferred_list_i__ < alen(optGet1(p1.board)) ==>
+      acc(aloc(optGet1(p1.board), preferred_list_i__).arr_int, write))
+  ensures (forall i: Int ::0 <= i && i < alen(optGet1(p1.board)) ==>
+      aloc(optGet1(p1.board), i).arr_int != (none1(): Option[Array])) &&
+    (forall i: Int, preferred_list_i__: Int ::0 <= i &&
+      i < alen(optGet1(p1.board)) &&
+      (0 <= preferred_list_i__ &&
+      preferred_list_i__ <
+      alen(optGet1(aloc(optGet1(p1.board), i).arr_int))) ==>
+      acc(aloc(optGet1(aloc(optGet1(p1.board), i).arr_int), preferred_list_i__).int, write))
+  ensures acc(p1.temp, write)
+  ensures acc(p1.temp.x, write)
+  ensures acc(p1.temp.y, write)
+  ensures acc(p1.temp.t, write)
+  ensures acc(p1.move, write)
+  ensures acc(p1.move.x, write)
+  ensures acc(p1.move.y, write)
+  ensures acc(p1.move.t, write)
+  ensures acc(p1.goOn, write)
+  ensures (let p3 ==
+      (p1) in
+      (let p4 ==
+        (p2) in
+        p3.myToken == p4.yourToken && p3.yourToken == p4.myToken &&
+        p3.width == p4.width &&
+        p3.height == p4.height &&
+        (let mat ==
+          (p3.board) in
+          (let w ==
+            (p3.width) in
+            (let h ==
+              (p3.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (let mat ==
+          (p4.board) in
+          (let w ==
+            (p4.width) in
+            (let h ==
+              (p4.height) in
+              mat != (none1(): Option[Array]) && alen(optGet1(mat)) == w &&
+              ((forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                aloc(optGet1(mat), i).arr_int != (none1(): Option[Array])) &&
+              (forall i: Int ::
+                { aloc(optGet1(mat), i) }
+                0 <= i && i < w ==>
+                alen(optGet1(aloc(optGet1(mat), i).arr_int)) == h))))) &&
+        (forall i: Int, j: Int ::
+          { aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j), aloc(optGet1(aloc(optGet1(p4.board),
+          i).arr_int), j) }
+          0 <= i && i < p3.width && (0 <= j && j < p3.height) ==>
+          aloc(optGet1(aloc(optGet1(p3.board), i).arr_int), j).int ==
+          aloc(optGet1(aloc(optGet1(p4.board), i).arr_int), j).int) &&
+        p3.goOn == p4.goOn))
+{
+  {
+    var exc: Ref
+    var return: Void
+    var res1: Void
+    var res2: Void
+    var res3: Void
+    var res4: Ref
+    var flatten: Ref
+    var flatten1: Ref
+    var res5: Ref
+    var flatten2: Ref
+    var res6: Void
+    exc := null
+    res1 := think(p2, tid)
+    res2 := play(p2, tid)
+    res3 := think(p1, tid)
+    res4 := clone(p2.move, tid)
+    flatten := res4
+    p2.temp := flatten
+    assert p1 != p2
+    flatten1 := p2.temp
+    p1.move := flatten1
+    res5 := clone(p2.move, tid)
+    flatten2 := res5
+    p2.temp := flatten2
+    res6 := play(p1, tid)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}
+
+method ticTacToe(tid: Int, m: Int, n: Int) returns (res: Void)
+{
+  {
+    var exc: Ref
+    var return: Void
+    var p1: Ref
+    var p2: Ref
+    var res1: Ref
+    var flatten: Ref
+    var res2: Ref
+    var flatten1: Ref
+    var res3: Void
+    exc := null
+    res1 := unknown1(tid, m, n, 1, 2)
+    flatten := res1
+    p1 := flatten
+    res2 := unknown1(tid, m, n, 2, 1)
+    flatten1 := res2
+    p2 := flatten1
+    res3 := tic_tac_toe_run(tid, m, n, p1, p2)
+    label END
+    res := return
+    label BUBBLE
+    assert exc == null
+  }
+}

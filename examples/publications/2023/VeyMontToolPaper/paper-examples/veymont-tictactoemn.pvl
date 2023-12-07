@@ -1,3 +1,6 @@
+/* TODO: Requires to pass: --assumeInjectivityOnInhale, fix s.t. inlining leaves obvious triggers alone
+         And even then, still takes long: 4m20s when running viper manually. */
+
 class Move {
   int x;
   int y;
@@ -114,8 +117,7 @@ seq_program tic_tac_toe(int m, int n) {
     p1.temp := p1.move.clone(); // Workaround - shouldn't be necessary...
     p2.play(); // to update
   }
-  seq_run {}
-/*
+
   context consistency(p1, p2);
   void turn2() {
     p2.think();
@@ -123,6 +125,7 @@ seq_program tic_tac_toe(int m, int n) {
     p1.think(); // in the background
     p2.temp := p2.move.clone();
     communicate p1.move <- p2.temp;
+    p2.temp := p2.move.clone(); // Workaround - shouldn't be necessary...
     p1.play(); // to update
   }
 
@@ -136,5 +139,4 @@ seq_program tic_tac_toe(int m, int n) {
       }
     }
   }
-  */
 }
