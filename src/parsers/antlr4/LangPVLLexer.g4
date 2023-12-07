@@ -1,13 +1,13 @@
-lexer grammar LangPVLLexer;
+lexer grammar PVLLexer;
 import SpecLexer;
 
 channels {
   EXPECTED_ERROR_CHANNEL
 }
 
-VAL_INLINE: 'inline';
-VAL_ASSERT: 'assert';
-VAL_PACKAGE: 'package';
+VAL_INLINE: {"keyword.other";} 'inline';
+VAL_ASSERT: {"keyword.other";} 'assert';
+VAL_PACKAGE: {"meta.*"} 'package';
 
 PAREN_OPEN: '(';
 PAREN_CLOSE: ')';
@@ -24,87 +24,83 @@ POINT: '.';
 COLON: ':';
 SEMICOLON: ';';
 
-QUESTION: '?';
-EXCL: '!';
-AND: '&&';
-OR: '||';
-BITOR: '|';
-XOR: '^^';
+QUESTION: {"keyword.operator";} '?';
+EXCL: {"keyword.operator";} '!';
+AND: {"keyword.operator";} '&&';
+OR: {"keyword.operator";} '||';
+BITOR: {"keyword.operator";} '|';
+XOR: {"keyword.operator";} '^^';
 
-GTE: '>=';
-LTE: '<=';
-ASSIGN: '=';
-EQ: '==';
-INEQ: '!=';
+GTE: {"keyword.operator";} '>=';
+LTE: {"keyword.operator";} '<=';
+ASSIGN: {"keyword.operator";} '=';
+EQ: {"keyword.operator";} '==';
+INEQ: {"keyword.operator";} '!=';
 
-PLUS: '+';
-MINUS: '-';
-STAR: '*';
-SLASH: '/';
-PERCENT: '%';
-INC: '++';
-DEC: '--';
-CONS: '::';
+PLUS: {"keyword.operator";} '+';
+MINUS: {"keyword.operator";} '-';
+STAR: {"keyword.operator";} '*';
+SLASH: {"keyword.operator";} '/';
+PERCENT: {"keyword.operator";} '%';
+INC: {"keyword.operator";} '++';
+DEC: {"keyword.operator";} '--';
+CONS: {"keyword.operator";} '::';
 
-ENUM: 'enum';
-CLASS: 'class';
-SEQ_PROGRAM: 'seq_program';
-SEQ_RUN: 'seq_run';
-KERNEL: 'kernel';
-BARRIER: 'barrier';
-INVARIANT: 'invariant';
-CONSTRUCTOR: 'constructor';
-RUN: 'run';
-THREAD: 'thread';
-ENDPOINT: 'endpoint';
+ENUM: {"storage.type";} 'enum';
+CLASS: {"storage.type";} 'class';
+SEQ_PROGRAM: {"keyword.control.concurrency";} 'seq_program';
+KERNEL: {"keyword.control.concurrency";} 'kernel';
+BARRIER: {"keyword.control.concurrency";} 'barrier';
+INVARIANT: {"keyword.control.concurrency";} 'invariant';
+CONSTRUCTOR: {"variable.language";} 'constructor';
+RUN: {"keyword.control.concurrency";} 'run';
+THREAD: {"keyword.control.concurrency";} 'thread';
 
-IF: 'if';
-ELSE: 'else';
-WHILE: 'while';
-FOR: 'for';
-GOTO: 'goto';
-RETURN: 'return';
-VEC: 'vec';
-PAR: 'par';
-PAR_AND: 'and';
-PARALLEL: 'parallel';
-SEQUENTIAL: 'sequential';
-BLOCK: 'block';
+IF: {"keyword.control";} 'if';
+ELSE: {"keyword.control";} 'else';
+WHILE: {"keyword.control";} 'while';
+FOR: {"keyword.control";} 'for';
+GOTO: {"keyword.control";} 'goto';
+RETURN: {"keyword.control";} 'return';
+VEC: {"variable.language";} 'vec';
+PAR: {"keyword.control.concurrency";} 'par';
+PAR_AND: {"keyword.control.concurrency";} 'and';
+PARALLEL: {"keyword.control.concurrency";} 'parallel';
+SEQUENTIAL: {"keyword.control.concurrency";} 'sequential';
+BLOCK: {"keyword.control";} 'block';
 
-LOCK: 'lock';
-UNLOCK: 'unlock';
-WAIT: 'wait';
-NOTIFY: 'notify';
-FORK: 'fork';
-JOIN: 'join';
+LOCK: {"keyword.control.concurrency";} 'lock';
+UNLOCK: {"keyword.control.concurrency";} 'unlock';
+WAIT: {"keyword.control.concurrency";} 'wait';
+NOTIFY: {"keyword.control.concurrency";} 'notify';
+FORK: {"keyword.control.concurrency";} 'fork';
+JOIN: {"keyword.control.concurrency";} 'join';
 
-COMMUNICATE: 'communicate';
+THIS: {"variable.language";} 'this';
+NULL: {"variable.language";} 'null';
+TRUE: {"variable.language";} 'true';
+FALSE: {"variable.language";} 'false';
+CURRENT_THREAD: {"variable.language";} 'current_thread';
+CURRENT_THREAD_ESC: {"variable.language";} '\\current_thread';
+OWNER: {"variable.language";} '\\owner';
 
-THIS: 'this';
-NULL: 'null';
-TRUE: 'true';
-FALSE: 'false';
-CURRENT_THREAD: 'current_thread';
-CURRENT_THREAD_ESC: '\\current_thread';
-OWNER: '\\owner';
+GLOBAL: {"storage.modifier";} 'global';
+LOCAL: {"storage.modifier";} 'local';
+STATIC: {"storage.modifier";} 'static';
+FINAL: {"storage.modifier";} 'final';
+UNFOLDING_ESC: {"variable.language";} '\\unfolding';
+UNFOLDING: {"variable.language";} 'unfolding';
+IN_ESC: {"variable.language";} '\\in';
+IN: {"variable.language";} 'in';
+NEW: {"variable.language";} 'new';
+ID: {"variable.language";} 'id';
 
-GLOBAL: 'global';
-LOCAL: 'local';
-STATIC: 'static';
-FINAL: 'final';
-UNFOLDING_ESC: '\\unfolding';
-UNFOLDING: 'unfolding';
-IN_ESC: '\\in';
-IN: 'in';
-NEW: 'new';
-ID: 'id';
-
-BOOL: 'boolean';
-VOID: 'void';
-INT: 'int';
-CHAR: 'char';
-FLOAT32: 'float32';
-FLOAT64: 'float64';
+BOOL: {"keyword.type";} 'boolean';
+VOID: {"keyword.type";} 'void';
+INT: {"keyword.type";} 'int';
+CHAR: {"keyword.type";} 'char';
+FLOAT32: {"keyword.type";} 'float32';
+FLOAT64: {"keyword.type";} 'float64';
 
 NUMBER : ('0'..'9')+;
 DECIMAL_NUMBER : ('0'..'9')+ '.' ('0'..'9')+;
@@ -143,7 +139,7 @@ HEX_DIGIT
     ;
 
 mode DEFAULT_MODE;
-Identifier  : ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
+Identifier : {"entity.name";} ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*;
 
 COMMENT : '/*' .*? '*/' -> skip;
 LINE_COMMENT : '//' .*? ('\n'|EOF) -> skip;

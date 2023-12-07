@@ -680,6 +680,8 @@ object vercors extends Module {
         base() / "LexerAdaptor.java",
       )
 
+    override def moduleDeps = Seq(hre)
+
     object antlrGrammarParser extends parsers.GenModule {
       override def base = T {
         settings.src / "textMateGenerator" / "antlr4"
