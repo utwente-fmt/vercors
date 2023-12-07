@@ -234,7 +234,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
     case preAssign@PreAssignExpression(local@CPPLocal(_, _), _) => cpp.preAssignExpr(preAssign, local)
-    case _: CPPLambdaDefinition[Pre] => ???
+    case lambda: CPPLambdaDefinition[Pre] => cpp.rewriteLambdaDefinition(lambda)
     case arrSub@AmbiguousSubscript(_, _) => cpp.rewriteSubscript(arrSub)
     case unfolding: Unfolding[Pre] => {
       cpp.checkPredicateFoldingAllowed(unfolding.res)

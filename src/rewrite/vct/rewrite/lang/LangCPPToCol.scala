@@ -27,6 +27,11 @@ case object LangCPPToCol {
       decl.o.messageInContext(s"This declaration has a type that is not supported.")
   }
 
+  case class LambdaDefinitionUnsupported(lambda: CPPLambdaDefinition[_]) extends UserError {
+    override def text: String = lambda.o.messageInContext("Lambda expressions are only supported as parameters for invocations of SYCL's submit and parallel_for methods.")
+    override def code: String = "unsupportedLambdaDefinition"
+  }
+
   private case class CPPDoubleContracted(decl: CPPGlobalDeclaration[_], defn: CPPFunctionDefinition[_]) extends UserError {
     override def code: String = "multipleContracts"
     override def text: String =
@@ -489,6 +494,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       { case t: CPPSpecificationType[Pre] => rw.dispatch(t.t) }.get)(varO)
     cppNameSuccessor(RefCPPParam(cppParam)) = v
     rw.variables.declare(v)
+  }
+
+  def rewriteLambdaDefinition(lambda: CPPLambdaDefinition[Pre]): Expr[Post] = {
+    throw LambdaDefinitionUnsupported(lambda)
   }
 
   def checkPredicateFoldingAllowed(predRes: Expr[Pre]): Unit = predRes match {
