@@ -1,5 +1,6 @@
 package vct.col.ast.helpers.generator
 
+import vct.col.ast.helpers.defn.ProtoNaming.ucamel
 import vct.col.ast.helpers.defn.{Proto, ProtoNaming}
 import vct.col.ast.structure.{NodeDefinition, NodeGenerator}
 
@@ -14,14 +15,10 @@ class ProtoNode extends NodeGenerator {
     val fields = node.fields.map(_._1).zip(typeResults).zipWithIndex.map {
       case ((name, res), idx) => Proto.Field(ProtoNaming.snake(name), idx + 1, res.t)
     }
-    val message = Proto.Message(node.name.parts.tail, Proto.MessageFields(fields))
-    val source = Proto.Source(imports, message)
+    val message = Proto.Message(Seq(ucamel(node.name.base)), Proto.MessageFields(fields))
 
-    val dir = node.name.tailName.initName.parts.foldLeft(out)(_.resolve(_))
-    Files.createDirectories(dir)
-
-    Using(Files.newBufferedWriter(dir.resolve(node.name.base + ".proto"), StandardCharsets.UTF_8)) { writer =>
-      source.write(writer)
+    Using(Files.newBufferedWriter(out.resolve(node.name.base + ".protomessage"), StandardCharsets.UTF_8)) { writer =>
+      message.write(writer)
     }
   }
 }

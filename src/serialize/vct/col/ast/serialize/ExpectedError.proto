@@ -2,6 +2,6 @@ syntax = "proto2";
 
 package vct.col.ast.serialize;
 
-message ExpectedErrors {
+message ExpectedError {
   // empty
 }
