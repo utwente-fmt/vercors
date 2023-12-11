@@ -587,11 +587,10 @@ object vercors extends Module {
 
   object col extends VercorsModule {
     object helpers extends Module {
-      class Loader[Obj: upickle.default.ReadWriter](file: Path) extends Module {
-        private def load(): Obj = upickle.default.read[Obj](file.toNIO, trace = true)
-        def loadAndWatch(): Obj = interp.watchValue(load())
+      class Loader[Obj: upickle.default.Reader](file: Path) extends Module {
+        def load(): Obj = upickle.default.read[Obj](file.toNIO, trace = true)
         def source: T[PathRef] = T.source(file)
-        def task: T[Obj] = T {
+        def task: Task[Obj] = T.task {
           source()
           load()
         }
@@ -633,8 +632,8 @@ object vercors extends Module {
 
         def inputs = T.sources(os.walk(root).filter(_.last.endsWith("Impl.scala")).map(PathRef(_)))
 
-        def loadDefnSet() = definitions.loadAndWatch().map(_.name.base).toSet
-        def loadFamilySet() = (declarationFamilies.loadAndWatch() ++ structuralFamilies.loadAndWatch()).map(_.base).toSet
+        def loadDefnSet() = definitions.load().map(_.name.base).toSet
+        def loadFamilySet() = (declarationFamilies.load() ++ structuralFamilies.load()).map(_.base).toSet
 
         private def nodeName(p: PathRef): String =
           p.path.last.dropRight("Impl.scala".length)
@@ -750,11 +749,11 @@ object vercors extends Module {
 
       implicit object FamilySegments extends Cross.ToSegments[(structure.Name, structure.NodeKind, Seq[structure.Name])](v => implicitly[Cross.ToSegments[structure.Name]].convert(v._1))
 
-      object family extends Cross[FamilyCross](families.loadAndWatch())
+      object family extends Cross[FamilyCross](families.load())
       trait FamilyCross extends Cross.Module[(structure.Name, structure.NodeKind, Seq[structure.Name])] {
-        def family = T { crossValue._1 }
-        def kind = T { crossValue._2 }
-        def nodes = T { crossValue._3 }
+        def family = T(crossValue._1)
+        def kind = T(crossValue._2)
+        def nodes = T(crossValue._3)
         def generate = T {
           val familyVal = family()
           val kindVal = kind()
@@ -767,9 +766,9 @@ object vercors extends Module {
         }
       }
 
-      object node extends Cross[NodeCross](definitions.loadAndWatch())
+      object node extends Cross[NodeCross](definitions.load())
       trait NodeCross extends Cross.Module[structure.NodeDefinition] {
-        def definition = T { crossValue }
+        def definition = T(crossValue)
         def generate = T {
           val defn = definition()
           nodeGenerators().foreach { gen =>
@@ -781,8 +780,8 @@ object vercors extends Module {
       }
 
       def generatedSources: T[Seq[PathRef]] = T {
-        T.traverse(definitions.loadAndWatch())(node(_).generate)() ++
-          T.traverse(families.loadAndWatch())(family(_).generate)() ++
+        T.traverse(definitions.load())(node(_).generate)() ++
+          T.traverse(families.load())(family(_).generate)() ++
           global.generate()
       }
 
@@ -805,31 +804,8 @@ object vercors extends Module {
   }
 
   object serialize extends VercorsModule with ScalaPBModule {
-    def proto = T {
-      val out = os.write.outputStream(T.dest / "col.proto")
-      out.write(
-        """syntax = "proto2";
-          |
-          |package vct.col.ast.serialize;
-          |
-          |import "vct/col/ast/serialize/BigDecimal.proto";
-          |import "vct/col/ast/serialize/BigInt.proto";
-          |import "vct/col/ast/serialize/BitString.proto";
-          |import "vct/col/ast/serialize/ExpectedError.proto";
-          |import "vct/col/ast/serialize/Ref.proto";
-          |
-          |""".stripMargin.getBytes)
-      for(path <- os.list(col.helpers.sources().path)) {
-        if(path.ext == "protomessage") {
-          os.read.inputStream(path).transferTo(out)
-          out.write("\n".getBytes)
-        }
-      }
-      out.close()
-      PathRef(T.dest)
-    }
     override def scalaPBSources = T {
-      proto() +: this.sources()
+      col.helpers.sources() +: this.sources()
     }
     override def key: String = "serialize"
     override def deps: T[Agg[Dep]] = T { Agg.empty }

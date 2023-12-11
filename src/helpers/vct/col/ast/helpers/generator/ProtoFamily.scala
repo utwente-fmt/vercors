@@ -1,6 +1,5 @@
 package vct.col.ast.helpers.generator
 
-import vct.col.ast.helpers.defn.ProtoNaming.ucamel
 import vct.col.ast.helpers.defn.{Proto, ProtoNaming}
 import vct.col.ast.structure.{FamilyGenerator, Name, NodeKind}
 
@@ -13,13 +12,19 @@ class ProtoFamily extends FamilyGenerator {
 
     val fqNames = nodes.map(_.tailName)
 
-    Using(Files.newBufferedWriter(out.resolve(family.base + ".protomessage"))) { writer =>
-      Proto.Message(Seq(ucamel(family.base)), Proto.MessageOneOf(
-        oneOfName = "v",
-        fields = fqNames.zipWithIndex.map {
-          case (name, idx) => Proto.Field(ProtoNaming.snake(name.base), idx + 1, Proto.UnspecifiedArity(ProtoNaming.getType(name)))
-        }
-      )).write(writer)
+    val dir = family.tailName.initName.parts.foldLeft(out)(_.resolve(_))
+    Files.createDirectories(dir)
+
+    Using(Files.newBufferedWriter(dir.resolve(family.base + ".proto"))) { writer =>
+      Proto.Source(
+        imports = fqNames.map(_.parts),
+        message = Proto.Message(family.parts.tail, Proto.MessageOneOf(
+          oneOfName = "v",
+          fields = fqNames.zipWithIndex.map {
+            case (name, idx) => Proto.Field(ProtoNaming.snake(name.base), idx + 1, Proto.UnspecifiedArity(ProtoNaming.getType(name)))
+          }
+        ))
+      ).write(writer)
     }
   }
 }

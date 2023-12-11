@@ -7,8 +7,6 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 object ProtoNaming {
-  val auxBase = Seq("vct", "col", "ast", "serialize")
-
   def explode(name: String): Seq[String] =
     name.split("_").toIndexedSeq.flatMap(explodeCamel(_))
 
@@ -49,7 +47,7 @@ object ProtoNaming {
     parts(name).map(_.capitalize).mkString("")
 
   def getType(t: structure.Name): MessageType =
-    MessageType(Seq(ucamel(t.parts.last)))
+    MessageType(t.parts.init.map(snake) :+ ucamel(t.parts.last))
 
   case class PrimitiveTypeResult(t: PrimitiveType, auxs: Seq[Message] = Nil, imports: Seq[Seq[String]] = Nil) {
     def result(trafo: PrimitiveType => Type): TypeResult =
@@ -59,7 +57,7 @@ object ProtoNaming {
   case class TypeResult(t: Type, auxs: Seq[Message] = Nil, imports: Seq[Seq[String]] = Nil)
 
   def typeText(t: structure.Type): String = t match {
-    case structure.Type.Node(name) => ucamel(name.base)
+    case structure.Type.Node(name) => name.tailName.parts.flatMap(parts).map(_.capitalize).mkString("")
     case structure.Type.Declaration(name) => typeText(structure.Type.Node(name))
     case structure.Type.DeclarationSeq(name) => typeText(structure.Type.Seq(structure.Type.Node(name)))
     case structure.Type.Ref(node) => s"Ref_${typeText(node)}"
@@ -68,7 +66,7 @@ object ProtoNaming {
     case structure.Type.Option(arg) => s"Option_${typeText(arg)}"
     case structure.Type.Seq(arg) => s"Seq_${typeText(arg)}"
     case structure.Type.Either(left, right) => s"Either_${typeText(left)}_${typeText(right)}"
-    case other: structure.Type.PrimitiveType => other.getClass.getSimpleName.replace("$", "")
+    case other: structure.Type.PrimitiveType => other.toString
   }
 
   private val _getTupleAux = mutable.Map[Seq[structure.Type], PrimitiveTypeResult]()
@@ -82,7 +80,7 @@ object ProtoNaming {
       val fields = MessageFields(fieldTypes.zipWithIndex.map {
         case (t, i) => Field(s"v${i + 1}", i + 1, t)
       })
-      val message = Message(Seq(typeText(structure.Type.Tuple(ts))), fields)
+      val message = Message(auxBase :+ typeText(structure.Type.Tuple(ts)), fields)
       PrimitiveTypeResult(MessageType(message.name), auxs :+ message, imports)
     })
 
@@ -92,7 +90,7 @@ object ProtoNaming {
     _getOptionAux.getOrElseUpdate(t, {
       val typeResult = getPrimitiveType(t)
       val field = Field("value", 1, Option(typeResult.t))
-      val message = Message(Seq("Option_" + typeText(t)), MessageFields(Seq(field)))
+      val message = Message(auxBase :+ ("Option_" + typeText(t)), MessageFields(Seq(field)))
       PrimitiveTypeResult(MessageType(message.name), typeResult.auxs :+ message, typeResult.imports)
     })
 
@@ -102,7 +100,7 @@ object ProtoNaming {
     _getSeqAux.getOrElseUpdate(t, {
       val typeResult = getPrimitiveType(t)
       val field = Field("value", 1, Option(typeResult.t))
-      val message = Message(Seq("Seq_" + typeText(t)), MessageFields(Seq(field)))
+      val message = Message(auxBase :+ ("Seq_" + typeText(t)), MessageFields(Seq(field)))
       PrimitiveTypeResult(MessageType(message.name), typeResult.auxs :+ message, typeResult.imports)
     })
 
@@ -115,7 +113,7 @@ object ProtoNaming {
       val leftField = Field("left", 1, Required(leftTypeResult.t))
       val rightField = Field("right", 2, Required(rightTypeResult.t))
       val fields = MessageOneOf("either", Seq(leftField, rightField))
-      val message = Message(Seq(s"Either_${typeText(left)}_${typeText(right)}"), fields)
+      val message = Message(auxBase :+ s"Either_${typeText(left)}_${typeText(right)}", fields)
       PrimitiveTypeResult(
         MessageType(message.name),
         (leftTypeResult.auxs ++ rightTypeResult.auxs) :+ message,

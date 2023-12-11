@@ -7,6 +7,8 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 
 object Proto {
+  val auxBase = Seq("vct", "col", "ast", "serialize")
+
   sealed trait PrimitiveType {
     def write(out: Appendable): Unit = this match {
       case Int => out.append("sint32")
@@ -16,8 +18,6 @@ object Proto {
       case Bool => out.append("bool")
       case String => out.append("string")
       case Bytes => out.append("bytes")
-      case MessageType(Seq(name)) =>
-        out.append(name)
       case MessageType(fqName) =>
         for(part <- fqName) {
           out.append('.')
@@ -33,7 +33,7 @@ object Proto {
   case object Bool extends PrimitiveType
   case object String extends PrimitiveType
   case object Bytes extends PrimitiveType
-  case class MessageType(name: Seq[String]) extends PrimitiveType
+  case class MessageType(fqName: Seq[String]) extends PrimitiveType
 
   sealed trait Type {
     def write(out: Appendable): Unit = this match {
