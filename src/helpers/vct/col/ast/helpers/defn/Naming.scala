@@ -1,6 +1,6 @@
 package vct.col.ast.helpers.defn
 
-import vct.col.ast.helpers.defn.Constants.{ComparePackage, DeclarePackage, RefType, RewritePackage, SubnodesPackage}
+import vct.col.ast.helpers.defn.Constants.{ComparePackage, DeclarePackage, RefType, RewritePackage, SerializePackage, SubnodesPackage}
 import vct.col.ast.structure
 import vct.col.ast.structure.NodeDefinition
 
@@ -54,6 +54,16 @@ object Naming {
   def scopes(family: String): Term.Name =
     Term.Name(family.charAt(0).toLower.toString + family.substring(1) + "s")
 
+  def scalapbName(node: structure.Name): structure.Name = {
+    val name = ProtoNaming.getTypeName(node)
+    val pkg = "_root_" +: ProtoNaming.scalaPackage(name)
+    val baseName = name.last
+    structure.Name(pkg :+ baseName)
+  }
+
+  def scalapbType(node: structure.Name): Type =
+    typ(scalapbName(node))
+
   def opsTrait(node: NodeDefinition) = Type.Name(node.name.base + "Ops")
   def opsFamilyTrait(node: structure.Name) = Type.Name(node.base + "FamilyOps")
 
@@ -63,6 +73,8 @@ object Naming {
   def rewriteType(node: NodeDefinition) = t"${packageFromRoot(RewritePackage)}.${rewriteTrait(node)}"
   def subnodesTrait(node: NodeDefinition) = Type.Name(node.name.base + "Subnodes")
   def subnodesType(node: NodeDefinition) = t"${packageFromRoot(SubnodesPackage)}.${subnodesTrait(node)}"
+  def serializeTrait(node: NodeDefinition) = Type.Name(node.name.base + "Serialize")
+  def serializeType(node: NodeDefinition) = t"${packageFromRoot(SerializePackage)}.${serializeTrait(node)}"
   def declareTrait(node: structure.Name) = Type.Name(node.base + "FamilyDeclare")
   def declareType(node: structure.Name) = t"${packageFromRoot(DeclarePackage)}.${declareTrait(node)}"
 }

@@ -193,6 +193,8 @@ object util {
   trait ScalaPBModule extends BaseScalaPBModule with ScalaModule {
     def scalaPBVersion = "0.11.11"
 
+    def scalaPBFlatPackage = true
+
     override def scalaPBClasspath: T[mill.api.Loose.Agg[PathRef]] = T {
       mill.scalalib.Lib.resolveDependencies(
         Seq(
@@ -724,7 +726,7 @@ object vercors extends Module {
         Seq(
           instantiate[structure.NodeGenerator]("Compare")(),
           instantiate[structure.NodeGenerator]("Rewrite")(),
-          // instantiate[structure.NodeGenerator]("Serialize")(),
+          instantiate[structure.NodeGenerator]("Serialize")(),
           instantiate[structure.NodeGenerator]("Subnodes")(),
           instantiate[structure.NodeGenerator]("Ops")(),
 

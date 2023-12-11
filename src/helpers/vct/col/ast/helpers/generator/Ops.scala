@@ -17,6 +17,7 @@ class Ops extends NodeGenerator {
           extends ${Init(t"${compareType(node)}[G]", Name.Anonymous(), Nil)}
           with ${Init(t"${rewriteType(node)}[G]", Name.Anonymous(), Nil)}
           with ${Init(t"${subnodesType(node)}[G]", Name.Anonymous(), Nil)}
+          with ${Init(t"${serializeType(node)}[G]", Name.Anonymous(), Nil)}
         { this: ${typ(node)}[G] => }
       """
     )

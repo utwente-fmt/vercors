@@ -1,7 +1,7 @@
 package vct.col.ast.helpers.generator
 
 import vct.col.ast.helpers.defn.Constants.{AbstractRewriter, OpsPackage}
-import vct.col.ast.helpers.defn.Naming.{declareType, opsFamilyTrait, typ}
+import vct.col.ast.helpers.defn.Naming.{declareType, opsFamilyTrait, scalapbType, typ}
 import vct.col.ast.structure
 import vct.col.ast.structure.{DeclaredNode, FamilyGenerator, StructuralNode}
 
@@ -18,6 +18,7 @@ class OpsFamily extends FamilyGenerator {
           extends ..${templates(family, kind)}
         { this: ${typ(family)}[G] =>
           override def rewriteDefault[Post]()(implicit rw: $AbstractRewriter[G, Post]): ${typ(family)}[Post]
+          override def serializeFamily(): ${scalapbType(family)}
         }
       """
     )

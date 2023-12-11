@@ -115,7 +115,7 @@ object HierarchyAnalysis {
 
             val fields = defn.fields.map(field => field.copy(_2 = validateTopType(field._2, decl.blame)))
 
-            NodeDefinition(decl.name, rootKind, scopes, fields, defn.blameType)
+            NodeDefinition(decl.name, rootKind, roots.head, scopes, fields, defn.blameType)
           })
           else if(roots.isEmpty)
             fail(defns.head.blame, "Node definitions must extends a node family or declaration kind")

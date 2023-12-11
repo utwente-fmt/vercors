@@ -46,15 +46,21 @@ object ProtoNaming {
   def ucamel(name: String): String =
     parts(name).map(_.capitalize).mkString("")
 
-  def getType(t: structure.Name): MessageType =
-    MessageType(t.parts.init.map(snake) :+ ucamel(t.parts.last))
+  def getTypeName(t: structure.Name): Seq[String] =
+    t.parts.tail.init.map(snake) :+ ucamel(t.parts.last)
 
-  case class PrimitiveTypeResult(t: PrimitiveType, auxs: Seq[Message] = Nil, imports: Seq[Seq[String]] = Nil) {
+  def scalaPackage(typeName: Seq[String]): Seq[String] =
+    typeName.init :+ "serialize"
+
+  def scalaPackageOption(typeName: Seq[String]): String =
+    scalaPackage(typeName).mkString("\"", ".", "\"")
+
+  case class PrimitiveTypeResult(t: PrimitiveType, auxs: Seq[Message] = Nil) {
     def result(trafo: PrimitiveType => Type): TypeResult =
-      TypeResult(trafo(t), auxs, imports)
+      TypeResult(trafo(t), auxs)
   }
 
-  case class TypeResult(t: Type, auxs: Seq[Message] = Nil, imports: Seq[Seq[String]] = Nil)
+  case class TypeResult(t: Type, auxs: Seq[Message] = Nil)
 
   def typeText(t: structure.Type): String = t match {
     case structure.Type.Node(name) => name.tailName.parts.flatMap(parts).map(_.capitalize).mkString("")
@@ -66,7 +72,7 @@ object ProtoNaming {
     case structure.Type.Option(arg) => s"Option_${typeText(arg)}"
     case structure.Type.Seq(arg) => s"Seq_${typeText(arg)}"
     case structure.Type.Either(left, right) => s"Either_${typeText(left)}_${typeText(right)}"
-    case other: structure.Type.PrimitiveType => other.toString
+    case other: structure.Type.PrimitiveType => other.getClass.getSimpleName.replace("$", "")
   }
 
   private val _getTupleAux = mutable.Map[Seq[structure.Type], PrimitiveTypeResult]()
@@ -75,13 +81,12 @@ object ProtoNaming {
     _getTupleAux.getOrElseUpdate(ts, {
       val fieldTypeResults = ts.map(getType)
       val auxs = fieldTypeResults.flatMap(_.auxs)
-      val imports = fieldTypeResults.flatMap(_.imports)
       val fieldTypes = fieldTypeResults.map(_.t)
       val fields = MessageFields(fieldTypes.zipWithIndex.map {
         case (t, i) => Field(s"v${i + 1}", i + 1, t)
       })
       val message = Message(auxBase :+ typeText(structure.Type.Tuple(ts)), fields)
-      PrimitiveTypeResult(MessageType(message.name), auxs :+ message, imports)
+      PrimitiveTypeResult(AuxType(message.name), auxs :+ message)
     })
 
   private val _getOptionAux = mutable.Map[structure.Type, PrimitiveTypeResult]()
@@ -91,7 +96,7 @@ object ProtoNaming {
       val typeResult = getPrimitiveType(t)
       val field = Field("value", 1, Option(typeResult.t))
       val message = Message(auxBase :+ ("Option_" + typeText(t)), MessageFields(Seq(field)))
-      PrimitiveTypeResult(MessageType(message.name), typeResult.auxs :+ message, typeResult.imports)
+      PrimitiveTypeResult(AuxType(message.name), typeResult.auxs :+ message)
     })
 
   private val _getSeqAux = mutable.Map[structure.Type, PrimitiveTypeResult]()
@@ -99,9 +104,9 @@ object ProtoNaming {
   def getSeqAux(t: structure.Type): PrimitiveTypeResult =
     _getSeqAux.getOrElseUpdate(t, {
       val typeResult = getPrimitiveType(t)
-      val field = Field("value", 1, Option(typeResult.t))
+      val field = Field("value", 1, Repeated(typeResult.t))
       val message = Message(auxBase :+ ("Seq_" + typeText(t)), MessageFields(Seq(field)))
-      PrimitiveTypeResult(MessageType(message.name), typeResult.auxs :+ message, typeResult.imports)
+      PrimitiveTypeResult(AuxType(message.name), typeResult.auxs :+ message)
     })
 
   private val _getEitherAux = mutable.Map[(structure.Type, structure.Type), PrimitiveTypeResult]()
@@ -115,14 +120,13 @@ object ProtoNaming {
       val fields = MessageOneOf("either", Seq(leftField, rightField))
       val message = Message(auxBase :+ s"Either_${typeText(left)}_${typeText(right)}", fields)
       PrimitiveTypeResult(
-        MessageType(message.name),
+        AuxType(message.name),
         (leftTypeResult.auxs ++ rightTypeResult.auxs) :+ message,
-        leftTypeResult.imports ++ rightTypeResult.imports
       )
     })
 
   def getStandardType(name: String): PrimitiveTypeResult =
-    PrimitiveTypeResult(MessageType(auxBase :+ name), imports = Seq(auxBase :+ name))
+    PrimitiveTypeResult(StandardType(auxBase :+ name))
 
   private val _getPrimitiveType = mutable.Map[structure.Type, PrimitiveTypeResult]()
 
@@ -130,9 +134,9 @@ object ProtoNaming {
     _getPrimitiveType.getOrElseUpdate(t, {
       t match {
         case structure.Type.Node(name) =>
-          PrimitiveTypeResult(getType(name.tailName), imports = Seq(name.tailName.parts))
+          PrimitiveTypeResult(FamilyType(getTypeName(name)))
         case structure.Type.Declaration(name) =>
-          PrimitiveTypeResult(getType(name.tailName), imports = Seq(name.tailName.parts))
+          PrimitiveTypeResult(FamilyType(getTypeName(name)))
         case structure.Type.Ref(_) | structure.Type.MultiRef(_) => getStandardType("Ref")
         case structure.Type.Tuple(args) => getTupleAux(args)
 
@@ -163,8 +167,9 @@ object ProtoNaming {
 
   def getType(t: structure.Type): TypeResult =
     _getType.getOrElseUpdate(t, t match {
-      case structure.Type.Seq(t) => getPrimitiveType(t).result(Repeated(_))
-      case structure.Type.Option(t) => getPrimitiveType(t).result(Option(_))
-      case _ => getPrimitiveType(t).result(Required(_))
+      case structure.Type.Seq(t) => getPrimitiveType(t).result(Repeated)
+      case structure.Type.DeclarationSeq(name) => getPrimitiveType(structure.Type.Declaration(name)).result(Repeated)
+      case structure.Type.Option(t) => getPrimitiveType(t).result(Option)
+      case _ => getPrimitiveType(t).result(Required)
     })
 }

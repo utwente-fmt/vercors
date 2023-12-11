@@ -148,7 +148,7 @@ object DeclaredNode extends NodeKind
  * @param fields The fields that make up the node, not including the blame or origin
  * @param blameType Empty if there is no blame, otherwise the type argument to the blame parameter
  */
-case class NodeDefinition(name: Name, kind: NodeKind, scopes: Seq[Type.Declaration], fields: Seq[(String, Type)], blameType: Option[Name])
+case class NodeDefinition(name: Name, kind: NodeKind, family: Name, scopes: Seq[Type.Declaration], fields: Seq[(String, Type)], blameType: Option[Name])
 
 object NodeDefinition {
   implicit val rw: RW[NodeDefinition] = macroRW

@@ -20,6 +20,8 @@ object Constants {
   val LeftObj: Term = q"_root_.scala.util.Left"
   val RightObj: Term = q"_root_.scala.util.Right"
 
+  val copyByteStringFrom: Term = q"_root_.com.google.protobuf.ByteString.copyFrom"
+
   val Node: Type = typ(RootNodeName)
   val Declaration: Type = typ(DeclarationName)
   val ExprName: structure.Name = structure.Name(Seq("_root_", "vct", "col", "ast", "Expr"))
@@ -49,9 +51,12 @@ object Constants {
   val StructuralDifference = t"_root_.vct.col.compare.StructuralDifference"
   val StructuralDifferenceObj = q"_root_.vct.col.compare.StructuralDifference"
 
+  val NodeMessageView = t"_root_.vct.col.serialize.NodeMessageView"
+
   val OpsPackage = q"vct.col.ast.ops"
   val RewritePackage = q"$OpsPackage.rewrite"
   val ComparePackage = q"$OpsPackage.compare"
   val SubnodesPackage = q"$OpsPackage.subnodes"
+  val SerializePackage = q"$OpsPackage.serialize"
   val DeclarePackage = q"$OpsPackage.declare"
 }

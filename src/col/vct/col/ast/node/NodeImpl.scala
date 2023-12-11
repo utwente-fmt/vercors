@@ -43,6 +43,8 @@ trait NodeImpl[G] extends Show { this: Node[G] =>
 
   def compare[G1](other: Node[G1]): LazyList[CompareResult[G, G1]]
   def rewriteDefault[G1]()(implicit rw: AbstractRewriter[G, G1]): Node[G1]
+  def serialize(): scalapb.GeneratedMessage
+  def serializeFamily(): scalapb.GeneratedMessage
 
   def enterCheckContext(context: CheckContext[G]): CheckContext[G] =
     context
