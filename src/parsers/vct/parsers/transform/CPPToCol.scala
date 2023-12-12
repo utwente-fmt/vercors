@@ -5,7 +5,7 @@ import vct.antlr4.generated.CPPParser._
 import vct.antlr4.generated.CPPParserPatterns._
 import vct.antlr4.generated.LangCPPLexer
 import vct.col.ast._
-import vct.col.ast.`type`.TFloats
+import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.origin._
 import vct.col.ref.{Ref, UnresolvedRef}
 import vct.col.resolve.lang.CPP
@@ -265,8 +265,8 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     PreAssignExpression(target, op match {
       case AssignmentOperator0(_) => value
       case AssignmentOperator1(_) => AmbiguousMult(target, value)
-      case AssignmentOperator2(_) => FloorDiv(target, value)(blame(expr))
-      case AssignmentOperator3(_) => col.Mod(target, value)(blame(expr))
+      case AssignmentOperator2(_) => TruncDiv(target, value)(blame(expr))
+      case AssignmentOperator3(_) => TruncMod(target, value)(blame(expr))
       case AssignmentOperator4(_) => col.AmbiguousPlus(target, value)(blame(valueNode))
       case AssignmentOperator5(_) => col.AmbiguousMinus(target, value)(blame(valueNode))
       case _ => ??(op)
@@ -351,9 +351,9 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case MultiplicativeExpression0(inner) => convert(inner)
     case MultiplicativeExpression1(left, op, right) => op match {
       case MultiplicativeOp0(_) => AmbiguousMult(convert(left), convert(right))
-      case MultiplicativeOp1(_) => FloorDiv(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp2(_) => col.Mod(convert(left), convert(right))(blame(expr))
-      case MultiplicativeOp3(_) => col.Div(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp1(_) => TruncDiv(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp2(_) => TruncMod(convert(left), convert(right))(blame(expr))
+      case MultiplicativeOp3(_) => col.RatDiv(convert(left), convert(right))(blame(expr))
     }
   }
 
@@ -394,10 +394,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case UnaryExpression0(inner) => convert(inner)
     case UnaryExpression1(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousPlus(target, c_const(1))(blame(expr)))(blame(expr))
     case UnaryExpression2(_, arg) =>
       val target = convert(arg)
-      PreAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PreAssignExpression(target, col.AmbiguousMinus(target, c_const(1))(blame(expr)))(blame(expr))
     case UnaryExpression3(UnaryOperator0(_), arg) => AddrOf(convert(arg))
     case UnaryExpression3(UnaryOperator1(_), arg) => DerefPointer(convert(arg))(blame(expr))
     case UnaryExpression3(UnaryOperator2(_), arg) => convert(arg)
@@ -452,10 +452,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
     case PostfixExpression7(_, _, _) => ??(expr)
     case PostfixExpression8(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousPlus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousPlus(target, c_const(1))(blame(expr)))(blame(expr))
     case PostfixExpression9(targetNode, _) =>
       val target = convert(targetNode)
-      PostAssignExpression(target, col.AmbiguousMinus(target, const(1))(blame(expr)))(blame(expr))
+      PostAssignExpression(target, col.AmbiguousMinus(target, c_const(1))(blame(expr)))(blame(expr))
     case PostfixExpression10(e, SpecPostfix0(postfix)) => convert(expr, postfix, convert(e))
     case PostfixExpression11(_, _, _, _, _, _) => ??(expr)
     case PostfixExpression12(_, _) => ??(expr)
@@ -518,7 +518,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
 
   def parseInt(i: String)(implicit o: Origin): Option[Expr[G]] =
     try {
-      Some(IntegerValue(BigInt(i)))
+      Some(CIntegerValue(BigInt(i)))
     } catch {
       case _: NumberFormatException => None
     }
@@ -1103,7 +1103,7 @@ case class CPPToCol[G](override val baseOrigin: Origin,
   }
 
   def convert(implicit root: ParserRuleContext, mulOp: ValMulOpContext, left: Expr[G], right: Expr[G]): Expr[G] = mulOp match {
-    case ValMulOp0(_) => col.Div(left, right)(blame(mulOp))
+    case ValMulOp0(_) => col.RatDiv(left, right)(blame(mulOp))
   }
 
   def convert(implicit root: ParserRuleContext, prependOp: ValPrependOpContext, left: Expr[G], right: Expr[G]): Expr[G] = prependOp match {
@@ -1486,6 +1486,10 @@ case class CPPToCol[G](override val baseOrigin: Origin,
       val allIndices = convert(indices)
       NdPartialIndex(allIndices.init, allIndices.last, convert(dims))
     case ValNdLength(_, _, dims, _) => NdLength(convert(dims))
+    case ValEuclideanDiv(_, _, left, _, right, _) => FloorDiv(convert(left), convert(right))(blame(e))
+    case ValEuclideanMod(_, _, left, _, right, _) => col.Mod(convert(left), convert(right))(blame(e))
+    case ValPow(_, _, left, _, right, _) => SmtlibPow(convert(left), convert(right))
+    case ValIsInt(_, _, arg, _) => SmtlibIsInt(convert(arg))
   }
 
   def convert(implicit e: ValExprPairContext): (Expr[G], Expr[G]) = e match {

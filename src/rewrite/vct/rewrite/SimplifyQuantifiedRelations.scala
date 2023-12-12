@@ -71,7 +71,7 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
             min(left) * max(right),
             min(left) * min(right)
           ).distinct, maximizing)
-        case Div(left, right) =>
+        case RatDiv(left, right) =>
           extremeValue(Seq(
             max(left) /:/ max(right),
             max(left) /:/ min(right),
@@ -79,6 +79,13 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]() extends Rewriter[Pre
             min(left) /:/ min(right)
           ).distinct, maximizing)
         case FloorDiv(left, right) =>
+          extremeValue(Seq(
+            max(left) / max(right),
+            max(left) / min(right),
+            min(left) / max(right),
+            min(left) / min(right)
+          ).distinct, maximizing)
+        case FloatDiv(left, right) =>
           extremeValue(Seq(
             max(left) / max(right),
             max(left) / min(right),

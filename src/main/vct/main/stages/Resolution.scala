@@ -8,7 +8,7 @@ import vct.col.ast._
 import vct.col.check.CheckError
 import vct.col.origin.{FileSpanningOrigin, InlineBipContext, Origin, OriginFilename, ReadableOrigin}
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
-import vct.col.rewrite.Generation
+import vct.col.rewrite.{Generation}
 import vct.col.rewrite.bip.IsolateBipGlue
 import vct.rewrite.lang.{LangSpecificToCol, LangTypesToCol}
 import vct.importer.JavaLibraryLoader

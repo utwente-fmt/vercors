@@ -219,13 +219,26 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
 
     case local: CLocal[Pre] => c.local(local)
     case deref: CStructAccess[Pre] => c.deref(deref)
+    case deref: CStructDeref[Pre] => c.deref(deref)
     case inv: CInvocation[Pre] => c.invocation(inv)
+    case assign: PreAssignExpression[Pre] =>
+      assign.target.t match {
+        case CPrimitiveType(specs) if specs.collectFirst { case CSpecificationType(_: CTStruct[Pre]) => () }.isDefined =>
+          c.assignStruct(assign)
+        case _ => rewriteDefault(assign)
+      }
     case shared: SharedMemSize[Pre] => c.sharedSize(shared)
     case kernel: GpgpuCudaKernelInvocation[Pre] => c.cudaKernelInvocation(kernel)
     case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
     case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
     case cast: CCast[Pre] => c.cast(cast)
+    case sizeof: SizeOf[Pre] => throw LangCToCol.UnsupportedSizeof(sizeof)
 
+    case Perm(a@AmbiguousLocation(expr), perm)
+      if c.getBaseType(expr.t).isInstanceOf[CTStruct[Pre]] =>
+      c.getBaseType(expr.t) match {
+        case structType: CTStruct[Pre] => c.unwrapStructPerm(dispatch(a).asInstanceOf[AmbiguousLocation[Post]], perm, structType, e.o)
+      }
     case local: CPPLocal[Pre] => cpp.local(local)
     case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
     case inv: CPPInvocation[Pre] => cpp.invocation(inv)
@@ -247,6 +260,7 @@ case class LangSpecificToCol[Pre <: Generation](veymontGeneratePermissions: Bool
     case t: JavaTClass[Pre] => java.classType(t)
     case t: CTPointer[Pre] => c.pointerType(t)
     case t: CTArray[Pre] => c.arrayType(t)
+    case t: CTStruct[Pre] => c.structType(t)
     case t: CPPTArray[Pre] => cpp.arrayType(t)
     case other => rewriteDefault(other)
   }

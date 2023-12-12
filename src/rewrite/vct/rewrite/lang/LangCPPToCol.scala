@@ -521,7 +521,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
         implicit val o: Origin = init.o
         val v = new Variable[Post](TArray(t))(varO)
         cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
-        val newArr = NewArray[Post](t, Seq(size), 0)(cta.blame)
+        val newArr = NewArray[Post](t, Seq(size), 0, false)(cta.blame)
         Block(Seq(LocalDecl(v), assignLocal(v.get, newArr)))
       case typ =>
         implicit val o: Origin = init.o
@@ -647,7 +647,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       case "sycl::nd_item::get_global_linear_id" => getGlobalWorkItemLinearId(inv)
       case "sycl::accessor::get_range" if classInstance.isDefined =>
         val rangeIndexFields = currentReplacementsForAccessors(classInstance.get).rangeIndexFields
-        LiteralSeq[Post](TInt(), rangeIndexFields.map(f => Deref[Post](currentThis.get, f.ref)(SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(inv))))
+        LiteralSeq[Post](TCInt(), rangeIndexFields.map(f => Deref[Post](currentThis.get, f.ref)(SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(inv))))
       case "sycl::accessor::get_range" => throw NotApplicable(inv)
       case "sycl::range::get" => (classInstance, args) match {
         case (Some(seq: LiteralSeq[Post]), Seq(arg)) => SeqSubscript(seq, rw.dispatch(arg))(SYCLRequestedRangeIndexOutOfBoundsBlame(seq, arg)) // Range coming from calling get_range() on an accessor
@@ -887,7 +887,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
                   throw Unreachable("Accessor type does not correspond with buffer type!")
                 }
                 val instanceField = new InstanceField[Post](buffer.generatedVar.t, Set())(accO)
-                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(_ => new InstanceField[Post](TInt(), Set())(dimO))
+                val rangeIndexFields = Seq.range(0, buffer.range.dimensions.size).map(_ => new InstanceField[Post](TCInt(), Set())(dimO))
                 accessors.append(SYCLAccessor[Post](buffer, accessMode, instanceField, rangeIndexFields)(accDecl.o))
                 currentAccessorSubstitutions(RefCPPLocalDeclaration(decl, 0)) = accessors.last
 
@@ -948,8 +948,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       val constructorArgs: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty
 
       accessors.foreach(acc => {
-        val newConstructorAccessorArg = new Variable[Post](TArray(TInt()))(acc.instanceField.o)
-        val newConstructorDimensionArgs = acc.rangeIndexFields.map(f => new Variable[Post](TInt())(f.o))
+        val newConstructorAccessorArg = new Variable[Post](TArray(TCInt()))(acc.instanceField.o)
+        val newConstructorDimensionArgs = acc.rangeIndexFields.map(f => new Variable[Post](TCInt())(f.o))
 
         val (basicPermissions, fieldArrayElementsPermission)  = getBasicAccessorPermissions(acc, result)
         constructorPostConditions.append(basicPermissions)
@@ -995,7 +995,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
       Assert(
         foldStar(globalRangeSizes.map(expr => {
           implicit val o: Origin = SYCLRangeDimensionCheckOrigin(expr)
-          GreaterEq(expr, const(0))
+          GreaterEq(expr, c_const(0))
         }))(SYCLRangeDimensionCheckOrigin(range))
       )(SYCLKernelRangeInvalidBlame())(SYCLRangeDimensionCheckOrigin(range))
     case NDRangeKernel(globalRangeSizes, localRangeSizes) =>
@@ -1004,12 +1004,12 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
           implicit val o: Origin = SYCLNDRangeDimensionCheckOrigin(range, Some(i))
           And(
             And(
-              Greater(localRangeSizes(i), const(0)),
-              GreaterEq(globalRangeSizes(i), const(0))
+              Greater(localRangeSizes(i), c_const(0)),
+              GreaterEq(globalRangeSizes(i), c_const(0))
             ),
             Eq(
               Mod(globalRangeSizes(i), localRangeSizes(i))(ImpossibleDivByZeroBlame()),
-              const(0)
+              c_const(0)
             )
           )
         }
@@ -1038,8 +1038,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   // Generate the IterVariables that are passed to the parblock as ranges
   private def createRangeIterVar(scope: KernelScopeLevel, dimension: Int, maxRange: Expr[Post])(implicit o: Origin): IterVariable[Post] = {
-    val variable = new Variable[Post](TInt())(o.where(name = s"${scope.idName}_$dimension"))
-    new IterVariable[Post](variable, IntegerValue(0), maxRange)
+    val variable = new Variable[Post](TCInt())(o.where(name = s"${scope.idName}_$dimension"))
+    new IterVariable[Post](variable, CIntegerValue(0), maxRange)
   }
 
   // Used for generation the contract for the method wrapping the parblocks
@@ -1084,14 +1084,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
 
   private def getSimpleWorkItemId(inv: CPPInvocation[Pre], level: KernelScopeLevel) (implicit o: Origin) : Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
-      Seq((procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(level).map(iterVar => iterVar.variable.get))))
+      Seq((procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TCInt(), currentDimensions(level).map(iterVar => iterVar.variable.get))))
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
   }
 
   private def getSimpleWorkItemRange(inv: CPPInvocation[Pre], level: KernelScopeLevel)(implicit o: Origin): Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
-      Seq((procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(level).map(iterVar => iterVar.to))))
+      Seq((procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TCInt(), currentDimensions(level).map(iterVar => iterVar.to))))
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
   }
@@ -1099,8 +1099,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getSimpleWorkItemLinearId(inv: CPPInvocation[Pre], level: KernelScopeLevel)(implicit o: Origin): Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(level).map (iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(level).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TCInt(), currentDimensions(level).map (iterVar => iterVar.variable.get))),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TCInt(), currentDimensions(level).map(iterVar => iterVar.to)))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
@@ -1109,9 +1109,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getGlobalWorkItemId(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TCInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.variable.get))),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TCInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.variable.get))),
+        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TCInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to)))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
@@ -1120,8 +1120,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getGlobalWorkItemRange(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TCInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to))),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TCInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.to)))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
@@ -1130,10 +1130,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getGlobalWorkItemLinearId(inv: CPPInvocation[Pre])(implicit o: Origin): Expr[Post] = {
     val givenValueLambda: Ref[Post, Procedure[Post]] => Seq[(Ref[Post, Variable[Post]], Expr[Post])] = procedureRef =>
       Seq(
-        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.variable.get))),
-        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to))),
-        (procedureRef.decl.contract.givenArgs(3).ref, LiteralSeq(TInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.to)))
+        (procedureRef.decl.contract.givenArgs.head.ref, LiteralSeq(TCInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.variable.get))),
+        (procedureRef.decl.contract.givenArgs(1).ref, LiteralSeq(TCInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.variable.get))),
+        (procedureRef.decl.contract.givenArgs(2).ref, LiteralSeq(TCInt(), currentDimensions(GroupScope()).map(iterVar => iterVar.to))),
+        (procedureRef.decl.contract.givenArgs(3).ref, LiteralSeq(TCInt(), currentDimensions(LocalScope()).map(iterVar => iterVar.to)))
       )
 
     getSYCLWorkItemIdOrRange(inv, givenValueLambda)
@@ -1177,9 +1177,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
     ).getOrElse(throw SYCLHeaderItemNotFound("predicate", "sycl::buffer::exclusive_hostData_access"))
     val gainExclusiveAccess = Fold(PredicateApply[Post](rw.succ(exclusiveAccessPred), args, WritePerm()))(SYCLBufferConstructionFoldFailedBlame(inv))
 
-    val bufferLockVar = new Variable[Post](TInt())(varNameO.where(prefix = "lock"))
+    val bufferLockVar = new Variable[Post](TCInt())(varNameO.where(prefix = "lock"))
 
-    val result: Statement[Post] = Block(Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess, LocalDecl(bufferLockVar), assignLocal(bufferLockVar.get, const(0))))
+    val result: Statement[Post] = Block(Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess, LocalDecl(bufferLockVar), assignLocal(bufferLockVar.get, c_const(0))))
     syclBufferSuccessor.top.put(v, SYCLBuffer(array, v, range, bufferLockVar))
     (result, v)
   }
@@ -1205,8 +1205,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def getBufferAccess(buffer: SYCLBuffer[Post], mode: SYCLAccessMode[Post], source: CPPLocalDeclaration[Pre]): Statement[Post] = {
     implicit val o: Origin = source.o
     val (maxValue, newValue: Expr[Post]) = mode match {
-      case SYCLReadOnlyAccess() => (Greater(buffer.bufferLockVar.get, const(-1)), Plus(buffer.bufferLockVar.get, const(1)))
-      case SYCLReadWriteAccess() => (Eq(buffer.bufferLockVar.get, const(0)), const(-1))
+      case SYCLReadOnlyAccess() => (Greater(buffer.bufferLockVar.get, c_const(-1)), Plus(buffer.bufferLockVar.get, c_const(1)))
+      case SYCLReadWriteAccess() => (Eq(buffer.bufferLockVar.get, c_const(0)), c_const(-1))
     }
     Block[Post](Seq(
       Assert(maxValue)(SYCLBufferLockBlame(source)),
@@ -1217,8 +1217,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre]) extends L
   private def releaseBufferAccess(acc: SYCLAccessor[Post]): Statement[Post] = {
     implicit val o: Origin = acc.o
     val newValue: Expr[Post] = acc.accessMode match {
-      case SYCLReadOnlyAccess() => Minus(acc.buffer.bufferLockVar.get, const(1))
-      case SYCLReadWriteAccess() => const(0)
+      case SYCLReadOnlyAccess() => Minus(acc.buffer.bufferLockVar.get, c_const(1))
+      case SYCLReadWriteAccess() => c_const(0)
     }
     assignLocal(acc.buffer.bufferLockVar.get, newValue)
   }

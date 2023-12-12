@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
+import vct.result.VerificationError.UserError
 
 /**
  * Collection of general AST building utilities. This is meant to organically grow, so add helpers as you see fit.
@@ -12,6 +13,11 @@ import vct.col.ref.{DirectRef, Ref}
 object AstBuildHelpers {
   val ZERO: BigInt = BigInt(0)
   val ONE: BigInt = BigInt(1)
+
+  case class NumericDividingError(left: Expr[_], right: Expr[_]) extends UserError {
+    override def text: String = f"Expected types to numeric, but got: ${left.t} and ${right.t} for $left and $right"
+    override def code: String = "numericDividingError"
+  }
 
   /**
    * <strong>IMPORTANT</strong>: operators that end with a colon (`:`) are <strong>right-associative</strong>. For example:
@@ -40,8 +46,16 @@ object AstBuildHelpers {
     def +(right: Expr[G])(implicit origin: Origin): Plus[G] = Plus(left, right)
     def -(right: Expr[G])(implicit origin: Origin): Minus[G] = Minus(left, right)
     def *(right: Expr[G])(implicit origin: Origin): Mult[G] = Mult(left, right)
-    def /(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): FloorDiv[G] = FloorDiv(left, right)(blame)
-    def /:/(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Div[G] = Div(left, right)(blame)
+    def /(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]):  DividingExpr[G] = {
+      (left.t, right.t) match {
+        case (_: IntType[G], _: IntType[G]) => FloorDiv(left, right)(blame)
+        case (_: FloatType[G], _: FloatType[G]) => FloatDiv(left, right)(blame)
+        case (_: TRational[G], _: TRational[G]) => RatDiv(left, right)(blame)
+        case (_: TRational[G], _: IntType[G]) => RatDiv(left, right)(blame)
+        case _ => throw NumericDividingError(left, right)
+      }
+    }
+    def /:/(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): RatDiv[G] = RatDiv(left, right)(blame)
     def %(right: Expr[G])(implicit origin: Origin, blame: Blame[DivByZero]): Mod[G] = Mod(left, right)(blame)
 
     def ===(right: Expr[G])(implicit origin: Origin): Eq[G] = Eq(left, right)
@@ -246,6 +260,12 @@ object AstBuildHelpers {
 
   def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] =
     IntegerValue(i)
+
+  def c_const[G](i: Int)(implicit o: Origin): CIntegerValue[G] =
+    CIntegerValue(i)
+
+  def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] =
+    CIntegerValue(i)
 
   def contract[G]
               (blame: Blame[NontrivialUnsatisfiable],
@@ -456,6 +476,11 @@ object AstBuildHelpers {
   def foldStar[G](predicate: AccountedPredicate[G])(implicit o: Origin): Expr[G] = predicate match {
     case UnitAccountedPredicate(pred) => pred
     case SplitAccountedPredicate(left, right) => Star(foldStar(left), foldStar(right))
+  }
+
+  def foldPredicate[G](exprs: Seq[Expr[G]])(implicit o: Origin): AccountedPredicate[G] = exprs match {
+    case x :: Seq() => UnitAccountedPredicate(x)
+    case x :: xs => SplitAccountedPredicate(UnitAccountedPredicate(x), foldPredicate(xs))
   }
 
   def foldOr[G](exprs: Seq[Expr[G]])(implicit o: Origin): Expr[G] =
