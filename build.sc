@@ -730,7 +730,7 @@ object vercors extends Module {
           instantiate[structure.NodeGenerator]("Subnodes")(),
           instantiate[structure.NodeGenerator]("Ops")(),
 
-          // instantiate[structure.NodeGenerator]("Deserialize")(),
+          instantiate[structure.NodeGenerator]("Deserialize")(),
           instantiate[structure.NodeGenerator]("ProtoNode")(),
         )
       }

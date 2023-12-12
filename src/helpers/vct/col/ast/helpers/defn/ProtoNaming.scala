@@ -43,8 +43,13 @@ object ProtoNaming {
   def snake(name: String): String =
     parts(name).mkString("_")
 
+  def camel(name: String): String = {
+    val ps = parts(name)
+    (ps.head +: ps.tail.map(_.capitalize)).mkString("")
+  }
+
   def ucamel(name: String): String =
-    parts(name).map(_.capitalize).mkString("")
+    camel(name).capitalize
 
   def getTypeName(t: structure.Name): Seq[String] =
     t.parts.tail.init.map(snake) :+ ucamel(t.parts.last)

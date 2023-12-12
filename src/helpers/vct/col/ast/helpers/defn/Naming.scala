@@ -1,6 +1,6 @@
 package vct.col.ast.helpers.defn
 
-import vct.col.ast.helpers.defn.Constants.{ComparePackage, DeclarePackage, RefType, RewritePackage, SerializePackage, SubnodesPackage}
+import vct.col.ast.helpers.defn.Constants.{ComparePackage, DeclarePackage, DeserializePackage, RefType, RewritePackage, SerializePackage, SubnodesPackage}
 import vct.col.ast.structure
 import vct.col.ast.structure.NodeDefinition
 
@@ -75,6 +75,12 @@ object Naming {
   def subnodesType(node: NodeDefinition) = t"${packageFromRoot(SubnodesPackage)}.${subnodesTrait(node)}"
   def serializeTrait(node: NodeDefinition) = Type.Name(node.name.base + "Serialize")
   def serializeType(node: NodeDefinition) = t"${packageFromRoot(SerializePackage)}.${serializeTrait(node)}"
+  def deserializeName(node: structure.Name) = "Deserialize" + node.base
+  def deserializeFamilyName(node: structure.Name) = "DeserializeFamily" + node.base
+  def deserializeType(node: NodeDefinition) = Type.Name(deserializeName(node.name))
+  def deserializeObjectName(node: NodeDefinition) = Term.Name(deserializeName(node.name))
+  def deserializeObject(node: structure.Name) = q"${packageFromRoot(DeserializePackage)}.${Term.Name(deserializeName(node))}"
+  def deserializeFamilyObject(name: structure.Name) = q"${packageFromRoot(DeserializePackage)}.${Term.Name(deserializeFamilyName(name))}"
   def declareTrait(node: structure.Name) = Type.Name(node.base + "FamilyDeclare")
   def declareType(node: structure.Name) = t"${packageFromRoot(DeclarePackage)}.${declareTrait(node)}"
 }
