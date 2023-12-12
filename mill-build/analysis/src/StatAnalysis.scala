@@ -60,7 +60,7 @@ case class StatAnalysis(typeLookup: Map[String, Seq[RawStatAnalysis.RawStat]]) {
             | - an implicit parameter `val o: Origin`""".stripMargin
         ).get
       } else {
-        assertPure(paramss.isEmpty, rawStat.ctor, "Node categories must not have parameters in the constructor")
+        assertPure(paramss.isEmpty, rawStat.ctor, "Node categories must not have parameters in the constructor").get
       }
     }
 

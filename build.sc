@@ -977,7 +977,7 @@ object vercors extends Module {
         Seq(
           BuildInfo.Value("name", "VerCors"),
           BuildInfo.Value("version", "2.0.0"),
-          BuildInfo.Value("scalaVersion", scalaVersion()),
+          BuildInfo.Value("scalaVersion", buildInfo.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("currentBranch", gitBranch()),
           BuildInfo.Value("currentCommit", gitCommit()),

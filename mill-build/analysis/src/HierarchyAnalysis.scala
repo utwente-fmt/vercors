@@ -12,9 +12,8 @@ object HierarchyAnalysis {
   case class Hierarchy(declaredNodes: Seq[(Name, Seq[NodeDefinition])], structuralNodes: Seq[(Name, Seq[NodeDefinition])])
 
   def get(decls: Seq[StatAnalysis.Decl]): Result[Hierarchy] = Try("hierarchy") {
-    val rootNode =
-      decls.find(_.name == Constants.RootNodeName)
-        .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
+    decls.find(_.name == Constants.RootNodeName)
+      .getOrElse(fail(s"The node definitions do not contain a definition for the root type of all nodes, `${Constants.RootNodeName.parts.mkString(".")}`."))
 
     val nodeFamily =
       decls.find(_.name == Constants.NodeFamilyName)
