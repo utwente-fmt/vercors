@@ -528,7 +528,7 @@ object viper extends ScalaModule {
         Seq(
           BuildInfo.Value("projectName", "silicon"),
           BuildInfo.Value("projectVersion", "1.1-SNAPSHOT"),
-          BuildInfo.Value("scalaVersion", scalaVersion()),
+          BuildInfo.Value("scalaVersion", silicon.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("gitRevision", silicon.repo.commitish()),
           BuildInfo.Value("gitBranch", "(detached)"),
@@ -977,7 +977,7 @@ object vercors extends Module {
         Seq(
           BuildInfo.Value("name", "VerCors"),
           BuildInfo.Value("version", "2.0.0"),
-          BuildInfo.Value("scalaVersion", buildInfo.scalaVersion()),
+          BuildInfo.Value("scalaVersion", main.scalaVersion()),
           BuildInfo.Value("sbtVersion", "-"),
           BuildInfo.Value("currentBranch", gitBranch()),
           BuildInfo.Value("currentCommit", gitCommit()),
