@@ -3,6 +3,7 @@ package vct.main.modes
 import com.typesafe.scalalogging.LazyLogging
 import vct.options.Options
 import hre.io.{CollectString, Readable}
+import hre.util.Time
 import sun.misc.{Signal, SignalHandler}
 import vct.col.origin.{BlameCollector, TableEntry, VerificationFailure}
 import vct.col.rewrite.bip.BIP
@@ -14,6 +15,8 @@ import vct.parsers.transform.ConstantBlameProvider
 import vct.result.VerificationError
 import viper.api.backend.silicon.SiliconLogListener
 import viper.silicon.logger.SymbExLogger
+
+import java.time.Duration
 
 case object Verify extends LazyLogging {
   def verifyWithSilicon(inputs: Seq[Readable]): Either[VerificationError, (Seq[VerificationFailure], VerificationReport)] = {
@@ -71,7 +74,7 @@ case object Verify extends LazyLogging {
       case _: IllegalArgumentException =>
     }
 
-    val start = System.nanoTime()
+    val start = java.time.Instant.now()
 
     try {
       verifyWithOptions(options, options.inputs) match {
@@ -95,11 +98,7 @@ case object Verify extends LazyLogging {
           EXIT_CODE_VERIFICATION_FAILURE
       }
     } finally {
-      val totalSeconds = (System.nanoTime() - start) / 1000_000_000
-      val hours = totalSeconds / 3600
-      val minutes = (totalSeconds - hours * 3600) / 60
-      val seconds = totalSeconds - hours * 3600 - minutes * 60
-      logger.info(f"Duration $hours%02d:$minutes%02d:$seconds%02d")
+      logger.info(s"Finished verification at ${Time.formatTime()} (duration: ${Time.formatDuration(Duration.between(start, java.time.Instant.now()))})")
     }
   }
 
